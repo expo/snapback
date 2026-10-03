@@ -1353,7 +1353,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
-                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
+                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) {
+                        // @ref LLP 3000.019#3.7 — opt-in qualification observes commit before poll wakeup.
+                        trace::mark("mutation_commit");
+                        shared.durable_committed(&engine);
+                    }
                     let preserved = changes::ack_preserved(&engine, outcome.as_ref().ok());
                     (outcome, response_head(&mut engine), preserved, engine.generation())
                 };

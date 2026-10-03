@@ -1,0 +1,45 @@
+{
+  "cpus": "80-83",
+  "workers": 16,
+  "started": "2026-10-02T23:03:11.085Z",
+  "loadBefore": "24.68 37.90 44.62 39/4905 3263882",
+  "pid": 3263854,
+  "loadGroup": 3263884,
+  "workerPids": [
+    3263896,
+    3263897,
+    3263898,
+    3263899,
+    3263904,
+    3263907,
+    3263910,
+    3263911,
+    3263914,
+    3263915,
+    3263920,
+    3263926,
+    3263946,
+    3263956,
+    3263958,
+    3263975
+  ],
+  "command": [
+    "taskset",
+    "-c",
+    "80-83",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "packages/snapback4/test/live-margin-browser.test.mjs"
+  ],
+  "runs": [
+    {
+      "run": 0,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3263982
+    }
+  ],
+  "ended": "2026-10-02T23:05:25.090Z",
+  "loadAfter": "33.32 36.74 43.31 26/3619 3328104",
+  "reaped": true
+}

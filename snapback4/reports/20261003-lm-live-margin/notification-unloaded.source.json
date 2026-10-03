@@ -1,0 +1,6 @@
+{
+  "file": "/home/ccheever/sb5-lanes/lane-lm/snapback4/packages/snapback4/test/live-propagation-fallback.test.mjs",
+  "sha256": "7bdca0eca4bda037714c4085ec2fae8a18400cb921036cfd6d555685c8768d87",
+  "marker": "    deliver(Response.json(change));\n    await turns(t, () => syncEntered, 'notification starts sync');",
+  "added": "one performance.now before delivery, one diagnostic after the unchanged sync barrier"
+}

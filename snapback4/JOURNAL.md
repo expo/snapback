@@ -82911,3 +82911,82 @@ unchanged 618,040 B cap. The Round 4 report and receipt retain commands,
 source/log hashes and scope. Only local Linux; neither office M1 nor M5.
 Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-10-03 — LM: live margin and settlement investigation
+
+Investigated calibration #29 with standalone package fixtures, without the
+Clique instrument. Two React/IndexedDB devices render 120 competing reads each;
+the measured reads sit last in observation order. Twenty cycles per condition
+cover reaction set/replace/clear, text tombstone/restore and two-device offline
+settlement. The controlled condition adds 16 owned busy loops on CPUs 80–83,
+with the harness and descendants pinned there too. All workers were reaped.
+Removal commit-to-React p95 is 81.21 ms without burners / 323.52 ms with them;
+set is 79.27 / 402.83 ms. No ten-second miss was reproduced. The unchanged
+frozen-clock notification fixture also passes 400 cases, 200 per condition.
+These results do not close either original live-notification or Following ticket.
+
+A deterministic process/wasm paired control reproduces RV-permitted empty
+presentation during two offline sends settling: an unused nullable once column
+makes history preservation unknown; a held replacement crosses the existing
+one-second episode deadline, ReadEpisode withdraws to loading, and Pages exposes
+zero items. Both sends appear exactly once after release. Without the once
+column the previous complete answer remains. This explains an admissible path,
+not the exact unretained calibration frame. No authorization rule, scheduling
+policy, timeout or ceiling changes. LLP 3000.023 remains unchanged. The only
+runtime change is an opt-in mutation_commit qualification stamp before durable
+poll wakeup; LLP 3000.019 §3.7 documents its meaning and clock uncertainty.
+
+Affected clients: 449 passed, 0 failed; whole guide: 110 passed, 0 failed.
+Wasm: 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B cap;
+budget-helper tests 2/2. The complete suite ran once, exit 1:
+`== 2 failure(s) in 1893 s`. Its 25 Rust failures came from LM's target-directory
+symlink being rejected by the private-store guard; 36 witness CLI failures came
+from LM's relocated binary lacking a client-helper path. These are LM setup
+failures, individually classified, not a clean full run. A real local scratch
+directory with shared build-subdirectory links fixes the former setup; the
+existing SNAPBACK4_ACQUIRE_HELPER override fixes the latter (43/43 unchanged
+witness tests pass). Compilation remains in the requested shared Cargo target.
+The original client total is 5,753 passed / 36 failed / 10 skipped; final models
+79/79. Focused Rust correction results and every verbatim check are retained in
+[the LM report](./reports/20261003-lm-live-margin/REPORT.md) and its failure ledger.
+
+Both requested tickets are updated and remain open. No product latency fix or
+before/after-fix improvement is claimed. Local commit only, with the requested
+GPT-6 Astra co-author trailer; nothing pushed or published.
+
+Focused correction: the four Rust targets pass, 234 tests / 0 failures /
+1 ignored, plus the nested allocation probe. The full-suite red is retained.
+Reference validation: `ref-check: ok — 525 LLP docs, 10107 refs in 32478 files, 0 errors, 0 unchecked`. Staged diff whitespace check passes.
+
+## 2026-10-03 — LM round 1: fold both blind reviews
+
+Read Astra and Grok's round-0 reviews in full. Settlement now checks exact row
+identities and bodies in both process/wasm Pages accumulators and both browser
+clients' usePage items and actual DOM lists. Every completed browser settlement
+includes the original row and every prior offline send exactly once. The
+unknown-once control retains rows at 999 ms and withdraws at the specified
+1000 ms deadline before accepting the held replacement; certified preservation
+continues retaining. No runtime retention or scheduling policy changes.
+
+Each live browser mutation requires `started < mutation_commit < encode_start`.
+Posting each same id again must return a replay with a zero stamp. The Following
+ticket now identifies the user mutation's post-commit, pre-wake host time and
+explicitly excludes a later Following delivery transaction.
+
+Mutation tests catch all three gaps: empty Pages items at three rows fail all
+five LM tests; shortening the episode to 999 ms fails both unknown-once cases;
+deleting the server's mutation_commit mark fails the browser test. All injected
+changes were restored; the ordinary native binary was rebuilt and matches the
+unmutated pinned binary. The lane's existing target setup is unchanged.
+
+Affected clients: 450/450 pass (process, wasm, browser), zero skips. The five LM
+tests each pass five consecutive runs, 25/25; browser repetitions use two cycles
+and 120 competing reads per client. Whole guide: 110/110; budget helper: 2/2.
+Fresh wasm: 2,031,329 B raw / 610,519 B gzip, 263 B under the unchanged cap.
+No full suite this round, per the request; round 0's failure record is retained.
+The live-notification and Following tickets remain open. Report and full logs:
+[LM Round 1](./reports/20261003-lm-live-margin/REPORT.md#round-1--both-blind-reviews-folded-2026-10-03).
+Local commit with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
+nothing pushed or published.
+Reference validation: 525 LLP docs, 10108 refs, zero errors or unchecked refs.
+Final diff whitespace check passes.
