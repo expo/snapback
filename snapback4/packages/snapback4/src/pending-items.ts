@@ -86,11 +86,18 @@ export function guardPendingIntents(client: Client, raw: Client, valid: () => bo
   });
 }
 
-/** Online presentation has no persistence/replay authority. Only mounted owners
- * retain payloads; terminal and peer-journal references share the receipt bound.
+/** Online presentation has no persistence/replay authority. Pending references
+ * borrow journal payloads; only terminal copies consume the retention bound.
  * Eviction marks already returned references, never fabricates observation. */
 export class OnlineIntentPresentation {
   private entries = new Map<string, { item: PendingIntent; bytes: number }>();
+  private pending = new Map<string, PendingWrite>();
+  private outstanding = new Set<string>();
+  private ordinals = new Map<string, number>();
+  private nextOrdinal = 0;
+  // Observed/evicted presentations stay retired while custody is outstanding,
+  // including failed receipt saves. These markers carry no argument payload.
+  private retired = new Set<string>();
   private owners = new Set<(write: PendingWrite) => boolean>();
   private bytes = 0;
   private scope: unknown;
@@ -100,52 +107,81 @@ export class OnlineIntentPresentation {
     if (scope !== this.scope || scope == null) { this.scope = scope; this.clear(); }
     return scope != null;
   }
-  clear() { this.entries.clear(); this.bytes = 0; }
+  clear() { this.entries.clear(); this.pending.clear(); this.outstanding.clear(); this.ordinals.clear(); this.retired.clear(); this.nextOrdinal = 0; this.bytes = 0; }
   private owns(write: PendingWrite) {
     return [...this.owners].some(select => { try { return select(write); } catch { return false; } });
   }
   private remove(id: string, evicted = false) {
     const entry = this.entries.get(id);
     if (!entry) return;
-    if (evicted) entry.item.phase = "evicted";
+    if (evicted) { entry.item.phase = "evicted"; if (this.outstanding.has(id)) this.retired.add(id); }
     this.bytes -= entry.bytes; this.entries.delete(id);
+    if (!this.outstanding.has(id)) this.ordinals.delete(id);
   }
   retain = (select: (write: PendingWrite) => boolean) => {
     this.owners.add(select);
     return () => { this.owners.delete(select); this.prune(); };
   };
-  private prune() { for (const [id, { item }] of this.entries) if (!this.owns(item.write)) this.remove(id); }
-  capture(write: PendingWrite) {
-    if (!this.check() || !this.owns(write) || this.entries.has(write.id)) return;
-    const json = JSON.stringify(write), bytes = new TextEncoder().encode(json).length;
-    // A single oversized argument cannot grow the presentation without bound.
-    if (bytes > 1024 * 1024) return;
-    const freeze = (value: any): any => { if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
-    const item = pendingIntent(freeze(JSON.parse(json)));
-    this.entries.set(write.id, { item, bytes }); this.bytes += bytes;
-    while (this.entries.size > WRITE_HISTORY_LIMIT || this.bytes > 1024 * 1024) this.remove(this.entries.keys().next().value!, true);
+  private prune() {
+    for (const [id, { item }] of this.entries) if (!this.owns(item.write)) this.remove(id);
+    for (const [id, write] of this.pending) if (!this.owns(write)) this.pending.delete(id);
   }
-  settled(write: Write, entry?: PendingWrite) {
+  admit(id: string) {
+    if (!this.check()) return;
+    this.outstanding.add(id);
+    if (!this.ordinals.has(id)) this.ordinals.set(id, this.nextOrdinal++);
+  }
+  settled(write: Write, entry = this.pending.get(write.id)) {
     if (!this.check()) return;
     if (write.state === "failed") this.remove(write.id);
-    else if (write.state === "sent") {
-      if (entry) this.capture(entry);
-      const stored = this.entries.get(write.id);
-      if (stored) {
-        stored.item.phase = "settling";
-        stored.item.receipt = Object.freeze({ state: "sent", id: write.id, seq: write.seq, replayed: true });
+    else if (write.state === "sent" && !this.retired.has(write.id) && !this.entries.has(write.id) && entry && this.owns(entry)) {
+      if (!this.ordinals.has(write.id)) this.ordinals.set(write.id, this.nextOrdinal++);
+      const json = JSON.stringify(entry), bytes = new TextEncoder().encode(json).length;
+      // Copy once, only at receipt transition. Backlogs never evict a success.
+      if (bytes <= 1024 * 1024) {
+        const freeze = (value: any): any => { if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
+        const item: PendingIntent = { write: freeze(JSON.parse(json)), phase: "settling",
+          receipt: Object.freeze({ state: "sent", id: write.id, seq: write.seq, replayed: true }) };
+        this.entries.set(write.id, { item, bytes }); this.bytes += bytes;
+        while (this.entries.size > WRITE_HISTORY_LIMIT || this.bytes > 1024 * 1024) this.remove(this.entries.keys().next().value!, true);
       }
     }
+    if (write.state !== "pending") this.pending.delete(write.id);
+  }
+  // @ref LLP 3000.019#3.3.1 — one admission ordinal survives the receipt
+  // transition; peer settlement cannot move newer intent ahead of older custody.
+  sync(pending: readonly PendingWrite[], receipts: readonly Write[] = []): readonly PendingIntent[] {
+    if (!this.check()) return [];
+    const outstanding = this.outstanding = new Set(pending.map(write => write.id));
+    for (const write of pending) {
+      if (!this.ordinals.has(write.id)) this.ordinals.set(write.id, this.nextOrdinal++);
+      if (!this.retired.has(write.id) && !this.entries.has(write.id) && this.owns(write)) this.pending.set(write.id, write);
+    }
+    // Previous journal references remain available until peer receipts consume
+    // them. They are never copied just to keep a still-pending row around.
+    for (const receipt of receipts) this.settled(receipt);
+    for (const id of this.pending.keys()) if (!outstanding.has(id)) this.pending.delete(id);
+    for (const id of this.retired) if (!outstanding.has(id)) this.retired.delete(id);
+    this.prune();
+    for (const id of this.ordinals.keys()) if (!outstanding.has(id) && !this.entries.has(id)) this.ordinals.delete(id);
+    const terminal = new Set(receipts.filter(write => write.state !== "pending").map(write => write.id));
+    return [...this.entries.values()].map(entry => entry.item)
+      .concat(pending.filter(write => !this.entries.has(write.id) && !terminal.has(write.id) && !this.retired.has(write.id)).map(write => pendingIntent(write)))
+      .sort((a, b) => this.ordinals.get(a.write.id)! - this.ordinals.get(b.write.id)!);
+  }
+  release(id: string) {
+    this.outstanding.delete(id); this.pending.delete(id); this.retired.delete(id);
+    if (!this.entries.has(id)) this.ordinals.delete(id);
   }
   items(): readonly PendingIntent[] {
     if (!this.check()) return [];
     this.prune();
-    return [...this.entries.values()].map(entry => entry.item).filter(item => item.phase === "settling");
+    return [...this.entries.values()].map(entry => entry.item);
   }
   observed(ids: readonly string[]) {
     if (!this.check()) return;
     let changed = false;
-    for (const id of ids) { changed = this.entries.has(id) || changed; this.remove(id); }
+    for (const id of ids) if (this.entries.has(id)) { changed = true; if (this.outstanding.has(id)) this.retired.add(id); this.remove(id); this.pending.delete(id); }
     if (changed) this.notify();
   }
 }

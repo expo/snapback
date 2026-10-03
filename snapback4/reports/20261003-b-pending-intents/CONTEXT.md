@@ -64,3 +64,40 @@ closed ticket already delegate lifetime details to §3.3.1; their preserved
 pre-implementation estimates remain marked historical. The pilot remains a
 local-device app; it makes no online read-evidence or code-saving claim. No
 broken @ref or new design document is needed. Hand-off: none.
+
+
+## Round 2 context and affected-scope audit
+
+Scope: raw-client queued arguments, online presentation retention/order, receipt
+save failures, and React authorized-read evidence. Both full round-1 reviews
+were read, including Astra's original peer/resurrection probes. `llp-orient`
+was read from `/home/ccheever/projects/exact/.agents/skills/llp-orient/SKILL.md`;
+the local skill symlink remains unavailable. No installation or delegation.
+
+Governing working-set documents and active constraints remain LLP
+3000.019#3.3.1 (sole custody, presentation-only copies, FIFO and observation),
+3000.023#3.4 and #3.6 (account/store/facade withdrawal), 3000.022#14
+(arguments convey no media/delivery authority), and 3000.032#4.2 (pilot).
+The paved client guide and CLIENT-AND-OPERATIONS were read before editing.
+
+Rationale/risk: journal payloads must remain available for peer receipt
+transitions without filling the terminal-only cap. Pending references borrow
+journal data; payload copying occurs once at terminal settlement. The pending
+queue keeps its existing custody bounds, so a full read's byte count includes
+pending payloads plus the capped terminal pool. Admission ordinals are internal
+presentation metadata and never become row ordinals. Observation markers carry
+no payload and last only for outstanding custody/scope. A saved read's private
+currentness check must survive a real reset, not merely scope equality.
+
+Audit: raw pendingWrites, raw late receipt capture, custody, guarded facades,
+local/device presentation, mock and shared React snapshots were inspected.
+Raw principal tags and permanent custody retirement close the viewer-change
+paths; local/device reads retain owner-scoped custody and async scope/revision
+checks; guards recheck authority before and after reading; the mock has one
+configured viewer and closes on sign-out. All built-in clients register their
+presentation sources. No fallback is used by a built-in client.
+
+LLP 3000.019 and the client reference now describe terminal-only bounds,
+admission ordering and receipt-save retirement; the short guide and emitted
+hook contracts still agree. No contract, journal format, runtime meter, replay
+protocol or wasm engine change. Pilot limits remain explicit. Hand-off: none.

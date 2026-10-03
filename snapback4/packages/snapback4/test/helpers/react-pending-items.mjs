@@ -1,8 +1,9 @@
 export const pendingItemsHarness = `
-async function intentClient() {
+async function intentClient(session) {
   let seq = 0, value = false, held;
-  const client = createClient({ url: "https://react-intents.invalid", persona: "alice", fetch: async (input) => {
+  const client = createClient({ url: "https://react-intents.invalid", ...(session ? { session } : { persona: "alice" }), fetch: async (input) => {
     const path = new URL(input).pathname;
+    if (path === "/auth/refresh") return Response.json({ ok: true, session: { ...session, token: "rotated" } });
     if (path === "/probe") return Response.json({ ok: true, store_id: "A", seq });
     if (path === "/changes") return new Promise(() => {});
     if (path === "/m/write") return held ? held.promise : Response.json({ state: "sent", seq: ++seq });
@@ -89,6 +90,30 @@ cases["pending state value equality without covering read evidence cannot retire
     f.advance(false, 2); read = await client.query(query, {}); await render(h(Screen), client);
     await act(async () => { await client.pendingWrites(); });
     check(latest.value === false && !latest.intent, "newer authorized false wins");
+  } finally { await unmount(); await client.close(); }
+};
+cases["round2: pending state rejects a saved covering read after a real bearer reset"] = async () => {
+  const session = { token: "original", principal: "alice", kind: "password", expiresAt: Date.now() + 7 * 86400000 };
+  const f = await intentClient(session), client = f.client; let read = await client.query(query, {}), latest;
+  function Screen() {
+    latest = usePendingState(mutation, { scope: w => w.args.conversation === "a", current: read.data, read, value: a => a.set });
+    return h("div", null, String(latest.value));
+  }
+  try {
+    await mount(h(Screen), client);
+    await act(async () => { check((await client.mutate(mutation, intentArgs)).state === "sent", "fixture write succeeded"); });
+    await waitIntent(() => latest.intent?.phase === "settling");
+    f.advance(false, 2);
+    const saved = await client.query(query, {}), scope = pendingIntentAccess(client).scope();
+    check(saved.fresh && !saved.revalidating && saved.data === false, "retained real authorized read covers receipt 1");
+    await act(async () => { check((await client.refreshSession()).ok, "real bearer rotation succeeds"); });
+    check(pendingIntentAccess(client).scope() === scope, "same principal/store leaves presentation scope unchanged");
+    read = saved; await render(h(Screen), client);
+    await act(async () => { await client.pendingWrites(); });
+    check(latest.intent?.phase === "settling" && latest.value === true, "invalidated covering read must not retire success");
+    read = await client.query(query, {}); await render(h(Screen), client);
+    await waitIntent(() => !latest.intent);
+    check(latest.value === false, "fresh replacement covering read retires success");
   } finally { await unmount(); await client.close(); }
 };
 `;

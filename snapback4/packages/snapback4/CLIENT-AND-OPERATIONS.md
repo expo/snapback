@@ -1036,9 +1036,14 @@ restart and retires only when existing observed-write evidence retires custody,
 or a terminal refusal arrives. A predicted row never retires an intent.
 The online tier retains matching arguments only while a presentation hook is
 mounted, including shared-journal intents settled by a peer. A confirmed matching
-row retires its reference; prediction does not. Retention is at most 256 entries
-and 1 MiB of serialized write payloads, evicting oldest first; larger individual
-payloads are not retained. Previously returned intent references become `evicted`
+row retires its reference; prediction does not. Terminal retention is at most
+256 entries and 1 MiB of serialized write payloads, evicting oldest settlement
+first; pending journal rows cannot evict successes. Reads contain custody
+payloads plus this bounded terminal pool. Arguments are copied once at the
+receipt transition. Combined pending/settling items keep admission order.
+Observed references cannot return during failed receipt-save retries; their
+payload-free retirement markers last until custody or scope retirement. A payload
+larger than 1 MiB is not retained after settlement. Previously returned intent references become `evicted`
 when the bound drops them, and later reads omit them. Eviction is not observation.
 Unmounting releases unowned arguments. Late mounting recovers pending journal
 entries, not terminal arguments already released. Nothing gains replay authority

@@ -157,7 +157,10 @@ export function instrument(destination) {
 // WriteHistory.presentationReceipts reads without keep/recovery or retention
 // refresh. These paths have no dispatch, admission, settlement or persistence
 // authority; pending-items tests cover read failure/retirement and scope races.
-// Delivery scopes and every classified custody await above are unchanged.
+// Round 2: the existing app-online settle/change callback also synchronizes
+// presentation references and admission order before copying terminal arguments.
+// Those synchronous operations change the enclosing await's text, without adding
+// I/O, custody writes or a new await. Delivery scopes/recipes remain unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

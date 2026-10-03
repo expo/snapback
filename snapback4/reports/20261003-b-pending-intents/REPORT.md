@@ -324,3 +324,139 @@ and receipt lookup. Online set-state retirement needs the actual authorized
 read that supplied its current value; unrelated pages or value equality are not
 evidence. These limits are documented rather than hidden by timers or new
 custody. Nothing was pushed or published.
+
+
+## Round 2 — both round-1 reviews folded (2026-10-03)
+
+Based on `6cd62525b405dac9f707a2c4a52550ad8181265b`. Read both complete
+reviews, `~/sb5-lanes/reviews/b-r1.astra.md` and `b-r1.grok.md`, plus Astra's
+original peer-order and receipt-save probes. Fixed the raw viewer disclosure
+first. This section supersedes Round 1's shared pending/terminal retention pool
+and terminal-before-pending merge. No push, publication or full-suite run.
+
+### Fixes and baseline evidence
+
+| Finding | Correction and permanent regression |
+| --- | --- |
+| Grok 3: raw viewer-change disclosure | Raw queue entries carry their admitting principal. A principal retirement permanently fences those entries in `pendingWrites`, presentation reads and late receipt capture. The regression starts with a real Alice session, exposes a held send, installs Bob through a query response, then checks the direct list, mounted snapshot, ordinary pending list, late receipt and return to Alice. Token-only initial identification still adopts its queue; a separate positive control enforces that. |
+| Audit extension: custody viewer round trip | Direct `onlineCustody` had a second path: Alice → Bob → Alice could reactivate its original journal presentation. The custody lifetime now pauses on the first viewer change. A separate regression fails on the reviewed commit. The account's durable journal is unchanged; a new authenticated lifetime retains existing recovery rules. |
+| Grok 1: pending rows consumed the terminal cap | Pending journal payloads are borrowed outside the terminal pool. Only a new successful receipt copies/freezes arguments and can evict an older settlement. Repeated reads and settlement retries reuse the same terminal reference. One success plus 256 held sends, and one success plus twelve held 100 KiB sends, both preserve that exact successful card. |
+| Astra 1 / Grok 2: admission order | Each id receives one internal admission ordinal on first custody sight. A settlement callback sees the journal's order before promoting its own entry; the combined pending/settling output sorts by that order before `pendingState`. Two clients share a journal: A's `set(false)` is held, B's `set(true)` succeeds; selection is true and order is A, B. A's later receipt also leaves order and selection unchanged. |
+| Astra 2: observation resurrection after receipt-save failure | Payload-free retirement markers suppress both journal recapture and settlement retries while custody remains outstanding. They survive unmount/remount and release after durable custody retirement or scope retirement. The original failed-save probe is extended through repeated reads, same-id mutation/receipt retries, remount and eventual storage repair; the observed card never returns. |
+| Astra 3: saved read invalidation untested | The actual React harness saves an authorized covering read at sequence 2, rotates the bearer through `refreshSession()`, and then supplies that saved read to `usePendingState`. The success at sequence 1 remains settling despite unchanged principal/store scope. A fresh replacement read retires it. Removing only `evidence.current()` now fails this assertion. |
+
+`round2/round1-baseline.mjs` loads the exact three reviewed implementation files
+from git without modifying the working tree; Node uses transpiled originals and
+Vite uses the original TypeScript. With the final seven Node cases, **six fail
+on 6cd62525b4** at their intended assertions; initial token-only identification
+passes as the preservation control (`baseline-exact-final.log.gz`). Baseline
+and intermediate reproductions are retained, including the disclosure-first run.
+
+The read-evidence finding was a missing assertion, not missing product code:
+unmutated round 1 already contains `evidence.current()`. The new React case
+passes against that baseline and rejects the precise reviewer mutation on both
+round 1 and final source. The two mutation logs each fail only the new case
+and its parent suite, with `invalidated covering read must not retire success`.
+The preload files are retained for reproduction. They change loaded temporary
+source only; no qualified source file was mutated.
+
+### Bounds and presentation audit
+
+The cap remains **256 terminal references / 1 MiB serialized terminal write
+payloads**. Pending custody remains complete and follows its existing journal
+bounds; this change does not impose a new 1 MiB cap on pending arguments.
+The backlog probes read 34,522 B (256 small pending writes) and 1,230,530 B
+(twelve 100 KiB writes), including the same 217 B terminal card in each.
+Assertions bound each full read to pending payload bytes plus bounded terminal
+and per-item metadata, with no duplicate ids or terminal recopy. The earlier
+1,000-completion count/byte/ownership regressions remain green five times.
+Pending payload references release when custody disappears or matching owners
+unmount. Admission metadata lasts only with custody or retained terminal entries;
+observation markers carry no arguments and retire with custody/scope.
+
+Audited every built-in presentation source: raw transport, online custody,
+local/device, mock, facade guards and the shared React source. Raw ordinary
+pending reads and late receipt capture use the same principal fence. Custody
+permanently retires on a viewer change. Local/device sources read owner-scoped
+custody and check scope/revision across each await. Facades check authority
+before reading and recheck afterward. The mock has one configured viewer and
+closes at sign-out. React snapshots synchronously withdraw on scope loss and
+reject superseded async results. Existing account, store replacement/restoration,
+principal-changing refresh and createApp fences are covered by the affected
+client run. LLP 3000.019 §3.3.1 and CLIENT-AND-OPERATIONS describe the corrected
+bounds, order and retirement. No Client contract, journal format, server/device
+meter, delivery accounting, media authority, replay or wasm engine change.
+
+### Verification
+
+All commands use the requested PATH and
+`CARGO_TARGET_DIR=/home/ccheever/sb5-lanes/target CARGO_INCREMENTAL=0`, with
+Node 24.13.1. Process fixtures use the retained lane-private
+`SNAPBACK4_BIN=$PWD/target/lane-b-bin/snapback4`. The final locally rebuilt
+package includes the wasm artifact measured below. Native guide commands add
+`CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu CARGO_BUILD_JOBS=6`; they wait for
+other users of the shared Cargo build lock rather than modifying their builds.
+
+| Check | Result | Evidence under `round2/` |
+| --- | --- | --- |
+| Every new regression, all round-0/round-1 pending-intent process/wasm regressions, whole React harness | **91 passed, zero failures/skips, in each of five runs** (455 executions) | `repeat-1.log.gz` through `repeat-5.log.gz`, `repeats.txt` |
+| Affected online/process/wasm client tests | **363 passed, zero failures/skips** | `affected-final.log.gz` |
+| Package build and typecheck | pass | `build-final.log.gz`, `typecheck.log.gz` |
+| Read declarations and README/client examples | **14 passed** | `types-examples.log.gz` |
+| Package-without-dist and generated ephemeral type tests | **2 passed** | `remaining-types.log.gz` |
+| Delivery-await boundary and classification | **1 passed**; same await count and delivery recipes | `delivery-boundary-final.log.gz` |
+| Whole guide | **110 passed** | `guide.log.gz` |
+| Docs budget / named first-screen guide check | **300/300 lines; 1 passed** | `docs-budget-final.log.gz` |
+| Wasm build and budget | **2,030,224 B raw / 610,085 B gzip**, unchanged **610,782 B** cap, **697 B headroom** | `wasm.log.gz` |
+| Actual Cal29 pilot typecheck and measurements | pass; no specimen changes | `pilot-typecheck.log.gz`, `pilot-measurements.json` |
+| Reference/metadata audit and whitespace | **526 LLPs, 10,109 refs; zero errors/unchecked; whitespace clean** | `references-final.log.gz`, `diff-check.log.gz` |
+
+Repeated command from `snapback4/`:
+
+```sh
+node --test --test-concurrency=3 \
+  packages/snapback4/test/pending-items-round2.test.mjs \
+  packages/snapback4/test/pending-items-round1.test.mjs \
+  packages/snapback4/test/pending-items.test.mjs \
+  packages/snapback4/test/react.test.mjs
+```
+
+The affected command is Round 1's same 21-file list and concurrency 4. The guide
+command is `cargo test -p snapback4-lang --test guide`; the wasm command is
+`bash scripts/build-wasm.sh`. This is affected qualification, with no claim of
+a new complete-suite receipt. Shared-target wasm changes relative to Round 1
+are not a paired feature-size attribution. `source-hashes.json` records product,
+test, type, private CLI and generated wasm artifacts.
+
+### Pilot rerun
+
+Reran `bun run typecheck` in the actual `/tmp/lane-b-cal29` app with its package
+link pointing to this lane's rebuilt client. Verified both app files byte-for-byte
+against the retained rewritten specimens and recomputed excerpt/whole-file
+measurements and hashes. B1/B2/B3 remain respectively 42 → 152, 238 → 318 and
+281 → 283 B, each one physical line. Total selected excerpts remain **3 lines,
+561 → 753 B (+192 B)**; whole files remain **+204 B, zero line savings**.
+There is no builder-score claim. This is the local-device pilot; online
+read-evidence behavior is qualified by the actual React cases above.
+
+### Failure classification
+
+Intentional controls: baseline Node failures, the audit's real-principal
+counterexample, and both disabled-currentness failures are expected evidence.
+The first custody audit fixture used persona `dev:alice` but returned `alice`,
+so it did not exercise a true round trip. Corrected it to a real Alice session;
+that version fails the reviewed code and passes the fix.
+
+Development failures were ours: the first presentation refactor removed the
+`items()` scope-check method still called by routine resets (one TypeScript
+error and one focused failure); restoring it fixed both. The first affected
+run passed 347 and failed 16 because minimal receipt/retirement test transports
+omitted the Client's `onViewer` method newly subscribed by custody. Updated
+those fixtures with their inert viewer subscription; product checks are not
+weakened. The delivery boundary seal changed because its existing `await
+change(...)` contains the revised synchronous settlement callback; recorded the
+classification and refreshed that one digest, without a new await or recipe.
+One docs-budget command used a nonexistent filename; the correct existing
+`scripts/docs-budget.mjs` invocation is retained separately. Earlier logs remain
+available, and only the final evidence table qualifies the result. No final
+ordinary test failure is waived as inherited or environmental.

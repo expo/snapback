@@ -73,10 +73,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     if (first) notify(write);
     report(error);
   };
+  const journalEntries = (journal: Journal) => journal.pending.map(intent => {
+    const hold = unsavedHolds.get(intent.id);
+    const reason = (hold?.revision === intent.statusRevision ? hold?.reason : undefined) ?? intent.holdReason;
+    return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
+      ...(reason ? { state: "held" as const, reason } : { state: intent.dispatched ? "sent" as const : "queued" as const }) };
+  });
   const settle = async (write: Terminal) => {
     await change(journal => {
       const intent = journal.pending.find(intent => intent.id === write.id);
       if (!intent) return false;
+      presentation.sync(journalEntries(journal), journal.receipts);
       presentation.settled(write, { id: intent.id, op: intent.op, args: intent.args, predicted: [], state: intent.dispatched ? "sent" : "queued" });
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
@@ -84,6 +91,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
+    presentation.release(write.id);
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
     if (unpersisted.delete(write.id)) ids.finish(write.id);
@@ -280,25 +288,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     if (before == null) return [];
     const journal = await locked(key, read);
     if (before !== intentScope() || revision !== rawIntents.revision?.()) return [];
-    const entries = journal.pending.map(intent => {
-      const hold = unsavedHolds.get(intent.id);
-      const reason = (hold?.revision === intent.statusRevision ? hold?.reason : undefined) ?? intent.holdReason;
-      return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
-        ...(reason ? { state: "held" as const, reason } : { state: intent.dispatched ? "sent" as const : "queued" as const }) };
-    });
-    // A mounted peer keeps the arguments it actually saw in shared custody.
-    // Receipt-only transitions (including another dispatch owner's) settle that
-    // same presentation; they do not add arguments to the durable journal.
-    for (const entry of entries) presentation.capture(entry);
-    for (const receipt of [...journal.receipts, ...unpersisted.values()]) presentation.settled(receipt);
-    const terminal = presentation.items(), settled = new Set(terminal.map(item => item.write.id));
-    const listed = new Set([...settled, ...entries.map(entry => entry.id)]);
-    return [...terminal, ...entries.filter(write => !settled.has(write.id) && !unpersisted.has(write.id)).map(write => pendingIntent(write)),
-      ...identification.pending().filter(write => !listed.has(write.id)).map(write => pendingIntent(write, true))];
+    const entries = journalEntries(journal);
+    const items = presentation.sync(entries, [...journal.receipts, ...unpersisted.values()]);
+    const listed = new Set([...items.map(item => item.write.id), ...entries.map(entry => entry.id), ...journal.receipts.map(write => write.id)]);
+    return [...items, ...identification.pending().filter(write => !listed.has(write.id)).map(write => pendingIntent(write, true))];
   } });
   registerIntentObserver(client, ids => { if (intentScope() != null) presentation.observed(ids); });
   inheritClose(client, raw);
-  function pause() { identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  // @ref LLP 3000.023#3.4 — this custody lifetime cannot reactivate after an
+  // account flip, even if a later response names its original viewer again.
+  const stopViewer = raw.onViewer(next => { if (next !== viewer) pause(); });
+  function pause() { identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopViewer(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;

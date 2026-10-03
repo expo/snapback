@@ -82781,3 +82781,43 @@ local-device code does not measure online read-evidence plumbing. The Round 1
 report records baseline failures, mutation controls, development fixture/type
 errors and all final checks. Local commit with the requested Astra co-author
 trailer; nothing pushed or published.
+
+
+## 2026-10-03 — B round 2: principal fences and terminal-only intent retention
+
+Folded both round-1 NOT READY reviews of 6cd62525b4. Fixed the raw-client
+viewer disclosure first: queued arguments carry their admitting principal and
+retire permanently on account change, including late receipt capture. Initial
+token-only identification still adopts its own queue. The presentation audit
+also found direct online custody reactivating across Alice → Bob → Alice;
+that custody lifetime now pauses at its first viewer change.
+
+Pending journal rows borrow their payloads outside the 256-reference / 1 MiB
+terminal pool, so pending backlogs cannot evict a successful card. Arguments
+copy/freeze once at the successful receipt transition. Each id keeps one
+admission ordinal across pending/settling output; a newer settled toggle wins
+over an older held peer write. Payload-free observation markers block recapture
+and settlement retries while failed receipt persistence leaves custody
+outstanding, and release with custody or scope retirement. No new journal
+format, replay authority, contract, engine or meter change.
+
+Six permanent Node regressions fail on exact round-1 source, including the
+additional custody round trip; the token-only preservation control passes.
+The real React saved-read test retains covering sequence evidence, rotates the
+bearer, and refuses to retire success with the invalidated read. Removing only
+`evidence.current()` fails that assertion on both baseline and final source.
+All 91 focused process/wasm/React tests pass five times (455 executions), all
+363 affected clients pass, the whole guide passes 110, and type/declaration/
+example, delivery-boundary and docs-budget checks pass. Development errors
+and intentional negative controls are retained and classified in the report;
+no final ordinary failure is waived. No complete suite was requested or run.
+
+Wasm is 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B
+cap. Shared-target differences are not paired feature-size attribution. The
+actual Cal29 pilot typechecks and has unchanged measurements: zero lines saved,
+561 → 753 B selected (+192 B), +204 B whole files, no builder-score claim.
+LLP 3000.019 §3.3.1 and the client reference state the corrected rules. The
+[Round 2 report](./reports/20261003-b-pending-intents/REPORT.md#round-2--both-round-1-reviews-folded-2026-10-03)
+retains reproductions, mutation loaders and qualification evidence. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.

@@ -15,7 +15,7 @@ const sent = n => ({ state: 'sent', id: id(n), seq: n, replayed: true });
 const intent = n => ({ owner: viewer, id: id(n), op: op.name, args: {} });
 function transport(result) {
   const posts = [];
-  const raw = { viewer: () => viewer, onWrite: () => () => {}, close: async () => {}, write: async () => undefined,
+  const raw = { viewer: () => viewer, onViewer: () => () => {}, onWrite: () => () => {}, close: async () => {}, write: async () => undefined,
     async mutate(_op, _args, { id }) { posts.push(id); return result(id); } };
   // This unit transport isolates receipt retirement; real dispatch binding is
   // covered by online-intent-store and the independent online model.
