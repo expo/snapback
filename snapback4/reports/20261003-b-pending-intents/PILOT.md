@@ -40,3 +40,17 @@ two-file rewrite grows 204 bytes. This helper did not meet the proposal’s init
 100–250-byte reduction target. Its demonstrated gain is shared, tested behavior
 for the receipt/observation race and the omitted media path. A future cold-builder
 comparison is needed to establish any improvement in builder experience.
+
+
+## Round 1 rerun
+
+Reran the same real local-device Cal29 files against this lane's rebuilt client
+and verified that both temporary app files match the tracked specimens byte for
+byte. `bun run typecheck` passes. Fresh excerpt/file hashes and counts are in
+`round1/pilot-measurements.json`; the log is `round1/pilot-typecheck.log.gz`.
+B1 remains 42 → 152 B, B2 238 → 318 B, B3 281 → 283 B, each one physical line.
+Together: 3 lines / 561 → 753 B (+192 B); whole files +204 B. Relative to round 0,
+the specimen line and byte delta is zero. No saving or score improvement is
+claimed. Local observed-write retirement still owns the pilot's toggle lifetime;
+this pilot does not measure the optional authorized-read plumbing required for
+online toggle retirement in round 1. The React online regressions cover that path.

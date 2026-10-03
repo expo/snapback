@@ -197,3 +197,130 @@ ref-check: ok — 526 LLP docs, 10106 refs in 32516 files, 0 errors, 0 unchecked
 # git diff --check
 # exit 0; no output
 ```
+
+
+## Round 1 — both blind reviews folded (2026-10-03)
+
+Based on round 0 `80ec6b66dd`; read both `b-r0.astra.md` and `b-r0.grok.md`
+in full. This section supersedes round 0's unbounded online-lifetime limitation
+and its credential/generation presentation fence. All requested fixes are in
+the local change; no push or publication. No full suite was run this round.
+
+### Fixes and reproductions
+
+| Finding | Fix and regression evidence |
+| --- | --- |
+| Astra High / Grok Medium retention | Only mounted matching operation/resource owners retain online arguments. Last unmount and resource changes release them. The pool is capped at the existing receipt-history limit, 256, plus 1 MiB of serialized write payloads; oldest entries are removed. Payloads are copied/frozen once, with reference reuse on reads. Previously returned references become `evicted`, while subsequent reads omit them. Eviction never calls observation and no timer was added. 1,000 unowned completed writes: **0 entries / 2 serialized bytes**. The owned 1 KiB-payload case keeps **256 / 316,674 B**, then larger payloads exercise the independent byte cap. Both original count probes fail on round 0. |
+| Grok High routine resets | Presentation scope is principal/store. Read revision separately fences bearer/schema/generation resets. Success text survives `refreshSession()` and a real `/changes` generation bump; an old in-flight query cannot publish. Local presentation also uses principal/store with its own credential/incarnation read revision. The online test fails on round 0 at bearer refresh; the exact round-0 local reader fails the new delayed-read test. LLP 3000.019 §3.3.1 and Client and operations now distinguish watch reset from intent retirement. |
+| Astra Medium stale toggle | `usePendingState` accepts the authorized `read` supplying `current`. A private, scope-qualified sequence attached to that read retires receipts it covers, including opposite values. Two real-online React regressions fail on round 0: true at receipt sequence 1 followed by false at read sequence 2, and equal true at read sequence 0 (which cannot observe receipt 1). Fabricated/unavailable/revalidating reads have no qualifying evidence. Local observed-write retirement is unchanged. |
+| Astra Medium peer settlement | A mounted online owner captures scoped arguments it sees in the existing shared journal. Receipt transitions settle those references even when another owner dispatched. No journal format or durable terminal payload was added. Two real online clients with one session store show the same settling text; B can observe and retire its own presentation independently. Round 0 drops B's card. |
+| Grok Medium ordering | Journal entries precede identification callers; already listed IDs are omitted from identification output. Queued/dispatched A plus pre-identification B reads A, B. Round 0 reads B, A. |
+| Astra Low / Grok Medium test strength | React now uses real online custody/presentation with actual removal. A confirmed row is supplied, withdrawn, and cannot resurrect its intent; a predicted row against a settling success is withdrawn and must restore text. Removing the observation effect fails the first test; removing the prediction filter fails the second. Restart checks now assert both argument texts, and an empty-args mutation fails on process and wasm. |
+
+A further real React regression changes resource ownership and adds an unrelated
+pending write: unowned payloads are released, and filtering does not trigger a
+render/read loop. Round 0 fails its unowned-terminal assertion. The helper's
+shared snapshot applies the owner filter on incoming reads as well as cleanup.
+
+The six new Node cases and three React correctness cases fail on round-0
+implementations (the local case uses the exact old reader transpiled against
+unchanged dependencies). The two test-strength cases correctly pass unmutated
+round 0 and fail the precise mutations the reviewers said survived its old
+harness. These are mutation-sensitive regressions, not claims that correct
+round-0 behavior is defective. Evidence: `round1/baseline-node.log.gz`,
+`baseline-local.log.gz`, `negative-controls-final.log.gz`, and
+`negative-empty-args.log.gz`. Negative controls ran in isolated temporary source
+or dist copies, removed afterward; qualified source was never mutated by them.
+
+### Verification
+
+All commands use the supplied PATH, Node 24.13.1, the existing shared Cargo target
+`/home/ccheever/sb5-lanes/target`, and the lane's private CLI snapshot
+`$PWD/target/lane-b-bin/snapback4` for client fixtures. The CLI has no relevant
+runtime delta in this round; the changed client package was rebuilt locally.
+
+| Check | Result | Evidence under `round1/` |
+| --- | --- | --- |
+| New regressions + existing pending-intent process/wasm tests + complete React harness | **83 passed, 0 failed, 0 skipped, each of five runs** (415 executions). All 11 new cases ran five times. | `final-repeat-1.log.gz` through `final-repeat-5.log.gz`, `final-repeats.txt` |
+| Affected clients across online/process/wasm | **363 passed, 0 failed, 0 skipped** | `affected.log.gz` |
+| Whole language/client guide (`cargo test -p snapback4-lang --test guide`) | **110 passed** | `guide.log.gz` |
+| Package build and typecheck | pass | `build-final-2.log.gz`, `typecheck-final-2.log.gz` |
+| Read declarations + all README/Client examples | **14 passed** | `types-examples-final.log.gz` |
+| Docs budget and named first-screen test | **300/300 lines; 1 passed** | `docs-budget.log.gz` |
+| Wasm build and budget | **2,031,329 B raw / 610,519 B gzip**, cap **610,782**, headroom **263 B** | `wasm.log.gz` |
+| Actual Cal29 rewritten app typecheck | pass | `pilot-typecheck.log.gz` |
+| Reference/metadata audit | **526 LLP docs, 10,106 refs; 0 errors, 0 unchecked** | `references.log.gz` |
+| Whitespace check | pass | `diff-check.log.gz` |
+
+Repeated command:
+
+```sh
+node --test --test-concurrency=3 \
+  packages/snapback4/test/pending-items-round1.test.mjs \
+  packages/snapback4/test/pending-items.test.mjs \
+  packages/snapback4/test/react.test.mjs
+```
+
+The affected run used `node --test --test-concurrency=4` on these files:
+`pending-items`, `pending-writes`, `app-online`, `app-receipts`,
+`app-local-receipts`, `app-outcomes`, `app-local-outcomes`, `app-handles`,
+`app-retirement`, `app-store-replacement`, `online-store-order`,
+`online-store-terminal`, `online-intent-store`, `online-session`,
+`refresh-behavior`, `schema-session`, `keep-observation`,
+`query-publication-session`, `retention-store-withdrawal`, `write-ids`, and
+`admit-before-identity` (each `.test.mjs`). The final owner-filter correction
+only affected the presentation source; its whole React and process/wasm
+pending-intent coverage was rerun five times after that correction.
+
+No runtime/wasm budget was raised. Wasm engine source is unchanged; the one-byte
+gzip difference from round 0's last shared-target artifact is **not** a paired
+feature-size result. Source/test/wasm/private-CLI hashes are in
+`round1/source-hashes.json`. The affected-scope LLP audit is in CONTEXT.md.
+
+### B1–B3 pilot rerun
+
+The actual local-device Cal29 specimens were rechecked byte-for-byte against
+`/tmp/lane-b-cal29/src`, whose `snapback4` package link names this lane's rebuilt
+package. Typecheck passes. New measurements and hashes are in
+`round1/pilot-measurements.json`:
+
+| Specimen | Before lines / bytes | Round 1 lines / bytes | Delta |
+| --- | ---: | ---: | ---: |
+| B1 | 1 / 42 | 1 / 152 | 0 lines, +110 B |
+| B2 | 1 / 238 | 1 / 318 | 0 lines, +80 B |
+| B3 | 1 / 281 | 1 / 283 | 0 lines, +2 B |
+| Total selected excerpts | 3 / 561 | 3 / 753 | **0 lines, +192 B** |
+
+Whole files remain 46 lines / 16,755 → 16,961 B (chat) and 34 lines /
+6,178 → 6,176 B (social): **+204 B total**. Relative to round 0, this pilot
+changes zero lines and zero bytes. There is no saving or builder-score claim.
+This local-device pilot relies on existing observed-write retirement; it does
+not measure online `read`-evidence plumbing. That online path has its own actual
+React regressions above.
+
+### Failure classification and remaining limits
+
+All intentional baseline and mutation failures are retained as negative-control
+evidence. Development failures were ours: the first TypeScript build needed
+exact-optional-property and query-result typing corrections; the initial React
+fixture tried browser writes without the required custody owner; its async
+conversion missed two awaits; later assertions ran before the browser journal
+notification completed; and the new handcrafted local sequence fixture initially
+omitted `observed_seq`, producing a 122-second hang-guard failure. Corrected
+fixtures use actual custody and explicit journal/state barriers. One temporary
+baseline-loader attempt named a nonexistent package-local TypeScript path; the
+ordinary workspace import fixed it. The early `baseline-react.log.gz` is not
+accepted as a product reproduction. Intermediate red/green logs are retained;
+only the final evidence table qualifies the result. No final ordinary test is
+red, and no environmental or inherited failure is being waived.
+
+The peer must have owned/observed the pending arguments, or be the submitting
+owner; receipt-only late mounting cannot reconstruct released arguments. Online
+settling is bounded, and can be evicted before a row is observed. Previously
+returned application-held references are outside the SDK retention bound.
+A single payload larger than 1 MiB is not retained after terminal settlement.
+No hook means no terminal history; close/restart still uses saved references
+and receipt lookup. Online set-state retirement needs the actual authorized
+read that supplied its current value; unrelated pages or value equality are not
+evidence. These limits are documented rather than hidden by timers or new
+custody. Nothing was pushed or published.

@@ -1,8 +1,10 @@
-import type { Client, Mutation, PendingWrite, Write } from "./contract.ts";
+import { WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { answerIdentity, answerObservation } from "./read-observation.ts";
+import type { Client, Mutation, PendingWrite, Read, Write } from "./contract.ts";
 
 /** `saving` has no custody yet; `unknown` means dispatched, outcome unknown.
  * `settling` proves success, not row existence, delivery, or reading. */
-export type IntentPhase = "saving" | "queued" | "unknown" | "held" | "settling";
+export type IntentPhase = "saving" | "queued" | "unknown" | "held" | "settling" | "evicted";
 export interface PendingIntent<A = unknown> {
   write: PendingWrite<A>;
   phase: IntentPhase;
@@ -26,6 +28,8 @@ export interface PendingStateOptions<A, Value> {
   scope: (write: PendingWrite<A>) => boolean;
   /** The currently observed value; undefined is allowed for an unavailable row. */
   current: Value;
+  /** The authorized read supplying current. Online retirement needs its sequence. */
+  read?: Read<unknown>;
   value: (args: A) => Value;
 }
 
@@ -37,7 +41,7 @@ export function pendingItems<Row, M extends Mutation<any, any>>(intents: readonl
     ...options.rows.map(row => ({ kind: "row" as const, key: JSON.stringify(["row", options.rowKey(row)]), row })),
     ...intents.filter(intent => names.has(intent.write.op) && options.scope(intent.write as PendingWrite<MutationArgs<M>>)
       && !keys.has(options.intentKey(intent.write as PendingWrite<MutationArgs<M>>)))
-      .map(intent => ({ ...intent, kind: "intent" as const, key: JSON.stringify(["intent", intent.write.id]) }) as PendingItem<Row, MutationArgs<M>>),
+      .map(intent => ({ ...intent, get phase() { return intent.phase; }, kind: "intent" as const, key: JSON.stringify(["intent", intent.write.id]) }) as PendingItem<Row, MutationArgs<M>>),
   ];
 }
 
@@ -45,7 +49,7 @@ export function pendingItems<Row, M extends Mutation<any, any>>(intents: readonl
  * an admitted value. Returns its phase alongside the selected presentation. */
 export function pendingState<A, R, Value>(intents: readonly PendingIntent[], op: Mutation<A, R>, options: PendingStateOptions<A, Value>): { value: Value; intent: PendingIntent<A> | undefined } {
   let intent: PendingIntent<A> | undefined;
-  for (const item of intents) if (item.write.op === op.name && item.phase !== "saving" && options.scope(item.write as PendingWrite<A>)) intent = item as PendingIntent<A>;
+  for (const item of intents) if (item.write.op === op.name && item.phase !== "saving" && item.phase !== "evicted" && options.scope(item.write as PendingWrite<A>)) intent = item as PendingIntent<A>;
   return { value: intent ? options.value(intent.write.args) : options.current, intent };
 }
 
@@ -57,6 +61,9 @@ export function pendingIntent(write: PendingWrite, saving = false): PendingInten
  * changes synchronously at retirement, before any asynchronous read completes. */
 export interface PendingIntentAccess {
   scope(): unknown;
+  /** Separate from presentation lifetime: reject reads crossing routine resets. */
+  revision?(): unknown;
+  retain?(select: (write: PendingWrite) => boolean): () => void;
   read(): Promise<readonly PendingIntent[]>;
 }
 const access = new WeakMap<Client, PendingIntentAccess>();
@@ -68,35 +75,93 @@ export function guardPendingIntents(client: Client, raw: Client, valid: () => bo
   const source = pendingIntentAccess(raw);
   registerPendingIntents(client, {
     scope: () => valid() ? source.scope() : undefined,
+    revision: () => source.revision?.(),
+    retain: select => source.retain?.(write => valid() && select(write)) ?? (() => {}),
     async read() {
-      const scope = source.scope();
+      const scope = source.scope(), revision = source.revision?.();
       if (!valid() || await approve()) return [];
       const items = await source.read();
-      return valid() && scope === source.scope() ? items : [];
+      return valid() && scope === source.scope() && revision === source.revision?.() ? items : [];
     },
   });
 }
 
-/** The online tier has no observed-write log. Keep references to its existing
- * submissions through receipt settlement, without changing dispatch/retirement.
- * This session view has no persistence or replay authority. */
+/** Online presentation has no persistence/replay authority. Only mounted owners
+ * retain payloads; terminal and peer-journal references share the receipt bound.
+ * Eviction marks already returned references, never fabricates observation. */
 export class OnlineIntentPresentation {
-  private successes = new Map<string, PendingIntent>();
+  private entries = new Map<string, { item: PendingIntent; bytes: number }>();
+  private owners = new Set<(write: PendingWrite) => boolean>();
+  private bytes = 0;
   private scope: unknown;
   constructor(private current: () => unknown, private notify: () => void) {}
-  private check() { const scope = this.current(); if (scope !== this.scope) { this.scope = scope; this.successes.clear(); } return scope != null; }
+  private check() {
+    const scope = this.current();
+    if (scope !== this.scope || scope == null) { this.scope = scope; this.clear(); }
+    return scope != null;
+  }
+  clear() { this.entries.clear(); this.bytes = 0; }
+  private owns(write: PendingWrite) {
+    return [...this.owners].some(select => { try { return select(write); } catch { return false; } });
+  }
+  private remove(id: string, evicted = false) {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    if (evicted) entry.item.phase = "evicted";
+    this.bytes -= entry.bytes; this.entries.delete(id);
+  }
+  retain = (select: (write: PendingWrite) => boolean) => {
+    this.owners.add(select);
+    return () => { this.owners.delete(select); this.prune(); };
+  };
+  private prune() { for (const [id, { item }] of this.entries) if (!this.owns(item.write)) this.remove(id); }
+  capture(write: PendingWrite) {
+    if (!this.check() || !this.owns(write) || this.entries.has(write.id)) return;
+    const json = JSON.stringify(write), bytes = new TextEncoder().encode(json).length;
+    // A single oversized argument cannot grow the presentation without bound.
+    if (bytes > 1024 * 1024) return;
+    const freeze = (value: any): any => { if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
+    const item = pendingIntent(freeze(JSON.parse(json)));
+    this.entries.set(write.id, { item, bytes }); this.bytes += bytes;
+    while (this.entries.size > WRITE_HISTORY_LIMIT || this.bytes > 1024 * 1024) this.remove(this.entries.keys().next().value!, true);
+  }
   settled(write: Write, entry?: PendingWrite) {
     if (!this.check()) return;
-    if (write.state === "failed") this.successes.delete(write.id);
-    else if (write.state === "sent" && entry) this.successes.set(write.id, { write: entry, phase: "settling", receipt: { state: "sent", id: write.id, seq: write.seq, replayed: true } });
+    if (write.state === "failed") this.remove(write.id);
+    else if (write.state === "sent") {
+      if (entry) this.capture(entry);
+      const stored = this.entries.get(write.id);
+      if (stored) {
+        stored.item.phase = "settling";
+        stored.item.receipt = Object.freeze({ state: "sent", id: write.id, seq: write.seq, replayed: true });
+      }
+    }
   }
-  items(): readonly PendingIntent[] { return this.check() ? JSON.parse(JSON.stringify([...this.successes.values()])) : []; }
+  items(): readonly PendingIntent[] {
+    if (!this.check()) return [];
+    this.prune();
+    return [...this.entries.values()].map(entry => entry.item).filter(item => item.phase === "settling");
+  }
   observed(ids: readonly string[]) {
     if (!this.check()) return;
     let changed = false;
-    for (const id of ids) changed = this.successes.delete(id) || changed;
+    for (const id of ids) { changed = this.entries.has(id) || changed; this.remove(id); }
     if (changed) this.notify();
   }
+}
+
+// Read evidence follows the existing answer identity through freshness/facade
+// copies. It is private, scoped to this client lifetime and checked at use time.
+const reads = new WeakMap<object, { scope: unknown; seq: number; current(): boolean }>();
+export function offerIntentRead(read: Read<unknown>, scope: unknown, seq: number, current: () => boolean) {
+  if (!("data" in read) || read.revalidating || !read.fresh) return;
+  const identity = answerIdentity(read), owner = answerObservation(read);
+  reads.set(identity, { scope, seq, current: () => current() && (!owner || answerIdentity(owner.read(null)) === identity) });
+}
+export function intentReadSequence(client: Client, read?: Read<unknown>): number | undefined {
+  if (!read || !("data" in read) || read.revalidating || !read.fresh) return;
+  const evidence = reads.get(answerIdentity(read));
+  return evidence && evidence.scope === pendingIntentAccess(client).scope() && evidence.current() ? evidence.seq : undefined;
 }
 const observers = new WeakMap<Client, (ids: readonly string[]) => void>();
 export function registerIntentObserver(client: Client, observed: (ids: readonly string[]) => void) { observers.set(client, observed); }

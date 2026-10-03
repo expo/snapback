@@ -1034,15 +1034,22 @@ On process/wasm devices the view reads the same outbox and receipt history,
 including successful entries omitted by `usePendingWrites`. It survives offline
 restart and retires only when existing observed-write evidence retires custody,
 or a terminal refusal arrives. A predicted row never retires an intent.
-The online tier has no device observation log: it retains a session presentation
-reference until a matching confirmed row is supplied. Those references have no
-replay authority and do not survive closing; the online journal still retires at
-its existing terminal-receipt boundary. Save a scoped intent reference and use
+The online tier retains matching arguments only while a presentation hook is
+mounted, including shared-journal intents settled by a peer. A confirmed matching
+row retires its reference; prediction does not. Retention is at most 256 entries
+and 1 MiB of serialized write payloads, evicting oldest first; larger individual
+payloads are not retained. Previously returned intent references become `evicted`
+when the bound drops them, and later reads omit them. Eviction is not observation.
+Unmounting releases unowned arguments. Late mounting recovers pending journal
+entries, not terminal arguments already released. Nothing gains replay authority
+or survives closing; durable journal retirement is unchanged. Save a scoped intent reference and use
 `usePendingWrite(op, id)` for a failure card or post-restart receipt lookup;
 after lookup finishes, no receipt means unknown, never permission to resend.
-Account/backend/credential/store retirement immediately hides the old view,
+Account/backend/store retirement and close immediately hide the old view,
 including during storage failure and delayed reads. This cannot revoke values
-already copied by application code. Rows remain the caller's live-read responsibility.
+already copied by application code. Bearer refresh and schema/program-generation
+resets reject old reads but preserve settling text for the same principal and
+store. Rows remain the caller's live-read responsibility.
 
 For set-state mutations, `usePendingState` replaces repeated filter/last-intent
 selection over the same source:
@@ -1050,18 +1057,21 @@ selection over the same source:
 ```tsx
 import { usePendingState } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-export function Like({ card }: { card: { id: string; liked: boolean } | undefined }) {
+import type { Read } from "snapback4/contract";
+export function Like({ card, read }: { card: { id: string; liked: boolean } | undefined; read: Read<unknown> }) {
   const like = usePendingState(api.setLike, { scope: w => w.args.postId === card?.id,
-    current: card?.liked, value: args => args.set });
+    current: card?.liked, read, value: args => args.set });
   return <span>{like.value ? "Liked" : "Like"} {like.intent?.phase}</span>;
 }
 ```
 
 It selects the last matching admitted intent in FIFO order, never lexical ID
 order; a saving call does not override admitted state. On the online tier a
-successful matching observed value retires that intent and earlier matching
-successes, so an earlier toggle cannot reappear. Supply current live state, not
-a latched value. The selector changes no mutation, query, count, or authorization.
+successful intent retires when the authorized `read` supplying `current` covers
+its receipt sequence, even if another writer changed the value. Equality alone
+cannot establish observation. Omit `read` only when relying on local device
+retirement or bounded online retention. Supply the actual read for this value,
+not another page's read or a latched value. The selector changes no mutation, query, count, or authorization.
 
 Writes that do not predict show pending with `usePendingWrite(op)`. Its
 `pending` flag starts at `run(args)` and stays true until `sent` or `failed`,

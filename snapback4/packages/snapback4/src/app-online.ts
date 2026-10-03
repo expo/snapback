@@ -1,4 +1,4 @@
-import { pendingIntentAccess, pendingIntent, registerPendingIntents, forwardIntentObserver } from "./pending-items.ts";
+import { pendingIntentAccess, pendingIntent, registerPendingIntents, registerIntentObserver, OnlineIntentPresentation } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
@@ -34,6 +34,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const listeners = new Set<(write: Terminal) => void>();
   const pending = pendingChanges();
   const identification = new IdentityWait(pending.notify);
+  const rawIntents = pendingIntentAccess(raw);
+  const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
+  const presentation = new OnlineIntentPresentation(intentScope, pending.notify);
   const stopPending = raw.onPendingWrites?.(pending.notify);
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -72,7 +75,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   };
   const settle = async (write: Terminal) => {
     await change(journal => {
-      if (!journal.pending.some(intent => intent.id === write.id)) return false;
+      const intent = journal.pending.find(intent => intent.id === write.id);
+      if (!intent) return false;
+      presentation.settled(write, { id: intent.id, op: intent.op, args: intent.args, predicted: [], state: intent.dispatched ? "sent" : "queued" });
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
       journal.receipts.push(receiptOf(write));
@@ -270,21 +275,30 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
-  const rawIntents = pendingIntentAccess(raw);
-  const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
-  registerPendingIntents(client, { scope: intentScope, async read() {
-    const before = intentScope();
+  registerPendingIntents(client, { scope: intentScope, revision: () => rawIntents.revision?.(), retain: presentation.retain, async read() {
+    const before = intentScope(), revision = rawIntents.revision?.();
     if (before == null) return [];
-    const [rawItems, entries] = await Promise.all([rawIntents.read(), client.pendingWrites()]);
-    if (before !== intentScope()) return [];
-    const terminal = rawItems.filter(item => item.phase === "settling");
-    const settled = new Set(terminal.map(item => item.write.id));
-    const saving = new Set(identification.pending().map(write => write.id));
-    return [...terminal, ...entries.filter(write => !settled.has(write.id)).map(write => pendingIntent(write, saving.has(write.id)))];
+    const journal = await locked(key, read);
+    if (before !== intentScope() || revision !== rawIntents.revision?.()) return [];
+    const entries = journal.pending.map(intent => {
+      const hold = unsavedHolds.get(intent.id);
+      const reason = (hold?.revision === intent.statusRevision ? hold?.reason : undefined) ?? intent.holdReason;
+      return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
+        ...(reason ? { state: "held" as const, reason } : { state: intent.dispatched ? "sent" as const : "queued" as const }) };
+    });
+    // A mounted peer keeps the arguments it actually saw in shared custody.
+    // Receipt-only transitions (including another dispatch owner's) settle that
+    // same presentation; they do not add arguments to the durable journal.
+    for (const entry of entries) presentation.capture(entry);
+    for (const receipt of [...journal.receipts, ...unpersisted.values()]) presentation.settled(receipt);
+    const terminal = presentation.items(), settled = new Set(terminal.map(item => item.write.id));
+    const listed = new Set([...settled, ...entries.map(entry => entry.id)]);
+    return [...terminal, ...entries.filter(write => !settled.has(write.id) && !unpersisted.has(write.id)).map(write => pendingIntent(write)),
+      ...identification.pending().filter(write => !listed.has(write.id)).map(write => pendingIntent(write, true))];
   } });
-  forwardIntentObserver(client, raw, () => intentScope() != null);
+  registerIntentObserver(client, ids => { if (intentScope() != null) presentation.observed(ids); });
   inheritClose(client, raw);
-  function pause() { identification.close(); active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  function pause() { identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
@@ -299,6 +313,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   function refuseStore(why: Refusal): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
+    presentation.clear();
     identification.close(identityRefusal(false));
     // Fence admissions synchronously, then retire the entire durable queue
     // before createApp can reopen. These intents must never cross stores.

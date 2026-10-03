@@ -1,35 +1,94 @@
 export const pendingItemsHarness = `
-cases["pending items discriminate rows, survive prediction withdrawal and fence account switches in StrictMode"] = async () => {
-  const listeners = new Set(); let scope = "alice:A", items = [], rows = [], latest, selected, current = false, observed = [];
-  const client = { viewer: () => scope ? "alice" : null, onLink: () => () => {}, onSession: () => () => {}, onViewer: () => () => {},
-    onPendingWrites: fn => { listeners.add(fn); return () => listeners.delete(fn); } };
-  registerPendingIntents(client, { scope: () => scope, read: async () => items });
-  registerIntentObserver(client, ids => { observed = ids; });
-  const args = { id: "row", conversation: "a", text: "hello", set: true };
-  const write = { id: "mutation", op: "write", args, state: "queued", predicted: [] };
+async function intentClient() {
+  let seq = 0, value = false, held;
+  const client = createClient({ url: "https://react-intents.invalid", persona: "alice", fetch: async (input) => {
+    const path = new URL(input).pathname;
+    if (path === "/probe") return Response.json({ ok: true, store_id: "A", seq });
+    if (path === "/changes") return new Promise(() => {});
+    if (path === "/m/write") return held ? held.promise : Response.json({ state: "sent", seq: ++seq });
+    if (path === "/q/read") return Response.json({ data: value, seq, complete: true });
+    throw Error(path);
+  } });
+  const custody = await onlineCustody(client, "https://react-intents.invalid", memorySessionStore(), error => { throw error; });
+  return { client: custody.client, hold() { held = deferred(); }, advance(next, at) { value = next; seq = at; } };
+}
+async function waitIntent(predicate) { await awaitState(predicate, "online presentation update", { poll: async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); }); } }); }
+cases["pending items release unowned resource payloads without reloading unrelated pending writes"] = async () => {
+  const f = await intentClient(), client = f.client; let resource = "a", latest, renders = 0;
+  function Screen() {
+    renders++;
+    latest = usePendingItems({ writes: [mutation], rows: [], scope: w => w.args.conversation === resource, rowKey: r => r.id, intentKey: w => w.args.id });
+    return h("div", null, latest.length);
+  }
+  try {
+    await mount(h(Screen), client);
+    await act(async () => { await client.mutate(mutation, { id: "row", conversation: "a", text: "owned" }); });
+    await waitIntent(() => latest[0]?.phase === "settling");
+    resource = "b"; await render(h(Screen), client);
+    await act(async () => { await client.pendingWrites(); });
+    equal(await pendingIntentAccess(client).read(), [], "changed resource releases now-unowned terminal arguments");
+    f.hold();
+    await act(async () => { await client.mutate(mutation, { id: "other", conversation: "a", text: "unrelated custody" }, { waitSeconds: 0 }); });
+    await act(async () => { await client.pendingWrites(); });
+    equal(latest, [], "unrelated pending custody is not cached for this presentation");
+    const before = renders;
+    await act(async () => { await client.pendingWrites(); });
+    check(renders === before, "ownership filtering must not cause a render/read loop");
+  } finally { await unmount(); await client.close(); }
+};
+const intentArgs = { id: "row", conversation: "a", text: "hello", set: true };
+for (const predicted of [false, true]) cases["pending items online retirement: " + (predicted ? "prediction never retires success" : "confirmed row retires success permanently")] = async () => {
+  const { client } = await intentClient(); let rows = [], latest;
   function Screen() {
     latest = usePendingItems({ writes: [mutation], rows, scope: w => w.args.conversation === "a", rowKey: r => r.id, intentKey: w => w.args.id });
-    selected = usePendingState(mutation, { scope: w => w.args.conversation === "a", current, value: a => a.set });
     return h("div", null, latest.map(i => i.kind === "row" ? "row:" + i.row.id : i.phase + ":" + i.write.args.text).join(","));
   }
-  await mount(h(Screen), client);
-  await act(async () => { items = [{ write, phase: "queued" }]; listeners.forEach(fn => fn()); });
-  equal(latest.map(i => [i.kind, i.phase]), [["intent", "queued"]], "no prediction still renders custody");
-  check(selected.value === true && selected.intent.phase === "queued", "last set intent selected");
-  check(listeners.size === 1, "list and selector share one observation");
-  rows = [{ id: "row", pending: true }]; await render(h(Screen), client);
-  equal(latest.map(i => i.kind), ["row"], "prediction suppresses card");
-  rows = []; await render(h(Screen), client); check(latest[0].kind === "intent", "withdrawal restores intent");
-  await act(async () => { items = [{ write, phase: "settling", receipt: { state: "sent", id: "mutation", seq: 3, replayed: true } }]; listeners.forEach(fn => fn()); });
-  equal(latest.map(i => i.phase), ["settling"], "receipt does not retire before observed write");
-  current = true;
-  await act(async () => { items = [{ write: { ...write, id: "older", args: { ...args, set: false } }, phase: "settling" }, ...items]; listeners.forEach(fn => fn()); });
-  equal(observed, ["older", "mutation"], "observed latest state retires earlier opposite success too");
-  current = false;
-  await unmount(); await mount(h(Screen), client); check(latest[0].phase === "settling", "remount recovers facts");
-  await act(async () => { scope = undefined; listeners.forEach(fn => fn()); });
-  equal(latest, [], "retired scope exposes no arguments");
-  check(selected.intent === undefined && selected.value === false, "selector withdraws too");
-  await unmount(); check(listeners.size === 0, "StrictMode leaves no subscription");
+  try {
+    await mount(h(Screen), client);
+    await act(async () => { check((await client.mutate(mutation, intentArgs)).state === "sent", "fixture write succeeded"); });
+    await waitIntent(() => latest[0]?.phase === "settling");
+    check(latest[0]?.phase === "settling", "success retains its card: " + JSON.stringify(latest));
+    rows = [{ id: "row", pending: predicted }]; await render(h(Screen), client);
+    equal(latest.map(i => i.kind), ["row"], "mapped row suppresses card");
+    await act(async () => { await client.pendingWrites(); });
+    rows = []; await render(h(Screen), client);
+    if (predicted) check(latest[0]?.phase === "settling" && latest[0].write.args.text === "hello", "withdrawing prediction must restore text");
+    else equal(latest, [], "withdrawing confirmed row cannot resurrect retired intent");
+    await act(async () => { await client.signOut(); }); equal(latest, [], "account retirement withdraws text");
+  } finally { await unmount(); await client.close(); }
+};
+cases["pending state uses covering read sequence when another writer supersedes success"] = async () => {
+  const f = await intentClient(), client = f.client; let read = await client.query(query, {}), latest;
+  function Screen() {
+    latest = usePendingState(mutation, { scope: w => w.args.conversation === "a", current: read.data, read, value: a => a.set });
+    return h("div", null, String(latest.value));
+  }
+  try {
+    await mount(h(Screen), client);
+    await act(async () => { check((await client.mutate(mutation, intentArgs)).state === "sent", "fixture write succeeded"); });
+    await waitIntent(() => !latest.intent || latest.intent.phase === "settling");
+    check(latest.value === true && latest.intent?.phase === "settling", "sequence 0 cannot retire sequence 1: " + JSON.stringify(latest));
+    f.advance(false, 2); read = await client.query(query, {}); await render(h(Screen), client);
+    await act(async () => { await client.pendingWrites(); });
+    check(latest.value === false && !latest.intent, "sequence 2 supersedes set(true) at sequence 1");
+  } finally { await unmount(); await client.close(); }
+};
+cases["pending state value equality without covering read evidence cannot retire success"] = async () => {
+  const f = await intentClient(), client = f.client; f.advance(true, 0);
+  let read = await client.query(query, {}), latest;
+  function Screen() {
+    latest = usePendingState(mutation, { scope: w => w.args.conversation === "a", current: read.data, read, value: a => a.set });
+    return h("div", null, String(latest.value));
+  }
+  try {
+    await mount(h(Screen), client);
+    await act(async () => { check((await client.mutate(mutation, intentArgs)).state === "sent", "fixture write succeeded"); });
+    await waitIntent(() => !latest.intent || latest.intent.phase === "settling");
+    await act(async () => { await client.pendingWrites(); });
+    check(latest.intent?.phase === "settling", "equal value at sequence 0 proves nothing about success 1");
+    f.advance(false, 2); read = await client.query(query, {}); await render(h(Screen), client);
+    await act(async () => { await client.pendingWrites(); });
+    check(latest.value === false && !latest.intent, "newer authorized false wins");
+  } finally { await unmount(); await client.close(); }
 };
 `;

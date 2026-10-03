@@ -134,6 +134,8 @@ for (const tier of ['process', 'wasm']) {
     const reopened = await f.open(true);
     assert.equal((await list(reopened.client))[0].write.id, first.id);
     assert.equal((await list(reopened.client))[0].phase, 'settling');
+    assert.equal((await list(reopened.client))[0].write.args.text, 'private');
+    assert.equal((await list(reopened.client))[1].write.args.text, 'unknown');
     assert.equal((await list(reopened.client))[1].phase, 'unknown');
     assert.equal((await list(reopened.client))[1].write.id, second.id);
     f.offline(false); const other = await f.open(true, 'bob');
@@ -193,8 +195,9 @@ test('facade retirement exposes zero arguments while its authority check is pend
   assert.deepEqual(await reading, []); assert.equal(pendingIntentAccess(guarded.client).scope(), undefined);
 });
 
-test('online: late-mounted presentation covers terminal-to-row interval without changing the pending list', async t => {
+test('online: mounted presentation covers terminal-to-row interval without changing the pending list', async t => {
   const f = await fixture(t, 'online'), { client } = await f.open();
+  const stop = pendingItemsSource(client).subscribe(() => {}); t.after(stop);
   const write = await client.mutate(send, { id: mintId(), conversation: 'a', text: 'online' }, { waitSeconds: 0 });
   await waitFor(() => f.gates.length, 'dispatch'); await f.release(0);
   await waitFor(async () => (await list(client))[0]?.phase === 'settling', 'success view');

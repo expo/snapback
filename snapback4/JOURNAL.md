@@ -82743,3 +82743,41 @@ gzip, below the unchanged 610,782 B cap; initial build was 2,030,224 / 610,085.
 These shared-target artifacts are not a paired feature-size attribution.
 Commit locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push
 or publication.
+
+
+## 2026-10-03 — B round 1: bounded ownership and sequence-backed settlement
+
+Folded both NOT READY blind reviews of 80ec6b66dd. Mounted hooks retain only
+matching online intent arguments, bounded at 256 references and 1 MiB serialized
+payloads, oldest first. Reads reuse frozen payloads; unmount/resource changes
+release unowned arguments. Eviction marks previously returned references
+`evicted` and removes them from later reads, never claiming row observation.
+A 1,000-write probe without a hook retains zero entries (2 B serialized `[]`);
+with an owner it retains 256 (316,674 B for the 1 KiB-payload fixture).
+
+Presentation scope is principal/store; separate read revisions fence bearer,
+schema and generation resets while settling text survives. Account/store
+retirement and close still withdraw synchronously. Online peers retain arguments
+they observed in shared custody across another owner's receipt transition;
+journal entries precede identification callers. No journal format, persistence,
+replay, Client contract or wasm engine change. `usePendingState` accepts the
+authorized `read` supplying current state and retires success when its private
+sequence covers the receipt, including an opposite value from another writer.
+LLP 3000.019 §3.3.1 and the paved client documentation state the corrected rules.
+
+Six Node regressions and three React correctness regressions fail against
+round-0 code. Two further real-online React tests kill the requested disabled-
+observation and predicted-retirement mutations. Empty-argument restart mutation
+is rejected on both process and wasm. Final repeat batch: 83/83 passed five
+times, including all new cases, existing pending-intent process/wasm tests and
+the complete React harness. Affected client run: 363/363. Whole guide: 110/110;
+type/declaration/example checks and docs budget pass. Full suite not rerun this
+round, as requested. Final wasm: 2,031,329 B raw / 610,519 B gzip, 263 B below
+the unchanged cap. Shared-target artifacts are not paired feature attribution.
+
+B1–B3 pilot typechecks again and still saves zero physical lines: 561 → 753 B
+(+192 B selected, +204 B for both whole files); unchanged from round 0. Its
+local-device code does not measure online read-evidence plumbing. The Round 1
+report records baseline failures, mutation controls, development fixture/type
+errors and all final checks. Local commit with the requested Astra co-author
+trailer; nothing pushed or published.

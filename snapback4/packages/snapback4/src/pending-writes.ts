@@ -85,16 +85,16 @@ export function localPendingHolds(call: (request: Record<string, unknown>) => Pr
 // @ref LLP 3000.019#3.3.1 — retain the device's successful unobserved entry,
 // even when the public pending list excludes it. Read-only, never a second outbox.
 export function registerLocalPendingIntents(client: Client, queued: () => Promise<Queued[]>, history: WriteHistory,
-  identification: IdentityWait, holds: ReturnType<typeof localPendingHolds>, scope: () => unknown, acquired: () => boolean) {
-  registerPendingIntents(client, { scope, async read() {
-    const before = scope();
+  identification: IdentityWait, holds: ReturnType<typeof localPendingHolds>, scope: () => unknown, acquired: () => boolean, revision: () => unknown = scope) {
+  registerPendingIntents(client, { scope, revision, async read() {
+    const before = scope(), epoch = revision();
     if (before == null) return [];
     const entries = await queued();
-    if (before !== scope()) return [];
+    if (before !== scope() || epoch !== revision()) return [];
     const receipts = await history.presentationReceipts();
-    if (before !== scope()) return [];
+    if (before !== scope() || epoch !== revision()) return [];
     const reasons = await holds.reasons(entries);
-    if (before !== scope()) return [];
+    if (before !== scope() || epoch !== revision()) return [];
     const items: PendingIntent[] = [];
     for (const entry of entries) {
       const receipt = receipts.get(entry.id);
@@ -111,6 +111,6 @@ export function registerLocalPendingIntents(client: Client, queued: () => Promis
     // It always wins over that caller's still-live saving indicator.
     const admitted = new Set(entries.map(entry => entry.id));
     for (const write of identification.pending()) if (!admitted.has(write.id) && !receipts.has(write.id)) items.push(pendingIntent(write, true));
-    return before === scope() ? items : [];
+    return before === scope() && epoch === revision() ? items : [];
   } });
 }

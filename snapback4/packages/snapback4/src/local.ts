@@ -1479,7 +1479,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void flush();
     scheduleRefresh();
   };
-  registerLocalPendingIntents(client, queued, history, identification, holds, () => unavailable() || partitionDenied ? undefined : `${credentialRevision}:${incarnation}`, () => acquired);
+  registerLocalPendingIntents(client, queued, history, identification, holds, () => unavailable() || partitionDenied ? undefined : `${viewer}:${storeIdentity}`, () => acquired, () => `${credentialRevision}:${incarnation}`);
   progress.bind(client); readWork.bind(client, watches);
   bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);

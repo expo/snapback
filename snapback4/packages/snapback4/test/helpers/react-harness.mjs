@@ -13,7 +13,7 @@ import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth"
 import { onlineCustody } from "test-online-custody";
 import { identifyDispatch } from "test-online-dispatch";
 import { guardClient } from "test-guard-client";
-import { registerPendingIntents, registerIntentObserver } from "test-pending-items";
+import { registerPendingIntents, registerIntentObserver, pendingIntentAccess } from "test-pending-items";
 import { ServerClock } from "test-server-clock";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";

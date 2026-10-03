@@ -1,4 +1,4 @@
-import { OnlineIntentPresentation, pendingIntent, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
+import { OnlineIntentPresentation, offerIntentRead, pendingIntent, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
@@ -204,7 +204,7 @@ export function createClient(options: ClientOptions): Client {
   const mutationIds = new MutationIds();
   const pendingEvents = pendingChanges();
   let intentEpoch = 0;
-  const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${credentialRevision}:${intentEpoch}`;
+  const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${viewer}:${storeIdentity}`;
   const intentPresentation = new OnlineIntentPresentation(intentScope, pendingEvents.notify);
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
@@ -219,7 +219,7 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const resetWatches = (publish = true, cause = "schema-reset") => {
-    intentEpoch++; pendingEvents.notify();
+    intentEpoch++; intentPresentation.items(); pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null); }
@@ -323,6 +323,7 @@ export function createClient(options: ClientOptions): Client {
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
+    intentPresentation.clear();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
@@ -374,6 +375,7 @@ export function createClient(options: ClientOptions): Client {
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
     if (storeRefusal) return;
+    intentPresentation.clear();
     void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
@@ -621,7 +623,11 @@ export function createClient(options: ClientOptions): Client {
     return current;
   };
 
-  function acceptDelivery<R>(result: QueryResult<R>, read: Read<unknown>) {
+  function acceptDelivery<R>(result: QueryResult<R> & { retryExhausted?: boolean }, read: Read<unknown>) {
+    if ("data" in result.read && !result.transportOffline && !result.retryExhausted) {
+      const scope = intentScope();
+      offerIntentRead(read, scope, result.seq, () => scope != null && scope === intentScope() && currentRead(result));
+    }
     offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
       () => !closed && !storeRefusal && credentials && currentRead(result));
   }
@@ -1167,6 +1173,7 @@ export function createClient(options: ClientOptions): Client {
       cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
       closed = true;
+      intentPresentation.clear();
       void delivery?.stop();
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
@@ -1203,9 +1210,9 @@ export function createClient(options: ClientOptions): Client {
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
-  registerPendingIntents(client, { scope: intentScope, read: async () => {
-    const scope = intentScope(), pending = await client.pendingWrites();
-    return scope != null && scope === intentScope() ? [...intentPresentation.items(), ...pending.map(write => pendingIntent(write))] : [];
+  registerPendingIntents(client, { scope: intentScope, revision: () => `${credentialRevision}:${intentEpoch}`, retain: intentPresentation.retain, read: async () => {
+    const scope = intentScope(), epoch = intentEpoch, revision = credentialRevision, pending = await client.pendingWrites();
+    return scope != null && scope === intentScope() && epoch === intentEpoch && revision === credentialRevision ? [...intentPresentation.items(), ...pending.map(write => pendingIntent(write))] : [];
   } });
   registerIntentObserver(client, ids => intentPresentation.observed(ids));
   return client;

@@ -33,3 +33,34 @@ reference and receipt lookup. A missing receipt remains unknown.
 Doc updates: LLP 3000.019 §3.3.1, the §4.2 implementation pointer, client/writes/
 social guide cards, package README/Client and operations, starter README and
 emitted declaration comments. Hand-off: none.
+
+
+## Round 1 context and affected-scope audit
+
+Read both complete blind reviews (`b-r0.astra.md`, `b-r0.grok.md`) and the
+Snapback 4 fence, NOT-DOING, governing root/design brief, rules, journal tail,
+LLP 3000.019 §3.3.1, LLP 3000.023 §§3.4–3.6 and the paved client/writes guide.
+The previously recorded lane-cx skill path is absent on this host. Read the
+available `llp-orient` at
+`/home/ccheever/projects/exact/.agents/skills/llp-orient/SKILL.md` instead.
+Its read-only orientation produced this extension; no installation or delegation.
+
+Scope: online and local pending presentation, custody/receipt transitions,
+React owners and read evidence. Governing working-set docs are unchanged from
+the pack above. Constraints: LLP 3000.019#3.3.1, LLP 3000.023#3.4 and #3.6,
+LLP 3000.022#14, LLP 3000.032#4.2. Presentation retirement is distinct from
+query/watch reset. Same-principal/store bearer/schema changes fence read
+revisions but retain settling text; account/store retirement still withdraws.
+
+The existing LLP is updated, without a new registry, outbox, persistence format,
+wire protocol, Client contract, or gate. Online state retirement now requires
+explicit authorized-read evidence; bare value equality is insufficient. The
+read is optional only because local device retirement remains authoritative.
+Mounted ownership and bounded eviction replace the unbounded session history.
+
+Affected-scope audit: LLP 3000.019, Client and operations, client guide and hook
+option declarations now agree. LLP 3000.032's implementation pointer and the
+closed ticket already delegate lifetime details to §3.3.1; their preserved
+pre-implementation estimates remain marked historical. The pilot remains a
+local-device app; it makes no online read-evidence or code-saving claim. No
+broken @ref or new design document is needed. Hand-off: none.
