@@ -2295,6 +2295,9 @@ exit field authorizes a signal. An unexpectedly dead keeper is diagnosed as
 `TEST_FILE_KEEPER_EXIT` and fails the file. Closing an already broken pipe
 cannot signal a reused process or group. This replaces Round 6's invalid
 assumption that null ChildProcess exit fields prove unreaped custody.
+The only signal the runner process itself causes is the SIGTERM that Node's
+`spawnSync` timeout delivers to the runner's own `ps` inspection child; it never
+signals a test process or a test group.
 
 After requesting cleanup the runner only inspects. Verification requires two
 consecutive inspections 50 ms apart with no living group member, including
