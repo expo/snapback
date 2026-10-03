@@ -25,6 +25,23 @@ test('ready literals require the discriminant', () => {
 const read: Read<{id: string}> = {data: {id: 'row'}, complete: true, cut: null, fresh: true};`);
   assert.deepEqual(result.codes, [2322], result.text);
 });
+test('presentation accepts generic covariant reads and cannot authorize or narrow their data', () => {
+  const result = check(`import { readPresentation, type Read, type ReadPresentation } from './dist/contract.js';
+function show<T>(read: Read<T>): ReadPresentation { return readPresentation(read); }
+declare const read: Read<{id: string} | null>;
+const status = show(read);
+const pending: boolean = status.pending;
+// @ts-expect-error no authority flag
+status.safeToMutate;
+// @ts-expect-error no saved result
+status.data;
+if (status.existence === 'present') {
+  // @ts-expect-error narrow the original read before accessing data
+  read.data.id;
+}
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});
 test('awaited query excludes loading, including existence, while observe retains it', () => {
   const result = check(`import { existence, type Client, type Query, type SettledRead, type Read } from './src/contract.ts';
 declare const client: Client, op: Query<{}, { id: string } | null>;

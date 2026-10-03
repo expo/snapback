@@ -479,7 +479,7 @@ test("social search in React/browser uses current server and retained device pag
           await page.evaluate(() => window.mountSearch());
           await page.getByRole("textbox", { name: "Search messages" }).fill("cof");
           await page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll("button")].filter(node => node.textContent.includes(": coffee ")).map(node => node.textContent)) === JSON.stringify(expected), expected.slice(0, 20).map(label));
-          assert.equal(await page.getByText(/Partial results/).count(), 0, "a complete page with next is not partial");
+          assert.equal(await page.getByText(/Partial results/).count(), 1, "a nonempty page stays present but its continuation is incomplete (LLP 3000.031 §7)");
           assert.equal(await page.getByRole("button", { name: "More matches" }).isEnabled(), true);
         }
         const left = await writer.mutate(api.leave, { conversation: "departed-chat" });
@@ -490,7 +490,7 @@ test("social search in React/browser uses current server and retained device pag
         const hits = page.getByRole("button", { name: /: coffee / });
         await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.includes(": coffee ")).length === 20);
         assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(label), "one page must include server-only current hits and acquired departed hits in order");
-        assert.equal(await page.getByText(/Partial results/).count(), 0, "nonempty retained results are present despite incomplete coverage (LLP 3000.031)");
+        assert.equal(await page.getByText(/Partial results/).count(), 1, "nonempty retained results stay present and disclose incomplete coverage (LLP 3000.031 §7)");
         if (scenario.startsWith("pagination")) {
           for (const count of [40, 45]) {
             await page.getByRole("button", { name: "More matches" }).click();
@@ -500,7 +500,7 @@ test("social search in React/browser uses current server and retained device pag
             assert.equal(new Set(shown).size, shown.length, "SDK accumulation never repeats an ID");
           }
           assert.equal(await page.getByRole("button", { name: "More matches" }).isDisabled(), true);
-          assert.equal(await page.getByText(/Partial results/).count(), 0, "the nonempty final accumulated page is present");
+          assert.equal(await page.getByText(/Partial results/).count(), 1, "the final cursor does not repair incomplete retained coverage");
           await page.getByRole("textbox", { name: "Search messages" }).fill("unmatched");
           await page.waitForFunction(() => document.querySelectorAll("button").length === 1 && document.body.textContent.includes("Partial results"));
           assert.equal(await hits.count(), 0, "changing the needle clears prior accumulated rows");
