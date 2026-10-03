@@ -6,7 +6,7 @@ All changes are in the compiler, diagnostics, tests and docs; runtime code
 and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
-Round 1: `42391bb340`;
+Round 1: `42391bb340`; Round 2: `cbb4a56fb4`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -166,6 +166,43 @@ round are superseded by the operator's Round 1 decision below.
   `/tmp/sb4-nl-r2-verification/`. Earlier runs exposed legacy fixtures,
   including two client cases; their affected reruns pass. Only owned processes
   were stopped. No other machine, push, or publication was used.
+
+## Round 3 (2026-10-04)
+
+- Fixed Astra P2's maintained-group regression in
+  [`point_key::check`](../../crates/snapback4-lang/src/bind/point_key.rs): a key
+  covering the generated `byGroup` columns establishes one maintained group,
+  including null, before ordinary-table uniqueness admission. A secondary
+  index with an extra value predicate keeps that proof. Partial groups and
+  value-only probes spanning groups still refuse.
+- Fixed Astra P2's index-mismatch advice in
+  [`index_mismatch`](../../crates/snapback4-lang/src/bind/program/diagnostics.rs):
+  alternative point indexes pass the same uniqueness and presence checks.
+  Required unique supersets and guarded nullable keys remain valid repairs;
+  planner tokens that cannot be pasted as authored index names are withheld.
+  The same admission check covers fully pinned ranges suggesting a point.
+  Point mismatches without a valid alternative emit no source template.
+  Regression tests paste each offered read into its original source and compile it.
+- [Maintained-group regressions](../../crates/snapback4-device/tests/point_probe_admission.rs)
+  compare server rule verdicts with server/memory/SQLite code probes over held
+  public inputs: nullable one/two-column groups, null/non-null and literal-null
+  arguments, reordered equalities, matching and mismatching values. The
+  aggregate-dependent rule has no invertible sync audience and remains online
+  only; devices evaluate the equivalent code probe. Partial-group controls refuse.
+- **282 affected language tests and 28 lookup/admission tests pass**, with four
+  existing aggregate-suite ignores. The guide and LLP §2.2 now make the full-group
+  condition explicit. Production runtime code and the wasm budget are unchanged.
+- Both exact review sources were also checked with the rebuilt CLI: the
+  maintained rule compiles, and the mismatched nonunique probe offers no rewrite.
+- Wasm remains byte-identical: **2,048,676 B raw / 617,398 B gzip**, **642 B**
+  below the unchanged **618,040 B** budget, with the Round 1 SHA-256.
+  Reference validation: 527 LLPs, 10,290 refs, zero errors or unchecked refs.
+- **Full suite: zero failures in 1,533 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  All **289 Rust binaries, 1,002 executions and workspace doctests** passed
+  (569 s); clients: **6,034 passed, 11 existing skips** (600 s); serial models:
+  **79 passed** (320 s). Final log: `full-suite-complete.log` under
+  `/tmp/sb4-nl-r3-verification/`. Only eb1000 was used; nothing pushed.
 
 ## Governing context
 

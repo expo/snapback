@@ -84918,3 +84918,46 @@ unchanged 618,040 B budget. Reference validation and whitespace checks pass.
 Only this session's test processes were signaled. No other machine was used;
 nothing pushed or published. Commit trailer:
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-04 — NL round 3: maintained group proof and valid index advice
+
+Restored the maintained null-group exemption before ordinary point uniqueness
+admission. A selected access index that pins every generated `byGroup` column
+identifies one group even with null, including rule probes with an extra value
+predicate. Partial-group and value-only probes spanning groups remain refused.
+This corrects Round 2's unintended compatibility regression without weakening
+ordinary-table uniqueness or changing runtime execution.
+
+Alternative point-index advice now uses the lookup's own uniqueness and
+presence checks, including narrowed argument types. Valid required-unique
+supersets remain available. Unspellable planner tokens are not offered as
+source edits. Tests paste offered reads into the original source and compile
+both positional and reordered named forms. Maintained-group tests exercise
+server rules and equivalent server/memory/SQLite code probes over fully held
+inputs, with null and non-null groups, literal-null arguments and extra value
+predicates; partial-group controls still refuse. The guide and LLP 3000.013
+§2.2 record the precise exemption. Details and logs are in the
+[Round 3 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+The same diagnostic's fully pinned range-to-point advice now checks admission,
+and a point mismatch without a verified alternative emits no source template.
+The regression pastes required and guarded nullable point repairs back into
+context, and verifies that an unguarded nullable range gets no bare point.
+
+Verification on eb1000: 282 affected language tests and 28 lookup/admission
+tests pass, with four existing aggregate-suite ignores. Both exact review
+sources were checked with the rebuilt CLI: the maintained null-group rule
+compiles, and the rejected index mismatch offers no forbidden point rewrite.
+The full `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,533 seconds: 289 Rust binaries / 1,002
+executions plus workspace doctests (569 s), 6,034 client tests with 11 existing
+skips (600 s), and all 79 serial model tests (320 s). Final log:
+`/tmp/sb4-nl-r3-verification/full-suite-complete.log`.
+
+Wasm is byte-identical to Round 2: 2,048,676 B raw / 617,398 B gzip, 642 B below
+the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation passes (527 LLPs, 10,290 refs, zero errors or unchecked
+references), as do whitespace checks. Only this session's superseded test run
+was stopped. No other machine was used; nothing pushed or published. Commit
+trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

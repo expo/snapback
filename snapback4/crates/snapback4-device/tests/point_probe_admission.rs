@@ -172,3 +172,62 @@ fn required_unique_superkeys_remain_points_but_caps_do_not_prove_uniqueness() {
         + "table messages:\n  low: principal\n  high: principal\n  public 'messages'\n  after insert <- exists conversations[low = .low, high = .high] by inverse\n";
     refused(&source, "E_QUARRY_POINT_KEY");
 }
+
+fn maintained_group_rules<H: Host>(host: &mut H) {
+    for arity in [1, 2] {
+        for literal in [false, true] {
+            for reverse in [false, true] {
+                let columns = &["tag", "other"][..arity];
+                let fields = columns.iter().map(|c| format!("  {c}: principal ?\n")).collect::<String>();
+                let mut keys = columns.iter().map(|c| format!("{c} = {}", if literal { "null".into() } else { format!(".{c}") })).collect::<Vec<_>>();
+                keys.push("value = .wanted".into());
+                if reverse { keys.reverse(); }
+                let group = columns.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ");
+                let parameters = columns.iter().map(|c| format!("{c}: principal ?")).collect::<Vec<_>>().join(", ");
+                // This aggregate-dependent read rule has no invertible sync
+                // audience. Compare its server verdict with the same code
+                // probe over the fully held source on each device store.
+                let source = format!("table t:\n{fields}  public\n  sync public\nview totals: count t by {group}\ntable m:\n{fields}  wanted: int\n  read <- exists totals[{}]\n  online only\nquery q(id: m):\n  return m[id]\nquery probe({parameters}, wanted: int):\n  return exists totals[{}]\n", keys.join(", "), keys.join(", ").replace('.', ""));
+                let (mut server, backend) = compile(&source);
+                let row = |name: &str, null: bool| {
+                    let mut fields = vec![("id", id(name))];
+                    fields.extend(columns.iter().map(|c| (*c, if null { Value::Null } else { id(c) })));
+                    object(fields)
+                };
+                let mut rows = vec![("t".into(), row("null", true)), ("t".into(), row("present-a", false)), ("t".into(), row("present-b", false))];
+                for (name, null, wanted) in [("one", true, 1), ("two", false, 2), ("bad", true, 3)] {
+                    let mut fields = vec![("id", id(name)), ("wanted", Value::Int(wanted))];
+                    fields.extend(columns.iter().map(|c| (*c, if null { Value::Null } else { id(c) })));
+                    rows.push(("m".into(), object(fields)));
+                }
+                server.seed(rows).unwrap();
+                let mut device = host.open(&format!("maintained-{arity}-{literal}-{reverse}"), Some(backend)).unwrap();
+                for (i, page) in snapshot_pages(&mut server, "bob", 10).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+                for (name, null, wanted, visible) in [("one", true, 1, true), ("two", false, 2, !literal), ("bad", true, 3, false)] {
+                    let s = server.query("q", context("bob", &[("id", id(name))])).unwrap();
+                    assert!(s.complete);
+                    if visible { assert_eq!(s.data.field("id"), Ok(&id(name))); }
+                    else { assert_eq!(s.data, Value::Null); }
+                    let mut args = vec![("wanted", Value::Int(wanted))];
+                    args.extend(columns.iter().map(|c| (*c, if null { Value::Null } else { id(c) })));
+                    let s = server.query("probe", context("bob", &args)).unwrap();
+                    let d = device.query("probe", "bob", &snapback4_core::wire::to_json(&object(args)), 10).unwrap();
+                    assert!(s.complete && d.complete, "{} {arity}/{literal}/{reverse}/{name}: {s:?} {d:?}", host.label());
+                    assert_eq!(s.data, Value::Bool(visible));
+                    assert_eq!(s.data, d.data);
+                }
+            }
+        }
+    }
+}
+
+#[test] fn maintained_group_rules_memory() { maintained_group_rules(&mut Memory::new()); }
+#[test] fn maintained_group_rules_sqlite() { maintained_group_rules(&mut Sqlite::new("maintained-group-rules")); }
+
+#[test]
+fn maintained_partial_groups_are_not_points() {
+    for keys in ["value = 1", "tag = .tag", "tag = .tag, value = 1", "value = 1, tag = null"] {
+        let source = format!("table t:\n  tag: principal ?\n  other: principal ?\n  public\nview totals: count t by .tag, .other\ntable m:\n  tag: principal ?\n  read <- exists totals[{keys}]\n");
+        refused(&source, "E_QUARRY_POINT_KEY");
+    }
+}

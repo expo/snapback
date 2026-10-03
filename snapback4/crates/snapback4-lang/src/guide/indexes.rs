@@ -36,6 +36,8 @@ selected unique key must be provably non-null: use required types or `if x != nu
 the ambiguous null ties across replicas. To read null matches, use a bounded
 `where` population ordered `by .id`, or address a row by id. Null for a
 required key column returns null; maintained aggregate null groups are unchanged.
+A fully pinned maintained group is unique even
+with null, including rule probes that also test its value.
 E_QUARRY_POINT_KEY refuses a point probe whose key can match several rows.
 A fully pinned superset of a required unique key counts as unique too.
 Use a unique key or a bounded `where` population; its scalar probe reports unavailable

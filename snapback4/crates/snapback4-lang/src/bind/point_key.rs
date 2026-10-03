@@ -1,11 +1,18 @@
 //! Admission of replica-independent unique point keys. Populations and
-//! maintained null groups have their own semantics and do not enter this check.
+//! maintained null groups have their own semantics.
 use super::catalog::TableInfo;
 use crate::{ast::{IndexDecl, ReadExpr}, Diagnostic};
 
 // Arguments remain in authored order, with the binder's normalized column
 // names and presence facts (including control-flow narrowing).
 pub(super) fn check(table: &TableInfo, index: &IndexDecl, read: &ReadExpr, arguments: &[(Option<&str>, bool)]) -> Result<(), Diagnostic> {
+    // @ref LLP 3000.013#2.2 — the complete maintained group is unique even with nulls.
+    // Extra predicates (such as value = 1) may use a secondary access index.
+    // A partial group or a value-only key must still pass ordinary admission.
+    if table.maintained.is_some() && table.indexes.iter().any(|key| key.name == "byGroup"
+        && key.columns.iter().all(|column| index.columns.contains(column) && !index.computed.contains_key(column))) {
+        return Ok(());
+    }
     // @ref LLP 3000.013#2.2 — a fully pinned superset of a required unique key is itself unique.
     // Preserve role-bearing rule/postcondition indexes without adding a
     // redundant uniqueness constraint or changing their physical selection.
