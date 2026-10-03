@@ -122,8 +122,9 @@ them based on connectivity. The starter uses ordinary `search` in both states. N
 **Ordinary search.** Call `usePage(api.search, { q })` and render its `items`.
 The decorated starter renders `row.chatTitle` and `row.senderName` directly.
 The SDK accumulates identity-preserving rows by source row ID; do not append or deduplicate pages yourself.
-Show “Partial results” only for a ready combined read with `complete: false`.
-Stale retained hits and a non-null `next` alone do not mean incomplete.
+Show “Partial results” when `readPresentation(page.read).incomplete` is true,
+including nonempty `present` pages with incomplete coverage, a cut or a
+continuation. Staleness is separate.
 
 The compact server plan discovers compact membership keys, opens one authorized
 order key per chat and materializes only emitted hits. Inner word expansion

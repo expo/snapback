@@ -326,3 +326,77 @@ No budget increase, package version bump, push or publication.
 
 Final reference audit: `ref-check: ok — 527 LLP docs, 10131 refs in 32635 files, 0 errors, 0 unchecked`.
 Final `git diff --check` passes.
+
+## Round 1 — both blind reviews, 2026-10-03
+
+Read the complete Astra and Grok round-0 reviews in `~/sb5-lanes/reviews/`.
+Both said READY WITH CHANGES and found the helper itself sound. Rebased the
+lane cleanly onto `origin/main` at `f0c7d7a038`; round 0 is now `3bc5aa80cd`
+(formerly `2bf8f36731`). No runtime helper predicate changed in this round.
+
+### Context and dispositions
+
+The scoped `llp-orient` pack covers the public read contract, stable screen,
+client/search cards and their tests. Governing documents are LLP 3000.031
+§§1.1,7 (disclosed existence and pure presentation), LLP 3000.023 §3.4
+(hard withdrawals), and LLP 3000.032 §4.1 (the commissioned screen/helper).
+These are in `current/`, not `foundation/`. The guide's composer supplies the
+existing synchronous-clear and refusal-edit pattern. No new authority, saved
+result, subscription policy or LLP is needed; hand-off: none.
+
+| Review finding | Round-1 change |
+|---|---|
+| Astra Medium: delayed admission erases a new draft | Clear before awaiting `send.run`; retain `{ id: mintId(), body }` and pass that ID to the write. Match the latest refusal by ID, offering Edit/Dismiss without replacing a newer draft. Chromium holds admission, deletes/retypes identical text, releases it and checks the new draft and focus. Separate regressions cover admission refusal and refusal after pending custody. |
+| Grok Medium: dropped inbox rule | Restore the exact sentence “Unknown counts never hide conversations.” in the search/screen paragraph and assert it in the guide test. Trim redundant screen wording; final card is 1,199 words, within 1,200. |
+| Astra Low: weak withdrawal test | Two independent subtests each publish a nonempty protected answer immediately before loading or denial. Both require content removal in the committed DOM, with the same draft, input node and focus. |
+| Astra/Grok: inconsistent incomplete documentation | Both search references and the screen teach `readPresentation(page.read).incomplete`. The client table points both present and partial notices at `incomplete`; partial remains uncertain empty, never absence or denial. The contract comment states the exact ready-and-predicate condition. |
+| Grok: implementation status | LLP 3000.032 §4 now marks §4.1 and landed receipt bindings §4.3 implemented. §4.2 is still unimplemented on the rebased main. |
+| Grok: stale incomplete tests | Add an exact nonempty `fresh: false`, `complete: false` result assertion: present, incomplete, stale. Assert the stale empty recipe still renders “No messages in the available snapshot”. |
+
+The screen follows `useMutation`'s latest-submission presentation, as the
+existing composer does; durable recovery of an intent history remains the
+documented saved-intent pattern. No new pending-intent helper is introduced.
+
+### Verification
+
+Used the commissioned PATH, `CARGO_TARGET_DIR=~/sb5-lanes/target` and
+`CARGO_INCREMENTAL=0`. The same host-only Cargo wrapper described above copies
+the completed wasm artifact into the script's literal `target/` path. Logs are
+under [checks/round1/](./checks/round1/), losslessly compressed.
+
+| Command | Result / log |
+|---|---|
+| `bun run --cwd packages/snapback4 build` | Pass; final declarations and wasm copied (`client-build.log.gz`). |
+| `bun run --cwd packages/snapback4 typecheck` | Pass (`typecheck.log.gz`). |
+| `node --test packages/snapback4/test/{read-presentation,read-presentation-react,read-existence-integration,read-types,readme-examples}.test.mjs` | 36 passed, zero failed/skipped: 8 pure presentation, 7 real-device integration, 6 Chromium recipe including its parent, 7 type tests, 8 published-example tests (`affected-final.log.gz`). All 36 README blocks compile. |
+| `cargo test -p snapback4-lang --test guide` | 110 passed, zero failed (`guide-final.log.gz`). |
+| `bash scripts/build-wasm.sh` | Final pass: 2,048,753 B raw / 617,410 B gzip, budget 618,040 B, 630 B headroom (`wasm-rebuilt.log.gz`). |
+| `node reports/20261003-a-read-presentation/pilot-check.mjs` | Both original hashes, schemas, generated API/changed integration types and source syntax pass; 1,010 notice-equivalence cases per pilot (`pilot.log.gz`, separate round-1 schema logs). All code-size counts and the keep decision remain unchanged. |
+
+The first wasm attempt failed because the shared target reused core artifacts
+missing `search_decoration`, `decorate_search` and `decoration_expiry`, all
+present in this lane's source. Touching only the core crate root's mtime forced
+its rebuild; no Rust source content changed. The rebuilt wasm is byte-identical
+to round 0, SHA-256
+`6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8`, in both
+source and distribution. The initial failure remains in `wasm.log.gz`.
+The first green browser run logged React act warnings for DOM-stub events;
+wrapping those events in act removes the warnings in the final green run.
+
+Mutation checks were temporary and restored before the final affected run:
+
+- A `Results` ref retaining its last ready items fails both independent
+  withdrawals on the still-visible protected text (two subtests plus parent
+  failed; other three subtests passed; `mutant-retained-results.log.gz`).
+- Adding `read.fresh &&` to the helper's incomplete predicate fails the new
+  stale-nonempty deep equality (7 passed, 1 failed;
+  `mutant-stale-incomplete.log.gz`).
+
+Chromium executes the actual published recipe with DOM substitutes for native
+views; this remains no native layout qualification. The full `scripts/test.sh`
+was not rerun in round 1; round 0's full-suite result and inherited failures
+remain recorded above. No budget increase, publication or push.
+
+Final `./ref-check --verbose`: 527 LLP docs, 10,131 refs in 32,636 files,
+zero errors or unchecked references (`ref-check.log.gz`). `git diff --check`
+passes. The requested Astra co-author trailer accompanies the local commit.

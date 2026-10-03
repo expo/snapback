@@ -43,6 +43,11 @@ test('stale empty read remains absent, with freshness independent of revalidatio
   }
 });
 
+test('stale nonempty incomplete read stays present with both notices', () => {
+  assert.deepEqual(readPresentation(ready([{ id: 'row' }], { fresh: false, complete: false })),
+    flags('present', { incomplete: true, stale: true }));
+});
+
 test('presentation does not promote dev-meter internals into a disclosed cut or refusal', () => {
   const read = ready([], { meter: { cut: 'meter' } });
   assert.deepEqual(readPresentation(read), flags('absent'));

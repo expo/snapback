@@ -1212,9 +1212,10 @@ device's certified retained hits online, then searches acquired holdings offline
 An online-only client has only the current server domain. Declare conversation
 and order columns immutable; keyset continuation follows `(at, id)` and is not
 a snapshot. Refresh from page one for new matches before the cursor. Render
-`usePage`'s `items`, `hasMore` and `loadMore`; show “Partial results” only when
-its ready combined read has `complete: false`. Staleness and `next` alone do not
-mean partial. Missing retained coverage and cuts remain incomplete, even empty.
+`usePage`'s `items`, `hasMore` and `loadMore`; show “Partial results” when
+`readPresentation(page.read).incomplete` is true, including nonempty `present`
+pages with incomplete coverage, a cut or a continuation. Staleness is separate.
+Missing retained coverage and cuts remain incomplete, even empty.
 See `snapback4 guide search` and `snapback4 new my-social --template social`.
 
 Live reads keep the displayed answer during a re-read by default:
@@ -1394,6 +1395,7 @@ answers remain `present` even with incomplete coverage.
 
 `readPresentation(read)` from `snapback4/contract` derives notice flags without
 subscribing or saving data. `pending` means `loading`, not queued writes.
+The partial-results notice follows `readPresentation(page.read).incomplete`.
 `incomplete` covers ready partial answers, incomplete coverage, disclosed cuts
 and continuations, including nonempty `present` pages. `stale` is `!fresh` on a
 ready answer; `revalidating` is independent. `why` is the current refusal and
@@ -1412,6 +1414,7 @@ For a browser-only UI, substitute HTML controls for the React Native controls.
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
+import { mintId } from "snapback4/client";
 import { existence, isReady, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
@@ -1422,21 +1425,27 @@ export function ConversationScreen({ backend, conversationId }: { backend: strin
 }
 function ConversationShell({ conversationId }: { conversationId: string }) {
   const [draft, setDraft] = useState("");
+  const [submitted, setSubmitted] = useState<{ id: string; body: string } | null>(null);
   const send = useMutation(api.send);
   const member = useQuery(api.myMembership, { conversationId });
   const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
   async function submit() {
     if (blocked || send.inFlight || !draft.trim()) return;
-    const body = draft;
-    const write = await send.run({ conversationId, body }, { waitSeconds: 0 });
-    if (write.state !== "failed") setDraft(current => current === body ? "" : current);
+    const submission = { id: mintId(), body: draft };
+    setSubmitted(submission);
+    setDraft("");
+    await send.run({ conversationId, body: submission.body }, { id: submission.id, waitSeconds: 0 });
   }
   return <View>
     <Text>Conversation</Text>
     <Results conversationId={conversationId} />
     <TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} />
     <Button title="Send" disabled={blocked || send.inFlight || !draft.trim()} onPress={() => void submit()} />
-    {send.last?.state === "failed" && <Text>{send.last.why.message}</Text>}
+    {send.last?.state === "failed" && submitted?.id === send.last.id && <View>
+      <Text>{send.last.why.message}: {submitted.body}</Text>
+      <Button title="Edit" onPress={() => { setDraft(current => current ? current + " " + submitted.body : submitted.body); setSubmitted(null); }} />
+      <Button title="Dismiss" onPress={() => setSubmitted(null)} />
+    </View>}
   </View>;
 }
 function Results({ conversationId }: { conversationId: string }) {
@@ -1458,6 +1467,12 @@ function ReadNotice({ status }: { status: ReadPresentation }) {
   </View>;
 }
 ```
+
+Submission clears the draft synchronously, before admission can wait. Keep the
+submitted text with its write ID; identical text typed later is a new draft.
+The latest submission's refusal offers Edit/Dismiss without replacing that draft.
+Persist intents per account/backend for recovery after reload (see the composer
+in `guide client`).
 
 The notice labels are application choices. A continuation can coexist with rows
 and “More messages”; `incomplete` does not mean loading or denial. Pending row

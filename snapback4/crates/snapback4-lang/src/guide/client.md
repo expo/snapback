@@ -49,14 +49,14 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 | --- | --- |
 | `loading` | Withheld: keep composers/headers/routes mounted. |
 | `denied` | Show refusal; disable durable action. |
-| `present` | Render nonempty values, even incomplete. |
+| `present` | Render nonempty values; `incomplete` controls “Partial results”. |
 | `absent` | Proven empty: resolve missing route/row. |
-| `partial` | Uncertain empty: “Partial results”, never absence/denial. |
+| `partial` | Uncertain empty, never absence or denial; `incomplete` controls “Partial results”. |
 
 Top-level `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
 Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
 Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
-Search: render `page.items`; classify `page.read`. `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation, including nonempty data), `stale`, `revalidating`, `why?`, `since?`; never action permission. Follow `hasMore`/`loadMore`. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen) keys its shell by backend/account/resource; results cannot unmount drafts.
+Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
 ## Queries in rows
 Wire-equivalent names/arguments share observations per retention policy. Paging avoids 1,000 row hooks requiring 1,000 evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.

@@ -83261,3 +83261,36 @@ The guide's readPresentation/read-presentation aliases pass the whole guide
 again, 110/110. Original red logs remain in the report. Every introduced
 failure is repaired with passing affected reruns; the four base-reproduced
 N_SHAPE_METER compiler assertions remain ticketed. No full-suite green claim.
+
+## 2026-10-03 — Lane A round 1: fold both blind reviews
+
+Read Astra and Grok's complete round-0 reviews and folded every requested
+change. The stable screen clears the draft synchronously before admission,
+pairs submitted text with a minted write ID, and offers Edit/Dismiss for that
+latest submission's refusal. New Chromium regressions hold admission while
+identical text is deleted/retyped, and cover refusal both at admission and
+after pending custody. Newer drafts and focus survive.
+
+Loading and denial now each independently follow a nonempty protected read;
+both must immediately remove protected text and preserve the draft/input/focus.
+A last-ready-items cache mutant fails both. A stale nonempty incomplete read
+has an exact present/incomplete/stale assertion; forcing incomplete false when
+stale fails it. The stale empty screen must still say there are no messages.
+
+Restored “Unknown counts never hide conversations.” with a guide assertion;
+the client card is 1,199/1,200 words. Search docs, screen and decision table use
+the helper's incomplete flag for notices. The contract comment states its
+exact condition. The research §4 lead marks implemented §4.1 and §4.3, while
+§4.2 remains a proposal on main. LLP 3000.031 §7 records the recipe regressions.
+
+Rebased cleanly onto main f0c7d7a038 (round 0 became 3bc5aa80cd). Final affected
+checks pass 36/36, including process/wasm, Chromium, type tests and published
+examples; whole guide 110/110; package build/typecheck and both pilots pass.
+Each pilot retains 1,010 equivalent notice cases and unchanged size counts.
+Wasm remains 2,048,753 B raw / 617,410 B gzip, 630 B below the unchanged budget.
+The first wasm attempt used stale shared-target core artifacts; forcing a
+core rebuild by mtime, with no source changes, produced the same round-0 hash.
+Initial failure and passing rebuild logs are retained. No full-suite rerun or
+native layout claim. Round 1 is appended to
+reports/20261003-a-read-presentation/REPORT.md; evidence is under checks/round1/.
+Commit locally with the requested Astra co-author trailer; no push.

@@ -356,7 +356,7 @@ export interface ReadPresentation {
   readonly existence: ReturnType<typeof existence>;
   /** Waiting for a readable answer (`loading`), not a count or claim of pending writes. */
   readonly pending: boolean;
-  /** Ready but partial, incomplete, cut, or with a continuation; also true for nonempty data. */
+  /** True exactly when ready and (existence === "partial" || !complete || cut !== null || next != null), including nonempty data. */
   readonly incomplete: boolean;
   /** A ready answer with fresh === false; independent of revalidation. */
   readonly stale: boolean;
