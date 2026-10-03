@@ -189,7 +189,7 @@ impl Runner<'_> {
         let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
-            ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
+            ("admitted", self.timeline_admission()), ("at", Value::Int(if t.history_all() { self.seq as i64 } else { self.context.now.unwrap_or(0) })), ("status", Value::String("pending".into())), ("error", Value::Null)]);
         self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table("Work")]))?;
         // Resetting an existing natural-key task is safe and costs the same one
         // write as insertion. No task existence is disclosed to the application.
@@ -274,6 +274,23 @@ impl Runner<'_> {
         }
         self.timeline_known()?;
         Ok((rows, keys))
+    }
+
+    // @ref LLP 3000.016.000#4-publication-and-devices — no cursor/absence proof over unfinished history.
+    pub(super) fn experimental_history_pending(&mut self, table: &str) -> Result<(), RuntimeError> {
+        if self.timeline_authority.is_some() { return Ok(()); }
+        let Some(t) = self.schema.timelines.iter().find(|t| t.history_all() && table == t.table("Feed")) else { return Ok(()); };
+        if self.meter.cut == crate::meter::Cut::Abort || self.context.is_system() {
+            return Err(refusal("E_TIMELINE_READ", "experimental history inboxes support viewer queries only; do not use their unfinished facts as write authority or system-wide reads"));
+        }
+        let reader = Value::Id(self.context.viewer.clone());
+        let pending = self.timeline_get(&t.table("Work"), "byReader", vec![reader])?.is_some();
+        if pending || self.meter.capped_at.is_some() {
+            self.timeline_pending = true;
+            self.query_unavailable = true;
+            self.components.note(|frame| { frame.pending = true; frame.speculative = true; });
+        }
+        Ok(())
     }
 
     pub(super) fn timeline_read_pending(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<(), RuntimeError> {

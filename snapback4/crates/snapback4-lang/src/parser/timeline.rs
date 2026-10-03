@@ -6,6 +6,10 @@ impl Parser {
         let name = self.binding_name()?;
         self.take(":")?;
         self.take("timeline")?;
+        // @ref LLP 3000.016.000#2-opt-in-contract — no existing spelling selects full history.
+        let experimental_history_all = if self.at("experimental") {
+            self.take("experimental")?; self.take("history")?; self.take("all")?; true
+        } else { false };
         self.newline()?;
         self.take_kind(Kind::Indent)?;
         let mut authors = [String::new(), String::new()];
@@ -45,7 +49,7 @@ impl Parser {
         self.newline()?;
         let size = self.timeline_size()?;
         self.take_kind(Kind::Dedent)?;
-        Ok(TimelineDecl { name, authors, posts: [posts, author, at, removed],
+        Ok(TimelineDecl { experimental_history_all, name, authors, posts: [posts, author, at, removed],
             reposts: [reposts, actor, original, repost_at], edges: [edges, follower, followed], size, filter, site })
     }
 

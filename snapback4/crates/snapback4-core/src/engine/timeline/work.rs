@@ -80,6 +80,25 @@ impl Runner<'_> {
                         })?
                 } else { Progress::exhausted() }
             }
+            "backfill" if t.history_all() => {
+                // @ref LLP 3000.016.000#3-finite-work-and-fairness — immutable birth index, fixed edge fence.
+                if self.timeline_follows(t, &reader, &actor, &epoch)? {
+                    self.timeline_walk(&t.table("Work"), "byActorBirth",
+                        vec![Value::String("delivery".into()), actor.clone()], true,
+                        cursor.as_deref(), DELIVERY_CHUNK, started, budget, |runner, birth| {
+                            if birth.field("admitted")?.as_str()? >= epoch.as_str()? {
+                                return Err(refusal("E_TIMELINE_SHAPE", "history cursor crossed its edge birth fence; restore the complete store"));
+                            }
+                            if let Some(event) = runner.timeline_get(&t.table("Posts"), "byId", vec![field(&birth, "eventId")?])? {
+                                if runner.timeline_get(&t.table("RemovedEvents"), "byEvent", vec![field(&birth, "eventId")?])?.is_none() {
+                                    runner.timeline_copy_live(t, &event, reader.as_str()?, epoch.clone())?;
+                                    return Ok(1);
+                                }
+                            }
+                            Ok(0)
+                        })?
+                } else { Progress::exhausted() }
+            }
             "backfill" => {
                 if self.timeline_follows(t, &reader, &actor, &epoch)? {
                     self.timeline_walk(&t.table("Posts"), "byActorTime", vec![actor.clone()], true,
@@ -117,7 +136,7 @@ impl Runner<'_> {
             }
             _ => return Err(refusal("E_TIMELINE_SHAPE", "unknown delivery work; restore the complete timeline store")),
         };
-        if progress.exhausted || (kind == "backfill" && progress.copied == remaining) {
+        if progress.exhausted || (kind == "backfill" && !t.history_all() && progress.copied == remaining) {
             if kind == "delivery" {
                 // Keep admission order until removal, for future backfills.
                 self.update(&t.table("Work"), &field(work, "id")?, object([
@@ -128,7 +147,9 @@ impl Runner<'_> {
             }
         } else {
             let cursor = progress.last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery made no progress; restore the complete timeline store"))?;
-            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(progress.copied) as i64))]).timeline_input(&super::TimelineInput(())))?;
+            let mut patch = object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(progress.copied) as i64))]);
+            if t.history_all() { if let Value::Row(fields) = &mut patch { fields.insert("at".into(), Value::Int(self.seq as i64)); } }
+            self.update(&t.table("Work"), &field(work, "id")?, patch.timeline_input(&super::TimelineInput(())))?;
         }
         Ok(())
     }
@@ -146,7 +167,15 @@ impl Engine {
     /// A zero budget still processes one row so recovery always makes progress.
     pub fn run_timeline_chunk_for(&mut self, now: i64, budget: Duration) -> Result<Option<Metered>, RuntimeError> {
         let started = Instant::now();
-        for timeline in self.schema.timelines.clone() {
+        let mut timelines = self.schema.timelines.clone();
+        let fair = timelines.iter().any(Timeline::history_all);
+        if fair {
+            if let Some(last) = self.store.meta("experimental-history-last")? {
+                let start = timelines.iter().position(|t| t.name == last).map_or(0, |p| (p + 1) % timelines.len());
+                timelines.rotate_left(start);
+            }
+        }
+        for timeline in timelines {
             let tx = self.store.transaction()?;
             tx.savepoint("timeline_chunk")?;
             let seq = tx.next_seq()?;
@@ -154,7 +183,17 @@ impl Engine {
             let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
             let work = runner.timeline_scan(&timeline.table("Work"), "byStatusTime", vec![Value::String("pending".into())], 1, false)?.pop();
             let Some(work) = work else { continue; };
-            let outcome = runner.timeline_work(&timeline, &work, started, budget).and_then(|()| runner.check_final_exists());
+            let outcome = runner.timeline_work(&timeline, &work, started, budget)
+                .and_then(|()| runner.check_final_exists())
+                .and_then(|()| {
+                    if fair {
+                        runner.meter.charge(crate::error::MeterKind::Examined, 1)?;
+                        runner.meter.charge(crate::error::MeterKind::RowsWritten, 1)?;
+                        runner.meter.heap(128 + timeline.name.len() as u64)?;
+                        tx.set_meta("experimental-history-last", &timeline.name)?;
+                    }
+                    Ok(())
+                });
             let events = runner.events.take();
             let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
             let metered = runner.meter.used;
@@ -175,6 +214,12 @@ impl Engine {
                     guard.update(&timeline.table("Work"), &field(&work, "id")?, object([("status", Value::String("parked".into())), ("error", Value::String(message))]).timeline_input(&super::TimelineInput(())))?;
                     let tables = guard.written_tables.iter().cloned().collect::<Vec<_>>();
                     let events = guard.events.take();
+                    if fair {
+                        guard.meter.charge(crate::error::MeterKind::Examined, 1)?;
+                        guard.meter.charge(crate::error::MeterKind::RowsWritten, 1)?;
+                        guard.meter.heap(128 + timeline.name.len() as u64)?;
+                        tx.set_meta("experimental-history-last", &timeline.name)?;
+                    }
                     let metered = guard.meter.used;
                     drop(guard); drop(runner);
                     tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;

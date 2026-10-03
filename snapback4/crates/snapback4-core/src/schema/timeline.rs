@@ -15,7 +15,7 @@ pub const EVENT_COPIES: usize = 1001;
 /// Server and device must fence the old owned shapes before opening or adoption.
 // @ref LLP 3000.013#4-following-without-caps — derived history is fenced, never silently migrated.
 pub fn check_version(schema: &super::Schema) -> Result<(), crate::RuntimeError> {
-    if schema.timelines.iter().any(|t| t.version != 2) {
+    if schema.timelines.iter().any(|t| !matches!(t.version, 2 | 3)) {
         return Err(crate::RuntimeError::Structural { code: "E_TIMELINE_REDEFINE", message:
             "this store contains a 0.3 timeline; use a fresh store in dev or preserve it with the matching 0.3 engine; timeline history is not migrated".into() });
     }
@@ -67,6 +67,10 @@ pub struct Timeline {
 }
 
 impl Timeline {
+    // @ref LLP 3000.016.000#2-opt-in-contract — v3 fences old servers/devices without changing v2 bytes.
+    pub fn history_all(&self) -> bool { self.version == 3 }
+    pub fn history_limit(&self) -> usize { if self.history_all() { usize::MAX } else { HISTORY_WINDOW } }
+
     // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — an engine slot belongs to a declaration AND a source role.
     pub fn slot(&self, repost: bool) -> String {
         format!("$timeline:{}:{}", self.name, if repost { "repost" } else { "post" })
@@ -154,6 +158,11 @@ pub(super) fn validate(schema: &super::Schema, issues: &mut Vec<super::SchemaIss
     let all_mapped: BTreeSet<_> = schema.timelines.iter().flat_map(|t|
         [&t.posts[0], &t.reposts[0], &t.edges[0]]).cloned().collect();
     for t in &schema.timelines {
+        // @ref LLP 3000.016.000#4-publication-and-devices — no complete aggregate over an unfinished archive.
+        if t.history_all() && schema.maintains.iter().any(|m| m.source == t.table("Feed")) {
+            issues.push(super::SchemaIssue { path: format!("timelines.{}", t.name),
+                message: "experimental full-history inboxes support viewer queries only, not maintained aggregates".into() });
+        }
         let owned: BTreeSet<_> = OWNED_SUFFIXES.iter().map(|s| t.table(s)).collect();
         let mapped: BTreeSet<_> = [&t.posts[0], &t.reposts[0], &t.edges[0]].into_iter().cloned().collect();
         let unique = owned.iter().all(|name| owners.insert(name.clone()));

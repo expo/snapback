@@ -1,0 +1,16 @@
+{
+  "admit_ms": 14235,
+  "all": true,
+  "bytes_before": 515354624,
+  "chunks": 391,
+  "complete_ms": 50922,
+  "copies": 116385,
+  "database_bytes": 838471680,
+  "examined": 407814,
+  "max_examined": 1044,
+  "max_heap": 3030366,
+  "reader_feed_bytes": 35917395,
+  "row_bytes": 152224388,
+  "seed_ms": 40905,
+  "writes": 100732
+}

@@ -26,7 +26,11 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
             diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or owned name collides", "choose a distinct timeline name and leave its Posts, Feed, RemovedEvents, Work and Edges names unused"));
             continue;
         }
-        let source = include_str!("timeline.q").replace("@T@", &decl.name);
+        let mut source = include_str!("timeline.q").replace("@T@", &decl.name);
+        if decl.experimental_history_all {
+            source = source.replace("  by byStatusTime: status, at, id",
+                "  by byStatusTime: status, at, id\n  by byActorBirth: kind, actorId, admitted, id");
+        }
         let (doc, errors) = crate::parse_document("timeline.q", &source);
         if !errors.is_empty() { diagnostics.extend(errors); continue; }
         for name in owned { names.insert(name, 1); }
@@ -125,7 +129,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             schema.tables.get_mut(&decl.reposts[0]).unwrap().columns.insert(format!("$timeline:{}:repost", decl.name), ColumnType::Optional(Box::new(ColumnType::Id)));
             schema.tables.get_mut(&format!("{}Feed", decl.name)).unwrap().sync.as_mut().unwrap().horizon =
                 Some(Horizon { last: HISTORY_WINDOW as u32, by: "byReaderPage".into() });
-            Ok(Timeline { name: decl.name.clone(), version: 2, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
+            Ok(Timeline { name: decl.name.clone(), version: if decl.experimental_history_all { 3 } else { 2 }, filter, authors: Default::default(), posts: decl.posts.clone(), reposts: decl.reposts.clone(), edges: decl.edges.clone(),
                 author_cap: 1000, edge_cap: 100000, followed_index, purge: String::new(), owned, mapped })
         })();
         match result { Ok(t) => schema.timelines.push(t), Err(e) => diagnostics.push(e) }

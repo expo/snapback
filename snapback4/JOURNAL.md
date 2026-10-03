@@ -82701,3 +82701,41 @@ check reports inherited drift and missing generated prerequisites; the
 [validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
 retains the full red and its causes. Commit locally with the requested Astra
 co-author trailer; no push or publication.
+
+## 2026-10-03 — F: opt-in older Following history and selection evidence
+
+[LLP 3000.016.000](../llp/3000.016.000-older-following-history.rfc.md) is in
+Review for Charlie. The separately commissioned prototype accepts
+`maintain feed: timeline experimental history all`; ordinary declarations
+and inferred Following stay version 2, with byte-identical schema/program/
+TypeScript outputs and deterministic transition controls against base
+22f2207f3fadb355f2964ba0e463e002e16c3f07. Nothing is paved in the guide or README.
+
+Version 3 freezes the pre-follow birth domain below the edge epoch, reuses
+retained birth records through one new index, rotates work fairly, and
+withholds the reader's feed until pending history/cleanup finishes. Existing
+follows upgrade only by explicit fresh-name start-now adoption under the
+unchanged 5M-copy ceiling. Slots, tombstones, epochs and device floors remain.
+A scale oracle caught premature completion during normalized catch-up;
+version-3 devices now select the existing image publication barrier even
+without a local prediction. Both actual device hosts pass every complete
+above-floor page and withhold at the original floor.
+
+At one 100k-event actor plus 16,385 quiet actors, all history adds 99,000
+foreign copies and 285,855,744 settled SQLite bytes. The 256-row-chunk
+microbenchmark drains in 50.922 s versus 0.259 s for the current window;
+this is not serving latency. The two-millisecond stress, including repeated
+refollow/cleanup, two removals, 512 backdated births, restart and a halfway
+cold device, takes 544.095 s including fixture observations. Its catch-up
+transports 42.65 MB even though the final device retains 2,019 inbox rows.
+No builder LOC saving is claimed. Default semantics/resource goals remain
+Charlie's decision; the selection ticket stays open.
+
+Required full suite: `== 0 failure(s) in 1916 s` (functional pass; the
+60-second timing budget was not met). Client package: 5,786 passed, 10 named
+platform/optional-witness skips; client models: 79 passed. Whole language
+guide: 110 passed. Wasm: 2,031,763 B raw / 610,487 B gzip, below the unchanged
+610,782 B cap. Runtime ceilings unchanged. Preliminary private-directory and
+shared-artifact test setup failures were repaired before the final suite.
+[Report and exact checks](./reports/20261003-f-follow-history/REPORT.md).
+Commit locally with the requested Astra co-author trailer; no push or publish.

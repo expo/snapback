@@ -14,9 +14,7 @@ use crate::rows::{Bounds, Dir};
 use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
-
 use crate::rows::word_heap;
-
 use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
 #[path = "word_merge.rs"]
 mod word_merge;
@@ -83,7 +81,6 @@ fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -
         _ => 0,
     }
 }
-
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
@@ -695,6 +692,7 @@ impl<'r> Runner<'r> {
     /// decode scratch with its retained row/vector allowance.
     pub(super) fn metered_domain(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
+        self.experimental_history_pending(&scan.table)?;
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
         let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
@@ -726,6 +724,7 @@ impl<'r> Runner<'r> {
 
     fn scan_with_keys_inner(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
+        self.experimental_history_pending(&scan.table)?;
         if !scan.existence { return self.scan_with_words(scan, None); }
         self.page_depth += 1;
         let result = self.scan_with_words(scan, None);
@@ -810,6 +809,7 @@ impl<'r> Runner<'r> {
 
     fn stream_aggregate_scoped(&mut self, scan: &Scan, mut aggregate: super::extrema::Aggregate<'_>) -> Result<Value, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
+        self.experimental_history_pending(&scan.table)?;
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];

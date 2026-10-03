@@ -13,7 +13,12 @@ impl Runner<'_> {
         ]))?;
         let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor.clone()], (t.backfill() + 1) as u32, true, None)?;
         for event in events.iter().take(t.backfill()) { self.timeline_copy(t, event, reader.as_str()?, epoch.clone())?; }
-        if events.len() > t.backfill() {
+        if t.history_all() && events.len() > t.backfill() {
+            // A birth boundary, not a wall-clock boundary. Later backdated births
+            // sort above this exclusive seek and cannot extend the walk.
+            let start = crate::key::encode(&[Value::String("delivery".into()), actor.clone(), epoch.clone()]);
+            self.timeline_enqueue(t, "backfill", actor, reader, Value::Null, epoch, 0, Some(start))?;
+        } else if !t.history_all() && events.len() > t.backfill() {
             self.timeline_enqueue(t, "backfill", actor, reader, Value::Null, epoch, HISTORY_WINDOW - t.backfill(), keys.get(t.backfill() - 1).cloned())?;
         }
         Ok(())

@@ -4,6 +4,7 @@ use super::*;
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     pub(super) fn rule_probe_exists(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        self.experimental_history_pending(table)?;
         let (present, known) = self.probe_witness(allowance, table, index, key, equalities, false)?;
         if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); self.components.note(|frame| frame.speculative = true); }
         Ok(present)

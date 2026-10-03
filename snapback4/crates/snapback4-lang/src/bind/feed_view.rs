@@ -101,7 +101,7 @@ fn recognize(feed: &FeedView, views: &BTreeMap<String, ViewDecl>, tables: &BTree
             kind(posts, c, &TypeKind::Bool) && !posts.immutable.iter().any(|(fields, _)| fields.iter().any(|f| f == c))).collect();
         if candidates.len() > 1 { return Err(refusal(&a.site, "Following supports one changing removal flag; other predicate columns must be immutable")); }
         let removed = candidates.first().copied().unwrap_or("");
-        let decl = TimelineDecl { name: feed.name.clone(), authors: Default::default(), size: None, site: feed.site.clone(), filter: a.predicate.clone(),
+        let decl = TimelineDecl { experimental_history_all: false, name: feed.name.clone(), authors: Default::default(), size: None, site: feed.site.clone(), filter: a.predicate.clone(),
             posts: [a.source.clone(), author.into(), intent::column(times[0].1).unwrap().into(), removed.into()],
             reposts: [b.source.clone(), reposter.into(), intent::column(&r[original[0].0]).unwrap().into(), intent::column(&r[times[0].0]).unwrap().into()],
             edges: [read.table.clone(), pairs[0].columns[0].clone(), pairs[0].columns[1].clone()] };

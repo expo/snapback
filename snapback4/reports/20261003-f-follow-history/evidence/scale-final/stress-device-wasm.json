@@ -1,0 +1,96 @@
+{
+  "file": "stress-device",
+  "tier": "wasm",
+  "pages": 204,
+  "streamBytes": 47615973,
+  "initial": {
+    "tables": {
+      "feedEdges": {
+        "rows": 16386,
+        "bytes": 3146108
+      },
+      "feedFeed": {
+        "rows": 1000,
+        "bytes": 308000
+      },
+      "feedPosts": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedRemovedEvents": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedWork": {
+        "rows": 1,
+        "bytes": 795
+      },
+      "follows": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "posts": {
+        "rows": 1000,
+        "bytes": 153000
+      },
+      "reposts": {
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "totalBytes": 5060078,
+    "totalBytesKind": "logical",
+    "wasmHeapBytes": 32833536
+  },
+  "initialMs": 692.3073249999999,
+  "firstComplete": {
+    "pages": 204,
+    "watermark": 50113,
+    "imagesAt": 50113,
+    "more": false
+  },
+  "checkedPages": 100,
+  "peakBytes": 6686113,
+  "peakWasmHeap": 32833536,
+  "applyMs": 11254.362379999999,
+  "wallMs": 11631.243127000002,
+  "residency": {
+    "tables": {
+      "feedEdges": {
+        "rows": 16386,
+        "bytes": 3146108
+      },
+      "feedFeed": {
+        "rows": 2019,
+        "bytes": 621852
+      },
+      "feedPosts": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedRemovedEvents": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedWork": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "follows": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "posts": {
+        "rows": 1000,
+        "bytes": 153000
+      },
+      "reposts": {
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "totalBytes": 5454575,
+    "totalBytesKind": "logical",
+    "wasmHeapBytes": 32833536
+  }
+}

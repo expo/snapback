@@ -50,7 +50,10 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     }
     let notes = estimates.iter().filter(|e| e.sources != 0).map(|estimate| {
         let site = sites.get(&format!("timelines.{}", estimate.name)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
-        Diagnostic::new(&site, "N_TIMELINE_ADOPT", format!("{}; dev will atomically start this feed now: all retained own events and newest 1,000 live events per current follow, no refill on removal; fresh repost ids, no recovered delivery history. Writes and syncs wait; devices reacquire", estimate.summary()),
+        let history = if schema.timelines.iter().any(|t| t.name == estimate.name && t.history_all()) {
+            "all retained live events per current follow (experimental history all)"
+        } else { "newest 1,000 live events per current follow" };
+        Diagnostic::new(&site, "N_TIMELINE_ADOPT", format!("{}; dev will atomically start this feed now: all retained own events and {history}, no refill on removal; fresh repost ids, no recovered delivery history. Writes and syncs wait; devices reacquire", estimate.summary()),
             "dev adopts automatically; deploy requires --allow-feed-adoption. Use planned home in guide feeds to avoid the launch lock").guide("feeds")
     }).collect();
     Ok((diagnostics, notes))

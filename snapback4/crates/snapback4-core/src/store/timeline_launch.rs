@@ -2,7 +2,7 @@
 // @ref LLP 3000.026#4-atomic-launch-adoption — start this feed now, not historical replay.
 use super::*;
 use crate::{error::MeterKind, meter::{Ceilings, Cut, Meter}, rows::adoption::Work,
-    schema::timeline::{Timeline, HISTORY_WINDOW}, value::object};
+    schema::timeline::Timeline, value::object};
 
 pub const COPY_CEILING: u64 = 5_000_000;
 // Updated from the complete release-profile activation measurement, including
@@ -128,7 +128,7 @@ fn estimate(tx: &Tx<'_>, schema: &Schema, previous: &Schema, now: i64) -> Result
             let reader = row.field(&t.edges[1])?;
             let actor = row.field(&t.edges[2])?;
             if reader == actor { return Err(refuse(format!("view {}: retained self-follow {}; remove it before adoption", t.name, row.field("id")?.as_str()?))); }
-            e.copies += actors.get(actor.as_str()?).copied().unwrap_or(0).min(HISTORY_WINDOW as u64);
+            e.copies += actors.get(actor.as_str()?).copied().unwrap_or(0).min(t.history_limit() as u64);
             Ok(())
         })?;
         estimates.push(e);
@@ -202,7 +202,7 @@ pub(super) fn build(tx: &Tx<'_>, schema: &Schema, estimates: &[Estimate], now: i
             put(tx, schema, &t.table("Edges"), object([("id", Value::Id(id)), ("readerId", reader.clone()), ("actorId", actor.clone()), ("epoch", epoch.clone())]), outer)?;
             writes += 1;
             let mut after = None;
-            let mut remaining = HISTORY_WINDOW;
+            let mut remaining = t.history_limit();
             while remaining > 0 {
                 // Metered pages are scratch scopes, never transaction chunks.
                 // Reserve the still-live source page and the bounded owned images

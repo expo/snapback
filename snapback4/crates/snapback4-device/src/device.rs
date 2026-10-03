@@ -788,7 +788,10 @@ impl<S: DeviceStore> Device<S> {
             return Err(RuntimeError::Generation("obsolete deferred transfer page; retry sync".into()));
         }
         predictions::qualify_receipts(&tx, page)?;
-        let defer = deferred::should_defer(&tx, &self.programs, page, watermark, declaration)?;
+        // @ref LLP 3000.016.000#4-publication-and-devices — a normalized Work deletion cannot certify copies still in the log suffix.
+        let history_fence = self.schema.timelines.iter().any(|t| t.history_all())
+            && page.images_at.is_some_and(|head| head > page.watermark);
+        let defer = history_fence || deferred::should_defer(&tx, &self.programs, page, watermark, declaration)?;
         if !replacing && defer {
             deferred::stage(&tx, &self.schema, self.generation, page)?;
             predictions::clear_capture(&tx)?;

@@ -522,6 +522,7 @@ pub struct Document {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TimelineDecl {
+    pub experimental_history_all: bool,
     pub name: String,
     pub authors: [String; 2],
     pub posts: [String; 4],

@@ -16,6 +16,7 @@ impl Runner<'_> {
         let expiry = self.next_expiry.scope();
         let mut emitted = false;
         self.schema.refuse_private(&read.table)?;
+        self.experimental_history_pending(&read.table)?;
         // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
         let maintained = self.schema.maintain_for(&read.table).is_some();
         if maintained { self.meter.require_uncapped()?; }

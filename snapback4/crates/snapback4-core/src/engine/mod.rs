@@ -969,9 +969,16 @@ impl Engine {
                 .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
             *_current = Some(runner.search_overlap(&descriptor, ids)?);
         }
-        let data = runner.run_server_query(&program)?;
+        let history_all = self.schema.timelines.iter().any(|t| t.history_all());
+        let data = match runner.run_server_query(&program) {
+            Err(_) if history_all && runner.timeline_pending && runner.query_unavailable => Value::Null,
+            result => result?,
+        };
+        // @ref LLP 3000.016.000#4-publication-and-devices — unpublished history has no data or cursor.
+        let withheld_history = runner.timeline_pending && runner.query_unavailable && history_all;
+        let data = if withheld_history { Value::Null } else { data };
         runner.charge_output(&data)?;
-        let next = runner.outcome_next_cursor()?;
+        let next = if withheld_history { None } else { runner.outcome_next_cursor()? };
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
