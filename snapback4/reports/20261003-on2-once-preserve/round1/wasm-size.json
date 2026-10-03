@@ -1,0 +1,10 @@
+{
+  "artifact": "packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "provenance": "unchanged round-0 ON2 web artifact; round 1 changes guide and tests only",
+  "sha256": "1fd8cd3fdef29bc5038a642e10ba0eb22df841b44ca704d1f0d2d4f5decf0e74",
+  "raw": 2048676,
+  "gzip": 617327,
+  "budget": 618040,
+  "margin": 713,
+  "budget_output": "(budget 618040: ok)"
+}

@@ -1,0 +1,359 @@
+{
+  "scope": "All failures from the single canonical suite run; 79 serial model tests passed",
+  "counts": {
+    "ours": 4,
+    "inherited from base": 4,
+    "environmental": 50
+  },
+  "failures": [
+    {
+      "test": "snapback4-lang::prefix_reads::explicit_caps_stay_silent_and_predicting_short_pages_stay_refused",
+      "classification": "inherited from base",
+      "cause": "existing N_SHAPE_METER note vs zero-note expectation",
+      "evidence": "base-inherited-rust.json"
+    },
+    {
+      "test": "snapback4-lang::prefix_reads::prefix_reads_compile_without_notes_and_caps_follow_one_schema_number",
+      "classification": "inherited from base",
+      "cause": "existing N_SHAPE_METER note vs zero-note expectation",
+      "evidence": "base-inherited-rust.json"
+    },
+    {
+      "test": "snapback4-sim::membership_search::edges::calendar_repair_executes_the_same_offset_boundary_predicate",
+      "classification": "inherited from base",
+      "cause": "existing N_SHAPE_METER note vs zero-note expectation",
+      "evidence": "base-inherited-rust.json"
+    },
+    {
+      "test": "snapback4-sim::membership_search::refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches",
+      "classification": "inherited from base",
+      "cause": "existing N_SHAPE_METER note vs zero-note expectation",
+      "evidence": "base-inherited-rust.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::snapback4::verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "shared-binary-interference.json"
+    },
+    {
+      "test": "snapback4::witness::preparation_selectors_are_exclusive_and_repack_is_withdrawn",
+      "classification": "environmental",
+      "cause": "shared Cargo binary replaced during suite",
+      "evidence": "witness-cli-pair.json"
+    },
+    {
+      "test": "process: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers",
+      "classification": "ours",
+      "cause": "obsolete once-driven insertion deadline assertion; corrected to real deletion",
+      "evidence": "post-suite-controls.log.gz"
+    },
+    {
+      "test": "process: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers",
+      "classification": "ours",
+      "cause": "obsolete once-driven insertion deadline assertion; corrected to real deletion",
+      "evidence": "post-suite-controls.log.gz"
+    },
+    {
+      "test": "wasm: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers",
+      "classification": "ours",
+      "cause": "obsolete once-driven insertion deadline assertion; corrected to real deletion",
+      "evidence": "post-suite-controls.log.gz"
+    },
+    {
+      "test": "wasm: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers",
+      "classification": "ours",
+      "cause": "obsolete once-driven insertion deadline assertion; corrected to real deletion",
+      "evidence": "post-suite-controls.log.gz"
+    },
+    {
+      "test": "acquire CLI refuses invalid arguments before connecting",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "serve accepts a matching bearer, refuses a different principal, and omits server timings",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "bounds guide command and receipt excerpt execute against a small fixture",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects more-then-drop and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects denied and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects malformed-json and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects null and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects missing-fields and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects bad-more and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects behind-server and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects dropped-first and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects drop-once and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects truncated-body and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects bad-ack and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "reconnect proof rejects bad-acquisitions and records every attempted request",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "witness family usage advertises both commands and shares input diagnostics",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "receipt identifies the JSON-line subprocess host",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "restart times coverage separately from first answer",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "binary native module installs and survives restart",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "binary native module digest refusal fails proof",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops raw from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops hex from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops HEX from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops base64 from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops base64url from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops percent from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops percentLower from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "server allowlist drops sha256 from every acquisition output surface",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "caller query and args are echoed from the request, never selected schema metadata",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "failed query receipts distinguish argument rejection, query refusal and incomplete coverage",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "equals token spelling authenticates without exposing the bearer",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "acquire argument refusals omit values including equals bearers",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    },
+    {
+      "test": "runtime refusals do not echo caller argument values in stderr",
+      "classification": "environmental",
+      "cause": "private binary outside checkout cannot discover packaged witness helper",
+      "evidence": "witness-acquire-layout.log.gz"
+    }
+  ],
+  "summary": "== 2 failure(s) in 1681 s"
+}

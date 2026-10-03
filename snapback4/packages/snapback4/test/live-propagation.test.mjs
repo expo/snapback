@@ -26,7 +26,8 @@ async function eventTurns(t, predicate, label) {
   assert.ok(predicate(), label);
 }
 const cases = ['child-add', 'child-replace', 'child-remove', 'parent', 'joined-profile', 'authorization', 'unknown-footprint'].map(scenario => ({ scenario }));
-cases.push({ scenario: 'child-add', held: true }, { scenario: 'child-remove', held: true }, { scenario: 'unknown-footprint', held: true }, { scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-add', expire: true }, { scenario: 'child-add', keep: true, expire: true });
+// @ref LLP 3000.023#12 — once-table insertions preserve; a real removal exercises the revocation deadline.
+cases.push({ scenario: 'child-add', held: true }, { scenario: 'child-remove', held: true }, { scenario: 'unknown-footprint', held: true }, { scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-remove', expire: true }, { scenario: 'child-remove', keep: true, expire: true });
 for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire, held } of cases) {
   test(`${tier}: ${scenario} keep=${keep} expire=${!!expire}${held ? ' held=true' : ''} drives mounted reads from change through apply without elapsed timers`, async t => {
     const { url, dir } = await server(t, '', held ? fixture.replace('query decorated(message: messages, c: cursor ?):', 'query decorated(message: messages, c: cursor ?) held:').replace('query reactionRows(message: messages, c: cursor ?):', 'query reactionRows(message: messages, c: cursor ?) held:') : fixture);

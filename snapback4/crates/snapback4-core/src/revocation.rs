@@ -157,21 +157,16 @@ impl Dependencies {
         }
         if let Some(c) = &table.expire { self.column(name,c); }
         if table.is_expiring() { self.column(name,"$deadline"); self.column(name,"$parentDeadline"); }
+        // @ref LLP 3000.023#12 — once protects served bytes, not the handle;
+        // consumption cannot revoke row/field disclosure. Asset edits still can.
         for (column, kind) in &table.columns {
             if asset(kind) { self.column(name,column); }
-            // The once ledger is not an ordinary row table. Until it has an audience
-            // mapping this dependency is unknown, including for opaque native reads.
-            if once(kind) { self.unknown = true; }
         }
     }
 }
 fn asset(kind: &ColumnType) -> bool {
     match kind { ColumnType::Image { .. } | ColumnType::Video { .. } => true,
         ColumnType::Optional(t) | ColumnType::List { of: t, .. } => asset(t), _ => false }
-}
-fn once(kind: &ColumnType) -> bool {
-    match kind { ColumnType::Image { once, .. } => *once,
-        ColumnType::Optional(t) | ColumnType::List { of: t, .. } => once(t), _ => false }
 }
 
 /// Classify a complete interval. Legacy, pruned and over-limit intervals widen.

@@ -1,0 +1,42 @@
+[
+  {
+    "mutation": "missing-fence",
+    "exit": 1,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=README TypeScript examples compile",
+      "packages/snapback4/test/readme-examples.test.mjs"
+    ]
+  },
+  {
+    "mutation": "missing-import",
+    "exit": 1,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=README TypeScript examples compile",
+      "packages/snapback4/test/readme-examples.test.mjs"
+    ]
+  },
+  {
+    "mutation": "refusal-code",
+    "exit": 1,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=README TypeScript examples compile",
+      "packages/snapback4/test/readme-examples.test.mjs"
+    ]
+  },
+  {
+    "mutation": "denied-code",
+    "exit": 1,
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=README TypeScript examples compile",
+      "packages/snapback4/test/readme-examples.test.mjs"
+    ]
+  }
+]

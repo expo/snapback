@@ -84230,3 +84230,69 @@ The 0.4.12 publication dry run (attempt 4) failed the three `published 0.2.33 ca
 `sameAnswer` now states the rule instead. Every key the published answer carries keeps its exact value. An extra key the published release never sent is admitted only in its neutral state: `null`, `false`, `[]` or `{}`. On a store the old release wrote, new metadata must have nothing to say; a non-neutral value is a semantic change and still fails. The `scopes` and RV `preserved` exceptions are unchanged. A unit test pins the rule.
 
 Verified on the black M5 against the 0.4.12 cut's built binary and wasm: all 4 fence cases and both allowance tests pass.
+
+## 2026-10-03 — ON2: once-media history obeys the bytes-once contract
+
+Reproduce LM's base empty-history transition on process and wasm before editing
+runtime code. Remove the sole blanket unknown dependency for `once` columns
+from `revocation::Dependencies::table`, plus its unused recursive helper.
+Charlie's bytes-once ruling permits retained handles/metadata: per-principal
+bytes remain single-serve with second-fetch HTTP 410 `E_ASSET_VIEWED`.
+Keep ordinary asset-edit dependencies and every hard withdrawal unchanged.
+Record the decision in LLP 3000.023 §12 and reference it at the classifier;
+add the small `useAsset` / “Opened” pattern to the assets guide. No machinery
+from lane ON's parked masking prototype is adopted. Close LM's ticket.
+
+The final regressions fail three cases on preserved base artifacts (process
+and wasm once settlement, online consumed-handle retention); their other 14
+controls pass on base. Final source passes 418 distinct affected client cases,
+including second-fetch refusal, real deletion, membership deadlines and
+account/store retirement on online/process/wasm. Rust soundness passes 5/5
+(90 schemas, 11,520 commits, 604,650 certified checks); whole guide 111/111,
+wasm budget 2/2, reference audit clean. Wasm shrinks from 2,048,753 raw /
+617,410 gzip B to 2,048,676 raw / 617,327 gzip B: -77 raw / -83 gzip B,
+713 B below the unchanged 618,040 B cap. No runtime growth.
+
+Run `scripts/test.sh` once: `== 2 failure(s) in 1681 s` (`cargo test`,
+`client tests`). Client pool: 5,970 passed, 40 failed, 11 skipped; serial
+models: 79 passed. All 58 individual failures are classified in the report:
+4 ours (obsolete once-dependent insertion deadline expectations, corrected to
+real deletion and passing in a 55-test follow-up); 4 inherited N_SHAPE_METER
+zero-note assertions, directly reproduced with the base compiler; and 50
+environmental. Of the latter, 14 witness Rust failures use a shared executable
+replaced by another build (42 isolated units pass; all seven exact integration
+CLI pairs match ON2), and 36 witness-acquire failures result from ON2's private
+binary layout lacking helper discovery (all 43 pass with the identical binary
+in the checkout layout). Preserve the canonical red result, do not rerun it,
+and leave the existing inherited tickets open. No unresolved ON2 product red.
+
+Report and complete evidence: `reports/20261003-on2-once-preserve/REPORT.md`;
+external handoff `~/sb5-lanes/on2.report.md`. Local commit only, no push or
+publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-03 — ON2 Round 1: compile Opened and cover required once images
+
+Address both READY WITH CHANGES reviews of `3717a68cf9`. Put the real
+`useAsset` import inside the assets card's OncePhoto fence and compile that
+exact fence as a separate module in the existing TypeScript example test.
+Pin the bytes-once, retained-metadata, handle-authority and “Opened” sentences
+in the guide tests. Add required `image <=1000 once` to the asset soundness
+shapes, retaining per-viewer consumption and non-preserving clear assertions.
+Required images clear by deleting their home; optional shapes still use null.
+The first run caught that fixture distinction; its failure stays in the report.
+
+Deleting the fence, removing its import, and replacing `asset.why.code` with
+either `asset.refusal.code` or `asset.denied.code` all fail the example test.
+Grok's required-image-only unknown-dependency mutation fails the `docs`
+preservation assertion. Every mutation is restored; runtime code is unchanged.
+Final guide 112, soundness 5, once-preservation clients 13 across online/process/
+wasm, examples 8 and wasm-budget 2 all pass. The soundness corpus covers 90
+schemas and 604,650 certified checks; five asset shapes exercise 8 consumptions
+and 288 access checks. Reference audit passes with zero errors or unchecked refs.
+
+Remeasure the unchanged ON2 wasm artifact: 2,048,676 B raw / 617,327 B gzip,
+713 B below the unchanged 618,040 B cap. No new wasm-build claim or full-suite
+rerun; preserve round 0's canonical red and its classifications. Evidence and
+development-failure record: `reports/20261003-on2-once-preserve/REPORT.md`,
+Round 1 and `round1/`. Local commit with the requested Astra co-author trailer;
+no push or publication.

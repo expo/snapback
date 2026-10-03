@@ -1,0 +1,176 @@
+[
+  {
+    "binary": "/home/ccheever/sb5-lanes/target/debug/snapback4",
+    "sha256": "372654cd1d061e31ceebfebf895bf2ed5afa3c12baa003de2d0d9ee8f4f94035",
+    "results": [
+      {
+        "args": [
+          "--bundle-id",
+          "app.test",
+          "--build",
+          "."
+        ],
+        "reason": "select exactly one",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: select exactly one of --bundle-id or --build; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--build",
+          ".",
+          "--export",
+          "dist"
+        ],
+        "reason": "--export requires --build and --smoke",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: unknown flag; see snapback4 guide witness; see snapback4 guide witness\n",
+        "matches": false
+      },
+      {
+        "args": [
+          "--bundle-id",
+          "app.test",
+          "--smoke",
+          "--export",
+          "dist"
+        ],
+        "reason": "--export requires --build and --smoke",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: unknown flag; see snapback4 guide witness; see snapback4 guide witness\n",
+        "matches": false
+      },
+      {
+        "args": [
+          "--repack=build.json"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--repack",
+          "build.json",
+          "--app-project",
+          ".",
+          "--smoke"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--repack",
+          "build.json"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--build",
+          ".",
+          "--app-project",
+          "."
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      }
+    ]
+  },
+  {
+    "binary": "/home/ccheever/sb5-lanes/on2-artifacts/snapback4",
+    "sha256": "8f7ce41698c2b344df7f7643e7cf40ec1a32d505741bd4ac710baa7d89375c3a",
+    "results": [
+      {
+        "args": [
+          "--bundle-id",
+          "app.test",
+          "--build",
+          "."
+        ],
+        "reason": "select exactly one",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: select exactly one of --bundle-id or --build; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--build",
+          ".",
+          "--export",
+          "dist"
+        ],
+        "reason": "--export requires --build and --smoke",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: --export requires --build and --smoke; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--bundle-id",
+          "app.test",
+          "--smoke",
+          "--export",
+          "dist"
+        ],
+        "reason": "--export requires --build and --smoke",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: --export requires --build and --smoke; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--repack=build.json"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--repack",
+          "build.json",
+          "--app-project",
+          ".",
+          "--smoke"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--repack",
+          "build.json"
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      },
+      {
+        "args": [
+          "--build",
+          ".",
+          "--app-project",
+          "."
+        ],
+        "reason": "repack is withdrawn; use witness ios --build",
+        "exit": 1,
+        "stderr": "E_WITNESS_INPUT: repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory; see snapback4 guide witness\n",
+        "matches": true
+      }
+    ]
+  }
+]

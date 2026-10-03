@@ -309,8 +309,10 @@ fn filter_exit_limit_displacement_and_private_value_edits_preserve_disclosure() 
 fn asset_and_once_consumption_cover_every_viewer() {
     use snapback4_core::assets::{Asset,AssetKind};
     let (mut commits,mut consumptions,mut access_checks) = (0,0,0);
-    for seed in SEEDS { for kind in ["image <=1000 ?","video <=1000 ?","[[image <=1000] <=2] <=2 ?","[[image <=1000 once] <=2] <=2 ?"] {
-        let source = format!("use server\ntable docs:\n  photo: {kind}\n  public\n  insert <- allow\n  update <- allow\nmutation place(photo: {argument}):\n  insert docs {{ photo }}\nmutation clear():\n  update docs['a'] {{ photo: null }}\n", argument=kind.replace(" once", ""));
+    for seed in SEEDS { for kind in ["image <=1000 ?","video <=1000 ?","[[image <=1000] <=2] <=2 ?","[[image <=1000 once] <=2] <=2 ?","image <=1000 once"] {
+        // A required image cannot be set to null; remove its home instead.
+        let clear = if kind.ends_with(" ?") { "update docs['a'] { photo: null }" } else { "delete docs['a']" };
+        let source = format!("use server\ntable docs:\n  photo: {kind}\n  public\n  insert <- allow\n  update <- allow\n  delete <- allow\nmutation place(photo: {argument}):\n  insert docs {{ photo }}\nmutation clear():\n  {clear}\n", argument=kind.replace(" once", ""));
         let mut e = engine(&source);
         let id = format!("asset-{seed:x}");
         e.store().record_asset(&Asset { id:id.clone(),owner:"dev:alice".into(),kind:if kind.starts_with("video") {AssetKind::Video} else {AssetKind::Image},content_type:"image/png".into(),bytes:24,width:Some(10),height:Some(10),duration:None,created_at:0,home:None,released_at:None }).unwrap();
@@ -322,13 +324,20 @@ fn asset_and_once_consumption_cover_every_viewer() {
         let consumer = VIEWERS[next(&mut rng) as usize % VIEWERS.len()];
         for viewer in VIEWERS { assert!(e.asset_access(viewer,&id,100).is_ok()); access_checks += 1; }
         if kind.contains("once") {
+            let tables = vec!["docs".into()];
+            let before = answer(&mut e,&tables,100);
+            let handles: Vec<_> = VIEWERS.iter().map(|viewer| e.query("rv_docs",Context::new(*viewer,[("id".into(),Value::Id("a".into()))].into()).at(100)).unwrap().data).collect();
             let seq = e.seq().unwrap();
             e.record_asset_view(consumer,&id,101).unwrap(); consumptions += 1;
             assert_eq!(e.seq().unwrap(),seq,"once consumption has no public row commit");
-            assert!(!preserved_between(e.store().conn(),e.schema(),seq,seq).contains(&"docs".into()));
-            for viewer in VIEWERS {
+            let preserved = preserved_between(e.store().conn(),e.schema(),seq,seq);
+            assert!(preserved.contains(&"docs".into()), "once consumption protects bytes, not row/field disclosure");
+            let after = answer(&mut e,&tables,101);
+            Counts::default().check(&before,&after,&preserved,"once consumption");
+            for (viewer, handle) in VIEWERS.iter().zip(handles) {
+                assert_eq!(e.query("rv_docs",Context::new(*viewer,[("id".into(),Value::Id("a".into()))].into()).at(101)).unwrap().data,handle,"consumption keeps handles and metadata");
                 let result = e.asset_access(viewer,&id,101); access_checks += 1;
-                if viewer == consumer { assert_eq!(result.unwrap_err().code(),"E_ASSET_VIEWED"); } else { assert!(result.is_ok()); }
+                if *viewer == consumer { assert_eq!(result.unwrap_err().code(),"E_ASSET_VIEWED"); } else { assert!(result.is_ok()); }
             }
         }
         let tables = vec!["docs".into()]; let before = answer(&mut e,&tables,101); let seq = e.seq().unwrap();
@@ -339,5 +348,5 @@ fn asset_and_once_consumption_cover_every_viewer() {
         for viewer in VIEWERS { assert_eq!(e.asset_access(viewer,&id,102).unwrap_err().code(),"E_ASSET_UNKNOWN"); access_checks += 1; }
         e.sweep_assets(1_000_000_000).unwrap();
     } }
-    println!("RV assets: seeds={SEEDS:x?}; shapes=4; real_mutations={commits}; once_consumptions={consumptions}; access_checks={access_checks}; asset_sweeps=16; failures=0");
+    println!("RV assets: seeds={SEEDS:x?}; shapes=5; real_mutations={commits}; once_consumptions={consumptions}; access_checks={access_checks}; asset_sweeps=20; failures=0");
 }

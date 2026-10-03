@@ -1,0 +1,17 @@
+{
+  "mutation": "mark a required scalar once image unknown before asset(kind)",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "revocation_soundness",
+    "asset_and_once_consumption_cover_every_viewer",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "exit": 101,
+  "expected_failure": "once consumption protects bytes, not row/field disclosure"
+}
