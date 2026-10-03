@@ -84836,3 +84836,39 @@ The scratch created for preparation before that amendment was removed. No office
 M1 or M5 was contacted, and no unrelated process was signaled. Reference and
 whitespace checks pass. Local commits carry the required GPT-6 Astra co-author
 trailer. Nothing is pushed or published.
+
+
+## 2026-10-03 — QF Round 9: Darwin identity rereads keep the file scope
+
+Addressed Astra's P2 on Round 8 and Grok's shim-evidence finding. Every Darwin
+identity reread performed by ownedProcesses now receives the keeper's group,
+so its fresh table classifies the group and visible descendants before parsing
+ancillary fields. A reused PID outside that scope counts as exited whether its
+replacement metadata is malformed or well-formed. Related malformed metadata
+and unclassifiable routing prefixes still refuse. LLP 3000 §7 records this
+fresh-snapshot rule; keeper custody, native verdicts and guards are unchanged.
+
+Five new regressions cover scoped identity and both before-release and cleanup
+verification with malformed and well-formed replacements. On the Round 8 code,
+the scoped identity case and both malformed cases fail; the real runner returns
+native exit 0 with TEST_PROCESS_INSPECTION. All five pass after the fix. These
+exercise Darwin's JavaScript branch with controlled snapshots on Linux, not
+native macOS or forced kernel PID reuse. The permanent CLI shim test now
+requires an owned marker count to increase on each shimmed invocation. Removing
+only that write makes the test fail, independently of unrelated-row counts.
+
+All verification ran on eb1000. Focused tests: **69/69 plain and 69/69 shimmed**,
+zero skips. Full suite: **`== 0 failure(s) in 1419 s`**. Its client phases
+and the UID-shim repeat have identical counts: wrappers **9/9**; ordinary
+clients **304/304 files, 6,100 passes and 11 existing skips**; models **79/79**.
+Each set totals **6,188 passes**, zero failures/cancellations, 307 file results.
+The focused external shim records 174 hits; the phase repeat records 1,390.
+Affected source hashes are unchanged throughout qualification. The
+[Round 9 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-9--retain-file-scope-across-darwin-identity-rereads)
+retains the counterexamples, logs, summaries, source hashes and exact commands.
+
+All six macOS cells remain **pending operator verification**, with commands in
+the report. No mini, office M1 or M5 was contacted. Grok's
+`~/sb4-intent/qf-r8-scratch-review` is left for the operator. No unrelated process
+was signaled. Reference and whitespace checks pass; the local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -85,9 +85,11 @@ export function processTable({ run = spawnSync, exists = processExists, group, p
 
 // @ref LLP 3000#publication-suite-under-contention — a vanished candidate is
 // exited; only malformed metadata for a still-present PID refuses inspection.
-export function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable } = {}) {
+export function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable, group } = {}) {
   if (!Number.isInteger(pid) || pid < 1) throw inspectionError(`invalid PID ${pid}`);
-  if (platform !== 'linux') return inspect({ pid }).find(row => row.pid === pid);
+  // A fresh Darwin table must reclassify the file's scope before metadata
+  // validation: this PID may now name an unrelated replacement process.
+  if (platform !== 'linux') return inspect({ pid, group }).find(row => row.pid === pid);
   let raw;
   try {
     raw = read(`/proc/${pid}/stat`);
@@ -114,7 +116,7 @@ export function ownedProcesses(keeper, inspect = processTable, { includeKeeper =
     .flatMap(row => {
       // A table is a snapshot: a vanished member has exited. Recheck group
       // membership too, so a reused PID or a process that left is not a leak.
-      const current = identity(row.pid);
+      const current = identity(row.pid, { group: keeper.pid });
       return current?.alive && current.group === keeper.pid ? [current] : [];
     });
 }

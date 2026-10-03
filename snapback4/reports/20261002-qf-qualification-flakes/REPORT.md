@@ -1,6 +1,6 @@
 # QF — qualification flakes
 
-Status: Round 8 complete on eb1000: full suite and all three client phases with the ps shim pass; final focused checks 64/64 plain and 64/64 with live malformed metadata. macOS checks are pending operator verification by amendment. No push or publication.
+Status: Round 9 complete on eb1000: both review findings fixed; focused checks 69/69 plain and shimmed, full suite and UID-shim client phases pass. All six macOS cells remain pending operator verification. No push or publication.
 
 Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
@@ -1980,3 +1980,144 @@ The phase script contains the exact commands: `node scripts/run-client-tests.mjs
 `node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs
 packages/snapback4/test/online-client-model.test.mjs`. Verification does not
 publish packages or signal any process outside those started by its fixtures.
+
+
+## Round 9 — retain file scope across Darwin identity rereads
+
+Round 8 base: `ef1bd50daa`. Read-only `llp-orient` context remains LLP 3000
+(current), §7 `publication-suite-under-contention`: native Node verdicts,
+keeper-owned group cleanup, full counts and fail-closed related inspection.
+The change touches process inspection and its tests, not the client contract.
+The existing §7 rule is clarified; no new LLP or cleanup authority is added.
+Review inputs and their hashes are recorded in `round9/review-inputs.json`.
+
+### Both review findings addressed
+
+**Astra P2:** `ownedProcesses()` now passes the keeper's group to `identity()`.
+Each fresh Darwin listing classifies that group and its visible descendants
+before validating ancillary metadata, then selects the requested PID. A stale
+candidate whose PID now belongs outside that scope is absent from the identity
+result. Both well-formed and malformed unrelated replacements therefore count
+as the original candidate having exited. Malformed routing prefixes and
+malformed metadata for fresh group members or visible descendants still refuse.
+Linux `/proc` identity reads, keeper signaling, leak rules and watchdogs are
+unchanged. This applies before release and in every cleanup verification scan.
+
+Five permanent tests are added: a scoped identity test checks both exclusions
+and fail-closed group/direct/transitive descendant cases; four `runFile()` cases
+cross before-release/cleanup-verification with malformed/well-formed replacement
+metadata. The tests use the actual Darwin JavaScript branch on eb1000, real
+keepers and real `ps` listings, replacing only their own test process's fresh
+row and injecting its stale group row into enumeration. The keeper pipe's
+`writableEnded` state identifies the phase; assertions require the stale
+injection, fresh reread, native exit 0, no inspection/refusal reason, passing
+verdict and acknowledged keeper cleanup. No kernel PID reuse is forced, no
+unrelated process is signaled, and this is not a claim of macOS execution.
+
+Before the fix, the scoped identity test and both malformed-replacement cases
+fail (3 failures / 2 passes); both well-formed controls pass. After the fix,
+all five pass. The retained `pre-fix-darwin-reuse` and `post-fix-regressions`
+logs show the causal difference, including native exit 0 with
+`TEST_PROCESS_INSPECTION` before the fix. No original test assertion is removed.
+
+**Grok Low:** the real PATH shim appends a hit to a test-owned marker file
+after `/bin/ps` succeeds. Each shimmed CLI invocation must increase its count;
+each baseline invocation must leave it unchanged. The nested CLI test isolates
+its marker from an enclosing verification shim. Existing native-exit, per-file
+verdict, continued-execution, assertion-output and diagnostic assertions stay.
+A negative control removing only the marker write fails at the new assertion,
+although the shim still prints the UID row (`no-marker-control.log.gz`). The
+marker write was restored before all qualification runs.
+
+### eb1000 verification
+
+The command record is `round9/verify.sh`, run from `snapback4/`. It runs focused
+checks plain and shimmed, the complete suite, then all three UID-shim client
+phases. The focused shim includes the exact distnoted row, a caller-owned live
+UID -2 row and a live unrelated malformed-metadata row. The phase shim includes
+the exact row and live UID -2 row. Both record actual shim hits. No guard,
+seed count, file selection or skip changes. The suite's own client phases
+supply the unshimmed baseline. The phase helper is the unchanged
+`round8/client-phases.sh`, with Round 9 output paths; it matches the fixture,
+ordinary-file/pool and serial full-count model invocations in `scripts/test.sh`.
+
+Focused checks pass **69/69 plain and 69/69 shimmed**, zero skips: 27
+process-table/CLI tests, 39 existing runner tests and 3 replacement tests.
+The external focused shim records **174 hits**; the permanent CLI regression
+also requires a fresh marker increase for each of its four shimmed invocations.
+`round9/focused-summary.json` retains counts, timings and exit statuses.
+
+The full suite ran **2026-10-03T13:55:32Z–2026-10-03T14:19:11Z**, exit **0**:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Exact line: **`== 0 failure(s) in 1419 s`**. The UID-shim repeat ran
+**2026-10-03T14:19:11Z–2026-10-03T14:34:35Z**, exit **0**, with
+**1,390 recorded shim hits** and exact summary
+**`== 0 client phase failure(s) (shim)`**. Their counts agree in every cell:
+
+| Client phase | Full suite, plain | UID shim |
+|---|---|---|
+| Fixture wrappers | 9/9 passed | 9/9 passed |
+| Ordinary clients | 304/304 files; 6,100 passed, 11 existing skips | 304/304 files; 6,100 passed, 11 existing skips |
+| Full-count models | 79/79 passed | 79/79 passed |
+| Total | 6,188 passed; 11 existing skips; 307 file results | 6,188 passed; 11 existing skips; 307 file results |
+
+Both sets have zero failed or cancelled JavaScript tests and zero failed files.
+The full suite has zero failed categories. `full-suite-summary.json` and
+`uid-shim-summary.json` retain the aggregate comparison; their `*-files.json`
+tables retain every file verdict and duration. All affected source hashes agree
+before and after the entire qualification (`source-before.json` and
+`source-after.json`). No implementation or test amendment occurred mid-run.
+Complete logs, negative controls, status files and their integrity index are
+retained under `round9/`; logs are compressed as recorded in
+`artifact-index.json`. Reference and whitespace checks pass. No new independent
+review verdict is claimed. Nothing is pushed or published.
+
+### macOS checks — pending operator verification
+
+All six cells remain **pending operator verification**, on the Apartment mini
+only after the operator releases it from calibration. No mini, office M1 or M5
+was contacted in Round 9. Grok's `~/sb4-intent/qf-r8-scratch-review` is untouched;
+its removal belongs to the operator.
+
+| Check | Without shim | With shim |
+|---|---|---|
+| Fixture wrapper tests (`1 files fixtures/`) | pending operator verification | pending operator verification |
+| Every ordinary client file (suite CPU-derived pool) | pending operator verification | pending operator verification |
+| Full-count client models (serial) | pending operator verification | pending operator verification |
+
+Exact future operator commands, from the committed Round 9 branch on eb1000.
+These commands are documented only; none was executed this round. The helper
+runs each listed phase and retains its separate log, timing and exit status.
+
+```bash
+mini_scratch=$(ssh ccheever@100.64.36.16 'mktemp -d /tmp/sb4-qf-r9-verify.XXXXXX')
+git archive sb4-intent/qf-qualification-flakes snapback4 |
+  ssh ccheever@100.64.36.16 "tar -x -C '$mini_scratch'"
+ssh ccheever@100.64.36.16 "cd '$mini_scratch/snapback4' && /bin/bash -s" <<'MINI'
+export PATH="$HOME/.volta/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"
+export LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+node --version
+bun install --frozen-lockfile || exit
+cargo build --workspace || exit
+bash scripts/build-wasm.sh || exit
+bun run --cwd packages/snapback4 build || exit
+(cd apps/chat && ../../target/debug/snapback4 check) || exit
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh plain ../plain
+plain_status=$?
+export SB4_PS_SHIM_HITS="$PWD/../shim-hits"
+bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh shim ../shim
+shim_status=$?
+test -s "$SB4_PS_SHIM_HITS" || shim_status=1
+printf 'plain=%s shim=%s\n' "$plain_status" "$shim_status"
+[ "$plain_status" = 0 ] && [ "$shim_status" = 0 ]
+MINI
+mkdir -p /tmp/sb4-qf-r9-mini-results
+scp -r "ccheever@100.64.36.16:$mini_scratch/plain" /tmp/sb4-qf-r9-mini-results/
+scp -r "ccheever@100.64.36.16:$mini_scratch/shim" /tmp/sb4-qf-r9-mini-results/
+scp "ccheever@100.64.36.16:$mini_scratch/shim-hits" /tmp/sb4-qf-r9-mini-results/
+ssh ccheever@100.64.36.16 "rm -rf '$mini_scratch'"
+```

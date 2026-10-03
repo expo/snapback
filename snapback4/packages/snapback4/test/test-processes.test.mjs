@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, copyFileSync, chmodSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import childProcess, { spawnSync } from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { processTable, identity } from '../../../scripts/test-processes.mjs';
+import { runFile } from '../../../scripts/run-client-tests.mjs';
 
 const fixtures = new URL('./fixtures/process-tables/', import.meta.url);
 const table = platform => readFileSync(new URL(`${platform}.txt`, fixtures));
@@ -77,6 +79,68 @@ test('Darwin identity lookup validates its own row without unrelated metadata po
   assert.throws(() => identity(200, { platform: 'darwin', inspect }), /TEST_PROCESS_INSPECTION/);
 });
 
+test('scoped Darwin identity rereads classify fresh routing before ancillary metadata', () => {
+  const lookup = stdout => identity(101, { platform: 'darwin', group: 100, inspect: options => parse(stdout, options) });
+  for (const metadata of ['unreadable', undefined]) {
+    assert.equal(lookup(row(101, 1, 200, metadata)), undefined, 'reused PID is outside the file scope');
+  }
+  for (const stdout of [row(101, 1, 100, 'bad'), row(101, 100, 200, 'bad'),
+    row(101, 102, 200, 'bad') + row(102, 100, 200), '101 bad 200\n']) {
+    assert.throws(() => lookup(stdout), /TEST_PROCESS_INSPECTION/);
+  }
+  assert.equal(lookup(row(101, 100, 200)).pid, 101, 'visible descendant remains inspectable');
+});
+
+// Run the actual Darwin JavaScript branch on Linux as well. Only this isolated
+// test process's platform and ps snapshots change; the keeper still owns and
+// releases its real group. Reuse is represented by two snapshots, not signals.
+for (const phase of ['before release', 'cleanup verification']) {
+  for (const metadata of ['malformed', 'well-formed']) {
+    test(`Darwin ${phase} ignores a reused unrelated PID with ${metadata} metadata`, async t => {
+      const dir = mkdtempSync(join(tmpdir(), 'sb4-darwin-reuse-'));
+      t.after(() => rmSync(dir, { recursive: true, force: true }));
+      const file = join(dir, 'healthy.test.mjs');
+      writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
+      const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+      const realSpawnSync = childProcess.spawnSync;
+      t.after(() => {
+        Object.defineProperty(process, 'platform', platform);
+        childProcess.spawnSync = realSpawnSync;
+        syncBuiltinESMExports();
+      });
+      let keeper, injected = false, freshReads = 0;
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      childProcess.spawnSync = (command, args, options) => {
+        const result = realSpawnSync(command, args, options);
+        if (command === 'ps' && result.status === 0) {
+          result.stdout = Buffer.from(result.stdout.toString().split('\n').map(line => {
+            if (Number(/^\s*(\d+)/.exec(line)?.[1]) !== process.pid) return line;
+            if (injected) freshReads++;
+            return row(process.pid, 1, process.pid, metadata === 'malformed' ? 'unreadable' : undefined).trimEnd();
+          }).join('\n'));
+        }
+        return result;
+      };
+      syncBuiltinESMExports();
+      const result = await runFile(file, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: options => {
+        const rows = processTable(options);
+        if (!injected && keeper.stdin.writableEnded === (phase === 'cleanup verification')) {
+          injected = true;
+          rows.push({ pid: process.pid, parent: keeper.pid, group: keeper.pid, alive: true, start: 'old snapshot' });
+        }
+        return rows;
+      } });
+      assert.ok(injected, `stale enumeration injected ${phase}`);
+      assert.ok(freshReads > 0, 'identity reread received the unrelated replacement');
+      assert.equal(result.code, 0, JSON.stringify(result));
+      assert.equal(result.reason, undefined, JSON.stringify(result));
+      assert.equal(result.inspectionFailure, undefined, JSON.stringify(result));
+      assert.equal(result.passed, true, JSON.stringify(result));
+      assert.equal(result.keeperExit.cleanupAcknowledged, true, JSON.stringify(result));
+    });
+  }
+}
+
 test('5,000-row tables classify reversed ancestry, reparented members and cycles without omissions', () => {
   const rows = Array.from({ length: 4997 }, (_, i) => row(i + 1000, i === 0 ? 1 : i + 999, i === 0 ? 1000 : i + 1000));
   rows.push(row(7000, 1, 1000)); // group member whose parent has exited
@@ -119,11 +183,20 @@ test('real runner CLI preserves pass, failure and subsequent execution with PATH
     `import test from 'node:test';test('${i === 1 ? 'intentional failure' : 'healthy'}',()=>{${i === 1 ? "throw Error('KEPT_FAILURE')" : ''}});`);
   const runner = fileURLToPath(new URL('../../../scripts/run-client-tests.mjs', import.meta.url));
   const env = { ...process.env, SB4_PS_NOBODY_PID: String(process.pid) }; delete env.NODE_TEST_CONTEXT;
+  // This test can itself run under a shim. Keep its marker separate from the
+  // enclosing verification's marker and prove each nested invocation used ours.
+  delete env.SB4_PS_SHIM_HITS;
+  const hitsFile = join(dir, 'shim-hits'); writeFileSync(hitsFile, '');
+  const hits = () => readFileSync(hitsFile, 'utf8').split('\n').filter(Boolean).length;
   const execute = (paths, shimmed) => {
+    const before = hits();
     const result = spawnSync(process.execPath, [runner, '1', 'files', ...paths], {
-      env: { ...env, PATH: `${shimmed ? shimDir + ':' : ''}${env.PATH}` }, encoding: 'utf8', timeout: 10000,
+      env: { ...env, PATH: `${shimmed ? shimDir + ':' : ''}${env.PATH}`,
+        ...(shimmed ? { SB4_PS_SHIM_HITS: hitsFile } : {}) }, encoding: 'utf8', timeout: 10000,
     });
     assert.equal(result.error, undefined); assert.equal(result.signal, null);
+    if (shimmed) assert.ok(hits() > before, 'this CLI invocation must execute the PATH shim');
+    else assert.equal(hits(), before, 'baseline must not execute this test-owned shim');
     assert.doesNotMatch(result.stdout + result.stderr, /TEST_PROCESS_INSPECTION|TEST_FILE_KEEPER_EXIT/);
     return { status: result.status, verdicts: [...result.stdout.matchAll(/^-- client file (ok|FAIL): (.+) \(\d+ ms\)$/gm)].map(m => m.slice(1)),
       counts: result.stdout.match(/^-- client files: .*$/m)?.[0], output: result.stdout + result.stderr };
