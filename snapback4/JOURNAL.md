@@ -82940,3 +82940,50 @@ contains every run, failure classification, diagnostic and source manifest.
 Reference/whitespace checks accompany the local commit with the requested
 Co-Authored-By: GPT-6 Astra <noreply@openai.com> trailer. Nothing pushed or
 published.
+
+
+## 2026-10-03 — QF round 4: vanished process inspection
+
+Implemented the operator's distinction between an ordinary process-exit race
+and a broken inspection mechanism. Failed per-process stat, identity/parent/
+start-time and environment reads recheck PID existence. Gone candidates count
+as exited, including empty/truncated/unparsable stat and stale group/token
+rows. Whole-group cleanup and two fresh empty snapshots remain required;
+previously observed live leaks still fail. A present malformed PID still
+refuses with exact metadata bytes encoded as base64 and the first error.
+Environment contents are excluded. Secondary cleanup errors are printed but
+cannot replace that first diagnostic. Stat takes fields after the last `)`;
+ps preserves command spaces. Whole-enumeration/helper failures stay fail-closed.
+
+Twelve new deterministic cases cover real enumeration-to-exit interleavings,
+empty/truncated stat, parentheses and spaces, present malformed bytes, first
+error retention, environment races and a passing file whose transient child
+has exited. Final Linux focused checks pass 42 assertions with six Darwin-only
+skips; the Apartment mini passes 48/48. The two former stale-row regressions
+now require the operator's exited-candidate rule while still proving orphan
+cleanup. This correction occurred during the suite's Rust phase, before
+ordinary clients; the nine fixture-wrapper assertions were separately rerun
+on final source and pass 9/9. No Rust or product source changed.
+
+The single eb1000 suite reports exactly `== 0 failure(s) in 1510 s`, exit 0.
+Ordinary clients pass 5,827 assertions with 16 unchanged skips, models 79/79,
+fixture wrappers 9/9. Introduced, baseline, environmental and inspection
+failures: all zero. Fourteen opaque host candidates were diagnosed and skipped
+under Round 3's rule, plus one controlled regression candidate.
+
+The final 24-file stress passes both original flaky regressions 200/200, with
+23 background files active at every target completion. All 2,031 background
+executions across 283 files finish normally with zero assertion failures and
+zero refusals, exit 0. The [proc-stat ticket](../issues/closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
+is resolved. Its two old raw snapshots are irrecoverable and their precise
+cause remains unknown; present malformed recurrences now retain the evidence.
+
+The [Round 4 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-4--vanished-process-inspection-2026-10-03)
+retains every run and source binding, including the initial green development
+checks and one corrected npm-package-name preparation error. The mini used
+the same published 0.4.10 fixture binary as Round 3; its final source hashes
+match and its task scratch was removed. No other Mac was contacted and no
+unrelated process received a terminating signal. All 18 final runner/fixture/
+binary inputs stayed unchanged through qualification. Reference/whitespace
+checks accompany the local commit with the requested GPT-6 Astra co-author
+trailer. Nothing pushed or published.

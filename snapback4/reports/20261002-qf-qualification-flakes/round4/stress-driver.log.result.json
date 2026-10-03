@@ -1,0 +1,15 @@
+{
+  "started": "2026-10-03T04:33:41.927Z",
+  "finished": "2026-10-03T05:08:53.758Z",
+  "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+  "args": [
+    "reports/20261002-qf-qualification-flakes/stress.mjs",
+    "after",
+    "/tmp/qf-r4-stress-final",
+    "200",
+    "both"
+  ],
+  "pid": 1662860,
+  "code": 0,
+  "signal": null
+}

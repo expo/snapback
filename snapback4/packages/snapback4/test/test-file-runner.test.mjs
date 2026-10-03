@@ -328,7 +328,7 @@ test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bi
 // Keep this interleaving deterministic: the real ps snapshot contains a shell
 // parent; only after the snapshot is taken may it fork, publish the child PID
 // and exit. That child never appears in the stale snapshot returned to runFile.
-test('fork then exit during a real snapshot cannot hide a same-group orphan', { timeout: 20000 }, async t => {
+test('group cleanup reaps an unsampled orphan after its sampled parent exits', { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-fork-snapshot-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'fork.test.mjs'), go = join(dir, 'go'), ready = join(dir, 'ready'), pidFile = join(dir, 'pid');
@@ -356,8 +356,8 @@ test('owned helper', () => {
     }
     return snapshot;
   } });
-  assert.equal(result.passed, false, output);
-  assert.equal(result.reason, 'TEST_FILE_LEAK', output);
+  assert.equal(result.passed, true, output);
+  assert.equal(result.reason, undefined, output);
   assert.ok(inspections >= 3, 'two fresh empty snapshots after the stale snapshot');
   assert.equal(live(orphan), false, output);
   assert.equal(processTable().some(row => row.group === orphan.group && row.alive), false);
@@ -394,7 +394,7 @@ test('console chatter cannot keep a stalled file alive; diagnostics include prog
   assert.equal(processTable().some(row => row.group === group && row.alive), false);
 });
 
-test('verification requires consecutive empty snapshots and retains intervening leak evidence', async t => {
+test('stale exited members do not reset empty snapshots; observed live leaks remain failures', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-stable-empty-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'leak.test.mjs');
@@ -404,14 +404,14 @@ test('verification requires consecutive empty snapshots and retains intervening 
     const current = processTable();
     inspections++;
     if (inspections === 1) before = current;
-    // runFile discovers, stop diagnoses, then cleanup verifies. Return a stale
-    // real nonempty table between empties; disappearance is still evidence.
+    // runFile discovers, stop diagnoses, then cleanup verifies. A stale row
+    // whose process has exited cannot revive a leak or reset the empty count.
     if (inspections === 4) return before;
     return current;
   }});
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_FILE_LEAK', output);
-  assert.ok(inspections >= 6, `expected fresh empties after intervening members; got ${inspections}`);
+  assert.equal(inspections, 4, 'gone members do not invalidate the second empty inspection');
 });
 
 
@@ -444,4 +444,115 @@ test('wanted skip',()=>{throw Error('skip filter lost')});`);
   assert.equal(result.counts.pass, 1);
   assert.equal(result.counts.tests, 1);
   assert.equal(result.progressCount, 2);
+});
+
+// Round 4: enumeration and each per-process read are separate snapshots.
+test('a process exiting after enumeration is absent at identity inspection', async () => {
+  const child = spawn(process.execPath, ['-e', 'process.stdin.resume();console.log("ready")'], {stdio:['pipe','pipe','ignore']});
+  const exited = once(child, 'exit');
+  try {
+    await once(child.stdout, 'data');
+    const row = processTable().find(row => row.pid === child.pid);
+    assert.ok(row?.alive);
+    child.stdin.end(); await exited;
+    assert.equal(identity(row.pid), undefined);
+    // Exercise the same vanished PID against partial kernel/ps snapshots.
+    for (const raw of [Buffer.alloc(0), Buffer.from(`${row.pid} (truncated`), Buffer.from('unparsable\xff', 'latin1')]) {
+      assert.equal(identity(row.pid, {platform:'linux',read:()=>raw}), undefined);
+    }
+    for (const code of ['ENOENT', 'ESRCH', 'EIO']) {
+      assert.equal(identity(row.pid, {platform:'linux',read:()=>{throw Object.assign(Error(code),{code});}}), undefined);
+    }
+    assert.deepEqual(processTable({run:()=>({status:0,stdout:`${row.pid} truncated\n`})}), []);
+  } finally { if (child.exitCode === null) child.kill('SIGKILL'); await exited; }
+});
+
+test('stat comm may contain closing and opening parentheses and spaces', () => {
+  const fields = ['S', ...Array(49).fill('0')];
+  fields[1]='12'; fields[2]='34'; fields[3]='56'; fields[19]='789';
+  const raw = Buffer.from(`123 (name ) ( with spaces) ${fields.join(' ')}\n`);
+  assert.deepEqual(identity(123,{platform:'linux',read:()=>raw,exists:()=>{throw Error('valid stat needs no retry');}}),
+    {pid:123,parent:12,group:34,session:56,start:'789',alive:true});
+});
+
+test('ps preserves command spaces and parentheses and validates start and parent metadata', () => {
+  const line = `${process.pid} 1 2 ${process.getuid()} Sat Oct  3 01:02:03 2026 S /tmp/a name ) ( helper`;
+  const run = () => ({status:0,stdout:line+'\n'});
+  assert.equal(processTable({run})[0].executable,'/tmp/a name ) ( helper');
+  for (const malformed of [line.replace('Sat Oct','bad day'), line.replace(`${process.pid} 1 2`,`${process.pid} bad 2`)]) {
+    assert.throws(()=>processTable({run:()=>({status:0,stdout:malformed})}),/malformed ps row/);
+    assert.deepEqual(processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}),[]);
+  }
+});
+
+for (const source of ['stat','ps']) test(`present PID with malformed ${source} refuses the file and retains the first error and exact bytes`, async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-malformed-metadata-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const path=join(dir,'healthy.test.mjs');
+  writeFileSync(path,"import test from 'node:test';test('healthy',()=>{});");
+  const raw=Buffer.concat([Buffer.from(`${process.pid} (bad ) ( metadata) `),Buffer.from([0xff,0,13])]);
+  let output='',attempts=0;
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
+    if (++attempts>1) throw Error('TEST_PROCESS_INSPECTION: secondary cleanup error');
+    if(source==='stat')identity(process.pid,{platform:'linux',read:()=>raw});
+    else processTable({run:()=>({status:0,stdout:raw})});
+    throw Error('malformed metadata unexpectedly accepted');
+  }});
+  assert.equal(result.passed,false,output);
+  assert.equal(result.reason,'TEST_PROCESS_INSPECTION',output);
+  assert.match(result.inspectionFailure,source==='stat'?/malformed \/proc\//:/malformed ps row/);
+  assert.ok(result.inspectionFailure.includes(`"rawBase64":"${raw.toString('base64')}"`));
+  assert.ok(!result.inspectionFailure.includes('secondary cleanup error'));
+  assert.match(output,/secondary cleanup error/);
+  const diagnostic=JSON.parse(result.inspectionFailure.split('TEST_PROCESS_INSPECTION: ')[1].split('\n')[0]);
+  assert.deepEqual(Buffer.from(diagnostic.rawBase64,'base64'),raw);
+});
+
+test('present PID with empty, truncated or missing stat still refuses', () => {
+  for (const raw of [Buffer.alloc(0),Buffer.from(`${process.pid} (partial) S 1 2`)]) {
+    assert.throws(()=>identity(process.pid,{platform:'linux',read:()=>raw}), error =>
+      error.message.includes('malformed /proc/') && error.message.includes(`"rawBase64":"${raw.toString('base64')}"`));
+  }
+  for(const code of ['ENOENT','ESRCH']) assert.throws(()=>identity(process.pid,{platform:'linux',read:()=>{throw Object.assign(Error(`first ${code}`),{code});}}),new RegExp(`first ${code}`));
+});
+
+for (const fault of ['ENOENT','ESRCH','EIO','malformed','unreadable']) test(`per-process environment ${fault}: gone is exited; present stays classified`, () => {
+  const row={pid:process.pid,parent:0,uid:process.getuid(),group:process.pid,session:process.pid,start:'test-start',alive:true,executable:'test'};
+  for(const present of [false,true]) {
+    let first=true,output='';
+    const inspector=createTokenInspector({inspect:()=>{if(first){first=false;return [];}return [row];},identify:()=>row,exists:()=>present,
+      onOutput:text=>{output+=text},read:()=>{throw Object.assign(Error('ENVIRONMENT_CONTENT_MUST_NOT_LEAK'),{code:fault==='unreadable'?'EACCES':fault});},
+      run:()=>({status:0,stdout:JSON.stringify([{pid:row.pid,match:false,...(fault==='ESRCH'||fault==='ENOENT'?{gone:true}:fault==='unreadable'?{session:row.session,unreadable:'sysctl errno 13'}:{error:fault==='malformed'?'malformed KERN_PROCARGS2 result':'sysctl errno 5'})}])})});
+    if(present&&fault!=='unreadable')assert.throws(()=>inspector('a'.repeat(64)),/TEST_PROCESS_INSPECTION/);
+    else assert.deepEqual(inspector('a'.repeat(64)),[]);
+    assert.equal(output.includes('TEST_PROCESS_UNREADABLE'),present&&fault==='unreadable');
+    assert.ok(!output.includes('ENVIRONMENT_CONTENT_MUST_NOT_LEAK'));
+  }
+});
+
+test('a completed file passes when its enumerated group member has exited', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-gone-group-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const path=join(dir,'healthy.test.mjs'),snapshot=join(dir,'snapshot.json');
+  const module=new URL('../../../scripts/test-processes.mjs',import.meta.url).href;
+  writeFileSync(path,`import test from 'node:test';import {spawn} from 'node:child_process';import {once} from 'node:events';import {writeFileSync} from 'node:fs';import {processTable} from ${JSON.stringify(module)};
+test('transient child',async()=>{
+  const child=spawn(process.execPath,['-e','process.stdin.resume();console.log("ready")'],{stdio:['pipe','pipe','ignore']});
+  const exited=once(child,'exit');await once(child.stdout,'data');
+  writeFileSync(${JSON.stringify(snapshot)},JSON.stringify(processTable().find(row=>row.pid===child.pid)));
+  child.stdin.end();await exited;
+});`);
+  let output='',inspections=0;
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
+    const rows=processTable();
+    if(++inspections===1) {
+      const stale=JSON.parse(readFileSync(snapshot,'utf8'));
+      assert.equal(identity(stale.pid),undefined);
+      rows.push(stale);
+    }
+    return rows;
+  }});
+  assert.equal(result.passed,true,output);
+  assert.equal(result.inspectionFailure,undefined,output);
+  assert.ok(inspections>=3,'cleanup still requires two fresh empty inspections');
 });

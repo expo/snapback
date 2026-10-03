@@ -3,7 +3,7 @@
 import { readFileSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { identity, live, processTable } from './test-processes.mjs';
+import { identity, live, processTable, processExists } from './test-processes.mjs';
 
 export const TOKEN_KEY = 'SNAPBACK_TEST_FILE_TOKEN';
 const fail = message => Error(`TEST_PROCESS_INSPECTION: ${message}`);
@@ -12,11 +12,11 @@ const helper = fileURLToPath(new URL('./test-process-environment.py', import.met
 // Capture BEFORE assigning the unpredictable token or launching its keeper.
 // These exact identities cannot be descendants of this file. This also avoids
 // asking for protected environments of preexisting sshd/systemd processes.
-export function createTokenInspector({ inspect = processTable, read = readFileSync, run = spawnSync, onOutput = text => process.stdout.write(text) } = {}) {
+export function createTokenInspector({ inspect = processTable, read = readFileSync, run = spawnSync, identify = identity, exists = processExists, onOutput = text => process.stdout.write(text) } = {}) {
   const uid = process.getuid();
   const baseline = new Map();
   for (const row of inspect()) if (row.alive) {
-    const current = process.platform === 'linux' ? identity(row.pid) : row;
+    const current = process.platform === 'linux' ? identify(row.pid) : row;
     if (current?.alive) baseline.set(row.pid, current);
   }
   const ancestors = new Set();
@@ -30,7 +30,7 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
       const seen = new Set([row.pid]);
       for (let pid = row.parent; pid && !seen.has(pid);) {
         seen.add(pid);
-        const parent = process.platform === 'linux' ? identity(pid) : byPid.get(pid);
+        const parent = process.platform === 'linux' ? identify(pid) : byPid.get(pid);
         if (!parent?.alive) return false;
         if (baseline.get(pid)?.start === parent.start) return !ancestors.has(pid);
         pid = parent.parent;
@@ -38,7 +38,7 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
       return false;
     };
     for (const row of table) if (row.uid === uid && row.alive) {
-      const current = process.platform === 'linux' ? identity(row.pid) : row;
+      const current = process.platform === 'linux' ? identify(row.pid) : row;
       // An unchanged pre-launch process outside our ancestor chain cannot
       // spawn or adopt our descendants. This excludes independent new SSH
       // sessions, but never PID 1 or an ancestral subreaper after reparenting.
@@ -50,9 +50,9 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
       return before && live(before);
     };
     const owned = [], errors = [];
-    // A positive token match remains evidence after exit: that process may
-    // have forked a replacement during the environment read.
-    const matched = (row, proof = 'tokenOwned') => { owned.push({ ...row, [proof]: true, vanished: !live(row) }); };
+    // An exited candidate is not a leak. Fresh sweeps still inspect surviving
+    // descendants, including ones forked during this environment read.
+    const matched = (row, proof = 'tokenOwned') => { if (live(row)) owned.push({ ...row, [proof]: true }); };
     const unreadable = (row, detail) => {
       const key = `${row.pid}:${row.start}`;
       if (reported.has(key)) return;
@@ -78,8 +78,9 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
           const env = read(`/proc/${row.pid}/environ`);
           if (env.toString('utf8').split('\0').includes(`${TOKEN_KEY}=${token}`)) matched(row);
         } catch (error) {
+          if (!exists(row.pid)) continue;
           if (['EACCES', 'EPERM'].includes(error.code)) unreadable(row, error.code);
-          else if (!['ENOENT', 'ESRCH'].includes(error.code)) errors.push(`environment of PID ${row.pid}: ${error.code ?? 'read failed'}`);
+          else errors.push(`environment of PID ${row.pid}: ${error.code ?? 'read failed'}`);
         }
       }
     } else if (process.platform === 'darwin') {
@@ -101,9 +102,10 @@ export function createTokenInspector({ inspect = processTable, read = readFileSy
           || (entry.unreadable !== undefined && (typeof entry.unreadable !== 'string' || !entry.unreadable))
           || (entry.gone !== undefined && entry.gone !== true)
           || (!entry.error && !entry.gone && (!Number.isInteger(entry.session) || entry.session < 1))) throw fail('invalid environment helper row');
+        if ((entry.error || entry.gone || entry.unreadable) && !exists(row.pid)) continue;
         if (entry.error) { errors.push(`environment of PID ${row.pid}: ${entry.error}`); continue; }
         if (entry.gone) {
-          if (live(row)) errors.push(`environment of live PID ${row.pid}: helper reported ESRCH`);
+          errors.push(`environment of present PID ${row.pid}: helper reported ESRCH`);
           continue;
         }
         // POSIX cannot join an existing session. Our keeper starts a new one;

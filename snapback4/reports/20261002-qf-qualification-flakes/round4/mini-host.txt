@@ -1,0 +1,3 @@
+MacMini-Apt101-M5-A
+Darwin arm64
+v24.18.0

@@ -1,6 +1,6 @@
 # QF — qualification flakes
 
-Status: Round 3 complete: full suite 0 failures; both targets 200/200; two stress-background mechanism refusals retained below. No push or publication.
+Status: Round 4 complete: vanished-process races handled; full suite 0 failures; both targets 200/200; all 2,031 stress-background executions pass with 0 refusals. Ticket resolved. No push or publication.
 
 Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
@@ -1016,7 +1016,7 @@ unparsable inspection output to refuse the file. The raw rejected snapshots
 were not captured, so no kernel-race, ownership, baseline-product or new-policy
 attribution is justified. Their subsequent `keeper exited before cleanup`
 messages are secondary to the initial failure after whole-group kill. The
-[separate proc-stat follow-up](../../../issues/20261003-snapback4-malformed-proc-stat-during-stress.md)
+[separate proc-stat follow-up](../../../issues/closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
 requests the missing diagnostic evidence without weakening the guard.
 The resolved [token-permission ticket](../../../issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
 records the narrower permission-policy fix and the accepted escape limitation.
@@ -1039,3 +1039,178 @@ in a patch context line that the earlier unstaged check did not include. Both
 artifacts are retained byte-for-byte as gzip files; the local commit was
 amended after a complete staged whitespace check. No executable source changed
 and no verification result was discarded.
+
+## Round 4 — vanished-process inspection (2026-10-03)
+
+The operator ruled that disappearance between process enumeration and a
+per-process read is normal. This round starts at `3d803c79c0`, on
+`sb4-intent/qf-qualification-flakes`, and addresses both Round 3 background
+refusals (`load-207` and `load-753`). Those old snapshots were never retained;
+their exact kernel contents and cause cannot be recovered retrospectively.
+
+### Scope and implementation
+
+The read-only `llp-orient` context remains the process runner and its fixtures.
+LLP 3000 (in `llp/current/`) §publication-suite-under-contention governs process
+custody, two empty snapshots, first-error diagnostics and progress bounds;
+§publication-suite-on-small-hosts and the operator limit Mac execution to the
+Apartment mini. LLP 2000.000 and the adopted rules supply the fence. No authoring
+surface changed. The documentation update is the new operator ruling in LLP
+3000, the command-sheet summary, this report, the issue resolution and journal.
+Hand-off: none. The Round 3 opaque-escape limitation remains unchanged.
+
+`identity()` now reads stat as bytes, parses after the last `)`, and validates
+the PID prefix, state and complete numeric tail before using parent/group/session
+and start time. Its error path rechecks existence with `kill(pid, 0)` for every
+read/parse failure, including ENOENT/ESRCH, empty and truncated contents. ESRCH
+means exited; EPERM proves presence. If still present, the refusal includes
+`firstError` and lossless `rawBase64` metadata. An existence-check error retains
+the first error too. No environment bytes are included in a diagnostic.
+
+The ps reader keeps the executable as the final field, with spaces and
+parentheses intact. Its rejected rows retain their original bytes. A malformed
+row with a recoverable PID is ignored only if that PID has vanished; missing
+PID framing, a failed command, timeout or empty process table still refuses.
+The same stat reader supplies parent/start-time checks. Linux environment read
+errors and Darwin per-PID kernel/session errors recheck existence too. A present
+unreadable candidate keeps Round 3's diagnose-and-skip policy; other present
+errors refuse. Whole-helper failures and malformed helper framing remain
+mechanism failures. A stale group member or token match that has exited is omitted from live leak
+results. The two prior stale-snapshot regressions now require this ruling:
+a vanished parent does not refuse its file, while unconditional group cleanup
+still kills its unsampled child; stale exited rows do not reset the empty-scan
+count. Previously observed live leaks still fail. A new end-to-end fixture
+requires a healthy file to pass after its transient group child exits between
+the stored enumeration and the runner's identity read.
+
+`runFile()` now keeps the **first** inspection failure in its returned result.
+Secondary cleanup failures are still printed, but cannot replace the rejected
+snapshot with `file group keeper exited before cleanup` or another later error.
+
+### Deterministic regressions and host evidence
+
+Twelve added cases cover a real child exiting after its ps snapshot but before
+identity inspection; empty, truncated and unparsable stat for that gone PID;
+ENOENT/ESRCH/EIO reads; stat comm containing `) (` and spaces; ps command names
+with the same characters; invalid parent/start metadata; present empty or
+missing stat; and paired gone/present environment error classifications.
+The present malformed stat and ps cases run through `runFile`, require refusal,
+recover the exact byte sequence (including invalid UTF-8, NUL and CR), and
+require that a subsequent cleanup error does not overwrite the first error.
+
+Linux (eb1000, Node 24.13.1): **42 passed, six Darwin-only skips**, 48 declared,
+**zero outer file refusals**. Apartment mini (Darwin 27.0 arm64, Node 24.18.0):
+**48/48 passed, zero skips, zero outer file refusals**. Both totals include the
+three unchanged replacement fixture cases. Commands:
+
+```sh
+# Linux, repository root
+node snapback4/scripts/run-client-tests.mjs 1 files snapback4/packages/snapback4/test/test-file-runner.test.mjs snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+# Apartment mini, task-created /tmp/qf-r4-final.ZVwcD3
+LC_ALL=de_DE.UTF-8 SNAPBACK4_BIN=/tmp/qf-r4-final.ZVwcD3/package/snapback4 node snapback4/scripts/run-client-tests.mjs 1 files snapback4/packages/snapback4/test/test-file-runner.test.mjs snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+The mini uses the published 0.4.10 binary only for the unchanged replacement
+fixture; this is runner portability evidence, not current-release Mac product
+qualification. `round4/mini-inputs.sha256` binds its actual source and binary.
+The first setup command mistakenly named `@expo/snapback4-darwin-arm64` and
+received npm 404 before any test started. `mini-setup-error.log` retains it;
+the corrected unscoped package download is in `mini-pack.log`. This is an
+operator-command preparation error, not a test or product failure. The final
+focused logs and statuses are retained. Only the Apartment mini was contacted;
+its scratch cleanup receipt is `round4/mini-cleanup.log`. No unrelated process
+received a terminating signal.
+
+The initial development focused run passed 41 plus six skips on Linux and
+47/47 on the mini. Review then found the old vanished-group leak evidence
+rule contradicted this round's operator ruling. The final change above and
+new end-to-end fixture prompted fresh focused runs on both hosts; the earlier
+results are retained as `development-*`, not used as final-source evidence.
+The correction occurred during the full suite's Rust phase, before ordinary
+clients started (`source-finalized.json`). Its nine fixture-wrapper assertions
+had already run, so those wrappers also run separately against the final source
+in `final-fixtures.log`; no Rust or product source changed. `scripts/test.sh`
+is invoked only once in this round.
+
+### Single eb1000 full suite
+
+The sole full-suite invocation ran **2026-10-03T04:08:31.799Z–04:33:41.919Z**,
+exit **0**, from `snapback4/`:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT scripts/test.sh
+```
+
+Its exact summary line is:
+
+```text
+== 0 failure(s) in 1510 s
+```
+
+All Rust, build, wasm, release-guard, package, app and fixture categories pass.
+Ordinary clients: **283/283 files, 5,827 passed, 16 skipped, zero failed**.
+Models: **79/79**. Fixture wrappers: **9/9**, also independently **9/9** on
+final runner source after the stale-member correction. Relative to Round 3,
+the only assertion-count delta is the runner regression file: 33 → 45 declared,
+27 → 39 passed, six Darwin-only skips unchanged. The ten other skips are
+unchanged. Total JavaScript results: 5,915 passed, 16 skipped, zero failed.
+
+Failure classification: **introduced failures 0; baseline failures 0;
+environment failures 0; inspection refusals 0**. Fourteen distinct unreadable
+host candidates were diagnosed without refusal, plus one controlled regression
+candidate. No unknown ownership authorized a signal. Deliberately injected
+failure cases are passing negative tests, not full-suite failures.
+
+`round4/full-suite-summary.json`, `full-suite-files.tsv`, category/diagnostic
+records and the complete compressed log retain the counts and evidence;
+`full-suite-count-deltas.json` compares every file against Round 3. The log's
+SHA-256 is `6181560c5dd093eab007c45de60ad3609af9941e6027789dd93a176efbd12793`.
+
+### Final 24-file stress and disposition
+
+The unchanged stress harness ran **2026-10-03T04:33:41.959Z–05:08:53.726Z**,
+exit **0**, after the suite and all other Linux checks finished. From `snapback4/`:
+
+```sh
+SNAPBACK4_QF_WORKER_BIN="$PWD/reports/20261002-qf-qualification-flakes/delayed-server.sh" node reports/20261002-qf-qualification-flakes/stress.mjs after /tmp/qf-r4-stress-final 200 both
+```
+
+| Work | Executions passed | Assertion failures | File refusals |
+| --- | ---: | ---: | ---: |
+| Original worker admission regression, delayed server startup | **200/200** | **0** | **0** |
+| Original observed-replacement regression | **200/200** | **0** | **0** |
+| Background, cycling all 283 ordinary client files | **2,031/2,031** | **0** | **0** |
+
+Every target completion records **23 active background files**, making the
+requested 24-file load. Each worker repetition executes its one selected
+assertion; each replacement repetition executes its two assertion-bearing
+cases. All background executions finish normally, including the long final
+drain; none is aborted or represented by an empty result. This round's
+`load-207` (schema-capabilities) and `load-753` (remembered-answers) both pass
+without inspection errors. Their Round 3 refusals remain historical evidence;
+without the lost snapshots, this round does not claim their precise cause.
+
+`round4/stress-stats.json` checks the counts, selected assertions and active
+background slots. The compressed metadata, summary, complete JSONL/TSV run
+records and load timeline retain every execution. The failure-classification
+record is empty. The harness metadata's `sourceCommit` is its historical
+before-fixture pin, not the source used for this run; the final input hashes
+and this commit bind the actual runner and fixtures.
+
+The [proc-stat ticket](../../../issues/closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
+is **resolved**: normal disappearance no longer refuses, present malformed
+metadata remains fail-closed with recoverable bytes and first-error custody,
+and both hosts plus the requested full suite and stress are qualified. The
+unknown contents of the two old snapshots are a historical limit, not an
+unimplemented part of this ruling. The opaque escaped-process limitation from
+Round 3 remains explicit in LLP 3000 and the command sheet.
+
+`inputs-before.sha256` and `source-before.json` retain the initial run inputs;
+`source-finalized.json` and `inputs-final-source.sha256` bind the correction
+before ordinary clients began. `inputs.sha256`, `source-final.json` and
+`final-integrity.json` verify the final state. All 18 runner/fixture/binary
+inputs remained unchanged after that correction. Only the documented runner,
+regression and documentation edits differ from the initial source manifest;
+no Rust or product source changed. Reference and whitespace checks pass.
+This is a local commit with the requested Astra co-author trailer; nothing
+is pushed or published.

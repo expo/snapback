@@ -94,9 +94,10 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   let forcedClose;
   const forced = new Promise(resolve => { forcedClose = resolve; });
   const diagnose = error => {
-    inspectionFailure = String(error.stack ?? error);
+    const diagnostic = String(error.stack ?? error);
+    inspectionFailure ??= diagnostic;
     reason ??= 'TEST_PROCESS_INSPECTION';
-    onOutput(`${inspectionFailure}\n`);
+    onOutput(`${diagnostic}\n`);
   };
   // An inspection failure never establishes cleanup. Best effort still kills
   // the owned, unreaped keeper's entire group and individually known detaches.

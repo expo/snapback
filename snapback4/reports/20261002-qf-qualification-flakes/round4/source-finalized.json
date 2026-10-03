@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-03T04:15:02.211632+00:00",
+  "suitePhase": "cargo test; no client-tests.log exists",
+  "rustLogTail": [
+    "-- rust target: snapback4-device::device::search_global::forms::sqlite::cases::w13e_dense_1000 (124.3 s): test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 436 filtered out; finished in 124.28s",
+    "-- rust target: snapback4-lang::revocation_soundness (97.2 s): test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 97.23s",
+    "-- rust target: snapback4-core::row_view_disclosure (199.8 s): test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 199.72s",
+    "-- rust target: snapback4-lang::declarative_receipts (192.6 s): test result: ok. 152 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 192.54s"
+  ],
+  "clientLogExists": false
+}

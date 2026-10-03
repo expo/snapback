@@ -1,0 +1,1 @@
+# TEST_PROCESS_UNREADABLE: {"pid":1438903,"executable":"/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node","start":"Sat Oct  3 06:21:00 2026","reason":"EACCES"}; not provably ours; skipped

@@ -1,0 +1,10 @@
+{
+  "summary": "== 0 failure(s) in 1510 s",
+  "exit": 0,
+  "introduced": [],
+  "baseline": [],
+  "environmental": [],
+  "inspectionRefusals": [],
+  "negativeTests": "Deliberate inspection, malformed-snapshot, leak and timeout fixtures passed their expected-refusal assertions.",
+  "separatePreparationError": "Wrong @expo npm package name returned 404 before mini tests; corrected to snapback4-darwin-arm64@0.4.10, final mini focused 48/48."
+}

@@ -86,8 +86,10 @@ Gotchas you cannot derive from the code:
   and inherited-token inspections. Tokens cover native session escapes;
   same-session custody also catches a child that clears its token. Linux reads
   `/proc` environments; macOS uses Python 3's ctypes with `KERN_PROCARGS2`.
-  Observed owned survivors fail the file. Inspection-mechanism failures remain
-  fail-closed. An unreadable/redacted candidate environment produces one
+  Observed owned survivors fail the file. Failed per-process reads recheck
+  existence: vanished PIDs are exited; present malformed metadata refuses with
+  exact metadata bytes and the first error retained. Enumeration-mechanism
+  failures remain fail-closed (QF Round 4). An unreadable/redacted candidate environment produces one
   PID/executable/start-time diagnostic per identity, without refusal or signal.
   An escape that loses ancestry and leaves the owned session/group is undetected
   if its environment is unreadable/redacted or it removed its token; on macOS
