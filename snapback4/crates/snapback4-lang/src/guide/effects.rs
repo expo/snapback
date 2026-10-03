@@ -251,6 +251,9 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 ```
 
 `clock advance` extends held effect leases by the advanced duration, preserving their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
+It completes maintenance and jobs synchronously before replying, at the request's
+user-initiated QoS on macOS: this is work the developer is waiting for.
+Ordinary effect leases are fixed at claim; there is no lease heartbeat.
 
 The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced?,
 declarationContract? }` (a lease in seconds; `wait` long-polls until something

@@ -1,0 +1,44 @@
+
+> snapback4-expo-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:93568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 8050ms index.js (728 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-7ef558658a2886f44506fb4944767e03.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-3b1180d96b5b74eee199db118d161d1b.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1790999650693-93563/export
+witness: created simulator sb4-nx-r9-1790999661144-93718 (5A05F370-7D40-4251-AE94-E174F5E4C69A), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+witness: using simulator sb4-nx-r9-1790999661144-93718 (5A05F370-7D40-4251-AE94-E174F5E4C69A), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+E_WITNESS_PROCESS: native preparation watchdog cleanup did not finish; recovery required; see snapback4 guide witness
+native smoke failed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1790999650693-93563/smoke-ios-run.json

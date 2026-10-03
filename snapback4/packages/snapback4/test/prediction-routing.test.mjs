@@ -881,3 +881,28 @@ for (const keep of [undefined, true]) test(`retaining fallback keeps A while the
   assert.equal(watch.read(null).revalidating, undefined);
   watch.retire();
 });
+
+// @ref LLP 3000.028#3.3.1 — every composition retains both value authorities,
+// including unknown deadlines, independently of page availability.
+for(const rows of [false,true]) for(const device of [null,100,300,NaN]) for(const server of [null,200,400,NaN])
+test(`composed value deadlines rows=${rows} device=${device} server=${server}`,async()=>{
+  const f=routing();f.entries=[];f.env.deviceNow=()=>500;f.env.serverNow=()=>500;
+  f.outcome={unknown:true,complete:false,decorationExpiry:device,tables:['posts'],...(rows
+    ?{data:[{id:'kept'}],retainedRows:[{source:['posts','kept'],retained:true,fields:{}}]}
+    :{data:{history:['kept'],online:[]},components:{history:{retained:true},online:{unknown:true}}})};
+  f.env.post=async()=>({ok:true,obsoleteAuth:false,json:{complete:true,decorationExpiry:server,
+    data:rows?[{id:'current'}]:{history:[],online:['current']},rowProvenance:[{source:['posts','current'],fields:{}}]}});
+  const result=await evaluateLocal(f.env,op,input,0,0);
+  assert.ok('data' in result.read);assert.equal(result.read.fresh,false);
+  assert.equal(result.valueDevice,device);assert.equal(result.valueServer,server);
+  assert.equal(result.nextExpiry,null);assert.equal(result.serverExpiry,null);
+});
+
+test('composition keeps the earliest value deadline per authority; unknown dominates',async()=>{
+  const {mergeValueDeadlines}=await import('../dist/read-decoration.js');
+  for(const a of [null,100,300,NaN])for(const b of [null,200,400,NaN]){
+    const merged=mergeValueDeadlines({valueDevice:a,valueServer:b},{valueDevice:b,valueServer:a});
+    const expected=[a,b].some(Number.isNaN)?NaN:[a,b].filter(x=>x!==null).sort((a,b)=>a-b)[0]??null;
+    assert.equal(merged.valueDevice,expected);assert.equal(merged.valueServer,expected);
+  }
+});

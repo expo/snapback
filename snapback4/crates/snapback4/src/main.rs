@@ -14,6 +14,7 @@ mod dev_worker;
 mod dev_replay;
 mod dev_clock;
 mod lifecycle;
+mod thread_priority;
 mod verbs;
 mod timeline_cost;
 mod column_cost;
@@ -55,6 +56,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   --version";
 
 fn main() -> ExitCode {
+    snapback4_core::diagnostics::set_thread_start(thread_priority::background);
     // Keep this first: lifecycle tests distinguish a pre-main process-launch
     // stall from a server that reached its own bounded readiness window.
     if std::env::var_os("SNAPBACK4_TEST_MAIN_REACHED").is_some() {
@@ -172,6 +174,7 @@ mod tests {
         use std::net::TcpStream;
         use std::time::Duration;
         for (length, expect) in [(1, "Expect: 100-continue\r\n"), (2048, "")] {
+            crate::host_limits::prepare_tests();
             let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
             let address = server.server_addr().to_ip().unwrap();
             let worker = std::thread::spawn(move || {
@@ -206,6 +209,7 @@ mod tests {
             ("OPTIONS", 204, json!(null)),
             ("GET", 403, json!({ "denied": { "code": "E_AUTH" } })),
         ];
+        crate::host_limits::prepare_tests();
         let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
         let address = server.server_addr().to_ip().unwrap();
         let responses = cases.clone();

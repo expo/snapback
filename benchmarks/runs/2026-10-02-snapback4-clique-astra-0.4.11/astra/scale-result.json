@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "actions": 167243,
+  "startEpoch": 1790967870,
+  "endEpoch": 1790972220,
+  "excludedMs": 16904,
+  "replayWallSeconds": 4333.096,
+  "actionSettlementEndEpoch": 1790972020,
+  "correctedAfterReplay": true,
+  "correction": "Inbox raw unread scan replaced by row-keyed maintained count after final checkpoint E_SHAPE_EXCEEDS_METER; no fixture action rerun or omitted. Clock includes diagnosis/adoption/reverification. Before/after query timing is not a frozen-generation growth curve.",
+  "priorFailure": "evidence/scale-result-before-unread-fix.json"
+}

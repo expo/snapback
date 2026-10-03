@@ -46,8 +46,7 @@ A maintained view has rows `{ id, <group columns>, value }`. A full group key re
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
-During adoption, query and sync snapshot reads keep reading the previous backend. A newly
-added query answers pending until the views are complete. Writes wait for
+During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait for
 adoption, then execute once. Dev and serve report rebuilt view names, source
 row counts and milliseconds. A failed or interrupted adoption keeps the previous
 backend; restart retries the complete build.
@@ -291,7 +290,6 @@ Adding or changing a filter, key, duration, offset, dependent literal default or
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.
 Attribution capture runs inside the same atomic activation, before that rebuild, preserving existing paths.
-
 
 ## Originals, replies and engagement credit
 
@@ -634,8 +632,10 @@ census, so its presence makes the all-writers proof unknown and silent. The note
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
 
-
 ## A value per member: Clique unread
+
+N_SHAPE_METER warns about raw counts per inbox row, including inside `unreadIn`: a busy chat can starve the shape.
+Use maintained `unreadCounts[.id]`, a bounded preview or a separate query.
 
 For receipt gaps in expiring messages, `guide sequences` pairs `sequence by`
 with bounded unique ordinal probes. The count below answers what remains
@@ -682,6 +682,8 @@ mutation send(conversationId: conversations):
     expiresAt: now + conversation.timer if conversation.timer != null else null }
 query myUnread(member: members):
   return unread[member]
+query unreadBadges(c: cursor ?):
+  return unread where .principal = viewer first 20 after c { member, value, recountPending }
 ```
 
 The view carries only the member's read-rule columns, `id`, `member` (the
@@ -705,17 +707,17 @@ and the full predicate exclude them from the count. Larger ranges and background
 recounts use the null and future ranges of the parent/expiry index, seeking past
 expired inputs. An abandoned probe stays charged against the writer's recount
 allowance; a count that cannot finish leaves a pending recount and commits the mark.
-Server reads certify the whole current live range, including counts above the
-writer allowance, using the same policy for stored pending and settled values.
-Historical pending work never selects completeness or count-dependent refusal.
-An expiring stored count is a private cache: bounded durable chunks reconcile it
+Server reads certify live counts above the writer allowance whenever the source **or member** can expire, including inherited expiry over non-expiring sources.
+Expiring members always use authorized input: maintenance may have skipped them while absent. Restoring their lifetime recounts or leaves pending work. For non-expiring members, a settled server basis can reuse its
+count while its version matches, its basis is not in the future, and its deadline
+has not arrived. A recount restarts its prefix on clock rollback. Source writes maintain that proof with the count. Every read still
+checks current member and source-group authority. Pending, due or unsupported
+row-dependent disclosure cases use the full authorized live recount.
+Identity and copied read-rule fields follow the member transactionally; private work never flips them; bounded durable chunks reconcile them
 without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
-engine lock before the next chunk. The server
-certification scan can traverse the whole live group on its internal ledger.
-Reads reserve one examined unit and one step for certification; probes and walks
-consume the internal ledger, equally for queries and count-dependent writers.
-Completed and pending reads keep the same public reservation.
+engine lock before the next chunk. Both paths keep the fixed public reservation;
+probes and walks use the internal ledger for queries and count-dependent writers.
 Schema adoption atomically rebuilds a count when its member table, predicate
 inputs or expiry interpretation changes, including a default on a legacy absent
 expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only
@@ -765,8 +767,7 @@ On the server, for an admitted member reader, an equal current live basis produc
 certified count, completeness, count-dependent writer result, reserved meter,
 snapshots and recount traffic. This includes an expired prefix inserted before
 the member and a large live suffix inserted afterward, read before any mark.
-Historical pending state, formerly-live expired rows, tombstones and own sends
-cannot select a different certification policy. Global activity by other
+Pending state, expired rows, tombstones and own sends never change that meaning. Global activity by other
 principals remains observable through the shared sequence/log protocol.
 
 A pure view-existence witness reads only the member's indexed existence and
@@ -803,13 +804,12 @@ A covered device predicts within its certification allowance. Without source
 coverage, a non-expiring count keeps its settled value and queues the mark
 without prediction. An acquired horizon suffix can
 cover the changed interval; a device recount that exceeds its allowance also
-queues without prediction. Expiring sources need covered live input to certify
-an unswept count: an uncovered device reports a pending count until it can
+queues without prediction. Expiring sources or members need covered live input to certify
+a count: an uncovered device reports a pending count until it can
 certify that live input. A device mutation that cannot certify the count,
 including an already settled count above its local allowance, enters the
 outbox without a predicted result; the server decides and settles it.
-Server writers and numeric rule probes still refuse an uncertified value;
-ordinary queries carry incomplete coverage. Indexes/ranking by `value` refuse
+Rules and writers on `value` require certification; composed rule deadlines follow count-predicate truth transitions, within the shared physical allowance. Incomplete values cannot decide a rule. `recountPending` and device `pending` may be selected only directly into query result data; returning the row also preserves them. Use `recountPending` with `complete` to display `L+`. Every other selection refuses with E_VIEW_KEY: bindings (even unused ones), helpers, conditions, comparisons, arithmetic, sort/group keys, aggregates, `exists`, all rules, sync, indexes and constraints. Compute with `value`, identity or copied member fields. Objects, lists, helpers and projections preserve the row's static type. Any assignment of a maintained row, even in a skipped branch or loop, makes that local maintenance-carrying at every use in its scope; a later reset cannot clear it. Helper parameters and results join all call sites and return paths. If you reuse a local for other data, use a separate variable for the row. Any nested maintenance-bearing value is refused by inspecting builtins, including min/max, share, sort/group, aggregates and hashing: project the field you need first, for example `min(row.value, row.value)` or `share(1, [row.id], row.id)`. Only explicitly non-inspecting selectors/cardinality (`first`, `last`, `at`, `slice`, `count`) and list concatenation may forward these values; text conversion/JSON encoding during evaluation refuses. Future builtins default to inspecting. Private `$basis`/`$recount` rows and their `id`, `cursor`, `total`, `parked`, `at`, `deadline` and `version` are never application data. On a public view these names refuse unless declared copied member columns; a copied `total` is ordinary data. Other undeclared names, including `$private`, refuse too. Dynamic/heterogeneous receivers and recursively widened raw types cannot prove a receiver type; their field access refuses conservatively. Helper-block, intermediate and ordered-view maintenance projections also refuse: select status in the final query shape, or return the row and display its status in the UI. Indexes/ranking by `value` or `recountPending` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.

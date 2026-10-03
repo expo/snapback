@@ -1,0 +1,59 @@
+{
+  "main": "5e12646aeefa896e698b6ea1b5f34203d2919cdb",
+  "shapeMeter": {
+    "mainOnlyPrefixReads": {
+      "passed": 8,
+      "failed": 2
+    },
+    "mainOnlyMembershipSearch": {
+      "passed": 22,
+      "failed": 2
+    },
+    "ticket": "issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md"
+  },
+  "replay": {
+    "mainOnlyFocusedPassed": 1,
+    "mergedCanonicalFailure": "w7c_dev_banner_names_the_store_and_stdout_is_readiness",
+    "ticket": "issues/20261002-snapback4-replay-startup-log-observation.md",
+    "interpretation": "Existing intermittent startup-log observation; same test and serving/logging implementation as fetched main. Isolated success is not a fix or a green canonical suite.",
+    "source": [
+      {
+        "path": "snapback4/crates/snapback4/tests/replay.rs",
+        "sha256": "a4d7fd39de8cc4ebae6b0432bbd1a6b088be1f2348a105632e9961bfe40d03d1",
+        "matchesFetchedMain": true
+      },
+      {
+        "path": "snapback4/crates/snapback4/src/serve.rs",
+        "sha256": "8fb057a87cb1706871987b9d54e95464356df66ad096fc52f355e900d0e9498c",
+        "matchesFetchedMain": true
+      },
+      {
+        "path": "snapback4/crates/snapback4-core/src/diagnostics.rs",
+        "sha256": "d16bd092440cbc645b8ea4d5cdb7fb10ff2ca52f1d9d42049e617bc7d2daa53a",
+        "matchesFetchedMain": true
+      }
+    ]
+  },
+  "capabilityFence": {
+    "tests": [
+      "timeline-v2",
+      "recorded-attribution",
+      "maintained-column"
+    ],
+    "failure": "Additional decorationExpiry: null in current query reply; sameAnswer compares against published 0.2.33 exact keys at line 222",
+    "isolatedReproduction": "capability-followup.log",
+    "classification": "baseline: unchanged test and device reply source from fetched main; native main-only suite was not rerun",
+    "source": [
+      {
+        "path": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+        "sha256": "6a06505ad47ab4250b584c39d4bc2ac4b5f4bf0a8eb8d4c371604f6e8af05df0",
+        "matchesFetchedMain": true
+      },
+      {
+        "path": "snapback4/crates/snapback4-device/src/call.rs",
+        "sha256": "7a4fa8412f2d318006d3f446ad0b533d27d2717ae22a94cd4f2f674bd27c3dee",
+        "matchesFetchedMain": true
+      }
+    ]
+  }
+}

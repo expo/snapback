@@ -1,0 +1,25 @@
+opening viewer 0
+0 BG app ready
+0 BG sync start
+0 BG sync end
+opened viewer 0
+opening viewer 1
+1 BG app ready
+1 BG sync start
+1 BG sync end
+opened viewer 1
+opening viewer 2
+2 BG app ready
+2 BG sync start
+2 BG sync end
+opened viewer 2
+{"run":0,"commit":105.99609375,"render":[408.400390625,428.2001953125]}
+{"run":1,"commit":151.315185546875,"render":[495.30029296875,385.10009765625]}
+{"run":2,"commit":159.70703125,"render":[405.2001953125,425.5]}
+{"run":3,"commit":195.828125,"render":[487.500244140625,498.7001953125]}
+{"run":4,"commit":161.761962890625,"render":[436.10009765625,440.199951171875]}
+{"run":5,"commit":145.708251953125,"render":[446.400146484375,383.2001953125]}
+{"run":6,"commit":135.129150390625,"render":[374.80029296875,442.10009765625]}
+{"run":7,"commit":149.343994140625,"render":[444.2001953125,420.199951171875]}
+{"run":8,"commit":128.716064453125,"render":[422.5,366.599853515625]}
+{"run":9,"commit":149.72607421875,"render":[403.900390625,572.400146484375]}

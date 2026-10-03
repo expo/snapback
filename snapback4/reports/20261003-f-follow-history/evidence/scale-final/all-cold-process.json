@@ -1,0 +1,46 @@
+{
+  "file": "all-cold",
+  "tier": "process",
+  "pages": 37,
+  "streamBytes": 4967806,
+  "applyMs": 1736.789322,
+  "wallMs": 1780.3582040000001,
+  "residency": {
+    "tables": {
+      "feedEdges": {
+        "bytes": 3146108,
+        "rows": 16386
+      },
+      "feedFeed": {
+        "bytes": 308000,
+        "rows": 1000
+      },
+      "feedPosts": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedRemovedEvents": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedWork": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "follows": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "posts": {
+        "bytes": 153000,
+        "rows": 1000
+      },
+      "reposts": {
+        "bytes": 0,
+        "rows": 0
+      }
+    },
+    "totalBytes": 24588288,
+    "totalBytesKind": "sqlite-pages"
+  }
+}

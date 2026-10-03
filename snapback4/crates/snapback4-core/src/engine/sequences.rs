@@ -305,6 +305,7 @@ struct SequenceProbe<'a, 'b> {
     next: bool,
 }
 impl super::rules::Probe for SequenceProbe<'_, '_> {
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, old: bool) {
         self.runner.provisional_sequence_read |= (if old { self.old } else { self.next })

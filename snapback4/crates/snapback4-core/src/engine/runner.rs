@@ -31,7 +31,7 @@ impl Runner<'_> {
         self.context.is_system().then_some(SystemAccess(()))
     }
 }
-fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
+pub(super) fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]
 pub(super) enum Flow {
@@ -76,6 +76,8 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
+    #[cfg(feature = "sqlite")]
+    pub(super) job_read_scope: u8,
     pub(super) receipt_operation: String,
     pub(super) receipt_allocation: bool,
     #[cfg(feature = "sqlite")]
@@ -110,6 +112,7 @@ pub struct Runner<'a> {
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: super::expiry::Expiry,
     pub(super) witness_cache: Option<(super::read::WitnessKey, (bool, bool, Option<i64>))>,
+    pub(super) witness_changes: Option<Vec<(i64, super::rules::Verdict)>>,
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: PendingEvents,
@@ -131,6 +134,10 @@ pub struct Runner<'a> {
     pub(super) effect_presence: super::presence::EffectPresence,
     /// How deep inside page loops the runner is; a scan at depth 0 may own
     /// the program's `next`.
+    pub(crate) search_rows: Option<Value>,
+    pub(crate) decoration_expiry: Option<i64>,
+    pub(crate) retained_seen: bool,
+    pub(super) decoration_cache: Option<BTreeMap<(String, String, Vec<u8>), Value>>,
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
@@ -179,6 +186,10 @@ pub struct Runner<'a> {
     pub(super) column_rebuild: bool,
     #[cfg(feature = "sqlite")]
     pub(super) rebuilt_source_rows: u64,
+    #[cfg(feature = "sqlite")]
+    pub(super) count_version: Option<(String, String)>,
+    #[cfg(feature = "sqlite")]
+    pub(super) recount_budget: Option<(std::time::Instant, std::time::Duration)>,
     #[cfg(feature = "sqlite")]
     pub(crate) import_targets: Option<&'a BTreeMap<(String, String), Value>>,
     /// The device touched an online-only table or a horizon: `complete: false`.
@@ -249,6 +260,8 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
+            #[cfg(feature = "sqlite")]
+            job_read_scope: 0,
             receipt_operation: String::new(),
             receipt_allocation: false,
             #[cfg(feature = "sqlite")]
@@ -272,6 +285,7 @@ impl<'a> Runner<'a> {
             rows_written: 0,
             next_expiry: Default::default(),
             witness_cache: None,
+            witness_changes: None,
             #[cfg(feature = "sqlite")]
             events: PendingEvents::default(),
             #[cfg(feature = "sqlite")]
@@ -282,6 +296,10 @@ impl<'a> Runner<'a> {
             retiring: None,
             outbox: Vec::new(),
             effect_presence: Default::default(),
+            search_rows: None,
+            decoration_expiry: None,
+            retained_seen: false,
+            decoration_cache: None,
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
@@ -313,6 +331,10 @@ impl<'a> Runner<'a> {
             #[cfg(feature = "sqlite")]
             rebuilt_source_rows: 0,
             #[cfg(feature = "sqlite")]
+            count_version: None,
+            #[cfg(feature = "sqlite")]
+            recount_budget: None,
+            #[cfg(feature = "sqlite")]
             import_targets: None,
             beyond_horizon: false,
             missing_fact: None,
@@ -342,6 +364,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.receipt_operation = program.name.clone();
         self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
@@ -453,6 +476,11 @@ impl<'a> Runner<'a> {
                     result?
                 }
                 Stmt::For { binding, domain, body } => {
+                    #[cfg(feature = "sqlite")]
+                    if let LoopDomain::DerivedArray { value: Expr::Builtin { builtin: Builtin::JobQuery { program, cursor, all: true }, args }, .. } = domain {
+                        if self.device { return Err(RuntimeError::Input("job viewer reads require a server job scope".into())); }
+                        return self.job_query_rows(program, cursor.as_deref(), args, binding, body, &site);
+                    }
                     let mut values = self.domain(domain)?;
                     let is_page = matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_));
                     if is_page {
@@ -634,7 +662,7 @@ impl<'a> Runner<'a> {
         Ok(value)
     }
 
-    fn bind(&mut self, name: &str, value: Value) {
+    pub(super) fn bind(&mut self, name: &str, value: Value) {
         #[cfg(feature = "sqlite")]
         self.clear_delivery_variable(name);
         self.effect_presence.variables.remove(name);
@@ -852,6 +880,20 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                #[cfg(feature = "sqlite")]
+                if self.device && matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope".into()));
+                }
+                #[cfg(feature = "sqlite")]
+                match builtin {
+                    Builtin::JobAs => return self.job_as(args),
+                    Builtin::JobQuery { program, all: false, .. } => return self.job_query_value(program, args),
+                    _ => {}
+                }
+                #[cfg(feature = "sqlite")]
+                if matches!(builtin, Builtin::JobAs | Builtin::JobQuery { .. }) {
+                    return Err(RuntimeError::Input("job viewer reads require a server job scope; use all(query(...)) only as a for domain".into()));
+                }
                 if let Builtin::Extremum { max, domain, .. } | Builtin::ExtremumOf { max, domain } = builtin {
                     if args.len() != builtin.arity() { return Err(RuntimeError::Input("min/max needs its source and projection".into())); }
                     let field = if let Builtin::Extremum { field, .. } = builtin { field.as_str() } else { "" };
@@ -923,6 +965,8 @@ impl<'a> Runner<'a> {
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
+            #[cfg(feature = "sqlite")]
+            Builtin::JobAs | Builtin::JobQuery { .. } => unreachable!("job builtins dispatch before evaluating arguments"),
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
             Builtin::ReceiptSettled { table } => {
                 // This primitive remains for settled-only query accounting.

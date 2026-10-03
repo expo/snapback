@@ -638,7 +638,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)).into_value(),k)).collect::<Vec<_>>();
         let count = rows.len();
         let mut certified = if viewer.is_some_and(|(schema, _)| schema.maintain_for(table_name)
-            .is_some_and(|m| m.row_key.is_some() && schema.tables[&m.source].is_expiring())) {
+            .is_some_and(|m| m.row_count_needs_live_basis(schema))) {
             let runner = aggregate.as_mut().unwrap();
             runner.meter.heap(crate::rows::word_heap::slots::<Value>(count)
                 .saturating_add(crate::engine::row_copy_ceiling(table).saturating_mul(count as u64)))?;

@@ -1,0 +1,10 @@
+SJ process oracle {"pages":985,"online":686,"offline":299,"short":8,"currentNull":996,"retainedNull":1802}
+SJ wasm oracle {"pages":985,"online":686,"offline":299,"short":8,"currentNull":996,"retainedNull":1802}
+ℹ tests 462
+ℹ suites 0
+ℹ pass 462
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140978.464142

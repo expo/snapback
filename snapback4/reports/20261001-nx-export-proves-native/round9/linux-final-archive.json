@@ -1,0 +1,42 @@
+[
+  {
+    "sha256": "5d91a474e9c26c426cc3ecd2325595faa85f5db55336e710cbfa3abb467e04f1",
+    "bytes": 18476147,
+    "path": "round9/source-final.tar.gz"
+  },
+  {
+    "sha256": "6e91cecf0fa0ca25b5aace8ab31f98929cd880aca2ea1933b87dff2a03f86d2f",
+    "bytes": 30,
+    "path": "round9/linux-final-logs/done.gz"
+  },
+  {
+    "sha256": "6715a9907a7295f976576aa8cb15b1c0dc753397167677ec22b86fab6f318d57",
+    "bytes": 1905,
+    "path": "round9/linux-final-logs/integration.log.gz"
+  },
+  {
+    "sha256": "da5a16dc2c33cbeeb8dfe46bdbae89e77ab6f441e10fcd056c9b43905880ad4c",
+    "bytes": 1207,
+    "path": "round9/linux-final-logs/js.log.gz"
+  },
+  {
+    "sha256": "aee1caa59b54c41ff0209766a04b845c901f4c71f2faa8b7c481425731f38b30",
+    "bytes": 2762,
+    "path": "round9/linux-final-logs/units.log.gz"
+  },
+  {
+    "sha256": "7369441bd8f2005828fc32502bfc64d96745ed55e8f6829d3fff331fb038a15c",
+    "bytes": 1021,
+    "path": "round9/linux-final-logs/build.log.gz"
+  },
+  {
+    "sha256": "9507481a425d91c3075c95e306430b9194bd6e100d96e2f3d81030feeb811695",
+    "bytes": 196,
+    "path": "round9/linux-final-logs/dependencies.log.gz"
+  },
+  {
+    "sha256": "6ad0f62dae172affbf4ca68b7f330304f7d6734d1c606db34615cccbfcb8b6c5",
+    "bytes": 63,
+    "path": "round9/linux-final-logs/status.txt.gz"
+  }
+]

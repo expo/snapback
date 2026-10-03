@@ -1,0 +1,40 @@
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-jv/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 3.13s
+     Running tests/job_viewer.rs (snapback4/target/debug/deps/job_viewer-8ea11a7ff38f7263)
+
+running 18 tests
+test round1::device_refuses_job_builtins_before_evaluating_their_arguments ... ok
+test round1::device_job_stubs_decode_and_retain_content_identity_without_server_bodies ... ok
+test round1::ephemeral_direct_and_helper_reads_refuse_with_query_diagnostic ... ok
+test all_refuses_a_cursor_argument_that_does_not_continue_the_returned_page ... ok
+test side_effects_and_invalid_scopes_refuse_with_repairs ... ok
+test service_seats_direct_reads_query_calls_and_prior_chunk_writes_share_clock_and_transaction ... ok
+test round1::viewer_dependent_refinements_do_not_cross_either_authority_edge ... ok
+test changing_a_called_query_parks_an_already_queued_job ... ok
+test round1::inner_loops_keep_sweep_placement_and_jumps_stay_lexical ... ok
+test runtime_refuses_system_viewer_and_forged_effectful_blocks ... ok
+test guide_digest_restart_closed_clients_idle_and_legacy_emissions ... ok
+
+thread 'random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients' (2386641) panicked at crates/snapback4-lang/tests/job_viewer/round1.rs:189:21:
+assertion `left == right` failed: 0/n = docs['d0']/user:p1/inspect
+  left: Null
+ right: Row(ObjectFields({"id": Id("d0"), "owner": Id("user:p1"), "value": Int(31)}, false, None, false))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients ... FAILED
+test calibration_28_builder_digest_matches_with_restart_and_idle_period ... ok
+test round1::forged_non_principal_values_refuse_before_entering_scope ... ok
+test round1::every_direct_read_and_helper_refuses_incomplete_results ... ok
+test round1::point_reads_and_uniform_domains_keep_ordinary_complete_answers ... ok
+authorization fitting run: JobRun { id: "0000000001EB5M7ABW44GSBYB8", name: "inspect", state: Done, sweep: 1, chunks: 2, chunk_size: 8, retries: 3, heap_peak: 481607, rows_written: 32, created_at: 1, updated_at: 1, error: None }
+test over_budget_recipient_parks_without_partial_effect_or_key ... ok
+authorization oversized run: JobRun { id: "0000000001MDP4XWDVJG4C37NF", name: "inspect", state: Parked, sweep: 0, chunks: 0, chunk_size: 1, retries: 6, heap_peak: 435518, rows_written: 0, created_at: 1, updated_at: 1, error: Some("E_RULE: comments's read rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count") }
+test round1::authorization_budget_retries_smaller_chunks_and_preserves_single_item_diagnostic ... ok
+
+failures:
+
+failures:
+    random_viewer_rows_counts_disclosure_expiry_and_removal_equal_clients
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.73s
+
+error: test failed, to rerun pass `-p snapback4-lang --test job_viewer`

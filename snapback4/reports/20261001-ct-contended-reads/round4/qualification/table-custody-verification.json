@@ -1,0 +1,11 @@
+{
+  "sourceFilesVerified": 15,
+  "binaryHashesVerified": 4,
+  "byteIdenticalTables": {
+    "MIXED.md": "ddc55d0d7226d5196843eb0fde27bac6ff918f0669c9206a2a0f1500588311a7",
+    "DRAIN.md": "baa41323731854bf2be850baeec8985afbdbc15b5aa73ab32a8a9592edbdd583",
+    "MEASUREMENTS.md": "0a4366dfbe05d47728400820b9933ebd992bbbb8b4c0eb726e1351c557c5fff4"
+  },
+  "reportContainsExactMeasurementFragment": true,
+  "historicalReportAndJournalPrefixesUnchanged": true
+}

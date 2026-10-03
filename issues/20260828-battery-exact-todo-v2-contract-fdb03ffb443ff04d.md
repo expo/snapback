@@ -1,9 +1,9 @@
 # complete battery red: exact-todo-v2-contract
 
 **Status:** Open
-**Reopened by battery run:** `local.20260930T133254Z.763535814fd9`
+**Reopened by battery run:** `local.20261002T154654Z.1687b58af2d4`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `f56e8048aa9f1c9dc50f29991bd3c96be79044dc`
+**Closed at revision:** `0f516b3241200321d073861c75a3f1a9311ae04d`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `exact-todo-v2-contract`
 **Failure signature:** `sha256:fdb03ffb443ff04dc7dce6ae0d7cfad349edab64b26d1b2ff62b841feb3709c7`
 **First observed run:** `local.20260828T203031Z.1b23bca7239e`
-**Last observed run:** `local.20260930T133254Z.763535814fd9`
-**Last processed run:** `local.20260930T133254Z.763535814fd9`
+**Last observed run:** `local.20261002T154654Z.1687b58af2d4`
+**Last processed run:** `local.20261002T154654Z.1687b58af2d4`
 **Detected at revision:** `1b23bca7239ee7627153e7422a55cc3080329948`
-**Last observed revision:** `763535814fd9732bd76a0a782df67fc6db0323f0`
+**Last observed revision:** `1687b58af2d4aa7483575e2421dff70e1d918925`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

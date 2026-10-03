@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 0.45s
+     Running tests/revocation_history.rs (target/debug/deps/revocation_history-98649e4153a7d9fc)
+
+running 4 tests
+test measure_history ... ignored, explicit before/after write-cost and steady-state measurement
+test pruning_is_atomic_and_old_or_missing_intervals_widen ... ok
+test server_open_migrates_evidence_before_commits ... ok
+test commits_preserve_schema_and_cached_statements ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s

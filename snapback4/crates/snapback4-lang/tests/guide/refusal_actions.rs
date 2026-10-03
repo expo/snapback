@@ -2,6 +2,12 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
+    ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
+    ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
+    ("E_JOB_VIEWER_FLOW", &["Assign a local inside, then return outside; break and continue need a loop inside the block."]),
+    ("E_JOB_VIEWER_QUERY", &["Use all(query(...)) directly in a for domain with one cursor argument and a list return."]),
+    ("E_JOB_VIEWER_READ", &["Narrow the query; no partial digest commits. Follow every cursor; one page is a preview."]),
     ("N_RECEIPT_PREDICTION", &["Use only clean fields and stable ids to predict", "Remove an incompatible", "any refusal keeps custody"]),
     ("E_RECEIPTS_CLAUSE", &["Multiple distinct families may coexist", "at most 50 members", "64 disjoint runs per member"]),
     ("E_RECEIPTS_OWNED", &["Deleting a member retires their runs atomically"]),
@@ -13,7 +19,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_SEARCH_OPEN", &["Use the grouped form"]),
     ("N_SEARCH_UNSCOPED", &["Preserve the filters and add"]),
     ("N_SEARCH_WORDS", &["Try a longer first term or a pinned chat"]),
-    ("N_SEARCH_SHAPE", &["Return a bare hit page"]),
+    ("N_SEARCH_SHAPE", &["using point lookups"]),
     ("E_FIELD_AUTHORITY", &["Name a required principal column on this table, declare a default, and omit the field when writing another principal's row."]),
     ("N_SEQUENCE_READ", &["manual allocator", "snapback4 why recent"]),
     ("E_SEQUENCE_PARENT", &["Do not supply a value or default."]),
@@ -211,6 +217,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_PORT", &["Stop that server if it is yours, or choose a free `--port`", "rebuild/configure the app for that origin"]),
     ("E_WITNESS_PROCESS", &["Preserve the failed run's logs and stop only its recorded child processes"]),
     ("E_WITNESS_RECEIPT", &["Await receipt writes and keep one complete object per JSONL line", "rather than editing a receipt after the driver has observed it"]),
+    ("E_WITNESS_SCENE_LIFECYCLE", &["regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release", "filters reports by bundle, launch PID, simulator and mtime since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread", "Other exits, including an app that already wrote its priming receipt, keep the ordinary exit diagnostic"]),
     ("E_WITNESS_SIMULATOR", &["boot the intended dedicated device, and pass its exact `--udid`", "do not let the witness choose someone else's device"]),
     ("E_WITNESS_STEP", &["Await `w.step('offline-done', ...)`, then `w.waitFor('reconnect')`, then `w.step('done', ...)`", "skipping the assertion does not establish the promised scenario"]),
     ("E_WITNESS_TIMEOUT", &["Inspect the last receipt and app log, repair the missing step or connection, and retry", "Increase `--timeout` only after measuring a slow but progressing run"]),
@@ -242,6 +249,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_NEVER_COMPLETE", &["Keep the current equality prefix when adding those pins", "choosing a conversation narrows the answer to that scope"]),
     ("N_NOT_PREDICTABLE", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
     ("N_NOW_SERVER", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
+    ("N_SHAPE_METER", &["row-keyed maintained count", "first N", "separate query", "This is a note, not a refusal"]),
     ("N_NO_CURSOR", &["declare `c: cursor ?` and page with `after c`", "Composed fields omit this note"]),
     ("N_SYNC_ORDER", &["Use `last N by .at, .id` for the example above, keeping the audience predicate and cursor", "a held query stays local with incomplete coverage"]),
     ("N_NO_HORIZON", &["Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`", "An absent note does not certify bounded acquisition or a safe cold-start size"]),

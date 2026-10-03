@@ -243,6 +243,24 @@ mod tests {
     use crate::{Context, Store, meter::Meter, schema::Schema};
 
     #[test]
+    fn job_authority_edges_clear_raw_cache_but_keep_the_allowance() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let schema = Schema::default();
+        let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::job(), Cut::Abort), 0);
+        runner.tx.remaining.set(17);
+        *runner.tx.lookup_cache.borrow_mut() = Some(("t".into(), "byId".into(), vec![], None));
+        let child = runner.job_read_child(Context::new("user:alice", Default::default()));
+        assert!(child.tx.lookup_cache.borrow().is_none());
+        assert_eq!(child.tx.remaining(), 17);
+        child.tx.remaining.set(13);
+        *child.tx.lookup_cache.borrow_mut() = Some(("t".into(), "byId".into(), vec![], None));
+        runner.finish_job_read_child(child);
+        assert!(runner.tx.lookup_cache.borrow().is_none());
+        assert_eq!(runner.tx.remaining(), 13);
+    }
+
+    #[test]
     fn raw_write_fetches_reserve_before_even_an_absent_candidate() {
         use crate::{rows::MemoryRows, schema::{ColumnType, FieldAuthority, public_table}, Value};
         let rows = MemoryRows::new();
@@ -369,5 +387,53 @@ mod row_view_tests {
                 assert!(r.meter.capped_at.is_none()); assert_eq!(r.meter.ceilings,Ceilings::default());
             }
         }
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl<'a> Runner<'a> {
+    /// Fresh read state over this exact transaction; move the guarded allowance
+    /// with the meter so nested queries cannot reset authorization work.
+    pub(super) fn job_read_child(&mut self, context: super::Context) -> Runner<'a> {
+        self.tx.lookup_cache.borrow_mut().take();
+        let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::job(), Cut::Abort));
+        let mut child = Runner::new(self.tx.raw, self.schema, context, meter, self.seq);
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.job_read_scope = 2;
+        child
+    }
+    pub(super) fn finish_job_read_child(&mut self, mut child: Runner<'a>) {
+        child.tx.lookup_cache.borrow_mut().take();
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        self.meter = child.meter;
+        self.read_tables.extend(child.read_tables);
+    }
+}
+
+// @ref LLP 3000.028#3.3.1 — decoration has separate coverage, never separate
+// resource or authorization allowances. Move both, including exhausted counters.
+impl<'a> Runner<'a> {
+    pub(super) fn decoration_child(&mut self) -> Result<Runner<'a>, RuntimeError> {
+        self.meter.heap(1024 + self.context.args.values().map(super::runner::expression_heap).sum::<u64>())?;
+        #[cfg(feature = "server-search")]
+        self.meter.heap(self.context.search_retained_order.as_ref().map_or(0, |(keys, _)| keys.len() as u64 * 8)
+            + self.context.search_retained_candidates.iter().map(|(id, _, _)| 64 + id.len() as u64).sum::<u64>())?;
+        let placeholder = Meter::new(self.meter.ceilings, self.meter.cut);
+        let meter = std::mem::replace(&mut self.meter, placeholder);
+        let mut child = Runner::new(self.tx.raw, self.schema, self.context.clone(), meter, self.seq);
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.device = self.device;
+        child.meter.cut = Cut::Abort;
+        Ok(child)
+    }
+    pub(super) fn finish_decoration_child(&mut self, mut child: Runner<'a>) {
+        child.tx.lookup_cache.borrow_mut().take();
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.meter.cut = self.meter.cut;
+        self.meter = child.meter;
+        self.read_tables.extend(child.read_tables);
+        // Decoration expiry invalidates the value, but never changes freshness
+        // or the page's completeness. Re-evaluation substitutes null after expiry.
+        self.decoration_expiry = child.next_expiry.get();
     }
 }

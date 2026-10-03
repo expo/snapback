@@ -1,0 +1,18 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 8.32s
+     Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-5400aed0af4b4cc4)
+
+running 5 tests
+test ownership_transfer_cannot_certify_previously_disclosed_fields ... ok
+test filter_exit_limit_displacement_and_private_value_edits_preserve_disclosure ... ok
+RV assets: seeds=[52560001, 52560002, 5256cafe, 5256beef]; shapes=4; real_mutations=32; once_consumptions=4; access_checks=216; asset_sweeps=16; failures=0
+test asset_and_once_consumption_cover_every_viewer ... ok
+RV mutations: seeds=[52560001, 52560002, 5256cafe, 5256beef]; steps=512; commits=572; maintenance_calls=275; preserving_limit_changes=63; certified checks=1614; retained rows=3696; retained fields=19096; row losses=306; field losses=27; deadline losses=1002; failures=0
+test real_mutations_maintenance_and_ordered_limit_model ... ok
+test certified_commits_preserve_rows_and_fields_across_the_corpus has been running for over 60 seconds
+RV corpus: seeds=[52560001, 52560002, 5256cafe, 5256beef]; viewers=["a", "b", "dev:alice", "dev:bob", "outsider", "service:auditor"]; schemas=90; no-durable-table schemas=1; commits=11520; certified checks=601860; retained rows=885943; retained fields=3254742; row losses=8062; field losses=16; deadline losses=242; failures=0
+test certified_commits_preserve_rows_and_fields_across_the_corpus ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 91.12s

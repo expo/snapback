@@ -98,6 +98,13 @@ impl Predicate {
 
 // @ref LLP 3000.007#20.9 — one evaluator supplies filters and Euclidean calendar keys on every host and lifecycle path.
 impl Maintain {
+    // @ref LLP 3000.015#3 — expired recipients can miss deltas and revive on clock rollback.
+    // Effective member expiry includes read-through ancestors, even over a timeless source.
+    pub fn row_count_needs_live_basis(&self, schema: &crate::schema::Schema) -> bool {
+        self.row_key.as_ref().is_some_and(|key|
+            schema.tables[&self.source].is_expiring() || schema.tables[&key.table].is_expiring())
+    }
+
     pub fn selected(&self, image: &Value) -> bool { if self.private.is_some() && self.by.iter().any(|f| matches!(image.field(f), Err(_) | Ok(Value::Null))) { return false; } self.filter.as_ref().is_none_or(|p| p.matches(image)) }
     pub fn source_key(&self, image: &Value) -> Vec<Value> {
         self.by.iter().map(|field| match self.computed.get(field) {

@@ -1,0 +1,36 @@
+✔ wasm: a closed raw local observation still latches its row deadline (614.057291ms)
+✔ wasm: a closed raw local observation still latches its episode deadline (155.809505ms)
+✔ process: a closed raw local observation still latches its row deadline (180.820191ms)
+✔ process: a closed raw local observation still latches its episode deadline (196.627262ms)
+✔ wasm keep=undefined: expiry withdraws across apply with the replacement held (171.652681ms)
+✔ wasm keep=undefined: expiry withdraws across admit with the replacement held (191.136773ms)
+✔ wasm keep=undefined: expiry withdraws across settle with the replacement held (176.398183ms)
+✔ wasm keep=true: expiry withdraws across apply with the replacement held (174.224636ms)
+✔ wasm keep=true: expiry withdraws across admit with the replacement held (181.730085ms)
+✔ wasm keep=true: expiry withdraws across settle with the replacement held (178.0707ms)
+✔ wasm keep: a failure re-read after non-policy change preserves the original expiry (177.578973ms)
+✔ wasm keep: remount keeps the lingering watch's deadline (158.724454ms)
+✔ wasm keep: remount rejects an expired answer (169.940935ms)
+✔ process keep=undefined: expiry withdraws across apply with the replacement held (234.545153ms)
+✔ process keep=undefined: expiry withdraws across admit with the replacement held (267.278333ms)
+✔ process keep=undefined: expiry withdraws across settle with the replacement held (237.763957ms)
+✔ process keep=true: expiry withdraws across apply with the replacement held (227.916919ms)
+✔ process keep=true: expiry withdraws across admit with the replacement held (258.082801ms)
+✔ process keep=true: expiry withdraws across settle with the replacement held (241.588028ms)
+✔ process keep: a failure re-read after non-policy change preserves the original expiry (251.028258ms)
+✔ process keep: remount keeps the lingering watch's deadline (223.116844ms)
+✔ process keep: remount rejects an expired answer (229.917076ms)
+✔ online keep=undefined: expiry withdraws across notification with the replacement held (174.619607ms)
+✔ online keep=true: expiry withdraws across notification with the replacement held (193.59657ms)
+✔ online keep: a loading re-read after non-policy change preserves the original expiry (190.289883ms)
+✔ online keep: a failure re-read after non-policy change preserves the original expiry (180.854332ms)
+✔ online keep: remount keeps the lingering watch's deadline (168.732213ms)
+✔ online keep: remount rejects an expired answer (90.612229ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6088.692095

@@ -1,0 +1,2 @@
+target/debug/snapback4: OK
+packages/snapback4/src/wasm/snapback4_device_bg.wasm: OK

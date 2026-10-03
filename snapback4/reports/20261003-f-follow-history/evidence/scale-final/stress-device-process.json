@@ -1,0 +1,94 @@
+{
+  "file": "stress-device",
+  "tier": "process",
+  "pages": 204,
+  "streamBytes": 47615973,
+  "initial": {
+    "tables": {
+      "feedEdges": {
+        "bytes": 3146108,
+        "rows": 16386
+      },
+      "feedFeed": {
+        "bytes": 308000,
+        "rows": 1000
+      },
+      "feedPosts": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedRemovedEvents": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedWork": {
+        "bytes": 795,
+        "rows": 1
+      },
+      "follows": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "posts": {
+        "bytes": 153000,
+        "rows": 1000
+      },
+      "reposts": {
+        "bytes": 0,
+        "rows": 0
+      }
+    },
+    "totalBytes": 24600576,
+    "totalBytesKind": "sqlite-pages"
+  },
+  "initialMs": 1741.4917590000005,
+  "firstComplete": {
+    "pages": 204,
+    "watermark": 50113,
+    "imagesAt": 50113,
+    "more": false
+  },
+  "checkedPages": 100,
+  "peakBytes": 24600576,
+  "peakWasmHeap": 0,
+  "applyMs": 46077.562684000004,
+  "wallMs": 46120.200304000005,
+  "residency": {
+    "tables": {
+      "feedEdges": {
+        "bytes": 3146108,
+        "rows": 16386
+      },
+      "feedFeed": {
+        "bytes": 621852,
+        "rows": 2019
+      },
+      "feedPosts": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedRemovedEvents": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedWork": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "follows": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "posts": {
+        "bytes": 153000,
+        "rows": 1000
+      },
+      "reposts": {
+        "bytes": 0,
+        "rows": 0
+      }
+    },
+    "totalBytes": 24600576,
+    "totalBytesKind": "sqlite-pages"
+  }
+}

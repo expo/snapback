@@ -28,7 +28,7 @@ pub fn stream(e: &mut Engine, who: &str, from: u64, now: i64) -> Vec<u8> {
     let (acknowledged, committed_above) = e
         .acknowledged_at(who, &[], p.watermark, p.images_at.unwrap_or(p.watermark))
         .unwrap();
-    serde_json::to_vec(&StreamReply { now, sent: Default::default(),
+    serde_json::to_vec(&StreamReply { preserved: Default::default(), now, sent: Default::default(),
         acknowledged,
         committed_above,
         acquisitions: p.acquisitions,

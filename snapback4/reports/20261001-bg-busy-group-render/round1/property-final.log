@@ -1,0 +1,20 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 9.22s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step' (3230607) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:162:25:
+seed=1 step=173 denied messageCounts
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 178 filtered out; finished in 0.20s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

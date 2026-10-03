@@ -1,0 +1,29 @@
+{
+  "checked_at": "2026-10-02T06:34:41.542104+00:00",
+  "suite_exit": 0,
+  "suite_summary": "== 0 failure(s) in 1506 s",
+  "suite_log_sha256": "43e7860eee69b4037a99233a6a22bf60100d9525e90241144f1388b9b566c1df",
+  "captured_source_files": 1784,
+  "source_changes": [],
+  "wasm_identical_to_measurement": true,
+  "wasm": {
+    "raw_bytes": 2015799,
+    "gzip_bytes": 605215,
+    "sha256": "a4a4014a1b221e39fbc8bf8d384f64065271f57ccbdfc8e7c45532ca489f1b30"
+  },
+  "rust_inventory": "281 test binaries, 994 executions, plus workspace doctests",
+  "client_tests": {
+    "passed": 5745,
+    "failed": 0,
+    "skipped": 10
+  },
+  "serial_models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "final_failures": {
+    "ours": 0,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

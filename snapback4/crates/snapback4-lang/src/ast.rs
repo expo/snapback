@@ -215,6 +215,7 @@ impl Expr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stmt {
+    As { principal: Expr, body: Vec<Stmt>, site: Site },
     Bind { names: Vec<String>, value: Expr, site: Site },
     Expr { value: Expr, site: Site },
     Require { condition: Expr, code: String, site: Site },

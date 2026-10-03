@@ -1,7 +1,10 @@
 //! One watchdog per worker: the pipe is held only by its server owner.
 //! EOF also covers SIGKILL and works on both Linux and macOS.
 // @ref LLP 3000.009#5.3 — the whole worker process group belongs to the host lifetime.
-use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt}, process::{Command, Stdio}, sync::Arc, time::{Duration, Instant}};
+use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt}, process::Command, sync::Arc, time::{Duration, Instant}};
+
+#[path = "worker_spawn.rs"]
+mod spawn;
 
 static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 extern "C" fn stop_signal(_: libc::c_int) { STOP.store(true, std::sync::atomic::Ordering::Relaxed); }
@@ -38,6 +41,7 @@ pub(super) fn executable() -> std::path::PathBuf {
 }
 
 pub(crate) fn watchdog(args: &[String]) -> u8 {
+    crate::thread_priority::background();
     if args.len() != 3 { return 1; }
     let owner_fd = match args[2].parse::<libc::c_int>() { Ok(fd) if fd == -1 || fd >= 3 => fd, _ => return 1 };
     // Keep ownership through kill/wait/output cleanup, but close it on Node's
@@ -56,9 +60,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
             if libc::sigaction(signal, &action, std::ptr::null_mut()) != 0 { return 1; }
         }
     }
-    let mut command = Command::new(&args[0]);
-    isolate(&mut command);
-    let mut child = match command.arg(&args[1]).stdin(Stdio::null()).stdout(Stdio::piped()).spawn() {
+    let mut child = match spawn::spawn(&args[0], &args[1]) {
         Ok(child) => child,
         Err(error) => { eprintln!("snapback4 worker: cannot start: {error}"); return 1; }
     };
@@ -66,13 +68,13 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
     // Consume this PID before forwarding any worker output. Public status and
     // restart controls refer to the Node child, never the watchdog itself.
     use std::io::Write;
-    let handshake = writeln!(std::io::stdout(), "{group}").and_then(|_| std::io::stdout().flush());
+    let handshake = writeln!(std::io::stdout(), "{group} {}", crate::thread_priority::child_nice_error()).and_then(|_| std::io::stdout().flush());
     if handshake.is_err() {
         unsafe { libc::kill(-group, libc::SIGKILL); }
         let _ = child.wait(); return 1;
     }
     let mut output = child.stdout.take().unwrap();
-    let output = std::thread::spawn(move || { let _ = std::io::copy(&mut output, &mut std::io::stdout()); });
+    let output = std::thread::spawn(move || { crate::thread_priority::background(); let _ = std::io::copy(&mut output, &mut std::io::stdout()); });
     let mut stopping = None;
     loop {
         // WNOWAIT keeps the group leader's PID reserved until the final kill,

@@ -1,0 +1,22 @@
+opening viewer 0
+0 BG app ready
+0 BG sync start
+0 BG sync end
+opened viewer 0
+opening viewer 1
+1 BG app ready
+1 BG sync start
+1 BG sync end
+opened viewer 1
+opening viewer 2
+2 BG app ready
+2 BG sync start
+2 BG sync end
+opened viewer 2
+12:19:34 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+12:19:34 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+{"run":0,"commit":120.728759765625,"render":[2163.099853515625,2212.599853515625]}
+12:19:36 AM [vite] (client) [console.error] Cannot update a component (`Screen`) while rendering a different component (`Screen`). To locate the bad setState() call inside `Screen`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+12:19:36 AM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+{"run":1,"commit":202.94580078125,"render":[2235,2181.89990234375]}
+{"run":2,"commit":128.473876953125,"render":[2181,2090.199951171875]}

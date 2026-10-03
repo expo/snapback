@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 18.65s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 1 test
+
+thread 'engine::row_views::certification_tests::recorded_member_inputs_keep_the_disclosed_full_recount' (4169832) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:319:5:
+assertion `left == right` failed
+  left: 1
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::recorded_member_inputs_keep_the_disclosed_full_recount ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::recorded_member_inputs_keep_the_disclosed_full_recount
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 179 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

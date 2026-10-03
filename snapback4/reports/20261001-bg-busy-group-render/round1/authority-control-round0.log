@@ -1,0 +1,44 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ public authority checks read epoch and session in one fresh locked transaction (435.770616ms)
+  ✔ simultaneously queued authority checks share a read, later checks start fresh (484.893259ms)
+  ✔ an aborted authority snapshot refuses publication after successful get requests (491.714712ms)
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1009.100394ms)
+  ✔ a failed logout cannot commit after abort (959.402399ms)
+  ✔ a failed logout cannot commit after quota (786.687807ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (408.122676ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1041.648501ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.188435ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (77.18095ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (500.785827ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (518.397309ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (476.448116ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (1350.766463ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (775.700043ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (525.116919ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (790.106071ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (778.164547ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (12331.060792ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241738,"mutationCode":"E_ADMISSION"}
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12430.162051
+round-0 authority control exit=0
+file:///home/ccheever/sb4-intent/lane-bg/snapback4/[eval1]:10
+ if(result.status!==1)throw Error('expected round-0 authority work failure');
+                            ^
+
+Error: expected round-0 authority work failure
+    at file:///home/ccheever/sb4-intent/lane-bg/snapback4/[eval1]:10:29
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:268:26)
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:265:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.13.1

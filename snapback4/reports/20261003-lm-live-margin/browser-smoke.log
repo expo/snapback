@@ -1,0 +1,33 @@
+12:31:06 AM [vite] (client) [Unhandled error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+ > getRootForUpdatedFiber ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4919:10
+ > enqueueConcurrentRenderForLane ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4883:13
+ > forceStoreRerender ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8643:17
+ > ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8629:10
+ > Pages.notify ../../home/ccheever/sb5-lanes/lane-lm/snapback4/packages/snapback4/dist/react-pages.js:74:13
+    72 |          }
+    73 |          for (const s of this.subs)
+    74 |              s();
+       |               ^
+    75 |      }
+    76 |      subscribe = (notify) => {
+ > subscribe ../../home/ccheever/sb5-lanes/lane-lm/snapback4/packages/snapback4/dist/react-pages.js:80:18
+ > subscribeToStore ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8626:13
+ > Object.react_stack_bottom_frame ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:28656:19
+ > runWithFiberInDEV ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:1045:29
+ > commitHookEffectListMount ../../home/ccheever/sb5-lanes/lane-lm/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:13748:28
+
+✖ packages/snapback4/test/live-margin-browser.test.mjs (46861.019121ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46865.989733
+
+✖ failing tests:
+
+test at packages/snapback4/test/live-margin-browser.test.mjs:1:1
+✖ packages/snapback4/test/live-margin-browser.test.mjs (46861.019121ms)
+  'Promise resolution is still pending but the event loop has already resolved'

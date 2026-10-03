@@ -1,0 +1,23 @@
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {createClient} from '/tmp/ct-cal28/node_modules/snapback4/dist/client.js';
+import {login} from '/tmp/ct-cal28/node_modules/snapback4/dist/auth.js';
+import {api} from '/tmp/ct-cal28/snapback/generated/api.ts';
+const actors=JSON.parse(await readFile('/tmp/ct-cal28/evidence/actors.json','utf8'));
+const url='http://127.0.0.1:49378',records=[];
+for(const offset of ['-1d','0']){
+ const child=spawn('/tmp/ct-r1-pool-cpu',['dev','--replay','--no-watch','--port','49378',...(offset==='0'?[]:['--clock-offset',offset])],{cwd:'/tmp/ct-cal28/replay-instance',stdio:['ignore','pipe','ignore']});
+ let output='',client;child.stdout.on('data',b=>output+=b);
+ try{
+  for(let i=0;!output.split('\n').includes(url);i++){if(i>100||child.exitCode!==null)throw Error('server readiness');await new Promise(r=>setTimeout(r,100));}
+  const session=await login(url,...actors.credentials.u0500);if(!session.ok)throw Error('login');
+  client=createClient({url,token:session.session.token});
+  const r=await client.query(api.insights,{});const data={...r.data};delete data.asOf;
+  const digest=createHash('sha256').update(JSON.stringify({data,complete:r.complete,next:r.next})).digest('hex');
+  records.push({offset,utc:new Date().toISOString(),digest,data});
+ }finally{client?.close();const done=once(child,'exit');child.kill('SIGTERM');await done;}
+}
+await writeFile('REPOSITORY_ROOT/snapback4/reports/20261001-ct-contended-reads/round1/insights-day-control.json',JSON.stringify(records,null,2));
+console.log(records.map(({offset,digest})=>({offset,digest})));

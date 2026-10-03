@@ -1,0 +1,7 @@
+  scheduling  2 QoS setter failures; HTTP startup readback passed: default or higher; inspect host stderr
+  scheduling  background: 1 failed setters; last errno 1 at Unix ms 234567
+  scheduling  maintenance: 1 failed setters; last errno 22 at Unix ms 123456
+  scheduling  2 QoS setter failures; HTTP startup readback not performed; inspect host stderr
+  scheduling  background: 1 failed setters; last errno 1 at Unix ms 234567
+  scheduling  maintenance: 1 failed setters; last errno 22 at Unix ms 123456
+doctor scoped failure/readback controls: 2 passed

@@ -1,0 +1,37 @@
+{
+  "base": "9845a1f013cf0c0a14194efecef86f865cfdc2a1",
+  "round1": "f5353623a2380d4a2de3dcb6859290fffe033945",
+  "buildProfile": "production",
+  "sqliteFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6\n",
+  "node": "v24.13.1",
+  "files": {
+    "snapback4/crates/snapback4/src/request_workers.rs": "0a2e52c8cb598ca642d3ee00c6943a4efa1fe2eef7c3766ba2216a90d23f64dd",
+    "snapback4/crates/snapback4/src/thread_priority.rs": "89aaae6c4d3cc0c9dc1e3be763484e00e135c35a63443723a0ca6a86ee4c8920",
+    "snapback4/crates/snapback4/src/serve.rs": "a80a1f7dae78cbb34f69aa49a7591782cfa20510a9fcbf53e1a9059cfef973a2",
+    "snapback4/crates/snapback4/src/verbs.rs": "fdf412fcd091a0400816b26ec1b47093d700a8756596c911991086cececd925f",
+    "snapback4/crates/snapback4/src/worker_spawn.rs": "d8159592f0d6de33748340e6d945c2ef87c1af8eb89536387b2d30c1bef54b3c",
+    "snapback4/scripts/contended-reads.mjs": "790d6871252c4d2c6138e5505e0cd27740589bc649cfc9efad7d0a247e60e246",
+    "snapback4/scripts/contended-mixed.mjs": "fd1ba6187688a7a1f3e0e2ea7d92d2d1553739c4dd82f70660a3cfdd2b1f4f8a",
+    "snapback4/scripts/contended-observation.mjs": "e5abbc62178bbcda65b9876e954ff6c0fa4f9f48308d79d8727a1fdcd02222b5"
+  },
+  "binaries": {
+    "before": "c07729790353b392bdefdad64904c26c7c3bd5d1e59b39c982b292612b323bd9",
+    "restored": "3a5d63aeef0e743df96b018bd23bb2d3e739c3f3508110c362b8fe126bc7b03e",
+    "demoted": "5c0463758a274791468df7531dd784de78ffd17b29efcd2d1a1c34abd3f75713"
+  },
+  "inputs": {
+    "inputs/README.md": "f0699d85d654d44232aaa9225dd8ee421afbf8e696f24455cefcccdb98a4f580",
+    "inputs/build.sh": "56720a58b5bcc33378e40995ea16097c4ed7a4f225ab88e62f2a52b5a2c4abf8",
+    "inputs/darwin-check-Cargo.toml.txt": "4e27aecaccac7b6544091c8412ac2bd842739869e54c3d46089691a2f42aae5a",
+    "inputs/darwin-check.rs.txt": "9aff220be9cb03108a2766f6b948fa777a8a4fe3393d03fcb962dc7d2f71a1ce",
+    "inputs/doctor-diagnostics.mjs": "017b15f9bb005dcaa7e2a56623c70e240a90faa5a62e934e731edf1a2f7e2dbf",
+    "inputs/harness-tests.mjs": "350ef6c438939da2eac6df4bc15defb352979318be480bfe23c9e465171c10f5",
+    "inputs/mac-evidence.py": "1a8b1a09c1531b626ee711a6bf0da911d576be5d5f3f20d4911c7653ccd623f0",
+    "inputs/mac-maintenance-history.py": "e138f36b0873367d11f80eb1689fa50a2268c887a4f10e992e682a6ecdf6fd1f",
+    "inputs/maintenance-demotion.patch": "34a80bb72ebba2942b41cec8ae6af471f27a09c81ba11ac52802c77c01a0dc4a",
+    "inputs/qualify.sh": "8db70da844f36cbcadcc151ec39e4bd5593c68153bbaa07e4361012d57b69732",
+    "inputs/summarize.py": "a7d677ec071c5bdf90562404de23f3ba709e8e9ee71bfa6f8ef822f9661d704f",
+    "inputs/worker-negative.rs": "e70935ab63c28fd5634ca0ad3604f6f2b685fc5a49ca5433ca4cf0a767afc604"
+  }
+}

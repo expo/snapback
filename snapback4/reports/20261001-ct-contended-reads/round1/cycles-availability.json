@@ -1,0 +1,7 @@
+{
+  "event": "PERF_COUNT_HW_CPU_CYCLES",
+  "perf_event_open_result": -1,
+  "errno": 13,
+  "message": "Permission denied",
+  "perf_event_paranoid": "4"
+}

@@ -1,5 +1,5 @@
 //! The jobs card. Quarry examples are compiled by tests/guide.rs.
-// @ref LLP 3000.007#21.1 — digest work seeks the period through each recipient's memberships.
+// @ref LLP 3000.007#21.12 — a digest calls the UI query as its recipient.
 // @ref LLP 3000.013#5 — streamed totals, adaptive sweeps and lifetime emission keys.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
@@ -40,8 +40,8 @@ and generation refusals park immediately, without reducing the chunk size.
 A domain `count` or `sum` has no page clause: it authorizes and filters each
 row, folds its value, then releases the transient row. All work remains metered;
 a job or mutation refuses the whole transaction if a total cannot finish.
-Jobs run as the system principal; this example establishes each recipient's
-scope by iterating that recipient's current memberships. Each recipient's
+Jobs run as the system principal; `as recipient.principal:` applies the recipient's
+read rules, audiences, field disclosure and expiry to every read in its block. Each recipient's
 live counts and effect key below commit in one transaction.
 `once` removes the need for a marker table; worker/provider delivery retries
 still need an idempotency key.
@@ -85,26 +85,37 @@ and `periodEnd` when the job declares them (and nothing else). Boundaries
 missed while the server was down coalesce into one run for the latest
 period; a schedule first seen fires from its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
-A schedule may also target an action: `schedule renewal every 1m as service:billing: remind`. The action must declare only `periodStart: time` and `periodEnd: time`, or no arguments. It runs under that service seat and its action rule, never as the system. Jobs cannot declare `as` (guide actions).
+A schedule may also target an action: `schedule renewal every 1m as service:billing: remind`. The action must declare only `periodStart: time` and `periodEnd: time`, or no arguments. It runs under that service seat and its action rule, never as the system. Job schedules cannot declare `as`; a job body may use a read-only `as` block (guide actions).
 
 ## A digest is a job that reads
 
-Seek the period, filter the ordinal. The per-chat `unreadIn` helper serves the
-UI's paged `unreadPreview(periodStart, periodEnd, c)` query as the viewer and
-the scheduled job as the system; compare the same period and row state. Follow
-every cursor to inspect all chats; one page is a preview. An all-history total
-can exceed this period's digest. Keep `inbox` locally complete: an unavailable
-unread total is unknown, not zero, and must not hide the conversation.
-Expired rows are absent from their expiry instant, even before deletion;
-tombstoned, own, already-read and out-of-period messages do not contribute.
+Seek the period, filter the ordinal. The UI and job share `inbox(c)` and
+the separate `unreadTotal(conversationId, readOrdinal, periodStart, periodEnd)`
+query. A raw total in each returned inbox shape gets N_SHAPE_METER: one busy
+conversation can starve that shape. Inside `as`, a call returns `{ data, next }`;
+`for row in all(inbox(null)):` follows every cursor and releases each page. Follow every cursor; one page is a preview.
+`all` belongs directly in a `for` domain and needs a list query with one cursor
+argument. Start with null for the whole result. It refuses an unavailable read
+or any direct/helper/query read that cannot certify exhaustion; no partial total commits.
 
-Authorization is structural here: the loop walks each principal's own
-memberships. A job passes every rule, so a digest reading messages by any
-other path must re-prove membership by hand before emitting to a principal.
-A period-bucketed public activity counter does not establish that authority.
-The example's `members` insert rule lets any member add a principal, who
-then receives that chat's digest; where joining is by invitation, gate the
-insert on an admin role instead (guide language).
+Declare totals before `as`, update them inside, and emit afterward. `viewer`
+is the recipient throughout the block and its helpers. Persona, user, guest,
+application principals and service seats are allowed; `system`, null and
+invalid identities refuse. This selects read authority, not a login session.
+Writes, `emit`, minting `new` and once asset consumption refuse at compile time:
+compute inside, act outside. Reading an asset reference does not consume it.
+Nested `as`, a block outside a job sweep, and a return leaving the block refuse.
+Declared calls must be Quarry queries over durable data, with ordinary server
+availability; native, held queries and all ephemeral reads refuse.
+Reads see earlier uncommitted chunk writes; separate client transactions do not.
+The clock and meter are shared. Oversized recipients park without partial digests. Maintained rows keep the same restrictions as client query computations (guide maintains): use `value` or member fields. A row assigned to an outer local inside `as` remains maintenance-carrying throughout that local's scope, even after a reset. Declared query results and `all` preserve that row type. A query selecting maintenance state for UI display cannot be called by a job; return ordinary fields or the whole row instead.
+
+Keep `inbox` locally complete: unavailable unread totals are unknown, not zero. Expired rows are
+absent from their expiry instant; tombstoned, own, already-read and out-of-period
+messages do not contribute. For system reads intentionally spanning principals,
+keep the old pattern outside `as` and prove recipient authority before emitting.
+The example's member insert rule lets any member add a recipient; gate it on an
+admin role where joining requires invitation (guide language).
 
 ```quarry
 use personas alice, bob, carol
@@ -156,48 +167,30 @@ fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, 
   return count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd and not .tombstone and .senderId != reader and .ordinal > readOrdinal)
 
 query inbox(c: cursor ?):
-  return members where .principal = viewer first 20 by .conversationId after c { conversationId }
-query unreadPreview(periodStart: time, periodEnd: time, c: cursor ?):
-  return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
-
-fn digestTotals(p: profiles, periodStart: time, periodEnd: time):
-  unread = 0
-  chats = 0
-  for m in members where .principal = p.principal:
-    n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
-    if n > 0:
-      chats = chats + 1
-      unread = unread + n
-  return { unread, chats }
+  return members where .principal = viewer first 20 by .conversationId after c { conversationId, readOrdinal }
+query unreadTotal(conversationId: conversations, readOrdinal: int, periodStart: time, periodEnd: time):
+  return unreadIn(conversationId, viewer, readOrdinal, periodStart, periodEnd)
 
 job digest(periodStart: time, periodEnd: time):
   for p in profiles:
-    totals = digestTotals(p, periodStart, periodEnd)
-    if totals.unread > 0:
-      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread: totals.unread, chats: totals.chats } once [p.principal, periodEnd]
+    unread = 0
+    chats = 0
+    as p.principal:
+      for chat in all(inbox(null)):
+        total = unreadTotal(chat.conversationId, chat.readOrdinal, periodStart, periodEnd).data
+        if total > 0:
+          chats = chats + 1
+          unread = unread + total
+    if unread > 0:
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats } once [p.principal, periodEnd]
 schedule daily every 1d at 08:00: digest
 ```
 
-Helpers inherit loop placement: `digestTotals` accumulates per recipient.
-Top-level helper sweeps still refuse cross-chunk accumulators.
-`break` and `continue` require a loop inside the helper.
-
-A viewer query calling `digestTotals` inherits query bounds and authority.
-Its membership loop fixes principal, but conversationId decides the read rule.
-E_QUARRY_BOUND names the caller chain at that loop. `first 50` would be a partial preview, not the
-job's complete total. Keep the complete scheduled job, or use a separately
-named paged per-chat preview like `unreadPreview` above and follow its cursor.
-One recipient's inner work must fit one chunk even when the outer sweep adapts;
-an oversized recipient parks without committing a partial digest. A helper
-never gives a query system authority. See `guide bounds`.
-
-The period predicate seeks messages in each recipient's current memberships.
-Expired, tombstoned, own, already-read and out-of-period messages contribute
-nothing. Streaming releases each decoded row after counting it; it retains no
-page of bodies. All examinations, steps and retained values still count against
-the job's meters. A meter refusal rolls back the whole attempted chunk before
-retrying fewer recipients. One recipient that cannot fit parks the job with
-E_BOUND; inspect `snapback4 doctor` and the named read before rerunning.
+The viewer queries own authorization and the period predicate. The job pages
+the same inbox and reads each total separately. `all` retains one page, while the helper's streaming count
+releases each decoded message. All examinations, steps and retained values count
+against the job's meters. Meter and authorization-budget refusals roll back before retrying fewer recipients.
+One that cannot fit parks with E_BOUND or E_RULE; inspect `snapback4 doctor`.
 
 Each recipient's live total and emission key commit together. A crash before
 commit leaves both absent; a crash after it leaves both durable. Rerunning the
@@ -212,10 +205,10 @@ for missed days is implied. Do not accumulate a live unread total over several
 commits: expiry, membership and read ordinals can change between them.
 
 DIGEST_CHAT_BOUND belongs to the older bounded digest recipe. That refusal
-rolled back the recipient without an effect or marker. Replace its paged
-count with `count(messages where .conversationId = conversationId and .at >=
-periodStart and .at < periodEnd)` and its marker with `emit … once` as above.
-The runtime meter still refuses work that cannot finish.
+rolled back the recipient without an effect or marker. Replace its paged count
+with `count(messages where .conversationId = conversationId and .at >= periodStart
+and .at < periodEnd)` and its marker with `emit … once`. The runtime meter
+still refuses oversized work.
 
 ## Operations
 
@@ -285,6 +278,18 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 
 ## Refusals
 
+E_JOB_VIEWER_CONTEXT means as belongs inside a job sweep and cannot nest. Put as recipient.principal: inside the recipient loop.
+
+E_JOB_VIEWER_PRINCIPAL means as requires a present non-system principal. Use a principal column or argument; keep intentional system reads outside as.
+
+E_JOB_VIEWER_READ_ONLY means as refuses writes, emits, new ids and once asset consumption. Compute inside as; act outside the block.
+
+E_JOB_VIEWER_FLOW means return cannot leave an as block. Assign a local inside, then return outside; break and continue need a loop inside the block.
+
+E_JOB_VIEWER_QUERY means a job viewer call requires a declared durable Quarry query. Use all(query(...)) directly in a for domain with one cursor argument and a list return.
+
+E_JOB_VIEWER_READ means the viewer query is unavailable or cannot certify exhaustion. Narrow the query; no partial digest commits. Follow every cursor; one page is a preview.
+
 Optional presence filters belong inside a sweep body: `for row in tasks:`
 followed by `if status = null or row.status = status:`. A conditional read
 cannot be the sweep domain. E_JOB_SWEEP parks stored job IR with no recorded
@@ -316,6 +321,6 @@ E_SCHEDULE means the clock cannot call the named target with its supplied
 authority and arguments. For example, `schedule hourly every 1h: summarize`
 cannot target a query; target a job, or an action with
 `as service:billing`. A scheduled target accepts no arguments or only
-`periodStart: time` and `periodEnd: time`. Jobs run as the system and
-forbid `as`; actions need a seat their rule admits. Use the qualified
+`periodStart: time` and `periodEnd: time`. Job schedules run as the system and
+forbid schedule-level `as`; actions need a seat their rule admits. Use the qualified
 name for a module job, such as `jobs.summarize`."##;

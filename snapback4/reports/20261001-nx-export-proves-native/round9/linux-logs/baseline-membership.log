@@ -1,0 +1,89 @@
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-lang)
+   Compiling snapback4-sim v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-sim)
+   Compiling snapback4-device v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 49.56s
+     Running tests/membership_search.rs (/tmp/sb4-nx-r9.O0cNyk/target/debug/deps/membership_search-62fa0a02f0163d55)
+
+running 24 tests
+body=600000 witness=Some(600000) heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+body=600000 witness=Some(600000) heap=10485760: complete hit; old_heap=27446 compact_heap=25253
+body=1023556 witness=None heap=131072: complete hit; old_heap=27446 compact_heap=25253
+test message_and_rule_witness_declarations_do_not_share_a_decode_reservation ... ok
+
+thread 'edges::calendar_repair_executes_the_same_offset_boundary_predicate' (991633) panicked at crates/snapback4-sim/tests/membership_search/edges.rs:219:9:
+return members[principal = viewer] after c first 20 by .room, .id where exists (messages[room = .room, tombstone = false] matching 'cof' by .at, .id where (day(.at, 28800000ms) = 0)) { room, hits: messages[room = .room, tombstone = false] matching 'cof' last 3 by .at, .id where (day(.at, 28800000ms) = 0) }: [] [Diagnostic { site: Site { file: "schema.q", line: 20, col: 200 }, code: "N_SHAPE_METER", message: "query repaired shape field `hits` at schema.q:20:194, read programs.repaired.2 on messages: its page limit bounds matches, but rejected candidates can grow past the default 8192-row examined meter; the shape may fail to finish at scale (E_SHAPE_EXCEEDS_METER on a no-progress returned-page retry); use a maintained count/view (guide views), `first N`/`last N` for a preview, or move the work out of the returned shape", rewrite: "use a maintained count or view for an exact total (`view unreadCounts: count messages by members m where ...`, then `unreadCounts[.id]`; guide views); use `first N`/`last N` for a bounded preview, keeping residual candidate work bounded; or move this work out of the returned shape into a separate query", guide: "reads", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 20, col: 200 }, code: "N_SHAPE_METER", message: "query repaired shape field `hits` at schema.q:20:194, read programs.repaired.2 on messages: its page limit bounds matches, but rejected candidates can grow past the default 8192-row examined meter; the shape may fail to finish at scale (E_SHAPE_EXCEEDS_METER on a no-progress returned-page retry); use a maintained count/view (guide views), `first N`/`last N` for a preview, or move the work out of the returned shape", rewrite: "use a maintained count or view for an exact total (`view unreadCounts: count messages by members m where ...`, then `unreadCounts[.id]`; guide views); use `first N`/`last N` for a bounded preview, keeping residual candidate work bounded; or move this work out of the returned shape into a separate query", guide: "reads", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches' (991654) panicked at crates/snapback4-sim/tests/membership_search.rs:300:9:
+return members[principal = viewer] after c first 2 by .room, .id where exists (messages[room = .room, tombstone = false] matching 'cof' by .at, .id where (.at > 0)) { room, hits: messages[room = .room, tombstone = false] matching 'cof' last 3 by .at, .id where (.at > 0) }
+[]
+[Diagnostic { site: Site { file: "schema.q", line: 21, col: 182 }, code: "N_SHAPE_METER", message: "query repaired shape field `hits` at schema.q:21:176, read programs.repaired.2 on messages: its page limit bounds matches, but rejected candidates can grow past the default 8192-row examined meter; the shape may fail to finish at scale (E_SHAPE_EXCEEDS_METER on a no-progress returned-page retry); use a maintained count/view (guide views), `first N`/`last N` for a preview, or move the work out of the returned shape", rewrite: "use a maintained count or view for an exact total (`view unreadCounts: count messages by members m where ...`, then `unreadCounts[.id]`; guide views); use `first N`/`last N` for a bounded preview, keeping residual candidate work bounded; or move this work out of the returned shape into a separate query", guide: "reads", mechanical: false, cascade_of: None }]
+test edges::carriage_return_search_text_withholds_the_runtime_repair ... ok
+byte sweep admission body=1023557 witness=None: 66816..=66945
+test refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches ... FAILED
+byte sweep cursor: 23862..=23896, complete=0
+byte sweep result: 24509..=24543, complete=0
+body=test edges::calendar_repair_executes_the_same_offset_boundary_predicate ... 1023556FAILED witness=
+None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+byte sweep binding: 25188..=25222, complete=0
+byte sweep final copy: 25220..=25254, complete=0
+test edges::stored_public_witness_field_does_not_reserve_its_unused_default ... ok
+test drain_cut_keeps_a_cursor_after_fully_emitted_hits ... ok
+3,600,000-byte heap: compact=3025073, control=3034639
+test edges::adopted_default_prepay_is_replaced_by_the_retained_row_charge ... ok
+test edges::public_witness_default_must_fit_before_materialization ... ok
+byte sweep cursor: 2049143..=2049209, complete=0
+test edges::final_result_copy_preserves_the_compact_refusal ... ok
+byte sweep result: 4050431..=4050497, complete=0
+test every_drain_cut_either_explains_opening_or_advances ... ok
+byte sweep binding: 6051783..=6051849, complete=0
+test matches_existing_completed_answers_with_ties_words_expiry_and_unused_payload ... ok
+byte sweep final copy: 6051847..=6051913, complete=2
+test edges::cursor_delivery_boundaries_never_return_null ... ok
+test forty_overlapping_words_keep_one_result_per_id_and_charge_rescans ... ok
+byte sweep cursor: 13323834..=13323868, complete=0
+test edges::compact_refill_heap_failure_is_an_explicit_refusal ... ok
+body=1023557 witness=None heap=131072: complete hit; old_heap=27446 compact_heap=25253
+test later_word_head_can_win_in_either_output_direction ... ok
+body=1023557 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+test private_payload_sizes_do_not_select_actual_size_admission ... ok
+test membership_revocation_between_pages_rechecks_authority ... ok
+byte sweep admission body=4000 witness=Some(1045950): 16777933..=16778062
+byte sweep cursor: 23862..=23896, complete=0
+byte sweep result: 24509..=24543, complete=0
+byte sweep binding: 25188..=25222, complete=0
+byte sweep final copy: 25220..=25254, complete=0
+test refusal_counts_authorized_keys_exactly_without_hidden_memberships ... ok
+test edges::public_witness_materialization_uses_actual_stored_fields_and_active_ceiling ... ok
+body=1026000 witness=None heap=131072: complete hit; old_heap=27446 compact_heap=25253
+body=1026000 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+body=2000000 witness=None heap=131072: complete hit; old_heap=27446 compact_heap=25253
+test actual_size_admission_uses_the_active_heap_ceiling ... ok
+body=1027327 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+byte sweep cursor: 1023690..=1023724, complete=0
+body=1027328 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+byte sweep result: 2024333..=2024367, complete=0
+byte sweep binding: 3025008..=3025042, complete=0
+test opening_refusal_names_visible_count_site_envelope_and_grouped_rewrite ... ok
+body=1551615 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+byte sweep final copy: 3025040..=3025074, complete=2
+test edges::eligible_heap_ceiling_sweep_never_returns_a_heap_null_page ... ok
+body=1551616 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+body=2000000 witness=None heap=16777216: complete hit; old_heap=27446 compact_heap=25253
+test oversized_declaration_with_tiny_payload_keeps_existing_complete_answer ... ok
+byte sweep result: 15224477..=15224511, complete=0
+byte sweep binding: 17125152..=17125186, complete=0
+byte sweep final copy: 17125184..=17125218, complete=2
+test edges::stored_megabyte_payload_overflow_refuses_after_internal_emission ... ok
+
+failures:
+
+failures:
+    edges::calendar_repair_executes_the_same_offset_boundary_predicate
+    refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches
+
+test result: FAILED. 22 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+error: test failed, to rerun pass `-p snapback4-sim --test membership_search`

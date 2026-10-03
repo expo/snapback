@@ -146,7 +146,7 @@ fn a_native_job_resumes_by_the_state_it_returns() {
     let job = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
     // A page of 100 per chunk: two full pages return `again` with the page's
     // position, the third (50 rows) returns `done`.
-    let first = engine.run_job_chunk(NOW + 1).unwrap().unwrap();
+    let first = engine.run_job_chunk_for(NOW + 1, std::time::Duration::ZERO).unwrap().unwrap();
     assert_eq!((first.state, first.chunks, first.rows_written), (JobState::Running, 1, 100));
     let second = engine.run_job_chunk(NOW + 2).unwrap().unwrap();
     assert_eq!((second.state, second.chunks, second.rows_written), (JobState::Running, 2, 200));

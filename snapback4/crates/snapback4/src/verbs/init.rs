@@ -238,8 +238,8 @@ fn expo_files() -> Vec<(&'static str, String)> {
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
     let app = include_str!("init/expo-app.tsx").to_owned();
-    let mut config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
-    config["expo"]["plugins"].as_array_mut().unwrap().push(json!("snapback4-expo/plugin"));
+    // @ref LLP 3000.030#13 — copy the reference lifecycle configuration exactly once.
+    let config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
     let client = include_str!("init/expo-client.ts");
     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
     let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");

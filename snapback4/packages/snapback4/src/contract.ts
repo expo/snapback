@@ -350,3 +350,46 @@ export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | 
 export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }
+
+/** Display metadata only; never an authorization or mutation-admission decision. */
+export interface ReadPresentation {
+  readonly existence: ReturnType<typeof existence>;
+  /** Waiting for a readable answer (`loading`), not a count or claim of pending writes. */
+  readonly pending: boolean;
+  /** True exactly when ready and (existence === "partial" || !complete || cut !== null || next != null), including nonempty data. */
+  readonly incomplete: boolean;
+  /** A ready answer with fresh === false; independent of revalidation. */
+  readonly stale: boolean;
+  readonly revalidating: boolean;
+  /** The current denied arm's refusal, unchanged; render its message. */
+  readonly why?: Refusal;
+  /** The ready arm's server-state timestamp in milliseconds, unchanged (including zero). */
+  readonly since?: number;
+}
+
+/**
+ * Derive notice flags from this read alone. Owns no subscription, timer or saved result.
+ * `existence` is copied through the existing classifier, including its pending-write
+ * predicate. `incomplete` also covers nonempty pages with incomplete coverage, a
+ * disclosed cut or a continuation. Use page.read, never page.items, for this input.
+ * Loading and denied have no ready metadata: all flags except loading's `pending`
+ * are false, and `since` is absent. Stale absence is still absence at the acquired
+ * watermark; revalidation is a separate fact. These flags do not authorize actions
+ * or narrow read.data; narrow the original read with isReady/read.existence.
+ * @ref LLP 3000.031#7 — a pure presentation adapter over the existing read contract.
+ */
+export function readPresentation<T>(read: Read<T>): ReadPresentation {
+  const state = existence(read);
+  return {
+    existence: state,
+    pending: state === "loading",
+    incomplete: isReady(read) && (state === "partial" || !read.complete || read.cut !== null || read.next != null),
+    stale: isReady(read) && !read.fresh,
+    revalidating: isReady(read) && read.revalidating === true,
+    ...("denied" in read ? { why: read.denied } : {}),
+    ...(isReady(read) && read.since !== undefined ? { since: read.since } : {}),
+  };
+}
+
+/** Generated receipt-family binding; history and decorations keep independent authority. */
+export type { ReceiptFamily } from "./receipt-family.ts";

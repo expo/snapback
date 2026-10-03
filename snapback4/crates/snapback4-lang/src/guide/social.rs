@@ -21,7 +21,7 @@ index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
 unknown coverage stays loading. See `guide offline-interactions`. Search uses
 one ordinary query per scope, combining current server and retained device
-hits online. `usePage` accumulates by message ID; only `existence(page.read) === "partial"` shows
+hits online. `usePage` accumulates by message ID; `readPresentation(page.read).incomplete` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
 ## Background notifications
@@ -75,13 +75,13 @@ media keep its known deadline ticking through loading (`guide client`).
 The Router pins conversation to the URL ID, even after its inbox membership
 disappears. Mount this screen keyed by that ID within AppProvider. The composer
 and once viewer sit above transient query states. Room and history choose the
-SDK default: plain revalidation retains; change evidence bounds it to one second
+SDK default: plain revalidation, inserts and non-policy updates retain; possible revocation bounds it to one second
 after the replacement attempt starts. Decorations withdraw immediately. No application state caches protected rows.
 Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revealing/consuming protected content
 needs a current answer. Queueing a durable write needs no membership answer:
 only `denied`, or `existence(member) === "absent"` when fresh and not revalidating, disables Send.
-Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; the screen reports only visible seen
+Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; `useSeen(api.receiptFamilies.chat, { scope, through, active })` reports only visible confirmed seen
 positions. The starter passes foreground and navigation visibility explicitly.
 
 ```tsx

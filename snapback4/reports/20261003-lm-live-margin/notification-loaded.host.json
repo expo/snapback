@@ -1,0 +1,159 @@
+{
+  "cpus": "80-83",
+  "workers": 16,
+  "started": "2026-10-02T22:50:49.049Z",
+  "loadBefore": "82.25 60.98 36.83 39/3291 2798669",
+  "pid": 2798538,
+  "loadGroup": 2798670,
+  "workerPids": [
+    2798678,
+    2798680,
+    2798681,
+    2798682,
+    2798683,
+    2798684,
+    2798685,
+    2798686,
+    2798687,
+    2798688,
+    2798692,
+    2798693,
+    2798694,
+    2798695,
+    2798696,
+    2798697
+  ],
+  "command": [
+    "taskset",
+    "-c",
+    "80-83",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "/home/ccheever/sb5-lanes/lane-lm/snapback4/packages/snapback4/test/lm-notification-2798508.mjs"
+  ],
+  "runs": [
+    {
+      "run": 0,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2798702
+    },
+    {
+      "run": 1,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2811771
+    },
+    {
+      "run": 2,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2826520
+    },
+    {
+      "run": 3,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2840025
+    },
+    {
+      "run": 4,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2854503
+    },
+    {
+      "run": 5,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2886675
+    },
+    {
+      "run": 6,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2896282
+    },
+    {
+      "run": 7,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2905159
+    },
+    {
+      "run": 8,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2911401
+    },
+    {
+      "run": 9,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2917234
+    },
+    {
+      "run": 10,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2920569
+    },
+    {
+      "run": 11,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2924159
+    },
+    {
+      "run": 12,
+      "code": 0,
+      "signal": null,
+      "testGroup": 2927148
+    },
+    {
+      "run": 13,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3001870
+    },
+    {
+      "run": 14,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3008772
+    },
+    {
+      "run": 15,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3013862
+    },
+    {
+      "run": 16,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3015476
+    },
+    {
+      "run": 17,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3018434
+    },
+    {
+      "run": 18,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3020918
+    },
+    {
+      "run": 19,
+      "code": 0,
+      "signal": null,
+      "testGroup": 3026826
+    }
+  ],
+  "ended": "2026-10-02T22:56:57.324Z",
+  "loadAfter": "40.99 75.47 55.67 15/3111 3030046",
+  "reaped": true
+}

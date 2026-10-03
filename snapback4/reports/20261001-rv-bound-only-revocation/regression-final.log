@@ -1,0 +1,24 @@
+✔ mounted history: insert, keep=undefined, replacement held beyond one second (46.394094ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (33.169761ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (32.025276ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (34.282609ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (31.683433ms)
+✔ mounted history: insert, keep=true, replacement held beyond one second (31.271936ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (33.374849ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (33.963742ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (31.959337ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (31.986938ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (177.054664ms)
+✔ facade-held A keeps its dependencies after source B changes tables (1.878236ms)
+✔ mutation acknowledgement: insert (13.394498ms)
+✔ mutation acknowledgement: delete (11.614901ms)
+✔ mutation acknowledgement: generation (10.378617ms)
+✔ a failed safe reread preserves the displayed answer dependency plan for the next safe event (31.503443ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1694.783626

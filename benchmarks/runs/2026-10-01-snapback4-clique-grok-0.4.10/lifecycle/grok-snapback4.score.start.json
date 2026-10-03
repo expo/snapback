@@ -1,0 +1,36 @@
+{
+  "lane": "grok-snapback4",
+  "phase": "score",
+  "pid": 49401,
+  "startedAt": "2026-10-01T21:55:56Z",
+  "startedEpoch": 1790891756,
+  "command": [
+    "/Users/ccheever/.local/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-sb4-20260930-grok-cal28/prompts/grok-snapback4.score.md",
+    "--cwd",
+    "/Users/ccheever/clique-sb4-20260930-grok-cal28",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "plain",
+    "--disable-web-search",
+    "--permission-mode",
+    "auto",
+    "--max-turns",
+    "300"
+  ],
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "prompt": "/Users/ccheever/clique-sb4-20260930-grok-cal28/prompts/grok-snapback4.score.md",
+  "cwd": "/Users/ccheever/clique-sb4-20260930-grok-cal28",
+  "stdout": "/Users/ccheever/clique-sb4-20260930-grok-cal28/scores/grok/raw.out",
+  "stderr": "/Users/ccheever/clique-sb4-20260930-grok-cal28/scores/grok/raw.err",
+  "packages": {
+    "snapback4": "0.4.10",
+    "snapback4-expo": "0.4.10"
+  },
+  "detached": false
+}

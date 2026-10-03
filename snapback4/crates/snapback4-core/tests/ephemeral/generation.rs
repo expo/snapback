@@ -126,9 +126,30 @@ fn ring_filters_interests_and_overflow_covers_the_interest() {
 #[test]
 fn ring_gap_invalidates_every_requested_name_including_a_removed_table() {
     let snapshot = snapback4_core::engine::ephemeral::Snapshot {
+        preserved: Default::default(),
         identity: "store".into(), generation: 1,
         version: snapback4_core::schema::ephemeral::Version { epoch: 300, incarnation: "current".into() },
         ring: [(300, vec!["typing".into()])].into(), tables: vec!["typing".into()],
     };
     assert_eq!(snapshot.changed(1, Some("current"), Some(&["typing".into(), "removed".into()].into())), vec!["removed", "typing"]);
+}
+
+#[test]
+fn preservation_certifies_inserts_but_not_delete_sweep_or_ring_gaps() {
+    let mut e = engine(SOURCE); seed(&mut e);
+    let first = e.mutate_ephemeral("setTyping", ctx("alice", 1000, &args("r"))).unwrap();
+    assert!(first.ephemeral.preserved.contains(&"typing".into()));
+    e.mutate_ephemeral("setTyping", ctx("bob", 1001, &args("r"))).unwrap();
+    let snapshot = e.ephemeral_hub().snapshot().unwrap();
+    assert!(snapshot.preserved_since(0, &snapshot.version.incarnation).contains(&"typing".into()));
+    assert!(snapshot.preserved_since(0, "old incarnation").is_empty());
+    let delete = e.mutate_ephemeral("stopTyping", ctx("alice", 1002, &[("roomId",id("r"))])).unwrap();
+    assert!(!delete.ephemeral.preserved.contains(&"typing".into()));
+    let snapshot = e.ephemeral_hub().snapshot().unwrap();
+    assert!(!snapshot.preserved_since(0, &snapshot.version.incarnation).contains(&"typing".into()));
+    let swept = e.mutate_ephemeral("setTyping", ctx("alice", 7000, &args("r"))).unwrap();
+    assert!(swept.ephemeral.preserved.is_empty());
+    for n in 0..260 { e.mutate_ephemeral("setTyping", ctx("alice", 7001+n, &args("r"))).unwrap(); }
+    let snapshot = e.ephemeral_hub().snapshot().unwrap();
+    assert!(snapshot.preserved_since(0, &snapshot.version.incarnation).is_empty());
 }

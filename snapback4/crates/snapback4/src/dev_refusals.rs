@@ -43,6 +43,7 @@ impl Recent {
         let dropped = Arc::new(AtomicUsize::new(0));
         let writer_dropped = dropped.clone();
         std::thread::Builder::new().name("dev-refusals".into()).spawn(move || {
+            crate::thread_priority::background();
             // Holding this lock, not a PID or an old timestamp, proves liveness.
             let _active = active;
             let mut records = VecDeque::new();

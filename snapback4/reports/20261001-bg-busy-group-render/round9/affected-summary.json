@@ -1,0 +1,227 @@
+{
+  "compiler-final": {
+    "rust_cohorts": [
+      {
+        "passed": 110,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 46,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 174,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "compiler-guide": {
+    "rust_cohorts": [
+      {
+        "passed": 110,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 46,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 185,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "core": {
+    "rust_cohorts": [
+      {
+        "passed": 129,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 129,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "native-matrix": {
+    "rust_cohorts": [
+      {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "device": {
+    "rust_cohorts": [
+      {
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "cli-certificates": {
+    "rust_cohorts": [
+      {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 4
+      },
+      {
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 49,
+      "failed": 0,
+      "ignored": 4
+    }
+  },
+  "persisted-digest": {
+    "rust_cohorts": [
+      {
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "digest": {
+    "rust_cohorts": [
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "http-count-rule": {
+    "rust_cohorts": [
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "admission-adjacent-final": {
+    "rust_cohorts": [
+      {
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "totals": {
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "client-affected": {
+    "passed": 453,
+    "failed": 0,
+    "skipped": 0
+  }
+}

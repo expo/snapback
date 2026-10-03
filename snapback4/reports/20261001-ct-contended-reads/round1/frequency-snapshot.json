@@ -1,0 +1,678 @@
+{
+  "at": "2026-10-02T00:17:59.111864+00:00",
+  "scope": "post-read-matrices, during mixed qualification; not per-query frequency evidence",
+  "cpus": [
+    {
+      "cpu": 0,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744485",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 1,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744454",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 2,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744447",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 3,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744455",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 4,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744420",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 5,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744448",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 6,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744509",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 7,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744482",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 8,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744473",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 9,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744488",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 10,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744480",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 11,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744485",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 12,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3594666",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 13,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3594671",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 14,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569717",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 15,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569713",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 16,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569725",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 17,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569742",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 18,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569714",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 19,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569712",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 20,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569694",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 21,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569744",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 22,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569754",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 23,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569746",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 24,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744470",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 25,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744466",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 26,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744481",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 27,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744485",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 28,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744446",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 29,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744456",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 30,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744486",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 31,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744389",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 32,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744402",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 33,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744459",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 34,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744439",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 35,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744462",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 36,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569701",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 37,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569689",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 38,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569646",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 39,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569667",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 40,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569665",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 41,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569643",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 42,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569692",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 43,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569728",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 44,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569731",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 45,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569709",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 46,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569730",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 47,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569743",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 48,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744468",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 49,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744469",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 50,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744432",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 51,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744461",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 52,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744454",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 53,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744504",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 54,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744452",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 55,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744442",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 56,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744437",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 57,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744422",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 58,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744413",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 59,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3744461",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 60,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569704",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 61,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569680",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 62,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569669",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 63,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569670",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 64,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569660",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 65,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569716",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 66,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569680",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 67,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569681",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 68,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569638",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 69,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569718",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 70,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569662",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 71,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3569674",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 72,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769399",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 73,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769439",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 74,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769420",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 75,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769454",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 76,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769386",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 77,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769425",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 78,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769427",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 79,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3769469",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 80,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3767732",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 81,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3767770",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 82,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3767693",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 83,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3767723",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 84,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544770",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 85,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544727",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 86,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544738",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 87,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544728",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 88,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544731",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 89,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544709",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 90,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544757",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 91,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544727",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 92,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544732",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 93,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544721",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 94,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544728",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    },
+    {
+      "cpu": 95,
+      "scaling_governor": "schedutil",
+      "scaling_cur_freq": "3544758",
+      "cpuinfo_min_freq": "1500000",
+      "cpuinfo_max_freq": "3812176"
+    }
+  ]
+}

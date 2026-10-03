@@ -1,4 +1,6 @@
 //! Replay suppresses emissions; holds fence worker claims and schedule admission.
+#[allow(dead_code)]
+#[path = "../src/host_limits.rs"] mod host_limits;
 use serde_json::{Value, json};
 use snapback4_core::{Engine, Store};
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf, process::{Child, Command, Stdio}, time::Duration};
@@ -250,7 +252,7 @@ fn competing_starts_preserve_the_live_replay_policy() {
 fn a_busy_listener_leaves_stopped_replay_policy_unchanged() {
     let f = Fixture::new("busy-listener");
     drop(f.start(&["--replay"]));
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let listener = host_limits::test_listener("127.0.0.1:0").unwrap();
     let out = f.command(&["dev", "--no-watch", "--port", &listener.local_addr().unwrap().port().to_string()]);
     assert!(!out.status.success());
     assert_eq!(f.engine().store().meta("dev:replay").unwrap().as_deref(), Some("true"));

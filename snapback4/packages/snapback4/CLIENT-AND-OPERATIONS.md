@@ -878,8 +878,7 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 By default, mounted same-key observations retain their answer through plain
-revalidation without a timeout, marked `revalidating: true`. All change
-evidence withdraws on failure or timeout. Local replacement attempts get one second excluding capacity queue wait; online change evidence starts its second immediately, including queue wait because it may revoke access. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
+revalidation without a timeout, marked `revalidating: true`. Only change evidence that can revoke a row withdraws on failure or timeout; ordinary inserts and non-policy updates retain the answer until replaced. Unknown or older evidence remains bounded. Local replacement attempts get one second excluding capacity queue wait; online revocation evidence starts its second immediately, including queue wait. Applied local scope loss withdraws dependent audience groups immediately, even on staged pages; older replicas cannot restore them before publication. Retries never renew a budget. Use
 `keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
@@ -919,7 +918,7 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion keeps a retaining watch marked `revalidating` unless change
+exhaustion keeps a retaining watch marked `revalidating` unless possibly revoking change
 evidence already bounded that answer. Closing the last observation owner cancels its retries.
 A local server fallback joins the displayed answer's existing revalidation
 episode. Successful transport does not withdraw it while device composition
@@ -1213,9 +1212,10 @@ device's certified retained hits online, then searches acquired holdings offline
 An online-only client has only the current server domain. Declare conversation
 and order columns immutable; keyset continuation follows `(at, id)` and is not
 a snapshot. Refresh from page one for new matches before the cursor. Render
-`usePage`'s `items`, `hasMore` and `loadMore`; show “Partial results” only when
-its ready combined read has `complete: false`. Staleness and `next` alone do not
-mean partial. Missing retained coverage and cuts remain incomplete, even empty.
+`usePage`'s `items`, `hasMore` and `loadMore`; show “Partial results” when
+`readPresentation(page.read).incomplete` is true, including nonempty `present`
+pages with incomplete coverage, a cut or a continuation. Staleness is separate.
+Missing retained coverage and cuts remain incomplete, even empty.
 See `snapback4 guide search` and `snapback4 new my-social --template social`.
 
 Live reads keep the displayed answer during a re-read by default:
@@ -1230,7 +1230,7 @@ function useThread(conversationId: string) {
 }
 ```
 
-<!-- @ref LLP 3000.023#10 — plain revalidation keeps the displayed answer; all change evidence bounds it. -->
+<!-- @ref LLP 3000.023#12 — only possible revocation bounds a retained answer. -->
 A mounted observation with an unchanged key keeps its answer marked
 `revalidating: true` through explicit refetch, reconnect, slow reads, transport
 failure and retry exhaustion. There is no plain-revalidation time limit.
@@ -1238,8 +1238,15 @@ Transport failure marks `fresh: false` and preserves the answer's `since` (or
 uses its last confirmation time). No new public flag is needed. Local commits
 (`apply`, `admit`, `settle`) re-read and replace directly from the replica.
 
-Local commits, acknowledged online mutations, durable and ephemeral `/changes`,
-and `/sync` publications start one non-renewable second for the displayed
+Answers stay visible and `revalidating` until replaced unless change evidence
+may revoke a row; then the existing one-second withdrawal bound applies.
+Local commits, online mutation acknowledgements, durable and ephemeral `/changes`
+and `/sync` publications use the same automatic classification. Inserts and
+updates to columns outside read rules and policies revalidate without timeout,
+including through failure and retry exhaustion. Deletes and tombstones, sweeps,
+changes to read-rule/audience/membership/asset/expiry inputs, and unknown or
+older evidence keep the bound. There is no application option to configure.
+A possibly revoking change starts one non-renewable second for the displayed
 answer, including when it is already revalidating. Failure withdraws immediately;
 timeout withdraws to one stable `loading` snapshot, while a late accepted answer
 can still replace it. Further refetches, change bursts and facade holds cannot
@@ -1256,8 +1263,9 @@ all query branches, never hidden row keys. By-ID points without audience keys,
 data-dependent selectors, recursive/native reads, unmapped derived dependencies,
 ordinary mixed word-search coordination and legacy replies remain conservative
 at the table boundary. Unpinned audience dimensions match every group.
-Online `/changes` still identifies tables only; an authorized sibling can reach
-its one-second bound if all slots are occupied. Evidence rereads jump ordinary
+Online `/changes` identifies touched tables and conservatively certifies row
+authority preservation. A possibly revoking change can still exhaust its
+one-second bound if all slots are occupied. Evidence rereads jump ordinary
 queued work, within eight starts per turn/eight active, without preemption.
 
 A `/changes` program-generation mismatch withdraws immediately, even at the
@@ -1379,33 +1387,100 @@ suffix. A changed cursor replaces its old suffix.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.
-Render loading, continuation, refusal and incomplete answers explicitly:
+Use the screen below to show loading, refusal and incomplete answers. A ready
+`absent` proves emptiness at the acquired watermark, including offline; nonempty
+answers remain `present` even with incomplete coverage.
+
+### A stable conversation screen
+
+`readPresentation(read)` from `snapback4/contract` derives notice flags without
+subscribing or saving data. `pending` means `loading`, not queued writes.
+The partial-results notice follows `readPresentation(page.read).incomplete`.
+`incomplete` covers ready partial answers, incomplete coverage, disclosed cuts
+and continuations, including nonempty `present` pages. `stale` is `!fresh` on a
+ready answer; `revalidating` is independent. `why` is the current refusal and
+`since` the unchanged ready timestamp. Loading/denied carry no ready metadata.
+Use the original read to narrow data or decide an action; there is no permission
+flag. Empty results are proven only by `existence === "absent"`, even offline.
+
+This complete React/Expo screen uses the generated `thread`, `myMembership`
+and `send` handles from the chat shape above. Put it under `AppProvider`.
+The shell key includes backend, signed-in account and resource. Its draft stays
+mounted through every read arm, while results come only from `usePage`'s current
+items. A withdrawal removes protected results without removing the composer.
+For a browser-only UI, substitute HTML controls for the React Native controls.
 
 ```tsx
-import { Button, Text, View } from "react-native";
-import { usePage } from "snapback4/react";
-import { existence } from "snapback4/contract";
+import { useState } from "react";
+import { Button, ScrollView, Text, TextInput, View } from "react-native";
+import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
+import { mintId } from "snapback4/client";
+import { existence, isReady, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
-export function InboxList() {
-  const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
+export function ConversationScreen({ backend, conversationId }: { backend: string; conversationId: string }) {
+  const auth = useAuth();
+  if (auth.state !== "signed-in") return <Text>{auth.state === "restoring" ? "Restoring account…" : "Sign in"}</Text>;
+  return <ConversationShell key={JSON.stringify([backend, auth.viewer, conversationId])} conversationId={conversationId} />;
+}
+function ConversationShell({ conversationId }: { conversationId: string }) {
+  const [draft, setDraft] = useState("");
+  const [submitted, setSubmitted] = useState<{ id: string; body: string } | null>(null);
+  const send = useMutation(api.send);
+  const member = useQuery(api.myMembership, { conversationId });
+  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  async function submit() {
+    if (blocked || send.inFlight || !draft.trim()) return;
+    const submission = { id: mintId(), body: draft };
+    setSubmitted(submission);
+    setDraft("");
+    await send.run({ conversationId, body: submission.body }, { id: submission.id, waitSeconds: 0 });
+  }
   return <View>
-    {existence(read) === "loading" && <Text>Loading…</Text>}
-    {"denied" in read && <Text>{read.denied.message}</Text>}
-    {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
-    {existence(read) === "partial" && <Text>Partial results</Text>}
-    {"data" in read && !read.fresh && <Text>As of {read.since === undefined ? "the last available answer" : new Date(read.since).toISOString()}</Text>}
-    {hasMore && <Button title="Load more" onPress={loadMore} />}
+    <Text>Conversation</Text>
+    <Results conversationId={conversationId} />
+    <TextInput accessibilityLabel="Message" value={draft} onChangeText={setDraft} />
+    <Button title="Send" disabled={blocked || send.inFlight || !draft.trim()} onPress={() => void submit()} />
+    {send.last?.state === "failed" && submitted?.id === send.last.id && <View>
+      <Text>{send.last.why.message}: {submitted.body}</Text>
+      <Button title="Edit" onPress={() => { setDraft(current => current ? current + " " + submitted.body : submitted.body); setSubmitted(null); }} />
+      <Button title="Dismiss" onPress={() => setSubmitted(null)} />
+    </View>}
+  </View>;
+}
+function Results({ conversationId }: { conversationId: string }) {
+  const page = usePage(api.thread, { conversationId });
+  return <ScrollView>
+    {page.items.map(row => <Text key={row.id}>{row.body ?? "Photo"}</Text>)}
+    <ReadNotice status={readPresentation(page.read)} />
+    {page.hasMore && <Button title="More messages" onPress={page.loadMore} />}
+  </ScrollView>;
+}
+function ReadNotice({ status }: { status: ReadPresentation }) {
+  return <View accessibilityLiveRegion="polite">
+    {status.pending && <Text>Loading…</Text>}
+    {status.why && <Text>{status.why.message}</Text>}
+    {status.existence === "absent" && <Text>No messages in the available snapshot</Text>}
+    {status.incomplete && <Text>Results may be incomplete</Text>}
+    {status.stale && <Text>As of {status.since === undefined ? "the last available answer" : new Date(status.since).toISOString()}</Text>}
+    {status.revalidating && <Text>Updating…</Text>}
   </View>;
 }
 ```
 
-Without `keep`, unmounting a screen closes its observations; remounting starts from the client's
-current answer. Only a local unavailable-read fallback may keep its previous answer
-while the server fetch is pending, marked `fresh: false` with `since`; settlement
-or a local state change clears that retention. Online reads retain no old answer.
-Every loading gap is shown as loading; refusals show their message.
-A ready `absent` proves emptiness at the acquired watermark, including offline. `partial` and `loading` never prove absence. Nonempty answers are `present` even with incomplete coverage.
+Submission clears the draft synchronously, before admission can wait. Keep the
+submitted text with its write ID; identical text typed later is a new draft.
+The latest submission's refusal offers Edit/Dismiss without replacing that draft.
+Persist intents per account/backend for recovery after reload (see the composer
+in `guide client`).
+
+The notice labels are application choices. A continuation can coexist with rows
+and “More messages”; `incomplete` does not mean loading or denial. Pending row
+badges and queued intents use their existing APIs. Send follows the membership
+rule in `guide offline-interactions`: deny only on refusal or fresh,
+non-revalidating proven absence; the server still authorizes the mutation.
+The shell saves no result, cursor, profile, membership or asset. Expiry, scope
+loss and account/store/program/credential changes keep the SDK's exact fences.
 
 ### Assets
 
@@ -2708,3 +2783,46 @@ Mount the overlay inside the client provider and pass the host's development fla
 (`import.meta.env.DEV`, or `__DEV__` in Expo). Disabled installs no timer; enabled
 samples every 250 ms. Counts include lingering observations and delayed retries;
 direct reads and presence refreshes are outside this queue.
+
+
+### Visible seen progress and independent history
+
+After `check`, a receipts clause emits `api.receiptFamilies.chat`. Import
+`useSeen` from `snapback4/react` on web or native:
+
+```tsx
+import { usePage, useSeen } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+export function useReceiptScreen(id: string, visibleIds: ReadonlySet<string>, foreground: boolean) {
+  const history = usePage(api.history, { conversation: id });
+  const through = Math.max(0, ...history.items.filter(m => visibleIds.has(m.id) && !m.pending).map(m => m.ordinal));
+  const seen = useSeen(api.receiptFamilies.chat, { scope: id, through, active: foreground });
+  const decorations = usePage(api.messageReceipts, { conversation: id });
+  return { history, seen, decorations };
+}
+```
+
+Supply viewport IDs from the platform's actual visibility callbacks; intersect
+with current confirmed rows and combine route focus with foreground. Reset IDs
+on account/backend/scope change. Loaded history and acquisition do not mean seen.
+Match current decorations by ID; their denial or loading never removes retained
+history and grants no media authority. These reads are independent snapshots.
+
+The hook shares progress and one admission/pending call per mounted
+client/family/scope. Member withdrawals, replacement, session and store/generation
+resets discard local progress; final unmount drops unadmitted progress. Admitted
+writes remain in the SDK outbox through restart. The hook never pages history,
+reads catch-up progress, or reports delivery. The descriptor's typed member/seen
+handles, actual argument names, mapping and fingerprint come from the compiler.
+
+`seen.state` is idle/admitting/pending/retrying/failed; `seen.through` is local
+progress, never a confirmed receipt. `seen.why` exposes refusals. Known
+E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-second
+backoff, at most eight retries while active. Reconnect or `seen.retry()` after
+repair wakes those refusals. Other failures/unknown outcomes remember the rejected
+position and reset local progress to `max(joining floor, acknowledged)` before failing.
+A later different visible position above that floor starts a new attempt, even
+below the rejected position. Repeated input and retry never resubmit the rejected
+position; membership/session reset clears it.
+See `snapback4 guide receipts` for the full rules and two-read recipe.

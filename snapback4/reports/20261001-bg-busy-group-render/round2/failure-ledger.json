@@ -1,0 +1,72 @@
+{
+  "development": [
+    {
+      "classification": "ours",
+      "phase": "test-draft-compile",
+      "failure": "heap regression draft referenced nonexistent word_heap::value_bytes",
+      "resolution": "use the independently charged authorized-member image plus declared live batch allocations",
+      "verified_by": "row-views-final.log.gz"
+    },
+    {
+      "classification": "ours",
+      "phase": "setup",
+      "failure": "two initial Python edit attempts used repository-relative paths while launched from snapback4/",
+      "resolution": "reran edits from repository root before qualification; no intended edit occurred in failed setup calls"
+    },
+    {
+      "classification": "ours",
+      "phase": "row-views-first",
+      "failure": "incremental_certification_matches_naive_with_expiring_members, seed 3735928559 step 259: model dropped a stored born-expired member",
+      "resolution": "retain expired unswept members and grants in model; delete only when removal actually applies",
+      "verified_by": "property-final.log.gz and row-views-final.log.gz"
+    },
+    {
+      "classification": "environmental",
+      "phase": "external-load-attempt",
+      "failure": "idle p95 <250 assertion; measured p95 273 ms with 99.19% median CPU utilization from lane CT load process",
+      "resolution": "quiet-window rerun passes at p95 203.5 ms; loaded/LL/scenario validation pass",
+      "evidence": "external-load-attempt-disposition.json"
+    },
+    {
+      "classification": "ours",
+      "phase": "staged diff whitespace check",
+      "failure": "three raw tool logs end with a blank line, rejected by git diff --cached --check",
+      "resolution": "preserve their exact bytes in gzip files; update references and rerun staged diff check"
+    }
+  ],
+  "negative_controls": {
+    "classification": "expected failures, proving regressions on 4277a65cf4",
+    "minimal_count_reproductions": 2,
+    "expanded_property_reproductions": 2,
+    "exact_heap_boundary": 1,
+    "logs": [
+      "rollback-round1-control.log",
+      "property-round1-control.log",
+      "heap-round1-final-control.log"
+    ]
+  },
+  "full_suite": {
+    "invocations": 1,
+    "exit": 0,
+    "exact_summary": "== 0 failure(s) in 1635 s",
+    "failures": [],
+    "classification_counts": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    },
+    "client_pool": {
+      "tests": 5755,
+      "passed": 5745,
+      "skipped": 10,
+      "failed": 0,
+      "cancelled": 0
+    },
+    "serial_models": {
+      "tests": 79,
+      "passed": 79,
+      "failed": 0,
+      "cancelled": 0
+    }
+  }
+}

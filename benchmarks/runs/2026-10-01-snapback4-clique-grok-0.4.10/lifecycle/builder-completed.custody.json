@@ -1,0 +1,120 @@
+{
+  "startedAt": "2026-10-01T21:55:44.737786+00:00",
+  "operatorPid": 49152,
+  "builder": {
+    "lane": "grok-snapback4",
+    "phase": "builder",
+    "pid": 7101,
+    "endedAt": "2026-10-01T07:28:20Z",
+    "endedEpoch": 1790839700,
+    "wallSeconds": 9343.86,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260930-grok-cal28/logs/grok-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260930-grok-cal28/logs/grok-snapback4.stderr.log"
+  },
+  "source": "/Users/ccheever/clique-sb4-20260930-grok-cal28/lanes/grok-snapback4",
+  "snapshot": "/Users/ccheever/clique-sb4-20260930-grok-cal28/attempts/builder-completed",
+  "scope": "Complete pre-grade APFS clone; no exclusions. SHA256/mode/type/literal-symlink verification.",
+  "copy": {
+    "command": [
+      "/bin/cp",
+      "-cRp",
+      "/Users/ccheever/clique-sb4-20260930-grok-cal28/lanes/grok-snapback4",
+      "/Users/ccheever/clique-sb4-20260930-grok-cal28/attempts/builder-completed"
+    ],
+    "pid": 49167,
+    "startedAt": "2026-10-01T21:55:46.111726+00:00",
+    "exitCode": 0,
+    "endedAt": "2026-10-01T21:55:50.831443+00:00",
+    "seconds": 4.724
+  },
+  "verified": true,
+  "entries": 41781,
+  "regularFiles": 35629,
+  "logicalFileBytes": 553605939,
+  "narrative": {
+    "diary.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 8582,
+      "sha256": "7e92d7d1f0d08a3f54486a6d29d7abbf16265f27faf90868421f1eb90486d522"
+    },
+    "essay.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 7519,
+      "sha256": "506a9bed88f482bc17852a9d1b44b9549d6d6f6dd2d0f50dcbc77733f99b4b2e"
+    },
+    "run-log.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 3068,
+      "sha256": "9fafba91cc721b5044ef0925ea0af736e24ad85c720d29096910730da39963e3"
+    },
+    "final-report.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 7965,
+      "sha256": "30d2e56da5de962981b55c199ed7339e3b42fbbd562a8d0bdf5b40d0ad1ac403"
+    },
+    "run-record.json": {
+      "missing": true
+    },
+    "FINAL.md": {
+      "missing": true
+    }
+  },
+  "missingNarratives": [
+    "run-record.json",
+    "FINAL.md"
+  ],
+  "builderLogs": {
+    "logs/grok-snapback4.end.json": {
+      "bytes": 358,
+      "sha256": "a0c202f3c2f7d5b18d460ee269638416707282f9347da5157b142b32abb6a676"
+    },
+    "logs/grok-snapback4.launch.json": {
+      "bytes": 307,
+      "sha256": "e594d135b8d8e9799c546d3d31d4cc1711d0f9a8d237194c5d7f84017b18fd8b"
+    },
+    "logs/grok-snapback4.ndjson": {
+      "bytes": 147903058,
+      "sha256": "ea41e7c67fb458bf74aa40864b00968b438428242eaf49853eaf76aabc9dd0f1"
+    },
+    "logs/grok-snapback4.operator.log": {
+      "bytes": 104,
+      "sha256": "efad2d05a66af4eedad2487c947cc1ebd2f41280b4bdde83e33bec41fa44c34e"
+    },
+    "logs/grok-snapback4.pid": {
+      "bytes": 5,
+      "sha256": "74326976263452e0e4511d683ac54ea29ece5ceed50952d913cdfbb6aa668118"
+    },
+    "logs/grok-snapback4.runner.pid": {
+      "bytes": 5,
+      "sha256": "34c884edb61122c5486059e777fa476ae3d1c25ec53495d5bf9637137b039a94"
+    },
+    "logs/grok-snapback4.start.json": {
+      "bytes": 1069,
+      "sha256": "57d884693051513aeed34b18986a0e45c0369882c1a05bbed1a5183d9ca3e6ba"
+    },
+    "logs/grok-snapback4.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "frozenInputs": {
+    "INSTRUMENT.sha256": "89b8c59d734334c015eaed025a52488e4c6266aabd40e21ade6a75ffd35381d2",
+    "PROMPT_TEMPLATES.sha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e",
+    "scripts/aggregate_scores.py": "c46a9011ecc7f06f199849636685d8a3eb6335d38143bb3956807a75aeba0a3b",
+    "scripts/render.py": "d5c2f678b368bdae9655d0b8fea3533fc6a045372f591fd28cedfe42d7d22b02",
+    "scripts/run_phase.py": "c2d4bde00c0b876ececf6fc895fe5a584dc74987d471af43530a6e5714dca3a5",
+    "scripts/summarize_grades.py": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c",
+    "scripts/verify.py": "73aba5c4eccb0bf267fed4dd9ecf48c4147d2540fe313563931aba9439e6ba62",
+    "prompts/grade.template.md": "2021a6292d3f4b9a4313d5daf1af27fbe129f6a0978334a21c9de8e619adb88a",
+    "prompts/holistic.template.md": "5fa1a22a21ca614544fad4fdd81e6300f9b355d39a4be7e79afdabd0e7c5d4f3",
+    "prompts/m7.template.md": "af72982e03b62771e774d98c0b2e6c5eb0fad8baaed1ccb97e4905311405f712",
+    "prompts/score.previous.template.md": "cb93bdd7b7907419b5aa2b243cc34cde07deb2a91055e33d84d32824e38f52ce",
+    "prompts/template.md": "10a7006f2145b3fed7ce1d736e73b4a3fcbc8ddeb88354a81a052ea169b843f6"
+  },
+  "endedAt": "2026-10-01T21:55:56.781550+00:00"
+}

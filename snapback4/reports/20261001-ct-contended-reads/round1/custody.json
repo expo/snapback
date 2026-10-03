@@ -1,0 +1,57 @@
+{
+  "base": "b0e606306e",
+  "host": "expose-builder-pixel",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "buildInput": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --profile production",
+  "binaries": {
+    "/tmp/ct-before": "693833ef6df526754f3b618b6581e277858f8e7471bcfb2e89c55623ef4f51e1",
+    "/tmp/ct-after": "dea24248b290b386cd8dd1de94af7c343604f9d5bc8df0a5fe1bebd2ff23202b",
+    "/tmp/ct-r1-inline": "ebccd9ab849288aa5c516eccf807cfa699cb762111524ae1e8e8d882a2e43cf1",
+    "/tmp/ct-r1-inline-cpu": "3ce437818a37ed3dc61973da67462346bb299b2af49b49661aced63ea20f29fc",
+    "/tmp/ct-r1-pool-cpu": "e1116f05ee09751fd534be95db3088286eeadefe67c1148a7738989f4c8442ec",
+    "/tmp/ct-r1-final": "c03a3269608d5c6b58a80a59f077b16395dee6f7c4baf5712fe9c61b753e6459"
+  },
+  "note": "Read matrices compare the round-0 pool and parser-inline experiment. CPU matrices add the same CPU stamps to both. Final candidate restores maintenance priority; its separate mixed and final untraced controls are retained. Shared host; exploratory affected test compilations/runs overlap parts of the mixed-before and demoted comparisons, but never this lane's full suite. Final restored qualification precedes this lane's full suite. A process snapshot confirmed lane-bg's Rust suite had been running for ten minutes, overlapping the restored comparison. No other lane was stopped; this is not an isolated-host experiment.",
+  "finalSources": {
+    "snapback4/crates/snapback4-lang/src/guide/effects.rs": "2a3af6256247874a9843af01f679f81b186628ce154c755ab68b80ae607785db",
+    "snapback4/crates/snapback4-lang/src/guide/refusals.rs": "56ae6a6bad602841f2f6418aac38d6e706b3e5ecb53df446b60243a38f824917",
+    "snapback4/crates/snapback4/src/lifecycle.rs": "91c2030f0fb409497183922987ce680337b2efcd61b17b1d53783ba41baf4b86",
+    "snapback4/crates/snapback4/src/request_workers.rs": "1f8815f714da67316548c14ddbc3e9c208131f3197c7dc32c665963efe4ae753",
+    "snapback4/crates/snapback4/src/serve.rs": "d45cc1aa3ec278a0ce424d2fff4afe7fd4e78fd87820654c44233bf11c50ee63",
+    "snapback4/crates/snapback4/src/serve_maintenance.rs": "c4b94b7baa2ee2fe75300a4d220bb73027973d1c42b5515b95a0bdaad1ea9d45",
+    "snapback4/crates/snapback4/src/serve_trace.rs": "440acb68ca6e8a8a47cb06d161a33c42be6216d3d72c846941d0a61f409dd1d7",
+    "snapback4/crates/snapback4/src/thread_priority.rs": "b4638cf698635035fd39d913ba1c4246d06d52ce586ebc48a9ff60d5c8bdda08",
+    "snapback4/crates/snapback4/src/verbs.rs": "d839ec984cbee55565f62183ea1a18c4f867e6b35f8678d08b59ad0a58ce7bae",
+    "snapback4/crates/snapback4/src/witness_socket.rs": "1607130851c0e91b3a29a5af7d570ec63ce68a4d657a07b1fca5e870a5a895a6",
+    "snapback4/crates/snapback4/src/worker_process.rs": "2a3edde8540be793c1a68b06c52482a1fe159aebf91f3c05e7241d7a4e1c453a",
+    "snapback4/crates/snapback4/tests/lifecycle.rs": "d554167ee50aabf9285e32808239a1bd1d66ea977dac4ed48ca3b1d0f99ecfd4",
+    "snapback4/scripts/contended-reads.mjs": "eb594f467904bd09265779cb35886fe19e865a6073d5cece91d21068397a70c5",
+    "snapback4/crates/snapback4/src/worker_spawn.rs": "e38914325fe41de11f75a5cac5af4351bb6bbb5ebea0a587048b8137c22c8846",
+    "snapback4/crates/snapback4/tests/qos/node_readback.rs": "c4fb3bd73bf4fa91e5619878142f143e7566f74792a121415191a897b1033ecb",
+    "snapback4/scripts/contended-mixed.mjs": "8e4e74176e729cdedd0e848db779abfa5ee223bc7ab9dcf8c24165ebdee3376e"
+  },
+  "finalControl": {
+    "samples": 3680,
+    "answersMatch": "all eight endpoints match current-day CPU ABBA matrices"
+  },
+  "wasm": {
+    "raw": 2015329,
+    "gzip": 605001,
+    "budget": 605225,
+    "headroom": 224,
+    "budgetChanged": false
+  },
+  "fullSuite": {
+    "invocations": 1,
+    "summary": "== 0 failure(s) in 1411 s",
+    "exit": 0
+  },
+  "additionalChecks": {
+    "guide": 110,
+    "kaTransport": 61,
+    "unloadedLatency": 1,
+    "deadlineOnlyCells": 12,
+    "correctedMixedSmokeSeconds": 65
+  },
+  "mixedFixtureCorrection": "Initial complete matrices emitted the slow effect before clock advance; original source retained in inputs. Separate real-clock deadline controls cover all loads and binaries; corrected complete mode passes a 65-second smoke."
+}

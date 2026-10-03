@@ -1,0 +1,26 @@
+(node:2278559) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Baseline: 00a96f16b7
+Unchanged helper file SHA256: c24d7fc226fca424596fcd511859c67c9e2f42ed0e0975afbe73cc05a1fa3e0f
+Executing the exact baseline replacementFor helper with a controlled SQLite writer lock.
+  const replacementFor = async session => {
+    const replacement = await devServer({ sourceDir, seed: [
+      { table: 'removals', row: { id: 'audit', total: 0 } },
+      { table: 'members', row: { id: 'admin', room: 'room', principal: session.principal, admin: true } },
+      { table: 'members', row: { id: 'target', room: 'room', principal: 'user:other', admin: false } },
+    ] });
+    // A replacement retains real identity records but has new application storage.
+    const db = new DatabaseSync(join(replacement.app, '.snapback4/store.sqlite'));
+    try {
+      db.prepare('ATTACH DATABASE ? AS source').run(join(witness.app, '.snapback4/store.sqlite'));
+      for (const table of ['_principals', '_sessions', '_principal_generations']) db.exec(`INSERT OR REPLACE INTO ${table} SELECT * FROM source.${table}`);
+    } finally { db.close(); }
+    const heads = await Promise.all([url, replacement.api].map(backend => fetch(backend + '/probe', {
+      headers: { authorization: `Bearer ${session.token}` },
+    }).then(r => r.json())));
+    assert.ok(heads.every(head => head.ok === true)); assert.notEqual(heads[0].store_id, heads[1].store_id);
+    return replacement;
+  };
+Observed: ERR_SQLITE_ERROR; errcode=5; database is locked
+replacement.close called: false
+PASS: the unchanged baseline helper reproduces both SQLITE_BUSY and missing replacement cleanup under an explicit writer lock. This is a controlled counterexample, not a second full-suite run.

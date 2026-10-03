@@ -1,0 +1,90 @@
+[
+  {
+    "id": "A1",
+    "pilot": "cal29",
+    "sha256": "8751cb22d22ae46983259e5531e02af6a400db6dfa8d84cac4b04ce01b8d50be",
+    "excerpt": {
+      "before": {
+        "lines": 1,
+        "bytes": 123
+      },
+      "after": {
+        "lines": 1,
+        "bytes": 80
+      }
+    },
+    "wholeFile": {
+      "before": {
+        "lines": 2,
+        "bytes": 1958
+      },
+      "after": {
+        "lines": 2,
+        "bytes": 2077
+      }
+    },
+    "addedNotice": {
+      "lines": 10,
+      "bytes": 548
+    },
+    "recipeOnly": {
+      "wholeFile": {
+        "lines": 2,
+        "bytes": 2052
+      },
+      "notice": {
+        "lines": 11,
+        "bytes": 697
+      }
+    },
+    "binding": {
+      "lines": 1,
+      "bytes": 41
+    },
+    "noticeCall": {
+      "lines": 1,
+      "bytes": 29
+    },
+    "afterSha256": "62d2611c446f41a79d9da3e4c9bfd268d7cc55a2491703261efcd8786bd6bdd2"
+  },
+  {
+    "id": "A2",
+    "pilot": "g47",
+    "sha256": "c135b00c51924724cb9b77f307cab4bd8ef9420f9485eb1d5e12abb4ad72647b",
+    "excerpt": {
+      "before": {
+        "lines": 7,
+        "bytes": 281
+      },
+      "after": {
+        "lines": 4,
+        "bytes": 191
+      }
+    },
+    "wholeFile": {
+      "before": {
+        "lines": 87,
+        "bytes": 2850
+      },
+      "after": {
+        "lines": 87,
+        "bytes": 2934
+      }
+    },
+    "addedNotice": {
+      "lines": 11,
+      "bytes": 604
+    },
+    "recipeOnly": {
+      "wholeFile": {
+        "lines": 86,
+        "bytes": 2861
+      },
+      "notice": {
+        "lines": 12,
+        "bytes": 758
+      }
+    },
+    "afterSha256": "cef7105c9a830c168529a4f0a225859e51692c92cd3f8b7899d73f63d099eeba"
+  }
+]

@@ -1,0 +1,49 @@
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✖ public authority checks read epoch and session in one fresh locked transaction (769.321213ms)
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1416.375061ms)
+  ✔ a failed logout cannot commit after abort (1353.726559ms)
+  ✔ a failed logout cannot commit after quota (1190.106086ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (864.488032ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1925.310598ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (3.217763ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (418.604925ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (1238.293955ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (1226.728163ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (1154.021745ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (1678.620306ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (1319.805209ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (852.264283ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (1246.365143ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (1227.275101ms)
+✖ browser session authority commits through IndexedDB before releasing the session lock (19066.915434ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241830,"mutationCode":"E_ADMISSION"}
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19161.72676
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-session-authority.test.mjs:140:11
+✖ public authority checks read epoch and session in one fresh locked transaction (769.321213ms)
+  AssertionError [ERR_ASSERTION]: the before/after checks each read one fresh authority snapshot
+  
+  6 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bg/snapback4/packages/snapback4/test/web-session-authority.test.mjs:159:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bg/snapback4/packages/snapback4/test/web-session-authority.test.mjs:140:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

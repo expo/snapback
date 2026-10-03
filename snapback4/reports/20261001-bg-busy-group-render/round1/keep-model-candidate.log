@@ -1,0 +1,44 @@
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11732.815659ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 1
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (11700.343058ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 2
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (11781.830537ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (27103.590387ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (26405.848674ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (26305.958736ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (25891.001486ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (25864.192545ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (25725.313157ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 23, 50ms authority (11951.546521ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 44, 50ms authority (11336.25433ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 445, 50ms authority (11124.411128ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 1
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (26442.563485ms)
+ℹ inside-episode data notifications: 63; deadline withdrawals: 3
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (26105.627526ms)
+ℹ inside-episode data notifications: 64; deadline withdrawals: 3
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (25925.400816ms)
+ℹ inside-episode data notifications: 64; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 23, 50ms authority (25623.392731ms)
+ℹ inside-episode data notifications: 68; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 44, 50ms authority (27668.239138ms)
+ℹ inside-episode data notifications: 69; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 445, 50ms authority (25299.886246ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 384111.455647

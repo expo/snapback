@@ -1,0 +1,11 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "available_cpus": 96,
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "gzip": "gzip 1.12",
+  "sqlite_build_flag": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "base": "4277a65cf41b02ef3028424698687e9e762d9dfc"
+}

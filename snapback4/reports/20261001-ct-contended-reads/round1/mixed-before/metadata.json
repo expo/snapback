@@ -1,0 +1,17 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "cpu": "AMD EPYC 9454 48-Core Processor",
+  "cores": 96,
+  "binary": "/tmp/ct-before",
+  "binarySha256": "693833ef6df526754f3b618b6581e277858f8e7471bcfb2e89c55623ef4f51e1",
+  "seconds": 125,
+  "levels": [
+    0,
+    0.5,
+    1,
+    1.5
+  ],
+  "started": "2026-10-02T00:10:30.563Z"
+}

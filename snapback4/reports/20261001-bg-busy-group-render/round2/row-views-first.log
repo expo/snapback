@@ -1,0 +1,129 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 18.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-b8515d086d12d7ac)
+
+running 40 tests
+cold scan: payload=0 ceiling=180736 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=180736 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=722944 used=0 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=1626624 nested=false limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=1626624 nested=true limit=1 maximum_scan_allocation=1632
+cold scan: payload=0 ceiling=1807360 used=0 nested=false limit=32 maximum_scan_allocation=28552
+cold scan: payload=0 ceiling=1807360 used=0 nested=true limit=32 maximum_scan_allocation=28552
+BG heap boundary: page=716544 occupied=9441; direct/nested; -1, exact, +1; preoccupied=0/17000
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::cold_basis_falls_back_when_a_decoder_page_exceeds_available_heap ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+test engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle ... ok
+test engine::row_views::range_tests::pending_value_never_decides_a_probe_and_abort_keeps_its_host_policy ... ok
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+test engine::row_views::range_tests::a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass ... ok
+test engine::row_views::range_tests::exhausted_provisional_rule_admission_keeps_a_covered_range_unknown ... ok
+test engine::row_views::batch::tests::batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers ... ok
+test engine::row_views::batch::tests::cold_basis_pages_preserve_live_counts_and_private_members ... ok
+cold scan: payload=262144 ceiling=33735168 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=33735168 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=134940672 used=0 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=false limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=303616512 nested=true limit=1 maximum_scan_allocation=263776
+cold scan: payload=262144 ceiling=337351680 used=0 nested=false limit=32 maximum_scan_allocation=8417160
+cold scan: payload=262144 ceiling=337351680 used=0 nested=true limit=32 maximum_scan_allocation=8417160
+test engine::row_views::batch::tests::cold_basis_scan_requests_obey_the_caller_allowance_before_decoding ... ok
+test engine::row_views::batch::tests::stream_basis_pages_obey_finite_and_nested_heap_allowances ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 14.663077ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+test engine::row_views::batch::tests::busy_group_stream_certification_bounds_storage_requests ... ok
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=false allocated=249 reads=0 peak=1325122 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=false allocated=7086 reads=4 peak=1325104 result=Ok(())
+single witness: payload=0 note=1 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=true allocated=7054 reads=4 peak=0 result=Ok(())
+test engine::row_views::certification_tests::recorded_member_inputs_keep_the_disclosed_full_recount ... ok
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+test engine::row_views::certification_tests::clock_rollback_after_expired_member_skipped_delta ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+BG property start: seed=1 expiring_members=false population=1762
+BG property start: seed=7 expiring_members=true population=1328
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::certification_tests::sweeping_the_minimum_deadline_restores_incremental_delivery ... ok
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+test engine::row_views::tests::live_basis_walk_charges_bounded_candidates_on_its_internal_ledger ... ok
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=23136 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 23136, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=false allocated=249 reads=0 peak=1325104 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325103 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 1325104, ceiling: 1325103, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=false allocated=249 reads=0 peak=1325122 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325121 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 1325122, ceiling: 1325121, site: "" })
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=false allocated=87085 reads=4 peak=1325104 result=Ok(())
+single witness: payload=0 note=80000 decoder=23136 scratch=1301968 ceiling=1325104 used=0 nested=true allocated=87053 reads=4 peak=0 result=Ok(())
+test engine::row_views::certification_tests::legacy_basis_upgrades_atomically_before_reuse ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=false allocated=249 reads=0 peak=5519426 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=false allocated=269230 reads=4 peak=5519408 result=Ok(())
+single witness: payload=262144 note=1 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=true allocated=269198 reads=4 peak=0 result=Ok(())
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=4217440 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 4217440, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=false allocated=249 reads=0 peak=5519408 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519407 used=0 nested=true allocated=249 reads=0 peak=0 result=Err(Bound { kind: HeapBytes, actual: 5519408, ceiling: 5519407, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=false allocated=249 reads=0 peak=5519426 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519425 used=18 nested=true allocated=249 reads=0 peak=18 result=Err(Bound { kind: HeapBytes, actual: 5519426, ceiling: 5519425, site: "" })
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=false allocated=349229 reads=4 peak=5519408 result=Ok(())
+single witness: payload=262144 note=80000 decoder=4217440 scratch=1301968 ceiling=5519408 used=0 nested=true allocated=349197 reads=4 peak=0 result=Ok(())
+test engine::row_views::batch::tests::cold_basis_single_candidate_reserves_private_witness_before_storage_access ... ok
+test engine::row_views::certification_tests::pending_counts_and_due_deadlines_still_use_the_current_live_basis ... ok
+test engine::row_views::certification_tests::clock_rollback_during_recount_restarts_the_excluded_prefix ... ok
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... ok
+BG history=10000: delivery work (0, 100, 100)
+BG property seed complete: case=1 seed=7; 300 steps
+BG property start: seed=20261002 expiring_members=true population=1592
+BG property seed complete: case=0 seed=1; 300 steps
+BG property start: seed=28 expiring_members=false population=2009
+BG property seed complete: case=3 seed=20261002; 300 steps
+BG property start: seed=3735928559 expiring_members=true population=1295
+
+thread 'engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members' (318278) panicked at crates/snapback4-core/src/engine/row_views/certification_tests.rs:197:13:
+assertion `left == right` failed: all member counts exist: seed=3735928559 step=259
+  left: 6
+ right: 5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members ... FAILED
+BG property seed complete: case=2 seed=28; 300 steps
+BG property start: seed=195939070 expiring_members=false population=2192
+test engine::row_views::certification_tests::certification_delivery_work_is_independent_of_ten_or_hundred_thousand_history has been running for over 60 seconds
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step has been running for over 60 seconds
+BG property seed complete: case=4 seed=195939070; 300 steps
+BG property start: seed=305419896 expiring_members=false population=1337
+BG property seed complete: case=6 seed=305419896; 300 steps
+BG property: expiring_members=false seeds=[1, 28, 195939070, 305419896]; 1200 steps; 22530 naive/scalar comparisons; 1200 full-acquisition comparisons; unread, messageCounts, reactionCounts; operations=[90, 69, 78, 81, 94, 80, 81, 90, 77, 73, 86, 99, 65, 69, 68]; committed_chunks=302 aborted_chunks=59 backward=32 forward=32
+test engine::row_views::certification_tests::incremental_certification_matches_naive_after_every_random_step ... ok
+BG history=100000: delivery work (0, 100, 100)
+test engine::row_views::certification_tests::certification_delivery_work_is_independent_of_ten_or_hundred_thousand_history ... ok
+
+failures:
+
+failures:
+    engine::row_views::certification_tests::incremental_certification_matches_naive_with_expiring_members
+
+test result: FAILED. 39 passed; 1 failed; 0 ignored; 0 measured; 144 filtered out; finished in 104.78s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

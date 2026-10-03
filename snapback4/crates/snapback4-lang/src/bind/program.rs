@@ -13,11 +13,13 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod job_reads;
 mod pure_calls;
 mod flow;
 mod conditional;
 mod joins;
 mod returned_shapes;
+mod shape_meter;
 mod diagnostics;
 mod constraints;
 mod expr;
@@ -35,6 +37,7 @@ pub(crate) mod setup;
 pub struct BoundProgram {
     /// Source statement ownership stays beside flat IR, like diagnostic sites.
     pub(crate) statement_ends: Vec<usize>,
+    pub(crate) maintenance_scopes: BTreeMap<String, String>,
     pub view_types: BTreeMap<String, Ty>,
     pub(crate) filters: BTreeMap<String, String>,
     /// Whole-domain consumers for diagnostics only; absent from IR/wire.
@@ -74,7 +77,9 @@ impl BoundProgram {
 
 #[derive(Clone)]
 pub struct Binder<'a> {
+    viewer_depth: Option<u32>,
     pure_functions: BTreeMap<String, bool>,
+    maintenance_scopes: BTreeMap<String, String>,
     call_types: BTreeMap<Vec<String>, Ty>,
     filters: BTreeMap<String, String>,
     view_types: BTreeMap<String, Ty>,
@@ -99,6 +104,8 @@ pub struct Binder<'a> {
     focal: Option<(String, Ty)>,
     /// Only direct scanned-row columns get false-on-null ordering in where.
     in_predicate: bool,
+    returned_data: bool,
+    shape_field: Option<(String, Site)>,
     variants: Vec<(String, bool)>,
     temps: u32,
     sites: u32,
@@ -146,7 +153,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -175,7 +182,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
+            return Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -260,7 +267,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
+        Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
     }
 
     fn site(&mut self) -> String {
@@ -287,6 +294,13 @@ impl<'a> Binder<'a> {
         runtime
     }
 
+    // @ref LLP 3000.015#3 — one maintenance type per helper declaration across all calls.
+    fn maintenance_local(&mut self, runtime: &str, site: &Site, name: &str) {
+        if self.depth > 0 {
+            self.maintenance_scopes.insert(runtime.into(), format!("helper/{}/local/{site}/{name}", self.call_chain.last().unwrap().0));
+        }
+    }
+
     fn push_scope(&mut self) {
         self.scopes.push(BTreeMap::new());
     }
@@ -296,6 +310,9 @@ impl<'a> Binder<'a> {
     }
 
     fn table(&self, name: &str, site: &Site) -> Fallible<&'a TableInfo> {
+        if self.viewer_depth.is_some() && self.schema.table(name).is_some_and(|table| table.ephemeral.is_some()) {
+            return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_QUERY", "job viewer reads require durable data", "keep ephemeral reads in a client query; persist the state the job needs"));
+        }
         self.catalog.tables.get(name).ok_or_else(|| unknown(site, format!("unknown table {name}"), name_rewrite(name, self.catalog.tables.keys().map(String::as_str), None)))
     }
 
@@ -326,13 +343,14 @@ impl<'a> Binder<'a> {
         let value = self.read_value(read, ReadMode::FilteredPoint, out)?;
         if let Some(maintain) = &info.maintained {
             // A maintained point read is the typed value: zero when absent.
+            let row = self.temp("countRow");
             let tmp = self.temp("total");
             let zero = Expr::Literal(Value::Int(0));
-            out.push(Stmt::Let { name: tmp.clone(), value });
+            out.push(Stmt::Let { name: row.clone(), value });
             out.push(Stmt::If {
-                condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) },
-                then_body: vec![Stmt::Assign { name: tmp.clone(), value: zero }],
-                else_body: vec![Stmt::Assign { name: tmp.clone(), value: ir::field(ir::var(&tmp), "value") }],
+                condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) },
+                then_body: vec![Stmt::Let { name: tmp.clone(), value: zero }],
+                else_body: vec![Stmt::Let { name: tmp.clone(), value: ir::field(ir::var(&row), "value") }],
             });
             let ty = info.columns.get("value").map(Ty::from_scalar).unwrap_or(Ty::Int);
             let _ = maintain;
@@ -483,6 +501,7 @@ impl<'a> Binder<'a> {
             }
         }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
+        if position != prefix::Position::Aggregate { self.shape_meter_note(&scan, read); }
         Ok((scan, range.take))
     }
 
@@ -779,7 +798,7 @@ impl<'a> Binder<'a> {
     // ----- shapes -----
 
     fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let (base_expr, base_ty) = self.expr(base, out)?;
+        let (base_expr, base_ty) = self.computation(base, out)?;
         self.shape_bound(base_expr, base_ty, fields, site, out)
     }
 
@@ -883,9 +902,12 @@ impl<'a> Binder<'a> {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
                         add(self, name.clone(), e, t, setup::Body::default(), out);
                     }
-                    ShapeField::Field { name, value, .. } => {
+                    ShapeField::Field { name, value, site } => {
                         let mut setup = setup::Body::default();
-                        let (e, t) = self.expr(value, &mut setup)?;
+                        let prior = self.shape_field.replace((name.clone(), site.clone()));
+                        let result = self.expr(value, &mut setup);
+                        self.shape_field = prior;
+                        let (e, t) = result?;
                         add(self, name.clone(), e, t, setup, out);
                     }
                 }
@@ -927,6 +949,7 @@ impl<'a> Binder<'a> {
     /// Bind a write. When `valued`, the write yields its row (an insert's
     /// image, an update's or upsert's re-read row, null for a delete).
     fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
+        if self.viewer_depth.is_some() { return Err(job_reads::read_only(expr.site())); }
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
         if self.in_prelude {
             return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} inside a top-level `for row in table:` job sweep", op.word())));

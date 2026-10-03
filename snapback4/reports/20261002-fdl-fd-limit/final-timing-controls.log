@@ -1,0 +1,7 @@
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced" }
+{ "type": "test", "event": "started", "name": "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not" }
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; startup soft=1024 target=65536
+{ "type": "test", "name": "serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced", "event": "ok" }
+{ "type": "test", "name": "serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not", "event": "ok" }
+{ "type": "suite", "event": "ok", "passed": 2, "failed": 0, "ignored": 0, "measured": 0, "filtered_out": 239, "exec_time": 1.034081989 }

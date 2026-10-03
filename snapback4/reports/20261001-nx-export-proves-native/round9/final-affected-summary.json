@@ -1,0 +1,44 @@
+{
+  "rust-units-final.log": {
+    "sha256": "6018ed036b8fffcff8eca4743c1434b8ff79bea6252b2df826b96d57323bb5e7",
+    "summary": [
+      "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 234 filtered out; finished in 3.51s"
+    ]
+  },
+  "rust-integration-final.log": {
+    "sha256": "d6f1aa309796ce917346e0accbe2cb0193fa90e6f32ae775a8b69c8264eb0c66",
+    "summary": [
+      "test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 133.57s"
+    ]
+  },
+  "js-export-shim-final.log": {
+    "sha256": "8d8db20051ab6460eae8a0519499891ae3b83c536f1836d7a5753171928d22e0",
+    "summary": [
+      "\u2139 tests 19",
+      "\u2139 pass 19",
+      "\u2139 fail 0",
+      "\u2139 skipped 0"
+    ]
+  },
+  "linux-final-logs/units.log": {
+    "sha256": "368f83ef8e8c80574122c1f3f5eb4d75d0cdd43d41c7372221b3ba524d8a7cd6",
+    "summary": [
+      "test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 3.42s"
+    ]
+  },
+  "linux-final-logs/integration.log": {
+    "sha256": "0d103ef20446df3a45d3f8b0704e816a1b0500e2cfaf5a37f8afb9e419485819",
+    "summary": [
+      "test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s"
+    ]
+  },
+  "linux-final-logs/js.log": {
+    "sha256": "461e83316980b217773449dce26f14c361aa535fbcff3efa7882eafc97b14a52",
+    "summary": [
+      "\u2139 tests 19",
+      "\u2139 pass 18",
+      "\u2139 fail 0",
+      "\u2139 skipped 1"
+    ]
+  }
+}

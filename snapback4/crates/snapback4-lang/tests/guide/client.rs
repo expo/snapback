@@ -1,4 +1,4 @@
-use super::{card, quarry, compile};
+use super::{card, quarry, compile, guide_context};
 #[path = "published.rs"]
 mod published;
 
@@ -8,7 +8,7 @@ fn client_aliases_keep_typing_on_ephemeral() {
     assert!(client.lines().count() <= 130);
     assert!(client.contains("eight queued observation attempts"));
     assert!(client.contains("direct queries and timed presence refreshes use separate paths"));
-    for alias in ["client", "react", "hooks", "composer", "unread"] {
+    for alias in ["client", "react", "hooks", "composer", "unread", "readPresentation", "read-presentation"] {
         assert_eq!(card(alias), Some(client));
         assert!(snapback4_lang::guide::listing().contains(alias));
     }
@@ -43,8 +43,8 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     let block = &blocks[0];
     let (document, errors) = snapback4_lang::parse_document("schema.q", block);
     assert!(errors.is_empty(), "{errors:?}");
-    assert_eq!(document.programs.len(), 4);
-    for form in ["searchHeld", "searchGrouped", "search", "searchNewest"] {
+    assert_eq!(document.programs.len(), 5);
+    for form in ["searchHeld", "searchGrouped", "search", "searchNewest", "searchChat"] {
         let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
         assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
     }
@@ -54,18 +54,24 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     assert!(block.contains("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c"));
     // The explicit held scope still diagnoses missing sync. Ordinary search's
     // inferred audience requires sync, so exercise this old control separately.
-    let explicit_scopes = block.replace("query search(q: text <=100, c: cursor ?):\n  return messages matching q last 20 by .at after c\n", "");
+    let explicit_scopes = block.lines().scan(false, |skip, line| {
+        if *skip { *skip = false; return Some(None); }
+        if line.starts_with("query search(") || line.starts_with("query searchChat(") { *skip = true; return Some(None); }
+        Some(Some(line))
+    }).flatten().collect::<Vec<_>>().join("\n");
     let server = explicit_scopes.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
     // Turning off every sync deliberately makes searchHeld an unsynced held read.
     let bound = compile(&server);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(!bound.notes.is_empty());
-    assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
+    let remaining = guide_context::without_grouped_shape_note(&bound, "searchGrouped");
+    assert_eq!(remaining.len(), 1, "{:?}", bound.notes);
+    assert!(remaining[0].code == "N_HELD_UNKNOWN" && remaining[0].message.contains("searchHeld"), "{:?}", bound.notes);
 }
 
 #[test]
 fn existence_card_and_starters_teach_the_sdk_words() {
     let client = card("client").unwrap();
+    assert!(client.contains("Unknown counts never hide conversations."));
     assert!(!client.contains("read.presence"));
     assert!(!card("offline-interactions").unwrap().contains("presence"));
     for word in ["existence(read)", "read.existence", "`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "existence(member) === \"absent\""] {
@@ -124,5 +130,14 @@ fn native_smoke_is_the_milestone_path_with_honest_limits() {
         }
         assert!(text.lines().count() <= if name == "client" { 114 } else { 399 });
         assert!(!text.contains("in this source revision"));
+    }
+}
+
+#[test]
+fn witness_card_explains_scene_adoption_and_product_toolchain() {
+    let card = snapback4_lang::guide::card("witness").unwrap();
+    for text in ["E_WITNESS_SCENE_LIFECYCLE", "NoSceneLifecycleAdoption", "snapback4-expo/plugin",
+        "57.0.22", "xcodeBuild", "iosSdkVersion", "expo prebuild --platform ios"] {
+        assert!(card.contains(text), "missing {text}");
     }
 }

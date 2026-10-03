@@ -1,0 +1,8 @@
+{
+  "snapback4/crates/snapback4-lang/src/guide.rs": "7562580256574adf92f20893e9cdc327109b96306b9571e02f8e580c1cf727f3",
+  "snapback4/crates/snapback4/src/host_limits.rs": "26cc7dd211e4d258706a25bf87e4cbbe6c273a51c0ccab35256846c76bc4a92a",
+  "snapback4/crates/snapback4/src/verbs.rs": "a666ebf18fe6f66b916f4e5acc715f5995966081a565c095f1b05c9e412eb8a5",
+  "snapback4/crates/snapback4/tests/latency.rs": "4db05f800fdd0dba1ae4cd2088ec94d4e8bde1a18a90d055518a7faba66fa6a4",
+  "snapback4/crates/snapback4/tests/lifecycle.rs": "c69295b9e1f0a6da861aa49db2e029530eca261be17f158ae64290e55036b461",
+  "snapback4/crates/snapback4/tests/token_live.rs": "c2e2081cb3ed1d5b35db9e865e3a92f53cc7c43373122fae098f9be34f82f2cb"
+}

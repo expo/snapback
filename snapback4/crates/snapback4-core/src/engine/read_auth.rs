@@ -105,6 +105,7 @@ impl Runner<'_> {
 struct ReadProbe<'a, 'b> { runner: &'a mut Runner<'b>, allowance: &'a Authorization, table: &'a str, provisional: bool, prepaid: bool, unknown: bool }
 impl Probe for ReadProbe<'_, '_> {
     fn take_unknown(&mut self) -> bool { std::mem::take(&mut self.unknown) }
+    fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, _old: bool) {
         self.runner.provisional_sequence_read |= self.provisional && self.runner.schema.tables[self.table].sequences.contains_key(field);

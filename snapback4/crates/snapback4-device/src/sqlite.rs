@@ -88,6 +88,7 @@ impl DeviceTx for Tx<'_> {
         Ok(())
     }
     fn clear_rows(&self) -> Result<(), RuntimeError> {
+        self.changes.borrow_mut().widen();
         self.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
         if self.meta("cap_counts_schema")?.is_some() {
             self.conn().execute_batch("DELETE FROM _cap_counts;")?;

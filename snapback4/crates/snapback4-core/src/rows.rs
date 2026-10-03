@@ -205,6 +205,7 @@ pub enum PrefetchRequest {
 pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
 
 pub trait Rows {
+    fn change_footprint(&self) -> crate::revocation::Footprint { crate::revocation::Footprint { unknown: true, ..Default::default() } }
     /// A device keeps the floor of settled rows hidden by pending deletions.
     fn provisional_sequence_floor(&self, _parent: &str, _id: &str) -> Result<i64, RuntimeError> { Ok(0) }
 

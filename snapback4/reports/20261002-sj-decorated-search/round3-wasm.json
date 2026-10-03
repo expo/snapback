@@ -1,0 +1,19 @@
+{
+  "round": 3,
+  "platform": "linux-x86_64",
+  "host": "expose-builder-pixel",
+  "command": "bash scripts/build-wasm.sh",
+  "raw_bytes": 2048753,
+  "gzip_bytes": 617410,
+  "budget_bytes": 618040,
+  "remaining_bytes": 630,
+  "sha256": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8",
+  "delta_round2_gzip_bytes": 0,
+  "macos_measured": false,
+  "wire_added_bytes_per_page": {
+    "one_leaf": 30,
+    "four_leaves": 71,
+    "nested_fixture": 112
+  },
+  "no_per_row_or_per_field_deadlines": true
+}

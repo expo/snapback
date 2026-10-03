@@ -1,37 +1,16 @@
 ## Search every chat I'm in
 
-Use one ordinary **search** for a globally ordered page across current and
-retained conversations, as the social starter does. Use **grouped** to page
-current matching chats with previews when discovery cannot fit one read.
-Return bare hits and read chat details separately. Table rules protect server
-reads; retained device images confer no server authority.
+Use one ordinary **search** for a globally ordered page across current and retained conversations, as the social starter does. Use **grouped** to page current matching chats with previews when discovery cannot fit one read. Return presentation fields directly with key lookups:
+`return messages matching q last 20 by .at after c { *, chatTitle: conversations[.conversation].title, senderName: profiles[principal = .sender].name }`. The planner selects the bare page first and decorates only its emitted hits, reading each distinct key once per authority. Missing or unreadable details are
+`null`; hits, ordering, completeness, cut, continuation and freshness stay the bare page's. Current hits use ordinary server/device reads; departed hits use this device's held images. An expired or uncertain decoration becomes `null` immediately, including while a refresh is in flight or an offline answer is recovered. Because the deadline covers the page, the client conservatively nulls all point-dependent leaves, preserving nested objects and every literal or source field that does not depend on a point read. A masked decoration is a placeholder, not proof of absence. Page freshness does not prove that every decoration is current. A refresh restores values once a later deadline is proven. Both client tiers return the page from one-shots and keep it in watches, with the same freshness. Online watches retry values with capped backoff until confirmed, even if the client clock estimate is ahead. Decoration expiry never causes `E_QUERY_RETRY`; only source-page expiry can withdraw the page. The page remains one server call per publication attempt. The bare form is also valid. `check --cost` names the lifted plan and distinct-decoration reads. Table rules protect server reads; retained images confer no server authority.
 
-A single bare ordinary word page such as
-`return messages matching q where not .tombstone last 20 by .at after c`
-can now infer the current server audience from an exact non-expiring membership
-read rule and matching sync audience. `check --cost` names that inferred audience
-and its grouped rewrite. Its server result deliberately changes from an empty
-incomplete answer to the compact membership page when the work fits. Explicit
-membership predicates and query guards keep their meaning; other audiences,
-joins and native functions keep their existing evaluator. Empty needles still
-take the existing browse branch, whose coverage can remain incomplete.
-System reads keep their original evaluator and full system-authorized domain.
-Inference also requires readable membership discovery. If its additional scoped
-index cannot fit the portable key or label budget, compilation keeps the original
-indexes and evaluator; that search may remain incomplete.
+A single ordinary word page, optionally with point decorations, such as
+`return messages matching q where not .tombstone last 20 by .at after c` can now infer the current server audience from an exact non-expiring membership read rule and matching sync audience. `check --cost` names that inferred audience and its grouped rewrite. Its server result deliberately changes from an empty incomplete answer to the compact membership page when the work fits. Explicit membership predicates and query guards keep their meaning; other audiences, non-key subqueries and native functions keep their existing evaluator. Empty needles still take the existing browse branch, whose coverage can remain incomplete. System reads keep their original evaluator and full system-authorized domain. Inference also requires readable membership discovery. If its additional scoped index cannot fit the portable key or label budget, compilation keeps the original indexes and evaluator; that search may remain incomplete.
 
-Current rows are authoritative by source ID, including after a scope update or
-ID deletion and reinsertion. In the page's one server call, the SDK sends only
-that page's retained candidate IDs; authorized point reads tell it which have
-current readable rows. Those retained images are suppressed even when the
-current image no longer matches or lies before the cursor. Scope columns need
-not be immutable. A page can be short, or empty with a progress cursor, when
-suppression consumes its bounded retained candidates; follow `next` as usual.
+Current rows are authoritative by source ID, including after a scope update or ID deletion and reinsertion. In the page's one server call, the SDK sends that page's retained candidate IDs and, for decorations, ordering keys used only to choose emitted projections; authorized point reads tell it which have current readable rows. Those retained images are suppressed even when the current image no longer matches or lies before the cursor. Scope columns need not be immutable. A page can be short, or empty with a progress cursor, when suppression consumes its bounded retained candidates; follow `next` as usual.
 
-For the proved bare time-ordered page on a local client, the SDK merges current
-server rows with this device's certified departed images. Both use the same
-`(at, id)` order and the limit applies after deduplication. A page makes one
-server call; it never drains a cut to fill the limit. `next` seeks both sources after the combined consumed `(at, id)` key;
+For the proved time-ordered page (bare or point-decorated) on a local client, the SDK merges current server rows with this device's certified departed images. Both use the same
+`(at, id)` order and the limit applies after deduplication. A page makes one server call; it never drains a cut to fill the limit. `next` seeks both sources after the combined consumed `(at, id)` key;
 a fetched but unconsumed hit after that key stays eligible. Unconsumed hits are recomputed on the next requested
 page and charged again. The coordinator and device scan share the existing
 per-page device read allowance. There is no saved search session.
@@ -85,8 +64,21 @@ Changing an order key or match, or inserting a match before the consumed positio
 For exactly-once pagination over message edits, declare `immutable at`; refresh from the first page to see new or newly matching rows before the cursor.
 
 ```quarry
+table rooms:
+  title: text <=200
+  read <- exists members[.id, viewer]
+  retain delivered-history
+  sync to members[.id]
+
+table profiles:
+  principal: principal
+  name: text <=80
+  unique principal
+  public
+  sync public last 500 by .id
+
 table members:
-  roomId: id
+  roomId: rooms
   principal: principal
   unique roomId, principal
   cap 100 by roomId
@@ -95,7 +87,8 @@ table members:
 
 table messages:
   immutable roomId, at
-  roomId: id
+  roomId: rooms
+  sender: principal
   body: text <=4000
   at: time
   search body
@@ -112,7 +105,10 @@ query searchGrouped(q: text <=100, c: cursor ?):
 
 -- One ordinary newest-first stream in either link state, including after leave.
 query search(q: text <=100, c: cursor ?):
-  return messages matching q last 20 by .at after c
+  return messages matching q last 20 by .at after c { *, chatTitle: rooms[.roomId].title, senderName: profiles[principal = .sender].name }
+
+query searchChat(room: rooms, q: text <=100, c: cursor ?):
+  return messages[roomId = room] matching q last 20 by .at after c { *, chatTitle: rooms[.roomId].title, senderName: profiles[principal = .sender].name }
 
 -- Optional current-membership-only scope; excludes departed images deliberately.
 query searchNewest(q: text <=100, c: cursor ?):
@@ -121,12 +117,14 @@ query searchNewest(q: text <=100, c: cursor ?):
 
 `searchHeld` and `searchNewest` are optional, deliberately narrower domains:
 device-only and current-membership-only respectively. Do not switch between
-them based on connectivity. The starter uses ordinary `search` in both states.
+them based on connectivity. The starter uses ordinary `search` in both states. N_SHAPE_METER: both `searchGrouped` previews can reject unbounded candidates despite `last 3`; query each chat separately.
 
 **Ordinary search.** Call `usePage(api.search, { q })` and render its `items`.
-The SDK accumulates by source row ID; do not append or deduplicate pages yourself.
-Show “Partial results” only for a ready combined read with `complete: false`.
-Stale retained hits and a non-null `next` alone do not mean incomplete.
+The decorated starter renders `row.chatTitle` and `row.senderName` directly.
+The SDK accumulates identity-preserving rows by source row ID; do not append or deduplicate pages yourself.
+Show “Partial results” when `readPresentation(page.read).incomplete` is true,
+including nonempty `present` pages with incomplete coverage, a cut or a
+continuation. Staleness is separate.
 
 The compact server plan discovers compact membership keys, opens one authorized
 order key per chat and materializes only emitted hits. Inner word expansion
@@ -173,7 +171,7 @@ non-empty current server plan; retained coverage can still be incomplete.
 `check` and `check --cost` separately name **N_SEARCH_UNSCOPED**
 (add the membership predicate), **N_SEARCH_OPEN** (use grouped),
 **N_SEARCH_WORDS** (longer first term or pinned chat), and **N_SEARCH_SHAPE**
-(remove repeated peer/detail subqueries from each hit). Every entry has a site,
+(identifies an unliftable aggregate, decoration predicate or non-key subquery; invalid decoration ordering is a compiler error). Every entry has a site,
 summary; `check --verbose` adds rewrites and `why` explanations. No certificate predicts bytes.
 
 **Device holdings.** With horizon-free sources, `check --verbose` reports horizon-free

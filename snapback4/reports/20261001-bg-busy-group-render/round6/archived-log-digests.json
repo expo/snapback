@@ -1,0 +1,80 @@
+[
+  {
+    "original": "compiler-dev.log",
+    "archive": "compiler-dev.log.gz",
+    "original_sha256": "f0e4b2bd67b3f16f3e6b2e797b3432f9005cc049b400799471afda37d2c65197",
+    "original_bytes": 24524
+  },
+  {
+    "original": "compiler-dev2.log",
+    "archive": "compiler-dev2.log.gz",
+    "original_sha256": "80756f2d13a0c32492d2ea9b85e913afbd6f309ddb2a77c77fa155f897af8a18",
+    "original_bytes": 2707
+  },
+  {
+    "original": "compiler-final.log",
+    "archive": "compiler-final.log.gz",
+    "original_sha256": "3fb04ef65f8253ae0204b26e7c039187632481faa62d7a49a2c921c142137373",
+    "original_bytes": 2993
+  },
+  {
+    "original": "core-final.log",
+    "archive": "core-final.log.gz",
+    "original_sha256": "b9a3b0775d444313a4552721407f4ed9e659b8b8d73eef700476e823b63bcd46",
+    "original_bytes": 18524
+  },
+  {
+    "original": "device-final.log",
+    "archive": "device-final.log.gz",
+    "original_sha256": "e1b2fa89e7b836e899444004590a4a2dc53b432c71b0380f54ed89922dbf278d",
+    "original_bytes": 2567
+  },
+  {
+    "original": "guide-final.log",
+    "archive": "guide-final.log.gz",
+    "original_sha256": "0dffaee0e0b6037c38e91f6b7d62bc5ba082dab8a55454bc71b7cb1ce7925dcd",
+    "original_bytes": 9899
+  },
+  {
+    "original": "guide-types-dev.log",
+    "archive": "guide-types-dev.log.gz",
+    "original_sha256": "1294eadc02755e92faf36d91675cfce7cc963bdd7f2f40c075399f94de1f4d58",
+    "original_bytes": 12899
+  },
+  {
+    "original": "http-final.log",
+    "archive": "http-final.log.gz",
+    "original_sha256": "b17a8f33a832415b2a0d867fcd9ec4d1c1b832b3a1eea0e9732ae9a0b7815683",
+    "original_bytes": 1436
+  },
+  {
+    "original": "raw-dev.log",
+    "archive": "raw-dev.log.gz",
+    "original_sha256": "c7f91d0fb59e9cb9a1e27de08cdd17d2b21f4c68592d473819b2368f1742562e",
+    "original_bytes": 639
+  },
+  {
+    "original": "raw-dev3.log",
+    "archive": "raw-dev3.log.gz",
+    "original_sha256": "fe011f5efc52a377c2ff77eb4cc77141caa948134601152235a62e6e5d0539b8",
+    "original_bytes": 12420
+  },
+  {
+    "original": "scale-final.log",
+    "archive": "scale-final.log.gz",
+    "original_sha256": "8638351b6b623ed870e76d6e74e87e19b15bed3df9e2117d7e3c97830a3d0b12",
+    "original_bytes": 3928
+  },
+  {
+    "original": "types-dev4.log",
+    "archive": "types-dev4.log.gz",
+    "original_sha256": "8ce1e2874999bcb8178f2226256083bbd68a5284758760e04ef40bcf0b841a1c",
+    "original_bytes": 1089
+  },
+  {
+    "original": "witness-final.log",
+    "archive": "witness-final.log.gz",
+    "original_sha256": "d4844f1e1c217425c0c9c54d3e781c3d6c71f0485a6df06b93ab03cf11865275",
+    "original_bytes": 10156
+  }
+]

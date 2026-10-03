@@ -1,0 +1,88 @@
+{"userAgent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36","rounds":[{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]}]}
+✔ Chromium SDK reads survive a blocked renderer across the server idle timeout (17486.230052ms)
+✔ dev: keep-alive headers agree with HTTP connection policy (159.96814ms)
+✔ serve: keep-alive headers agree with HTTP connection policy (48.75244ms)
+✔ serve through a trusted TLS terminator retains SDK keep-alive (387.492525ms)
+✔ held and heartbeat /changes responses exceed idle timeout and remain reusable (12153.375208ms)
+✔ socket reset: reused=false, reset again=false (27.767319ms)
+✔ socket reset: reused=false, reset again=true (3.631942ms)
+✔ socket reset: reused=true, reset again=false (32.835357ms)
+✔ socket reset: reused=true, reset again=true (26.819927ms)
+✔ retry observation stays with its caller and host fetch sees every attempt (431.747011ms)
+✔ no retry after response bytes: partial header (57.884386ms)
+✔ no retry after response bytes: body (59.932811ms)
+✔ no ambiguous replay for /auth/refresh (211.789991ms)
+✔ no ambiguous replay for /assets (162.844542ms)
+✔ no ambiguous replay for /assets/once (499.505515ms)
+✔ no ambiguous replay for /a/work (115.530644ms)
+✔ no ambiguous replay for /m/ephemeral (221.235448ms)
+✔ no ambiguous replay for /m/add (161.814135ms)
+✔ a delivered overload is returned without socket retries (500.112445ms)
+✔ a reset retry preserves one real durable mutation and its write ID (460.518083ms)
+✔ the private agent retires idle sockets within the one-second budget (1006.30874ms)
+✔ a retryable durable envelope cannot execute an ephemeral operation (149.877447ms)
+✔ a reused-socket retry retains the original URL, body, write ID and headers (352.010501ms)
+{"round":0,"clients":1,"phase":"selected-socket","idleMs":3500,"blockMs":1800,"pauses":0,"errors":[],"failedReads":[],"successes":1}
+✔ Node SDK query survives a client pause across the dev idle deadline (0) (3679.371201ms)
+✔ Node default transport does not call unsupported socket QoS on ordinary requests (78.747469ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (196.562369ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1387.184396ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (890.699873ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1085.152142ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1619.462161ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1035.556042ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1027.124734ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1211.665363ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1674.275064ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":10336.08899,"cutMs":10836.582276,"rejectionMs":14348.8,"notificationMs":14349.395414,"detectionMs":3512.8131380000013}
+{"store":"native","offsetMs":500,"requestStartMs":10364.040855,"cutMs":10864.41343,"rejectionMs":14366.56862,"notificationMs":14367.190363,"detectionMs":3502.776932999999}
+{"store":"wasm","offsetMs":5000,"requestStartMs":10336.412055,"cutMs":15336.117767,"rejectionMs":18338.668008,"notificationMs":18339.199105,"detectionMs":3003.081338}
+{"store":"native","offsetMs":5000,"requestStartMs":10368.139166,"cutMs":15368.174533,"rejectionMs":18369.521227,"notificationMs":18370.001718,"detectionMs":3001.827185}
+{"store":"wasm","offsetMs":15000,"requestStartMs":10348.882623,"cutMs":25348.89376,"rejectionMs":28351.795991,"notificationMs":28352.531715,"detectionMs":3003.637955000002}
+{"store":"native","offsetMs":15000,"requestStartMs":10366.540146,"cutMs":25366.184292,"rejectionMs":28368.659993,"notificationMs":28369.172242,"detectionMs":3002.987949999999}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20274.260166ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11156.992854ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1054.378788ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=false (199.879339ms)
+✔ online mutation: rejected body after dispatch is pending; close=false (228.238453ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=true (223.703747ms)
+✔ online mutation: rejected body after dispatch is pending; close=true (497.400497ms)
+✔ online action: rejected fetch after dispatch is pending; close=false (141.720588ms)
+✔ online action: rejected body after dispatch is pending; close=false (147.909747ms)
+✔ online action: rejected fetch after dispatch is pending; close=true (144.947972ms)
+✔ online action: rejected body after dispatch is pending; close=true (144.538858ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=false (5532.831433ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=false (5103.249539ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=true (1079.61218ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=true (1090.983755ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=false (1084.031468ms)
+✔ wasm action: rejected body after dispatch is pending; close=false (89.418705ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=true (76.211873ms)
+✔ wasm action: rejected body after dispatch is pending; close=true (78.979267ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=false (5232.270448ms)
+✔ native mutation: rejected body after dispatch is pending; close=false (5229.527505ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=true (1659.056973ms)
+✔ native mutation: rejected body after dispatch is pending; close=true (1224.850764ms)
+✔ native action: rejected fetch after dispatch is pending; close=false (1139.073795ms)
+✔ native action: rejected body after dispatch is pending; close=false (1136.658367ms)
+✔ native action: rejected fetch after dispatch is pending; close=true (1129.866771ms)
+✔ native action: rejected body after dispatch is pending; close=true (1124.627565ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116476.689914

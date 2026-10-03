@@ -1,0 +1,18 @@
+{
+  "qualified_main": "9ca48d280429b1110d48c59c523f3f535beb51f7",
+  "later_main": "96ae8da9a59a0d157f2bc361d0c9bfa101c98d15",
+  "probe_commit": "7a8dd792e73387bc280905b12d73bb30aa665f1a",
+  "merge_tree_exit": 0,
+  "merge_tree": "2c01a00c39015ce883b69c5bd8b7063377a60be1",
+  "non_record_paths": [
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/bun.lock",
+    "snapback4/native-fixtures/following/Cargo.lock",
+    "snapback4/packages/snapback4-darwin-arm64/package.json",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4-linux-x64/package.json",
+    "snapback4/packages/snapback4/package.json"
+  ],
+  "description": "0.4.11 version bump and publication records advanced during qualification; later main merges cleanly; no second merge or new qualification claimed"
+}

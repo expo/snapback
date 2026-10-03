@@ -29,6 +29,7 @@ Repeated `where` clauses combine with `and`, in written order.
 - Add a cursor if the screen pages: N_NO_CURSOR.
 - A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
+- N_SHAPE_METER: maintained totals (guide views), previews, or queries.
 
 ## Details
 
@@ -57,9 +58,7 @@ missing coverage. For `complete: false` with
 A complete empty page has `cut: null` and `complete: true`.
 Same-key observations retain their last answer marked `revalidating` during
 plain refetch, reconnect and transport failure. Omitted `keep` and `keep: true`
-share this policy; `keep: false` withdraws immediately. Known change evidence
-starts a nonrenewable one-second bound when the replacement attempt begins;
-failure or timeout withdraws, and a later accepted answer can still publish.
+share this policy; `keep: false` withdraws immediately. Inserts and non-policy updates retain through retries; deletes, policy-input changes and unknown evidence start a nonrenewable one-second bound. Bounded failure/timeout withdraws; replacements can still publish.
 A notified cut keeps older replica answers ineligible until sync publishes it.
 A whole server answer at that cut may replace sooner. Expiry, sign-out,
 credential, store, schema and generation resets still withdraw immediately.

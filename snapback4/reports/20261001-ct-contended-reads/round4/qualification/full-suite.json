@@ -1,0 +1,20 @@
+{
+  "summary": "== 0 failure(s) in 1417 s",
+  "exit": 0,
+  "finalSourceInvocations": 1,
+  "allCandidateInvocations": 2,
+  "logBytes": 921459,
+  "logSha256": "ea766a2f1852fcbf372fd5ab26a944e70ac35f4ffa67c8ea6e4f9ecb5fcaa440",
+  "recoveredInitialPrefixBytes": 8257,
+  "initialFragmentPrefixVerified": true,
+  "sourceCustody": "../custody.json",
+  "client": {
+    "passed": 5742,
+    "failed": 0,
+    "skipped": 10
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  }
+}

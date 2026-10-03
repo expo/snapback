@@ -118,5 +118,5 @@ Online, its replica client merges current server hits with certified retained
 hits from departed conversations. Offline it searches this device's holdings;
 an online-only client has no retained history. Keep the message's conversation
 and order column immutable, and render `usePage`'s identity-keyed accumulation.
-“Partial results” follows `existence(page.read) === "partial"`; nonempty answers are `present`, even with incomplete coverage. Freshness is separate. Missing acquisition ranges and
+“Partial results” follows `readPresentation(page.read).incomplete`, including nonempty `present` answers with incomplete coverage, a cut or a continuation. Freshness is separate. Missing acquisition ranges and
 cuts stay incomplete. See `guide search` for the compiling form and limits.

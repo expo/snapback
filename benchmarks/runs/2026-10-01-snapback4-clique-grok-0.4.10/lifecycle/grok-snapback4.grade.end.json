@@ -1,0 +1,11 @@
+{
+  "lane": "grok-snapback4",
+  "phase": "grade",
+  "pid": 49400,
+  "endedAt": "2026-10-01T22:39:57Z",
+  "endedEpoch": 1790894397,
+  "wallSeconds": 2640.573,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260930-grok-cal28/logs/grok-snapback4.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260930-grok-cal28/logs/grok-snapback4.grade.stderr.log"
+}

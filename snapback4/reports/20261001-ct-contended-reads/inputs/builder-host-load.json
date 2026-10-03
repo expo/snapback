@@ -1,0 +1,632 @@
+[
+  {
+    "label": "50%",
+    "probeAt": 1790836392334,
+    "nearestHostSamples": [
+      {
+        "at": "2026-10-01T06:33:22.442021+00:00",
+        "load": [
+          12.35302734375,
+          10.87060546875,
+          9.81640625
+        ],
+        "uptime": "23:33  up 45 days, 17:27, 3 users, load averages: 12.35 10.87 9.82",
+        "top": [
+          {
+            "pid": 45437,
+            "cpu": 37.3,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 96773,
+            "cpu": 34.7,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 8102,
+            "cpu": 17.7,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 45712,
+            "cpu": 13.6,
+            "comm": "node"
+          },
+          {
+            "pid": 59084,
+            "cpu": 13.5,
+            "comm": "/bin/bash"
+          },
+          {
+            "pid": 40442,
+            "cpu": 7.7,
+            "comm": "F10BA/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension"
+          },
+          {
+            "pid": 54042,
+            "cpu": 4.9,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          },
+          {
+            "pid": 54498,
+            "cpu": 4.7,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:32:20.932103+00:00",
+        "load": [
+          19.4482421875,
+          11.50146484375,
+          9.9501953125
+        ],
+        "uptime": "23:32  up 45 days, 17:26, 3 users, load averages: 19.45 11.50 9.95",
+        "top": [
+          {
+            "pid": 97110,
+            "cpu": 106.1,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 98087,
+            "cpu": 85.9,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 97172,
+            "cpu": 77.9,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 97786,
+            "cpu": 75.1,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 8102,
+            "cpu": 19.2,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 96854,
+            "cpu": 16.8,
+            "comm": "node"
+          },
+          {
+            "pid": 97158,
+            "cpu": 16.3,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 96773,
+            "cpu": 14.9,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:34:23.781942+00:00",
+        "load": [
+          18.3515625,
+          12.70361328125,
+          10.56298828125
+        ],
+        "uptime": "23:34  up 45 days, 17:28, 3 users, load averages: 18.35 12.70 10.56",
+        "top": [
+          {
+            "pid": 2673,
+            "cpu": 52.0,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 2761,
+            "cpu": 48.6,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 2692,
+            "cpu": 43.9,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 8102,
+            "cpu": 40.0,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 3520,
+            "cpu": 39.9,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 45437,
+            "cpu": 34.4,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 96773,
+            "cpu": 32.3,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 1973,
+            "cpu": 27.0,
+            "comm": "node"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:31:19.766514+00:00",
+        "load": [
+          4.376953125,
+          7.53466796875,
+          8.52490234375
+        ],
+        "uptime": "23:31  up 45 days, 17:24, 3 users, load averages: 4.38 7.53 8.52",
+        "top": [
+          {
+            "pid": 45437,
+            "cpu": 26.0,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 45712,
+            "cpu": 13.4,
+            "comm": "node"
+          },
+          {
+            "pid": 32113,
+            "cpu": 8.4,
+            "comm": "/Applications/cmux.app/Contents/MacOS/cmux"
+          },
+          {
+            "pid": 54498,
+            "cpu": 7.8,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+          },
+          {
+            "pid": 96773,
+            "cpu": 7.6,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 40442,
+            "cpu": 7.3,
+            "comm": "F10BA/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension"
+          },
+          {
+            "pid": 8102,
+            "cpu": 5.5,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 54042,
+            "cpu": 4.9,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "final",
+    "probeAt": 1790837878720,
+    "nearestHostSamples": [
+      {
+        "at": "2026-10-01T06:58:11.443236+00:00",
+        "load": [
+          11.42236328125,
+          11.98828125,
+          12.9736328125
+        ],
+        "uptime": "23:58  up 45 days, 17:51, 3 users, load averages: 11.42 11.99 12.97",
+        "top": [
+          {
+            "pid": 69836,
+            "cpu": 98.1,
+            "comm": "/Users/ccheever/.local/bin/fleet"
+          },
+          {
+            "pid": 45437,
+            "cpu": 65.3,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 69850,
+            "cpu": 31.2,
+            "comm": "/Users/ccheever/.opencode/bin/opencode"
+          },
+          {
+            "pid": 69874,
+            "cpu": 19.1,
+            "comm": "/Users/ccheever/.local/bin/fleet"
+          },
+          {
+            "pid": 96773,
+            "cpu": 9.3,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 54042,
+            "cpu": 5.4,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          },
+          {
+            "pid": 53846,
+            "cpu": 5.0,
+            "comm": "s/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)"
+          },
+          {
+            "pid": 27395,
+            "cpu": 3.0,
+            "comm": "claude"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:57:10.642234+00:00",
+        "load": [
+          10.3056640625,
+          12.1337890625,
+          13.1103515625
+        ],
+        "uptime": "23:57  up 45 days, 17:50, 3 users, load averages: 10.31 12.13 13.11",
+        "top": [
+          {
+            "pid": 45437,
+            "cpu": 24.5,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 45712,
+            "cpu": 11.2,
+            "comm": "node"
+          },
+          {
+            "pid": 54498,
+            "cpu": 9.6,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+          },
+          {
+            "pid": 96773,
+            "cpu": 7.5,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 54042,
+            "cpu": 5.0,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          },
+          {
+            "pid": 66215,
+            "cpu": 4.8,
+            "comm": "em/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared"
+          },
+          {
+            "pid": 8240,
+            "cpu": 4.2,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores"
+          },
+          {
+            "pid": 53846,
+            "cpu": 3.8,
+            "comm": "s/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:59:13.201037+00:00",
+        "load": [
+          13.04638671875,
+          12.2177734375,
+          12.982421875
+        ],
+        "uptime": "23:59  up 45 days, 17:52, 3 users, load averages: 13.05 12.22 12.98",
+        "top": [
+          {
+            "pid": 72806,
+            "cpu": 72.7,
+            "comm": "sqlite3"
+          },
+          {
+            "pid": 45437,
+            "cpu": 61.8,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 73993,
+            "cpu": 55.4,
+            "comm": "nt(*) AS n FROM follows f JOIN profiles p ON p.principal=f.followed GROUP BY f.followed HAVING count(*)=5 LIMIT 1 --json"
+          },
+          {
+            "pid": 8102,
+            "cpu": 49.4,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 8362,
+            "cpu": 28.9,
+            "comm": "/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"
+          },
+          {
+            "pid": 74036,
+            "cpu": 23.8,
+            "comm": "node"
+          },
+          {
+            "pid": 8142,
+            "cpu": 19.3,
+            "comm": "/usr/libexec/airportd"
+          },
+          {
+            "pid": 8363,
+            "cpu": 12.2,
+            "comm": "/System/Library/CoreServices/WiFiAgent.app/Contents/MacOS/WiFiAgent"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:56:09.899517+00:00",
+        "load": [
+          11.31884765625,
+          12.69287109375,
+          13.3701171875
+        ],
+        "uptime": "23:56  up 45 days, 17:49, 3 users, load averages: 11.32 12.69 13.37",
+        "top": [
+          {
+            "pid": 45437,
+            "cpu": 30.1,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 45712,
+            "cpu": 13.4,
+            "comm": "node"
+          },
+          {
+            "pid": 96773,
+            "cpu": 10.6,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 54498,
+            "cpu": 7.6,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+          },
+          {
+            "pid": 40442,
+            "cpu": 6.7,
+            "comm": "F10BA/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension"
+          },
+          {
+            "pid": 8240,
+            "cpu": 4.4,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores"
+          },
+          {
+            "pid": 32113,
+            "cpu": 4.4,
+            "comm": "/Applications/cmux.app/Contents/MacOS/cmux"
+          },
+          {
+            "pid": 8057,
+            "cpu": 3.6,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "10%",
+    "probeAt": 1790835637044,
+    "nearestHostSamples": [
+      {
+        "at": "2026-10-01T06:21:06.916352+00:00",
+        "load": [
+          15.69873046875,
+          14.84716796875,
+          10.4580078125
+        ],
+        "uptime": "23:21  up 45 days, 17:14, 3 users, load averages: 15.70 14.85 10.46",
+        "top": [
+          {
+            "pid": 65492,
+            "cpu": 69.4,
+            "comm": "/Users/ccheever/.opencode/bin/opencode"
+          },
+          {
+            "pid": 45437,
+            "cpu": 45.1,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 45712,
+            "cpu": 14.5,
+            "comm": "node"
+          },
+          {
+            "pid": 65473,
+            "cpu": 14.3,
+            "comm": "/Users/ccheever/.local/bin/fleet"
+          },
+          {
+            "pid": 8102,
+            "cpu": 12.2,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 54042,
+            "cpu": 8.8,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          },
+          {
+            "pid": 96773,
+            "cpu": 5.4,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 8362,
+            "cpu": 5.1,
+            "comm": "/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:20:04.558141+00:00",
+        "load": [
+          21.19482421875,
+          15.06640625,
+          10.19384765625
+        ],
+        "uptime": "23:20  up 45 days, 17:13, 3 users, load averages: 21.19 15.07 10.19",
+        "top": [
+          {
+            "pid": 61727,
+            "cpu": 108.7,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 61744,
+            "cpu": 100.5,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 61736,
+            "cpu": 47.1,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 8102,
+            "cpu": 41.3,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 61746,
+            "cpu": 33.1,
+            "comm": "l28/lanes/astra-snapback4/.playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+          },
+          {
+            "pid": 61825,
+            "cpu": 31.1,
+            "comm": "/Users/ccheever/.opencode/bin/opencode"
+          },
+          {
+            "pid": 61714,
+            "cpu": 21.9,
+            "comm": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+          },
+          {
+            "pid": 8362,
+            "cpu": 21.1,
+            "comm": "/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:22:07.846851+00:00",
+        "load": [
+          7.69970703125,
+          12.68994140625,
+          9.94775390625
+        ],
+        "uptime": "23:22  up 45 days, 17:15, 3 users, load averages: 7.70 12.69 9.95",
+        "top": [
+          {
+            "pid": 45437,
+            "cpu": 35.1,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 68965,
+            "cpu": 14.7,
+            "comm": "(fleet)"
+          },
+          {
+            "pid": 45712,
+            "cpu": 13.3,
+            "comm": "node"
+          },
+          {
+            "pid": 54498,
+            "cpu": 9.0,
+            "comm": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+          },
+          {
+            "pid": 8102,
+            "cpu": 8.6,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 53606,
+            "cpu": 5.5,
+            "comm": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+          },
+          {
+            "pid": 54042,
+            "cpu": 5.2,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          },
+          {
+            "pid": 96773,
+            "cpu": 5.0,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          }
+        ]
+      },
+      {
+        "at": "2026-10-01T06:19:03.487989+00:00",
+        "load": [
+          22.5830078125,
+          13.97216796875,
+          9.4794921875
+        ],
+        "uptime": "23:19  up 45 days, 17:12, 3 users, load averages: 22.58 13.97 9.48",
+        "top": [
+          {
+            "pid": 8102,
+            "cpu": 58.0,
+            "comm": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+          },
+          {
+            "pid": 27395,
+            "cpu": 43.6,
+            "comm": "claude"
+          },
+          {
+            "pid": 8362,
+            "cpu": 33.9,
+            "comm": "/System/Library/CoreServices/ControlCenter.app/Contents/MacOS/ControlCenter"
+          },
+          {
+            "pid": 45437,
+            "cpu": 30.3,
+            "comm": "/Users/ccheever/clique-sb4-20260930-astra-cal28/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4"
+          },
+          {
+            "pid": 96773,
+            "cpu": 26.0,
+            "comm": "ersions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine"
+          },
+          {
+            "pid": 42294,
+            "cpu": 11.1,
+            "comm": "claude"
+          },
+          {
+            "pid": 45712,
+            "cpu": 10.2,
+            "comm": "node"
+          },
+          {
+            "pid": 54042,
+            "cpu": 5.1,
+            "comm": "Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+          }
+        ]
+      }
+    ]
+  }
+]

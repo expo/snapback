@@ -1,0 +1,16 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-fdl/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-fdl/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 3.63s
+  Executable unittests src/main.rs (target/debug/deps/snapback4-50da437481e8fbdd)
+  Executable tests/http.rs (target/debug/deps/http-091525e866a14c95)
+  Executable tests/http_emfile.rs (target/debug/deps/http_emfile-bd366a5117dea8e6)
+  Executable tests/lifecycle.rs (target/debug/deps/lifecycle-a77296221a967182)

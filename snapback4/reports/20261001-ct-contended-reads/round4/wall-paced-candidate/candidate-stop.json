@@ -1,0 +1,6 @@
+{
+  "atUnixMs": 1790925804575,
+  "reason": "Wall-time pacing charges OS descheduling as CPU work; stop the candidate before revising to thread-CPU pacing. The 144-process cell is incomplete, not passed.",
+  "runner": 1274400,
+  "measurement": 1544842
+}

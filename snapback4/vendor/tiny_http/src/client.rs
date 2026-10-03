@@ -71,10 +71,10 @@ impl ClientConnection {
         write_socket: RefinedTcpStream,
         mut read_socket: RefinedTcpStream,
         limits: Option<Arc<crate::limits::ConnectionState>>,
-    ) -> ClientConnection {
+    ) -> IoResult<ClientConnection> {
         let remote_addr = read_socket.peer_addr();
         let secure = read_socket.secure();
-        let abort = write_socket.abort_handle();
+        let abort = write_socket.abort_handle()?;
 
         let mut source = SequentialReaderBuilder::new(BufReader::with_capacity(1024, read_socket));
         let first_header = source.next().unwrap();
@@ -82,7 +82,7 @@ impl ClientConnection {
         let sink = SequentialWriterBuilder::new(BufWriter::with_capacity(1024, write_socket));
         let abort_writers = sink.abort_handle();
 
-        ClientConnection {
+        Ok(ClientConnection {
             source,
             sink,
             abort,
@@ -93,7 +93,7 @@ impl ClientConnection {
             secure,
             limits,
             header_bytes: 0,
-        }
+        })
     }
 
     /// true if the connection is HTTPS

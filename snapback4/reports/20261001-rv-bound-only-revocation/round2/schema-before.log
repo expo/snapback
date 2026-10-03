@@ -1,0 +1,28 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-rv/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 0.56s
+     Running tests/revocation_history.rs (target/debug/deps/revocation_history-98649e4153a7d9fc)
+
+running 4 tests
+test measure_history ... ignored, explicit before/after write-cost and steady-state measurement
+
+thread 'server_open_migrates_evidence_before_commits' (23961) panicked at crates/snapback4-core/tests/revocation_history.rs:81:5:
+server open must migrate before returning the store
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test server_open_migrates_evidence_before_commits ... FAILED
+test pruning_is_atomic_and_old_or_missing_intervals_widen ... ok
+
+thread 'commits_preserve_schema_and_cached_statements' (23959) panicked at crates/snapback4-core/tests/revocation_history.rs:37:9:
+assertion `left == right` failed: commit 1 changed the SQLite schema
+  left: 64
+ right: 63
+test commits_preserve_schema_and_cached_statements ... FAILED
+
+failures:
+
+failures:
+    commits_preserve_schema_and_cached_statements
+    server_open_migrates_evidence_before_commits
+
+test result: FAILED. 1 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p snapback4-core --test revocation_history`

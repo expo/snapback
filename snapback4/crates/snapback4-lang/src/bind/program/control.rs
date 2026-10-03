@@ -63,8 +63,13 @@ impl Binder<'_> {
 
     fn statement_inner(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
         match statement {
-            S::Return { value, site: _ } => {
-                let (expr, ty) = self.value_of(value, out)?;
+            S::As { principal, body, site } => self.as_viewer(principal, body, site, out),
+            S::Return { value, site } => {
+                if self.viewer_depth == Some(self.depth) { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "return cannot leave an as block", "assign a local inside as, then return outside it")); }
+                let prior = std::mem::replace(&mut self.returned_data, self.depth == 0 && self.kind == ProgramKind::Query);
+                let result = self.value_of(value, out);
+                self.returned_data = prior;
+                let (expr, ty) = result?;
                 self.returns.push((ty, value.clone()));
                 out.push(Stmt::Return(expr));
                 Ok(())
@@ -127,6 +132,7 @@ impl Binder<'_> {
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
                 } else {
                     let runtime = self.declare(name, ty.clone());
+                    self.maintenance_local(&runtime, site, name);
                     self.scopes.last_mut().unwrap().get_mut(name).unwrap().origins.push((ty, value.clone()));
                     out.push(Stmt::Let { name: runtime, value: expr });
                 }
@@ -143,6 +149,7 @@ impl Binder<'_> {
                 Ok(())
             }
             S::Emit { effect, payload, once, site } => {
+                if self.viewer_depth.is_some() { return Err(job_reads::read_only(site)); }
                 if self.in_prelude {
                     return Err(placement(site, "a write belongs to a chunk", "move emit inside a top-level `for row in table:` job sweep"));
                 }
@@ -244,6 +251,7 @@ impl Binder<'_> {
             }
             S::Break { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 out.push(Stmt::Break);
@@ -251,6 +259,7 @@ impl Binder<'_> {
             }
             S::Continue { site } => {
                 if self.loops == 0 {
+                    if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "continue cannot leave an as block or helper", "put continue in a loop inside this block or helper")); }
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
@@ -275,7 +284,10 @@ impl Binder<'_> {
                     return Ok(());
                 }
                 if completes && self.kind != ProgramKind::Job {
-                    let (expr, ty) = self.value_of(value, out)?;
+                    let prior = std::mem::replace(&mut self.returned_data, self.depth == 0 && self.kind == ProgramKind::Query);
+                    let result = self.value_of(value, out);
+                    self.returned_data = prior;
+                    let (expr, ty) = result?;
                     if self.depth == 0 && self.kind == ProgramKind::Mutation && matches!(value, A::Write { .. }) {
                         self.implicit_write_results.push(expr.clone());
                     }
@@ -316,6 +328,8 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: tmp.clone(), value: Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "lexicographic-id".into() }, args: vec![ir::var(&ta), b] } });
             let first = self.declare(&names[0], Ty::Int);
             let second = self.declare(&names[1], Ty::Int);
+            self.maintenance_local(&first, site, &names[0]);
+            self.maintenance_local(&second, site, &names[1]);
             out.push(Stmt::Let { name: first, value: ir::field(ir::var(&tmp), "quotient") });
             out.push(Stmt::Let { name: second, value: ir::field(ir::var(&tmp), "remainder") });
         } else {
@@ -327,6 +341,8 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: tb.clone(), value: b });
             let first = self.declare(&names[0], joined.clone());
             let second = self.declare(&names[1], joined);
+            self.maintenance_local(&first, site, &names[0]);
+            self.maintenance_local(&second, site, &names[1]);
             out.push(Stmt::Let { name: first, value: Expr::Builtin { builtin: Builtin::Min, args: vec![ir::var(&ta), ir::var(&tb)] } });
             out.push(Stmt::Let { name: second, value: Expr::Builtin { builtin: Builtin::Max, args: vec![ir::var(&ta), ir::var(&tb)] } });
         }
@@ -352,6 +368,7 @@ impl Binder<'_> {
             self.returns.truncate(returns);
             self.push_scope();
             let binding = self.declare(name, item.clone());
+            self.maintenance_local(&binding, site, name);
             self.loops += 1;
             let mut out = setup::Body::default();
             let result = self.block(body, &mut out, false);
@@ -447,6 +464,11 @@ impl Binder<'_> {
             return Ok((LoopDomain::Page(scan), Ty::Row(name.clone())));
         }
         match domain {
+            A::Call { name, args, site } if name == "all" && self.viewer_depth.is_some() => {
+                let (value, ty) = self.job_query_call("$jobAll", args, site, out).ok_or_else(|| job_reads::diagnostic(site, "E_JOB_VIEWER_QUERY", "all requires a declared query", "for row in all(queryName(..., null)):"))??;
+                let (item, max) = ty.sequence().expect("all returns a list");
+                Ok((LoopDomain::DerivedArray { value, max, bound_source: "viewer query pages".into() }, item))
+            }
             A::Name { name, .. } if self.binding(name).is_none() && self.catalog.view_reads.contains_key(name) => {
                 let mut merge = self.catalog.view_reads[name].clone(); merge.site = domain.site().clone();
                 self.loop_domain(&A::Merge(merge), out)
@@ -535,6 +557,7 @@ impl Binder<'_> {
                 }));
             }
             let runtime = self.temp(&declared.name);
+            self.maintenance_scopes.insert(runtime.clone(), format!("helper/{name}/parameter/{}", declared.name));
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
             bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         }
@@ -562,6 +585,7 @@ impl Binder<'_> {
                 self.block(statements, &mut body, false).and_then(|()| {
                     let ty = self.return_type()?;
                     let result = self.temp("result");
+                    self.maintenance_scopes.insert(result.clone(), format!("helper/{}/result", function.name));
                     let done = self.temp("returned");
                     out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
                     out.push(Stmt::Let { name: done.clone(), value: Expr::Literal(Value::Bool(false)) });

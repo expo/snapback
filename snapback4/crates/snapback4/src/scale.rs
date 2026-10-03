@@ -29,6 +29,8 @@ pub(crate) enum Class { Constant, Backlog, Grows }
 pub(crate) struct Certificate {
     pub operation: String,
     pub search: Vec<search::Search>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_decoration: Option<String>,
     pub class: Class,
     pub per_chunk: bool,
     pub bounds: Bounds,
@@ -88,13 +90,19 @@ pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgra
 
 fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4_lang::BoundProgram>) -> Certificate {
     let search = search::classify(schema, program);
+    let decoration = snapback4_core::search_decoration::admit(schema, program).ok();
+    let search_decoration = decoration.as_ref().map(|parts| {
+        let keys = snapback4_core::search_decoration::reads(schema, &parts).into_iter()
+            .map(|(table,index)|format!("{table} by {index}")).collect::<Vec<_>>().join(", ");
+        format!("lifted search: bare page, then point decorations; one read per distinct decoration key per authority ({keys})")
+    });
     let inferred = snapback4_core::search_plan::ordinary::plan(schema, program);
     let program = inferred.as_ref().map_or(program, |plan| &plan.program);
     let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { Ceilings::default() };
     let mut a = Analysis {
         schema, program, source,
         result: Certificate {
-            operation: program.name.clone(), search, class: Class::Constant,
+            operation: program.name.clone(), search, search_decoration, class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
@@ -125,6 +133,13 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
             stmt
         }).collect();
         a.body(&body, 1);
+        // The inferred body is only the source page. Keep numeric allowances
+        // conservative too: every emitted row may introduce distinct point keys.
+        if inferred.is_some() && let Some(parts) = &decoration {
+            let count = a.bound(&snapback4_core::search_decoration::scan(parts).unwrap().take);
+            a.data.insert(parts.binding.into(), true);
+            a.expr(parts.value, count);
+        }
         if program.kind == ProgramKind::Job {
             // @ref LLP 3000.013#14.4 — a sweep after a `return` never runs, so the job does not grow with it.
             for stmt in &program.body {
@@ -811,12 +826,12 @@ impl Analysis<'_> {
         if authorize && let Some(table) = self.schema.table(table) { self.rule(&table.rules.read, site, times); }
     }
 
-    // @ref LLP 3000.020#3.4 — every evaluated row-keyed read fetches and
-    // authorizes its member; only an expiring source reserves certification.
+    // @ref LLP 3000.015#3 — every row-keyed read fetches its member, then
+    // reserves live certification or the durable private-work key lookup.
     fn row_view_work(&mut self, name: &str, site: &str, times: u64) {
         if let Some(m) = self.schema.maintain_for(name) && let Some(k) = &m.row_key {
             let source = &self.schema.tables[&m.source];
-            self.rows(times.saturating_mul(if source.is_expiring() { 2 } else { 1 }));
+            self.rows(times.saturating_mul(2));
             self.rule(&self.schema.tables[&k.table].rules.read, site, times);
             self.rule(&source.rules.read, site, times);
         }
@@ -827,13 +842,15 @@ impl Analysis<'_> {
         if let Some(m) = self.schema.maintain_for(name) && let Some(k) = &m.row_key {
             if witness {
                 self.result.aggregates.push(format!("{name}: reads the member's indexed existence and lifetime; does not certify the count"));
-            } else if let Some(source) = self.schema.table(&m.source).filter(|t| t.is_expiring()) {
+            } else if m.row_count_needs_live_basis(self.schema) {
+                let source = &self.schema.tables[&m.source];
                 let whole = "Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.";
                 let device = if let Some(range) = k.device_range(source) {
                     let predicate = range.lower().iter().map(|(field, strict)| format!(".{} {} member.{field}", range.column, if *strict { ">" } else { ">=" })).collect::<Vec<_>>().join(" and ");
                     format!("Device: Whole keeps the live-basis scan. Otherwise scans rows with {predicate} (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this {} prefix's, the horizon's first free column is .{}, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: {whole}", k.source_key, range.column)
                 } else { whole.into() };
-                self.growth(site, format!("Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. {device}"), "");
+                let walk = if source.is_expiring() { "parent/expiry index walk (null expiry and expiry after now)" } else { "parent index walk over the durable source" };
+                self.growth(site, format!("Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared {walk}. Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. {device}"), "");
             } else {
                 self.result.aggregates.push(format!("{name}: reads the stored value by member. An unfinished recount remains pending; a pending last-settled value is not a lower bound."));
             }

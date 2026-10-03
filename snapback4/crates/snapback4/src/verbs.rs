@@ -715,7 +715,6 @@ pub fn doctor(options: &Options) -> i32 {
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
-    lines.push(format!("host      {}", crate::host_limits::describe()));
     lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
     match crate::dev_worker::declared(&project) {
         Ok(workers) => for (name, path) in workers { lines.push(format!("worker    {name}: {} (dev and serve)", path.display())); },
@@ -762,6 +761,19 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(host) => host,
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
+    lines.push(crate::host_limits::describe_for_doctor(host.as_ref()));
+    if let Some(host) = &host {
+        if host["fileDescriptors"]["startup"]["error"].as_str().is_some() { ok = false; }
+        if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
+            ok = false;
+            lines.push(format!("scheduling  {} QoS / {} nice setter failures; HTTP startup readback {}; inspect host stderr", host["scheduling"]["qosFailures"], host["scheduling"]["niceFailures"], host["scheduling"]["startupReadback"].as_str().unwrap_or("not recorded")));
+            if let Some(classes) = host["scheduling"]["failures"].as_object() {
+                for (class, failure) in classes {
+                    lines.push(format!("scheduling  {class}: {} failed setters; last errno {} at Unix ms {}", failure["count"], failure["lastErrno"], failure["lastAtMs"]));
+                }
+            }
+        }
+    }
     if host.is_none() && !options.flags.contains_key("release") {
         lines.push(format!("latency   {}", adoption::NO_HOST));
     }
@@ -917,6 +929,16 @@ pub fn why(options: &Options) -> i32 {
             }
             println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
             println!("  returns {}", program.result.name());
+            // @ref LLP 3000.022#14.6 — discover the generated handle and its declared coordinates.
+            for family in &bound.schema.receipts {
+                if [&family.seen, &family.delivered, &family.compact].contains(&&program.program.name)
+                    || bound.receipt_members.get(&family.name) == Some(&program.program.name) {
+                    println!("  api.receiptFamilies.{}: member {}, seen {}; counter {}.{}, joining floor {}.{}, recipient count {}.{}, delivered/seen {} / {}",
+                        family.name, bound.receipt_members[&family.name], family.seen, family.scope, family.counter,
+                        family.members, family.floor, family.messages, family.count, family.delivered_field, family.seen_field);
+                    println!("  useSeen: visible confirmed positions only; read bare retained history and live decorations independently. Membership, join floors and delivery coverage remain server-authoritative.");
+                }
+            }
             println!("{}", crate::presentation::indexes(&bound.schema, &snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]), options.json || options.flags.contains_key("verbose")));
             println!("{}", cost_report(&bound, &program.program, options.json || options.flags.contains_key("verbose")));
             return 0;

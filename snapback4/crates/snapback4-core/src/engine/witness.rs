@@ -11,6 +11,11 @@ impl Runner<'_> {
 
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(in crate::engine) fn probe_witness(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        self.witness_changes = None;
+        if equalities.iter().any(|(field, _)| field == "value")
+            && self.schema.maintain_for(table).is_some_and(|m| m.row_key.is_some()) {
+            return self.count_witness_timeline(allowance, table, index, key, equalities, current);
+        }
         if self.device_work_active { return self.probe_witness_uncached(allowance, table, index, key, equalities, current); }
         let cached_key = WitnessKey { revision: self.tx.revision(), table: table.into(), index: index.into(), key: key.to_vec(), equalities: equalities.to_vec(), current };
         if let Some((previous, (live, known, expiry))) = &self.witness_cache && previous == &cached_key {
@@ -22,6 +27,38 @@ impl Runner<'_> {
         let expiry = scope.defer().deadline();
         self.next_expiry.note_option(expiry);
         if let Ok((live, known)) = result { self.witness_cache = Some((cached_key, (live, known, expiry))); }
+        result
+    }
+
+    // @ref LLP 3000.015#3 — count equality can enter and leave truth as sources expire.
+    // Recheck at each certified dependency boundary inside the same transaction
+    // and shared physical allowance. Never interpret a cache deadline as falsity.
+    fn count_witness_timeline(&mut self, allowance: &Authorization, table: &str, index: &str,
+        key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
+        let now = self.context.now;
+        let mut changes = Vec::new();
+        let result = (|| {
+            let mut first = None;
+            let mut previous = false;
+            loop {
+                self.witness_cache = None;
+                let scope = self.next_expiry.scope();
+                let answer = self.probe_witness_uncached(allowance, table, index, key, equalities, current)?;
+                let deadline = scope.defer().deadline();
+                if first.is_none() { first = Some(answer); }
+                else if answer.0 != previous {
+                    // 64 bytes per transition covers Vec's minimum and geometric reallocations.
+                    self.meter.heap(64)?;
+                    changes.push((self.context.now.unwrap_or(0), if answer.0 { super::rules::Verdict::Readable } else { super::rules::Verdict::Denied }));
+                }
+                previous = answer.0;
+                let Some(deadline) = deadline.filter(|t| *t > self.context.now.unwrap_or(0)) else { return Ok(first.unwrap()); };
+                self.context.now = Some(deadline);
+            }
+        })();
+        self.context.now = now;
+        self.witness_cache = None;
+        self.witness_changes = Some(changes);
         result
     }
 
@@ -43,7 +80,8 @@ impl Runner<'_> {
         if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()))); }
         let mut known = !self.device || if current { self.witness_covered(table, index, key, &row)? }
             else { definition.sync.is_some() };
-        if equalities.iter().any(|(field,_)|field == "value") {
+        // @ref LLP 3000.015#3 — only value certifies; maintenance predicates refuse at admission.
+        if equalities.iter().any(|(field,_)| field == "value") {
             let prior = self.timeline_pending;
             self.timeline_pending = false;
             let found = self.live_row_view(maintain, row)?;
@@ -55,7 +93,7 @@ impl Runner<'_> {
         }
         if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
         let live = equalities.iter().all(|(column,value)| row.field(column).unwrap_or(&Value::Null) == value);
-        if live && known { self.next_expiry.note_option(expiry); }
+        if known && (live || equalities.iter().any(|(field, _)| field == "value")) { self.next_expiry.note_option(expiry); }
         Ok((live, known))
     }
 
@@ -67,7 +105,7 @@ impl Runner<'_> {
             let expiry = self.next_expiry.scope();
             let result = self.authorized_scratch(bytes, &[(MeterKind::Examined,1)], |runner, scope|
                 runner.probe_row_view(scope, table, index, key, equalities, current));
-            if matches!(result, Ok((true, true))) { expiry.emit(); }
+            if matches!(result, Ok((true, true))) || equalities.iter().any(|(field, _)| field == "value") { expiry.emit(); }
             return result;
         }
 

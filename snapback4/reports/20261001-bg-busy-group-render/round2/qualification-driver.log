@@ -1,0 +1,19 @@
+START negative-controls-final
+END negative-controls-final 0
+START wasm
+END wasm 0
+START client-build
+END client-build 0
+START instrument-client
+END instrument-client 0
+START instrument-dev
+END instrument-dev 0
+START instrument-production
+END instrument-production 0
+START qualification-idle
+END qualification-idle 1
+Traceback (most recent call last):
+  File "/tmp/bg-round2-qualify.py", line 36, in <module>
+    assert run(name,args,settings)==0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

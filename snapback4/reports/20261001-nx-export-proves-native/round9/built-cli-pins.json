@@ -1,0 +1,10 @@
+{
+  "path": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/production/snapback4",
+  "bytes": 15187808,
+  "sha256": "963ffdce35ce2aef11296aae261c98aaee8f852f6a135b226b976c5a91b260b1",
+  "guideMatchesSource": false,
+  "pinsSha256": "8d31680522ac81cd7a4b5ff99c146211bbbbe25922370f2670b648210a94a299",
+  "guideMatchesSourceIgnoringTerminalNewlines": true,
+  "guideOutputSha256": "78152b99ce42eaf6401c9380342f0df14b83355f03c00e813832d6861803dcce",
+  "guideSourceSha256": "68b7270ef562aa7438046a4710f38f2a80cf7278a18f0d5dc451bb816ff30beb"
+}

@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 14.15s
+     Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-0aea40e9b28df280)
+
+running 1 test
+
+thread 'deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links' (2509690) panicked at crates/snapback4-core/tests/row_view_witness/deadlines.rs:36:17:
+assertion `left == right` failed: direct at 2: QueryOutcome { search_scopes: None, delivery: None, delivery_meter: None, ephemeral: None, data: Row(ObjectFields({"id": Id("g"), "member": Id("u")}, false, None, false)), unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 1, metered: Metered { examined: 1, index_entries: 0, rule_probes: 2, steps: 3, heap_bytes: 421, output_bytes: 45, rows_written: 0 }, tables: ["gates", "members", "messages", "permits", "unread"], next_expiry: None }
+  left: None
+ right: Some(20)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links ... FAILED
+
+failures:
+
+failures:
+    deadlines::permit_deadline_refuses_maintenance_but_value_keeps_it_through_two_links
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-core --test row_view_witness`

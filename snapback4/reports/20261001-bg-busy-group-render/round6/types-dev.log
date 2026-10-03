@@ -1,0 +1,46 @@
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 14.42s
+     Running tests/row_keyed_views.rs (snapback4/target/debug/deps/row_keyed_views-965b020b853cdfb5)
+
+running 3 tests
+
+thread 'maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types' (1386769) panicked at crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs:10:5:
+fn identity(row: unread): row
+query good():
+  for row in unread first 10:
+    box = ((({ value: (row { value: . }).value }).value { value: . }).value { value: . }).value
+    if box.pending:
+      return 1
+  return 0
+
+[Diagnostic { site: Site { file: "state.q", line: 46, col: 11 }, code: "E_QUARRY_TYPE", message: "if needs a bool condition, got bool ?", rewrite: "compare the value: `if x = true:` — `x != null` is also true when x is false", guide: "types", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types ... FAILED
+
+thread 'maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse' (1386767) panicked at crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs:10:5:
+query bad():
+  for row in unread first 10:
+    box = { value: row }
+    if box.value.pending:
+      return true
+  return false
+
+[Diagnostic { site: Site { file: "state.q", line: 45, col: 17 }, code: "E_QUARRY_TYPE", message: "if needs a bool condition, got bool ?", rewrite: "compare the value: `if x = true:` — `x != null` is also true when x is false", guide: "types", mechanical: false, cascade_of: None }]
+test maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse ... FAILED
+
+thread 'maintenance_types::direct_data_projection_and_whole_rows_return_exact_values' (1386768) panicked at crates/snapback4-lang/tests/row_keyed_views/maintenance_types.rs:80:95:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_OP", family: "op", message: "E_OP: unknown operation status", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
+test maintenance_types::direct_data_projection_and_whole_rows_return_exact_values ... FAILED
+
+failures:
+
+failures:
+    maintenance_types::astra_nested_containers_and_all_nonreturn_reads_refuse
+    maintenance_types::direct_data_projection_and_whole_rows_return_exact_values
+    maintenance_types::generated_container_helper_projection_compositions_keep_receiver_types
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test row_keyed_views`

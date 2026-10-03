@@ -1,0 +1,17 @@
+file:///home/ccheever/sb4-intent/lane-jv/snapback4/packages/snapback4/src/wasm/snapback4_device.js:137
+            const ret = Error(getStringFromWasm0(arg0, arg1));
+                        ^
+
+Error: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Job`, expected one of `Query`, `Mutation`, `job`, `action` at line 1 column 162"}}
+    at __wbg_Error_408e67f47ca7b58b (file:///home/ccheever/sb4-intent/lane-jv/snapback4/packages/snapback4/src/wasm/snapback4_device.js:137:25)
+    at wasm://wasm/007c13be:wasm-function[8204]:0x1d831c
+    at wasm://wasm/007c13be:wasm-function[1300]:0x12e4f5
+    at wasm://wasm/007c13be:wasm-function[111]:0x7ca12
+    at wasm://wasm/007c13be:wasm-function[2750]:0x1799c6
+    at wasm://wasm/007c13be:wasm-function[1754]:0x14b5c9
+    at new WebDevice (file:///home/ccheever/sb4-intent/lane-jv/snapback4/packages/snapback4/src/wasm/snapback4_device.js:93:18)
+    at file:///home/ccheever/sb4-intent/lane-jv/snapback4/[eval1]:8:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v24.13.1

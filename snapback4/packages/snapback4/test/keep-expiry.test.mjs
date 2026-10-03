@@ -56,7 +56,7 @@ async function fixture(t, tier) {
   const post = async (path, body) => (await fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(body) })).json();
   const deadline = Date.now() + 60_000;
   assert.equal((await post("/seed", [{ table: "secrets", row: { id: "private", body: "private answer", expiresAt: deadline } }])).seeded, 1);
-  let wall = deadline - 100, hold = false, mode = "held", reads = 0, failed = 0, target, committed = false, core, client;
+  let wall = deadline - 3000, hold = false, mode = "held", reads = 0, failed = 0, target, committed = false, core, client;
   const gate = Promise.withResolvers(), held = [], polls = [];
   const clock = new ServerClock(() => wall);
   const intercept = async result => {
@@ -98,7 +98,8 @@ async function fixture(t, tier) {
         if (operation === "notification") {
           const write = await post("/m/edit", { id: "remote-edit", args: { body: "replacement" } });
           assert.equal(write.state, "sent"); await until(() => polls.length);
-          polls.shift().resolve({ seq: write.seq, store_id: write.store_id, tables: ["secrets"] });
+          assert.ok(write.preserved.includes("secrets"), "ordinary body edit preserves disclosure");
+          polls.shift().resolve({ seq: write.seq, store_id: write.store_id, tables: ["secrets"], preserved: write.preserved });
         } else await client.mutate(edit, { body: "replacement" });
       }
       else {
@@ -110,6 +111,7 @@ async function fixture(t, tier) {
       }
     },
     expire() { wall = deadline; },
+    beforeExpiry() { wall = deadline - 1; },
     async deviceValue() { return (await core.call({ op: "query", name: "secret", args: {}, viewer: "dev:alice", now: wall })).ok.data; },
     async release() {
       if (tier === "online") assert.equal((await post("/dev/clock/advance", { duration: "2m" })).advancedMs, 120_000);
@@ -117,6 +119,22 @@ async function fixture(t, tier) {
     },
   };
 }
+
+for (const tier of ["wasm", "process", "online"]) test(`${tier}: preserving retention survives one second but not its exact row expiry`, async t => {
+  const f = await fixture(t,tier), watch = f.client.observe(q,{});
+  let wall = Date.now(); t.mock.method(Date,"now",()=>wall);
+  await until(()=>watch.getSnapshot().data?.body === "private answer");
+  await f.change(tier === "online" ? "notification" : "apply");
+  await until(()=>f.held.length);
+  wall += 2999;
+  f.beforeExpiry();
+  assert.equal(watch.getSnapshot().data?.body,"private answer");
+  assert.equal(watch.getSnapshot().revalidating,true);
+  f.expire();
+  assert.equal(watch.getSnapshot().loading,true,"expiry remains a hard fence during preserving revalidation");
+  await f.release();
+  await until(()=>watch.getSnapshot().data === null);
+});
 
 for (const tier of ["wasm", "process", "online"]) {
   for (const keep of [undefined, true]) for (const operation of tier === "online" ? ["notification"] : ["apply", "admit", "settle"]) {
@@ -137,12 +155,16 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const mode of tier === "online" ? ["loading", "failure"] : ["failure"]) {
-    test(`${tier} keep: a ${mode} re-read after change evidence withdraws before expiry`, async t => {
+    test(`${tier} keep: a ${mode} re-read after non-policy change preserves the original expiry`, async t => {
       const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change("apply", mode);
       await until(() => f.failed() > 0);
-      await until(() => watch.getSnapshot().loading, "change evidence withdraws on failure or explicit loading");
+      if (mode === "failure") {
+        // RV: the body update cannot revoke; failed retries keep the old answer.
+        assert.equal(watch.getSnapshot().data?.body, "private answer");
+        assert.equal(watch.getSnapshot().revalidating, true);
+      } else await until(() => watch.getSnapshot().loading, "an explicit replacement loading remains authoritative");
       f.hold(true); f.expire();
       await until(() => watch.getSnapshot().loading, "failed/loading re-read left the old deadline armed");
     });

@@ -117,7 +117,9 @@ impl Shared {
     // is retained. Identity guards still refuse an obsolete generation.
     pub(super) fn reader(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
         let (result, sites) = self.acquire_reader(|| {
+            let start = trace::begin();
             let mut readers = lock(&self.readers);
+            trace::waited(start, "readers");
             (readers.detached(), readers.refusal_sites.clone())
         });
         if let Some(result) = result {

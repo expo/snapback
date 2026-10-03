@@ -1,0 +1,144 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "uv": "1.51.0",
+  "cpu": "AMD EPYC 9454 48-Core Processor",
+  "cores": 10,
+  "affinity": "pid 940708's current affinity list: 0-9",
+  "binary": "/tmp/ct-before",
+  "binarySha256": "693833ef6df526754f3b618b6581e277858f8e7471bcfb2e89c55623ef4f51e1",
+  "client": "0.4.10",
+  "actions": 88143,
+  "started": "2026-10-01T22:50:26.548Z",
+  "rounds": 5,
+  "serverPid": 940720,
+  "load": [
+    15.68,
+    14.89,
+    11.43
+  ],
+  "finished": "2026-10-01T22:50:48.772Z",
+  "processes": [
+    {
+      "pid": 941802,
+      "level": 0.5
+    },
+    {
+      "pid": 941809,
+      "level": 0.5
+    },
+    {
+      "pid": 941816,
+      "level": 0.5
+    },
+    {
+      "pid": 941823,
+      "level": 0.5
+    },
+    {
+      "pid": 941830,
+      "level": 0.5
+    },
+    {
+      "pid": 943509,
+      "level": 1
+    },
+    {
+      "pid": 943516,
+      "level": 1
+    },
+    {
+      "pid": 943523,
+      "level": 1
+    },
+    {
+      "pid": 943530,
+      "level": 1
+    },
+    {
+      "pid": 943537,
+      "level": 1
+    },
+    {
+      "pid": 943544,
+      "level": 1
+    },
+    {
+      "pid": 943551,
+      "level": 1
+    },
+    {
+      "pid": 943558,
+      "level": 1
+    },
+    {
+      "pid": 943565,
+      "level": 1
+    },
+    {
+      "pid": 943572,
+      "level": 1
+    },
+    {
+      "pid": 944694,
+      "level": 1.5
+    },
+    {
+      "pid": 944701,
+      "level": 1.5
+    },
+    {
+      "pid": 944713,
+      "level": 1.5
+    },
+    {
+      "pid": 944720,
+      "level": 1.5
+    },
+    {
+      "pid": 944727,
+      "level": 1.5
+    },
+    {
+      "pid": 944734,
+      "level": 1.5
+    },
+    {
+      "pid": 944741,
+      "level": 1.5
+    },
+    {
+      "pid": 944748,
+      "level": 1.5
+    },
+    {
+      "pid": 944755,
+      "level": 1.5
+    },
+    {
+      "pid": 944762,
+      "level": 1.5
+    },
+    {
+      "pid": 944769,
+      "level": 1.5
+    },
+    {
+      "pid": 944776,
+      "level": 1.5
+    },
+    {
+      "pid": 944790,
+      "level": 1.5
+    },
+    {
+      "pid": 944799,
+      "level": 1.5
+    },
+    {
+      "pid": 944806,
+      "level": 1.5
+    }
+  ]
+}

@@ -1,5 +1,7 @@
+import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
+import { currentDecorations, copyDecorations } from "./read-decoration.ts";
 import { heldQueryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
 import { duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
@@ -54,6 +56,10 @@ import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutA
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+// @ref LLP 3000.028#3.3.1 — publication preserves the evaluator's required value deadlines.
+type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & {
+  incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined;
+};
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
@@ -190,7 +196,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const answers = new LocalReads();
   followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); }, principal);
-  const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead);
+  const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead, () => link === "online");
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt:wall:1" })).ok ?? 0);
@@ -257,11 +263,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[]) {
+  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown) {
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
     const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup) || (touched.length > 0
-      && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
-    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
+      && evidenceTouches(watch, touched)));
+    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved));
     // Warm applies return every invalidated owner for sync's resumption set; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return affected;
@@ -297,7 +303,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       terminalCommit?.(result);
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched)) committedTables?.resumed.add(watch);
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched, (result as { preserved?: unknown }).preserved)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
@@ -426,7 +432,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null, null, false, null, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -825,9 +831,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
-        const touched = new Set(notifiedTables ?? []);
         for (const watch of watches.values()) {
-          if (!notifiedTables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
+          if (evidenceTouches(watch, notifiedTables)) void scheduleRead(watch, true, json.seq, json.preserved);
         }
       }
       return changed;
@@ -857,7 +862,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     })();
   }
   const pendingRead = (tables: Set<string> | null, predictions = core[deviceControl]?.()?.predictions) => answers.pending(tables, predictions); // @ref LLP 3000.016#2.2 — one publication procedure governs every read kind.
-  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal) {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal): Promise<LocalResult<R>> {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view(); const owner = watch ?? backgroundWatch, changeVersion = owner?.changeVersion;
     const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
@@ -888,7 +893,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       deviceNow: clock.issuedDeviceNow, serverNow: clock.estimatedServerNow,
       offline, get serverAnswers() { return answerCache; }, ephemeralReads,
     };
-    const work = duringRead((async () => {
+    const work = duringRead((async (): Promise<LocalResult<R>> => {
       for (let attempt = 0; ; attempt++) {
         checkRead(signal);
         const revision = incarnation, authority = answers.revision;
@@ -912,10 +917,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
   }
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
+    result.read = currentDecorations(result.read);
     return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
       && result.incarnation === incarnation && result.authority === answers.revision
-      && (result.credential === undefined || result.credential === credentialRevision)
-      && (!result.controlCurrent || result.controlCurrent())
+      && (result.credential === undefined || result.credential === credentialRevision) && (!result.controlCurrent || result.controlCurrent())
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
       && (result.localWakeup || result.nextExpiry === null || result.nextExpiry > clock.issuedDeviceNow()))), publish, { client, watch });
@@ -923,14 +928,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function watchEphemeral(watch: Watch) {
     const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, (reset, changed) => {
+    ephemeralReads.add(watch, tables, (reset, changed, preserved) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
-      if (reset) scheduleExpiry(watch, null);
+      if (reset) scheduleExpiry(watch, null, null, false, null, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void scheduleRead(watch, changed);
+        void scheduleRead(watch, changed, undefined, preserved);
       };
     });
   }
@@ -942,7 +947,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const shown = watch.snapshot, changeVersion = watch.changeVersion;
     try {
       const result = await runLocal(watch.op, watch.args, undefined, true, watch);
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (withdrawnLocalResult(watches.values(), watch, result)) { armPresence(watch); return; }
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
@@ -953,9 +958,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
-          scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+          scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer);
           const denied = unavailable();
-          watch.publish(denied ? { denied } : read);
+          watch.publish(denied ? { denied } : result.read);
           notify(watch);
           watch.presenceEvery = after;
           return true;
@@ -965,11 +970,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
   const readWork = new ObservationWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
-  function scheduleRead(watch: Watch, changed = false, cut?: number) {
+  function scheduleRead(watch: Watch, changed = false, cut?: number, preserved?: unknown) {
     if (closed || sessionDead) return; if (changed) answers.changed(watch, cut);
     const denied = changesStopped ?? partitionDenied; if (denied) { watch.reset({ denied }); notify(watch); return; }
     if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); return; }
-    watch.reload(changed, { queued: true }); notify(watch); acquireRead(watch);
+    watch.reload(changed && watchCanRevoke(watch, preserved), { queued: true }); notify(watch); acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
     if (closed || sessionDead) return;
@@ -992,7 +997,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
-      const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
+      const { read, tables, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (revision !== incarnation || authority !== answers.revision || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
@@ -1005,19 +1010,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
-        watch.tables = tables; watch.scopes = result.scopes;
         // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
         if (served) watch.presenceEvery = after;
         armPresence(watch);
         if ((result.transportOffline || result.retryExhausted) && (!("data" in read) || episodeDeadline(watch.snapshot) !== undefined)) {
           watch.failed(result.transportOffline);
-          if (!watch.kept) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+          if (!watch.kept) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer);
           notify(watch); return true;
         }
-        scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+        scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer);
         if (watch.snapshot !== read) {
+          watch.tables = tables; watch.scopes = result.scopes;
           watch.setExistenceTables(result.existenceTables ?? null); const denied = unavailable(); // Rule 1: immediately before notifying observers.
-          watch.publish(denied ? { denied } : result.transportOffline && "data" in read ? { ...read, revalidating: true } : read);
+          watch.publish(denied ? { denied } : copyDecorations(result.read, result.transportOffline && "data" in result.read ? { ...result.read, revalidating: true as const } : result.read));
           notify(watch);
         }
         return true;
@@ -1193,11 +1198,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
-        () => localWatch(keep, op as Query<unknown, unknown>, args, key, incarnation, pendingRead),
+        () => Object.assign(localWatch(keep, op as Query<unknown, unknown>, args, key, incarnation, pendingRead), { opaque: () => !backend?.programs.some(p => p.name === op.name && !p.native) }),
         watch => {
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
-          if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
+          if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer);
           answers.resume(watch); void scheduleRead(watch); },
         watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
         (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
@@ -1423,7 +1428,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   // @ref LLP 3000.007#20.4 — recover existing IDs before accepting a fresh synchronous web admission; custody stays with the outbox and its receipt window.
   await queued();
-  // Remember shared ids for lookup retries; outcome retention and settlement stay local.
   const keptWrites = (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null;
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);

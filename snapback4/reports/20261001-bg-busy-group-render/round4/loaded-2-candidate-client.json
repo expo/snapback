@@ -1,0 +1,122 @@
+{
+  "send_to_request_prediction_cpu_ms": {
+    "n": 50,
+    "p50": 0.199951171875,
+    "p95": 0.300048828125,
+    "max": 0.60009765625
+  },
+  "send_to_request_decorations_cpu_ms": {
+    "n": 50,
+    "p50": 35.2998046875,
+    "p95": 71.199951171875,
+    "max": 134.099853515625
+  },
+  "send_to_request_other_queries_cpu_ms": {
+    "n": 50,
+    "p50": 2.5,
+    "p95": 6.200439453125,
+    "max": 7.499755859375
+  },
+  "send_to_request_other_vm_cpu_ms": {
+    "n": 50,
+    "p50": 1.400146484375,
+    "p95": 4.60009765625,
+    "max": 6.7001953125
+  },
+  "send_to_request_device_idb_elapsed_ms": {
+    "n": 50,
+    "p50": 4.10009765625,
+    "p95": 28.100341796875,
+    "max": 37.500244140625
+  },
+  "send_to_request_authority_idb_elapsed_ms": {
+    "n": 50,
+    "p50": 5.599853515625,
+    "p95": 60.5,
+    "max": 133.39990234375
+  },
+  "send_to_request_facade_checks_elapsed_ms": {
+    "n": 50,
+    "p50": 56.999755859375,
+    "p95": 120.499755859375,
+    "max": 228.7998046875
+  },
+  "send_to_request_authority_transactions": {
+    "n": 50,
+    "p50": 5,
+    "p95": 10,
+    "max": 11
+  },
+  "send_to_request_lock_queue_ms": {
+    "n": 50,
+    "p50": 35.39990234375,
+    "p95": 72.099609375,
+    "max": 91.499755859375
+  },
+  "history_to_raw_ms": {
+    "n": 100,
+    "p50": 0.400146484375,
+    "p95": 58.599853515625,
+    "max": 112.800048828125
+  },
+  "raw_to_public_ms": {
+    "n": 100,
+    "p50": 9.800048828125,
+    "p95": 34.400146484375,
+    "max": 62.89990234375
+  },
+  "history_to_public_prediction_cpu_ms": {
+    "n": 100,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+  },
+  "history_to_public_decorations_cpu_ms": {
+    "n": 100,
+    "p50": 0,
+    "p95": 47.699951171875,
+    "max": 103.2001953125
+  },
+  "history_to_public_other_queries_cpu_ms": {
+    "n": 100,
+    "p50": 0.39990234375,
+    "p95": 8.300048828125,
+    "max": 11.700439453125
+  },
+  "history_to_public_other_vm_cpu_ms": {
+    "n": 100,
+    "p50": 0.400146484375,
+    "p95": 1.800048828125,
+    "max": 5.099853515625
+  },
+  "history_to_public_device_idb_elapsed_ms": {
+    "n": 100,
+    "p50": 3.300048828125,
+    "p95": 8.900146484375,
+    "max": 11.699951171875
+  },
+  "history_to_public_authority_idb_elapsed_ms": {
+    "n": 100,
+    "p50": 5.699951171875,
+    "p95": 35.69970703125,
+    "max": 58.10009765625
+  },
+  "history_to_public_facade_checks_elapsed_ms": {
+    "n": 100,
+    "p50": 11.10009765625,
+    "p95": 73.39990234375,
+    "max": 127.300048828125
+  },
+  "history_to_public_authority_transactions": {
+    "n": 100,
+    "p50": 1,
+    "p95": 2,
+    "max": 3
+  },
+  "history_to_public_lock_queue_ms": {
+    "n": 100,
+    "p50": 1.400146484375,
+    "p95": 59.60009765625,
+    "max": 115
+  }
+}

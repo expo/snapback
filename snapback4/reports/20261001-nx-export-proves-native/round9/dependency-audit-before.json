@@ -1,0 +1,32 @@
+[
+  {
+    "starter": "plain",
+    "beforeDigest": "17665670b5be78050c1a161a014a1f3f2f9f5eb873b70a72615088484885f859",
+    "beforeAudited": true,
+    "digest": "bbc47944fe65bc071b1af1ae81c6ab85bf7044e0ef7362ae7022b7d258247040",
+    "audited": false,
+    "plugin": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+    "pluginAudited": false,
+    "counts": {
+      ".package-lock.json": 1,
+      "snapback4-darwin-arm64": 2,
+      "snapback4-expo": 8,
+      "snapback4": 158
+    }
+  },
+  {
+    "starter": "social",
+    "beforeDigest": "158df3df0212e391f88c6b1d1951c485074de296921cbf020fb0d9fbca43008a",
+    "beforeAudited": true,
+    "digest": "433329043c48175e2c0003a7ea354b18eab15afaf31a162211e6e41bb5e38a50",
+    "audited": false,
+    "plugin": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+    "pluginAudited": false,
+    "counts": {
+      ".package-lock.json": 1,
+      "snapback4-darwin-arm64": 2,
+      "snapback4-expo": 8,
+      "snapback4": 158
+    }
+  }
+]

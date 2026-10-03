@@ -13,6 +13,11 @@ impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+        if self.decoration_cache.is_some() { return self.decoration_get(read); }
+        self.get_uncached(read)
+    }
+
+    pub(super) fn get_uncached(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         let expiry = self.next_expiry.scope();
         let mut emitted = false;
         self.schema.refuse_private(&read.table)?;

@@ -1038,6 +1038,14 @@ impl Parser {
             }
             "if" => return self.parse_if(),
             "elif" => return Err(unsupported(&token.site, "elif", "else if cond:")),
+            "as" => {
+                let site = self.take("as")?.site;
+                let principal = self.expression(0, &[":"])?;
+                self.take(":")?;
+                self.newline()?;
+                let body = self.parse_block()?;
+                return Ok(Stmt::As { principal, body, site });
+            }
             "for" => return self.parse_for(),
             "require" => return self.parse_require(),
             "return" => {

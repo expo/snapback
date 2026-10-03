@@ -1,0 +1,130 @@
+{
+  "reportVersion": 1,
+  "lane": "grok-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "benchmarks/schema/social-messenger/assertions.json",
+    "localPath": "/Users/ccheever/clique-sb4-20260930-grok-cal28/instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-insights",
+      "note": "All six lifetime totals render on the Insights screen (sm-insights-total-posts/likes-received/reposts-received/replies-received/followers/following) and every value matched an independent recount over the corpus: insights {posts:40, likesReceived:2, repostsReceived:4, repliesReceived:4, followers:4, following:2} == recounted {40,2,4,4,4,2}. (Content had already been mutated past the pristine starter state by earlier grader probes, so ground truth was recomputed from the live corpus rather than from the seed figures.) The builder's mapped test only checks that two of the six fields are numbers."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "coverage/receipts-m8.jsonl 'm8-a02-insights-like-refresh' passed with metrics beforeLikes:8 -> afterLikes:9 and refreshMs 511.5 - a peer's like incremented the author's likes-received total on refresh."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-insights",
+      "note": "A post created today raises today's bucket: api.insightDay(now).posts went 40 -> 41 on one create, and insightDay.day == insights.today == floor(serverNow/86400000) == 20727, so bucketing is on server-clock UTC day boundaries. On the web the 7-day list renders 'Today Posts 46 Likes received 21' once the screen settles (the breakdown needs ~5 s after load; a read taken immediately shows zeros, with no loading indication on the bars). The builder's mapped test only checks that the field is a number."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-insights",
+      "note": "All seven trailing days render as rows, never omitted: the six idle days each show 'Posts 0 Likes received 0' in the web list and api.insightDay returns a numeric row with day/posts/likesReceived for every one of them (schema.q uses '?? 0'). The builder's mapped test is the tautology 'posts === 0 || posts >= 0'."
+    },
+    "m8-a05": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-trending",
+      "note": "FAIL. Selecting the Trending tab throws the uncaught error \"Cannot use 'in' operator to search for 'loading' in undefined\" and renders nothing: 0 sm-trending-row nodes, 0 kit empty-state nodes, and the entire page body goes empty because the always-mounted FeedScreen unmounts - Following and Global stop rendering too until a full reload. The cause is src/FeedScreen.tsx:113, which reads existence(trending.read) where `trending` is a Read with no `.read` property (also one of the 8 live typecheck errors). The backend query is correct: api.trending ranked the 8-like post first, like-count descending, replies excluded. Defects d-02, d-10."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-trending",
+      "note": "The trailing-24h exclusion holds: schema.q's trending query is 'posts where .at > now - 1d and .at <= now and .parentId = null and not .removed last 10 by .likeCount, .at', and every row api.trending returned was inside the 24 h window against the server clock. 'at' is server-assigned and immutable, so no >24 h post can be minted through the app's own write path inside a grading session - the exclusion is verified by the predicate plus the in-window invariant, not by a backdated fixture. Scored on that observable; the Trending surface itself is broken (m8-a05). The builder's mapped test checks a 48 h window, not 24 h, and is vacuous on an empty list."
+    },
+    "m8-a07": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-trending",
+      "note": "FAIL in the product for the same reason as m8-a05: the Trending surface rendered 0 ranked rows, so the tie order is not observable to a user. The backend ordering is correct - two posts with 3 likes each ranked newest-first (the newer at rank 3, the older at rank 4) and every equal-like adjacent pair was ordered newest-first. Defect d-02."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-digest",
+      "note": "Under the shortened digest config (config/digest.json: periodSeconds 120, anchor 00:00:00 UTC) with no client interaction, one controlled period emitted exactly one payload per active user and zero duplicate (user,period) pairs. Counts matched prediction exactly: X expected {newFollowers:1, newPostsInFollowing:2, unreadMessages:0, unreadChats:0} and got exactly that; Y expected {0,2,2,1} and got it; Z expected {0,0,3,1} and got it. Emission was driven by the schedule alone - all four personas' clients were idle. The builder's mapped tests for M8 never read the push log at all."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-digest",
+      "note": "A wholly idle persona with a profile but zero activity received no digest for the controlled period; that period emitted payloads only for the three personas with non-zero counts, and every other seeded persona (also idle) likewise got none. schema.q gates emission on 'if totals.unread > 0 or totals.newFollowers > 0 or totals.newPosts > 0 or totals.chats > 0'."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-digest",
+      "note": "The immediately following period [1790892960000, 1790893080000) was kept deliberately silent and emitted 0 digest payloads. The backend also logged 'job digest done: 1 chunk, 0 rows written' for the pre-seed firing against an empty store."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-digest",
+      "note": "Period [1790893200000, 1790893320000) was spanned by a SIGTERM and relaunch of the backend at its midpoint. It emitted 3 digest payloads, one per active user, with 3 distinct idempotency keys and 0 duplicate (user,period) pairs across every period observed in this session. schema.q emits with 'once [p.principal, periodEnd]' and the worker keeps a durable completion ledger (.snapback4/worker-ledger-*.sqlite, 112 rows / 112 distinct keys)."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m8-digest",
+      "note": "In one clean period, 4 messages were sent in a chat whose only members were Y and Z; the target X is not a member and its read of that chat answered 'absent'. X did receive a digest that period (newFollowers 1) yet unreadMessages and unreadChats stayed 0. Control: member Z's digest for the same period carried unreadMessages 4, unreadChats 1, so the messages were in fact counted for an actual member. schema.q's digestTotals iterates 'members where .principal = p.principal'. The same zero held for X in a second, independently observed period."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "coverage/receipts-m8.jsonl 'm8-a13-same-account-message-live' passed (1264.6 ms, visibleMs 700.9) - one account on two clients, a send on client 1 visible live on client 2."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m8 'm8-a14-cross-device-read-state' passed (5246.6 ms, clearVisibleMs 1368.4) - opening the conversation on one client cleared the unread indication on the other."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m8 'm8-a15-dual-offline-convergence' passed (8033.9 ms, firstFlushMs 2347.9, secondFlushMs 1789.6) - both warm-offline clients composed in the same chat and both settled on reconnect in server-arrival order, no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#choreo",
+      "note": "receipts-m8 'm8-a16-dual-offline-receipts' passed (457.4 ms; firstReadMs 4.2, secondReadMs 457.2) - receipts advanced normally after the dual-offline reconnect."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m8.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m8 holds only Hermes `expo export` output - no app build, no recording, no structured native receipts, and no artifacts/native-smoke directory. The instrument's simulator.md states that native scoring 'remains null or failed until this artifact exists', and simulator assertions are scored only from harness recordings and are never re-driven by the grader. Recorded not-run."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "lanes/grok-snapback4/grading/trace.md#m6-simulator",
+      "note": "No iOS-simulator artifact exists for this lane. coverage/receipts-m8.jsonl records choreography.supplementalExternal = [{id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded', requiredForGreen:false}], and artifacts/ios-m8 holds only Hermes `expo export` output - no app build, no recording, no structured native receipts, and no artifacts/native-smoke directory. The instrument's simulator.md states that native scoring 'remains null or failed until this artifact exists', and simulator assertions are scored only from harness recordings and are never re-driven by the grader. Recorded not-run."
+    }
+  }
+}

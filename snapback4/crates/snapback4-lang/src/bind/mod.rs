@@ -49,6 +49,8 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    /// Receipt member operation names, needed only by TypeScript emission.
+    pub receipt_members: std::collections::BTreeMap<String, String>,
     /// Compiler-side source map; never serialized into the client backend.
     pub refusal_sites: std::collections::BTreeMap<(String, String), String>,
     pub view_types: std::collections::BTreeMap<String, crate::types::Ty>,
@@ -184,6 +186,13 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         }
     }
     if diagnostics.is_empty() {
+        let scopes = programs.iter().map(|bound| (&bound.program, &bound.maintenance_scopes)).collect::<Vec<_>>();
+        for (i, message) in snapback4_core::engine::admission::check_state_predicate_scopes(&schema, &scopes) {
+            diagnostics.push(Diagnostic::new(&programs[i].site, "E_VIEW_KEY", message,
+                "project value or member fields before computing; use a separate variable for the row").guide("maintains"));
+        }
+    }
+    if diagnostics.is_empty() {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail_with_statements(&schema, &bound.program, &bound.statement_ends) {
             Ok(()) => true,
             Err(error) => {
@@ -236,7 +245,20 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
-    Bound { refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
+    // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
+    let receipt_members = catalog.documents.iter().flat_map(|doc| {
+        let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
+        doc.tables.iter().filter_map(move |table| table.receipts.as_ref().map(|clause|
+            (clause.name.clone(), operation_name(&module, &clause.operations[3]))))
+    }).collect();
+    if !schema.receipts.is_empty() && let Some(collision) = programs.iter().find(|bound|
+        bound.program.kind != snapback4_core::ir::ProgramKind::Job
+        && bound.program.name.split('.').next() == Some("receiptFamilies")) {
+        diagnostics.push(Diagnostic::new(&collision.site, "E_RECEIPTS_CLAUSE",
+            "API name receiptFamilies collides with the generated receipt-family namespace",
+            "rename the operation or module receiptFamilies").guide("receipts"));
+    }
+    Bound { receipt_members, refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {

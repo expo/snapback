@@ -13,6 +13,9 @@ root = Path(os.environ['WITNESS_TEST_DIR'])
 mode = os.environ['WITNESS_TEST_MODE']
 udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
+if a == ['--sdk', 'iphonesimulator', '--show-sdk-version']:
+    print('26.6' if mode == 'running' else '27.0')  # Contrast host and product in the failure test.
+    sys.exit(0)
 assert a[0] == 'simctl'
 a = a[1:]
 with (root / 'simctl-calls.jsonl').open('a') as f:
@@ -139,6 +142,17 @@ elif a[0] == 'launch':
     def emit(step):
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
+    if mode in ['scene-exit', 'scene-exit-late', 'scene-exit-after-prime']:
+        if mode == 'scene-exit-after-prime':
+            emit('primed')
+        reports = root / 'Library/Logs/DiagnosticReports'
+        reports.mkdir(parents=True)
+        target = root / 'pending-scene-report' if mode == 'scene-exit-late' else reports / 'App.ips'
+        target.write_text(json.dumps({'bundleID': 'dev.test'}) + '\n' + json.dumps({
+            'pid': pid, 'procPath': '/CoreSimulator/Devices/' + udid + '/data/App', 'faultingThread': 0,
+            'threads': [{'frames': [{'symbol': '___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke'}]}]}))
+        (root / 'app-pid').unlink()
+        sys.exit(0)
     if config.get('smoke'):
         (root / 'smoke-folder').write_text(str(folder))
         segment = config['segment']
@@ -209,6 +223,8 @@ elif a[0] == 'io':
     while True:
         time.sleep(.05)
 elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
+    if mode == 'scene-exit-late' and (root / 'pending-scene-report').exists() and not (root / 'scene-exit-observed').exists():
+        (root / 'scene-exit-observed').write_text(str(os.getpid()))
     if mode == 'smoke-source-race':
         count_file = root / 'stopped-checks'
         count = int(count_file.read_text()) + 1 if count_file.exists() else 1

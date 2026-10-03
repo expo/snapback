@@ -1,0 +1,36 @@
+{
+  "at": 1790930699140,
+  "tables": [
+    {
+      "name": "followingWork",
+      "kind": "timeline",
+      "states": [
+        {
+          "state": "done",
+          "n": 24203
+        },
+        {
+          "state": "pending",
+          "n": 425
+        }
+      ],
+      "pending": 425
+    },
+    {
+      "name": "$recount:unread",
+      "kind": "recount",
+      "states": [],
+      "pending": 0
+    }
+  ],
+  "jobs": [],
+  "lastCommit": {
+    "seq": 195360,
+    "at": 1790930699040,
+    "program": "following:delivery"
+  },
+  "pending": 425,
+  "elapsedMs": 76.402702,
+  "scope": "one supplemental read-only progress observation during paced zero-load calibration trial; not a latency sample",
+  "precedingDiagnosticError": "An initial read-only open used an extra replay-instance path component and failed before opening a database. Corrected here."
+}

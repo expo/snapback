@@ -1,0 +1,23 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.10 (/home/ccheever/sb4-intent/lane-bg/snapback4/crates/snapback4)
+    Finished `dev` profile [unoptimized] target(s) in 7.95s
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/tools/instrument-server.py", line 32, in <module>
+    shutil.copy2(root/'target/debug/snapback4',root/'target/debug/snapback4-ll-measure')
+  File "/usr/lib/python3.12/shutil.py", line 475, in copy2
+    copyfile(src, dst, follow_symlinks=follow_symlinks)
+  File "/usr/lib/python3.12/shutil.py", line 262, in copyfile
+    with open(dst, 'wb') as fdst:
+         ^^^^^^^^^^^^^^^
+OSError: [Errno 26] Text file busy: '/home/ccheever/sb4-intent/lane-bg/snapback4/target/debug/snapback4-ll-measure'

@@ -1,0 +1,14 @@
+2026-10-02T14:36:34.962455+00:00
+Read-only diagnosis before intervention.
+Only web-admission-review.test.mjs remains; no Chromium or Node page-server listener remains.
+1850048 1715670       13:21 00:00:05 Sl   MainThread
+cwd=/home/ccheever/sb4-intent/lane-fdl/snapback4
+Max open files            1048576              1048576              files     
+1868381 1850048       13:08 00:00:03 Sl   snapback4
+cwd=/tmp/sb4-witness-app-ypSLGN
+Max open files            1048576              1048576              files     
+Server connections/listeners:
+LISTEN    0      128                      127.0.0.1:44959                     0.0.0.0:*     users:(("snapback4",pid=1868381,fd=5))       
+Node children:
+1868381 1850048       13:08 00:00:03 Sl   snapback4
+2026-10-02T14:36:58.786461+00:00: sent SIGTERM to recorded orphan fixture PID 1868381, after verifying suite ancestry, executable and cwd. No test runner or browser was signalled.

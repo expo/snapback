@@ -1,0 +1,20 @@
+{
+  "round2": {
+    "raw_bytes": 2015329,
+    "gzip_bytes": 605005,
+    "sha256": "9900742bc7058ff4f1efa79babe9aafcc5d812c463d0306239bd43a4ddcc3f1d"
+  },
+  "round4": {
+    "raw_bytes": 2015799,
+    "gzip_bytes": 605215,
+    "sha256": "a4a4014a1b221e39fbc8bf8d384f64065271f57ccbdfc8e7c45532ca489f1b30"
+  },
+  "candidate": {
+    "raw_bytes": 2012674,
+    "gzip_bytes": 605008,
+    "sha256": "233a8f5ca6c1dbbf7205513aea3b059fb35bf59814d99b24fcba1cef6451c164"
+  },
+  "branch_ratchet": 605225,
+  "main_budget_informational": 610782,
+  "gzip_method": "gzip -9 -c FILE"
+}

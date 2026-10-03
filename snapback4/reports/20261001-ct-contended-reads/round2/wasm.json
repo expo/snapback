@@ -1,0 +1,7 @@
+{
+  "rawBytes": 2015329,
+  "rawSha256": "1af9d7fe60bae0062df11d2f7e35e547530a5d93f2e04eb2b6b198921ebbea43",
+  "gzipBytesFromCanonicalBuild": 605001,
+  "budgetBytes": 605225,
+  "headroomBytes": 224
+}

@@ -75,6 +75,9 @@ pub struct SearchComposition {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    /// A compiler-proved point projection, evaluated after the bare search page.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub search_decoration: bool,
     /// Compiler-proved SDK composition descriptor; no application predicate is changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub search: Option<SearchComposition>,

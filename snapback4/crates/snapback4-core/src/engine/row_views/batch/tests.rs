@@ -187,7 +187,7 @@ fn assert_receipt_committed(engine: &mut crate::Engine, members: usize, require_
     let views = engine.store().rows("unread").unwrap();
     assert_eq!(views.len(), members);
     if require_pending {
-        assert!(views.iter().any(|row| row.field("recountPending") == Ok(&Value::Bool(true))), "certification yields when probe plus walk cannot fit");
+        assert!(!engine.store().rows("$recount:unread").unwrap().is_empty(), "certification yields into private work when probe plus walk cannot fit");
     }
     let committed = engine.seq().unwrap();
     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, crate::engine::ViewChunk::Private)); }
@@ -392,6 +392,9 @@ struct ObservedRows {
     images: std::cell::RefCell<std::collections::BTreeMap<String, String>>,
 }
 impl Rows for ObservedRows {
+    fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        self.rows.index_head(table, index, prefix, bounds, dir)
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.rows.get(table, id) }
     fn lookup(&self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.rows.lookup(table, name, index, key) }
     fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
@@ -538,3 +541,100 @@ fn cold_basis_single_candidate_reserves_private_witness_before_storage_access() 
     }
     assert!(failures.is_empty(), "reserve decoder + witness before storage access:\n{}", failures.join("\n"));
 }
+
+
+#[test]
+fn busy_group_stream_certification_bounds_storage_requests() {
+    let schema = schema(false);
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let mut views = Vec::new();
+    for n in 0..50 {
+        let id = format!("member-{n}");
+        rows.put("members", &schema.tables["members"], &member(&id, "busy", &id, if n < 47 { 0 } else { 10000 }), None).unwrap();
+        views.push(view(&id, n % 2 == 0));
+    }
+    for n in 1..=10000 {
+        rows.put("messages", &schema.tables["messages"], &message(&format!("message-{n}"), "busy", n, Value::Null), None).unwrap();
+    }
+    let mut r = runner(&rows, &schema, "reader");
+    let result = r.live_aggregate_batch("unread", &views).unwrap();
+    for (n, row) in result.iter().enumerate() {
+        assert_eq!(row.as_ref().unwrap().field("value"), Ok(&Value::Int(if n < 47 { 10000 } else { 0 })));
+    }
+    assert_eq!(r.rebuilt_source_rows, 10000, "every live source is certified once");
+    let scans = rows.scans.borrow();
+    assert!(scans.len() <= 400, "one bounded head probe plus 32-row source pages; got {} storage requests", scans.len());
+    assert!(scans.iter().all(|(limit, _)| *limit <= 32));
+}
+
+
+#[test]
+fn stream_basis_pages_obey_finite_and_nested_heap_allowances() {
+    let mut schema = schema(false);
+    schema.tables.get_mut("messages").unwrap().columns.insert("payload".into(), crate::schema::ColumnType::Text { max: 262144 });
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let member = member("mine", "one", "reader", 0);
+    rows.put("members", &schema.tables["members"], &member, None).unwrap();
+    for n in 1..=96 {
+        let mut row = message(&format!("m{n}"), "one", n, Value::Null);
+        let Value::Row(fields) = &mut row else { unreachable!() };
+        fields.insert("payload".into(), Value::String("x".repeat(262144)));
+        rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+    }
+    let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+    for (ceiling, used, limit) in [(decoder * 8, 0, 1), (decoder * 80, decoder * 72, 1), (decoder * 80, 0, 32)] {
+        for nested in [false, true] {
+            rows.scans.borrow_mut().clear();
+            let mut r = runner(&rows, &schema, "reader");
+            r.meter.ceilings.heap_bytes = ceiling; r.meter.heap(used).unwrap();
+            let read = |r: &mut Runner<'_>| r.live_aggregate_batch("unread", &[view("mine", true)]);
+            let result = if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }.unwrap();
+            assert_eq!(result[0].as_ref().unwrap().field("value"), Ok(&Value::Int(96)));
+            assert_eq!(r.meter.ceilings.heap_bytes, ceiling);
+            assert!(r.caller_heap_ceiling.is_none());
+            assert!(rows.scans.borrow().iter().all(|(requested, allocation)| *requested == limit && *allocation <= decoder * limit as u64));
+        }
+    }
+}
+
+#[test]
+fn batch_pages_admit_at_exact_occupied_heap_for_direct_and_nested_callers() {
+    let schema = schema(false);
+    let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+    let member = member("mine", "one", "reader", 0);
+    rows.put("members", &schema.tables["members"], &member, None).unwrap();
+    for n in 1..=96 {
+        rows.put("messages", &schema.tables["messages"], &message(&format!("m{n}"), "one", n, Value::Null), None).unwrap();
+    }
+    let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+    let page = decoder * 32
+        + crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32)
+        + crate::rows::word_heap::slots::<(Option<super::super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32);
+    // These are the declared live allocations at group entry, not the saved
+    // outer usage. Pin the batch's two vectors, keys, output and member image.
+    let mut member_reader = runner(&rows, &schema, "reader");
+    member_reader.row_view_member_image(&schema.maintains[0], &view("mine", true)).unwrap();
+    let occupied = crate::rows::word_heap::slots::<Option<Value>>(1)
+        + crate::rows::word_heap::slots::<(usize, Value, i64)>(1)
+        + crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4
+        + super::super::super::write_target::row_copy_ceiling(&schema.tables["unread"])
+        + member_reader.meter.used.heap_bytes;
+    for extra in [0, 17_000] {
+        for (remaining, expected) in [(page - 1, 1), (page, 32), (page + 1, 32)] {
+            for nested in [false, true] {
+                rows.scans.borrow_mut().clear();
+                let mut r = runner(&rows, &schema, "reader");
+                r.meter.ceilings.heap_bytes = extra + occupied + remaining;
+                r.meter.heap(extra).unwrap();
+                let read = |r: &mut Runner<'_>| r.live_acquisition_batch("unread", &[view("mine", true)]);
+                let actual = if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }.unwrap();
+                assert_eq!(field_count(&actual), 96);
+                assert!(rows.scans.borrow().iter().all(|(limit, _)| *limit == expected),
+                    "page={page} occupied={occupied} extra={extra} remaining={remaining} nested={nested}: {:?}", rows.scans.borrow().iter().map(|(n, _)| n).collect::<Vec<_>>());
+                assert!(r.caller_heap_ceiling.is_none());
+            }
+        }
+    }
+    eprintln!("BG heap boundary: page={page} occupied={occupied}; direct/nested; -1, exact, +1; preoccupied=0/17000");
+}
+fn field_count(rows: &[Option<Value>]) -> i64 { rows[0].as_ref().unwrap().field("value").unwrap().as_int().unwrap() }

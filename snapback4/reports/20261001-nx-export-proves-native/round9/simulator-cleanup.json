@@ -1,0 +1,47 @@
+{
+  "removed": [
+    {
+      "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A",
+      "ownership": {
+        "name": "sb4-nx-r9-1790999661144-93718",
+        "prefix": "sb4-nx-r9-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A"
+      },
+      "recordSha256": "b7c4b3394caeb9b0fbc0d3223da7909e2d74b1b7b71014c58d520ec6b3e1a849"
+    }
+  ],
+  "commands": [
+    {
+      "args": [
+        "getenv",
+        "5A05F370-7D40-4251-AE94-E174F5E4C69A",
+        "HOME"
+      ],
+      "status": 0,
+      "stdout": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/5A05F370-7D40-4251-AE94-E174F5E4C69A/data\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "shutdown",
+        "5A05F370-7D40-4251-AE94-E174F5E4C69A"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "delete",
+        "5A05F370-7D40-4251-AE94-E174F5E4C69A"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "onlyRecordedRound9DevicesTouched": true
+}

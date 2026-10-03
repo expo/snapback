@@ -1,5 +1,5 @@
 import type { Read } from "./contract.ts";
-import { answerExistence, answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
+import { decorationAnswer, answerExistence, answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { copyEpisode, ReadEpisode } from "./read-episode.ts";
@@ -61,6 +61,8 @@ export class ReadApprovals {
     // Swap registrations without an intermediate loading notification.
     this.drops.get(owner)?.({ loading: true });
     answer.snapshot = read;
+    const dependency = owner.dependencies?.();
+    if (dependency) owner.protectedReads.add(dependency);
     const confirmedAt = owner.since;
     const held = answer, pending = owner.pending;
     const notify = () => this.notify(owner);
@@ -70,14 +72,14 @@ export class ReadApprovals {
       return notify;
     };
     const episode = new ReadEpisode(() => { withdraw()(); });
-    const expiry = holdReadExpiry(owner, withdraw);
+    const expiry = holdReadExpiry(owner, withdraw, () => { held.snapshot = decorationAnswer(held.snapshot); return notify; });
     const update = (next: Read<unknown>) => {
       const changed = held.snapshot !== next;
       held.snapshot = next; episode.arm(next);
       return changed ? notify : undefined;
     };
     update(read);
-    held.read = () => { owner.read(null); expiry.check(); episode.check(); if (pending) held.snapshot = answerExistence(held.snapshot, pending()); return held.snapshot; };
+    held.read = () => { owner.read(null); expiry.check(); episode.check(); held.snapshot = decorationAnswer(held.snapshot); if (pending) held.snapshot = answerExistence(held.snapshot, pending()); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
       const next = owner.snapshot;
       if (change === "reset" || !("data" in next)) {
@@ -90,13 +92,14 @@ export class ReadApprovals {
       let retained = answerIdentity(next) === answerIdentity(held.snapshot) ? next
         : revalidatingAnswer(held.snapshot, false, pending?.());
       if (owner.transportOffline) retained = offlineAnswer(retained, confirmedAt);
-      // @ref LLP 3000.023#10 — evidence during an authority hold bounds the
+      // @ref LLP 3000.023#12 — possible revocation during an authority hold bounds the
       // displayed answer too, even if later source replacements are already ready.
       copyEpisode(next, retained);
-      return update(retained);
+      return update(decorationAnswer(retained));
     };
     const release = () => {
       held.generation++;
+      if (dependency) owner.protectedReads.delete(dependency);
       expiry.release(); episode.clear();
       owner.followers.delete(follow);
       this.releases.delete(release);

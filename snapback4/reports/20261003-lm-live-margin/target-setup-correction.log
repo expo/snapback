@@ -1,0 +1,7 @@
+Before: target -> /home/ccheever/sb5-lanes/target
+Build link: target/debug -> /home/ccheever/sb5-lanes/target/debug
+Build link: target/wasm32-unknown-unknown -> /home/ccheever/sb5-lanes/target/wasm32-unknown-unknown
+Build link: target/x86_64-unknown-linux-gnu -> /home/ccheever/sb5-lanes/target/x86_64-unknown-linux-gnu
+Build link: target/wasm -> /home/ccheever/sb5-lanes/target/wasm
+Build link: target/native-fixture -> /home/ccheever/sb5-lanes/target/native-fixture
+After: real local scratch directory; CARGO_TARGET_DIR remains /home/ccheever/sb5-lanes/target

@@ -32,7 +32,7 @@ impl Store {
                     .ok_or_else(|| failure(std::io::Error::other("database disappeared during ownership acquisition")))?;
                 let identity = (meta.dev(), meta.ino());
                 if before.is_some_and(|m| (m.dev(), m.ino()) != identity) { continue; }
-                let mut store = Store::open(&real)?;
+                let mut store = Self::open_base(&real, std::time::Duration::from_secs(5))?;
                 if store.file_identity != Some(identity) {
                     return Err(RuntimeError::Store(format!("owned database at {} moved or was replaced; stop and reopen its current path", real.display())));
                 }

@@ -75,7 +75,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("benchmark", "bounds"), ("load test", "bounds"),
     ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),
     ("dm", "social"), ("direct message", "social"), ("chat", "social"),
-    ("composer", "client"), ("unread", "client"),
+    ("composer", "client"), ("unread", "client"), ("readPresentation", "client"), ("read-presentation", "client"),
     ("existence", "client"), ("what does a missing row mean", "client"),
     ("loading or absent", "client"), ("unknown membership offline", "offline-interactions"),
     ("typing", "ephemeral"),
@@ -356,7 +356,7 @@ partial source coverage or a cut cannot supply an exact aggregate. Physical zero
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
 view in the program; its live value cannot be probed at one unit. Value
-equalities on non-expiring maintains and ordinary tables remain supported.
+equalities on non-expiring maintains and ordinary tables remain supported. Row-keyed counts certify predicates separately (guide maintains).
 Value-order indexes over expiring sources are refused by check
 (E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use the fresh live bounded query
 on guide feeds. It sorts live counts with no schedule lag or writable score table;
@@ -476,6 +476,19 @@ retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
+
+At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
+hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
+logged once and serving continues. Startup and live `doctor` report the server's
+effective soft/hard limits and warn below 2,048 descriptors (the parallel server
+tests peaked at 1,197). Without a live report, `doctor` shows its inherited limits
+and the server's startup target; a low inherited soft limit alone needs no action.
+A hard limit or platform ceiling below 2,048 needs a host limit change and server
+restart. Children inherit the raised soft limit; Node can raise its own
+further, up to the hard limit. `doctor` also reports cumulative descriptor
+exhaustions from accept/socket clones. These close transports without an
+admission refusal; intake retries with 1–100 ms backoff, reset after a connection
+is fully constructed.
 
 Removing an element releases it; reordering keeps its home and view history;
 deleting the row releases all.

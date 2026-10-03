@@ -41,7 +41,7 @@
   },
   "app.ts": {
     "count": 74,
-    "sha256": "917d4fe36203d763eb6c32b4b98caa7faed4872ff6ce78904ae318e60eb1569b"
+    "sha256": "9f44129ad525bb81db278420e9b1b4c6fe56118c8ed3e770d9f215c5589dddaa"
   },
   "asset-download.ts": {
     "count": 9,
@@ -59,6 +59,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "change-evidence.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "changes.ts": {
     "count": 4,
     "sha256": "5ed4819e8e9d79eedb06bc2e2c687d8f3a82b14f9741897ad51484842aa78eca"
@@ -69,7 +73,7 @@
   },
   "client.ts": {
     "count": 58,
-    "sha256": "3515b0d837f11eee212681c2ff7510dfeab99ed34442833102fa0bca5cb515d3"
+    "sha256": "2cd8e08be5a54c1a01aaf878edbfb874e75342d658e9cecdf8d557a2a709456a"
   },
   "clock.ts": {
     "count": 7,
@@ -181,7 +185,7 @@
   },
   "local-query.ts": {
     "count": 32,
-    "sha256": "6c980b8ab21b622c54acf5a4dd109527042100db08037eb2c796a9e9c31116fd"
+    "sha256": "6f947dbedfa2241d943a2e924e86c0d4bfb1c85f5278d8096d6283fbf7ced5bb"
   },
   "local-read-deadlines.ts": {
     "count": 0,
@@ -197,7 +201,7 @@
   },
   "local-search.ts": {
     "count": 9,
-    "sha256": "f4c206f45cfa9f3ce28624dd58ca9bfdae1035d288c885d42e3a0dd6ce3705c1"
+    "sha256": "f904b6a744103fd12f03c20676fa9488777a89ca965a39f046e6530b50a9ff92"
   },
   "local-sync.ts": {
     "count": 5,
@@ -271,6 +275,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "read-decoration.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "read-episode.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -299,6 +307,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "receipt-family.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "request-wait.ts": {
     "count": 3,
     "sha256": "e8ee81d8a824e116caf3c2946d2cc8ec401fead84839bd651b9a742a9cc63d39"
@@ -308,6 +320,10 @@
     "sha256": "1dbb50bed81ee96f5aa4307a742688c6c531e5d663add8b81c55ea974261a28f"
   },
   "resolve-binary.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "seen-progress.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
@@ -348,8 +364,8 @@
     "sha256": "8cf239976c3ea04d0420956220e473d322e704db2a0a1c971665ce51bab5f297"
   },
   "session-authority.ts": {
-    "count": 8,
-    "sha256": "be4925d40c7bfade37e486991c06919a5829702b2180b93e32c6586f6e8a9268"
+    "count": 10,
+    "sha256": "ce9b51a4b54dd5b465c2a96214ca5992e0bb411d61457a1a1b9d55314ea792d3"
   },
   "sha256.ts": {
     "count": 0,

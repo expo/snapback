@@ -5,7 +5,7 @@ export const reactHarness = (expiryRecipe, receiptsRecipe) => `
 import { waitFor as awaitState } from '/@fs/${new URL('./wait.mjs', import.meta.url).pathname}';
 import { Activity, StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
+import { AppProvider, useAuth, useClient, useSeen, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
@@ -36,10 +36,14 @@ const failed = id => ({ state: "failed", id, why: { code: "E_INPUT", family: "in
 
 function controlled(read = () => ready([])) {
   const records = [], writes = [], viewerListeners = new Set(), writeListeners = new Set(), acquiredListeners = new Set();
+  const sessionListeners = new Set(), linkListeners = new Set();
   const receipts = new Map();
   let viewer = "dev:test";
   const client = {
     records, writes, receipts, closes: 0, acquired: false,
+    listenerCount: () => [viewerListeners, writeListeners, acquiredListeners, sessionListeners, linkListeners].reduce((sum, listeners) => sum + listeners.size, 0)
+      + records.reduce((sum, record) => sum + record.listenerCount(), 0),
+    onSession(listener) { sessionListeners.add(listener); return () => sessionListeners.delete(listener); },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     setAcquired(value) { client.acquired = value; for (const listener of acquiredListeners) listener(value); },
     write: async id => receipts.get(id),
@@ -48,6 +52,7 @@ function controlled(read = () => ready([])) {
       const record = {
         op, args, value: op.name === "myMembership" ? ready({ id: "member" }) : read(args), closes: 0,
         getSnapshot() { return record.value; },
+        listenerCount: () => listeners.size,
         subscribe(callback) { listeners.add(callback); return () => listeners.delete(callback); },
         close() { record.closes++; },
         set(value) { record.value = value; for (const callback of listeners) callback(); },
@@ -60,7 +65,7 @@ function controlled(read = () => ready([])) {
     upload: async () => ({ ok: false, why: { code: "E_ASSET_UNKNOWN", family: "asset", message: "no upload" } }),
     asset: async id => ({ denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: id } }),
     assetSource: id => ({ uri: "mock://" + id, headers: {} }),
-    link: () => "online", onLink: () => () => {},
+    link: () => "online", onLink(listener) { linkListeners.add(listener); return () => linkListeners.delete(listener); },
     viewer: () => viewer,
     onViewer(listener) { viewerListeners.add(listener); return () => viewerListeners.delete(listener); },
     onWrite(listener) { writeListeners.add(listener); return () => writeListeners.delete(listener); },
@@ -114,9 +119,11 @@ async function onlineHooks(options) {
 
 ${expiryRecipe}
 const api = { history: { kind: "query", name: "history" }, receiptMember: { kind: "query", name: "receiptMember" }, seen: { kind: "mutation", name: "seen" }, delivered: { kind: "mutation", name: "delivered" } };
+api.messageReceipts = {kind:"query",name:"decorations"};
+api.receiptFamilies = {chat:{name:"chat",fingerprint:"test",member:api.receiptMember,seen:api.seen,scopeArgument:"conversation",throughArgument:"through",mapping:{floor:"joinedOrdinal",seen:"seenOrdinal"}}};
 ${receiptsRecipe}
-const ordinals = (from, to) => Array.from({ length: from - to + 1 }, (_, n) => ({ ordinal: from - n }));
-const memberOf = seen => ready({ deliveredOrdinal: 0, joinedOrdinal: 0, seenOrdinal: seen });
+const ordinals = (from, to) => Array.from({ length: from - to + 1 }, (_, n) => ({ id: "m" + (from - n), ordinal: from - n }));
+const memberOf = seen => ready({ id: "member", deliveredOrdinal: 0, joinedOrdinal: 0, seenOrdinal: seen });
 function receiptsClient(history, progress) {
   const client = controlled(args => "c" in args ? history.get(args.c) : progress);
   client.acks = [];
@@ -125,14 +132,14 @@ function receiptsClient(history, progress) {
   return client;
 }
 const stream = client => active(client).find(record => !("c" in record.args));
-function Receipts({ visible, conversation = "c1" }) { useReceipts(conversation, visible); return null; }
+function Receipts({ visible, conversation = "c1" }) { useReceipts(conversation, visible, new Set(ordinals(1000, 1).map(m => m.id))); return null; }
 const acked = client => [...new Set(client.acks)];
 const cases = {
   async "the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself"() {
     const client = receiptsClient(new Map([[null, ready(ordinals(60, 41), "p2")], ["p2", ready(ordinals(40, 21))]]), memberOf(0));
     await mount(h(Receipts, { visible: false }), client);
     equal(client.acks, [], "a background hook reports no delivery or view");
-    equal(active(client).filter(record => "c" in record.args).length, 1, "no automatic page walk");
+    equal(active(client).filter(record => record.op.name === "history").length, 1, "no automatic page walk");
     check(active(client).some(record => record.op.name === "receiptMember"), "seen reads the member directly");
     check(!active(client).some(record => record.op.name === "progress"), "no progress subscription");
     await render(h(Receipts, { visible: true }), client);
@@ -145,8 +152,8 @@ const cases = {
     const client = receiptsClient(pages, memberOf(0));
     await mount(h(Receipts, { visible: false }), client);
     equal(client.acks, [], "fetched rows and membership never make the hook report delivery");
-    equal(active(client).filter(record => "c" in record.args).length, 1, "delivery no longer walks pages from a mounted hook");
-    await act(async () => stream(client).set(ready({ deliveredOrdinal: 20, joinedOrdinal: 0, seenOrdinal: 0 })));
+    equal(active(client).filter(record => record.op.name === "history").length, 1, "delivery no longer walks pages from a mounted hook");
+    await act(async () => stream(client).set(ready({ id: "member", deliveredOrdinal: 20, joinedOrdinal: 0, seenOrdinal: 0 })));
     equal(client.acks, [], "moving the prefix still sends no delivery");
     await render(h(Receipts, { visible: true }), client);
     equal(acked(client), ["seen:60"], "the newest message on screen is seen");
@@ -160,97 +167,33 @@ const cases = {
     equal(acked(pending), ["seen:103"], "pending rows are not seen");
     await unmount();
 
-    const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })]]), ready({ deliveredOrdinal: 0, joinedOrdinal: 0, seenOrdinal: 0 }, null, { complete: false, fresh: false, since: 50 }));
+    const offline = receiptsClient(new Map([[null, ready(ordinals(600, 581), "p2", { fresh: false, since: 50 })]]), ready({ id: "member", deliveredOrdinal: 0, joinedOrdinal: 0, seenOrdinal: 0 }, null, { complete: false, fresh: false, since: 50 }));
     await mount(h(Receipts, { visible: true }), offline);
     equal(acked(offline), ["seen:600"], "a retained visible row can be seen offline, without hook delivery");
     await unmount();
   },
-  async "the receipts card retains seen retries and scope without delivery reporting"() {
-    const early = receiptsClient(new Map([[null, ready([{ ordinal: 21, pending: true }, ...ordinals(20, 1)])]]), { loading: true });
-    await mount(h(Receipts, { visible: true }), early);
-    equal(acked(early), ["seen:20"], "a view needs no member answer and excludes predictions");
-    await render(h(Receipts, { visible: false }), early);
-    await act(async () => stream(early).set(memberOf(0)));
-    equal(acked(early), ["seen:20"], "member publication starts no delivery report");
-    await unmount();
+  async "the receipts card requires current membership and resets on withdrawal and hidden remount"() {
+    const client = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), { loading: true });
+    await mount(h(Receipts, { visible: true }), client);
+    equal(client.acks, [], "a withdrawn member is no progress authority");
+    await act(async () => stream(client).set(memberOf(0)));
+    equal(client.acks, ["seen:20"], "current visible confirmed rows report after membership arrives");
+    await render(h(Receipts, { visible: false }), client);
+    await act(async () => stream(client).set({ loading: true }));
+    await act(async () => stream(client).set(memberOf(0)));
+    equal(client.acks, ["seen:20"], "withdrawal cannot replay hidden progress");
+    await unmount(); await mount(h(Receipts, { visible: false }), client);
+    equal(client.acks, ["seen:20"], "hidden remount has no view debt");
+    await unmount(); allClosed(client);
   },
-  async "the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation"() {
-    // On screen and read through 20, an arriving message is seen though the watermark has not moved.
-    const reading = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(20));
-    await mount(h(Receipts, { visible: true }), reading);
-    equal(reading.acks, [], "a conversation read through its newest message sends nothing");
-    await act(async () => active(reading).find(record => record.args.c === null).set(ready(ordinals(21, 1))));
-    equal(reading.acks, ["seen:21"], "an arriving message on screen is seen; the SDK owns delivery");
-    await unmount();
-    // A kept view stays kept across a loading answer, though the member's row is not yet past it (Grok, round 20).
-    const kept = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0));
-    await mount(h(Receipts, { visible: true }), kept);
-    await act(async () => stream(kept).set({ loading: true }));
-    await act(async () => stream(kept).set(memberOf(0)));
-    equal(kept.acks.filter(ack => ack === "seen:20").length, 1, "a kept view is not sent again after a loading answer");
-    await unmount();
-    // A view the client could not keep is owed, hidden too, until the member's row shows it.
-    const refused = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0));
-    let refusals = 2;
-    refused.mutate = (op, args) => {
-      refused.calls.push({ op: op.name, ...args });
-      refused.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
-      if (op.name === "seen" && refusals-- > 0) return Promise.resolve({ state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } });
-      return Promise.resolve(sent("ack"));
-    };
-    const views = () => refused.acks.filter(ack => ack === "seen:20").length;
-    await mount(h(Receipts, { visible: true }), refused);
-    equal(views(), 1, "the view is sent once");
-    await render(h(Receipts, { visible: false }), refused);
-    equal(views(), 2, "an unkept view goes again when the hook runs next");
-    await act(async () => stream(refused).set(memberOf(0)));
-    equal(views(), 3, "and again with the next answer, though the conversation is hidden");
-    await act(async () => stream(refused).set(memberOf(0)));
-    equal(views(), 3, "a kept view is not sent again");
-    await act(async () => stream(refused).set(memberOf(20)));
-    await render(h(Receipts, { visible: false, conversation: "c2" }), refused);
-    await act(async () => stream(refused).set(memberOf(0)));
-    check(!refused.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no view of the first: " + JSON.stringify(refused.calls));
-    await unmount();
-    // What is owed outlives a remount of the screen, for the same signed-in client.
-    const unkept = { state: "failed", id: "x", why: { code: "E_ADMISSION", family: "store", message: "storage unavailable" } };
-    const refusing = (client, refuse) => {
-      client.mutate = (op, args) => {
-        client.calls.push({ op: op.name, viewer: client.viewer(), ...args });
-        client.acks.push(op.name + ":" + (op.name === "delivered" ? args.from + "-" : "") + args.through);
-        return Promise.resolve(refuse(op, args) ? unkept : sent("ack"));
-      };
-      return client;
-    };
-    let remaining = 1;
-    const remounted = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0)), op => op.name === "seen" && remaining-- > 0);
-    await mount(h(Receipts, { visible: true }), remounted);
-    equal(remounted.acks.filter(ack => ack === "seen:20").length, 1, "the view is sent once");
-    await unmount();
-    await mount(h(Receipts, { visible: false }), remounted);
-    equal(remounted.acks.filter(ack => ack === "seen:20").length, 2, "an unkept view goes again after a remount, hidden");
-    await unmount();
-    // A replaced client owes no view of the first, and nor does another viewer of the same client.
-    const original = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0)), op => op.name === "seen");
-    await mount(h(Receipts, { visible: true }), original);
-    const replacement = receiptsClient(new Map([[null, ready([])]]), memberOf(0));
-    await render(h(Receipts, { visible: false }), replacement);
-    await act(async () => stream(replacement).set(memberOf(0)));
-    check(!replacement.calls.some(call => call.op === "seen"), "a replaced client owes no view of the first: " + JSON.stringify(replacement.calls));
-    await unmount();
-    const two = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0)), (op, args) => op.name === "seen" && args.conversation === "c1");
-    await mount(h(Receipts, { visible: true }), two);
-    await render(h(Receipts, { visible: false, conversation: "c2" }), two);
-    await act(async () => stream(two).set(memberOf(0)));
-    check(!two.calls.some(call => call.op === "seen" && call.conversation === "c2"), "another conversation owes no unkept view of the first: " + JSON.stringify(two.calls));
-    await unmount();
-    const shared = refusing(receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0)), op => op.name === "seen" && shared.viewer() === "dev:test");
-    await mount(h(Receipts, { visible: true }), shared);
-    await render(h(Receipts, { visible: false }), shared);
-    await act(async () => shared.setViewer("dev:someone-else"));
-    await act(async () => stream(shared).set(memberOf(0)));
-    check(!shared.calls.some(call => call.op === "seen" && call.viewer === "dev:someone-else"), "another viewer owes no view of the first: " + JSON.stringify(shared.calls));
-    await unmount();
+  async "useSeen shares two Strict Mode screens and obeys the explicit viewport on both hosts"() {
+    const client = receiptsClient(new Map([[null, ready(ordinals(20, 1))]]), memberOf(0));
+    function Screen({ ids }) { useReceipts("c1", true, new Set(ids)); return null; }
+    await mount(h("div", null, h(Screen, {ids:["m3"]}), h(Screen, {ids:["m5"]})), client);
+    equal(client.calls.map(c => c.through), [5], "one shared call for the committed visible range");
+    equal(active(client).filter(r => r.op.name === "receiptMember").length, 1, "one member observation");
+    await unmount(); allClosed(client);
+    equal(client.listenerCount(), 0, "final Strict Mode unmount releases client and observation listeners");
   },
   async "useNow hides a server-answered row at its deadline and after a clock advance"() {
     let wall = 1000, offset = 90000000, revision = 0, requestDelay = 40;

@@ -1776,3 +1776,140 @@ SHA-256 `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`,
 under the unchanged **605,225 B** cap. No real simulator, system settings,
 `mini-verify-iphone` or another session's X27R worktree/simulators were touched.
 Local commit with the requested Astra co-author trailer; no push or publication.
+
+
+## Round 9 — merge with main
+
+Fetched GitHub and merged `origin/main` **`5e12646aeefa`** (including the
+landed X27R scene fix) into round 8 **`156bdee7c6`** with a real merge commit.
+No rebase, push or publication. The independent round-8 confirmation review
+is not replaced or claimed by this integration work.
+
+All five conflicted files preserve both sides: the witness combines named
+simctl failures and scene/toolchain evidence with cancellation, boot custody,
+recovery and verified export publication; its integration tests retain both
+sets of assertions. The witness card stays within 399 lines; the merged
+client card's seven excess words were removed without increasing its
+1,200-word/114-line limits. Both append-only journal tails and both LLP
+revision histories remain. Automatic merges retain one scene-plugin entry
+per starter, the export wrapper, signal-correct shim and main's client
+guidance. [Conflict details and reproduction](round9/NOTES.md).
+
+Moved the shim signal-status ticket to
+[`issues/closed/20261002-snapback4-cli-shim-signal-exit-zero.md`](../../../issues/closed/20261002-snapback4-cli-shim-signal-exit-zero.md).
+Its round-5 fix remains: remove signal forwarding handlers before re-raising
+the child's signal, with a nonzero fallback; publication also requires its
+verified receipt. Closing the source ticket on this branch does not claim
+a registry release.
+
+The mini's focused checks pass: **41 witness units, 76 integration tests,
+19 JS export/shim tests, and 111 guide tests**. Linux passes **42 witness
+units, 31 integration tests, and 18 JS tests with one Darwin-only skip**.
+The extra scene tests from main are retained. Both hosts use Rust 1.97.0
+and the packaged SQLite flag; the mini retains Volta/Node 24.18.0, Linux
+Node 24.13.1. [Linux validation](round9/linux-validation.json) rehashes the
+transported sources and logs; [cleanup](round9/linux-cleanup.json) confirms
+the scratch directory was deleted with no active process inside it.
+
+The suite's locked wasm build measures **2,047,812 bytes raw / 617,239
+bytes gzip**, below main's unchanged **618,040-byte** cap by **801 bytes**.
+SHA-256: `200187c093be9f2648d0e58d293aaba56c9b49a57bad193c034b860514da6b93`.
+No budget or runtime ceiling changed. [Measurement](round9/wasm.json).
+
+The canonical `scripts/test.sh` ran **once**, without a test-count, concurrency,
+timeout or budget override. Its exact summary is:
+
+```text
+== 2 failure(s) in 2585 s
+   cargo test
+   client tests
+```
+
+Every canonical failure is baseline, with the following evidence and limits:
+
+- **Four UB note assertions:** `prefix_reads` fails
+  `explicit_caps_stay_silent_and_predicting_short_pages_stay_refused` and
+  `prefix_reads_compile_without_notes_and_caps_follow_one_schema_number`;
+  `membership_search` fails `edges::calendar_repair_executes_the_same_offset_boundary_predicate`
+  and `refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches`.
+  Independent **main-only** Linux runs reproduce exactly those four failures
+  (8 passed/2 failed and 22 passed/2 failed). The
+  [existing UB ticket](../../../issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md)
+  remains open. No UB code or assertion is changed.
+- **One replay observation race:**
+  `w7c_dev_banner_names_the_store_and_stdout_is_readiness` misses the banner in
+  its line-330 stderr snapshot. The test and serving/logging implementation
+  match fetched main; main's [existing ticket](../../../issues/20261002-snapback4-replay-startup-log-observation.md)
+  records the same intermittent behavior. The main-only focused Linux control
+  passes; that does not turn the canonical failure into a pass.
+- **Three SJ capability comparisons:** published-0.2.33 `timeline-v2`,
+  `recorded-attribution` and `maintained-column` reject the added
+  `decorationExpiry: null` query key. The isolated merged-tree test reproduces
+  them. The test, reply producer and complete core/device trees match main;
+  this is source-bound attribution, **not** a separate main-only Darwin run.
+  [New follow-up ticket](../../../issues/20261002-snapback4-decoration-expiry-breaks-published-capability-fence.md).
+
+The client pool reports **5,961 passed, 3 failed, 5 skipped**; the separate
+full-count serial models report **79 passed, zero failed**. The canonical
+witness integration target passes all 76. No canonical failure is attributed
+to NX, the merge, or the environment. Development/setup failures are retained
+separately in [the ledger](round9/NOTES.md), including the corrected guide
+budget, Linux target path, local-tarball manifest and heavily contended native
+resolver cleanup. [Raw suite custody](round9/full-suite-archive.json),
+[summary](round9/full-suite-summary.log), [baseline attribution](round9/baseline-attribution.json).
+
+Native validation exposed one additional integration requirement after that
+suite: merged package bytes no longer match the old cache audit. The first
+successful plain prime and nominal warm export both prove the exact bundle,
+but the latter correctly rebuilds (**190.138 / 103.911 s**, both cache misses).
+They are not counted as warm evidence. The [dependency audit](round9/dependency-audit.md)
+confirms unchanged external dependencies and static scene-plugin behavior;
+only exact new Expo-package and complete dependency hashes are added. Every
+unknown-plugin fallback stays intact. This **one-file late pin correction**
+is outside the canonical start snapshot; fresh affected checks and final native
+runs bind its final bytes, without rerunning or relabeling the canonical suite.
+
+Final pin-bound affected checks pass again on both hosts: mini **41 units /
+76 integration / 19 JS**, Linux **42 units / 31 integration / 18 JS, one
+Darwin-only skip**. The extra Linux scratch is also deleted after rehashing all
+2,435 transported files and copied logs. [Final checks](round9/final-affected-summary.json),
+[source delta](round9/final-source-validation.json),
+[Linux validation](round9/linux-final-validation.json),
+[cleanup](round9/linux-final-cleanup.json). No engine/wasm input changed after
+its canonical measurement.
+
+| Merged starter | Final priming export | Final warm export | Native portion of warm | Result |
+| --- | ---: | ---: | ---: | --- |
+| Plain | 102.414 s | **23.161 s** | 19.002 s | cache hit; three segments passed; 8 publication entries verified |
+| Social | 258.029 s | **29.560 s** | 24.576 s | cache hit; three segments passed; 32 publication entries verified |
+
+These are whole `npm run export:ios` commands, with native proof enabled.
+Both final warm exports match the installed HBC and their publication receipts
+bind the successful proof hash. [Final native verification](round9/native-final-validation.json).
+The rebuilt [production CLI](round9/built-cli-pins.json) has SHA-256
+`963ffdce35ce2aef11296aae261c98aaee8f852f6a135b226b976c5a91b260b1`.
+Priming reuses installed dependencies and system caches; plain also reuses
+this round's earlier native intermediates. These are not cold-build timings.
+Warm load1 boundaries were **6.349 → 5.729** (plain) and **12.768 → 9.534**
+(social). This is one functional sample per starter under shared-host load,
+not a quiet-host timing cohort. Social's 25-second target and round-8 custody
+residuals remain open. This proves the starter simulator lifecycle, not M6/M8
+or physical-device/registry qualification.
+
+All raw native receipts, build/device logs, videos, package tarballs and CLI
+bytes are SHA-256-addressed outside Git, including every failed/intermediate
+attempt. [Native archive](round9/native-evidence.json) and the appended
+[EVIDENCE-ARCHIVE.tsv](EVIDENCE-ARCHIVE.tsv) locate them. Original small log
+bytes are archived before trailing-whitespace normalization of their committed
+views. [Staged evidence audit](round9/staged-size.json) checks only novel blobs
+against both merge parents; historical evidence inherited from either parent
+is preserved unchanged. Final `ref-check --verbose` passes: **527 LLP docs,
+10,257 refs, zero errors and zero unchecked**.
+
+Only this round's recorded device **5A05F370-7D40-4251-AE94-E174F5E4C69A**,
+name `sb4-nx-r9-1790999661144-93718`, was targeted. It is removed after the
+archive under both ownership leases; [cleanup record](round9/simulator-cleanup.json).
+`mini-verify-iphone` and every other session's X27R worktree/simulators remain
+untouched. Both eb1000 scratch directories and the local source-transfer scratch
+are deleted. The merge is committed locally with the requested Astra co-author
+trailer. Nothing is pushed or externally published.

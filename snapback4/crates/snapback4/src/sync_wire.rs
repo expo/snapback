@@ -50,6 +50,8 @@ pub(crate) struct StreamReply {
     pub(crate) joined: wire::HeldGroups,
     pub(crate) more: bool,
     pub(crate) now: i64,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub preserved: Vec<String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) sent: BTreeMap<String, u64>,
     pub(crate) snapshot: bool,

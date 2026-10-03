@@ -1,0 +1,10 @@
+/home/ccheever/sb4-intent/lane-bg/snapback4/reports/20261001-bg-busy-group-render/round5/ll-base.json {
+  profile: { n: 20, p50: 29.762, p95: 41.036, max: 42.83 },
+  'reaction-add': { n: 20, p50: 37.241, p95: 44.161, max: 47.252 },
+  'reaction-replace': { n: 20, p50: 37.212, p95: 44.548, max: 107.337 },
+  'reaction-remove': { n: 20, p50: 36.851, p95: 45.787, max: 46.007 },
+  reply: { n: 20, p50: 78.336, p95: 92.393, max: 94.404 },
+  photo: { n: 20, p50: 81.92, p95: 95.172, max: 99.899 },
+  'feed-image': { n: 20, p50: 33.862, p95: 41.554, max: 48.759 },
+  'once-photo': { n: 20, p50: 69.381, p95: 94.843, max: 95.21 }
+}
