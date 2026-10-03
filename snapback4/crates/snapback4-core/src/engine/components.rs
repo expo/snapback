@@ -130,11 +130,13 @@ impl Runner<'_> {
 
     pub(super) fn retained_group(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
         let retained = self.device_work(|runner| runner.tx.retained_group(table, index, prefix))?;
-        if retained { self.components.note(|frame| frame.retained = true); }
+        if retained { self.retained_seen = true; self.components.note(|frame| frame.retained = true); }
         Ok(retained)
     }
 
     pub(super) fn retained_row(&mut self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
-        self.device_work(|runner| runner.tx.retained_row(table, row))
+        let retained = self.device_work(|runner| runner.tx.retained_row(table, row))?;
+        self.retained_seen |= retained;
+        Ok(retained)
     }
 }

@@ -122,7 +122,16 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 arg(&request, "page")?; // Preserve the missing-argument diagnostic.
                 page_call(device, parse(request)?)?
             }
-            "search_state" => device.search_state(text(&request, "name")?, request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?)?,
+            "search_state" => {
+                let mut spent = request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?;
+                let decorations = if request.get("decorationRows").is_some() {
+                    let (data, meter, expiry) = device.search_decorations(&request, spent.unwrap_or_default())?;
+                    spent = Some(meter); Some((data, expiry))
+                } else { None };
+                let mut state = device.search_state(text(&request, "name")?, spent)?;
+                if let Some((data, expiry)) = decorations { state["decorations"] = data; state["decorationExpiry"] = json!(expiry); }
+                state
+            },
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
@@ -131,8 +140,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let spent = request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?;
                 let (result, unknown, retained, components, provenance) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
                 let mut reply = match result {
-                    Ok(outcome) => {
-                        let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
+                    Ok(mut outcome) => {
+                        let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "decorationExpiry": outcome.decoration_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
                         if search { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
@@ -141,6 +150,22 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                             reply["loading"] = Json::Bool(true);
                         } else {
                             reply["data"] = snapback4_core::wire::to_json(&outcome.data);
+                            // Only internal retained candidates need exact source keys.
+                            if search && let Some(plan) = device.schema().operations.get(text(&request, "name")?).and_then(|f| f.search.as_ref()) {
+                                let mut meter = snapback4_core::meter::Meter::resume_observation(snapback4_core::Ceilings::default(), outcome.metered)?;
+                                for (row, value) in reply["data"].as_array_mut().into_iter().flatten().zip(outcome.data.as_array()?) {
+                                    if let Ok(snapback4_core::Value::Int(key)) = value.field(&plan.column) {
+                                        if !(snapback4_core::value::I53_MIN..=snapback4_core::value::I53_MAX).contains(key) {
+                                            meter.heap(64)?;
+                                            meter.step(24)?;
+                                            meter.charge(snapback4_core::MeterKind::OutputBytes, 2)?;
+                                            row[&plan.column] = Json::String(key.to_string());
+                                        }
+                                    }
+                                }
+                                outcome.metered = meter.used;
+                                reply["metered"] = encoded(&outcome.metered)?;
+                            }
                             reply["next"] = outcome.next.map(Json::String).unwrap_or(Json::Null);
                         }
                         if !components.is_empty() { reply["components"] = encoded(&components)?; }

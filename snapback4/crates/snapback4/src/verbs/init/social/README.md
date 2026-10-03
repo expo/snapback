@@ -64,7 +64,7 @@ never enters the durable outbox and its availability never gates the composer.
 `ConversationScreen` pins ordinary `history` to the route ID. The composer
 and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
-SDK default: plain revalidation retains, change evidence bounds it; no cache holds
+SDK default: plain revalidation retains, possibly revoking change evidence bounds it; no cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
 Membership and receipt decorations withdraw immediately. No-horizon membership
 shares the messages' audience within the conversation's group; after acquisition,
@@ -131,3 +131,49 @@ This small app deliberately has no push delivery, message deletion, expiry,
 media cache, or background catch-up scan. Those features need their own
 documented contracts; the receipt run recipe here assumes immutable message
 positions with no deletion. `snapback4 guide receipts` explains the binding.
+
+
+### Visible seen progress and independent history
+
+After `check`, a receipts clause emits `api.receiptFamilies.chat`. Import
+`useSeen` from `snapback4/react` on web or native:
+
+```tsx
+import { usePage, useSeen } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+export function useReceiptScreen(id: string, visibleIds: ReadonlySet<string>, foreground: boolean) {
+  const history = usePage(api.history, { conversation: id });
+  const through = Math.max(0, ...history.items.filter(m => visibleIds.has(m.id) && !m.pending).map(m => m.ordinal));
+  const seen = useSeen(api.receiptFamilies.chat, { scope: id, through, active: foreground });
+  const decorations = usePage(api.messageReceipts, { conversation: id });
+  return { history, seen, decorations };
+}
+```
+
+Supply viewport IDs from the platform's actual visibility callbacks; intersect
+with current confirmed rows and combine route focus with foreground. Reset IDs
+on account/backend/scope change. Loaded history and acquisition do not mean seen.
+Match current decorations by ID; their denial or loading never removes retained
+history and grants no media authority. These reads are independent snapshots.
+
+The hook shares monotonic progress and one admission/pending call per mounted
+client/family/scope. Member withdrawals, replacement, session and store/generation
+resets discard local progress; final unmount drops unadmitted progress. Admitted
+writes remain in the SDK outbox through restart. The hook never pages history,
+reads catch-up progress, or reports delivery. The descriptor's typed member/seen
+handles, actual argument names, mapping and fingerprint come from the compiler.
+
+`seen.state` is idle/admitting/pending/retrying/failed; `seen.through` is local
+progress, never a confirmed receipt. `seen.why` exposes refusals. Known
+E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-second
+backoff, at most eight retries while active. Reconnect or `seen.retry()` after
+repair wakes those refusals. Other failures/unknown outcomes are not resubmitted.
+See `snapback4 guide receipts` for the full rules and two-read recipe.
+
+Search renders `readPresentation(page.read)` from `snapback4/contract`: incomplete
+notices include nonempty pages with incomplete coverage, cuts or continuations.
+`pending` means read loading, not a queued write. Freshness and revalidation have
+separate labels. Keep the search input and conversation draft above results;
+key screen state by backend/account/resource. `guide client` links a complete
+React/Expo screen with this shell and a reusable read notice.

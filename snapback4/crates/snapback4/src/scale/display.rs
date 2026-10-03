@@ -30,7 +30,7 @@ impl Certificate {
         let sweep = if self.whole_job.is_empty() { String::new() } else { format!("; whole job grows with {}", self.whole_job.join("; ")) };
         let constants = self.variants.iter().filter(|variant| variant.class == Class::Constant)
             .map(|variant| format!("; when {}: constant", variant.when)).collect::<String>();
-        format!("scale: {scope}{verdict}{constants}{writes}{sweep}")
+        format!("scale: {scope}{verdict}{constants}{writes}{sweep}{}", self.search_decoration.as_ref().map_or(String::new(), |plan|format!("; {plan}")))
     }
 }
 

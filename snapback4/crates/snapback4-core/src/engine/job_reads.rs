@@ -10,13 +10,17 @@ fn refusal(code: &'static str, message: &str) -> RuntimeError {
 impl Runner<'_> {
     /// The server query door and job query calls share this execution path.
     pub(super) fn run_server_query(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         #[cfg(feature = "server-search")]
         let search = (!self.context.is_system()).then(|| crate::search_plan::ordinary::plan(self.schema, program)).flatten();
         #[cfg(feature = "server-search")]
         let program = search.as_ref().map_or(program, |plan| &plan.program);
         #[cfg(feature = "server-search")]
         { self.ordinary_search_cursor = search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
-        self.run(program)
+        let data = self.run(program)?;
+        #[cfg(feature = "server-search")]
+        if let Value::Array(rows) = &data { self.search_source_keys(program, rows, false)?; }
+        Ok(data)
     }
 
     // @ref LLP 3000.007#21.12 — no authority cache crosses a viewer boundary.

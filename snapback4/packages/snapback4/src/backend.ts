@@ -9,6 +9,7 @@ export interface SearchComposition {
 }
 export interface OperationFacts {
   search?: SearchComposition;
+  search_decoration?: boolean;
   held?: boolean;
   runs?: "device" | "server";
   predicts?: "eligible" | "never";

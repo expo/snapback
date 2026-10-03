@@ -82644,6 +82644,49 @@ source custody. One local commit with the requested Astra co-author trailer;
 nothing pushed or published.
 
 
+## 2026-10-02 — SJ round 0: point-decorated ordinary search
+
+LLP 3000.028 §3.3.1 now defines a bare page followed by row-preserving point
+decorations. Ordinary global and pinned search can return chat titles, sender
+names and nested key lookups in the hit projection. The source page keeps its
+IDs, order, completeness, cut, continuation and freshness. Distinct point keys
+share one ordinary authorized read per page/authority; missing or unreadable
+rows become null. Unsupported aggregates, decoration predicates and non-key
+subqueries retain their evaluator and narrowed diagnostics.
+
+The one-call SDK merge carries source ordering keys separately from presentation,
+so projections need not expose their ID/order fields. The server decorates only
+selected current rows; the existing final device state-fence call decorates
+only emitted retained rows. Shared logical and physical allowances remain in
+force. The social starter's search/searchChat and rendered labels use this form,
+and the search/client/why guide surfaces now teach it. There are no separate
+detail queries. CLI cost output names the lift and its distinct-key reads, with
+conservative numeric allowances for projection points and their authorization.
+
+The generated process/Wasm oracle passed 985 page comparisons per host, including
+random memberships, departures/rejoins, scope moves, delete/reinsert, decoration
+edits, offline reads, hidden/deleted details and suppression-shortened pages.
+Independent point reads check decoration authority. The real Chromium retained
+search witnesses pass with title/name labels and all query paths recorded.
+Twenty hits in three rooms cost 46 → 50 examined rows; the established W13
+30,030-message corpus costs 2,040 → 2,061 for 20 rooms and one sender.
+
+Affected Rust: 4,662 passes, 34 ignored, zero failures across 286 summaries;
+final CLI rerun 848 passes; guide 110; final focused JS 462. The frozen complete
+suite reports exactly `== 0 failure(s) in 1390 s`, including 5,800 client passes
+(10 conditional skips) and all 79 models. An earlier full attempt reported
+`== 1 failure(s) in 1510 s`: my concurrent Wasm rebuild caused four ENOENT leaf
+cases and their failed parent summary. These were ours, not baseline failures;
+all 119 tests in the three affected files passed afterward, then the entire
+suite passed with source/artifacts frozen. The report also records corrected
+development failures and one transient unchanged smoke-test ownership conflict.
+
+Linux Wasm is 2,050,348 B raw / 616,951 B gzip. Raise the 610,782 B cap to
+617,581 B for the projection/cache and retained decoration path: estimated
+macOS 617,081 B (+130 B), plus 500 B headroom. Runtime ceilings are unchanged.
+Small metering, oracle, hash and verification receipts accompany the
+[report](./reports/20261002-sj-decorated-search/REPORT.md). No publication or push.
+
 ## 2026-10-02 — BG round 9: merge with main
 
 Merge origin/main 9ca48d2804 into reviewed round 8 at 58e3c443af, without rebase.
@@ -82701,6 +82744,644 @@ check reports inherited drift and missing generated prerequisites; the
 [validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
 retains the full red and its causes. Commit locally with the requested Astra
 co-author trailer; no push or publication.
+## 2026-10-02 — SJ round 1: preserve search pages across decoration expiry
+
+Read both complete round-0 reviews (Astra READY/P3; Grok READY WITH CHANGES,
+Medium and Low). Merge origin/main e15de2e49a with real merge commit 878da80018;
+retain both JOURNAL tails and BG count/maintenance rules alongside SJ's lift.
+CT, FDL and FIM semantics remain intact. Decoration children now return a
+separate value-refresh deadline: watches keep current and retained rows and
+bare-page freshness while fields re-evaluate to null. Only source deadlines
+withdraw the page. One-shots reject crossed decoration deadlines through their
+existing bounded publication retry. LLP 3000.028 §3.3.1 and the guide record it.
+
+Internal order keys outside the exact JavaScript integer range travel as decimal
+strings and compare with BigInt; cursor tokens retain exact i64 numeric text.
+Public numeric writes retain their signed-53 restriction. The unsafe-key Rust
+witness uses storage seeding, and eight SDK witnesses cover adjacent +/-2^53
+keys, both directions and i64 extrema. Ordinary devices stop constructing,
+metering and serializing unused searchRows: isolated saving 400 B gzip.
+
+Linux locked Wasm measures 2,048,753 B raw / 617,410 B gzip. Raise the cap from
+617,581 to 618,040 B: Linux +130 B estimated macOS offset +500 B reserve.
+MacOS is estimated at 617,540 B, not measured. Same-host rebuilt base 96ae8da9a5
+is 2,032,879 / 610,147, incoming main e15de2e49a is 2,030,224 / 610,085.
+Thus BG/incoming main saves 2,655 raw / 62 gzip; SJ on that main adds 18,529 raw /
+7,325 gzip. Net versus rebuilt base is +15,874 raw / +7,263 gzip. These are
+successive whole-artifact deltas; runtime ceilings are unchanged. The budget
+file and commit record the same reason.
+
+Affected Rust: 4,713 passed, 0 failed, 34 ignored across 286 summaries, including
+binary units, all integration targets, and guide 110. Decorated search is 11/11;
+the 30,030-message/1,000-room case remains 2,040 -> 2,061 examined rows. Generated
+process/Wasm oracles check 1,970 pages plus mixed current/retained expiry witnesses
+and independent device/server wakeup cases. Focused JS initially passed 539/540;
+only the changed client await-boundary hash needed refreshing (all 58 awaits and
+classified site IDs unchanged); its targeted rerun passes. Final generic deadline
+selection is 64/64. All development failures are ours and corrected; the report
+classifies them individually.
+
+The single final scripts/test.sh run exits 0: `== 0 failure(s) in 1394 s`.
+Rust: 286 binaries / 999 executions plus doctests; clients 5,816 passed, 0 failed,
+10 explicit platform/fixture skips; models 79/79. Full-suite failure classification:
+ours 0, baseline 0, environmental 0. No full-suite rerun or waiver.
+
+Final diff review restored the W13 fixture's original public seed setup; a final
+11/11 affected-target run verifies it after the full suite. Product sources and
+measured Wasm stayed unchanged throughout qualification. The report's Round 1
+section and small hash/verification/measurement receipts retain the evidence.
+No push or publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — SJ round 2: decoration deadlines never gate page availability
+
+Read both complete round-1 reviews (Astra READY WITH CHANGES/P2; Grok READY
+WITH CHANGES/Medium). Expired or uncertain decoration deadlines now mask values
+at publication and synchronous watch access without rejecting the page. The
+online-only client, composed local client, remembered offline answers, one-shots
+and approved facade holds apply the same rule. Hits, order, completeness, cut,
+continuation and freshness remain the bare page's; its own deadlines and the
+existing authority/sequence fences still withdraw. LLP 3000.028 §3.3.1 and the
+search guide state the rule.
+
+Conservatively null every top-level output field containing a point read when
+either page-wide decoration deadline cannot prove freshness. Source fields and
+point-independent outputs survive. No per-row or per-field deadlines: server
+replies carry one static field-name list, and the local client derives it from
+its compiled projection. One field adds 29 B per page, the four-field oracle
+64 B; an explicit no-expiry null adds 24 B where round 1 omitted it. Online
+watches accept the server's page, retry values with 25 ms to 1 s bounded backoff
+without a give-up count, and stop when the server proves no upcoming expiry.
+
+Astra's unsynced/public reproduction passes for one-shot and watch on process
+and Wasm. Grok's real-server skew window exceeds the old four-attempt window,
+including an open revocation episode and unknown deadlines. The fields are null
+while HTTP is held, and one-shots return the page in one call. Bare source expiry
+still withdraws. An older facade-approved page retains its own value deadline.
+The random oracle now seeds room/profile/card expiries and advances through them:
+1,970 pages, 1,528 after profile expiry, 710 explicit expired-label checks before
+deletion, with both authorities checked against independent ordinary point reads.
+
+Affected Rust: 11 decorated-search tests and 110 guide tests pass. The broad
+client selection first passed 1,027 with three failures caused by our unnecessary
+clock-method call; corrected clock/decorated coverage passes 83/83 and final
+focused witnesses 9/9. Other development fixture/type/invocation failures are
+classified in the report; the unavailable local orient symlink was resolved by
+reading the existing skill in lane-dx. Existing await classifications and hashes
+are unchanged; the new synchronous module adds zero awaits.
+
+The single final suite exits 0: `== 0 failure(s) in 1419 s`. All 286 Rust binaries /
+999 executions plus doctests, 5,822 client tests (10 explicit platform/fixture
+skips), and 79 models pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. All 15 qualified source hashes remain unchanged. Linux Wasm
+is byte-identical to round 1: 2,048,753 B raw / 617,410 B gzip, 630 B below the
+unchanged 618,040 B budget. No macOS measurement or budget raise. The
+[Round 2 report](./reports/20261002-sj-decorated-search/REPORT.md#round-2--value-deadlines-in-every-client-path-2026-10-02)
+and small receipts retain commands, byte accounting and log/source hashes.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No merge, push or publication in this round.
+
+## 2026-10-03 — SJ round 3: nested placeholders and structural value deadlines
+
+Read both complete round-2 reviews (Astra READY WITH CHANGES/P2, Grok READY
+WITH CHANGES/Medium), starting at 1202d4cb56. Mask point-dependent output paths
+at any depth, keeping constructed objects, literal/source siblings and generated
+client types aligned. Whole point-read values remain nullable. Selecting a
+literal from an object with an unused point-read sibling keeps that literal.
+Server replies name static paths; local clients derive the same paths. No
+per-row/per-field clocks, extra requests or authority changes.
+
+Both value deadlines are now required `number | null` fields in local, ordinary
+search and online query results. Retained-row and object-component composition
+merge the earliest deadline per authority, preserving unknown deadlines.
+Three deliberate omitted-field mutations fail TypeScript. Recovery, loading,
+refusals and forwarding returns explicitly construct or preserve both fields;
+the Round 3 report lists every internal query-result return site. Source-page
+withdrawal remains independent. LLP 3000.028 §3.3.1 and the guide explain that
+masked values are placeholders, not absence; page freshness does not certify
+every decoration; a refresh restores values after proving a later deadline.
+
+Nested/doubly nested projections pass on process, Wasm and the online client,
+including held refresh, stable siblings, generated types and restored values.
+Sixteen live process/Wasm browse regressions cover empty, whitespace,
+punctuation and emoji needles, watches and one-shots, with actual retained-row
+provenance and composition. Twelve oracle seeds per host check 2,950 pages,
+including 758 browse pages after profile expiry and 1,052 explicit expired-label
+checks before deletion. Mutation controls detect both reviewed defects.
+
+Affected clients: 955/955; guide: 110/110; Rust decorated search: 11/11.
+The single final suite exits 0: `== 0 failure(s) in 1509 s`. All 4,729 Rust tests
+(34 ignored), 5,882 client tests (10 explicit platform/fixture skips) and 79
+models pass. Full-suite failures: ours 0, baseline 0, environmental 0. The report
+classifies corrected fixture/type/build-invocation/mutation-harness failures
+separately from the intentional negative controls. All 11 qualified source hashes
+remain unchanged after the suite.
+
+Locked Linux Wasm is byte-identical to round 2: 2,048,753 B raw / 617,410 B gzip,
+630 B below the unchanged 618,040 B budget. No Mac measurement. Only the local
+Linux host was used; neither the office M1 nor M5. The
+[Round 3 report](./reports/20261002-sj-decorated-search/REPORT.md#round-3--structural-value-deadlines-and-nested-placeholders-2026-10-03)
+retains return-site audit, commands, byte accounting and small verification
+receipts. Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing merged, pushed or published.
+
+
+## 2026-10-03 — SJ round 4: enforce value deadlines through publication
+
+Read round 3's Astra review (READY WITH CHANGES, one P3; Grok READY).
+Reproduced its undefined-deadline mutation compiling against 1bb5c5732d.
+No production omission existed. Explicit result types now preserve required
+ValueDeadlines through the final local wrapper and runLocal; shared/local/online
+scheduler inputs require them, and absent deadlines are explicit nulls.
+Audited and annotated the remaining inferred query-result helpers. LLP 3000.028
+§3.3.1 and the report record the enforcement boundary.
+
+Package typecheck/build pass; permanent compiler controls pass 17/17, rejecting
+16 mutations including Astra's exact return. Decorated search passes 57/57 on
+process, Wasm and online paths (2,950 oracle pages); affected clients 903/903;
+local-read/lifecycle/sign-out/ephemeral resets 75/75. Zero final failures/skips.
+The sole development failure was an ambiguous mutation-test anchor, corrected.
+Reference validation passes: 525 LLPs / 10,114 refs / zero errors or unchecked.
+
+Emitted JavaScript changes only absent scheduler deadlines to explicit nulls;
+runtime behavior is unchanged, so no full-suite run. One await hash changes
+for an erased annotation; all 32 local-query awaits and delivery classifications
+remain. Wasm stays byte-identical: 2,048,753 B raw / 617,410 B gzip under the
+unchanged 618,040 B cap. The Round 4 report and receipt retain commands,
+source/log hashes and scope. Only local Linux; neither office M1 nor M5.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-10-03 — LM: live margin and settlement investigation
+
+Investigated calibration #29 with standalone package fixtures, without the
+Clique instrument. Two React/IndexedDB devices render 120 competing reads each;
+the measured reads sit last in observation order. Twenty cycles per condition
+cover reaction set/replace/clear, text tombstone/restore and two-device offline
+settlement. The controlled condition adds 16 owned busy loops on CPUs 80–83,
+with the harness and descendants pinned there too. All workers were reaped.
+Removal commit-to-React p95 is 81.21 ms without burners / 323.52 ms with them;
+set is 79.27 / 402.83 ms. No ten-second miss was reproduced. The unchanged
+frozen-clock notification fixture also passes 400 cases, 200 per condition.
+These results do not close either original live-notification or Following ticket.
+
+A deterministic process/wasm paired control reproduces RV-permitted empty
+presentation during two offline sends settling: an unused nullable once column
+makes history preservation unknown; a held replacement crosses the existing
+one-second episode deadline, ReadEpisode withdraws to loading, and Pages exposes
+zero items. Both sends appear exactly once after release. Without the once
+column the previous complete answer remains. This explains an admissible path,
+not the exact unretained calibration frame. No authorization rule, scheduling
+policy, timeout or ceiling changes. LLP 3000.023 remains unchanged. The only
+runtime change is an opt-in mutation_commit qualification stamp before durable
+poll wakeup; LLP 3000.019 §3.7 documents its meaning and clock uncertainty.
+
+Affected clients: 449 passed, 0 failed; whole guide: 110 passed, 0 failed.
+Wasm: 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B cap;
+budget-helper tests 2/2. The complete suite ran once, exit 1:
+`== 2 failure(s) in 1893 s`. Its 25 Rust failures came from LM's target-directory
+symlink being rejected by the private-store guard; 36 witness CLI failures came
+from LM's relocated binary lacking a client-helper path. These are LM setup
+failures, individually classified, not a clean full run. A real local scratch
+directory with shared build-subdirectory links fixes the former setup; the
+existing SNAPBACK4_ACQUIRE_HELPER override fixes the latter (43/43 unchanged
+witness tests pass). Compilation remains in the requested shared Cargo target.
+The original client total is 5,753 passed / 36 failed / 10 skipped; final models
+79/79. Focused Rust correction results and every verbatim check are retained in
+[the LM report](./reports/20261003-lm-live-margin/REPORT.md) and its failure ledger.
+
+Both requested tickets are updated and remain open. No product latency fix or
+before/after-fix improvement is claimed. Local commit only, with the requested
+GPT-6 Astra co-author trailer; nothing pushed or published.
+
+Focused correction: the four Rust targets pass, 234 tests / 0 failures /
+1 ignored, plus the nested allocation probe. The full-suite red is retained.
+Reference validation: `ref-check: ok — 525 LLP docs, 10107 refs in 32478 files, 0 errors, 0 unchecked`. Staged diff whitespace check passes.
+
+## 2026-10-03 — LM round 1: fold both blind reviews
+
+Read Astra and Grok's round-0 reviews in full. Settlement now checks exact row
+identities and bodies in both process/wasm Pages accumulators and both browser
+clients' usePage items and actual DOM lists. Every completed browser settlement
+includes the original row and every prior offline send exactly once. The
+unknown-once control retains rows at 999 ms and withdraws at the specified
+1000 ms deadline before accepting the held replacement; certified preservation
+continues retaining. No runtime retention or scheduling policy changes.
+
+Each live browser mutation requires `started < mutation_commit < encode_start`.
+Posting each same id again must return a replay with a zero stamp. The Following
+ticket now identifies the user mutation's post-commit, pre-wake host time and
+explicitly excludes a later Following delivery transaction.
+
+Mutation tests catch all three gaps: empty Pages items at three rows fail all
+five LM tests; shortening the episode to 999 ms fails both unknown-once cases;
+deleting the server's mutation_commit mark fails the browser test. All injected
+changes were restored; the ordinary native binary was rebuilt and matches the
+unmutated pinned binary. The lane's existing target setup is unchanged.
+
+Affected clients: 450/450 pass (process, wasm, browser), zero skips. The five LM
+tests each pass five consecutive runs, 25/25; browser repetitions use two cycles
+and 120 competing reads per client. Whole guide: 110/110; budget helper: 2/2.
+Fresh wasm: 2,031,329 B raw / 610,519 B gzip, 263 B under the unchanged cap.
+No full suite this round, per the request; round 0's failure record is retained.
+The live-notification and Following tickets remain open. Report and full logs:
+[LM Round 1](./reports/20261003-lm-live-margin/REPORT.md#round-1--both-blind-reviews-folded-2026-10-03).
+Local commit with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
+nothing pushed or published.
+Reference validation: 525 LLP docs, 10108 refs, zero errors or unchecked refs.
+Final diff whitespace check passes.
+
+## 2026-10-03 — UB: advise on shape reads that outgrow the meter
+
+Calibration #29's inbox was accepted at check and refused only at full scale.
+Before changing the compiler, reproduced the silent check and the inclusive
+follow's E_SHAPE_EXCEEDS_METER with 9,000 messages, both for an inline unread
+count and the remaining unreadIn helper. The reduced schema and engine witness
+are now compiler regressions.
+
+Add N_SHAPE_METER, advisory rather than static refusal, under LLP 3000.007 §24.
+It identifies the query shape field, source and lowered read site, including
+transitive helpers, and points to maintained counts/views, bounded previews or
+separate queries. Fitting declared table/group caps, pinned total unique keys,
+maintained scalar lookups, ordinary bounded pages and indexed extrema stay
+clean. Residual filters can inspect unbounded rejected candidates despite a
+page limit. Plain unbounded nested collections retain E_QUARRY_BOUND. The note
+is not a whole-shape cost certificate and changes no runtime admission or IR.
+
+Update the why registry and pages, reads/views guidance and defining/recovery
+facts. Repair the jobs guide's own raw unread shape by sharing the inbox and a
+separate unreadTotal query with the digest; retain exact totals and atomic
+emission. Update the corresponding job witnesses and the search-repair test's
+expectation for valid residual-filter meter advice.
+
+Sweep all 606 repository Quarry files (including 75 calibration source modules)
+and calibration #29's two-module schema: nine justified notes in five groups,
+zero new refusals or changed exits. 201 groups already refuse under the baseline
+and are recorded as such. The maintained inbox remains clean. Final affected
+checks pass: 110 guide, seven shape-meter, 18 job-viewer, 84 Quarry check, 242
+CLI unit, 40 expiry-write and 27 fix tests. Wasm is unchanged byte-for-byte:
+2,030,224 B raw / 610,085 B gzip against the unchanged 610,782 B budget.
+
+The requested root inventory check fails in unchanged Snapback 1 inputs:
+unregistered caps.test.mjs, stale/missing generated artifacts and authoring
+profile baselines, and the capabilities page size budget. Snapback 4's diagnostic
+registry checks pass. Shared target artifacts were replaced by concurrent lanes;
+pinned CLI copies and a separate artifact fingerprint within the required shared
+target make the final focused checks attributable to this source. All commands,
+reproduction, complete diagnostic census and failure classifications are in
+`~/sb5-lanes/ub.report.md` with logs in `~/sb5-lanes/ub-evidence/`.
+
+The single complete suite reports exactly `== 2 failure(s) in 1758 s`, exit 1:
+`cargo test` and `client tests`. Rust has ten failed targets: 25 private-store
+assertions rejected this lane's initial ignored target symlink; two job-viewer
+and two search-repair assertions needed the expectation updates above; two
+CLI/guide comparisons and four current-executable child launches suffered shared
+artifact replacement; one simulator target exited without output, with cause
+unproven. Final focused reruns cover all failures and pass. Replacing the target
+symlink with a real local directory also left the event-slot trace in its old
+location; regenerating it restored all 48 affected client cases. The other 36
+client failures could not find witness-acquire's JavaScript helper outside the
+shared executable's ancestors; its existing helper-path override restored all
+43 witness tests. No assertion was weakened to accommodate those environment
+failures. Full-run clients: 5,700 passed, 38 failed, ten skipped; all 79 models
+passed. The whole suite was not rerun; its red result remains explicit.
+
+Reference audit: `ref-check: ok — 525 LLP docs, 10104 refs in 32454 files, 0 errors, 0 unchecked`.
+One local commit with the requested GPT-6 Astra co-author trailer; nothing
+pushed or published.
+
+## 2026-10-03 — UB round 1: fold both blind shape-meter reviews
+
+Fold Astra and Grok's READY WITH CHANGES reviews of b2c0984105. Pair index
+components with scalar prefix keys so words terms cannot pin the next column;
+exclude words scans from the ordinary-page exemption unless their candidates
+have an independent fitting bound. Ordered min/max use the one-value advice
+bound only on non-expiring tables: expired candidates are charged and skipped.
+Correct the why page, LLP 3000.007 §24 and the views card's unreadCounts lookup.
+Runtime admission, authorization, IR and meters are unchanged.
+
+Eleven shape-meter tests pass. New regressions cover both reviewed word-index
+shapes and independently assert on their words scan; correct table/room caps
+stay clean. The literal 'a z' search over 9,000 children containing only 'a'
+emits advice and its cursor follow refuses E_SHAPE_EXCEEDS_METER (64 MiB heap
+isolates the unchanged examined ceiling). Both min and max over 9,000 expired
+children emit advice and refuse on follow at default ceilings. The clean extrema
+fixture gains expiry and capped-expiry controls. An unpinned owner read rule's
+nested page now has uncapped and capped N_SHAPE_METER controls.
+
+All four applied mutations fail tests: forcing uniform=true, restoring the
+word pin bug, allowing words pages, and allowing expiring seeks. Restored code
+passes all eleven. The existing grouped-search guide examples now teach their
+shape note and require that precise note; builtin repair predicates require
+both words and residual-browse advice. No vacuous empty-note assertion remains
+there. Guide wording was shortened to keep existing budgets and compiled examples.
+
+Requested affected checks pass: 110 guide, 18 job-viewer, two search-guidance,
+eight search-repair, 84 Quarry check and 40 expiry-write tests (the latter also
+includes the search-repair module). No complete suite was run this round.
+
+Repeat the same 606-file / 393-group census plus calibration #29. Shape notes
+rise from nine in five groups to 26 in 21 groups: 17 additional words-preview
+notes, each classified in the Round 1 report. All are justified: sixteen have
+no message candidate cap; one has a 200,000-row cap above the ceiling. The 193
+accepted groups and 201 baseline refusals are unchanged, with zero new refusals
+or changed exits. Calibration #29's notes are unchanged.
+
+The isolated wasm output matches round 0 byte-for-byte: 2,030,224 B raw /
+610,085 B gzip against 610,782 B, 697 B spare. An earlier mutable shared-target
+artifact measured 610,519 B; a unique Cargo output followed by the same pinned
+optimizer steps recovered the original SHA-256. No budget raised. Logs, mutation
+results, full sweep outputs and each new note's classification are under
+`~/sb5-lanes/ub-evidence/`; `~/sb5-lanes/ub.report.md` has the Round 1 report.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+Reference validation passes: 525 LLP docs, 10,104 refs in 32,454 files,
+zero errors and zero unchecked; git diff --check passes.
+
+
+## 2026-10-03 — Lane R: generated receipt families and useSeen
+
+Implements LLP 3000.032 §4.3 under Charlie's full-implementation ruling.
+`api.receiptFamilies` carries compiler-derived typed member/seen handles, actual
+argument names, accounting mapping and the existing fingerprint. `useSeen` owns
+monotonic visible progress, shared admission/pending work, bounded admission
+retry and membership/session lifetimes. The name limits its claim to seen.
+The app supplies visible confirmed positions and foreground/viewport evidence;
+the hook neither pages history nor reports delivery. Bare retained history and
+current receipt/decorations remain independent reads. No core receipt protocol,
+capability, custody or allocator changes. The contract addition is a type-only
+re-export; no existing Client/Read/Write shape changes.
+
+LLP 3000.022 §14.6 records the API and fences. Guide client/receipt/social cards,
+package references and declaration comments, `why`, and the social starter use
+the new API. The filesystem proposal is resolved. Real preserved G47/Cal29
+pilots: R3 37 lines / 1,742 B → 6 / 366; R4 2 / 371 → 2 / 297. Counting actual
+visibility integration, G47 loses 22 lines / 602 B across its changed client
+files; Cal29 grows 4 lines / 381 B. No overall Cal29 size saving or score gain.
+G47's prerequisite migration to existing declarative receipts is not helper
+savings. Pilots check schemas, generated types and receipt integrations; no
+full application/native UI qualification claim.
+
+Complete guide 110/110; declarative receipts 154/154; focused client lifecycle,
+React and process/wasm checks 68/68; public type checks 6/6. Full script ran once:
+`== 2 failure(s) in 1518 s` (Cargo artifact build and client tests). Models pass
+79/79. The repaired complete Rust inventory runs 285 binaries / 998 executions
+and doctests; five failed targets are our copied-contract fixtures and a
+symlinked private-store parent, all repaired with passing affected reruns.
+The original client sweep reports 5,751 passed, 45 failed, 10 skipped. Our
+missing census entries/incomplete doc example were fixed; other failures were
+shared-binary replacement, out-of-tree witness lookup and a Node HTTP teardown
+exception. All affected files plus starter checks pass with the isolated lane
+binary: 126 passed, zero failed/skipped. Every original red and classification
+is retained in reports/20261003-r-receipt-binding/{REPORT,FAILURES}.md and logs.
+
+Wasm 2,031,329 B raw / 610,520 B gzip; unchanged 610,782 B budget, 262 B headroom.
+Source/distribution wasm hashes agree. README remains 300/300 physical lines,
+client guide 1,200 words; reference validation passes. No unresolved introduced
+failures; full-suite reds are preserved rather than relabeled green. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+
+## 2026-10-03 — Lane R round 1: fold both blind reviews
+
+Closes Astra's action namespace collision and listener-cleanup test findings,
+and Grok's terminal seen-progress wedge and exact-floor test findings against
+`23049b4fc2`. Receipt-family collision checking now uses final bound API roots,
+including actions, and refuses `E_RECEIPTS_CLAUSE`. Terminal non-admission
+failures remember the rejected position and reset the target to covered progress
+before failing. A fresh different visible position can start a new attempt;
+retry, reconnect and repeated input cannot resubmit the rejected position.
+Reset clears it. LLP 3000.022 §14.6 and the receipt/client documentation match.
+
+New regressions cover bare/action-only-module collisions, 100 refused then 40
+sent for PAST_LAST_MESSAGE/NOT_MEMBER/thrown E_CLIENT, exact rejoin floors on
+process and wasm, and zero remaining client/observation listeners after final
+unmount including Strict Mode. Temporary mutants removing the failed guard,
+unsubscription loop, inclusive floor check or terminal reset all fail tests;
+the final restored implementation passes.
+
+Binding 4/4; whole guide 110/110; seen/client lifecycle 68/68; React/public types
+64/64, including six type tests; client/CLI builds, doc budget and references
+pass. The initial action fixtures missed `use server`; corrected and the red
+retained. No full-suite rerun this round. Wasm 2,031,329 B raw / 610,519 B gzip,
+unchanged 610,782 B ceiling, 263 B headroom; source/distribution hashes agree.
+R3 and Cal29 pilots rerun successfully with zero source line/byte changes from
+round 0; all 12 preserved hashes/counts match. R3 stays 37 → 6 lines, Cal29's
+receipt snippet 2 → 2; whole-client deltas stay −22 and +4 respectively.
+
+Details and lossless logs: reports/20261003-r-receipt-binding/REPORT.md, Round 1,
+and round1/. The same record is appended to ~/sb5-lanes/r.report.md. Commit locally
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+## 2026-10-03 — Lane FD: Following keeps the history window
+
+Recorded Charlie's ruling: Following copies each actor's newest 1,000 events at
+follow time and receives new events afterward; older posts are on the actor's
+profile. LLP 3000.016.000 is Shelved, linked from its parent, with the ruling in
+LLP 3000.016 §3 and LLP 3000.032 §4.4. Closed the follow-history-options ticket.
+The version-3 `timeline experimental history all` prototype remains recoverable
+on `origin/sb5/f-follow-history-prototype-parked` at 0936b660f0; no engine,
+compiler or client implementation is imported. Any future older Following
+support should prefer on-demand pages under a separate design.
+
+Imported only F's RFC and reports/20261003-f-follow-history/ from that commit.
+All 42 evidence files (238,996 file bytes; 384 KiB on disk) match their source
+blobs, and every RFC measurement is preserved. The reasons are followers ×
+history storage (99,000 extra copies / about 286 MB for one reader of a
+100,000-event actor; about 9.9M copies for 100 readers by arithmetic), whole-feed
+withholding during backfill, growing catch-up traffic despite the same device
+floor, and 2/14 calibration mentions with zero workaround lines.
+
+The feeds card states this product boundary, supplies a one-query server
+profile read, and offers “See older posts on their profile” links at the
+complete feed's end. It remains 401/401 lines, with its 15/15-line opening.
+The initial placement beside windowed sources emitted N_SYNC_ORDER; placing
+the profile query with the card's online-only source example makes its server
+requirement explicit. Complete guide suite: 110 passed, 0 failed. Ref-check:
+0 errors, 0 unchecked; edited document links resolve. This is a documentation
+commit only, with no push or publication.
+
+## 2026-10-03 — Lane A: read presentation and a stable screen
+
+Implemented LLP 3000.032 §4.1 under Charlie's full-implementation commission.
+`readPresentation` from `snapback4/contract` consumes `existence` and unchanged
+metadata: read-loading `pending`, ready `incomplete` (partial/coverage/cut/next),
+`stale`, independent `revalidating`, exact refusal and timestamp. No data
+inspection, subscription, saved result, alternate absence proof or permission
+flag. LLP 3000.031 §7 records the decided API. RV/ON retention, once-media,
+pending predicates and hard withdrawals are unchanged.
+
+The complete React/Expo screen keys its shell by backend/account/resource;
+current results and notices update without unmounting its draft. A browser runs
+the actual published recipe under Strict Mode, checking focus/draft retention,
+withdrawn results, key resets, membership action rules and listener cleanup.
+Native host views are DOM stubs, not native UI qualification. The client,
+offline-interactions and social guide cards, social Search/README, package
+README/reference and generated declaration comments teach the helper. The
+client card stays 1,199 words; README stays 300 lines.
+
+A1/A2 use frozen real Cal29/G47 source with verified evidence-ledger hashes.
+Selected snippets: 1 line / 123 B → 1 / 80 B; 7 / 281 → 4 / 191. Full files
+plus new notices grow by 10 lines / 667 B and 11 / 688 B. A same-behavior
+recipe-only comparison costs 124/81 B more respectively; A2 has equal total
+lines. All 1,010 notice cases per pilot render identically between alternatives.
+The helper earns a small place by centralizing the incomplete predicate,
+including nonempty results. The shell alone removes A2's latch. No overall
+code-size saving or cold-builder score gain. Pilots check generated API types
+and changed integrations, not full app/native execution.
+
+Whole guide 110/110, focused client/types/examples 36/36, expanded real-device
+presentation 7/7, pure presentation 7/7, browser recipe 1/1; source and emitted
+package typechecks pass. Wasm is 2,048,753 B raw / 617,410 B gzip, unchanged
+618,040 B ceiling, 630 B headroom; source/distribution hashes agree. The first
+guide word-budget/required-wording failures and missing browser-runtime alias
+were introduced and repaired, with original red logs retained.
+
+The complete script is running once. Its Rust inventory ran 287 binaries /
+1,000 executions and doctests; five targets failed. Three native fixture
+targets failed because the host-only Cargo artifact-copy wrapper mishandled
+nested builds without CARGO_TARGET_DIR; the repaired environment's reruns pass
+2 + 8 + 11 tests, with one existing ignored test. Four N_SHAPE_METER no-note
+assertions in prefix_reads/membership_search reproduce on untouched base
+1bea1a149c6df00bae7276c7114c06ea5749b7bf with Rust 1.97.0. They are filed in
+issues/20261003-snapback4-shape-meter-test-expectations.md. Final suite summary
+and any client classifications will follow below before this local commit.
+
+Evidence: reports/20261003-a-read-presentation/REPORT.md and pilots/check logs;
+external handoff: ~/sb5-lanes/a.report.md. Commit locally with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+Lane A final verification: the script completed with the verbatim summary
+`== 2 failure(s) in 1853 s` (`cargo test`, `client tests`). Client models pass
+79/79. The client sweep is 5,927 passed, 4 failed, 10 skipped; its three failing
+social-search assertions plus parent expected incomplete notices to remain
+hidden on nonempty pages. Updated only those expectations to the new truthful
+presentation; all four browser tests pass on the real wasm starter rerun.
+The guide's readPresentation/read-presentation aliases pass the whole guide
+again, 110/110. Original red logs remain in the report. Every introduced
+failure is repaired with passing affected reruns; the four base-reproduced
+N_SHAPE_METER compiler assertions remain ticketed. No full-suite green claim.
+
+## 2026-10-03 — Lane A round 1: fold both blind reviews
+
+Read Astra and Grok's complete round-0 reviews and folded every requested
+change. The stable screen clears the draft synchronously before admission,
+pairs submitted text with a minted write ID, and offers Edit/Dismiss for that
+latest submission's refusal. New Chromium regressions hold admission while
+identical text is deleted/retyped, and cover refusal both at admission and
+after pending custody. Newer drafts and focus survive.
+
+Loading and denial now each independently follow a nonempty protected read;
+both must immediately remove protected text and preserve the draft/input/focus.
+A last-ready-items cache mutant fails both. A stale nonempty incomplete read
+has an exact present/incomplete/stale assertion; forcing incomplete false when
+stale fails it. The stale empty screen must still say there are no messages.
+
+Restored “Unknown counts never hide conversations.” with a guide assertion;
+the client card is 1,199/1,200 words. Search docs, screen and decision table use
+the helper's incomplete flag for notices. The contract comment states its
+exact condition. The research §4 lead marks implemented §4.1 and §4.3, while
+§4.2 remains a proposal on main. LLP 3000.031 §7 records the recipe regressions.
+
+Rebased cleanly onto main f0c7d7a038 (round 0 became 3bc5aa80cd). Final affected
+checks pass 36/36, including process/wasm, Chromium, type tests and published
+examples; whole guide 110/110; package build/typecheck and both pilots pass.
+Each pilot retains 1,010 equivalent notice cases and unchanged size counts.
+Wasm remains 2,048,753 B raw / 617,410 B gzip, 630 B below the unchanged budget.
+The first wasm attempt used stale shared-target core artifacts; forcing a
+core rebuild by mtime, with no source changes, produced the same round-0 hash.
+Initial failure and passing rebuild logs are retained. No full-suite rerun or
+native layout claim. Round 1 is appended to
+reports/20261003-a-read-presentation/REPORT.md; evidence is under checks/round1/.
+Commit locally with the requested Astra co-author trailer; no push.
+
+
+## 2026-10-02 — X27R: one published Expo scene lifecycle
+
+On the Apartment M5 Pro mini, reproduce the unchanged reference chat Release
+launch trap at NoSceneLifecycleAdoption under Xcode 27A266a / iOS SDK 27.0.
+Retain the published snapback4-expo/plugin on the existing Expo 57.0.22 pin;
+add it to apps/chat-expo and have init --expo inherit it exactly once. Social
+keeps that same entry. Expo's supported alternative needs 57.0.23 plus
+expo-build-properties 57.0.20; replacing the published plugin would require an
+SDK migration for existing consumers or a second fallback. LLP 3000.030 §13
+records the choice. Plugin behavior/export, client/engine and versions stay
+unchanged. Baseline/fixed reference products have byte-identical JavaScript.
+
+Salvage the named scene-crash diagnostic, producing Xcode/SDK manifest fields
+and relevant tests from sb4/xcode27-uiscene, without merging or importing its
+logs. Preserve main's value-free refusals and ownership checks. Also admit the
+two exact generated Expo dSYM forms for npm's nested package layout; comparison
+with the admitted forms finds only the package path difference. Their regression
+still refuses custom scripts.
+
+Dedicated iPhone 17e only: reference offline and restart scenarios pass;
+fresh plain and social npm native:smoke pass in 171.820 / 223.500 s, and a
+standalone copy of the reference chat passes own-build smoke in 114.850 s.
+All smoke prime/offline/restart segments pass. Independent checks rehash all
+run artifacts and all 326 files in the three sealed app inventories. The
+repository Bun workspace remains outside the existing --build adapter; the
+standalone copy's exact changes and lock are retained, not called workspace
+support. Xcode 26.6 was not run; the report provides an asserting supervisor
+command for that host.
+
+Affected Rust init 22, witness integration 65 and units 14 pass; JavaScript
+witness/periphery/preparation/scenes 44 pass, and the subsequent preparation
+regression 15 pass. Whole guide 111 passes after keeping its existing line
+budget. Wasm remains 2,029,315 B raw / 609,893 B gzip against 610,782 B.
+The required complete suite ran once: `== 2 failure(s) in 2601 s`
+(`cargo test`, `client tests`). Two replay startup-log assertions failed;
+the unchanged replay target subsequently passed all 22 tests in 1.74 s.
+The known browser replacement fixture hit SQLite's writer lock and leaked
+its server. Only that verified suite-owned child was terminated so the
+existing failure could report; no test was omitted. The serial models passed
+all 79 tests. Both failures have filesystem follow-up tickets; the full result
+remains red. The Xcode 27 lifecycle ticket is closed with those limits stated.
+
+Local evidence lives only under ~/x27r-evidence/, with per-file SHA-256 and
+summaries in ~/x27r.final.md. No raw simulator, build or crash logs in git;
+no push, publication, tag, other host or other worktree mutation.
+
+
+## 2026-10-02 — X27R round 1: fold both blind reviews
+
+Filter scene crash reports by bundle, launch-time mtime, owned PID and simulator
+before choosing the newest report with NoSceneLifecycleAdoption in its faulting
+thread. A newer foreign-simulator report or an owned report without the symbol
+cannot mask the scene crash. Keep one best candidate, check the retry deadline
+inside the scan, cap actual reads at 16 MiB even if the file grows, and hash the
+bytes inspected. Update the witness card and LLP 3000.030 §13 together.
+
+Record installed-product xcodeBuild, iosSdkVersion and toolchainSource on the
+preparation manifest immediately after inspection, before later bundle, artifact
+or already-running refusals. The driver regression contrasts a 26.6 host with a
+27.0 product, then verifies absent product fields stay null. Add both concurrent
+report regressions, nonzero faulting-thread and nonfaulting-symbol controls,
+an expired scan, isolated-process memory comparison and a late report published
+600 ms after fake launchctl exits. Six deliberate mutations fail their tests,
+including deleting the retry. The old retain-all implementation peaks at
+5,046,272 / 73,809,920 bytes for 1 / 64 large reports; the fixed scan at
+5,095,424 / 8,552,448 bytes in the final run.
+
+Final checks: Rust init 22, witness integration 70, witness units 14, JavaScript
+witness/periphery/preparation/scenes 45 and whole guide 111 all pass. ref-check
+passes with 0 errors. The first run's guide pins and overly broad fake SDK change
+were corrected; an existing driver port collision is retained in the log and
+passes in the final complete affected-target run. No full suite this round.
+
+Xcode 27A266a / iOS SDK 27.0, dedicated iPhone 17e
+3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B only: reinstall the preserved round-0 products
+after verifying their executable/JavaScript hashes and scene manifests. The
+unfixed product exits 1 with E_WITNESS_SCENE_LIFECYCLE (3.896 s). Fixed reference
+offline and restart exit 0 (10.472 / 15.170 s), with 303 seeded rows, cold history,
+two ordered pending sends and restart persistence. Rehash all 20 declared
+artifacts across the three manifests. These remain installed-app scenarios;
+no new workspace-build or Xcode 26.6 qualification is claimed.
+
+Evidence: ~/x27r-evidence/round1/; appended report: ~/x27r.final.md, Round 1.
+Keep supervisor commit 4107563753 and append this existing journal as explicitly
+instructed; its size is not a review finding. No push, publish, tag, other
+simulator, other worktree or delegated agent.
 
 ## 2026-10-03 — B: pending intent cards through observed settlement
 

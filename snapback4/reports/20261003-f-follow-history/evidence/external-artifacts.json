@@ -1,0 +1,30 @@
+{
+  "history-test": {
+    "bytes": 259131376,
+    "sha256": "e35d662b5e8749bd35f8ea37c08ec0eb8770b77147c21edb0f28a846ab67d4b2"
+  },
+  "history-final-test": {
+    "bytes": 259132640,
+    "sha256": "ba500a6cd5d63020ced0bbeacbc9545479eefb8cef25c1e1f681c1be887fe658"
+  },
+  "snapback4-final": {
+    "bytes": 317652544,
+    "sha256": "cce666155395bdcbe6aae25bcdb8c672b87c195e9773d07c43742fc74aa9071d"
+  },
+  "scale-final/window-cold.ndjson": {
+    "bytes": 4991528,
+    "sha256": "cd2098912579e6b089975c9920f5c1f7e4c94f83405045ea4f060cd774398beb"
+  },
+  "scale-final/all-cold.ndjson": {
+    "bytes": 4991638,
+    "sha256": "3a667179ad10d8351a07cd0b48e8179e44513fc277a63969c7d71ef958f2b60b"
+  },
+  "scale-final/stress-device.ndjson": {
+    "bytes": 47641926,
+    "sha256": "1be6666a5d8c3b02cf9f4b30206108518f78f21ebe9ed3c81990c6c4938512de"
+  },
+  "scale-final/stress-pages.json": {
+    "bytes": 380401,
+    "sha256": "ab933e5e654f6602ba85c0bccdd25cb813874908bc2ff154e4a84a28d861d85d"
+  }
+}

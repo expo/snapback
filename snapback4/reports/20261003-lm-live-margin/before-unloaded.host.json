@@ -1,0 +1,21 @@
+{
+  "cpus": "80-83",
+  "workers": 0,
+  "started": "2026-10-02T22:33:50.552Z",
+  "loadBefore": "24.48 19.23 18.02 22/5031 2274246",
+  "pid": 2274214,
+  "command": [
+    "taskset",
+    "-c",
+    "80-83",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "packages/snapback4/test/live-margin-browser.test.mjs"
+  ],
+  "testGroup": 2274248,
+  "code": 0,
+  "signal": null,
+  "ended": "2026-10-02T22:34:20.771Z",
+  "loadAfter": "25.71 19.90 18.27 24/5163 2294433",
+  "reaped": true
+}

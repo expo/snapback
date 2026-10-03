@@ -25,6 +25,23 @@ test('ready literals require the discriminant', () => {
 const read: Read<{id: string}> = {data: {id: 'row'}, complete: true, cut: null, fresh: true};`);
   assert.deepEqual(result.codes, [2322], result.text);
 });
+test('presentation accepts generic covariant reads and cannot authorize or narrow their data', () => {
+  const result = check(`import { readPresentation, type Read, type ReadPresentation } from './dist/contract.js';
+function show<T>(read: Read<T>): ReadPresentation { return readPresentation(read); }
+declare const read: Read<{id: string} | null>;
+const status = show(read);
+const pending: boolean = status.pending;
+// @ts-expect-error no authority flag
+status.safeToMutate;
+// @ts-expect-error no saved result
+status.data;
+if (status.existence === 'present') {
+  // @ts-expect-error narrow the original read before accessing data
+  read.data.id;
+}
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});
 test('awaited query excludes loading, including existence, while observe retains it', () => {
   const result = check(`import { existence, type Client, type Query, type SettledRead, type Read } from './src/contract.ts';
 declare const client: Client, op: Query<{}, { id: string } | null>;
@@ -117,6 +134,27 @@ declare const set: Mutation<{ post: string; set: boolean }, void>;
 declare const read: Read<boolean>;
 const selected = usePendingState(set, { read, scope: w => w.args.post === 'p', current: false, value: a => a.set });
 const b: boolean = selected.value;
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});
+
+test('receipt family preserves mapped operation types and useSeen requires explicit visibility', () => {
+  const result = check(`import type { Client, ReceiptFamily } from './src/contract.ts';
+import { useSeen } from './src/react.tsx';
+type Member = {id:string; joined:number; received:number; viewed:number; pending?:boolean};
+declare const family: ReceiptFamily<Member, 'room', 'to'>, client: Client;
+client.query(family.member, {room:'r'});
+client.mutate(family.seen, {room:'r',to:4});
+// @ts-expect-error declared argument names, not guessed defaults
+client.mutate(family.seen, {conversation:'r',through:4});
+// @ts-expect-error member scope must be an ID string
+client.query(family.member, {room:3});
+// @ts-expect-error foreground/visibility is never assumed
+useSeen(family, {scope:'r',through:4});
+const state = useSeen(family, {scope:'r',through:null,active:false});
+state.retry();
+// @ts-expect-error seen reports no delivered watermark
+state.delivered;
 `);
   assert.deepEqual(result.codes, [], result.text);
 });

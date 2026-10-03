@@ -9,12 +9,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { AsyncLocalStorage } from 'node:async_hooks';
 const { runWorker } = await import(process.env.SNAPBACK4_TEST_WORKER ?? '../dist/worker.js');
 const { WorkerLedger } = await import(process.env.SNAPBACK4_TEST_WORKER_LEDGER ?? '../dist/worker-ledger.js');
 
 const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../target/debug/snapback4', import.meta.url));
 const workerModule = new URL('../dist/worker.js', import.meta.url).href;
-async function until(fn) { return awaitState(fn); }
+const fixtureDiagnostics = new AsyncLocalStorage();
+async function until(fn) { return awaitState(fn, fn.toString(), { diagnostics: () => fixtureDiagnostics.getStore()?.() ?? 'no worker fixture' }); }
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -30,21 +32,54 @@ function fixture(t, source) {
   writeFileSync(join(dir, 'snapback/schema.q'), "use personas alice\neffect notify\nmutation send():\n  emit notify { message: 'hello' }\n  return true\n");
   if (source) writeFileSync(join(dir, 'snapback/workers/push.mjs'), source);
   const servers = [];
+  const diagnostics = () => {
+    const report = servers.map(s => {
+      let statuses;
+      try {
+        const db = new DatabaseSync(s.mode === 'serve' ? join(dir, 'release/store.sqlite') : join(dir, '.snapback4/store.sqlite'), { readOnly: true });
+        try { statuses = db.prepare("SELECT key, value FROM _meta WHERE key LIKE 'worker:status%'").all(); }
+        finally { db.close(); }
+      } catch (error) { statuses = String(error); }
+      return { pid: s.child.pid, exitCode: s.child.exitCode, signalCode: s.child.signalCode, url: s.url,
+        statuses, starts: rows(join(s.workdir, 'starts')).map(({ pid, helper, name }) => ({ pid, helper, name, alive: alive(pid) })),
+        log: s.log.slice(-32768) };
+    });
+    return `WORKER_FIXTURE ${JSON.stringify({ dir, badNode: existsSync(join(dir, 'bad-node')), servers: report })}`;
+  };
+  fixtureDiagnostics.enterWith(diagnostics);
+  const onAbort = () => t.diagnostic(diagnostics());
+  t.signal.addEventListener('abort', onAbort, { once: true });
   t.after(async () => {
-    for (const s of servers) { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
+    t.signal.removeEventListener('abort', onAbort);
+    for (const s of servers) {
+      const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
+      try { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
+      finally { clearTimeout(timer); }
+    }
     for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
       for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   });
-  return { dir, async start(extra = [], env = {}, watch = false, mode = "dev") {
+  return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev") {
     const release = join(dir, 'release');
     if (mode === 'serve' && !existsSync(release)) { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
     const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
-    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
+    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], mode, diagnostics, workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
     servers.push(s);
     child.stderr.on('data', b => { s.log += b; s.events.push({ at: performance.now(), text: String(b) }); });
-    child.stdout.on('data', b => { s.url ||= String(b).match(/http:\/\/127\.0\.0\.1:\d+/)?.[0] ?? ''; });
-    await until(() => s.url); return s;
+    let output = '';
+    child.stdout.on('data', b => { output += b; s.url ||= output.match(/http:\/\/127\.0\.0\.1:\d+\r?\n/)?.[0].trim() ?? ''; });
+    await until(() => { assert.equal(child.exitCode, null, diagnostics()); return s.url; });
+    // @ref LLP 3000#publication-suite-under-contention — serving HTTP is the
+    // startup barrier. The URL precedes initial named-worker admission. An edit
+    // made there can enter startup admission and terminate the host instead of
+    // exercising Supervisor's pending-declaration retry. Serving HTTP proves
+    // Supervisor::start has returned and the intended edit path owns the test.
+    try {
+      const response = await fetch(s.url + '/auth/config', { signal: AbortSignal.any([t.signal, AbortSignal.timeout(hangBudget())]) });
+      assert.equal(response.status, 200); await response.json();
+    } catch (error) { throw new Error(`WORKER_FIXTURE_READY: ${error.message}\n${diagnostics()}`, { cause: error }); }
+    return s;
   } };
 }
 const idle = `import { appendFileSync } from 'node:fs';
@@ -357,6 +392,21 @@ test('ledger commits with FULL synchronization and durable journaling', async t 
   }
 });
 
+test('worker fixture waits for initial admission after the listening URL', async t => {
+  const f = fixture(t, idle), wrapper = join(f.dir, 'node-wrapper');
+  writeFileSync(wrapper, `#!/bin/bash\nif [ "$1" = --version ]; then touch '${f.dir}/probe-ready'; while [ ! -f '${f.dir}/probe-go' ]; do sleep 0.02; done; fi\nexec '${process.execPath}' "$@"\n`);
+  chmodSync(wrapper, 0o700);
+  let ready = false;
+  const starting = f.start([], { SNAPBACK_NODE: wrapper }).then(s => { ready = true; return s; });
+  // Release the deliberately blocked admission even if the assertion fails.
+  try {
+    await until(() => f.listening && existsSync(join(f.dir, 'probe-ready')));
+    await sleep(50);
+    assert.equal(ready, false, 'a printed URL is not completed worker admission');
+  } finally { writeFileSync(join(f.dir, 'probe-go'), ''); await starting; }
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+});
+
 test('new declarations retry failed admission after Node is repaired without another source edit', {timeout:hangBudget(3)}, async t => {
   const f = fixture(t), wrapper = join(f.dir, 'node-wrapper');
   writeFileSync(join(f.dir, 'bad-node'), '');
@@ -365,6 +415,7 @@ test('new declarations retry failed admission after Node is repaired without ano
   const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
   writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
   await until(() => s.log.includes('worker needs Node 24'));
+  assert.match(s.log, /declaration will retry/, 'the edit must reach pending admission on a serving host');
   const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
   rmSync(join(f.dir, 'bad-node'));
   await until(() => rows(join(f.dir, 'starts')).length === 1);

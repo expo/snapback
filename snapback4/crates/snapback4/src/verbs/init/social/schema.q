@@ -217,7 +217,7 @@ query typingIn(conversation: conversations):
 
 -- One ordinary pinned body keeps certified retained hits in both link states.
 query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
-  return messages[conversation = conversation] matching q last 20 by .at after c
+  return messages[conversation = conversation] matching q last 20 by .at after c { *, chatTitle: conversations[.conversation].title, senderName: profiles[principal = .sender].name }
 -- @ref LLP 3000.028#3.3 — the SDK combines current server and retained device hits.
 query search(q: text <=100, c: cursor ?):
-  return messages matching q last 20 by .at after c
+  return messages matching q last 20 by .at after c { *, chatTitle: conversations[.conversation].title, senderName: profiles[principal = .sender].name }

@@ -103,13 +103,13 @@ on reopen; raw online custody is memory-only. Closed/signed-out clients list
 nothing. Legacy entries lacking dispatch metadata are queued unless a
 retained sequence proves dispatch.
 
-For a keyed list use `usePendingItems` (`guide client`): row or intent arms,
-explicit scope and row-key mappings, text and media operations together. Its
-local `settling` phase includes the terminal-success-to-observation interval
-that this pending list omits; existing outbox/receipt facts own its retirement.
+For keyed lists, `usePendingItems` (`guide client`) returns row/intent arms,
+explicit scope/key mappings, and text/media operations together. Its local
+`settling` phase covers terminal success through observation, omitted by
+pendingWrites; existing outbox/receipt facts own retirement.
 A predicted row only suppresses a duplicate card. No row, ordinal, receipt
 accounting or media handle is invented. `usePendingState` selects the last
-admitted set-state intent from that same source; neither helper sends anything.
+admitted set-state intent; neither helper sends anything.
 
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends only the oldest unconfirmed write with keepalive, including a retry

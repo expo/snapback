@@ -1,3 +1,4 @@
+import { valueDeadline, type ValueDeadlines } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
 // @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, combined keyset continuation.
 import type { SearchComposition } from "./backend.ts";
@@ -82,8 +83,9 @@ export class SearchLedger {
 const prefix = "sb4s:";
 const maxCursor = 4096;
 export const combinedCursor = (value: unknown): value is string => typeof value === "string" && value.startsWith(prefix);
-function encoded(value: unknown): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
+function encoded(value: unknown): string { return encodedText(JSON.stringify(value)); }
+function encodedText(value: string): string {
+  const bytes = new TextEncoder().encode(value);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -93,8 +95,8 @@ function decoded(value: string): unknown {
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0))));
 }
 type Row = Record<string, unknown> & { id: string };
-type Page = { data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
-type State = { metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
+type Page = { decorationExpiry?: number | null | undefined; searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
+type State = { decorations?: Row[]; decorationExpiry?: number | null | undefined; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
 type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; after: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
@@ -127,17 +129,27 @@ function jsonBound(value: unknown, ledger: SearchLedger): number {
   return bytes;
 }
 
+// Exact signed i64 order keys: unsafe JSON numbers are never accepted as hints.
+function orderKey(value: unknown): value is number | string {
+  if (typeof value === "number") return Number.isSafeInteger(value);
+  if (typeof value !== "string" || !/^-?(0|[1-9][0-9]{0,18})$/.test(value) || value === "-0") return false;
+  const key = BigInt(value);
+  return key >= -9223372036854775808n && key <= 9223372036854775807n;
+}
 function sourceCursor(plan: SearchComposition, row: Row, generation: number, ledger: SearchLedger) {
+  if (!orderKey(row[plan.column])) throw new SearchBound("invalid source ordering key");
   ledger.text(512 + 6 * (plan.table.length + plan.index.length + plan.column.length + row.id.length));
   const value: unknown[] = [plan.variant ? 2 : 1, plan.table, plan.index, plan.order,
     [{ name: plan.column, kind: plan.kind }, { name: "id", kind: "Id" }],
     [{ Int: row[plan.column] }, { Id: row.id }]];
   if (plan.variant) value.push({ generation, prefix: [], variant: plan.variant });
-  const token = encoded(value);
+  // Cursor v1/v2 has a tagged i64 JSON number. Write this one validated
+  // numeric token directly; JSON.stringify(Number(key)) would round it.
+  const token = encodedText(JSON.stringify(value).replace(/"Int":"(-?[0-9]+)"/, '"Int":$1'));
   if (token.length > maxCursor) throw new SearchBound("cursor");
   return token;
 }
-export interface SearchResult {
+export interface SearchResult extends ValueDeadlines {
   read: Read<unknown>;
   transportOffline?: boolean;
   nextExpiry: number | null;
@@ -151,7 +163,8 @@ export interface SearchResult {
 
 export async function ordinarySearch(env: QueryEnvironment, name: string, input: unknown, plan: SearchComposition,
   checkpoint: () => void, blocked: () => Promise<boolean>): Promise<SearchResult> {
-  const loading: SearchResult = { read: { loading: true }, nextExpiry: null, searchAttempt: true };
+  const decorated = !!env.backend.schema?.operations?.[name]?.search_decoration;
+  const loading: SearchResult = { read: { loading: true }, nextExpiry: null, valueDevice: null, valueServer: null, searchAttempt: true };
   const stateReply = await env.call({ op: "search_state", name }); checkpoint();
   const state = stateReply.ok as State | undefined;
   if (stateReply.denied) return { ...loading, read: { denied: stateReply.denied as Refusal } };
@@ -200,10 +213,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     // only point readability; current rows win even outside the needle/keyset.
     ledger.charge("heap_bytes", 128 + (local.data?.length ?? 0) * 64);
     ledger.charge("steps", local.data?.length ?? 0);
-    const retained = local.cut && !local.next ? [] : (local.data ?? []).map(row => row.id);
+    const retained = local.cut && !local.next ? [] : (local.searchRows ?? local.data ?? []).map(row => row.id);
     if (retained.length > plan.limit + 1) throw new SearchBound("overlap candidates");
     ledger.text(jsonBound(retained, ledger));
-    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r)); checkpoint();
+    const decorationSelection = decorated ? { searchRetainedOrder: (local.cut && !local.next ? [] : local.data ?? []).map(row => row[plan.column]), searchRetainedMore: !!local.next } : {};
+    if (decorated) ledger.text(jsonBound(decorationSelection, ledger));
+    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r)); checkpoint();
     if (!response.ok) return { ...loading, transportOffline: true };
     if (response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
@@ -218,12 +233,13 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     }
     position.identity = response.searchIdentity;
     if (!Array.isArray(remote.data)) return loading;
-    const afterReply = await env.call({ op: "search_state", name, spent: ledger.used }); checkpoint();
-    if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
-    const after = afterReply.ok as State | undefined;
-    if (!after?.metered) return loading;
-    ledger.resume(after.metered);
-    if (!state.delivery || after.delivery !== state.delivery || after.epoch !== state.epoch || env.link !== "online" || credential !== env.credentialRevision) return loading;
+    if (decorated) {
+      ledger.charge("steps", remote.data.length);
+      if (!Array.isArray(remote.searchRows) || remote.searchRows.length !== remote.data.length
+        || !remote.searchRows.every(row => row && typeof row.id === "string" && orderKey(row[plan.column]))) {
+        return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support lifted search source keys" } } };
+      }
+    }
     const scopes = response.json.searchScopes;
     if (!Array.isArray(scopes)) return loading;
     ledger.charge("steps", scopes.length);
@@ -262,7 +278,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
     }
     const current = response.json.searchCurrent;
-    const invalidOverlap = () => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
+    const invalidOverlap = (): SearchResult => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
     if (!Array.isArray(current) || current.length > retained.length) return invalidOverlap();
     // Validate a page-sized subset in linear work, like the scope proof above.
     // Prepay both sets and membership probes; decoding already charged ID bytes.
@@ -274,16 +290,22 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     }
     ledger.charge("heap_bytes", 128 + current.length * 64);
     const suppressed = new Set(current);
-    const left = local.data!, right = remote.data;
+    const left = local.searchRows ?? local.data!, right = remote.searchRows ?? remote.data;
     ledger.charge("heap_bytes", 128 + plan.limit * 128);
     const data: Row[] = [];
     let retainedEmitted = false;
+    const retainedPositions: number[] = [];
     const seen = new Set<string>(); // Defense in depth if a source/proof repeats an ID.
     let i = 0, j = 0;
     let consumed = false;
     const before = (a: Row, b: Row) => {
       ledger.charge("steps", 2);
-      let cmp = Number(a[plan.column]) - Number(b[plan.column]);
+      const ak = a[plan.column], bk = b[plan.column];
+      if (!orderKey(ak) || !orderKey(bk)) throw new SearchBound("invalid source ordering key");
+      ledger.charge("steps", (typeof ak === "string" ? ak.length * 2 : 0) + (typeof bk === "string" ? bk.length * 2 : 0));
+      ledger.charge("heap_bytes", 128); // bounded i64 validation and comparison
+      const av = BigInt(ak), bv = BigInt(bk);
+      let cmp = av < bv ? -1 : av > bv ? 1 : 0;
       if (!cmp) {
         // Rust strings order Unicode scalar values (UTF-8), not UTF-16 units.
         ledger.charge("steps", a.id.length + b.id.length + 1);
@@ -306,11 +328,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!(fromLocal && suppressed.has(row.id)) && !seen.has(row.id)) {
         ledger.text(64 + row.id.length);
         // Decoded rows are already reserved; output serializing/copying is also paid.
-        const bytes = jsonBound(row, ledger);
+        const value = fromLocal ? local.data![i]! : remote.data[j]!;
+        const bytes = jsonBound(value, ledger);
         ledger.charge("heap_bytes", bytes * 2);
         ledger.charge("output_bytes", bytes + 1);
-        data.push(row); seen.add(row.id);
-        if (fromLocal) retainedEmitted = true;
+        data.push(value); seen.add(row.id);
+        if (fromLocal) { retainedEmitted = true; retainedPositions.push(data.length - 1); }
       }
       const next = sourceCursor(plan, row, env.backend.generation, ledger);
       // Both lanes seek the combined consumed key on the next request. A new
@@ -318,6 +341,20 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       // emitted nothing yet. All fetched/unconsumed keys after it remain eligible.
       position.after = next; consumed = true;
       if (fromLocal) { position.local = next; i++; } else { position.server = next; j++; }
+    }
+    const decorationRows = decorated ? retainedPositions.map(position => data[position]!) : undefined;
+    if (decorationRows) ledger.text(jsonBound(decorationRows, ledger));
+    const afterReply = await env.call({ op: "search_state", name, spent: ledger.used,
+      ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) }); checkpoint();
+    if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
+    const after = afterReply.ok as State | undefined;
+    if (!after?.metered) return loading;
+    ledger.resume(after.metered);
+    if (!state.delivery || after.delivery !== state.delivery || after.epoch !== state.epoch || env.link !== "online" || credential !== env.credentialRevision) return loading;
+    if (decorated) {
+      if (!after.decorations || after.decorations.length !== retainedPositions.length) return loading;
+      for (let k = 0; k < retainedPositions.length; k++) data[retainedPositions[k]!] = after.decorations[k]!;
+
     }
     const more = i < left.length || j < right.length || !!local.next || !!remote.next;
     let next: string | null = null;
@@ -332,6 +369,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
       ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
+      valueDevice: valueDeadline(after.decorationExpiry, decorated && retainedPositions.length > 0), valueServer: valueDeadline(remote.decorationExpiry, decorated),
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {
     if (error instanceof SearchBound) return { ...loading, read: { denied: error.refusal } };

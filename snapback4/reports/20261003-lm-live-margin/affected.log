@@ -1,0 +1,574 @@
+✔ ready fixtures carry existence (1.03459ms)
+✔ online evidence while already revalidating: keep=undefined, late answer (2.750313ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.898938ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.496614ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (176.309679ms)
+✔ online evidence while already revalidating: keep=true, late answer (0.776714ms)
+✔ online evidence while already revalidating: keep=true, throw (0.474652ms)
+✔ online evidence while already revalidating: keep=true, offline (0.437385ms)
+✔ online evidence while already revalidating: keep=true, exhausted (176.323779ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1048.123359ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (31.340896ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1029.091862ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (31.946745ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3044.416437ms)
+  ✔ offline transport (27.360801ms)
+  ✔ retry exhaustion (210.138694ms)
+  ✔ reconnect (60.418251ms)
+✔ process keep=undefined: profile route gate (5159.839838ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (61.902445ms)
+  ✔ own send and settlement (63.274171ms)
+  ✔ edit (34.909194ms)
+  ✔ delete (33.957078ms)
+  ✔ membership removal (35.737887ms)
+✔ process keep=undefined: chat history and membership removal (1977.778647ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3038.499438ms)
+  ✔ offline transport (32.383199ms)
+  ✔ retry exhaustion (215.10625ms)
+  ✔ reconnect (62.598799ms)
+✔ process keep=true: profile route gate (4427.990358ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (62.60632ms)
+  ✔ own send and settlement (52.144689ms)
+  ✔ edit (34.623877ms)
+  ✔ delete (30.536871ms)
+  ✔ membership removal (34.273321ms)
+✔ process keep=true: chat history and membership removal (2258.894889ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3040.890853ms)
+  ✔ offline transport (21.537372ms)
+  ✔ retry exhaustion (202.531021ms)
+  ✔ reconnect (113.425022ms)
+✔ wasm keep=undefined: profile route gate (4550.255139ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (50.534435ms)
+  ✔ own send and settlement (46.277525ms)
+  ✔ edit (27.064737ms)
+  ✔ delete (25.975965ms)
+  ✔ membership removal (25.482665ms)
+✔ wasm keep=undefined: chat history and membership removal (1927.798002ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3037.444887ms)
+  ✔ offline transport (19.337235ms)
+  ✔ retry exhaustion (201.938643ms)
+  ✔ reconnect (40.193035ms)
+✔ wasm keep=true: profile route gate (4112.727575ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (57.07567ms)
+  ✔ own send and settlement (20.920397ms)
+  ✔ edit (21.835529ms)
+  ✔ delete (23.468387ms)
+  ✔ membership removal (22.43641ms)
+✔ wasm keep=true: chat history and membership removal (1992.139423ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3036.207382ms)
+  ✔ offline transport (10.813408ms)
+  ✔ retry exhaustion (191.389751ms)
+  ✔ reconnect (19.216944ms)
+✔ online keep=undefined: profile route gate (3952.608655ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (27.342904ms)
+  ✔ own send and settlement (20.210583ms)
+  ✔ edit (17.635594ms)
+  ✔ delete (16.134504ms)
+  ✔ membership removal (15.748325ms)
+✔ online keep=undefined: chat history and membership removal (1210.944078ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3032.111664ms)
+  ✔ offline transport (62.262815ms)
+  ✔ retry exhaustion (191.440688ms)
+  ✔ reconnect (20.017845ms)
+✔ online keep=true: profile route gate (4215.396565ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (26.421453ms)
+  ✔ own send and settlement (19.587199ms)
+  ✔ edit (15.846662ms)
+  ✔ delete (15.496758ms)
+  ✔ membership removal (16.338088ms)
+✔ online keep=true: chat history and membership removal (665.818648ms)
+✔ ready fixtures carry existence (0.969414ms)
+✔ apply keeps its bound on held, keep=undefined (1.453038ms)
+✔ apply keeps its bound on throw, keep=undefined (0.683304ms)
+✔ admit keeps its bound on held, keep=undefined (0.316835ms)
+✔ admit keeps its bound on throw, keep=undefined (1.496874ms)
+✔ settle keeps its bound on held, keep=undefined (0.330205ms)
+✔ settle keeps its bound on throw, keep=undefined (0.296654ms)
+✔ apply keeps its bound on held, keep=true (0.190516ms)
+✔ apply keeps its bound on throw, keep=true (0.228082ms)
+✔ admit keeps its bound on held, keep=true (0.251897ms)
+✔ admit keeps its bound on throw, keep=true (0.277355ms)
+✔ settle keeps its bound on held, keep=true (0.142604ms)
+✔ settle keeps its bound on throw, keep=true (0.160991ms)
+✔ process: applied membership removal and held replica replacement (312.971028ms)
+✔ process: applied membership removal and throw replica replacement (248.786453ms)
+✔ wasm: applied membership removal and held replica replacement (563.14471ms)
+✔ wasm: applied membership removal and throw replica replacement (229.527816ms)
+✔ online receipt bounds held replacement, keep=undefined (1180.36899ms)
+✔ online receipt bounds offline replacement, keep=undefined (168.407764ms)
+✔ online receipt bounds held replacement, keep=true (1170.713498ms)
+✔ online receipt bounds offline replacement, keep=true (169.594823ms)
+✔ online: ephemeral-only /changes bounds a held replacement (164.367078ms)
+✔ process: ephemeral-only /changes bounds a held replacement (238.538042ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (191.618905ms)
+✔ ephemeral periodic sampling is distinct from change evidence (2.557073ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (1.715201ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (232.447853ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (177.747233ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1141.77392ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1088.674371ms)
+✔ process: ordinary search offline classification (344.767507ms)
+✔ process: ordinary search loading classification (349.478959ms)
+✔ process: ordinary search denied classification (333.02009ms)
+✔ wasm: ordinary search offline classification (283.425292ms)
+✔ wasm: ordinary search loading classification (395.162744ms)
+✔ wasm: ordinary search denied classification (291.142099ms)
+✔ process: pre-change replica completion cannot erase a pending change bound (1173.391191ms)
+✔ wasm: pre-change replica completion cannot erase a pending change bound (1146.756178ms)
+✔ pending change requires published sync or a whole server answer at its cut (1.239468ms)
+✔ process: item notification survives readable old replica and failed sync, keep=undefined (1209.336679ms)
+✔ process: item notification survives readable old replica and failed sync, keep=true (1171.884783ms)
+✔ process: item notification survives readable old replica and failed sync, keep=false (1171.310312ms)
+✔ process: item notification survives throw old replica and failed sync, keep=undefined (1168.029655ms)
+✔ process: item notification survives throw old replica and failed sync, keep=true (1164.829277ms)
+✔ process: item notification survives throw old replica and failed sync, keep=false (1168.230686ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=undefined (1165.896367ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=true (1156.576968ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=false (1155.735287ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=undefined (1179.679907ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=true (1163.561788ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=false (1160.963894ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=undefined (1529.232216ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=true (1110.735738ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=false (1110.79707ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=undefined (1099.132977ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=true (1119.479663ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=false (1110.140416ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (1111.281466ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=true (1101.964841ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=false (1105.217877ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (1100.072855ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=true (1393.065598ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=false (1111.488376ms)
+✔ process: only a server answer at the reported cut can replace before sync (296.660801ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (231.626112ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (5141.77364ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (588.523321ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (345.120977ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (5087.21984ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (429.779431ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (316.189482ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=undefined (2481.088311ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=true (2474.288289ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=false (2469.508234ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=undefined (2474.240558ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=true (2465.308018ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=false (2470.40631ms)
+✔ process: real generation-only adoption retires held replica answers, keep=undefined (2470.152019ms)
+✔ process: real generation-only adoption retires held replica answers, keep=true (2472.452668ms)
+✔ process: real generation-only adoption retires held replica answers, keep=false (2464.576452ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=undefined (2885.084426ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=true (2468.666393ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=false (2467.525303ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=undefined (2458.917601ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=true (2468.508316ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=false (2478.225121ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=undefined (2492.282011ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=true (2471.589745ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=false (2854.540144ms)
+✔ process: generation boundary clears remembered answers and a held server completion (1463.769866ms)
+✔ wasm: generation boundary clears remembered answers and a held server completion (1470.9579ms)
+✔ process: quiet presence cannot publish below a pending durable cut (2065.39832ms)
+✔ wasm: quiet presence cannot publish below a pending durable cut (962.315983ms)
+✔ online: missing tables, keep=undefined, failed=false (1032.596306ms)
+✔ online: missing tables, keep=undefined, failed=true (32.223569ms)
+✔ online: missing tables, keep=true, failed=false (1025.261742ms)
+✔ online: missing tables, keep=true, failed=true (31.692112ms)
+✔ online: empty tables, keep=undefined, failed=false (1122.309195ms)
+✔ online: empty tables, keep=undefined, failed=true (1121.950838ms)
+✔ online: empty tables, keep=true, failed=false (1123.312139ms)
+✔ online: empty tables, keep=true, failed=true (1123.984838ms)
+✔ process: two offline sends settle with certified preservation (444.143211ms)
+✔ process: two offline sends settle with unknown once authority (389.79532ms)
+✔ wasm: two offline sends settle with certified preservation (709.293672ms)
+✔ wasm: two offline sends settle with unknown once authority (270.682362ms)
+✔ process: pending cut preserves transition before sync publication (689.621835ms)
+✔ process: pending cut preserves emptyTransition before sync publication (491.46403ms)
+✔ process: pending cut preserves presentTransition before sync publication (509.954023ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (486.944665ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (499.279884ms)
+✔ wasm: pending cut preserves transition before sync publication (714.30938ms)
+✔ wasm: pending cut preserves emptyTransition before sync publication (299.149562ms)
+✔ wasm: pending cut preserves presentTransition before sync publication (502.70592ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (492.369356ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (245.803251ms)
+✔ process: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (702.075051ms)
+✔ process: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (490.439434ms)
+✔ process: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (497.929089ms)
+✔ process: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (498.030141ms)
+✔ process: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (500.652312ms)
+✔ process: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (594.266789ms)
+✔ process: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (419.533343ms)
+✔ process: child-add keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (487.945565ms)
+✔ process: child-remove keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (502.165139ms)
+✔ process: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (497.606677ms)
+✔ process: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (509.01087ms)
+✔ process: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (509.867203ms)
+✔ process: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (509.654024ms)
+✔ process: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (532.189582ms)
+✔ wasm: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (688.300485ms)
+✔ wasm: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (289.859386ms)
+✔ wasm: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (675.991646ms)
+✔ wasm: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (285.496267ms)
+✔ wasm: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (260.276165ms)
+✔ wasm: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (505.26801ms)
+✔ wasm: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (495.085918ms)
+✔ wasm: child-add keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (508.99055ms)
+✔ wasm: child-remove keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (493.210947ms)
+✔ wasm: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers (397.610313ms)
+✔ wasm: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (266.311751ms)
+✔ wasm: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (354.677041ms)
+✔ wasm: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (486.319938ms)
+✔ wasm: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (441.250445ms)
+✔ wasm: local unsaved hold survives save throws until dispatch (828.237665ms)
+✔ wasm: local unsaved hold survives save throws until hold (179.544037ms)
+✔ wasm: local unsaved hold survives save throws until settlement (168.097499ms)
+✔ wasm: local unsaved hold survives save throws until signOut (215.745157ms)
+✔ wasm: local unsaved hold survives save throws until close (202.828467ms)
+✔ wasm: local unsaved hold survives save throws until adoption (279.381161ms)
+✔ wasm: local unsaved hold survives device refuses until dispatch (402.28536ms)
+✔ wasm: local unsaved hold survives device refuses until hold (194.733614ms)
+✔ wasm: local unsaved hold survives device refuses until settlement (194.073143ms)
+✔ wasm: local unsaved hold survives device refuses until signOut (168.37132ms)
+✔ wasm: local unsaved hold survives device refuses until close (163.402873ms)
+✔ wasm: local unsaved hold survives device refuses until adoption (196.81958ms)
+✔ online: dispatch subscriber signOut prevents the POST (153.630255ms)
+✔ online: dispatch subscriber close prevents the POST (161.730786ms)
+✔ wasm: dispatch subscriber signOut prevents the POST (181.335451ms)
+✔ wasm: dispatch subscriber close prevents the POST (167.897189ms)
+✔ process: dispatch subscriber signOut prevents the POST (238.45632ms)
+✔ process: dispatch subscriber close prevents the POST (232.907393ms)
+✔ online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (340.271889ms)
+✔ online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (340.529496ms)
+✔ app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (383.634945ms)
+✔ app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (341.379219ms)
+✔ wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (360.406208ms)
+✔ wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (360.573519ms)
+✔ process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (757.924194ms)
+✔ process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (1033.268303ms)
+✔ online: custody waits and dropped connections preserve sent until settlement (903.324732ms)
+✔ app-online: custody waits and dropped connections preserve sent until settlement (905.006083ms)
+✔ wasm: custody waits and dropped connections preserve sent until settlement (1003.388376ms)
+✔ process: custody waits and dropped connections preserve sent until settlement (1053.525677ms)
+✔ app-online: reload preserves held head and queued tail, then settles the same ids once (180.549383ms)
+✔ app-online: reload preserves sent head and queued tail, then settles the same ids once (170.839129ms)
+✔ wasm: reload preserves held head and queued tail, then settles the same ids once (432.23359ms)
+✔ wasm: reload preserves sent head and queued tail, then settles the same ids once (714.98313ms)
+✔ process: reload preserves held head and queued tail, then settles the same ids once (3431.442768ms)
+✔ process: reload preserves sent head and queued tail, then settles the same ids once (4490.789149ms)
+✔ raw online queue is in memory; reopening never invents durable intent (991.429982ms)
+✔ online pending-list subscriber can admit a successor without redispatching the head (879.291088ms)
+✔ account facade fences both an outstanding list and its subscription (2.146557ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined (512.671417ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined, held (376.927121ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true (369.029825ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true, held (370.896783ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false (370.864504ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false, held (372.761588ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined (654.42498ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined, held (342.927179ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true (318.858333ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true, held (337.454817ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false (369.480811ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false, held (1389.06308ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=undefined (299.425535ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=true (301.65026ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=false (302.446935ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=undefined (308.531764ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=true (310.494386ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=false (309.361608ms)
+✔ mounted history: insert, keep=undefined, replacement held beyond one second (47.229241ms)
+✔ mounted history: delete, keep=undefined, replacement held beyond one second (32.289258ms)
+✔ mounted history: legacy, keep=undefined, replacement held beyond one second (32.302418ms)
+✔ mounted history: malformed, keep=undefined, replacement held beyond one second (33.422937ms)
+✔ mounted history: opaque, keep=undefined, replacement held beyond one second (31.337512ms)
+✔ mounted history: insert, keep=true, replacement held beyond one second (31.334847ms)
+✔ mounted history: delete, keep=true, replacement held beyond one second (31.16985ms)
+✔ mounted history: legacy, keep=true, replacement held beyond one second (31.175348ms)
+✔ mounted history: malformed, keep=true, replacement held beyond one second (31.228028ms)
+✔ mounted history: opaque, keep=true, replacement held beyond one second (30.561298ms)
+✔ safe evidence retains through retry exhaustion; later revoking evidence still bounds it (177.350779ms)
+✔ facade-held A keeps its dependencies after source B changes tables (1.744025ms)
+✔ mutation acknowledgement: insert (13.59668ms)
+✔ mutation acknowledgement: delete (10.832426ms)
+✔ mutation acknowledgement: generation (10.615372ms)
+✔ a failed safe reread preserves the displayed answer dependency plan for the next safe event (32.142628ms)
+✔ private-field transfer: real docs via ack withdraws disclosure (198.299549ms)
+✔ private-field transfer: real docs via changes withdraws disclosure (181.402142ms)
+✔ private-field transfer: real messages via ack withdraws disclosure (181.980267ms)
+✔ private-field transfer: real messages via changes withdraws disclosure (184.125674ms)
+✔ notification: one authority revision retires detached and pending answers (1.40098ms)
+✔ apply publication: one authority revision retires detached and pending answers (0.18049ms)
+✔ local commit: one authority revision retires detached and pending answers (0.183325ms)
+✔ scope cut: one authority revision retires detached and pending answers (0.288482ms)
+✔ partition refusal: one authority revision retires detached and pending answers (0.210516ms)
+✔ reset: one authority revision retires detached and pending answers (0.134301ms)
+✔ a known quiet poll preserves detached and pending authority without another counter (0.158126ms)
+✔ every terminal refusal advances authority, even when the same refusal repeats without owners (0.166289ms)
+✔ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.266199ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=false (4.958852ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=true (1.777614ms)
+✔ closed deadline copy follows same-identity existence changes (0.850435ms)
+✔ wasm: queued history replacement (1959.073822ms)
+✔ wasm: queued history membership removal (1262.34913ms)
+✔ process: queued history replacement (1489.738521ms)
+✔ process: queued history membership removal (288.095574ms)
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (6757.137139ms)
+ℹ {"tier":"wasm","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (9212.834013ms)
+ℹ {"tier":"process","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ online disjoint ordinary revalidation progresses during continuous hot-table evidence (458.803164ms)
+ℹ {"hotStarts":168,"coldRereads":5,"cold":[{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}],"coldStarts":[1,10,19,28,37],"pending":0,"active":8}
+✔ wasm: no-owner revocation must retire remembered content (1987.298227ms)
+ℹ {"removal":{"generation":1,"head":2,"id":"remove","preserved":["members","messages"],"result":null,"seq":2,"state":"sent","store_id":"d3bbba7892832a1f34086358031da5bf"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"d3bbba7892832a1f34086358031da5bf","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: no-owner revocation must retire remembered content (1600.853669ms)
+ℹ {"removal":{"generation":1,"head":2,"id":"remove","preserved":["members","messages"],"result":null,"seq":2,"state":"sent","store_id":"f4e6b4b50c8b1ab629420352792596e3"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"f4e6b4b50c8b1ab629420352792596e3","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: notification fences an unremembered in-flight direct answer (1246.348196ms)
+✔ process: notification fences an unremembered in-flight direct answer (2523.262658ms)
+✔ wasm: notification fences a saved candidate at recovery (2833.069183ms)
+✔ wasm: notification fences a saved candidate at approval (1955.874676ms)
+✔ process: notification fences a saved candidate at recovery (2974.859129ms)
+✔ process: notification fences a saved candidate at approval (203.181386ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: partition refusal retires no-owner memory (185.635486ms)
+✔ wasm: credentials retires no-owner memory (615.201909ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: partition refusal retires no-owner memory (241.984467ms)
+✔ process: credentials retires no-owner memory (651.835018ms)
+✔ wasm: composed scope metadata accepts a table named constructor (1445.661084ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981013413,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named constructor (853.190667ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981014280,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named __proto__ (204.262927ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981014488,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named __proto__ (259.373752ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981014744,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named toString (192.115299ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981014941,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named toString (248.417971ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981015187,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named hasOwnProperty (204.488355ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981015392,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named hasOwnProperty (245.687558ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790981015635,"next":null,"existence":"present"}
+✔ scope matching treats missing constructor as missing (0.735232ms)
+✔ scope matching treats missing __proto__ as missing (0.230736ms)
+✔ scope matching treats missing toString as missing (0.155944ms)
+✔ scope matching treats missing hasOwnProperty as missing (0.11333ms)
+✔ mock ephemeral writes preserve the table constructor (5.665141ms)
+✔ mock ephemeral writes preserve the table __proto__ (1.012838ms)
+✔ mock ephemeral writes preserve the table toString (0.853159ms)
+✔ mock ephemeral writes preserve the table hasOwnProperty (0.88086ms)
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=undefined (4426.934238ms)
+ℹ {"tier":"wasm","footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.027100999999902342,"p95":0.027100999999902342,"max":0.027100999999902342},"attemptMs":{"p50":3.587056000000075,"p95":3.587056000000075,"max":3.587056000000075}}}}
+ℹ {"tier":"wasm","footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.027100999999902342,"p95":0.042382999999972526,"max":0.042382999999972526},"attemptMs":{"p50":3.587056000000075,"p95":6.326322999999775,"max":6.326322999999775}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=undefined (3108.64496ms)
+ℹ {"tier":"wasm","footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.04948400000012043,"p95":0.04948400000012043,"max":0.04948400000012043},"attemptMs":{"p50":3.6000960000001214,"p95":3.6000960000001214,"max":3.6000960000001214}}}}
+ℹ {"tier":"wasm","footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.04948400000012043,"p95":0.07936900000004243,"max":0.07936900000004243},"attemptMs":{"p50":3.6000960000001214,"p95":7.016025999999329,"max":7.016025999999329}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=undefined (3116.465322ms)
+ℹ {"tier":"wasm","footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.023184000000583183,"p95":0.023184000000583183,"max":0.023184000000583183},"attemptMs":{"p50":3.9959399999997913,"p95":3.9959399999997913,"max":3.9959399999997913}}}}
+ℹ {"tier":"wasm","footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.023184000000583183,"p95":0.09454200000072888,"max":0.09454200000072888},"attemptMs":{"p50":3.9959399999997913,"p95":7.543555999998716,"max":7.543555999998716}}}}
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=false (3098.97174ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981023343,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.019949999999880674,"p95":0.019949999999880674,"max":0.019949999999880674},"attemptMs":{"p50":4.567114999999831,"p95":4.567114999999831,"max":4.567114999999831}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981023343,"query":"profile","cause":"retention-disabled"},{"at":1790981024849,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.019949999999880674,"p95":0.043716000000131316,"max":0.043716000000131316},"attemptMs":{"p50":4.567114999999831,"p95":6.792932000000292,"max":6.792932000000292}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=false (3113.337223ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981026455,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.06635000000096625,"p95":0.06635000000096625,"max":0.06635000000096625},"attemptMs":{"p50":3.9195139999992534,"p95":3.9195139999992534,"max":3.9195139999992534}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981026455,"query":"profile","cause":"retention-disabled"},{"at":1790981027962,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.04902399999991758,"p95":0.06635000000096625,"max":0.06635000000096625},"attemptMs":{"p50":3.9195139999992534,"p95":6.1655009999994945,"max":6.1655009999994945}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=false (3113.183634ms)
+ℹ {"tier":"wasm","keep":false,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981029568,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.05943900000056601,"p95":0.05943900000056601,"max":0.05943900000056601},"attemptMs":{"p50":5.489448000000266,"p95":5.489448000000266,"max":5.489448000000266}}}}
+ℹ {"tier":"wasm","keep":false,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981029568,"query":"profile","cause":"retention-disabled"},{"at":1790981031075,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.04838299999755691,"p95":0.05943900000056601,"max":0.05943900000056601},"attemptMs":{"p50":4.992934000001696,"p95":5.489448000000266,"max":5.489448000000266}}}}
+✔ wasm: no-op empty sync replaces out-of-horizon answer with keep=true (3112.958336ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.03803699999843957,"p95":0.03803699999843957,"max":0.03803699999843957},"attemptMs":{"p50":5.062959000002593,"p95":5.062959000002593,"max":5.062959000002593}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.03803699999843957,"p95":0.1154129999995348,"max":0.1154129999995348},"attemptMs":{"p50":5.062959000002593,"p95":6.234524999999849,"max":6.234524999999849}}}}
+✔ wasm: no-op unknown sync replaces out-of-horizon answer with keep=true (3104.245156ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.0301949999993667,"p95":0.0301949999993667,"max":0.0301949999993667},"attemptMs":{"p50":4.143079999998008,"p95":4.143079999998008,"max":4.143079999998008}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.030095000001892913,"p95":0.0301949999993667,"max":0.0301949999993667},"attemptMs":{"p50":3.291203000000678,"p95":4.143079999998008,"max":4.143079999998008}}}}
+✔ wasm: no-op unrelated sync replaces out-of-horizon answer with keep=true (3107.853475ms)
+ℹ {"tier":"wasm","keep":true,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.03712499999892316,"p95":0.03712499999892316,"max":0.03712499999892316},"attemptMs":{"p50":3.916010000000824,"p95":3.916010000000824,"max":3.916010000000824}}}}
+ℹ {"tier":"wasm","keep":true,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.03712499999892316,"p95":0.14953400000013062,"max":0.14953400000013062},"attemptMs":{"p50":3.916010000000824,"p95":6.928565000001981,"max":6.928565000001981}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=undefined (3170.278182ms)
+ℹ {"tier":"process","footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.018237000000226544,"p95":0.018237000000226544,"max":0.018237000000226544},"attemptMs":{"p50":6.120584000000235,"p95":6.120584000000235,"max":6.120584000000235}}}}
+ℹ {"tier":"process","footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.018237000000226544,"p95":0.04274400000213063,"max":0.04274400000213063},"attemptMs":{"p50":6.120584000000235,"p95":7.792891000000964,"max":7.792891000000964}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=undefined (3156.728582ms)
+ℹ {"tier":"process","footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.01767699999982142,"p95":0.01767699999982142,"max":0.01767699999982142},"attemptMs":{"p50":6.0536729999985255,"p95":6.0536729999985255,"max":6.0536729999985255}}}}
+ℹ {"tier":"process","footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.01767699999982142,"p95":0.044115999997302424,"max":0.044115999997302424},"attemptMs":{"p50":6.0536729999985255,"p95":7.148013999998511,"max":7.148013999998511}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=undefined (3147.765438ms)
+ℹ {"tier":"process","footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.013591000002634246,"p95":0.013591000002634246,"max":0.013591000002634246},"attemptMs":{"p50":3.1131659999955446,"p95":3.1131659999955446,"max":3.1131659999955446}}}}
+ℹ {"tier":"process","footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.013591000002634246,"p95":0.018497999997634906,"max":0.018497999997634906},"attemptMs":{"p50":3.1131659999955446,"p95":4.382277999997314,"max":4.382277999997314}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=false (3158.249402ms)
+ℹ {"tier":"process","keep":false,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981051520,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.01374999999825377,"p95":0.01374999999825377,"max":0.01374999999825377},"attemptMs":{"p50":3.313387000001967,"p95":3.313387000001967,"max":3.313387000001967}}}}
+ℹ {"tier":"process","keep":false,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981051520,"query":"profile","cause":"retention-disabled"},{"at":1790981053028,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.01374999999825377,"p95":0.03426099999342114,"max":0.03426099999342114},"attemptMs":{"p50":3.313387000001967,"p95":6.98078300000634,"max":6.98078300000634}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=false (3165.823967ms)
+ℹ {"tier":"process","keep":false,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981054685,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.028632999994442798,"p95":0.028632999994442798,"max":0.028632999994442798},"attemptMs":{"p50":5.629368000001705,"p95":5.629368000001705,"max":5.629368000001705}}}}
+ℹ {"tier":"process","keep":false,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981054685,"query":"profile","cause":"retention-disabled"},{"at":1790981056196,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.028632999994442798,"p95":0.03922900000179652,"max":0.03922900000179652},"attemptMs":{"p50":5.629368000001705,"p95":8.415282999994815,"max":8.415282999994815}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=false (3165.130547ms)
+ℹ {"tier":"process","keep":false,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981057850,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":1,"queueMs":{"p50":0.022594000001845416,"p95":0.022594000001845416,"max":0.022594000001845416},"attemptMs":{"p50":5.582857999994303,"p95":5.582857999994303,"max":5.582857999994303}}}}
+ℹ {"tier":"process","keep":false,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[{"at":1790981057850,"query":"profile","cause":"retention-disabled"},{"at":1790981059359,"query":"profile","cause":"retention-disabled"}],"latency":{"samples":2,"queueMs":{"p50":0.022594000001845416,"p95":0.03873799999564653,"max":0.03873799999564653},"attemptMs":{"p50":5.582857999994303,"p95":8.419540000002598,"max":8.419540000002598}}}}
+✔ process: no-op empty sync replaces out-of-horizon answer with keep=true (3160.944362ms)
+ℹ {"tier":"process","keep":true,"footprint":"empty","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.018829000000550877,"p95":0.018829000000550877,"max":0.018829000000550877},"attemptMs":{"p50":6.793261999999231,"p95":6.793261999999231,"max":6.793261999999231}}}}
+ℹ {"tier":"process","keep":true,"footprint":"empty","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.018829000000550877,"p95":0.042854999999690335,"max":0.042854999999690335},"attemptMs":{"p50":6.793261999999231,"p95":8.950706000003265,"max":8.950706000003265}}}}
+✔ process: no-op unknown sync replaces out-of-horizon answer with keep=true (3165.951658ms)
+ℹ {"tier":"process","keep":true,"footprint":"unknown","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.08262400000239722,"p95":0.08262400000239722,"max":0.08262400000239722},"attemptMs":{"p50":5.618431999995664,"p95":5.618431999995664,"max":5.618431999995664}}}}
+ℹ {"tier":"process","keep":true,"footprint":"unknown","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.043716000000131316,"p95":0.08262400000239722,"max":0.08262400000239722},"attemptMs":{"p50":5.618431999995664,"p95":9.162653999999748,"max":9.162653999999748}}}}
+✔ process: no-op unrelated sync replaces out-of-horizon answer with keep=true (3162.971941ms)
+ℹ {"tier":"process","keep":true,"footprint":"unrelated","round":0,"before":1,"queries":2,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":1,"queueMs":{"p50":0.028451999998651445,"p95":0.028451999998651445,"max":0.028451999998651445},"attemptMs":{"p50":4.590571000000637,"p95":4.590571000000637,"max":4.590571000000637}}}}
+ℹ {"tier":"process","keep":true,"footprint":"unrelated","round":1,"before":2,"queries":3,"read":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"pressure":{"version":1,"supported":true,"totals":{"observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"profile","observations":1,"subscribers":1,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":2,"queueMs":{"p50":0.028451999998651445,"p95":0.03846799999882933,"max":0.03846799999882933},"attemptMs":{"p50":4.590571000000637,"p95":6.9959860000017215,"max":6.9959860000017215}}}}
+✔ wasm: resumed handle inherits unrelated notification (689.776277ms)
+✔ wasm: resumed handle inherits intersecting notification (1472.241605ms)
+✔ process: resumed handle inherits unrelated notification (292.171202ms)
+✔ process: resumed handle inherits intersecting notification (1519.558718ms)
+✔ notification cuts keep unknown dependencies conservative and forget applied tables (0.628362ms)
+✔ online authorized sibling re-read jumps ordinary queued work after evidence (219.781969ms)
+✔ evidence priority survives an active attempt retiring into the queue (11.023653ms)
+✔ ObserveOptions documents plain retention and bounded change evidence for omitted and true (0.750725ms)
+✔ plain revalidation is unbounded; evidence bounds keep=undefined (1.696673ms)
+✔ plain revalidation is unbounded; evidence bounds keep=true (0.29317ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at response (653.87819ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"561e7a068689dfd211b370622442d1a4","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at approval (242.019531ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"06a4fbc12740969969b4fdb281529bbb","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at response (281.619766ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"7c152453b18443c06f4553ce3a9c8178","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at approval (289.732316ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"47fbacfc4036d8232414c261bbb3894c","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✔ unused inspection records no timings and allocates no withdrawal callbacks (35.677797ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (1.692737ms)
+✔ a pending group removal fences an initial observation until actual publication (0.194472ms)
+✔ wasm: published removal only withdraws its room and resumes (598.802818ms)
+✔ wasm: staged removal only withdraws its room and resumes (586.384284ms)
+✔ wasm: offline removal only withdraws its room and resumes (303.66472ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (556.216636ms)
+✔ process: published removal only withdraws its room and resumes (266.5847ms)
+✔ process: staged removal only withdraws its room and resumes (683.259179ms)
+✔ process: offline removal only withdraws its room and resumes (352.8749ms)
+✔ process: offline-before removal only withdraws its room and resumes (398.140858ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (177.615996ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (225.590725ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1175.756227ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (83.937363ms)
+✔ wasm: reuse closed handle after published revocation, keep=undefined (1827.64823ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=true (1402.283495ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=false (1412.651877ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=undefined (1509.529636ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=true (1497.736859ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=false (1506.384962ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=undefined (1445.836216ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=true (1446.292651ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=false (1458.030684ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=undefined (1553.259261ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=true (1552.450449ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=false (1547.211607ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ scope loss fences remembered server answers without a mounted owner (0.442593ms)
+✔ wasm: a dormant local handle checks terminal refusal before reuse (202.022499ms)
+✔ process: a dormant local handle checks terminal refusal before reuse (245.652906ms)
+✔ wasm: detached handle must respect notified cut before sync, mounted control=false (1925.30068ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ wasm: detached handle must respect notified cut before sync, mounted control=true (1474.353981ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ process: detached handle must respect notified cut before sync, mounted control=false (1523.861587ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ process: detached handle must respect notified cut before sync, mounted control=true (1536.349355ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=false (218.39521ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=true (236.390373ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=false (264.835829ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=true (263.069221ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ queue selection scales linearly, priority=false (133.316477ms)
+ℹ {"n":1000,"inspections":1124,"ms":17.768113}
+ℹ {"n":10000,"inspections":11249,"ms":114.695206}
+✔ queue selection scales linearly, priority=true (139.666344ms)
+ℹ {"n":1000,"inspections":1124,"ms":13.810820999999976}
+ℹ {"n":10000,"inspections":11249,"ms":125.62464699999998}
+✔ wasm: published removal preserves server-backed sibling (681.943076ms)
+✔ wasm: staged removal preserves server-backed sibling (428.749658ms)
+✔ process: published removal preserves server-backed sibling (267.410399ms)
+✔ process: staged removal preserves server-backed sibling (462.873054ms)
+✔ wasm: combined retained/server scopes preserve the authorized room (262.793018ms)
+✔ process: combined retained/server scopes preserve the authorized room (291.066566ms)
+✔ server audience metadata uses all public branches; unknown point selectors stay conservative (168.868134ms)
+✔ wasm: ownerless server memory is retired by publication (1853.730554ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by commit-then-throw (1409.108005ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by recovery-after-lost-ack (1412.706438ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by unknown-footprint (1416.582739ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by housekeeping-footprint (1411.295304ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by nonempty-footprint (1413.0877ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by empty-notification (1453.056268ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by publication (1477.331925ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by commit-then-throw (1473.556105ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by recovery-after-lost-ack (1485.343754ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by unknown-footprint (1477.367529ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by housekeeping-footprint (1470.011493ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by nonempty-footprint (1473.561534ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by empty-notification (1499.414855ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: cancelled resumed watermark releases running (684.666999ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ wasm: expired resumed watermark releases running (210.073056ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: cancelled resumed watermark releases running (254.716332ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: expired resumed watermark releases running (254.010904ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ queued replacement preserves mounted history and facade, keep=undefined (7.860903ms)
+✔ queued replacement preserves mounted history and facade, keep=true (2.97526ms)
+✔ inspection groups shared observations, measures queue/attempt time, and records bounded withdrawal causes (10.00077ms)
+✔ queued history immediately withdraws on expiry (0.378678ms)
+✔ queued history immediately withdraws on denial (0.249664ms)
+✔ queued history immediately withdraws on reset (0.229464ms)
+ℹ tests 449
+ℹ suites 0
+ℹ pass 449
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 119000.727348

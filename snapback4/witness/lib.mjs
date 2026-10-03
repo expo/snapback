@@ -83,7 +83,7 @@ export async function devServer({ seed, extraSource = "", sourceDir, port = 0, c
     const t0 = performance.now();
     const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then(r => r.json());
     const seedMs = +(performance.now() - t0).toFixed(1);
-    return { api, app, seeded: seeded.seeded, seedMs, close };
+    return { api, app, pid: server.pid, seeded: seeded.seeded, seedMs, close };
   } catch (error) {
     await close();
     throw error;

@@ -13,9 +13,10 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
   const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
     async call(r){
-      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent&&remainingSteps!==undefined?{...r.spent,steps:ceilings.steps-remainingSteps}:r.spent??counts()}};
+      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent??counts()}};
       assert.equal(r.search,true);assert.ok(r.spent.heap_bytes>0);
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
+      if(remainingSteps!==undefined)scanUsed.steps=ceilings.steps-remainingSteps;
       if(localCut==='meter')scanUsed.examined=ceilings.examined+1;
       const found=retained.filter(x=>x.at<sourceCursor(r.args.c));
       return {ok:{data:found.slice(0,limit),complete:localComplete,cut:localCut,next:!localCut&&found.length>limit?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
@@ -57,10 +58,11 @@ test('decoder and coordinator cannot reset a nearly exhausted device scan ledger
   assert.throws(()=>alone.resume(counts()),SearchBound,'receipts cannot lower prior work');
 });
 for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step allowance (${tie?'equal-time Unicode IDs':'time order'})`,async()=>{
-  // The final state receipt leaves just enough for both mixed rows. One fewer
-  // step must refuse. These fixed allowances include all merge/output work;
+  // The candidate scan receipt leaves just enough for decode and both mixed
+  // rows before the final fence. One fewer step must refuse. Fixed allowances
+  // include all remaining merge/output work;
   // deleting either comparison charge makes the corresponding tight run pass.
-  const steps=tie?1679:1667;
+  const steps=tie?1875:1863;
   const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
   const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
   const full=await enough.run(),cut=await tight.run();
@@ -199,4 +201,23 @@ test('merge seen set is defense in depth for a same-page pair unmarked by overla
   const row={id:'pair',at:100,text:'coffee'}, f=fixture({retained:[row],live:[row],localComplete:true});
   const {read}=await f.run();
   assert.deepEqual(read.data,[row]);assert.equal(read.next,null);assert.equal(f.calls(),1);
+});
+
+for (const order of ['Asc','Desc']) for (const key of [9007199254740993n,-9007199254740992n,9223372036854775807n,-9223372036854775807n]) test(`exact source-order protocol ${order} ${key}`,async()=>{
+  const higher={id:'a',at:String(key)},lower={id:'z',at:String(key-1n)};
+  const current=order==='Desc'?higher:lower,retained=order==='Desc'?lower:higher;
+  let received;
+  const env={backend:{generation:1,schema:{operations:{decorated:{search_decoration:true}}}},principal:'bob',link:'online',lastSyncAt:1,credentialRevision:0,deviceNow:()=>1,serverNow:()=>1,
+    async call(r){
+      if(r.op==='query')return {ok:{data:[retained],complete:true,next:null,metered:r.spent}};
+      return {ok:{epoch:'a',delivery:'a',left:['["left"]'],ceilings,metered:r.spent??counts(),decorations:[]}};
+    },
+    async searchPost(path,body,decode){received=body;return {ok:true,obsoleteAuth:false,searchIdentity:'store:1',json:await decode(new Response(JSON.stringify({searchScopes:['["live"]'],searchCurrent:[],searchRows:[current],data:[{id:current.id,sender:'Alice'}],complete:true,next:null})))}}};
+  const out=await ordinarySearch(env,'decorated',{q:'coffee'},{...plan,kind:'Int',order,limit:1},()=>{},async()=>false);
+  assert.deepEqual(out.read.data,[{id:current.id,sender:'Alice'}]);
+  assert.deepEqual(received.searchRetainedOrder,[retained.at]);
+  const cursor=position(out.read.next).after;
+  const text=Buffer.from(cursor,'base64url').toString();
+  assert.ok(text.includes(`{"Int":${current.at}}`),text);
+  assert.ok(!text.includes(`"Int":"`),'tagged i64 cursor remains numeric and canonical');
 });

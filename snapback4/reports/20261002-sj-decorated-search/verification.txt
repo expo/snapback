@@ -1,0 +1,37 @@
+Frozen final invocation
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+-- ok: cargo build (2 s)
+wasm 2050348 B raw, 616951 B gzip (budget 617581: ok)
+-- ok: wasm build (34 s)
+-- ok: docs budget (2 s)
+-- ok: release guard (3 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (3 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 286 test binaries, 999 executions; at most 24 concurrent processes
+-- ok: cargo test (452 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (3 s)
+-- ok: fixture wrapper tests (12 s)
+wasm [
+wasm moved survivor hidden=false: payload-bytes=655 identical-worlds=2 completions=1 key-at=100
+wasm moved survivor hidden=true: payload-bytes=655 identical-worlds=2 completions=1 key-at=100
+wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true
+wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119331
+wasm written unselected round-trip=true: payload-bytes=836 worlds=2 p1-puts=3 completions=1 key-at=1000
+wasm written unselected round-trip=false: payload-bytes=746 worlds=1 p1-puts=2 completions=1 key-at=1000
+wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+wasm membership collision kind=join row-event=null: payload-bytes=687 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=put: payload-bytes=813 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=del: payload-bytes=674 identical-worlds=2 completions=1 key-at=1000
+wasm {
+-- ok: client tests (587 s)
+-- ok: client models (305 s)
+== 0 failure(s) in 1390 s
+
+Preliminary overlapping invocation: == 1 failure(s) in 1510 s
+Client artifact ENOENTs: ours; full affected-file rerun: 119 passed, 0 failed.
+See REPORT.md for all failure classifications.

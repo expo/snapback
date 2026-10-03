@@ -8,7 +8,9 @@ pub(super) fn capture(catalog: &mut Catalog) {
     for doc in &catalog.documents {
         for program in &doc.programs {
             if program.kind != ProgramKind::Query || program.held || !program.prelude.is_empty() { continue; }
-            let [Stmt::Return { value: Expr::Read(read), .. }] = program.body.as_slice() else { continue };
+            let [Stmt::Return { value, .. }] = program.body.as_slice() else { continue };
+            let value = match value { Expr::Shape { base, .. } | Expr::ShapeUse { base, .. } => base.as_ref(), value => value };
+            let Expr::Read(read) = value else { continue };
             if read.matching.is_none() || read.index.is_some() || !read.keys.is_empty()
                 || read.range.is_none() || read.order_keys.is_empty()
                 || read.filter.as_deref().is_some_and(|value| !scalar(value)) { continue; }

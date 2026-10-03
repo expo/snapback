@@ -1,0 +1,99 @@
+{
+  "merge": "878da80018",
+  "round0": "90c6b168b6",
+  "incoming_main": "e15de2e49a",
+  "affected_rust": {
+    "passed": 4713,
+    "failed": 0,
+    "ignored": 34,
+    "summaries": 286,
+    "targets": "five crates: --lib --bins --tests --no-fail-fast"
+  },
+  "guide": {
+    "passed": 110,
+    "failed": 0
+  },
+  "decorated_rust_final": {
+    "passed": 11,
+    "failed": 0,
+    "fixture": "Original W13 seed path restored after full-suite compilation; this final targeted run verifies it."
+  },
+  "focused_js_initial": {
+    "passed": 539,
+    "failed": 1,
+    "classification": "ours: stale client.ts await-boundary digest; corrected; targeted classification rerun 1/1; full client suite passed"
+  },
+  "expiry_regressions": {
+    "passed": 6,
+    "failed": 0
+  },
+  "generic_deadlines_final": {
+    "passed": 64,
+    "failed": 0
+  },
+  "oracle_per_host": {
+    "hosts": [
+      "process",
+      "wasm"
+    ],
+    "pages": 985,
+    "online": 686,
+    "offline": 299,
+    "short": 8,
+    "currentNull": 996,
+    "retainedNull": 1802
+  },
+  "full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "runs": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1394 s",
+    "rust_binaries": 286,
+    "rust_executions": 999,
+    "doctests": "passed",
+    "clients_passed": 5816,
+    "clients_failed": 0,
+    "clients_skipped": 10,
+    "models_passed": 79,
+    "models_failed": 0,
+    "failures": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    }
+  },
+  "w13": {
+    "messages": 30030,
+    "rooms": 1000,
+    "distinct_points": 21,
+    "bare": {
+      "examined": 2040,
+      "index_entries": 2040,
+      "rule_probes": 1040,
+      "steps": 20216,
+      "heap_bytes": 2938717,
+      "output_bytes": 60531
+    },
+    "decorated": {
+      "examined": 2061,
+      "index_entries": 2040,
+      "rule_probes": 1060,
+      "steps": 32957,
+      "heap_bytes": 3143581,
+      "output_bytes": 62682
+    }
+  },
+  "custody": {
+    "product_sources": "unchanged through final suite",
+    "test_change": "Only W13 fixture seeding restored during suite; final 11/11 rerun follows.",
+    "files": 23,
+    "wasm_sha256": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8"
+  },
+  "external_logs_sha256": {
+    "full-suite.log": "aca7adb4d0995b3c06d908313116ee32108d39afeeba93718ae0dfcf1cda3a33",
+    "rust-affected.log": "b43f5f659e1105ab40dab2937e27ca319f51c7a3fe3a1001a24de5d3b325e30d",
+    "js-affected.log": "173c103092069c8832d8505e8e672aeaa6fe9cc5026c1086c64c147c6b23659a",
+    "rust-decorated-fixture-final.log": "d5b13b60f3aba51161b604ec4afeb7831c1ade95f46e4142b1b5b9c25c8e00ae"
+  },
+  "reference_audit": "ref-check: ok \u2014 525 LLP docs, 10109 refs in 32465 files, 0 errors, 0 unchecked"
+}

@@ -791,6 +791,7 @@ fn generated_typescript_preserves_strings_and_typechecks_with_the_real_contract(
     let scratch = Scratch::new();
     std::fs::write(scratch.0.join("api.ts"), api.replace("\"snapback4/contract\"", "\"./contract\"")).unwrap();
     std::fs::write(scratch.0.join("contract.ts"), include_str!("../../../packages/snapback4/src/contract.ts")).unwrap();
+    std::fs::write(scratch.0.join("receipt-family.ts"), include_str!("../../../packages/snapback4/src/receipt-family.ts")).unwrap();
     std::fs::write(
         scratch.0.join("check.ts"),
         r#"import { api, type Rows } from './api';
@@ -871,6 +872,7 @@ query nullableObjects():
     let api = snapback4_lang::emit::typescript(&compiled);
     std::fs::write(scratch.0.join("api.ts"), api.replace("\"snapback4/contract\"", "\"./contract\"")).unwrap();
     std::fs::write(scratch.0.join("contract.ts"), include_str!("../../../packages/snapback4/src/contract.ts")).unwrap();
+    std::fs::write(scratch.0.join("receipt-family.ts"), include_str!("../../../packages/snapback4/src/receipt-family.ts")).unwrap();
     std::fs::write(scratch.0.join("check.ts"), r#"import { api, type Rows } from './api';
 type NullableRows = NonNullable<typeof api.nullableRows.__result>;
 type NullableObjects = NonNullable<typeof api.nullableObjects.__result>;

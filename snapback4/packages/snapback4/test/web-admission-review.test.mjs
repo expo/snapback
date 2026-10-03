@@ -6,8 +6,9 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { launch, devServer, root } from '../../../witness/lib.mjs';
+import { launch, root } from '../../../witness/lib.mjs';
 import { until } from './helpers/app-server.mjs';
+import { replacementServer } from './helpers/replacement-server.mjs';
 
 // One hang allowance per scenario, plus startup and cleanup, rather than a
 // fixed file-throughput limit. Each of the 54 sequential scenarios is also bounded.
@@ -308,24 +309,11 @@ window.abortReceipts = (store, limit = Infinity) => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  const replacementFor = async session => {
-    const replacement = await devServer({ sourceDir, seed: [
+  const replacementFor = session => replacementServer({ original: witness, session, sourceDir, seed: [
       { table: 'removals', row: { id: 'audit', total: 0 } },
       { table: 'members', row: { id: 'admin', room: 'room', principal: session.principal, admin: true } },
       { table: 'members', row: { id: 'target', room: 'room', principal: 'user:other', admin: false } },
     ] });
-    // A replacement retains real identity records but has new application storage.
-    const db = new DatabaseSync(join(replacement.app, '.snapback4/store.sqlite'));
-    try {
-      db.prepare('ATTACH DATABASE ? AS source').run(join(witness.app, '.snapback4/store.sqlite'));
-      for (const table of ['_principals', '_sessions', '_principal_generations']) db.exec(`INSERT OR REPLACE INTO ${table} SELECT * FROM source.${table}`);
-    } finally { db.close(); }
-    const heads = await Promise.all([url, replacement.api].map(backend => fetch(backend + '/probe', {
-      headers: { authorization: `Bearer ${session.token}` },
-    }).then(r => r.json())));
-    assert.ok(heads.every(head => head.ok === true)); assert.notEqual(heads[0].store_id, heads[1].store_id);
-    return replacement;
-  };
 
   await check('hiding during strict admission releases the session lock before transport and peer logout', async () => {
     const { session } = await fresh();

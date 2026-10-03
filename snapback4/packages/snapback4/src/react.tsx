@@ -19,6 +19,10 @@ import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
 import { readKey } from "./read-key.ts";
 
+import { SeenOwner, type SeenOptions, type SeenSnapshot } from "./seen-progress.ts";
+import type { ReceiptFamily } from "./receipt-family.ts";
+export type { SeenOptions, SeenSnapshot } from "./seen-progress.ts";
+
 const ClientContext = createContext<Client | null>(null);
 
 const AppContext = createContext<App | null>(null);
@@ -447,4 +451,23 @@ export function useInspection(enabled = false): ReadInspection | null {
     return () => clearInterval(timer);
   }, [client, enabled]);
   return enabled && sample?.client === client ? sample.value : null;
+}
+
+/** Report only actually visible confirmed message positions. The app supplies
+ * foreground/viewport visibility on web or native. Shares coalesced progress
+ * and in-flight admission per client/family/scope; never pages or reports delivery.
+ * Withdrawal, member replacement and final unmount discard local progress.
+ * Known pre-admission refusals retry with bounded backoff; retry() wakes those
+ * after repair. Other failures discard the rejected target; a different visible
+ * position can start a new attempt. Admitted writes belong to the normal outbox.
+ * @see LLP 3000.032 §4.3; guide receipts
+ */
+export function useSeen<M extends { id: string; pending?: boolean }, S extends string, T extends string>(
+  family: ReceiptFamily<M, S, T>, options: SeenOptions,
+): SeenSnapshot & { retry(): void } {
+  const client = useClient();
+  const owner = useMemo(() => new SeenOwner(client, family as unknown as ConstructorParameters<typeof SeenOwner>[1], options.scope), [client, family, options.scope]);
+  const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getServerSnapshot);
+  useEffect(() => { owner.update(options.through, options.active); });
+  return { state: snapshot.state, through: snapshot.through, ...(snapshot.why ? { why: snapshot.why } : {}), retry: owner.retry };
 }

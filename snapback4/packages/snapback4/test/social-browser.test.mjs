@@ -370,11 +370,15 @@ test("social recipes in React/browser: real online signals and media, controlled
 
   await t.test("observations make retention explicit", async () => {
     const observed = await page.evaluate(() => window.observations);
-    for (const name of ["receiptMember", "messageReceipts", "messagePhoto", "typingIn"]) {
+    for (const name of ["messageReceipts", "messagePhoto", "typingIn"]) {
       const calls = observed.filter(call => call.op === name);
       assert.ok(calls.length > 0, name);
       assert.ok(calls.every(call => call.options?.keep === false), name + " withdraws immediately");
     }
+    const members = observed.filter(call => call.op === "receiptMember");
+    assert.ok(members.some(call => call.options?.keep === false), "composer membership withdraws immediately");
+    assert.ok(members.some(call => call.options?.keep === undefined), "useSeen shares the default fenced member observation");
+    assert.ok(members.every(call => call.options?.keep !== true), "no subscriber-free membership linger");
     for (const name of ["conversationScreen", "history"]) assert.ok(observed.filter(call => call.op === name).every(call => call.options?.keep === undefined), name + " uses bounded SDK retention");
   });
 
@@ -414,6 +418,7 @@ test("social search in React/browser uses current server and retained device pag
   const { session } = signed, owner = session.principal;
   const writer = createClient({ url, token: session.token });
   t.after(() => writer.close());
+  assert.equal((await writer.mutate(api.saveProfile, { name: "Search Reader" })).state, "sent");
   const rows = [], matches = [];
   for (const [conversation, count] of [["live-chat", 520], ["departed-chat", 25]]) {
     rows.push({ table: "conversations", row: { id: conversation, title: conversation, creatorId: owner, lastOrdinal: count } });
@@ -430,6 +435,7 @@ test("social search in React/browser uses current server and retained device pag
   const seeded = await fetch(url + "/seed", { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
   assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
   const expected = matches.sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
+  const label = row => `${row.conversation} · Search Reader: ${row.text}`;
   writeFileSync(join(dir, "fixture.json"), JSON.stringify({ url, session }));
   writeFileSync(join(dir, "harness.jsx"), searchHarness);
   writeFileSync(join(dir, "native.jsx"), nativeViews);
@@ -472,8 +478,8 @@ test("social search in React/browser uses current server and retained device pag
         if (scenario === "leave followed by a search") {
           await page.evaluate(() => window.mountSearch());
           await page.getByRole("textbox", { name: "Search messages" }).fill("cof");
-          await page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).map(node => node.textContent)) === JSON.stringify(expected), expected.slice(0, 20).map(row => row.text));
-          assert.equal(await page.getByText(/Partial results/).count(), 0, "a complete page with next is not partial");
+          await page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll("button")].filter(node => node.textContent.includes(": coffee ")).map(node => node.textContent)) === JSON.stringify(expected), expected.slice(0, 20).map(label));
+          assert.equal(await page.getByText(/Partial results/).count(), 1, "a nonempty page stays present but its continuation is incomplete (LLP 3000.031 §7)");
           assert.equal(await page.getByRole("button", { name: "More matches" }).isEnabled(), true);
         }
         const left = await writer.mutate(api.leave, { conversation: "departed-chat" });
@@ -481,27 +487,27 @@ test("social search in React/browser uses current server and retained device pag
         await page.evaluate(() => window.syncSearch());
         if (scenario !== "leave followed by a search") await page.evaluate(() => window.mountSearch());
         await page.getByRole("textbox", { name: "Search messages" }).fill("coffee");
-        const hits = page.getByRole("button", { name: /^coffee / });
-        await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === 20);
-        assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(row => row.text), "one page must include server-only current hits and acquired departed hits in order");
-        assert.equal(await page.getByText(/Partial results/).count(), 0, "nonempty retained results are present despite incomplete coverage (LLP 3000.031)");
+        const hits = page.getByRole("button", { name: /: coffee / });
+        await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.includes(": coffee ")).length === 20);
+        assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(label), "one page must include server-only current hits and acquired departed hits in order");
+        assert.equal(await page.getByText(/Partial results/).count(), 1, "nonempty retained results stay present and disclose incomplete coverage (LLP 3000.031 §7)");
         if (scenario.startsWith("pagination")) {
           for (const count of [40, 45]) {
             await page.getByRole("button", { name: "More matches" }).click();
-            await page.waitForFunction(count => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === count, count);
+            await page.waitForFunction(count => [...document.querySelectorAll("button")].filter(node => node.textContent.includes(": coffee ")).length === count, count);
             const shown = await hits.allTextContents();
-            assert.deepEqual(shown, expected.slice(0, count).map(row => row.text));
+            assert.deepEqual(shown, expected.slice(0, count).map(label));
             assert.equal(new Set(shown).size, shown.length, "SDK accumulation never repeats an ID");
           }
           assert.equal(await page.getByRole("button", { name: "More matches" }).isDisabled(), true);
-          assert.equal(await page.getByText(/Partial results/).count(), 0, "the nonempty final accumulated page is present");
+          assert.equal(await page.getByText(/Partial results/).count(), 1, "the final cursor does not repair incomplete retained coverage");
           await page.getByRole("textbox", { name: "Search messages" }).fill("unmatched");
           await page.waitForFunction(() => document.querySelectorAll("button").length === 1 && document.body.textContent.includes("Partial results"));
           assert.equal(await hits.count(), 0, "changing the needle clears prior accumulated rows");
         }
         const calls = await page.evaluate(() => window.searchCalls);
         assert.ok(calls.some(call => call.path === "/q/search"), "the generated ordinary operation reaches the server");
-        assert.ok(calls.every(call => call.path === "/q/search"), "no online/held operation selection");
+        assert.ok(calls.every(call => call.path === "/q/search"), "one ordinary operation; no separate chat or sender detail queries");
         assert.deepEqual(errors, []);
       } finally { await page.evaluate(() => window.finishSearch?.()); await context.close(); }
     });

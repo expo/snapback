@@ -409,3 +409,31 @@ impl<'a> Runner<'a> {
         self.read_tables.extend(child.read_tables);
     }
 }
+
+// @ref LLP 3000.028#3.3.1 — decoration has separate coverage, never separate
+// resource or authorization allowances. Move both, including exhausted counters.
+impl<'a> Runner<'a> {
+    pub(super) fn decoration_child(&mut self) -> Result<Runner<'a>, RuntimeError> {
+        self.meter.heap(1024 + self.context.args.values().map(super::runner::expression_heap).sum::<u64>())?;
+        #[cfg(feature = "server-search")]
+        self.meter.heap(self.context.search_retained_order.as_ref().map_or(0, |(keys, _)| keys.len() as u64 * 8)
+            + self.context.search_retained_candidates.iter().map(|(id, _, _)| 64 + id.len() as u64).sum::<u64>())?;
+        let placeholder = Meter::new(self.meter.ceilings, self.meter.cut);
+        let meter = std::mem::replace(&mut self.meter, placeholder);
+        let mut child = Runner::new(self.tx.raw, self.schema, self.context.clone(), meter, self.seq);
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.device = self.device;
+        child.meter.cut = Cut::Abort;
+        Ok(child)
+    }
+    pub(super) fn finish_decoration_child(&mut self, mut child: Runner<'a>) {
+        child.tx.lookup_cache.borrow_mut().take();
+        std::mem::swap(&mut child.tx, &mut self.tx);
+        child.meter.cut = self.meter.cut;
+        self.meter = child.meter;
+        self.read_tables.extend(child.read_tables);
+        // Decoration expiry invalidates the value, but never changes freshness
+        // or the page's completeness. Re-evaluation substitutes null after expiry.
+        self.decoration_expiry = child.next_expiry.get();
+    }
+}
