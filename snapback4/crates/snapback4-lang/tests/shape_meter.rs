@@ -66,6 +66,12 @@ fn maintained_count_capped_populations_and_bounded_pages_stay_clean() {
     ] {
         let source = format!("{TABLES}{cap}query q(c: cursor ?):\n  return parents first 2 after c {{ detail: {field} }}\n");
         assert!(checked(&source).notes.is_empty(), "{source}: {:?}", checked(&source).notes);
+        if field.starts_with("min(") || field.starts_with("max(") {
+            let expiring = source.replace("  amount: int", "  amount: int\n  until: time\n  expire at .until");
+            assert_eq!(notes(&expiring).len(), 1, "an ordered extremum can skip unbounded expired candidates: {expiring}");
+            let capped = expiring.replace("  expire at .until", "  expire at .until\n  cap 20 by parent");
+            assert!(notes(&capped).is_empty(), "{capped}");
+        }
     }
 }
 
@@ -88,6 +94,82 @@ fn unpinned_caps_and_residual_filters_do_not_bound_candidates() {
         let source = format!("{TABLES}{cap}query q(c: cursor ?):\n  return parents first 2 after c {{ detail: {field} }}\n");
         assert_eq!(notes(&source).len(), 1, "{source}");
     }
+}
+
+#[test]
+fn nonuniform_nested_page_needs_a_candidate_cap() {
+    for (cap, expected) in [("", 1), ("  cap 20 by parent\n", 0)] {
+        let tables = TABLES.replace("  amount: int\n  public 'test'", "  amount: int\n  owner: principal\n  read <- .owner = viewer");
+        let source = format!("{tables}{cap}query q(c: cursor ?):\n  return parents first 2 after c {{ detail: children[parent = .id] first 1 }}\n");
+        assert_eq!(notes(&source).len(), expected, "{source}");
+    }
+}
+
+#[test]
+fn word_prefix_does_not_pin_id_or_the_following_cap_column() {
+    for (columns, cap, expected) in [
+        ("roomId, words(body), id", "", 2),
+        ("roomId, words(body), at, id", "  cap 20 by at\n", 2),
+        ("roomId, words(body), at, id", "  cap 20 by roomId\n", 0),
+        ("roomId, words(body), id", "  cap 20\n", 0),
+    ] {
+        let source = format!("table rooms:\n  public 'test'\ntable posts:\n  roomId: rooms\n  body: text <=100\n  at: time\n  by byWords: {columns}\n{cap}  public 'test'\nquery q(needle: text <=100, c: cursor ?):\n  return rooms first 2 after c {{ hits: posts[roomId = .id] matching needle where .body != 'x' last 3 by byWords }}\n");
+        let bound = checked(&source);
+        let findings = notes(&source);
+        assert_eq!(findings.len(), expected, "{source}: {findings:?}");
+        let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+        let words = scans.iter().find(|s| s.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))).expect("words scan");
+        // The browse twin's note cannot stand in for the words scan's note.
+        assert_eq!(findings.iter().any(|n| n.message.contains(&format!("read {} on posts:", words.site))), expected != 0, "{source}: {findings:?}");
+    }
+}
+
+fn refuses_on_follow(engine: &mut Engine, op: &str) {
+    let context = |c| Context::new("alice", BTreeMap::from([("c".into(), c)])).at(5000);
+    let first = engine.query(op, context(Value::Null)).unwrap();
+    assert!(first.data.as_array().unwrap().is_empty(), "{first:?}");
+    assert!(!first.complete);
+    let next = first.next.expect("inclusive retry at unfinished parent");
+    let refused = engine.query(op, context(Value::String(next))).unwrap_err();
+    assert_eq!(refused.code, "E_SHAPE_EXCEEDS_METER");
+    println!("{op}, 9000 rejected children: {refused}");
+}
+
+#[test]
+fn multi_term_word_page_is_advised_and_refuses_after_9000_nonmatches() {
+    let source = "table parents:\n  public 'test'\ntable children:\n  body: text <=100\n  by byWords: words(body), id\n  public 'test'\nquery q(c: cursor ?):\n  return parents first 1 after c { hits: children matching 'a z' first 1 by byWords }\n";
+    let bound = checked(source);
+    let findings = notes(source);
+    let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+    let words = scans.iter().find(|s| s.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))).expect("words scan");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].message.contains(&format!("read {} on children:", words.site)), "{:?}", findings[0]);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    // Isolate the unchanged examined ceiling from the word-search heap cost.
+    engine.set_ceilings(snapback4_core::Ceilings { heap_bytes: 64 * 1024 * 1024, ..engine.ceilings() });
+    engine.seed(std::iter::once(("parents".into(), object([("id", Value::Id("p".into()))])))
+        .chain((0..9000).map(|n| ("children".into(), object([
+            ("id", Value::Id(format!("c{n:05}"))), ("body", Value::String("a".into())),
+        ]))))).unwrap();
+    refuses_on_follow(&mut engine, "q");
+}
+
+#[test]
+fn ordered_extrema_are_advised_and_refuse_after_9000_expired_children() {
+    let source = format!("{TABLES}  until: time\n  expire at .until\n  by byAmount: parent, amount, id\nquery lowest(c: cursor ?):\n  return parents first 1 after c {{ total: min(children[parent = .id] by byAmount, .amount) }}\nquery highest(c: cursor ?):\n  return parents first 1 after c {{ total: max(children[parent = .id] by byAmount, .amount) }}\n");
+    let bound = checked(&source);
+    let findings = notes(&source);
+    assert_eq!(findings.len(), 2, "{findings:?}");
+    for op in ["lowest", "highest"] {
+        assert!(findings.iter().any(|n| n.message.contains(&format!("query {op} shape field `total`"))), "{findings:?}");
+    }
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(std::iter::once(("parents".into(), object([("id", Value::Id("p".into()))])))
+        .chain((0..9000).map(|n| ("children".into(), object([
+            ("id", Value::Id(format!("c{n:05}"))), ("parent", Value::Id("p".into())),
+            ("amount", Value::Int(n)), ("until", Value::Int(1)),
+        ]))))).unwrap();
+    for op in ["lowest", "highest"] { refuses_on_follow(&mut engine, op); }
 }
 
 #[test]

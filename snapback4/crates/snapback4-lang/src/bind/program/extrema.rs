@@ -111,8 +111,9 @@ impl Binder<'_> {
             }
             // The runtime seeks the first qualifying ordered value. Price that
             // candidate limit for advice only; the aggregate IR keeps its domain.
+            // Expired rows are charged and skipped before a value qualifies.
             let mut advice = scan.clone();
-            if scan.orders_field(self.schema, field) { advice.take = Bound::Literal(1); }
+            if scan.orders_field(self.schema, field) && !self.schema.tables[&read.table].is_expiring() { advice.take = Bound::Literal(1); }
             self.shape_meter_note(&advice, &read);
             (Expr::Scan(scan), Ty::Row(read.table), true)
         } else {

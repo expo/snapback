@@ -72,12 +72,21 @@ fn searchPeers(room: id):
 "#;
 fn compile(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{source}\n{:?}\n{:?}",b.diagnostics,b.notes);
+    assert!(b.diagnostics.is_empty(),"{source}\n{:?}",b.diagnostics);
+    if source.contains("hits:") {
+        // Grouped repairs bound returned hits, but further search terms can
+        // reject arbitrary candidates. Require advice on the words preview.
+        let words = snapback4_core::ir::scans(&b.programs[0].program).into_iter().find(|scan| !scan.existence
+            && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))).unwrap();
+        assert_eq!(b.notes.len(), 1, "{source}: {:?}", b.notes);
+        assert_eq!(b.notes[0].code, "N_SHAPE_METER");
+        assert!(b.notes[0].message.contains("shape field `hits`") && b.notes[0].message.contains(&format!("read {} on posts:", words.site)), "{:?}", b.notes);
+    } else { assert!(b.notes.is_empty(), "{source}: {:?}", b.notes); }
     b
 }
 
 #[test]
-fn grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview() {
+fn grouped_and_refusal_repairs_keep_the_preview_and_its_meter_advice() {
     let source=format!("{SCHEMA}\nquery newest(needle: text <=100, position: cursor ?):\n  return posts matching needle where not .tombstone and .sender = viewer and exists roster[.roomId, viewer] last 7 by .sent after position\n");
     let b=compile(&source);
     let p=&b.programs[0].program;
@@ -185,8 +194,11 @@ fn builtin_repairs_use_quarry_spellings_on_the_originating_schema() {
             assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
             // The rewrite preserves the residual on each hits preview. A page
             // bounds matches, so candidate work still deserves meter advice.
-            if predicate == "count(.body) > 3" { assert!(!fixed.notes.is_empty()); }
+            assert_eq!(fixed.notes.len(), 2, "{predicate}: both the words preview and its residual browse twin need advice: {:?}", fixed.notes);
             assert!(fixed.notes.iter().all(|n| n.code == "N_SHAPE_METER" && n.message.contains("rejected candidates")), "{:?}", fixed.notes);
+            for scan in snapback4_core::ir::scans(&fixed.programs[0].program).into_iter().filter(|scan| scan.table == "posts" && !scan.existence) {
+                assert!(fixed.notes.iter().any(|n| n.message.contains(&format!("read {} on posts:", scan.site))), "{predicate}: missing advice for {scan:?}: {:?}", fixed.notes);
+            }
             assert!(classify(&fixed.schema,&fixed.programs[0].program).is_empty(),"{note:?}");
         }
     }

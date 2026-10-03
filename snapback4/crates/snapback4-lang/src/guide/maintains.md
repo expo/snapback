@@ -635,7 +635,7 @@ and its absence is not proof that a ranking cannot be forged. Sync and
 ## A value per member: Clique unread
 
 N_SHAPE_METER warns about raw counts per inbox row, including inside `unreadIn`: a busy chat can starve the shape.
-Use maintained `unread[.id]`, a bounded preview or a separate query.
+Use maintained `unreadCounts[.id]`, a bounded preview or a separate query.
 
 For receipt gaps in expiring messages, `guide sequences` pairs `sequence by`
 with bounded unique ordinal probes. The count below answers what remains

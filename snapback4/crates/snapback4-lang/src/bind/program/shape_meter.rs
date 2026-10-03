@@ -8,7 +8,8 @@ impl Binder<'_> {
         if self.caller_kind != ProgramKind::Query { return; }
         let ceiling = snapback4_core::Ceilings::default().examined;
         let index = &self.schema.tables[&scan.table].indexes[&scan.index];
-        let pinned = index.columns().into_iter().take(scan.prefix.len()).collect::<Vec<_>>();
+        let pinned = index.components.iter().zip(&scan.prefix)
+            .filter_map(|(component, key)| key.scalar().and(component.column()).cloned()).collect::<Vec<_>>();
         let cap = self.schema.group_bound(&scan.table, &pinned).or_else(|| {
             let maintain = self.schema.maintain_for(&scan.table)?;
             let parent = maintain.parent_key.as_ref()?;
@@ -19,13 +20,15 @@ impl Binder<'_> {
         let info = &self.catalog.tables[&scan.table];
         if info.indexes.iter().any(|i| info.total_unique(i) && i.columns.iter().all(|c| pinned.contains(c))) { return; }
         // A page limit bounds emitted rows, not rows rejected by its predicate
-        // or read rule. Allow one lookahead candidate for an ordinary page.
+        // or read rule, including additional word-search terms. Allow one
+        // lookahead candidate for an ordinary page, never a words scan.
+        let words = scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_)));
         let uniform = snapback4_core::engine::rules::scan_visibility(self.schema, scan).uniform;
         let limit = match scan.take { Bound::Literal(n) => Some(u64::from(n) + 1), _ => None };
-        if scan.filter.is_none() && uniform && limit.is_some_and(|n| n <= ceiling) { return; }
+        if scan.filter.is_none() && uniform && !words && limit.is_some_and(|n| n <= ceiling) { return; }
         let reason = if let Some(cap) = cap {
             format!("its candidate cap {cap} exceeds the default {ceiling}-row examined meter")
-        } else if limit.is_some() && (scan.filter.is_some() || !uniform) {
+        } else if limit.is_some() && (scan.filter.is_some() || !uniform || words) {
             format!("its page limit bounds matches, but rejected candidates can grow past the default {ceiling}-row examined meter")
         } else if let Some(limit) = limit {
             format!("its page and lookahead can examine {limit} rows, above the default {ceiling}-row examined meter")

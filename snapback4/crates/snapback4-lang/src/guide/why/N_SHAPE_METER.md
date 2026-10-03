@@ -11,15 +11,16 @@ For an exact unread total, use a row-keyed maintained count:
 `unreadCounts[.id]` in the inbox shape. `snapback4 guide views` has the complete
 member predicate and its authorization and recount rules. For a preview, use
 `first N`/`last N`; this changes a total into a page. Residual predicates and
-non-uniform read rules can still examine arbitrarily many rejected candidates.
+non-uniform read rules or further search terms can reject unbounded candidates.
 Or move the work into a separate query so an expensive decoration cannot
 starve the returned row. A separate raw total still runs under its own meter.
 
 This is a note, not a refusal: data may be small, branches may skip the read,
 and runtime ceilings may differ. Declared caps fitting the default meter,
-fully pinned total unique keys, maintained scalar lookups and ordinary bounded
-pages and ordered column-extremum seeks do not trigger it. Shape fields are checked even in assigned shapes and
-helpers; this advice does not change the narrower runtime returned-page rule.
+fully pinned total unique keys and maintained scalar lookups stay clean.
+Ordinary bounded pages exclude word searches; ordered column-extremum seeks
+exclude expiring tables, whose expired candidates are charged and skipped.
+Assigned shapes and helpers are checked; the runtime returned-page rule is unchanged.
 It is not a cost certificate: silence does not price combined reads, nested
 fanout, expiry cleanup, rule probes, steps, heap or output. The runtime remains
 authoritative. A no-progress returned-page retry can refuse with

@@ -121,7 +121,7 @@ query searchNewest(q: text <=100, c: cursor ?):
 
 `searchHeld` and `searchNewest` are optional, deliberately narrower domains:
 device-only and current-membership-only respectively. Do not switch between
-them based on connectivity. The starter uses ordinary `search` in both states.
+them based on connectivity. The starter uses ordinary `search` in both states. N_SHAPE_METER: both `searchGrouped` previews can reject unbounded candidates despite `last 3`; query each chat separately.
 
 **Ordinary search.** Call `usePage(api.search, { q })` and render its `items`.
 The SDK accumulates by source row ID; do not append or deduplicate pages yourself.
