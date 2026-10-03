@@ -84,6 +84,15 @@ and backend-scoped intent journal before dispatch. Each saved ID observes its
 own settlement; Edit restores a failed message, and Dismiss removes only the
 UI reference. Unknown outcomes never trigger automatic resubmission.
 
+For sends with application-supplied message IDs, use `usePendingItems` to render
+row/intent arms across text and media, with explicit conversation and key mapping
+(`snapback4 guide client`). The starter's automatically minted message keys must
+not be guessed from mutation IDs: keep its scoped intent journal/receipt lookup
+unless you add an explicit message-ID argument to the backend. The helper's
+`settling` means “Sent; updating view”, not delivered or read. Media intent cards
+never open assets. `usePendingState` selects repeated like/repost set-state intent
+without changing the mutation or treating its pending value as observed data.
+
 ## Direct messages and coverage
 
 Profile's Message opens the private replicated `(owner, peer)` lookup.

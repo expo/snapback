@@ -180,8 +180,8 @@ const intent = { id: mintId(), args: { handle: "alice" } };
 await client.mutate(api.saveProfile, intent.args, { id: intent.id }); // a fixture: { id: idFrom("seed:alice") }
 ```
 
-A fresh ID on every retry does not identify that same intent. For a local send that queues without
-predicting a message, render its arguments from `await client.pendingWrites()` until it settles.
+A fresh ID on every retry does not identify that same intent. `usePendingItems` renders scoped text/media intents beside explicitly keyed rows, including “Sent; updating view”.
+`usePendingState` selects the last admitted toggle intent. Both preserve custody and scope fences; see the intent-card recipe in CLIENT-AND-OPERATIONS.md.
 
 ### 5. Export an offline shell, then verify
 

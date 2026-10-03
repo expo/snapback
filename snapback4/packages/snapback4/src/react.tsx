@@ -1,3 +1,6 @@
+import { pendingItems, pendingState, observeIntents, type PendingItemsOptions, type PendingStateOptions, type PendingIntent, type MutationArgs } from "./pending-items.ts";
+import { pendingItemsSource } from "./react-pending-items.ts";
+export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
 // The React arm: one provider and hooks over the client card.
@@ -242,6 +245,43 @@ export function usePendingWrites<A = unknown, R = unknown>(op?: Mutation<A, R>):
   const client = useClient();
   const source = useMemo(() => pendingWritesSource(client, op?.name), [client, op?.name]);
   return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getServerSnapshot) as readonly PendingWrite<A>[];
+}
+
+/** Compose rows with scoped intent cards, including success awaiting observation.
+ * Pass explicit row/intent keys; a mutation id is never a row id. A predicted
+ * row suppresses its card only while present. Intents carry no row authority,
+ * ordinal, delivery receipt or asset handle. Rows retain their supplied order;
+ * remaining intents follow in outbox order. See `snapback4 guide client`. */
+export function usePendingItems<Row, M extends Mutation<any, any>>(options: PendingItemsOptions<Row, M>) {
+  const client = useClient(), intents = usePendingIntents(client);
+  // Only confirmed matching rows end the online session's presentation. The
+  // local device ignores these hints and owns retirement through observed writes.
+  const confirmed = new Set(options.rows.filter(row => !(row as { pending?: boolean } | null)?.pending).map(options.rowKey));
+  const observed = intents.filter(item => item.phase === "settling" && options.writes.some(op => op.name === item.write.op)
+    && options.scope(item.write as PendingWrite<MutationArgs<M>>) && confirmed.has(options.intentKey(item.write as PendingWrite<MutationArgs<M>>))).map(item => item.write.id);
+  const key = JSON.stringify(observed);
+  useEffect(() => { observeIntents(client, JSON.parse(key)); }, [client, key]);
+  return pendingItems(intents, options);
+}
+
+/** Select the latest admitted set-state intent without changing the mutation.
+ * Read `.value` to display it and `.intent?.phase` to distinguish custody from
+ * success awaiting observation. Saving calls never override admitted intent. */
+export function usePendingState<A, R, Value>(op: Mutation<A, R>, options: PendingStateOptions<A, Value>) {
+  const client = useClient(), intents = usePendingIntents(client);
+  const selected = pendingState(intents, op, options);
+  const matching = intents.filter(item => item.phase === "settling" && item.write.op === op.name && options.scope(item.write as PendingWrite<A>));
+  let through = -1;
+  matching.forEach((item, index) => { if (Object.is(options.value(item.write.args as A), options.current)) through = index; });
+  const observed = matching.slice(0, through + 1).map(item => item.write.id);
+  const key = JSON.stringify(observed);
+  useEffect(() => { observeIntents(client, JSON.parse(key)); }, [client, key]);
+  return selected;
+}
+
+function usePendingIntents(client: Client): readonly PendingIntent[] {
+  const source = useMemo(() => pendingItemsSource(client), [client]);
+  return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getServerSnapshot);
 }
 
 /** Durable acquisition, independent of whether the link is currently online. */

@@ -86,6 +86,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: "test-online-custody", replacement: join(root, "packages/snapback4/src/app-online.ts") },
         { find: "test-online-dispatch", replacement: join(root, "packages/snapback4/src/online-dispatch.ts") },
         { find: "test-guard-client", replacement: join(root, "packages/snapback4/src/app-client.ts") },
+        { find: "test-pending-items", replacement: join(root, "packages/snapback4/src/pending-items.ts") },
         { find: "test-server-clock", replacement: join(root, "packages/snapback4/src/clock.ts") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },

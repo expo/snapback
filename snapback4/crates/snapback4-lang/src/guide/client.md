@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** Use reactive `useQuery`/`usePage` and classify `existence`; keep composers and receipts above transient rows. Page an inbox query.
+**Start here:** `useQuery`/`usePage` classify `existence`; keep composers and receipts above transient rows.
 
 ```tsx
 import { usePage } from "snapback4/react";
@@ -37,9 +37,11 @@ export function Composer({ conversationId }: { conversationId: string }) {
 Membership with no horizon in the conversation's own group and messages' audience proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 Only `denied` or fresh, non-revalidating `absent` disables Send; stale offline absence queues for sync authorization. `loading`/`partial` never disable.
 
-`waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. Identity I/O: 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+`waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. Identity I/O: 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes FIFO; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
 Restore refused text into empty drafts; otherwise Edit/Dismiss. Predicted rows (`pending: true`): “Sending…”.
 Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; then undefined is unknown. Never auto-resend. Dismiss after lookup settles. New attempts: new ids; replay omits historical results. Web/Expo starters journal this.
+
+`usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,value})`: latest admitted intent. See Client and operations.
 
 ## Honest read boundaries
 `query(op, args)` settles ready/denied after device/server evaluation and authority: four rounds/30 seconds including queues/approval while runnable, exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or immediate `E_OFFLINE`. Terminal refusals win; ready may be partial/stale.
@@ -58,12 +60,12 @@ Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/b
 Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
 Search: `usePage` per scope; render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Loading items prove nothing. Unknown unread counts never hide conversations.
 
-## Queries in rows
-Wire-equivalent names/arguments share observations per retention policy. Paging avoids 1,000 row hooks requiring 1,000 evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.
+## Row queries
+Wire-equivalent observations share retention. Paging avoids 1,000 evaluations/write from 1,000 row hooks. Disjoint writes do zero; authorization inputs are dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide. [Read boundaries](CLIENT-AND-OPERATIONS.md).
-Empty flashes: `inspect(client)` from `snapback4/inspection` collects. Compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
+Empty flashes: `inspect(client)` (`snapback4/inspection`). Compare `queued`, `inFlight`, `revalidating`, `withdrawn` and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
 Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
@@ -74,7 +76,7 @@ Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smo
 `guide receipts`: schema, mutations, `useReceipts`; SDK owns delivery reporting; screen owns visible `seen` reporting above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.
 
 ## One-view photos
-Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Open fetches once; recycling/refetch preserves its handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
+Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open fetches once; recycling/refetch preserves handles. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -103,4 +105,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
   return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
 }
 ```
-`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`); handles are transient. Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
+`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`); handles expire. Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.

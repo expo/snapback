@@ -82701,3 +82701,45 @@ check reports inherited drift and missing generated prerequisites; the
 [validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
 retains the full red and its causes. Commit locally with the requested Astra
 co-author trailer; no push or publication.
+
+## 2026-10-03 — B: pending intent cards through observed settlement
+
+Implemented Charlie's 2026-10-02 ruling on LLP 3000.032 §4.2. The decided API
+is in LLP 3000.019 §3.3.1: `usePendingItems` composes explicit scoped row/intent
+keys over existing custody and receipt facts; `usePendingState` selects the
+last admitted set-state intent. Terminal local success remains `settling` until
+the existing device observed-write retirement. Prediction only suppresses a
+duplicate card. Scope retirement synchronously exposes no old arguments,
+including during failed or delayed reads. No second outbox, row, receipt
+accounting, media handle, timer retirement or replay mechanism was added.
+The Client contract and Rust engine are unchanged. Online success references
+are session-only; the existing journal's retirement is unchanged.
+
+Real Cal29 B1/B2/B3 rewrites cover text, omitted media sends and like/repost
+selection. Selected code remains 3 physical lines, 561 → 753 B (+192 B);
+whole-file change is +204 B. The pilot shows no code-size saving or measured
+builder-score improvement. Both real rewritten files typecheck. Paved client,
+writes/social guide cards, starter recipe, package README/reference and emitted
+TypeScript declaration docs describe the API. Report and specimens:
+[Lane B](./reports/20261003-b-pending-intents/REPORT.md).
+
+Checks: 14 pending-intent regressions (process and wasm), 110 guide tests,
+150 affected client reruns, 30 store integration and 56 row-view unit reruns,
+and 48 event-slot client reruns pass. The complete required suite ran once;
+its model stage passed all 79 tests. Original summary, verbatim:
+
+```text
+== 2 failure(s) in 2103 s
+   cargo test
+   client tests
+```
+
+Lane-owned guide/example defects were fixed; environmental failures came from
+an initially symlinked private-store directory, a displaced generated trace,
+foreign shared CLI output, and SDK-helper discovery from the shared binary path.
+Every failing case is named in the report and passed its affected rerun. There
+is no single green full-suite receipt. Latest wasm: 2,031,329 B raw / 610,520 B
+gzip, below the unchanged 610,782 B cap; initial build was 2,030,224 / 610,085.
+These shared-target artifacts are not a paired feature-size attribution.
+Commit locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push
+or publication.

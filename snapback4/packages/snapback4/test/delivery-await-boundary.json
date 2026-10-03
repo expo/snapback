@@ -28,8 +28,8 @@
     "sha256": "7b69513a6cbbd9fc7526d1205d3b02976cb52c3e9c95f6f03d7dc6329c93b4e1"
   },
   "app-online.ts": {
-    "count": 21,
-    "sha256": "b5524293c2f070ba51b54bc21a06b0d1f4ba52ce68b1a1dd856135107c649065"
+    "count": 22,
+    "sha256": "f9589766a5dd93f9b479c83c9688f910d0f09471b88b72a1d9e47704fc008991"
   },
   "app-revocations.ts": {
     "count": 28,
@@ -72,8 +72,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 58,
-    "sha256": "3515b0d837f11eee212681c2ff7510dfeab99ed34442833102fa0bca5cb515d3"
+    "count": 59,
+    "sha256": "a23e7215caae4d889b52aa0893ba55a1718f2444c9c1ae244c31da3f2bdcfa34"
   },
   "clock.ts": {
     "count": 7,
@@ -251,9 +251,13 @@
     "count": 1,
     "sha256": "e6c6828a456c1d93886e526a7bc13a0f9944a4aa461382f065656e32e42c8406"
   },
+  "pending-items.ts": {
+    "count": 3,
+    "sha256": "b549ce4e8268976bea3ef5beb2fcbd3577244c5d0f5f52012aa81ae368d33691"
+  },
   "pending-writes.ts": {
-    "count": 7,
-    "sha256": "4a177d5a9614041830d27b1005cc3cf6b581a8b45242ece91d531240cb0a48d2"
+    "count": 10,
+    "sha256": "c01d85a90728ad10a4f890f21aa1d169934271c988508773ff033abf9c5dfbc5"
   },
   "presence-refresh.ts": {
     "count": 0,
@@ -264,6 +268,10 @@
     "sha256": "f04eef424bd5d17c385124fd91cd8d77c20f7105a7cb0203b87ff4fa59080457"
   },
   "react-pages.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "react-pending-items.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
@@ -444,7 +452,7 @@
     "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
   },
   "writes.ts": {
-    "count": 10,
-    "sha256": "36bbcfd114886ff9ac65ad60704a587d3c9e528f51904b58e4841e4c1218fbe5"
+    "count": 11,
+    "sha256": "142db680b19ca90aabbde76382cbca70a8465ea574762bd98bc070eb307c66ff"
   }
 }

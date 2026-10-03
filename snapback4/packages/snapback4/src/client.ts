@@ -1,3 +1,4 @@
+import { OnlineIntentPresentation, pendingIntent, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
@@ -202,11 +203,15 @@ export function createClient(options: ClientOptions): Client {
   const history = new WriteHistory();
   const mutationIds = new MutationIds();
   const pendingEvents = pendingChanges();
+  let intentEpoch = 0;
+  const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${credentialRevision}:${intentEpoch}`;
+  const intentPresentation = new OnlineIntentPresentation(intentScope, pendingEvents.notify);
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
     mutationIds.finish(write.id);
     const entry = pending.find(entry => entry.id === write.id);
+    intentPresentation.settled(write, entry && { id: entry.id, op: entry.op.name, args: entry.args, state: entry.state, predicted: [] });
     if (entry) entry.done = true;
     pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
@@ -214,6 +219,7 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const resetWatches = (publish = true, cause = "schema-reset") => {
+    intentEpoch++; pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null); }
@@ -1197,5 +1203,10 @@ export function createClient(options: ClientOptions): Client {
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
+  registerPendingIntents(client, { scope: intentScope, read: async () => {
+    const scope = intentScope(), pending = await client.pendingWrites();
+    return scope != null && scope === intentScope() ? [...intentPresentation.items(), ...pending.map(write => pendingIntent(write))] : [];
+  } });
+  registerIntentObserver(client, ids => intentPresentation.observed(ids));
   return client;
 }

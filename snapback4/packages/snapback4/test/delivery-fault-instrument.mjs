@@ -152,6 +152,12 @@ export function instrument(destination) {
 // preparing scopes keep their original awaited persistence path, preventing a
 // held journal admission from overtaking the first request's check. The await
 // now lives in checkAuthority; no outbox custody await or recipe changes.
+// Lane B (LLP 3000.019 §3.3.1): pending-items/pending-writes and the online
+// presentation readers await only existing outbox, history and authority reads.
+// WriteHistory.presentationReceipts reads without keep/recovery or retention
+// refresh. These paths have no dispatch, admission, settlement or persistence
+// authority; pending-items tests cover read failure/retirement and scope races.
+// Delivery scopes and every classified custody await above are unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

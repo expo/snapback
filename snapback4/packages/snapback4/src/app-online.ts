@@ -1,3 +1,4 @@
+import { pendingIntentAccess, pendingIntent, registerPendingIntents, forwardIntentObserver } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
@@ -269,6 +270,19 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
+  const rawIntents = pendingIntentAccess(raw);
+  const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
+  registerPendingIntents(client, { scope: intentScope, async read() {
+    const before = intentScope();
+    if (before == null) return [];
+    const [rawItems, entries] = await Promise.all([rawIntents.read(), client.pendingWrites()]);
+    if (before !== intentScope()) return [];
+    const terminal = rawItems.filter(item => item.phase === "settling");
+    const settled = new Set(terminal.map(item => item.write.id));
+    const saving = new Set(identification.pending().map(write => write.id));
+    return [...terminal, ...entries.filter(write => !settled.has(write.id)).map(write => pendingIntent(write, saving.has(write.id)))];
+  } });
+  forwardIntentObserver(client, raw, () => intentScope() != null);
   inheritClose(client, raw);
   function pause() { identification.close(); active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The

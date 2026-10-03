@@ -50,6 +50,7 @@ resubmission. `markRead` demonstrates a nonpredicting queued write. Failed and
 unknown receipts stay visible; a settled write does not imply a fresh read.
 Sign-out hides the account, completes only after local credentials are removed,
 and keeps its replica/outbox intact. A storage failure stays visible for retry.
+For a keyed text/media send, use the intent-card recipe below; keep saved failure references scoped to this account and backend.
 See the generated README for residency tables, horizon choices and the
 production offline-reopen journey; fixture residency remains
 `test --residency --fixture <directory> --as <principal>`.
@@ -992,6 +993,75 @@ export function PendingSends() {
   return <>{sends.map(write => <p key={write.id}>{write.args.body}: {write.state}</p>)}</>;
 }
 ```
+
+### Intent cards through settlement
+
+Use `usePendingItems` for a keyed text/media list. The application supplies the
+resource predicate and both identities; a mutation ID is never a row ID. This
+example assumes `sendById` and `sendMediaById` accept the message's explicit
+`id`, `conversationId`, and text or photo respectively.
+
+```tsx
+import { usePage, usePendingItems } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function History({ conversationId }: { conversationId: string }) {
+  const page = usePage(api.thread, { conversationId });
+  const items = usePendingItems({ writes: [api.sendById, api.sendMediaById], rows: page.items,
+    scope: w => w.args.conversationId === conversationId,
+    rowKey: row => row.id, intentKey: w => w.args.id });
+  return <>{items.map(item => item.kind === "row"
+    ? <p key={item.key}>{item.row.body}</p>
+    : <p key={item.key}>{"body" in item.write.args ? item.write.args.body : "Media message"} — {item.phase === "settling" ? "Sent; updating view" : item.phase}</p>)}</>;
+}
+```
+
+Items are `{ kind: "row", key, row }` or `{ kind: "intent", key, write, phase,
+receipt? }`. Supplied rows keep their order; unmatched intents follow in outbox
+order. A visible predicted or confirmed row with the mapped key suppresses its
+card. Withdrawal can reveal the same intent again. No intent is put into query
+data, and its arguments provide no ordinal, recipient count, delivery/seen
+proof, permission, or asset handle. Media cards show text/type only; open media
+from an authorized row using the existing asset API, including once media.
+
+Phases: `saving` is waiting for identification, not admitted; `queued` is admitted
+before dispatch; `unknown` is dispatched with an unknown outcome (also after
+restart); `held` has a retryable refusal in `write.reason`; `settling` has a
+success receipt but may have no visible row. Use the submitting mutation's
+`inFlight` for saving before ordinary admission becomes visible. No-op writes
+and deleted or out-of-page rows need not appear. There is no disappearance timer.
+
+On process/wasm devices the view reads the same outbox and receipt history,
+including successful entries omitted by `usePendingWrites`. It survives offline
+restart and retires only when existing observed-write evidence retires custody,
+or a terminal refusal arrives. A predicted row never retires an intent.
+The online tier has no device observation log: it retains a session presentation
+reference until a matching confirmed row is supplied. Those references have no
+replay authority and do not survive closing; the online journal still retires at
+its existing terminal-receipt boundary. Save a scoped intent reference and use
+`usePendingWrite(op, id)` for a failure card or post-restart receipt lookup;
+after lookup finishes, no receipt means unknown, never permission to resend.
+Account/backend/credential/store retirement immediately hides the old view,
+including during storage failure and delayed reads. This cannot revoke values
+already copied by application code. Rows remain the caller's live-read responsibility.
+
+For set-state mutations, `usePendingState` replaces repeated filter/last-intent
+selection over the same source:
+
+```tsx
+import { usePendingState } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Like({ card }: { card: { id: string; liked: boolean } | undefined }) {
+  const like = usePendingState(api.setLike, { scope: w => w.args.postId === card?.id,
+    current: card?.liked, value: args => args.set });
+  return <span>{like.value ? "Liked" : "Like"} {like.intent?.phase}</span>;
+}
+```
+
+It selects the last matching admitted intent in FIFO order, never lexical ID
+order; a saving call does not override admitted state. On the online tier a
+successful matching observed value retires that intent and earlier matching
+successes, so an earlier toggle cannot reappear. Supply current live state, not
+a latched value. The selector changes no mutation, query, count, or authorization.
 
 Writes that do not predict show pending with `usePendingWrite(op)`. Its
 `pending` flag starts at `run(args)` and stays true until `sent` or `failed`,

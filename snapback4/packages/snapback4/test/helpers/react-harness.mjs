@@ -1,3 +1,4 @@
+import { pendingItemsHarness } from "./react-pending-items.mjs";
 import { assetRecoveryHarness } from "./react-asset-recovery.mjs";
 import { pendingPeerHarness } from "./react-pending-peer.mjs";
 
@@ -5,13 +6,14 @@ export const reactHarness = (expiryRecipe, receiptsRecipe) => `
 import { waitFor as awaitState } from '/@fs/${new URL('./wait.mjs', import.meta.url).pathname}';
 import { Activity, StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
+import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, usePendingItems, usePendingState, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
 import { identifyDispatch } from "test-online-dispatch";
 import { guardClient } from "test-guard-client";
+import { registerPendingIntents, registerIntentObserver } from "test-pending-items";
 import { ServerClock } from "test-server-clock";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
@@ -1467,5 +1469,6 @@ cases["web room loading keeps the same input and legacy intents disclose missing
   check(host.textContent.includes("text not kept") && host.textContent.includes("Outcome unknown"), "legacy journal opens without a body");
   await unmount();
 };
+${pendingItemsHarness}
 ${pendingPeerHarness}
 `;
