@@ -71,6 +71,20 @@ fn search_membership_heading_is_a_separate_output_line() {
 }
 
 #[test]
+// @ref LLP 3000.023#12 — a retained once handle discloses metadata, never permission to fetch bytes again.
+fn assets_once_contract_retains_metadata_and_renders_opened() {
+    let text = normalize(&card("assets").unwrap());
+    for fact in [
+        "`once` is a bytes-once contract.",
+        "The handle and metadata (id, type, dimensions, byte size) may remain after viewing.",
+        "A visible handle is never permission to show content.",
+        "When `useAsset` or a fetch refuses with E_ASSET_VIEWED, render \"Opened\" (or similar):",
+    ] {
+        assert!(text.contains(fact), "assets card omits {fact}");
+    }
+}
+
+#[test]
 fn every_card_separates_headings_from_prose() {
     for name in KEYWORDS {
         let mut fence = None;

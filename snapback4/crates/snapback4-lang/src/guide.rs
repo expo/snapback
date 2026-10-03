@@ -482,8 +482,9 @@ byte size) may remain after viewing. A visible handle is never permission to
 show content. When `useAsset` or a fetch refuses with E_ASSET_VIEWED, render
 "Opened" (or similar):
 ```tsx
+import { useAsset } from "snapback4/react";
 function OncePhoto({ id }: { id: string }) {
-  const asset = useAsset(id); // from snapback4/react, under SnapbackProvider
+  const asset = useAsset(id); // under SnapbackProvider
   if (asset.status === "denied" && asset.why.code === "E_ASSET_VIEWED") return <span>Opened</span>;
   return asset.status === "ready" ? <img src={asset.url} alt="Photo" /> : null;
 }

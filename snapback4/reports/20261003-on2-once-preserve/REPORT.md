@@ -243,3 +243,74 @@ are untouched. Documentation and regression/evidence files account for the
 additional source. The wasm output shrinks, and no budget is raised. Commit
 locally with the dated JOURNAL entry and the requested co-author trailer; do not
 push or publish. The handoff is also written to `~/sb5-lanes/on2.report.md`.
+
+## Round 1 — both review coverage gaps closed (2026-10-03)
+
+Reviewed `3717a68cf9` against `~/sb5-lanes/reviews/on2-r0.astra.md` and
+`~/sb5-lanes/reviews/on2-r0.grok.md`. Both reviews were READY WITH CHANGES;
+this round addresses their two Low items without changing runtime code.
+
+The assets card's `OncePhoto` fence now imports `useAsset` from
+`snapback4/react`. The existing README/example compilation test extracts that
+exact fence, requires it to exist exactly once, and compiles it as a separate
+TSX module against the real package source, using the same strict TypeScript
+program as the conversation-screen example. No ambient hook declaration or
+copied replacement snippet supplies the missing import. Diagnostics identify
+the original `guide.rs` line. A guide test independently pins the bytes-once,
+retained metadata, handle-authority and `E_ASSET_VIEWED` / “Opened” sentences.
+
+The asset soundness test adds the required scalar `image <=1000 once` to its
+existing shape list. It keeps the `docs` preservation assertion, unchanged
+query handles/metadata, consumer-only `E_ASSET_VIEWED`, successful access for
+every other viewer, and the non-preserving `clear` with `E_ASSET_UNKNOWN`.
+Because a required image cannot be assigned null, `clear` deletes its home row;
+optional shapes still clear the column to null. Five shapes across four seeds
+now exercise 40 real mutations, 8 consumptions, 288 access checks and 20 sweeps.
+
+All reviewer mutations were executed independently and restored:
+
+| Mutation | Observed failure |
+| --- | --- |
+| Delete the complete `OncePhoto` TSX fence | Required-fence assertion, exit 1 |
+| Remove its `useAsset` import | TS2304: cannot find `useAsset`, exit 1 |
+| Replace `asset.why.code` with `asset.refusal.code` | TS2339 on `refusal`, exit 1 |
+| Replace `asset.why.code` with `asset.denied.code` | TS2339 on `denied`, exit 1 |
+| Mark only required `ColumnType::Image { once: true, .. }` unknown before `asset(kind)` | `preserved.contains("docs")` fails at the bytes-once assertion, exit 101 |
+
+The last mutation leaves optional and nested image handling alone, reproducing
+Grok's precise coverage gap. `round1/tsx-mutations.json` and
+`round1/required-once-mutation.json` record the test commands and exit statuses;
+the corresponding `mutation-*.log.gz` files retain the full failures.
+
+Final qualification uses the requested environment:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH CARGO_TARGET_DIR=~/sb5-lanes/target CARGO_INCREMENTAL=0
+cd ~/sb5-lanes/lane-on2/snapback4
+cargo test -p snapback4-lang --test guide --test revocation_soundness -- --nocapture
+SNAPBACK4_BIN=$HOME/sb5-lanes/on2-artifacts/snapback4 node --test packages/snapback4/test/readme-examples.test.mjs packages/snapback4/test/once-preservation.test.mjs packages/snapback4/test/wasm-budget.test.mjs
+```
+
+The restored final source passes **112/112 guide tests**, **5/5 revocation
+soundness tests**, **13/13 once-preservation client tests** (online, process and
+wasm), **8/8 example tests**, and **2/2 wasm-budget tests**. The corpus again
+covers 90 schemas, 11,520 commits and 604,650 certified checks. Final logs are
+`round1/rust-final.log.gz` and `round1/client-final.log.gz`. The native client
+fixture uses the preserved round-0 ON2 binary, SHA-256
+`8f7ce41698c2b344df7f7643e7cf40ec1a32d505741bd4ac710baa7d89375c3a`.
+The unchanged round-0 wasm artifact is remeasured at **2,048,676 raw / 617,327
+gzip bytes**, **713 bytes** below the unchanged **618,040-byte** cap; the budget
+helper accepts it. `round1/wasm-size.json` records its hash and provenance;
+this round does not claim a new wasm build. `./ref-check --verbose` passes
+with 527 LLP docs, 10,268 refs, zero errors and zero unchecked references.
+
+The first Rust run used the requested new shape with the old
+fixture unchanged. Its `clear` failed compilation with `E_QUARRY_TYPE` because
+the required image was assigned null. `round1/rust-tests.log.gz` retains this
+development failure; the valid home-deletion fixture passes its directed rerun
+in `round1/assets-corrected.log.gz` and the final complete soundness target.
+No final ordinary check fails. The round-0 complete-suite red above remains
+unchanged; the complete suite was not rerun this round.
+
+Append the dated JOURNAL entry and commit locally with
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push or publication.

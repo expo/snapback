@@ -96,6 +96,13 @@ test("README TypeScript examples compile and call every public function", (t) =>
     return { file, line, text: match[2] };
   });
   assert.ok(blocks.length, "README has fenced TypeScript examples");
+  // Compile the exact Opened fence as its own module, including its imports.
+  const guide = read(join(root, "../../crates/snapback4-lang/src/guide.rs"));
+  const opened = [...guide.matchAll(/^```tsx\n([\s\S]*?)^```\s*$/gm)].filter(match => match[1].includes("function OncePhoto("));
+  assert.equal(opened.length, 1, "assets card must contain the OncePhoto TSX fence");
+  const file = join(scratch, "src/assets-once.tsx");
+  writeFileSync(file, opened[0][1]);
+  blocks.push({ file, line: guide.slice(0, opened[0].index).split("\n").length + 1, text: opened[0][1], source: "guide.rs" });
   const config = ts.readConfigFile(join(root, "tsconfig.json"), ts.sys.readFile);
   assert.equal(config.error, undefined);
   const { options, errors } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
@@ -114,7 +121,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   const diagnostics = ts.getPreEmitDiagnostics(program).map((d) => {
     const block = blocks.find(b => b.file === d.file?.fileName);
     const at = d.file && d.start !== undefined ? d.file.getLineAndCharacterOfPosition(d.start) : undefined;
-    const location = block ? `README.md:${block.line + (at?.line ?? 0)} (block starts at ${block.line})` : d.file?.fileName ?? "tsconfig";
+    const location = block ? `${block.source ?? "README.md"}:${block.line + (at?.line ?? 0)} (block starts at ${block.line})` : d.file?.fileName ?? "tsconfig";
     return `${location}: TS${d.code}: ${ts.flattenDiagnosticMessageText(d.messageText, "\n")}`;
   });
   const unalias = (symbol) => symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;

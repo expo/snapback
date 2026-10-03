@@ -84176,3 +84176,30 @@ and leave the existing inherited tickets open. No unresolved ON2 product red.
 Report and complete evidence: `reports/20261003-on2-once-preserve/REPORT.md`;
 external handoff `~/sb5-lanes/on2.report.md`. Local commit only, no push or
 publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-03 — ON2 Round 1: compile Opened and cover required once images
+
+Address both READY WITH CHANGES reviews of `3717a68cf9`. Put the real
+`useAsset` import inside the assets card's OncePhoto fence and compile that
+exact fence as a separate module in the existing TypeScript example test.
+Pin the bytes-once, retained-metadata, handle-authority and “Opened” sentences
+in the guide tests. Add required `image <=1000 once` to the asset soundness
+shapes, retaining per-viewer consumption and non-preserving clear assertions.
+Required images clear by deleting their home; optional shapes still use null.
+The first run caught that fixture distinction; its failure stays in the report.
+
+Deleting the fence, removing its import, and replacing `asset.why.code` with
+either `asset.refusal.code` or `asset.denied.code` all fail the example test.
+Grok's required-image-only unknown-dependency mutation fails the `docs`
+preservation assertion. Every mutation is restored; runtime code is unchanged.
+Final guide 112, soundness 5, once-preservation clients 13 across online/process/
+wasm, examples 8 and wasm-budget 2 all pass. The soundness corpus covers 90
+schemas and 604,650 certified checks; five asset shapes exercise 8 consumptions
+and 288 access checks. Reference audit passes with zero errors or unchecked refs.
+
+Remeasure the unchanged ON2 wasm artifact: 2,048,676 B raw / 617,327 B gzip,
+713 B below the unchanged 618,040 B cap. No new wasm-build claim or full-suite
+rerun; preserve round 0's canonical red and its classifications. Evidence and
+development-failure record: `reports/20261003-on2-once-preserve/REPORT.md`,
+Round 1 and `round1/`. Local commit with the requested Astra co-author trailer;
+no push or publication.
