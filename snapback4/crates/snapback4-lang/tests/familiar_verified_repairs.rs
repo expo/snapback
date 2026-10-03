@@ -206,7 +206,7 @@ fn nullable_unique_aggregate_keeps_tied_null_rows() {
     let source = format!("{model}query q(c: cursor ?):\n  return members first 20 after c {{ n: count(members where .conversation = .conversation) }}\n");
     let refused = checked(&source);
     let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
-    assert_eq!(d.rewrite, "members[conversation = .conversation]");
+    assert_eq!(d.rewrite, "members[conversation = .conversation] by .id");
     assert!(!d.message.contains("first 1"));
     let bound = checked(&source.replace("members where .conversation = .conversation", &d.rewrite));
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

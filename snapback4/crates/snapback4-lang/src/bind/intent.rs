@@ -77,7 +77,10 @@ impl Requests {
             return;
         }
         let named = !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_some());
-        let covered = named && table.indexes.iter().any(|index| table.total_unique(index)
+        // @ref LLP 3000.013#2.2 — an exact named unique key has positional
+        // point semantics, including null ties; only extra predicates need a total key.
+        let covered = named && table.indexes.iter().any(|index| index.unique && index.is_plain()
+            && (index.columns.len() == read.keys.len() || table.total_unique(index))
             && index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))));
         if rule {
             if named && !covered {

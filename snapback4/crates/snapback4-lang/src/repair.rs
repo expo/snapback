@@ -26,7 +26,7 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
         let verified = candidate.and_then(|candidate| match check(documents, candidate) {
             Check::Accepted => Some(candidate.clone()),
             Check::Unbound => {
-                let page = one_row_page(documents, candidate)?;
+                let page = key_page(documents, candidate)?;
                 (check(documents, &page) == Check::Accepted).then_some(page)
             }
             Check::Rejected => None,
@@ -43,7 +43,7 @@ enum Check { Accepted, Unbound, Rejected }
 
 // A page fallback is a different intended plan, so retry only after a binding
 // failure, never to bypass rejection of an otherwise compiling wrong plan.
-fn one_row_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
+fn key_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
     let mut page = candidate.clone();
     let read = page.intended.as_mut()?;
     if read.range.is_some() || read.filter.is_some() || read.matching.is_some()
@@ -52,12 +52,21 @@ fn one_row_page(documents: &[Document], candidate: &Candidate) -> Option<Candida
     let pinned = |column: &str| read.keys.iter().any(|key| key.column.as_deref() == Some(column));
     // first 1 must preserve the entire population. Nullable unique indexes
     // can contain tied nulls and do not establish a one-row bound.
-    if !pinned("id") && !table.indexes.iter().any(|index| index.unique && index.is_plain()
+    let total = pinned("id") || table.indexes.iter().any(|index| index.unique && index.is_plain()
         && index.columns.iter().all(|column| pinned(column) && (column == "id"
-            || table.columns.iter().any(|c| &c.name == column && !c.type_.optional)))) { return None; }
-    read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
-    page.rewrite.push_str(" first 1");
-    if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
+            || table.columns.iter().any(|c| &c.name == column && !c.type_.optional))));
+    if total {
+        read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
+        page.rewrite.push_str(" first 1");
+        if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
+    } else if table.indexes.iter().any(|index| index.unique && index.is_plain()
+        && index.columns.len() == read.keys.len() && index.columns.iter().all(|column| pinned(column))) {
+        // @ref LLP 3000.013#2.2 — an exact nullable key is a point too;
+        // preserve a population consumer with an explicit order, never first 1.
+        read.order_keys.push("id".into());
+        page.rewrite.push_str(" by .id");
+        if let Some(message) = &mut page.message { message.push_str(" with `by .id` to keep every null match"); }
+    } else { return None; }
     Some(page)
 }
 
@@ -205,12 +214,13 @@ mod tests {
     }
 
     #[test]
-    fn single_row_fallback_requires_a_total_unique_key() {
-        for (optional, unique, allowed) in [("", "", false), (" ?", "  unique active\n", false), ("", "  unique active\n", true)] {
+    fn key_page_fallback_preserves_total_and_nullable_populations() {
+        for (optional, unique, suffix) in [("", "", None), (" ?", "  unique active\n", Some(" by .id")), ("", "  unique active\n", Some(" first 1"))] {
             let source = format!("table members:\n  active: bool{optional}\n{unique}  cap 50\n  public\nquery q(c: cursor ?):\n  return members first 20 after c {{ n: count(members where .active = .active) }}\n");
             let (document, diagnostics) = parser::parse_document("schema.q", &source);
             let candidate = document.source.repairs.iter().find(|r| r.rewrite == diagnostics[0].rewrite).unwrap();
-            assert_eq!(one_row_page(&[document.clone()], candidate).is_some(), allowed);
+            let page = key_page(&[document.clone()], candidate);
+            assert_eq!(page.as_ref().map(|page| page.rewrite.strip_prefix(&candidate.rewrite).unwrap()), suffix);
         }
     }
 

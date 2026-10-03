@@ -84799,3 +84799,37 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+
+## 2026-10-03 — NL: named nullable unique keys share positional point semantics
+
+Reproduced calibration #29's `schema.q:206` refusal from its actual schema,
+windows and push worker: the named `(low, high)` lookup asked for a cap, while
+the positional key compiled. Exact named equalities over a plain unique key
+now take the same point plan, in any order. The runtime is unchanged: any null
+component exempts a key from uniqueness collisions; a nullable point chooses
+the first live candidate by id, subject to its read rule; a null argument for
+a required key column addresses nothing. Bounded equality populations still
+include every null match. The indexes guide and LLP 3000.013 §2.2 record this.
+
+Seven new regressions cover server, memory and SQLite, reopen, all key orders
+and required/optional/null combinations for arities two and three, absence,
+exists, duplicate writes, point-plan equality, partial-key bounds and the
+calibration source. Its copied app now checks with the named form. The first
+full run found one dependent diagnostic repair: its nullable-key aggregate
+rewrite had relied on the old page meaning. It now adds `by .id` and keeps
+every tied null row; its compile-and-execute regression passes.
+
+All 203 affected tests pass. Both full eb1000 runs used
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+The first reported one failed category in 1,494 seconds (that repair); the
+final run reports `== 0 failure(s) in 1391 s`. Final ordinary clients: 6,034
+passed, 11 existing skips; serial models: 79 passed. Both locked wasm builds
+are identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the unchanged
+618,040 B budget. Reference validation and whitespace checks pass.
+
+The [report](./reports/20261003-nl-named-key-lookup/REPORT.md) cites the engine
+and store code and retains the verification record. The ticket is closed
+under `issues/closed/`. Local commit includes
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
+no remote machine or unrelated process was touched.

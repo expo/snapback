@@ -44,3 +44,21 @@ Add a guide sentence under `guide indexes` or `guide reads` saying how null argu
 ## Reproduction
 
 Copy the calibration #29 source (`.../astra/source/snapback/{schema.q,windows.q,workers/push.mjs}`), change line 206 to the named form, and run `snapback4 check`.
+
+## Resolved — 2026-10-03, Lane NL
+
+Exact named equalities over a plain unique key now use the positional point
+plan in either order, including nullable columns. Null-bearing keys permit
+duplicates; a point selects the first live candidate by id and applies its
+read rule. Null for a required key column returns null. Bounded `where`
+equality still returns all null matches. The planner no longer asks for a
+cap for the full-key lookup; partial keys retain their bound requirement.
+
+Regressions cover server, memory and SQLite, all required/optional and null
+combinations of two- and three-column keys, every named order, duplicate
+writes, identical plans, and the real calibration #29 source. Its copied app
+passes `check` with the named form. The indexes guide and LLP 3000.013 §2.2
+document the semantics. A verified diagnostic repair for an aggregate now
+adds `by .id` so its population keeps every tied null row.
+
+See the [verification report](../../snapback4/reports/20261003-nl-named-key-lookup/REPORT.md).

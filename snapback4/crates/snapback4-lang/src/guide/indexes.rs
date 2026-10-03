@@ -30,6 +30,9 @@ needs no `by` declaration for these reads.
 exactly one declared unique key of that arity, in its declared order.
 Name columns when several keys have that arity: `tasks[ownerId = viewer,
 projectId = projectId]`. Synthesized indexes never choose positional meaning.
+In either key spelling, null matches null on optional columns (ties select the
+first live candidate by id, subject to read rules); null for a required column
+returns null. Use a bounded `where` read to retrieve every null match.
 A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
