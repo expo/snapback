@@ -3,6 +3,10 @@
 2026-10-03, eb1000, `sb5/on-once-narrow`, base `7fba10a3cb`.
 Local work only; no push or publication. Evidence: `~/sb5-lanes/on-evidence/`.
 
+This opening record describes **Round 0** at `1433c7de32`. Its disclosure
+and pricing claims were disproved by the blind reviews. The claim-by-claim
+Round 1 audit below supersedes those claims; original test history is retained.
+
 ## Reproduction and cause
 
 Before runtime edits, LM's original `live-margin-settlement.test.mjs` passes its
@@ -59,17 +63,19 @@ known scope loss and expiry retain their hard boundaries. `contract.ts` and the
 public Read vocabulary are unchanged. Guide assets wording matches the rule.
 The change intentionally does not certify arbitrary computed/filtered answers.
 
-## Disclosure audit
+## Round 0 disclosure audit (superseded)
 
-- The retained row's existence, position, cursor and other fields cannot depend
-  on the masked cell in the admitted query subset. Queries that derive an
+- Round 0 claimed that the retained row's existence, position, cursor and other
+  fields could not depend on the masked cell. This was false for heap/cut
+  decisions: raw cells were priced before masking. Queries that derive an
   existence/filter/order decision from it receive no mask proof and still
   withdraw as a whole. All rule/audience/owner inputs still need certification.
 - Null replaces the whole cell, regardless of the previous asset id, facts,
   optional value or nested-list length. No per-asset path/id/count or view result
   enters the certificate or plan. Metadata describes declarations, including on
   empty results. It does not describe a private ledger outcome.
-- Online, only a fresh same-transaction ledger proof restores a handle. Device
+- Round 0 checked the ledger in the read snapshot, which was insufficient
+  at response publication and absent for plan-rejected reads. Device
   sync's ordinary authorized stored images do not prove the ledger: the device
   dispatcher masks before returning a bare query and the SDK cannot restore a
   cached/synced handle. Predictions and offline recovery follow that rule too.
@@ -275,8 +281,9 @@ including process/wasm devices, once assets, revalidation, existence, store
 replacement and the wasm budget checks (`final-all-affected.log`). The corrected
 browser DM regression passes 8/8. Final core proof tests pass 3/3, the whole
 guide 110/110, and the revocation model 5/5. Package typecheck and the delivery
-boundary census pass. No introduced failure remains unresolved; inherited and
-environmental reds above remain recorded and unfixed.
+boundary census pass. The round-0 suite missed the disclosure failures found by blind review;
+those are addressed and qualified in Round 1 below. Inherited/environmental
+full-suite reds remain recorded here.
 
 The requested mutant was repeated on the final client: disabling
 `state.unproven = true` exposes the real old asset object at the immediate-null
@@ -301,3 +308,158 @@ Final reference audit: 526 LLP docs, 10,133 references, zero errors/unchecked.
 
 Committed log files use lossless `.log.gz` copies; the `.log` names above also
 refer to their uncompressed originals in `~/sb5-lanes/on-evidence/`.
+
+## Round 1 — blind-review disclosure corrections
+
+Both full reviews were read: `~/sb5-lanes/reviews/on-r0.astra.md` and
+`on-r0.grok.md`. The revision starts at **1433c7de32**; its merge base with
+`origin/main` is **7fba10a3cba57fc6d93162e7dc22907c589bf495**. Frozen base and
+round-0 CLI, SDK and wasm artifacts were used for the comparisons. Test-only
+instrumentation in an isolated round-0 source snapshot exposes the interval
+between detached query evaluation and serialization; no production fix is in
+that snapshot. No full suite, publication, push or main integration is claimed.
+
+### Attribution before qualification
+
+| Finding | Base reproduction | Round 0 reproduction | Classification |
+|---|---|---|---|
+| Consumed handle remains in watches/pages/approvals; a held response restores it | All three hosts fail both success and `E_ASSET_VIEWED` cases (`base-confirmed.log`) | Same six failures (`round0-confirmed.log`) | Pre-existing; round 0 did not close it. |
+| A view committed after query evaluation is absent from its snapshot | Base uses no once ledger disclosure at all; the same post-view raw-read leak is demonstrated by `base-confirmed.log` | Instrumented frozen-source `round0-serialization-final.log` fails the response assertion | Pre-existing disclosure; round 0's same-snapshot proof is insufficient. |
+| Plan-rejected reads return viewed/released rows, handles and derived facts | Filters, ranges, existence, derived and actual native programs fail (`base-confirmed.log`) | Same programs fail (`round0-confirmed.log`) | Pre-existing; excluded from round 0's masking implementation. |
+| Viewed lists prevent an unrelated unviewed scalar from restoring | Base retains that scalar on all hosts (`liveRestored:true`), but leaks the lists | Round 0 returns null for that scalar on all hosts (`liveRestored:false`) | Introduced by round 0's post-query proof allowance. |
+| Unavailable list payload changes a complete 30-row answer into loading | Online, process and wasm reproduce (`base-confirmed.log`) | All three reproduce (`round0-confirmed.log`) | Pre-existing raw-payload pricing; round 0 still prices before masking. |
+| An online notification paints the other watch/page's old handle | Both online paths and both local-host change paths fail (`base-confirmed.log`) | Same tears; local mutation paths pass (`round0-confirmed.log`) | Pre-existing notification ordering; round 0 masks sequentially and leaves the tear. |
+| Missing regression for exact column home / every nested leaf | Base lacks the disclosure check and leaks wrong-home handles | Correct round-0 implementation passes the three wrong-home cases; the requested mutation was the gap | Coverage gap, not a round-0 exact-home defect. Round 1 kills the column and `all`→`any` mutants. |
+
+The pricing claim in the original audit was wrong: proving membership and
+ordering statically did **not** prevent hidden cells from controlling heap
+cuts, output completeness or restoration of other cells. The empty-meter unit
+could not establish that property for the actual query pipeline.
+
+### Current disclosure audit, claim by claim
+
+| Claim | Mechanism and regression |
+|---|---|
+| Commits preceding response encoding govern once disclosure | Once-sensitive queries are re-evaluated under the engine commit guard. A transparent reply wrapper keeps that guard until the ordinary responder has encoded JSON bytes, then drops it before socket I/O. Store/generation replacement withholds the reply. `serve_assets/once.rs::once_commit_before_serialization_reprices_rows_and_derived_facts` covers bare rows, filters, derived handles and scalar facts after a view, release, or an active transfer whose view is not yet committed. |
+| Consuming a view alone removes its handle and facts before the asset promise settles | `fetchAsset` advances a shared SDK consumption fence on success and `E_ASSET_VIEWED`. Live snapshots, Pages and facade approvals consult it, including retained copies. `once-view-race.test.mjs` checks these immediately and releases three older HTTP replies (row, handle, fact). The corrected `once-retention.test.mjs` performs no unrelated edit in its viewed case. |
+| No plan-rejected program bypasses disclosure | The shared interpreter projects whole once cells before expressions; native lookup/scan uses the same projection. `once-rejected.test.mjs` exercises filters, a non-cell filter returning rows, a range, existence, derived handle/facts and two compiled native programs after view/release. It inspects raw HTTP, SDK results and available device-core results. The wasm core has no native guest host; its SDK exercises the real server fallback for those two native programs. |
+| A derived answer gets no conditional row-retention authority | `plan()` remains restricted to bare point/page shapes. Every rejected-program regression asserts absent `once` metadata. `onceSensitive` is only a dependency bit: stale/unproven computed answers become loading, never eligible for `~once:` retention. `once-retention.test.mjs` also checks malformed/missing plans, derived withdrawal and existing hard boundaries. |
+| Every nested asset leaf and its exact home must be valid | Any unavailable leaf nulls the entire cell, so list length and other leaf facts are absent. `once-rejected.test.mjs` places a nested mixed viewed/live list and restores a scalar copied into the wrong column. The Rust `every_leaf_and_exact_column_home_are_required` test has positive correct-home controls and both negative cases. Mutation evidence removes the column comparison and changes recursive `all` to `any`; both fail. |
+| Hidden payload shape cannot price other visible results | Once disclosure occurs at row projection before filters, heap/output charges or cuts. Private proof work uses 65,536 declared leaf slots, independent of the caller meter and actual values, including null cells. Raw decode reserves by declaration (4 KiB per bounded asset-fact leaf plus list/container overhead); the public actual-size adapter excludes once tables. `once-proof-allowance`, `once-mask-size` and `once-device-size` test real pipelines. The Rust pipeline test starts with 512 KiB heap and 500 steps already used and compares all meter counters and heap peak as well as the complete 30-row result. No runtime meter ceiling changed. |
+| Notifications cannot expose another watch's old handle for one paint | Online mutation/change loops and the local change loop defer notifications until all watches mask; raw listeners use the same delivery mechanism as facade followers. `once-paint.test.mjs` captures every synchronous callback and renders every captured frame with React `flushSync` in headless Chromium, checking both watches and Pages across all three hosts. |
+| Device data alone cannot establish a private unviewed proof | Projection nulls once cells on process and wasm before filters/derived expressions. Server fallback can restore fresh bare answers under existing pending-write/session fences; retained/offline images remain masked. `once-rejected`, `once-device-size`, and the existing online/offline/prediction/settlement cases in `once-retention` cover these boundaries. |
+| Masking never grants another byte download or softens a hard authority boundary | Existing download authorization, once range refusal and consumption remain in place. `once-retention` checks second-view refusal, release, deletion, denial, sign-out, store replacement and one-second withdrawal. The affected asset, authority, approval, existence and retention suites provide surrounding coverage. Already delivered bytes or copies held by application code cannot be retroactively erased; all assertions concern subsequent API publication and screen snapshots. |
+
+### Verification and artifacts
+
+All new JS regressions plus `once-retention.test.mjs` run five times, each with
+online/process/wasm coverage where applicable and real Chromium paints. The
+98 tests per repetition include the individual rejected-program subtests.
+Final counts and remaining Rust/check evidence are recorded below.
+
+The core crate's entire test suite was run. After the final declaration-based
+list-overhead adjustment, affected core pipeline tests are repeated on the final
+source. The device crate and whole 110-test guide are run, as are the affected
+HTTP asset tests, SDK typecheck, docs budget and wasm-budget checks. The selected
+client sweep covers assets, answers, approvals, keep, pages, existence,
+revocation, store reset, settlement, read ordering and delivery-boundary census.
+
+Wasm: **2,053,953 bytes raw / 619,300 bytes gzip**, compared with round 0's
+2,052,110 / 618,230 (**+1,843 raw / +1,070 gzip**), and base's
+2,048,753 / 617,410 (**+5,200 raw / +1,890 gzip**). The cap is raised exactly
+from 618,230 to **619,300**, without slack. This measured whole-artifact delta
+pays for disclosure before evaluation/pricing and fixed declaration-based
+decode reservations with explicit list overhead in the shared device. The
+server serialization and TypeScript changes add no wasm bytes; no independent
+per-function attribution is claimed. Runtime examined/steps/heap ceilings are
+unchanged. `metrics/wasm-budget.json` records this reason.
+
+Commands use the requested PATH, external `CARGO_TARGET_DIR` and
+`CARGO_INCREMENTAL=0`, plus isolated `RUSTFLAGS='--cfg lane_on_once_r1'` for
+build custody. The wasm build uses the pinned Rust/wasm-bindgen/Binaryen pipeline
+explicitly with its external-target input; `build-wasm.sh` is unchanged and no
+in-tree target is created. Gzip includes the canonical shipped filename, as the
+budget script measures it. Frozen artifacts and the final artifact have separate
+hashes. Native test guest compilation shares only a target cache; every fixture
+has a fresh server/store.
+
+Development failures are retained separately: the initial base race fixture
+needed explicit device fallback because base had no once routing; its obsolete
+paint oracle waited for masking that base never implements. Only that owned
+paint child and its two owned servers (PIDs 364577, 594293, 594318) were stopped;
+the corrected baseline finished with assertion failures. One final-matrix
+attempt hit the out-of-band fixture's SQLite write lock; explicit BEGIN IMMEDIATE
+and a 5-second busy timeout corrected it. A Rust fixture initially supplied a
+home to `record_asset`, which intentionally records an unplaced upload; the
+fixture now explicitly claims its home. Two server test commands selected zero
+tests using the filename instead of the module name; only the nonzero
+`asset_list_tests` and exact serialization runs count as evidence. None of these
+exploratory runs is counted as passing qualification.
+
+
+Frozen comparison completion: the same 75 new regression/subtests fail 75/75
+on base. Round 0 fails 70/75; the five passes are its correct exact-home
+implementation on three hosts and the two already-batched local mutation
+paint cases. These are assertion failures, not missing artifacts or timeouts.
+The frozen Rust serialization test also fails on round 0; the nonempty-meter
+pipeline fails there while the positive/exact-home test passes. The new
+coverage thus distinguishes defects from the two previously surviving mutants.
+
+The first broad affected client sweep completed **1,684/1,686**, with two
+failures retained in `affected-clients.log`. The await census required updated
+client/local expression hashes for the new synchronous consumption callbacks;
+counts and delivery reachability did not change. Its final entire suite passes
+335/335. The unchanged wasm same-key existence test timed out once; its immediate
+isolated three-host check passes 3/3 and five full-file repetitions pass 5/5
+each. The broad sweep is repeated against the final artifact, with its result
+below; the initial timeout is not represented as a proven product fix.
+
+Frozen Rust sources initially lacked two compile-time benchmark fixtures; both
+were restored from the same revision before the failing comparison was rerun.
+Compiling the isolated round-0 core under the shared target then overwrote a
+same-named test artifact: a later warm current-tree command accidentally ran
+that round-0 binary and reproduced the identical failure. The log is retained
+as `shared-artifact-collision.log`. After the baseline and mutant work ended,
+all affected crate entry-point mtimes were refreshed to force a current-source
+rebuild. All five final core/serialization repetitions pass. This changed no
+source bytes; baseline/mutant executables are never used as final qualification.
+The optional revocation model command initially named the wrong crate; the
+qualified command names `snapback4-lang`.
+
+Final guide correction: adding the once explanation to the long asset refusal
+paragraph pushed its upload-ownership action beyond the diagnostic excerpt
+budget. `guide-excerpt-red.log` records that introduced editorial failure.
+Moving the once explanation to its own paragraph preserves both definitions;
+`guide-corrected.log` passes **110/110**. The revocation model passes **5/5**.
+
+Tradeoff: a once-sensitive HTTP read now performs a second bounded evaluation
+under the commit guard. That keeps derived values and cut decisions current,
+including programs without a row plan, at the cost of extra query work and
+possible writer contention. The guard is released after byte encoding and
+before network delivery. No throughput improvement or constant-time transport
+claim is made by the pricing tests.
+
+### Final Round 1 results
+
+- New regression matrix: **98/98 per run, five times**, zero failures, cancelled
+  or skipped (`qualified-regressions-1` through `-5`). These final runs follow
+  the schema-adoption correction: sensitivity is captured from the query's
+  original schema, never from an intervening replacement schema.
+- Affected client sweep: **1,686/1,686**, zero failures/cancelled/skipped
+  (`affected-final.log`). The earlier existence timeout did not recur in the
+  identical sweep or any of the five full-file repetitions.
+- Core crate: **528 successful executions, zero failures, three existing ignored
+  cases** across 35 result blocks (`core-all.log`; one success is a nested
+  subprocess execution). Both new final pipeline tests also pass **five times**.
+- Device crate: **1,404 successful executions, zero failures, five existing
+  ignored cases**, 79 result blocks (`device-all.log`). Both SQLite and memory
+  device paths run; the JS matrix additionally instantiates shipped wasm.
+- HTTP asset suite: **4/4, five times** (`final-server-*`), including twelve
+  view/release/transfer × row/filter/handle/fact serialization scenarios per run.
+- Whole guide: **110/110**; revocation model: **5/5**. SDK typecheck, docs budget,
+  delivery census/full 335-case delivery suite, wasm-budget tests and measured
+  budget pass. `git diff --check` and the LLP reference audit pass.
+
+The report, append-only JOURNAL entry, LLP update, guide, tests and fixes are
+committed together. The commit includes
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` and is not pushed.

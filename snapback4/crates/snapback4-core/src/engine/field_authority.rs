@@ -104,6 +104,33 @@ impl<'r> Runner<'r> {
         }
     }
 
+    // @ref LLP 3000.023#12 — disclose before pricing, filters and derived expressions.
+    pub(crate) fn query_row(&self, name: &str, mut row: Value) -> crate::value::Disclosed<'r> {
+        let table = &self.schema.tables[name];
+        if self.once_disclosure {
+            let slots = table.columns.values().filter(|ty| crate::revocation::once(ty))
+                .fold(0u64, |n, ty| n.saturating_add(crate::once_read::slots(ty)));
+            let remaining = self.once_slots.get();
+            let admitted = slots <= remaining;
+            self.once_slots.set(remaining.saturating_sub(slots));
+            if let Value::Row(fields) | Value::Map(fields) = &mut row {
+                let id = fields.get("id").and_then(|v| v.as_str().ok()).unwrap_or("").to_owned();
+                for (column, ty) in &table.columns {
+                    if !crate::revocation::once(ty) { continue; }
+                    if let Some(value) = fields.get_mut(column) {
+                        let proven = !self.device && !self.context.once_unproven && admitted && crate::once_read::cell(value, |asset_id| {
+                            self.tx.asset(asset_id).ok().flatten().is_some_and(|asset| asset.released_at.is_none()
+                                && asset.home.as_ref().is_some_and(|(t, r, c)| t == name && r == &id && c == column))
+                                && self.tx.asset_unviewed(asset_id, &self.context.viewer)
+                        });
+                        if !proven { *value = Value::Null; }
+                    }
+                }
+            }
+        }
+        self.disclosed_row(table, row)
+    }
+
     pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
         let definition = &self.schema.tables[table];
         // A merge may retain previously authorized results after its next lane

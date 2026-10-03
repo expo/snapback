@@ -1,3 +1,4 @@
+import { currentOnce, OnceFence, consumeOnce } from "./read-once.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead, copyOnce } from "./read-existence.ts";
@@ -120,8 +121,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
-  let link: Link = "online", linkRevision = 0;
-  let generation = 0;
+  let link: Link = "online", linkRevision = 0, generation = 0;
   let backend: BackendJson | null = null;
   let startupRefusal: BackendRefusalError | undefined;
   try {
@@ -137,11 +137,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const active = new Set<Promise<unknown>>();
   let closed = false, closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
-  const aborter = new AbortController();
-  const downloads = assetQueue();
+  const aborter = new AbortController(), downloads = assetQueue(), onceFence = new OnceFence();
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
-  let stopSuspend: (() => void) | undefined;
-  let sendingAllowed = !core.onSuspend;
+  let stopSuspend: (() => void) | undefined, sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
   let followingIntents!: FollowingIntents;
   let stopClock: (() => void) | undefined;
@@ -172,8 +170,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   await media.open();
   const installNative = nativeInstaller(() => ({ backend, generation, link, closed }), next => { backend = next; }, call, doFetch, base, requestCredentials);
   let nativeReady = await installNative();
-  let networkTail: Promise<unknown> = Promise.resolve();
-  let networkWork = 0;
+  let networkTail: Promise<unknown> = Promise.resolve(), networkWork = 0;
   function network<T>(body: () => Promise<T>): Promise<T> {
     networkWork++;
     const result = networkTail.then(body);
@@ -184,8 +181,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1, seq = 0;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
-  const linkListeners = new Set<(link: Link) => void>();
-  const watches = new Map<string, Watch>();
+  const linkListeners = new Set<(link: Link) => void>(), watches = new Map<string, Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
@@ -831,9 +827,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
-        for (const watch of watches.values()) {
+        deferReadNotifications(() => { for (const watch of watches.values()) {
           if (evidenceTouches(watch, notifiedTables)) void scheduleRead(watch, true, json.seq, json.preserved);
-        }
+        } })();
       }
       return changed;
     } catch (error) {
@@ -868,7 +864,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
-    const queryEnvironment = { current: () => !owner || owner.changeVersion === changeVersion,
+    const queryEnvironment = { onceFence, current: () => !owner || owner.changeVersion === changeVersion,
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
@@ -917,7 +913,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
   }
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
-    result.read = currentDecorations(result.read);
+    result.read = currentDecorations(currentOnce(result.read));
     return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
       && result.incarnation === incarnation && result.authority === answers.revision
       && (result.credential === undefined || result.credential === credentialRevision) && (!result.controlCurrent || result.controlCurrent())
@@ -1316,7 +1312,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const request = requestCredentials();
       const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
         unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response), aborter.signal,
-        () => !unavailable() && request.revision === credentialRevision, downloads);
+        () => !unavailable() && request.revision === credentialRevision, downloads, () => consumeOnce(onceFence, id, watches.values(), notify));
       // @ref LLP 3000.008.002.000#6 — a rotated pre-dispatch refusal has no asset authority to invalidate.
       if ("denied" in read && !unavailable() && request.revision !== credentialRevision) {
         return read.denied.code === "E_AUTH" ? client.asset(id) : read;

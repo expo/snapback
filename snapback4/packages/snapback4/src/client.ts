@@ -1,4 +1,4 @@
-import { withOnce } from "./read-once.ts";
+import { withOnce, currentOnce, OnceFence, consumeOnce } from "./read-once.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
@@ -10,7 +10,7 @@ import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAf
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
-import { deferReadNotifications } from "./read-notifications.ts";
+import { deferReadNotifications, deliverReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn } from "./read-expiry.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
@@ -187,6 +187,8 @@ export function createClient(options: ClientOptions): Client {
   let delivery: ReturnType<typeof onlineDelivery> | undefined;
   const aborter = new AbortController();
   const downloads = assetQueue();
+  const onceFence = new OnceFence();
+
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
@@ -591,7 +593,7 @@ export function createClient(options: ClientOptions): Client {
       && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.nextExpiry), ...(eph ? { ephemeralRequest: eph } : {}) };
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
-    const epoch = queryEpoch;
+    const epoch = queryEpoch, onceAt = onceFence.revision;
     if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal);
@@ -608,14 +610,14 @@ export function createClient(options: ClientOptions): Client {
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
     const read = readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter });
-    withOnce(read, json.once);
+    withOnce(read, json.once, false, onceFence, json.onceSensitive === true, onceAt);
     withDecorations(read, Array.isArray(json.decorationPaths) ? json.decorationPaths as DecorationPaths : [], values.valueDevice,
       values.valueServer, clock.issuedDeviceNow, clock.estimatedServerNow);
     return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, ...values, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
-    result.read = currentDecorations(result.read);
+    result.read = currentDecorations(currentOnce(result.read));
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
@@ -676,7 +678,7 @@ export function createClient(options: ClientOptions): Client {
   }
   function notify(watch: Watch) {
     readyNotifications.delete(watch);
-    for (const subscriber of watch.subscribers) subscriber();
+    deliverReadNotifications([() => { for (const subscriber of watch.subscribers) subscriber(); }]);
   }
 
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer: QueryResult<unknown>["valueServer"], valueRetry?: number) {
@@ -888,9 +890,9 @@ export function createClient(options: ClientOptions): Client {
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
-          for (const watch of watches.values()) {
+          deferReadNotifications(() => { for (const watch of watches.values()) {
             if (changedGeneration || evidenceTouches(watch, json.tables)) void scheduleRead(watch, true, json.preserved, json.generation);
-          }
+          } })();
         }
       } catch (error) {
         transportFailure = transportRefusal(error);
@@ -926,7 +928,7 @@ export function createClient(options: ClientOptions): Client {
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void scheduleRead(watch, true, json.preserved, json.generation);
+      deferReadNotifications(() => { for (const watch of watches.values()) void scheduleRead(watch, true, json.preserved, json.generation); })();
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
@@ -1087,7 +1089,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision, assetPrincipal = viewer;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads, () => consumeOnce(onceFence, id, watches.values(), notify));
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };

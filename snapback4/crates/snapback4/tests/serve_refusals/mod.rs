@@ -147,7 +147,7 @@ impl Host {
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
+            query_wait: Mutex::new(None), query_serialization: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();

@@ -83223,3 +83223,49 @@ rebuild is claimed. Source/distribution wasm hashes match.
 Report: reports/20261003-on-once-narrow/REPORT.md and ~/sb5-lanes/on.report.md.
 Commit locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-10-03 — Lane ON, Round 1: once disclosure before pricing and publication
+
+The two blind reviews of 1433c7de32 found consumed handles republished by old
+responses, unmasked plan-rejected reads, hidden payloads controlling heap cuts
+and restoration, and a cross-watch paint tear. Frozen base 7fba10a3cb and round-0
+artifacts distinguish inherited leaks from round 0's new unrelated-scalar
+restoration failure; the report records each reproduction. Correct exact-home
+and all-leaf checks existed in round 0 but lacked mutation-sensitive coverage.
+
+All reads now project whole once cells before filters, derived/native results,
+heap/output prices and cut decisions. Private proof slots are independent of the
+caller meter and actual masked values; decode scratch follows declarations with
+explicit list overhead. Devices disclose null without a private ledger proof.
+Before response encoding, once-sensitive server queries are evaluated under the
+commit guard against current view/release state, including active transfers.
+Sensitivity comes from the original query schema so adoption cannot bypass the
+check; the guard ends after JSON byte encoding, before socket I/O. The SDK
+consumption fence masks watches, facades and pages on successful once download
+or E_ASSET_VIEWED and fences earlier responses. All affected watches update
+before raw/facade notifications. Native/filtered/derived reads receive no new
+conditional retention authority. LLP 3000.023 §12 and the asset guide record this.
+
+Five repetitions of the new online/process/wasm regressions include actual
+native programs, released/corrupt-home restores, mixed nested leaves, held
+responses and Chromium flushSync paint checks. The corrected retention test
+checks view masking without an unrelated edit. Removing the exact-column check
+fails on all three hosts; changing recursive all to any fails the Rust nested
+cell test. Final affected clients pass 1,686/1,686; core records 528 successful
+executions, device 1,404; whole guide 110/110 and revocation model 5/5. Core
+pipeline and server serialization regressions each pass five repetitions. The
+report retains the initial fixture lock, await-inventory omission, guide excerpt
+failure, shared-target artifact collision and one non-reproduced existence
+sweep timeout, along with their corrected checks. No full suite was requested
+or run this round.
+
+Wasm measures **2,053,953 B raw / 619,300 B gzip**, versus round 0's
+2,052,110 / 618,230: **+1,843 raw / +1,070 gzip**. This whole-artifact increase
+pays for shared disclosure before pricing/evaluation and fixed decode
+reservations with list overhead; server/TypeScript changes do not enter wasm.
+Raise the ratchet exactly to **619,300**, with no slack and no runtime meter
+ceiling change. The pinned Linux Rust/wasm-bindgen/locked Binaryen pipeline uses
+the requested external Cargo target; the in-tree-only build script is unchanged.
+Evidence and the claim-by-claim audit are in
+`reports/20261003-on-once-narrow/REPORT.md` and its `round1/` directory.
+Local commit only, with the requested Astra coauthor; no push or publication.

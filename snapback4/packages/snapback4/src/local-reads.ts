@@ -1,5 +1,5 @@
 import { watchCanRevoke } from "./change-evidence.ts";
-import { deferReadNotifications } from "./read-notifications.ts";
+import { deferReadNotifications, deliverReadNotifications } from "./read-notifications.ts";
 import type { Queued } from "./local-types.ts";
 import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
@@ -81,7 +81,7 @@ export function armLocalPresence(watch: LocalWatch, unavailable: boolean, acquir
 }
 
 export function notifyLocalWatch(watch: LocalWatch): void {
-  for (const subscriber of watch.subscribers) subscriber();
+  deliverReadNotifications([() => { for (const subscriber of watch.subscribers) subscriber(); }]);
 }
 
 export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => void): void {

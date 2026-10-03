@@ -73,13 +73,17 @@ for (const host of ['online', 'process', 'wasm']) for (const change of ['edit', 
     const pages = new Pages(client, q('history'), {}), stop = pages.subscribe(() => {}); cleanup.push(stop);
     await until(() => watch.getSnapshot().data?.[0].photo?.id === upload.asset.id && pages.getSnapshot().items[0]?.photo?.id === upload.asset.id);
     const approvals = new ReadApprovals(), approved = approvals.approve(watch.getSnapshot()); cleanup.push(() => approvals.close());
-    if (change === 'viewed') {
-      const first = await client.asset(upload.asset.id); assert.ok(first.url); first.revoke();
-      assert.equal((await client.asset(upload.asset.id)).denied?.code, 'E_ASSET_VIEWED', 'second view remains refused');
-    }
     hold = true;
     const started = Date.now(); let now = started; t.mock.method(Date, 'now', () => now);
     const mutation = change === 'revoked' ? 'clearPhoto' : change === 'erase' ? 'erase' : change === 'denied' ? 'remove' : 'edit';
+    if (change === 'viewed') {
+      const first = await client.asset(upload.asset.id); assert.ok(first.url); first.revoke();
+      assert.equal((await client.asset(upload.asset.id)).denied?.code, 'E_ASSET_VIEWED');
+      assert.equal(watch.getSnapshot().data?.[0].photo, null, 'view alone masks the watch');
+      assert.equal(approved.read().data?.[0].photo, null, 'view alone masks facade approval');
+      assert.equal(pages.getSnapshot().items[0]?.photo, null, 'view alone masks pages');
+      return;
+    }
     await client.mutate(m(mutation), mutation === 'edit' ? { body: 'edited' } : {}, { waitSeconds: 0 });
     if (client.sync) await client.sync();
     await until(() => held > 0 && (watch.getSnapshot().revalidating || !('data' in watch.getSnapshot())));
@@ -141,11 +145,11 @@ for (const host of ['online', 'process', 'wasm']) test(`${host}: a derived once 
     },
   });
   const watch = client.observe(q('derived'), {});
-  await until(() => watch.getSnapshot().data === 'image-1');
+  await until(() => watch.getSnapshot().data === (host === 'online' ? 'image-1' : null));
   let now = Date.now(); t.mock.method(Date, 'now', () => now); hold = true;
   await client.mutate(m('edit'), { body: 'edited' }, { waitSeconds: 0 });
   if (client.sync) await client.sync();
-  await until(() => held > 0 && episodeDeadline(watch.getSnapshot()) !== undefined);
+  await until(() => held > 0 && (watch.getSnapshot().loading || episodeDeadline(watch.getSnapshot()) !== undefined));
   now += 1001;
   assert.equal(watch.getSnapshot().loading, true, 'a value-derived existence decision has no cell mask proof');
 });

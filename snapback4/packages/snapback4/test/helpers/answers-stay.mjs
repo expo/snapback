@@ -72,7 +72,7 @@ export async function fixture(t, program = source, options) {
   return { ...f, post };
 }
 export function opener(host, dir) {
-  return host === 'process' ? processDevice({ dir, binary }) : webDevice({ wasm: readFileSync(new URL('../../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() });
+  return host === 'process' ? processDevice({ dir, binary }) : webDevice({ wasm: readFileSync(process.env.RL_TEST_WASM ?? new URL('../../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() });
 }
 export async function open(t, f, host, extra = {}) {
   const options = { url: f.url, persona: 'bob', waitSeconds: 0, ...extra };

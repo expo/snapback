@@ -13,7 +13,7 @@ export const until = async (read, label = "condition", options) => { return awai
       if (error.cause?.code !== 'UND_ERR_SOCKET') throw error;
     }
   }, label, options); };
-export async function server(t, residency = "sync to .owner", source, { watch = false } = {}) {
+export async function server(t, residency = "sync to .owner", source, { watch = false, prepare } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source ?? `use identity
@@ -29,6 +29,7 @@ mutation add(body: text <=200):
 query list():
   return notes[viewer] first 100 by byOwner
 `));
+  await prepare?.(dir);
   let output = "";
   const host = spawn(binary, ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });

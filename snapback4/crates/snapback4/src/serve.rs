@@ -3,6 +3,8 @@
 //! watermark; the online tier long-polls `GET /changes`. Typed states, no
 //! silent state (LLP 2000.000 §8). Development personas ride a header on
 //! loopback; `dev` re-compiles the schema when a `.q` file changes.
+#[path = "serve_query_reply.rs"]
+mod query_reply;
 use crate::project::{Project, persona_principal};
 use snapback4_core::error::Refusal;
 use snapback4_core::ir::ProgramKind;
@@ -109,6 +111,8 @@ pub struct Shared {
     #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
+    pub query_serialization: WorkHook,
+    #[cfg(test)]
     pub reader_open: WorkHook,
     #[cfg(test)]
     pub changes_refresh: WorkHook,
@@ -142,6 +146,7 @@ pub struct AssetTransfers {
 }
 
 impl AssetTransfers {
+    fn unproven(&self, viewer: &str) -> bool { lock(&self.active).iter().any(|(_, principal)| principal == viewer) }
     pub(crate) fn enter<'a>(&'a self, asset: &str, principal: &str) -> AssetTransfer<'a> {
         let key = (asset.to_owned(), principal.to_owned());
         let mut active = lock(&self.active);
@@ -322,6 +327,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
         #[cfg(test)] query_wait: Mutex::new(None),
+        #[cfg(test)] query_serialization: Mutex::new(None),
         #[cfg(test)] reader_open: Mutex::new(None),
         #[cfg(test)] changes_refresh: Mutex::new(None),
         #[cfg(test)] mutation_wait: Mutex::new(None),
@@ -1217,8 +1223,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
+                let mut once_context = context.clone();
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths, once) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation, mut search_current, scopes, decoration_paths, once, sensitive) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1233,10 +1240,11 @@ fn handle(mut request: Request, shared: &Shared) {
                         trace::mark("query_start");
                         let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
                         trace::mark("query_end");
+                        let sensitive = snapback4_core::once_read::sensitive(reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         let once = reader.program(&op).and_then(|program| snapback4_core::once_read::plan(reader.schema(), program));
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once, sensitive)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1251,53 +1259,33 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
                         let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
+                        let sensitive = snapback4_core::once_read::sensitive(engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         let once = engine.program(&op).and_then(|program| snapback4_core::once_read::plan(engine.schema(), program));
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once, sensitive)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
-                    Ok(outcome) => {
-                        #[derive(serde::Serialize)]
-                        struct QueryReply<'a> {
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            once: &'a Option<snapback4_core::once_read::OnceRead>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            scopes: &'a Option<Json>,
-                            #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
-                            search_scopes: &'a Option<Vec<String>>,
-                            #[serde(rename = "searchRows", skip_serializing_if = "Option::is_none")]
-                            search_rows: Option<wire::Plain<'a>>,
-                            #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
-                            search_current: &'a Option<Vec<String>>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
-                            generation: u64,
-                            complete: bool,
-                            cut: Option<snapback4_core::engine::ReadCut>,
-                            data: wire::Plain<'a>,
-                            next: &'a Option<String>,
-                            #[serde(rename = "nextExpiry")]
-                            next_expiry: Option<i64>,
-                            #[serde(rename = "decorationPaths", skip_serializing_if = "Option::is_none")]
-                            decoration_paths: Option<Vec<Vec<String>>>,
-                            #[serde(rename = "decorationExpiry", skip_serializing_if = "Option::is_none")]
-                            decoration_expiry: Option<Option<i64>>,
-                            seq: u64,
-                            store_id: String,
-                            tables: &'a [String],
-                            viewer: &'a str,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            meter: Option<Json>,
-                            #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
-                            row_provenance: Option<wire::Plain<'a>>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            refresh: Option<u64>,
+                    Ok(mut outcome) => {
+                        #[cfg(test)] test_work(&shared.query_serialization);
+                        // @ref LLP 3000.023#12 — derived scalars and cut decisions need
+                        // a current evaluation; walking only the final JSON is insufficient.
+                        // The guard spans evaluation and serialization, never network delivery.
+                        let mut disclosure = sensitive.then(|| lock(&shared.engine));
+                        if let Some(engine) = disclosure.as_mut() {
+                            if engine.generation() != query_generation || response_head(engine).ok().is_none_or(|(id, _)| id != store_id) {
+                                drop(disclosure);
+                                return respond_timed(request, shared, 200, json!({ "loading": true }));
+                            }
+                            once_context.once_unproven = shared.asset_transfers.unproven(&viewer);
+                            let (fresh, _, current) = engine.query_search_at(&op, once_context, retained.as_deref());
+                            search_current = current;
+                            outcome = match fresh {
+                                Ok(outcome) => outcome,
+                                Err(error) => { drop(disclosure); return respond_timed(request, shared, 200, json!({ "denied": error })); }
+                            };
                         }
-                        impl latency::Reply for QueryReply<'_> {}
                         // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
@@ -1314,10 +1302,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
-                            respond_timed(request, shared, 200, reply);
+                            respond_timed(request, shared, 200, query_reply::Committed { body: reply, guard: disclosure });
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { once: &once, scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            let reply = query_reply::QueryReply { once_sensitive: sensitive, once: &once, scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh };
+                            respond_timed(request, shared, 200, query_reply::Committed { body: reply, guard: disclosure });
                         }
                     }
                     Err(refusal) => {

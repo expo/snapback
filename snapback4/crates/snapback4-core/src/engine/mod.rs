@@ -54,6 +54,9 @@ pub mod delivery;
 mod expiry;
 pub mod rules;
 pub mod runner;
+#[cfg(all(test, feature = "sqlite"))]
+#[path = "../../tests/disclosure/once.rs"]
+mod once_pipeline_tests;
 pub mod validate;
 pub mod write;
 mod field_authority;
@@ -141,6 +144,8 @@ pub enum LoadMode { Import, Restore }
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
 pub struct Context {
+    /// The host has an in-progress asset transfer whose view is not committed.
+    pub once_unproven: bool,
     #[cfg(feature = "sqlite")]
     pub(crate) refusal_trace: Option<refusal_trace::RefusalTrace>,
     pub retained_search: bool,
@@ -175,7 +180,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { once_unproven: false, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -988,9 +993,7 @@ impl Engine {
                 runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
             }
         }
-        let mut data = runner.run_server_query(&program)?;
-        // @ref LLP 3000.023#12 — row and once-cell authority share the query snapshot.
-        crate::once_read::authorize(&tx, &self.schema, &program, &runner.context.viewer, &mut data, &mut runner.meter);
+        let data = runner.run_server_query(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix

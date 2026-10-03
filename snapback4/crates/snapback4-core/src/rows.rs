@@ -294,6 +294,7 @@ pub trait Rows {
     fn asset(&self, _id: &str) -> Result<Option<Asset>, RuntimeError> {
         Ok(None)
     }
+    fn asset_unviewed(&self, _id: &str, _viewer: &str) -> bool { false }
     fn claim_asset(&self, id: &str, _by: &str, _table: &str, _row_id: &str, _column: &str) -> Result<Asset, RuntimeError> {
         Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("this store keeps no asset ledger; {id} cannot be placed here") })
     }

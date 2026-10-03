@@ -1,4 +1,4 @@
-import { withOnce, oncePlan, copyOnce, unproveOnce, currentOnce } from "./read-once.ts";
+import { withOnce, OnceFence, oncePlan, copyOnce, unproveOnce, currentOnce } from "./read-once.ts";
 import { decorationPaths, withDecorations, valueDeadline, mergeValueDeadlines, type ValueDeadlines } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
 import { checkRead } from "./read-work.ts";
@@ -37,6 +37,7 @@ type Outcome = Coverage & { once?: unknown; decorationExpiry?: number | null | u
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
+  onceFence?: OnceFence;
   current?(): boolean;
   revalidate?: boolean;
   serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
@@ -184,7 +185,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const fetch = async (): Promise<Candidate<R>> => {
       while (true) {
         checkpoint();
-        const credentials = env.credentialRevision;
+        const credentials = env.credentialRevision, onceAt = env.onceFence?.revision;
         const eph = ephemeral ? env.ephemeralReads.request() : undefined;
         const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
         // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
@@ -204,7 +205,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
-        withOnce(read, json.once);
+        withOnce(read, json.once, false, env.onceFence, json.onceSensitive === true, onceAt);
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
         return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueDevice: null, valueServer: "data" in read ? valueDeadline(json.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }

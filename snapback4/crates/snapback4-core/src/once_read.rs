@@ -82,56 +82,27 @@ mod tests {
         }
         assert!(results.windows(2).all(|pair| pair[0] == pair[1]));
     }
-    #[cfg(feature = "sqlite")]
-    #[test]
-    fn proof_allowance_cannot_reveal_a_masked_cells_presence() {
-        let (schema, programs) = fixture();
-        let program = programs.iter().find(|p| p.name == "point").unwrap();
-        let mut store = crate::store::Store::memory().unwrap();
-        let tx = store.transaction().unwrap();
-        let mut observations = vec![];
-        for photo in [Value::Null, crate::value::object([("id", Value::Id("unavailable".into()))])] {
-            let mut data = crate::value::object([("id", Value::Id("a".into())), ("photo", photo), ("photos", Value::Null)]);
-            let mut meter = crate::meter::Meter::new(Default::default(), crate::meter::Cut::Cap);
-            authorize(&tx, &schema, program, "alice", &mut data, &mut meter);
-            observations.push((data, meter.used, meter.heap_peak));
-        }
-        assert_eq!(observations[0], observations[1], "null and an unavailable handle must leave the same allowance for later cells");
-        assert_eq!(observations[0].1.examined, 10, "prepay all five declared slots, including null cells");
-    }
 }
 
-#[cfg(feature = "sqlite")]
-pub fn authorize(tx: &crate::store::Tx<'_>, schema: &Schema, program: &Program,
-    viewer: &str, data: &mut Value, meter: &mut crate::meter::Meter) {
-    let Some(plan) = plan(schema, program) else { return };
-    // The ordinary query already proved the row and its lifetime in THIS
-    // transaction. Only the private home/view ledger remains to be checked.
-    fn cell(tx: &crate::store::Tx<'_>, value: &Value, viewer: &str, table: &str, row: &str, column: &str) -> bool {
+/// Bound private proof work by declarations, independently of the caller's
+/// already-used heap. Each row pays every slot, including null/absent cells.
+pub const PROOF_SLOTS: u64 = 65_536;
+pub fn slots(kind: &crate::schema::ColumnType) -> u64 { use crate::schema::ColumnType::*; match kind {
+    Optional(t) => slots(t), List { of, max } => slots(of).saturating_mul(u64::from(*max)), _ => 1,
+} }
+pub fn cell(value: &Value, mut leaf: impl FnMut(&str) -> bool) -> bool {
+    fn walk(value: &Value, leaf: &mut impl FnMut(&str) -> bool) -> bool {
         match value {
             Value::Null => true,
-            Value::Array(values) => values.iter().all(|v| cell(tx, v, viewer, table, row, column)),
-            _ => crate::assets::asset_id(Some(value)).is_some_and(|id| {
-                tx.asset(id).ok().flatten().is_some_and(|asset| asset.released_at.is_none()
-                    && asset.home.as_ref().is_some_and(|(t, r, c)| t == table && r == row && c == column))
-                    && tx.asset_viewed(id, viewer).is_ok_and(|viewed| !viewed)
-            }),
+            Value::Array(values) => values.iter().all(|v| walk(v, leaf)),
+            _ => crate::assets::asset_id(Some(value)).is_some_and(leaf),
         }
     }
-    fn slots(kind: &crate::schema::ColumnType) -> u64 { use crate::schema::ColumnType::*; match kind {
-        Optional(t) => slots(t), List { of, max } => slots(of).saturating_mul(u64::from(*max)), _ => 1,
-    } }
-    // Prepay all declared cells before inspecting any value, including null or
-    // absent cells. Otherwise a masked earlier value could change whether a
-    // later cell fits and thereby disclose its presence through restoration.
-    let rows = match data { Value::Array(rows) if plan.many => rows.len() as u64,
-        Value::Row(_) | Value::Map(_) if !plan.many => 1, _ => 0 };
-    let n = plan.columns.iter().fold(0u64, |n, c| n.saturating_add(slots(&schema.tables[&plan.table].columns[c]))).saturating_mul(rows);
-    use crate::error::MeterKind;
-    let charges = [(MeterKind::Examined, n.saturating_mul(2)), (MeterKind::Steps, n.saturating_mul(4)), (MeterKind::HeapBytes, n.saturating_mul(16_384))];
-    if !charges.iter().all(|(kind, amount)| meter.room(*kind, *amount)) { plan.mask(data, |_, _, _| false); return; }
-    for (kind, amount) in charges { if meter.charge(kind, amount).is_err() { plan.mask(data, |_, _, _| false); return; } }
-    plan.mask(data, |row, column, value| row.and_then(|r| r.as_str().ok())
-        .is_some_and(|row| cell(tx, value, viewer, &plan.table, row, column)));
-    meter.used.heap_bytes = meter.used.heap_bytes.saturating_sub(n.saturating_mul(16_384));
+    walk(value, &mut leaf)
+}
+
+/// Whether a query's evaluated dependencies include once cells. This is a
+/// disclosure fence, never permission to retain a computed answer.
+pub fn sensitive(schema: &Schema, tables: &[String]) -> bool {
+    tables.iter().any(|name| schema.table(name).is_some_and(|table| table.columns.values().any(crate::revocation::once)))
 }

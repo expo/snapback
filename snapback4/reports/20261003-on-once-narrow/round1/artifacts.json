@@ -1,0 +1,27 @@
+[
+  {
+    "path": "/home/ccheever/sb5-lanes/on-artifacts/base-snapback4",
+    "bytes": 274693536,
+    "sha256": "e225e43690bcee0d16df570804edd6d6a72673cec2c40161d1bd7831212b88ce"
+  },
+  {
+    "path": "/home/ccheever/sb5-lanes/on-artifacts/round1/round0-snapback4",
+    "bytes": 274884464,
+    "sha256": "6d8ed1a1a742aa4f2ecf622df8e018b2662cb245592a366716a94410d11aaa85"
+  },
+  {
+    "path": "/home/ccheever/sb5-lanes/on-artifacts/round1/snapback4",
+    "bytes": 274999400,
+    "sha256": "687d615687f8c364b076d33042dc6c042e9ccce81eab76a50e34cd1d1c14e4ce"
+  },
+  {
+    "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "bytes": 2053953,
+    "sha256": "97c9db9ae762ce7689e721ef32f9eef7d23b62119f9c9c50d863276c94909cb3"
+  },
+  {
+    "path": "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm",
+    "bytes": 2053953,
+    "sha256": "97c9db9ae762ce7689e721ef32f9eef7d23b62119f9c9c50d863276c94909cb3"
+  }
+]

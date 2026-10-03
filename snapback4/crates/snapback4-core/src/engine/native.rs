@@ -454,7 +454,8 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
 /// the host built — a viewer's rules on the server, the device's words on a
 /// device — under the read meter, writes refused. Returns the value and the
 /// runner, whose flags say whether the read was complete.
-pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &BTreeMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
+pub fn run_read<'a>(module: &Module, mut runner: Runner<'a>, name: &str, args: &BTreeMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
+    runner.once_disclosure = true;
     let ceilings = runner.meter.ceilings;
     let mut store = module.store(Host::new(Some(runner), name.to_owned(), true, ceilings, FUEL_PER_READ));
     let value = (|| -> Result<Value, RuntimeError> {

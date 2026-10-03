@@ -448,10 +448,6 @@ headers for native views) fetches `GET /assets/<id>` under the viewer's
 credentials, and a row that is deleted, whose column is cleared, that
 expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
 For one-view React photos, own the handle above the list (`guide client`).
-A bare point/page keeps authorized rows during revalidation and masks each
-`once` cell to null. Devices mask unproven cells; a fresh server read restores
-only available, unviewed assets. Filtered or derived answers keep their ordinary
-authority withdrawal. Handle null even for a required once column.
 `once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
 the uploader is counted after placement; before placement the uploader may
 preview. A Range request against a once asset is refused before consuming a
@@ -480,6 +476,14 @@ retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
+
+A bare point/page keeps authorized rows during revalidation and masks each
+`once` cell to null. Every read masks unavailable whole cells before filtering
+or computing derived results, including native reads. Devices cannot prove a
+view ledger; a fresh server read restores only available, unviewed assets at
+their exact home. A successful once download or E_ASSET_VIEWED immediately
+masks retained snapshots and fences older replies. Filtered or derived answers
+withdraw when unproven. Handle null even for a required once column.
 
 At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
 hard limit, capped at 65,536 (also capped by macOS host limits). Failure is

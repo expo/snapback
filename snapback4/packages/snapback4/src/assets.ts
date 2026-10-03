@@ -99,14 +99,15 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
   return { uri: `${base}/assets/${encodeURIComponent(id)}`, headers: auth };
 }
 
-export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>): Promise<AssetRead> {
+export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>, consumed?: () => void): Promise<AssetRead> {
   let release: (() => void) | undefined;
   let retryable = false;
   try {
     const downloaded = await downloadAsset(assetSource(base, headers, id), doFetch, signal, current, queue);
-    if ("denied" in downloaded) return downloaded;
+    if ("denied" in downloaded) { if (downloaded.denied.code === "E_ASSET_VIEWED") consumed?.(); return downloaded; }
     retryable = downloaded.retryable;
     const { blob, response } = downloaded;
+    if (response.headers.get("accept-ranges") === "none" || !downloaded.retryable) consumed?.();
     release = ownBlob(blob);
     const retained = await viewed?.(blob, response);
     if (retained) return retained;

@@ -9,6 +9,7 @@ use crate::schema::ColumnType;
 pub fn actual_size(table: &Table) -> bool {
     // A read-through child inherits its parent's rule and lifetime; it is never public.
     table.rules.read.is_uniformly_readable() && !table.is_expiring() && table.through.is_none()
+        && !table.columns.values().any(crate::revocation::once)
         && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
 }
 
@@ -19,7 +20,18 @@ pub fn admission(table: &Table) -> u64 {
 
 pub fn decode_reservation(table: &Table) -> u64 {
     table.columns.iter().fold(4096 + MAX_INDEX_KEY_BYTES as u64 * 4, |n, (name, ty)|
-        n.saturating_add(256 + name.len() as u64 * 16).saturating_add(column(ty)))
+        n.saturating_add(256 + name.len() as u64 * 16).saturating_add(if crate::revocation::once(ty) { once_column(ty) } else { column(ty) }))
+}
+
+// Once facts have a bounded identity and fixed scalar facts, never file bytes.
+// 4 KiB covers their serialized/typed scratch; reserve list nodes separately.
+// The reservation depends on the declaration, including empty/null cells.
+fn once_column(ty: &ColumnType) -> u64 {
+    match ty {
+        ColumnType::Optional(inner) => once_column(inner),
+        ColumnType::List { of, max } => u64::from(*max).saturating_mul(256_u64.saturating_add(once_column(of))).saturating_add(256),
+        _ => 4096,
+    }
 }
 
 fn column(ty: &ColumnType) -> u64 {

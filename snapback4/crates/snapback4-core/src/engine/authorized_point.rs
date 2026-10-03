@@ -84,7 +84,7 @@ impl<'r> Runner<'r> {
         // Memory deadlines are hidden by Disclosed itself; transfer the live
         // boundary before projecting, still inside this candidate's expiry scope.
         if table.ephemeral.is_some() { self.note_expiry(table, &row); }
-        let projection = self.disclosed_row(table, row).for_query();
+        let projection = self.query_row(name, row).for_query();
         let visible = projection.into_value();
         Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: expiry.defer() }))
     }
@@ -100,7 +100,7 @@ impl<'r> Runner<'r> {
         // Trusted selected heads may use the same actual-size adapter. It
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
-        if (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
+        if !table.columns.values().any(crate::revocation::once) && (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
             let rows = if metered {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
@@ -226,7 +226,7 @@ impl<'r> Runner<'r> {
                 // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
                 if runner.device && runner.retained_row(&read.table, &row)? { runner.components.note(|frame| frame.retained = true); }
                 runner.note_expiry(table, &row);
-                let projected = runner.disclosed_row(table, row).for_query();
+                let projected = runner.query_row(&read.table, row).for_query();
 
                 let visible = projected.into_value(); // drop hidden storage before leaving the internal scope
                 Ok(Some(AuthorizedRow { projection: runner.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
@@ -242,7 +242,7 @@ impl<'r> Runner<'r> {
         };
         // A maintained point read has already reserved its recount scratch (aggregate_point_scratch).
         let row = if prepaid_examined { self.live_aggregate_prepaid(&read.table, row)? } else { self.live_aggregate(&read.table, row)? }.unwrap_or(Value::Null);
-        Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, row).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
+        Ok(Some(AuthorizedRow { projection: self.query_row(&read.table, row).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
     }
 
     fn point_event_held(&mut self, read: &Read, key: &[Value], row: &Value) -> bool {

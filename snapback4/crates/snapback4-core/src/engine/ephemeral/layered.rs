@@ -106,6 +106,8 @@ impl Drop for Layered<'_> {
     }
 }
 impl Rows for Layered<'_> {
+    fn asset_unviewed(&self, id: &str, viewer: &str) -> bool { self.durable.asset_unviewed(id, viewer) }
+
     fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.read(t).get(t, id)
     }

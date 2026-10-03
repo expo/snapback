@@ -43,7 +43,9 @@ export const scope = {
   // client.ts changes only erased generic arguments; read-existence is sync.
   // LLP 3000.023 ON: read-once is synchronous metadata/masking. Once routing
   // reuses local-query's existing server path and its pending/publication fences;
-  // it adds no await or delivery I/O site.
+  // it adds no await or delivery I/O site. Round 1 adds synchronous view
+  // callbacks to the existing fetchAsset awaits in client/local; their await
+  // counts and delivery reachability are unchanged, their expression hashes are not.
   // The shared decoder now owns both mutation-body I/O and optional query
   // decoding. Retry waits/send calls remain covered by their caller awaits.
   'http-response.ts': ['readResponse'],

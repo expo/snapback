@@ -1,3 +1,4 @@
+mod once;
 use super::*;
 
 const SOURCE: &str = r#"

@@ -181,6 +181,8 @@ pub struct Runner<'a> {
     /// delivered rows are trusted; provisional images need current read
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
+    pub(crate) once_disclosure: bool,
+    pub(crate) once_slots: std::cell::Cell<u64>,
     pub(crate) event_free: bool,
     #[cfg(feature = "sqlite")]
     pub(super) column_rebuild: bool,
@@ -325,6 +327,8 @@ impl<'a> Runner<'a> {
             timeline_pending: false,
             word_cut_at: None,
             device: false,
+            once_disclosure: false,
+            once_slots: std::cell::Cell::new(crate::once_read::PROOF_SLOTS),
             event_free: false,
             #[cfg(feature = "sqlite")]
             column_rebuild: false,
@@ -364,6 +368,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        self.once_disclosure = program.kind == ProgramKind::Query;
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.receipt_operation = program.name.clone();
         self.prepare_components(program);

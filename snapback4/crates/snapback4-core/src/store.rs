@@ -1070,6 +1070,7 @@ impl crate::rows::Rows for Tx<'_> {
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
         Tx::asset(self, id)
     }
+    fn asset_unviewed(&self, id: &str, viewer: &str) -> bool { self.asset_viewed(id, viewer).is_ok_and(|v| !v) }
     fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
         Tx::claim_asset(self, id, by, table, row_id, column)
     }
