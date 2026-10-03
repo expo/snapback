@@ -81,7 +81,7 @@ Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revealing/consuming protected content
 needs a current answer. Queueing a durable write needs no membership answer:
 only `denied`, or `existence(member) === "absent"` when fresh and not revalidating, disables Send.
-Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; the screen reports only visible seen
+Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; `useSeen(api.receiptFamilies.chat, { scope, through, active })` reports only visible confirmed seen
 positions. The starter passes foreground and navigation visibility explicitly.
 
 ```tsx

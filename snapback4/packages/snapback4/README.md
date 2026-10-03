@@ -244,7 +244,7 @@ query search(q: text <=100, c: cursor ?):
 ```
 
 Render receipts, profiles, quotes and reactions separately so loading or refusal preserves history. Run `npx snapback4 guide receipts` for the complete model,
-SDK delivery reporting and screen-owned visible `seen` reporting. Ordinary search combines current server hits
+SDK delivery and `useSeen(api.receiptFamilies.chat, { scope, through, active })` for actually visible confirmed positions on web/native (never pending or merely loaded rows). Ordinary search combines current server hits
 with retained device hits online; `usePage` accumulates by ID. Show “Partial results” only for `complete: false`.
 This windowed search emits `N_SYNC_ORDER` for device coverage and `N_NEVER_COMPLETE` for empty-needle browsing (`guide search`).
 

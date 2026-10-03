@@ -92,3 +92,24 @@ function scalar(read: Read<boolean | number | string | undefined>) {
 `);
   assert.deepEqual(result.codes, [], result.text);
 });
+
+test('receipt family preserves mapped operation types and useSeen requires explicit visibility', () => {
+  const result = check(`import type { Client, ReceiptFamily } from './src/contract.ts';
+import { useSeen } from './src/react.tsx';
+type Member = {id:string; joined:number; received:number; viewed:number; pending?:boolean};
+declare const family: ReceiptFamily<Member, 'room', 'to'>, client: Client;
+client.query(family.member, {room:'r'});
+client.mutate(family.seen, {room:'r',to:4});
+// @ts-expect-error declared argument names, not guessed defaults
+client.mutate(family.seen, {conversation:'r',through:4});
+// @ts-expect-error member scope must be an ID string
+client.query(family.member, {room:3});
+// @ts-expect-error foreground/visibility is never assumed
+useSeen(family, {scope:'r',through:4});
+const state = useSeen(family, {scope:'r',through:null,active:false});
+state.retry();
+// @ts-expect-error seen reports no delivered watermark
+state.delivered;
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});

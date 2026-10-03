@@ -1,0 +1,103 @@
+{
+  "method": "Physical lines; UTF-8 bytes excluding final newline; source formatting preserved. Visibility wiring counted separately as full-file deltas, not hidden in hook savings.",
+  "R3": {
+    "before": {
+      "lines": 37,
+      "bytes": 1742
+    },
+    "after": {
+      "lines": 6,
+      "bytes": 366
+    }
+  },
+  "R4": {
+    "before": {
+      "lines": 2,
+      "bytes": 371
+    },
+    "after": {
+      "lines": 2,
+      "bytes": 297
+    }
+  },
+  "files": [
+    {
+      "path": "cal29/before/snapback/schema.q",
+      "before": {
+        "lines": 401,
+        "bytes": 19845
+      },
+      "after": {
+        "lines": 401,
+        "bytes": 19845
+      },
+      "before_sha256": "d1bdf39f91474fa8afa9d0ba6374aec0951f6a6957c75e7fcaea93d883972813",
+      "after_sha256": "d1bdf39f91474fa8afa9d0ba6374aec0951f6a6957c75e7fcaea93d883972813"
+    },
+    {
+      "path": "cal29/before/snapback/windows.q",
+      "before": {
+        "lines": 5,
+        "bytes": 237
+      },
+      "after": {
+        "lines": 5,
+        "bytes": 237
+      },
+      "before_sha256": "a68031ece85ea2e730ddbb11551249129e20db7579ffb0a1978c66f22cabb3fb",
+      "after_sha256": "a68031ece85ea2e730ddbb11551249129e20db7579ffb0a1978c66f22cabb3fb"
+    },
+    {
+      "path": "cal29/before/src/chat.tsx",
+      "before": {
+        "lines": 46,
+        "bytes": 16754
+      },
+      "after": {
+        "lines": 50,
+        "bytes": 17135
+      },
+      "before_sha256": "c859b8c1f6e747231c93b40c4c0cb3f25c03da75fd3edfa9a311d220c21ebaac",
+      "after_sha256": "3f0da4d49c9351160168e4c5a6ee4d3668ed5afa9edf0adca9da2a8f13c12a75"
+    },
+    {
+      "path": "g47/before/snapback/schema.q",
+      "before": {
+        "lines": 642,
+        "bytes": 25969
+      },
+      "after": {
+        "lines": 566,
+        "bytes": 22592
+      },
+      "before_sha256": "683d749b0b25e25ab813ed642159c6b72a34498e9b87b1eaeb11f7b151e18415",
+      "after_sha256": "fb1f455507f17d7909bc70920ceab03ec4704810f01f95aa24413df4f08e3ab2"
+    },
+    {
+      "path": "g47/before/src/ConversationView.tsx",
+      "before": {
+        "lines": 411,
+        "bytes": 15736
+      },
+      "after": {
+        "lines": 421,
+        "bytes": 16590
+      },
+      "before_sha256": "e5e8b6f0abcffb30edfe9d7bb52453b23a557296f659a546803ad1e5bb8b1f02",
+      "after_sha256": "918cd714259c9b208b7da4295838dcab0bcb292ec4e782a7ea055868757520d7"
+    },
+    {
+      "path": "g47/before/src/useReceipts.ts",
+      "before": {
+        "lines": 41,
+        "bytes": 1924
+      },
+      "after": {
+        "lines": 9,
+        "bytes": 468
+      },
+      "before_sha256": "f3634b74c9731f0fddb8818f7b5f676764a58aaac0630da06f760265d25736b8",
+      "after_sha256": "6eabd22af5980a5d655a341232482f1468ff212485233a6a87cfffceba137a3c"
+    }
+  ]
+}

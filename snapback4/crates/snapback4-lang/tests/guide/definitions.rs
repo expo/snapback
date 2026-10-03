@@ -387,8 +387,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
 #[test]
 fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
     let text = normalize(&card("receipts").unwrap());
-    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
-        assert!(text.contains(fact), "missing {fact}");
+    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "useSeen(api.receiptFamilies.chat"] {
+        assert!(text.contains(fact), "missing {fact}: {text}");
     }
     for obsolete in ["the pages it has walked", "client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
         assert!(!text.contains(obsolete), "obsolete: {obsolete}");
@@ -404,8 +404,8 @@ fn receipts_migrates_the_history_walking_hook_that_does_not_scale() {
         assert!(text.contains(migration), "missing migration step: {migration}");
     }
     let hook = text.split("function useReceipts(").nth(1).expect("worked migrated hook");
-    assert!(hook.contains("useQuery(api.receiptMember"));
-    assert!(hook.contains("client.mutate(api.seen"));
+    assert!(hook.contains("visibleIds.has(m.id) && !m.pending"), "{hook}");
+    assert!(hook.contains("useSeen(api.receiptFamilies.chat"));
     for history_writer in ["loadMore(", "api.progress", "api.delivered"] {
         assert!(!hook.contains(history_writer), "migrated hook still uses {history_writer}");
     }

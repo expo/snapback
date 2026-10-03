@@ -350,3 +350,6 @@ export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | 
 export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }
+
+/** Generated receipt-family binding; history and decorations keep independent authority. */
+export type { ReceiptFamily } from "./receipt-family.ts";

@@ -929,6 +929,16 @@ pub fn why(options: &Options) -> i32 {
             }
             println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
             println!("  returns {}", program.result.name());
+            // @ref LLP 3000.022#14.6 — discover the generated handle and its declared coordinates.
+            for family in &bound.schema.receipts {
+                if [&family.seen, &family.delivered, &family.compact].contains(&&program.program.name)
+                    || bound.receipt_members.get(&family.name) == Some(&program.program.name) {
+                    println!("  api.receiptFamilies.{}: member {}, seen {}; counter {}.{}, joining floor {}.{}, recipient count {}.{}, delivered/seen {} / {}",
+                        family.name, bound.receipt_members[&family.name], family.seen, family.scope, family.counter,
+                        family.members, family.floor, family.messages, family.count, family.delivered_field, family.seen_field);
+                    println!("  useSeen: visible confirmed positions only; read bare retained history and live decorations independently. Membership, join floors and delivery coverage remain server-authoritative.");
+                }
+            }
             println!("{}", crate::presentation::indexes(&bound.schema, &snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]), options.json || options.flags.contains_key("verbose")));
             println!("{}", cost_report(&bound, &program.program, options.json || options.flags.contains_key("verbose")));
             return 0;
