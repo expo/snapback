@@ -15,8 +15,8 @@
 
 > **Latest timing control — round 5b:** 24 interleaved warm exports give round-5
 > medians of **18.335 s plain / 26.716 s social**, against round-4 **18.346 / 27.786 s**.
-> Eight runs became contended; no quiet-host qualification or issue closure is
-> claimed. See the Round 5b section. Earlier sections retain their historical cohorts.
+> **The 25 s social target is unmet on the current host; quiet-host qualification is pending.**
+> Eight runs became contended; no issue closure is claimed. See the Round 5b section. Earlier sections retain their historical cohorts.
 
 ## Result
 
@@ -1435,3 +1435,119 @@ all four projects retain at most five full runs and twenty compressed runs, with
 no per-run app/xcresult/preparation/export residue. Exact packaged/installed CLI
 hashes still match. [validation.json](round5b/validation.json) records these checks;
 [staged-size.json](round5b/staged-size.json) records the final under-15-MB blob audit.
+
+
+## Round 6 — orphan marker reconciliation and lease semantics
+
+2026-10-02, based on `ac15813e7f` (round 5b), with round-5 implementation
+`adbabda71e`. Read Astra's full review on eb1000 at
+`~/sb4-intent/reviews/nx-r5.astra.md`. This section responds to its two P2s and
+P3; it does not claim a new independent review.
+
+### Publication custody across the final unlink
+
+Retention now reconciles an orphan run marker under the run lease, export lease
+and a nonblocking acquisition of the destination lock. A matching destination
+intent stays with publication recovery. If the destination intent is gone or
+belongs to a later publisher, the old transaction either never switched or
+finished commit/rollback before its run-marker unlink. Reconciliation removes
+only the old run's recorded new private directory, or accepts that it is already
+absent, then clears its run marker. A changed private inode refuses cleanup.
+Neither a later visible export nor its pending intent is rolled back or deleted.
+Completed and prematurely marked-complete runs both use this reconciliation.
+
+The six-case regression covers successful commit, rejected rollback and a crash
+before writing the destination intent, each with existing and initially absent
+`dist/`. It injects real SIGKILL between the two marker deletions for commit and
+rollback, publishes a later verified export, then SIGKILLs reconciliation twice
+more after removing the private tree. The next cleanup succeeds, the committed
+receipt survives ordinary compression, rejected private bytes disappear, and
+retention prunes the abandoned run after newer completed fixtures. Every later
+export remains exact. Separate controls hold each lock, preserve a matching or
+newer destination intent and refuse a changed private inode. The test pause hooks
+are absent from the shipped CLI. This remains cooperating-process crash recovery,
+not a power-loss durability or arbitrary-filesystem-tampering guarantee.
+
+### Lease release and production fork window
+
+The reacquisition assertion now runs in an isolated test process. It verifies
+`FD_CLOEXEC`, forks a deliberately held child, drops the original owner, confirms
+the child still owns the lock, then releases and reaps that holder before
+asserting reacquisition. Unrelated parallel test forks can no longer make the
+assertion race descriptor closure.
+
+Production can encounter transient fork inheritance while a lease is held.
+Rust's file open already supplies close-on-exec, and the production spawn paths
+have no waiting pre-exec callback. Until a child execs/exits, another attempt may
+conservatively refuse the lease or defer cleanup; retry is safe. This is an
+availability delay, not simultaneous custody. The intentional Node-to-publisher
+fd-3 lease is unchanged. The limitation is recorded in code and LLP 3000.030 §15.
+
+### Timing remains unqualified
+
+**The 25 s social target is unmet on the current host; quiet-host qualification
+is pending.** The round-5b ABBA medians remain 18.346 / 18.335 s plain and
+27.786 / 26.716 s social (round 4 / round 5). They show no round-5 slowdown on the
+shared host and do not meet the social target. The
+[timing ticket](../../../issues/20261002-snapback4-nx-round5-social-warm-timing.md)
+stays Open. Round 6 changes no budget and runs no timing cohort. The witness card
+states this same limit within its unchanged 400-line budget (399 lines).
+
+### Verification and evidence
+
+| Affected check | Apartment mini | Linux eb1000 |
+| --- | --- | --- |
+| Rust witness units, including SIGKILL/lease controls | 29 passed | 30 passed |
+| Rust witness integration | 53 passed | 13 passed |
+| Four JS export/shim files | 19 passed | 18 passed, one existing Darwin-only skip |
+
+The first standalone mini checks inherited workspace Node 26.9.0; the JS controls
+were repeated successfully with the pinned Node 24.18.0. The canonical suite also
+uses that pinned Node and reruns the final Rust units/integration. Linux used Rust
+1.97.0 and Node 24.13.1. No real simulator ran: Darwin integration uses a fake
+`xcrun`. `mini-verify-iphone`, X27R worktrees/simulators and system settings were
+untouched. Linux's exact scratch tree `/tmp/sb4-nx-r6.yhcFoC` was deleted after
+its logs and source hashes were copied and verified
+([cleanup](round6/linux-cleanup.json)).
+
+[Reproduction and failure ledger](round6/NOTES.md),
+[source transfer](round6/source-transfer.json),
+[Linux validation](round6/linux-validation.json) and the small per-check logs
+retain both successful results and setup failures. The initial Linux compile
+omitted two embedded benchmark inputs; supplying the unchanged fixtures fixed it.
+Its first JS run lacked workspace Expo dependencies and failed two config tests;
+the frozen install fixed both. No product assertion or guard was weakened.
+
+The single canonical `scripts/test.sh` invocation finished with the exact line
+**`== 0 failure(s) in 2253 s`**, exit 0. The client pool passed **5,767** tests
+with **zero failures and five existing skips**; final models **79/79**, guide
+**110/110**, witness integration **53/53** and the complete CLI unit target
+**232 passed, four existing ignored**. The known delivery-fault `follow` flake
+**did not reproduce** on this branch; main's `9ca48d2804` fix is still absent,
+and no claim is made that NX fixed it. The matrix bytes match pre-fix main;
+the instrumentation differs only by a seven-line explanatory comment
+([baseline evidence](round6/delivery-fault-baseline.json)). There is no canonical
+failure to attribute. The setup failures above remain classified and retained.
+
+[Exact suite summary](round6/full-suite-summary.log),
+[check results](round6/affected-verification.json) and
+[raw-log archive identity](round6/full-suite-archive.json) preserve the result.
+The full log and source transport archives live outside git through
+`EVIDENCE-ARCHIVE.tsv`; all eight new blobs were read back and hash-checked.
+The test run's product sources match [the tested hashes](round6/tested-source.json).
+
+Wasm is byte-for-byte unchanged from round 5 and from before this suite:
+**2,014,420 B raw / 604,666 B gzip**, **559 B below** the unchanged 605,225 B cap;
+SHA-256 `c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c`
+([wasm record](round6/wasm.json)). No native timing, simulator execution,
+publication qualification or new reviewer verdict is claimed. Local commit only,
+with the requested `Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer;
+no push or publication.
+
+Final `ref-check --verbose`: **525 LLP docs, 10,185 refs, zero errors and zero unchecked**.
+The [staged-size audit](round6/staged-size.json) verifies the evidence policy,
+all eight new external blobs and the tested source hashes before commit.
+
+Four small Rust logs omit only their extra terminal blank line for Git whitespace
+checks; [the formatting record](round6/small-log-formatting.json) maps both hashes
+and the archived original bytes. Linux validation records those original hashes.

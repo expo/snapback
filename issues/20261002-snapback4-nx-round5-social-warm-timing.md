@@ -47,3 +47,11 @@ whole/native/outside durations and the top-CPU/timestamp records, plus exact
 package hashes and archived raw evidence. Next: reserve a quiet host window and
 use the already warmed `~/sb4-np/nx-r5b/{r4,r5}-{plain,social}` copies to collect
 six quiet warm samples per cell. Do not replace the recorded contended cohort.
+
+## Round 6 disposition — 2026-10-02
+
+Still **Open**. The 25 s social target is unmet on the current host; quiet-host
+qualification is pending. Round 5b found no round-5 slowdown, but both social
+medians (27.786 s control / 26.716 s candidate) exceed the unchanged target.
+Round 6 repairs publication recovery and the fork-inheritance test; it runs no
+new native timing cohort and changes no budget, timeout or sample classification.

@@ -1,0 +1,19 @@
+{
+  "mainFix": "9ca48d280429b1110d48c59c523f3f535beb51f7",
+  "branchPredatesFix": true,
+  "files": [
+    {
+      "path": "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs",
+      "branchSha256": "883ff5c80df8d71b60bff6222f1d383814b900a8883d59c0034282c9fba85177",
+      "preFixMainSha256": "04a13df790a17a409bd03728a5b9f40b591065bef3b2dadcdb9feb8d2e5b2612",
+      "sameBytes": false
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "branchSha256": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+      "preFixMainSha256": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+      "sameBytes": true
+    }
+  ],
+  "instrumentDifference": "Only the seven-line BG explanatory comment is absent here; executable instrumentation is unchanged."
+}

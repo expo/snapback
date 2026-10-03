@@ -96,10 +96,54 @@ fn rollback(pending: &Value, source: &Path, target: &Path) -> Result<()> {
     Err(error("E_WITNESS_ARTIFACT", format!("interrupted publication identity changed; preserve {} and {} for recovery", source.display(), target.display())))
 }
 fn clear_pending(marker: &Path, source: &Path) -> Result<()> {
-    // Clear the destination first: a leftover run marker is conservative and
-    // prevents pruning; the reverse order could strand a pointer to a pruned run.
+    // Clear the destination first; reconciliation below finishes a stranded run
+    // marker. The reverse order could leave a pointer to an already pruned run.
     recovery::remove(marker)?;
+    #[cfg(test)] tests::pause(source.parent().unwrap(), "destination-cleared");
     recovery::remove(&source.parent().unwrap().join("publication-pending.json"))
+}
+fn lock_path(target: &Path) -> Result<PathBuf> {
+    Ok(target.parent().ok_or_else(|| error("E_WITNESS_INPUT", "missing export parent"))?.join("artifacts/native-smoke/publication.lock"))
+}
+
+// Caller holds both run and export leases. A missing (or newer) destination
+// intent means this run never switched, or finished commit/rollback before its
+// final marker unlink. Do not inspect/roll back the visible target: a subsequent
+// publisher may already own it. Only this run's new tree can remain privately.
+pub(super) fn reconcile_orphan(dir: &Path) -> Result<bool> {
+    let marker = dir.join("publication-pending.json");
+    if !marker.exists() { return Ok(true); }
+    let pending: Value = serde_json::from_slice(&fs::read(&marker).map_err(|e| error("E_WITNESS_ARTIFACT", e))?).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let source = Path::new(pending["source"].as_str().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication source"))?);
+    let target = Path::new(pending["target"].as_str().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication target"))?);
+    if source.parent() != Some(dir) || pending["new"].is_null() {
+        return Err(error("E_WITNESS_ARTIFACT", "interrupted publication source differs; preserve run for recovery"));
+    }
+    let lock_path = lock_path(target)?;
+    // Never wait with the run/export leases held: a publisher may own the
+    // destination lock, and an in-process pruning callback can run under it.
+    let Ok(_destination) = preparation::lease(&lock_path) else { return Ok(false); };
+    let destination = lock_path.with_file_name("publication-pending.json");
+    match fs::read(&destination) {
+        Ok(bytes) => {
+            let current: Value = serde_json::from_slice(&bytes).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+            if current == pending { return Ok(false); }
+            if current["source"] == pending["source"] { return Err(error("E_WITNESS_ARTIFACT", "interrupted publication intents disagree; preserve run for recovery")); }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
+    let remaining = inode(&source)?;
+    if !remaining.is_null() && remaining != pending["new"] {
+        return Err(error("E_WITNESS_ARTIFACT", "orphan publication identity changed; preserve private tree for recovery"));
+    }
+    // Idempotent even if killed during recursive removal or after it. Absent
+    // source is also the normal verified-commit case, with its receipt retained.
+    recovery::remove(&source)?;
+    #[cfg(test)] tests::pause(dir, "orphan-removed");
+    recovery::remove(&marker)?;
+    eprintln!("witness: reconciled orphan publication marker at {}", dir.display());
+    Ok(true)
 }
 fn recover_pending(marker: &Path, target: &Path) -> Result<()> {
     if !marker.exists() { return Ok(()); }
@@ -120,7 +164,7 @@ fn recover_pending(marker: &Path, target: &Path) -> Result<()> {
 fn publish(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, after_exchange: impl FnOnce()) -> Result<()> {
     // Serializes recovery, publication, receipt and displaced-tree removal.
     // Never unlink this lock: waiters must share the same inode.
-    let lock_path = target.parent().ok_or_else(|| error("E_WITNESS_INPUT", "missing export parent"))?.join("artifacts/native-smoke/publication.lock");
+    let lock_path = lock_path(target)?;
     fs::create_dir_all(lock_path.parent().unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false)
         .open(&lock_path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -132,6 +176,7 @@ fn publish(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, a
     let pending = json!({ "source": source, "target": target, "new": inode(source)?, "old": inode(target)? });
     recovery::remove(&dir.join("publication.json"))?;
     save(&dir.join("publication-pending.json"), &pending)?;
+    #[cfg(test)] tests::pause(dir, "run-intent-saved");
     save(&marker, &pending)?;
     let result = (|| {
         exchange(source, target)?;
@@ -176,6 +221,11 @@ pub(super) fn command(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    pub(super) fn pause(dir: &Path, point: &str) {
+        if std::env::var("SB4_PUBLICATION_PAUSE").as_deref() != Ok(point) { return; }
+        fs::write(dir.join(format!("paused-{point}")), point).unwrap();
+        loop { sleep(Duration::from_secs(1)); }
+    }
     fn fixture(label: &str) -> (PathBuf, PathBuf, PathBuf) {
         let root = std::env::temp_dir().join(format!("sb4-publish-{label}-{}-{}", std::process::id(), now()));
         let dir = root.join("runs/1-123"); let source = dir.join("export");
@@ -236,15 +286,19 @@ mod tests {
         let root = PathBuf::from(root);
         let label = std::env::var("SB4_PUBLICATION_RUN").unwrap();
         let dir = root.join("runs").join(&label); let source = dir.join("export");
+        let action = std::env::var("SB4_PUBLICATION_ACTION").unwrap_or_default();
+        if action == "cleanup" { recovery::cleanup(&root.join("runs"), None).unwrap(); return; }
         let _lease = preparation::lease(&dir.join("export.lock")).unwrap();
         let record = json!({ "owner": null, "wrapper": recovery::identity(std::process::id()), "children": {} });
         fs::write(dir.join("live.json"), serde_json::to_vec(&record).unwrap()).unwrap();
         let expected: Value = serde_json::from_slice(&fs::read(dir.join("expected.json")).unwrap()).unwrap();
         fs::write(dir.join("ready"), "ready").unwrap();
-        publish(&source, &root.join("dist"), &expected, &Value::Null, || {
+        let result = publish(&source, &root.join("dist"), &expected, &Value::Null, || {
             fs::write(dir.join("exchanged"), "exchanged").unwrap();
-            if label == "1-123" { loop { sleep(Duration::from_secs(1)); } }
-        }).unwrap();
+            if action == "rollback" { fs::write(root.join("dist/bundle"), "rejected bytes").unwrap(); }
+            if label == "1-123" && action.is_empty() { loop { sleep(Duration::from_secs(1)); } }
+        });
+        if action == "rollback" { assert!(result.is_err()); } else { result.unwrap(); }
         fs::write(dir.join("verified"), "verified").unwrap();
     }
     #[test]
@@ -281,6 +335,105 @@ mod tests {
         let expected: Value = serde_json::from_slice(&fs::read(survivor.join("expected.json")).unwrap()).unwrap();
         verify(&root.join("dist"), &expected).unwrap();
         assert_eq!(fs::read_dir(root.join("dist")).unwrap().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune() {
+        for action in ["commit", "rollback", "intent"] {
+            for absent in [false, true] {
+                let (root, dir, source) = fixture(&format!("orphan-{action}-{absent}"));
+                if absent { fs::remove_dir_all(root.join("dist")).unwrap(); }
+                fs::write(dir.join("expected.json"), serde_json::to_vec(&files(&source).unwrap()).unwrap()).unwrap();
+                let start = |operation: &str, point: &str| Owned::spawn(Command::new(std::env::current_exe().unwrap())
+                    .args(["--exact", "verbs::witness::publication::tests::witness_publication_process_fixture", "--nocapture"])
+                    .env("SB4_PUBLICATION_FIXTURE", &root).env("SB4_PUBLICATION_RUN", "1-123")
+                    .env("SB4_PUBLICATION_ACTION", operation).env("SB4_PUBLICATION_PAUSE", point)
+                    .stdout(Stdio::null()).stderr(Stdio::inherit())).unwrap();
+                let kill_at = |operation: &str, point: &str| {
+                    let paused = dir.join(format!("paused-{point}"));
+                    recovery::remove(&paused).unwrap();
+                    let mut child = start(operation, point);
+                    let end = Instant::now() + Duration::from_secs(15);
+                    while !paused.exists() && Instant::now() < end { sleep(Duration::from_millis(10)); }
+                    assert!(paused.exists(), "{action}/{absent}: missing {point}");
+                    child.stop(libc::SIGKILL).unwrap();
+                };
+                kill_at(action, if action == "intent" { "run-intent-saved" } else { "destination-cleared" });
+                assert!(dir.join("publication-pending.json").exists());
+                assert!(!root.join("artifacts/native-smoke/publication-pending.json").exists());
+                if action == "commit" {
+                    assert_eq!(fs::read_to_string(root.join("dist/bundle")).unwrap(), "proved bundle");
+                    assert!(dir.join("publication.json").exists()); assert!(!source.exists());
+                } else {
+                    assert_eq!(root.join("dist").exists(), !absent);
+                    if !absent { assert_eq!(fs::read_to_string(root.join("dist/old")).unwrap(), "old export"); }
+                    assert!(source.exists()); assert!(!dir.join("publication.json").exists());
+                }
+                // A later publisher can replace dist before orphan reconciliation.
+                // Recovery must not roll that successful export back.
+                let later = root.join("runs/9-123"); fs::create_dir_all(later.join("export")).unwrap();
+                fs::write(later.join("export/later"), "later verified export").unwrap();
+                {
+                    let _lease = preparation::lease(&later.join("export.lock")).unwrap();
+                    publish(&later.join("export"), &root.join("dist"), &files(&later.join("export")).unwrap(), &Value::Null, || {}).unwrap();
+                }
+                // Exercise both recovery paths: unfinished and prematurely finished.
+                if absent { fs::write(dir.join("finished.json"), "{}").unwrap(); }
+                for _ in 0..2 {
+                    kill_at("cleanup", "orphan-removed");
+                    assert!(dir.join("publication-pending.json").exists());
+                    assert!(!source.exists());
+                    assert_eq!(fs::read_to_string(root.join("dist/later")).unwrap(), "later verified export");
+                }
+                recovery::cleanup(&root.join("runs"), None).unwrap();
+                recovery::cleanup(&root.join("runs"), None).unwrap();
+                assert!(dir.join("finished.json").exists());
+                assert!(dir.join("retention.json").exists());
+                assert!(!dir.join("publication-pending.json").exists());
+                assert!(!source.exists());
+                assert_eq!(dir.join("publication.json.gz").exists(), action == "commit");
+                for i in 10..=40 {
+                    let newer = root.join(format!("runs/{i}-123")); fs::create_dir_all(&newer).unwrap();
+                    fs::write(newer.join("finished.json"), "{}").unwrap();
+                }
+                recovery::cleanup(&root.join("runs"), None).unwrap();
+                assert!(!dir.exists(), "orphan is eligible for ordinary oldest-run pruning");
+                assert_eq!(fs::read_to_string(root.join("dist/later")).unwrap(), "later verified export");
+                eprintln!("orphan SIGKILL control passed: {action}, destination initially absent={absent}");
+                fs::remove_dir_all(root).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity() {
+        let (root, dir, source) = fixture("orphan-locks");
+        let target = root.join("dist");
+        let pending = json!({ "source": source, "target": target, "new": inode(&source).unwrap(), "old": inode(&target).unwrap() });
+        save(&dir.join("publication-pending.json"), &pending).unwrap();
+        for path in [dir.join("run.lock"), dir.join("export.lock"), lock_path(&target).unwrap()] {
+            let held = preparation::lease(&path).unwrap();
+            recovery::cleanup(&root.join("runs"), None).unwrap();
+            assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
+            drop(held);
+        }
+        let destination = lock_path(&target).unwrap().with_file_name("publication-pending.json");
+        save(&destination, &pending).unwrap();
+        recovery::cleanup(&root.join("runs"), None).unwrap();
+        assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
+        // A different run's outstanding destination intent must survive intact.
+        let different = json!({ "source": root.join("runs/99-123/export"), "target": target, "new": [1, 2] });
+        save(&destination, &different).unwrap();
+        fs::rename(&source, dir.join("saved-new")).unwrap();
+        fs::create_dir(&source).unwrap();
+        assert!(recovery::cleanup(&root.join("runs"), None).unwrap_err().contains("identity changed"));
+        assert!(dir.join("publication-pending.json").exists());
+        fs::remove_dir(&source).unwrap(); fs::rename(dir.join("saved-new"), &source).unwrap();
+        recovery::cleanup(&root.join("runs"), None).unwrap();
+        assert!(!source.exists()); assert!(!dir.join("publication-pending.json").exists());
+        assert_eq!(serde_json::from_slice::<Value>(&fs::read(destination).unwrap()).unwrap(), different);
+        assert_eq!(fs::read_to_string(target.join("old")).unwrap(), "old export");
         fs::remove_dir_all(root).unwrap();
     }
 }

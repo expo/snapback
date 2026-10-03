@@ -81828,3 +81828,57 @@ and zero unchecked, card unchanged at 399 lines. All 24 measured proof/hash
 bindings and all newly archived blobs verify. Four projects satisfy retention
 without per-run build/export residue; package and installed CLI hashes still
 match. No full product suite or independent review was run in this timing round.
+
+
+## 2026-10-02 — NX round 6: reconcile orphan publication markers
+
+Read Astra's complete round-5 review on eb1000. Kept destination-first marker
+deletion and added orphan-run reconciliation under run/export leases and a
+nonblocking destination lock. A matching destination intent remains pending;
+an absent/newer one permits removal only of this run's recorded new private
+tree (or accepts its absence), followed by its run-marker unlink. Changed private
+identity refuses. Later visible exports and newer pending intents stay intact.
+Recovery covers both unfinished and prematurely completed runs and is idempotent
+across repeated kills. LLP 3000.030 §15 records the contract in the same change.
+
+Six real-SIGKILL cases pass on the mini and Linux: commit, rejected rollback and
+pre-destination-intent creation, each with existing/initially absent destination.
+After the first kill, a later verified export is published, recovery is killed
+twice after private-tree removal, and normal cleanup still compresses and then
+prunes the abandoned run. Committed publication evidence survives compression;
+rejected private bytes do not. Independent controls verify each required lock,
+matching/newer destination intents and changed private identities. Pause hooks
+exist only in the test executable.
+
+The lease-release assertion now runs in an isolated subprocess, verifies
+FD_CLOEXEC and deliberately forks a held descriptor before dropping its owner.
+It asserts continued exclusion, releases/reaps the child and only then asserts
+reacquisition. Production spawn paths can transiently inherit a lease until
+exec/exit; no waiting pre-exec callback exists. A contender conservatively refuses
+or defers cleanup, never acquires simultaneous custody. The documented limitation
+and the intentional wrapper fd-3 custody remain distinct.
+
+Affected checks: mini 29 witness units / 53 integration / 19 JS export-shim
+passes; Linux eb1000 30 units / 13 integration / 18 JS passes, with one existing
+Darwin-only JS skip. Linux's initial source subset lacked two embedded benchmark
+inputs; its initial JS run lacked Expo dependencies. Both setup failures remain
+recorded; exact fixtures plus the frozen install fixed them without code changes.
+Initial mini standalone checks used ambient Node 26.9.0; JS rechecks and the
+canonical suite use pinned Node 24.18.0, with Rust checks repeated by that suite.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2253 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; witness integration 53/53; CLI units 232 passed, four existing
+ignored. This pre-main-fix branch did not reproduce the delivery-fault follow
+flake; NX does not claim to fix it. The raw canonical log and source archives
+are content-addressed outside git and read-back verified, with small summaries
+in the NX report's Round 6 section. Linux's exact scratch directory was deleted.
+
+The **25 s social target is unmet on the current host; quiet-host qualification
+is pending**. Round-5b's plain control/candidate medians remain 18.346/18.335 s,
+social 27.786/26.716 s; no round-5 slowdown was reproduced there. The timing ticket
+stays Open; round 6 runs no timing cohort and raises no budget. The witness card
+states that limit and stays at 399 lines. Wasm is unchanged at 2,014,420 B raw /
+604,666 B gzip under the same 605,225 B cap. No real simulator was used;
+mini-verify-iphone and X27R worktrees/simulators were untouched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.

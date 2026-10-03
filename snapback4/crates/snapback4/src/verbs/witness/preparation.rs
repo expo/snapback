@@ -21,6 +21,12 @@ impl Drop for ExportTemporary {
 
 pub(super) fn lease(path: &Path) -> Result<File> {
     if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|e| error("E_WITNESS_ARTIFACT", e))?; }
+    // Rust opens this descriptor close-on-exec. A concurrent fork can still
+    // retain it until exec/exit, so last-owner drop need not release immediately.
+    // Production children proceed directly to exec (no waiting pre_exec hook);
+    // a contender in that window conservatively refuses/defer-cleans, never
+    // takes custody. Retry after child exec/exit is safe. The wrapper's explicit
+    // fd-3 export lease is separately and intentionally inherited.
     let file = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     file.try_lock().map_err(|_| error("E_WITNESS_PROCESS", "another witness holds the project or --udid lease; leaving it untouched"))?;
     Ok(file)
@@ -292,10 +298,41 @@ child.stdout.once('data',()=>process.exit(0));
 
     #[test]
     fn lease_preserves_an_existing_owner_and_releases_on_drop() {
+        // Other tests fork in parallel. Run the release assertion in a process
+        // where every inherited holder is known and reaped before reacquiring.
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "verbs::witness::preparation::tests::lease_fork_fixture", "--nocapture"])
+            .env("SB4_LEASE_FORK_FIXTURE", "1").output().unwrap();
+        assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    }
+    #[test]
+    fn lease_fork_fixture() {
+        if std::env::var_os("SB4_LEASE_FORK_FIXTURE").is_none() { return; }
+        use std::os::fd::AsRawFd;
         let path = std::env::temp_dir().join(format!("np-lease-{}", std::process::id()));
         let owner = lease(&path).unwrap();
+        assert_ne!(unsafe { libc::fcntl(owner.as_raw_fd(), libc::F_GETFD) } & libc::FD_CLOEXEC, 0);
         assert!(lease(&path).is_err());
+        let mut pipe = [0; 2];
+        assert_eq!(unsafe { libc::pipe(pipe.as_mut_ptr()) }, 0);
+        let pid = unsafe { libc::fork() };
+        assert!(pid >= 0);
+        if pid == 0 {
+            // Only async-signal-safe operations in the pre-exec child.
+            unsafe {
+                libc::close(pipe[1]);
+                let mut byte = 0u8;
+                libc::read(pipe[0], &mut byte as *mut _ as *mut _, 1);
+                libc::_exit(0);
+            }
+        }
+        unsafe { libc::close(pipe[0]); }
         drop(owner);
+        assert!(lease(&path).is_err(), "fork-inherited descriptor still owns the flock");
+        unsafe { libc::close(pipe[1]); }
+        let mut status = 0;
+        assert_eq!(unsafe { libc::waitpid(pid, &mut status, 0) }, pid);
+        assert_eq!(status, 0);
         assert!(lease(&path).is_ok());
         let _ = fs::remove_file(path);
     }

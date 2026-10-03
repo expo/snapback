@@ -1,5 +1,5 @@
 # Raw evidence outside git: compressed dumps, screen recordings and files over 256 KiB.
-# 11383 paths, 3609 distinct files. Columns: sha256, size in bytes, path relative to this directory.
+# 11391 paths, 3617 distinct files. Columns: sha256, size in bytes, path relative to this directory.
 # Archive: ~/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/<sha256> on the apartment Mac mini.
 # Unslimmed branch: sb4-np/nx-export-proves-native at 5373ff6843, local to the mini.
 # Commit map, unslimmed -> slim: bfe1d7d722 -> 8026cbd2fe, 5d5604a7f5 -> 1722b9b6f6, 5d29493e1b -> ed749e42fd, 5373ff6843 -> 777ca85e82
@@ -11386,3 +11386,11 @@ fb5fac049121a32216fbd960b18e62bb2a6c46fb193236b88e9225861d0ee7f8	314	round5b/reb
 a5077ef15ff182495e5872eb716100bc6d94b8d296137d352bde7ff42ea6b2f6	94	round5b/ref-check.log.gz
 81c1179a1031fda27bdbf2efa8585f19d1b55a362011aa65beb93fdad7195b49	30383	round5b/waiting.jsonl.gz
 685c2020b8ddd335f6b5c4d0e36ef8650f956f2615ddac5033baf9a8e4838f95	1299	round5b/warmup.log.gz
+e2cddf0bdf8cb79a9229f790e0eede6a6c6c8a93d24b11ab92f074971aedf149	18197525	round6/source/source.tar.gz
+dd1fe782964359e6ba733300875f08fa751cee3c131f13c7699dd051f702821a	30720	round6/source/fixtures.tar
+1bfc5794bc18039b8766708ea611face2b0625b20a578994bfcebdb732416e43	10240	round6/source/resolver.tar
+a863bb092a3cfde42e0786948c1f97e2e38da97a4a00e8a894f2a0ac0d36cda9	167786	round6/full-suite.log.gz
+ce2cf504d451d2e2f47f747e8993e73c4176315cfeaaab90feb962366825b5a7	821	round6/linux-logs/rust-integration-linux.log.gz
+5c051e74d76f7c6573f87fd36df1a3aaef1e7ac21be45a99725af49af9e0906a	1745	round6/linux-logs/rust-witness-linux.log.gz
+73ac1426713cfe9caefdcd51798e5905bcdb0416083cc7197abe56589612ff65	2122	round6/rust-integration-mini.log.gz
+0ccfd8e78978650e0cd5be0d430351f6ad6665cd679327980bea0a65f955a1c5	1827	round6/rust-witness-mini.log.gz

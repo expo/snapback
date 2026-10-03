@@ -212,7 +212,7 @@ fn recover(dir: &Path) -> Result<bool> {
     // Process recovery is independent of wrapper custody. A surviving wrapper
     // owns the export and journal through publication, even after driver exit.
     let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { return Ok(false); };
-    if dir.join("publication-pending.json").exists() {
+    if !publication::reconcile_orphan(dir)? {
         eprintln!("witness: interrupted publication preserved at {}; publication recovery required (see publication-pending.json)", dir.display());
         return Ok(false);
     }
@@ -250,6 +250,13 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
         let finished = dir.join("finished.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()));
         // Even a finalized receipt may precede a driver's last cleanup/drop.
         if alive(&read(&dir.join("live.json"))["owner"]) && finished { continue; }
+        // Also reconcile prematurely finished runs and the five full-evidence
+        // slots, which otherwise bypass recover() and the compression loop.
+        if finished && dir.join("publication-pending.json").exists() {
+            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
+            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
+            if !publication::reconcile_orphan(&dir)? { continue; }
+        }
         if finished || recover(&dir)? { runs.push(dir); }
     }
     runs.sort_by_key(|p| std::cmp::Reverse(p.file_name().unwrap().to_string_lossy().split('-').next().unwrap().parse::<u128>().unwrap()));
