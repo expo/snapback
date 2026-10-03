@@ -1,0 +1,14 @@
+[
+  {
+    "path": "packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "bytes": 2031329,
+    "gzip_bytes": 610520,
+    "sha256": "e029e1a0e3f15751ba86b39c29821c8be288e4a7d5e81d9127f0539f1e42fdb6"
+  },
+  {
+    "path": "packages/snapback4/dist/wasm/snapback4_device_bg.wasm",
+    "bytes": 2031329,
+    "gzip_bytes": 610520,
+    "sha256": "e029e1a0e3f15751ba86b39c29821c8be288e4a7d5e81d9127f0539f1e42fdb6"
+  }
+]

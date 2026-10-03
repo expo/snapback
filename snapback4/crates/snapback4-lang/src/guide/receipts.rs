@@ -263,48 +263,59 @@ clears before then; an already committed report becomes a no-op.
 deliveries, so mounting it continuously acquires the next page whenever the
 prefix advances. The ordinary screen below reads its member separately.
 
-`seen` remains an application decision: it records messages actually on
-screen. Its small retry debt survives a remount for this signed-in client.
-A reload forgets that view debt and the next view records it again. A message
-is `read` only when both delivery and `seen` reach it. Each receipt reads at
-most 50 members and one run lookup per member below the position.
+`useSeen` from `snapback4/react` packages visible seen reporting. The compiler
+emits `api.receiptFamilies.chat` from the clause above: `member` is
+`api.receiptMember`, `seen` is `api.seen`, and `mapping` records the scope
+counter / joining floor / recipient count / delivered and seen progress.
+Defaults and explicit overrides use the same descriptor. Generated TypeScript
+and `why seen` expose the underlying names and rules; no string translation
+belongs in the screen.
+
+Keep **two independent reads**: ordinary bare retained history and current
+receipts/decorations. Match decoration IDs; unavailable decorations leave
+history intact and display no receipt claim. They do not authorize media or
+membership. The hook observes only the generated member query. It never pages
+history, mounts `progress`, or advances delivery.
 
 ```ts
-import { useEffect, useMemo } from "react";
-import { useClient, usePage, useQuery, useViewer } from "snapback4/react";
+import { usePage, useSeen } from "snapback4/react";
 import { api } from "./snapback/generated/api";
-type Viewed = { through: number; sent: number };
-const views = new WeakMap<object, Map<string, Viewed>>();
-function viewOf(client: object, viewer: string | null, conversation: string): Viewed {
-  const scopes = views.get(client) ?? new Map<string, Viewed>();
-  views.set(client, scopes);
-  const key = JSON.stringify([viewer, conversation]);
-  const viewed = scopes.get(key) ?? { through: 0, sent: 0 };
-  scopes.set(key, viewed);
-  return viewed;
-}
-function useReceipts(conversation: string, visible: boolean) {
-  const client = useClient();
-  const viewer = useViewer();
-  const page = usePage(api.history, { conversation });
-  const membership = useQuery(api.receiptMember, { conversation });
-  const member = "data" in membership ? membership.data : null;
-  const viewed = useMemo(() => viewOf(client, viewer, conversation), [client, viewer, conversation]);
-  const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
-  const newest = settled.length ? Math.max(...settled) : 0;
-  const shown = member && !member.pending ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
-  useEffect(() => {
-    if (visible && newest > viewed.through) viewed.through = newest;
-    const through = viewed.through;
-    if (through === 0 || (shown !== null && through <= shown) || viewed.sent === through) return;
-    viewed.sent = through;
-    void client.mutate(api.seen, { conversation, through }).then(write => {
-      if (write.state === "failed" && write.why.code === "E_ADMISSION" && viewed.sent === through) viewed.sent = 0;
-    });
-  }, [client, conversation, viewed, visible, shown, newest, membership]);
-  return page;
+function useReceipts(conversation: string, active: boolean, visibleIds: ReadonlySet<string>) {
+  const history = usePage(api.history, { conversation });
+  const through = Math.max(0, ...history.items.filter(m => visibleIds.has(m.id) && !m.pending).map(m => m.ordinal));
+  useSeen(api.receiptFamilies.chat, { scope: conversation, through, active });
+  const decorations = usePage(api.messageReceipts, { conversation });
+  return { history, decorations };
 }
 ```
+
+`visibleIds` comes from the actual viewport (for example FlatList's
+`onViewableItemsChanged` on web/native); intersect those IDs with the **current**
+history rows, so settled positions replace provisional ones and withdrawn rows
+cannot be reported from stale view tokens. `active` combines route focus with
+app foreground. A browser may use an IntersectionObserver and document visibility;
+React Native can use list viewability and AppState. The SDK assumes neither.
+Neither acquisition nor a loaded/background page means viewed. Reset viewport
+IDs on account, backend and conversation changes.
+
+Within one mounted client/family/scope, two screens share monotonic progress,
+one membership read and one admission/pending call. Lower positions and duplicates
+are suppressed against confirmed member seen/join floors. Loading, denial,
+missing/pending membership, changed membership identity, session/viewer change
+and client/store/generation resets discard local progress and fence late outcomes.
+The next committed visible render can supply current confirmed positions again.
+Final unmount releases the observation, timers and unadmitted progress. Admitted
+writes survive in the ordinary SDK outbox, including restart; there is no second
+journal. A reload reads confirmed member progress and reports the next real view.
+
+The returned `{ state, through, why, retry }` describes local work, not a server
+receipt: `idle`, `admitting`, `pending`, `retrying`, or `failed`. Known
+`E_ADMISSION`, `E_ADMISSION_STORE`, `E_ADMISSION_TIMEOUT` refusals retry after
+1 second, doubling to 60 seconds, at most eight times while a screen is active.
+Reconnect or `retry()` after repair wakes those refusals. Unknown outcomes and
+other terminal failures remain visible and are never automatically resubmitted.
+Hidden screens collect no new positions and dispatch no retry. A `read` label
+still requires both recorded delivery and seen; removal never claims reading.
 
 Render a clock while a message is `pending`; after settlement render `receipt`
 from `messageReceipts`, matched by message id, beside the bare history

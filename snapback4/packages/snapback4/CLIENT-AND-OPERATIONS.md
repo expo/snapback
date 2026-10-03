@@ -2715,3 +2715,42 @@ Mount the overlay inside the client provider and pass the host's development fla
 (`import.meta.env.DEV`, or `__DEV__` in Expo). Disabled installs no timer; enabled
 samples every 250 ms. Counts include lingering observations and delayed retries;
 direct reads and presence refreshes are outside this queue.
+
+
+### Visible seen progress and independent history
+
+After `check`, a receipts clause emits `api.receiptFamilies.chat`. Import
+`useSeen` from `snapback4/react` on web or native:
+
+```tsx
+import { usePage, useSeen } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+export function useReceiptScreen(id: string, visibleIds: ReadonlySet<string>, foreground: boolean) {
+  const history = usePage(api.history, { conversation: id });
+  const through = Math.max(0, ...history.items.filter(m => visibleIds.has(m.id) && !m.pending).map(m => m.ordinal));
+  const seen = useSeen(api.receiptFamilies.chat, { scope: id, through, active: foreground });
+  const decorations = usePage(api.messageReceipts, { conversation: id });
+  return { history, seen, decorations };
+}
+```
+
+Supply viewport IDs from the platform's actual visibility callbacks; intersect
+with current confirmed rows and combine route focus with foreground. Reset IDs
+on account/backend/scope change. Loaded history and acquisition do not mean seen.
+Match current decorations by ID; their denial or loading never removes retained
+history and grants no media authority. These reads are independent snapshots.
+
+The hook shares monotonic progress and one admission/pending call per mounted
+client/family/scope. Member withdrawals, replacement, session and store/generation
+resets discard local progress; final unmount drops unadmitted progress. Admitted
+writes remain in the SDK outbox through restart. The hook never pages history,
+reads catch-up progress, or reports delivery. The descriptor's typed member/seen
+handles, actual argument names, mapping and fingerprint come from the compiler.
+
+`seen.state` is idle/admitting/pending/retrying/failed; `seen.through` is local
+progress, never a confirmed receipt. `seen.why` exposes refusals. Known
+E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-second
+backoff, at most eight retries while active. Reconnect or `seen.retry()` after
+repair wakes those refusals. Other failures/unknown outcomes are not resubmitted.
+See `snapback4 guide receipts` for the full rules and two-read recipe.

@@ -370,11 +370,15 @@ test("social recipes in React/browser: real online signals and media, controlled
 
   await t.test("observations make retention explicit", async () => {
     const observed = await page.evaluate(() => window.observations);
-    for (const name of ["receiptMember", "messageReceipts", "messagePhoto", "typingIn"]) {
+    for (const name of ["messageReceipts", "messagePhoto", "typingIn"]) {
       const calls = observed.filter(call => call.op === name);
       assert.ok(calls.length > 0, name);
       assert.ok(calls.every(call => call.options?.keep === false), name + " withdraws immediately");
     }
+    const members = observed.filter(call => call.op === "receiptMember");
+    assert.ok(members.some(call => call.options?.keep === false), "composer membership withdraws immediately");
+    assert.ok(members.some(call => call.options?.keep === undefined), "useSeen shares the default fenced member observation");
+    assert.ok(members.every(call => call.options?.keep !== true), "no subscriber-free membership linger");
     for (const name of ["conversationScreen", "history"]) assert.ok(observed.filter(call => call.op === name).every(call => call.options?.keep === undefined), name + " uses bounded SDK retention");
   });
 

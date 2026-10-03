@@ -1,0 +1,59 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
+import { createLocalClient } from '../dist/local.js';
+import { processDevice } from '../dist/native.js';
+import { webDevice, memoryPersistence } from '../dist/web.js';
+import { SeenOwner } from '../dist/seen-progress.js';
+import { waitFor, hangBudget } from './helpers/wait.mjs';
+const root=join(dirname(fileURLToPath(import.meta.url)),'../../..');
+const binary=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
+const wasm=readFileSync(join(root,'packages/snapback4/src/wasm/snapback4_device_bg.wasm'));
+const card=readFileSync(join(root,'crates/snapback4-lang/src/guide/receipts.rs'),'utf8');
+const source='use personas alice, bob\n'+card.match(/```quarry\n([\s\S]*?)```/)[1]+`
+query guardedDecorations(conversation: conversations):
+  require exists members[conversation, viewer] else NOT_MEMBER
+  return messages where .conversation = conversation last 20 by .ordinal { id, receipt: receipt(.) }
+`;
+for(const tier of ['process','wasm'])test(`seen lifecycle ${tier}: real generated binding, offline custody/restart, leave/rejoin and independent retained history`,{timeout:hangBudget(90)},async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'sb4-seen-'));mkdirSync(join(dir,'snapback'));mkdirSync(join(dir,'device'));
+ writeFileSync(join(dir,'snapback/schema.q'),source);
+ const server=spawn(binary,['dev','--port','0','--fresh','--no-watch'],{cwd:dir,stdio:['ignore','pipe','pipe']});const exited=once(server,'exit');
+ let log='',url,client,offline=false;const owners=[];
+ server.stdout.on('data',b=>{log+=b;url??=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];});server.stderr.on('data',b=>log+=b);
+ t.after(async()=>{owners.forEach(o=>o.stop());await client?.close();if(server.exitCode===null&&server.signalCode===null)server.kill('SIGTERM');await exited;rmSync(dir,{recursive:true,force:true});});
+ await waitFor(()=>{assert.equal(server.exitCode,null,log);return url;},'server');
+ const post=async(path,body,persona='alice')=>fetch(url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':persona},body:JSON.stringify(body)}).then(r=>r.json());
+ const rows=[['conversations',{id:'c',creatorId:'dev:alice',lastOrdinal:3}],...['alice','bob'].map(p=>['members',{id:p,conversation:'c',principal:'dev:'+p,joinedOrdinal:0}]),...[1,2,3].map(n=>['messages',{id:'m'+n,conversation:'c',sender:'dev:alice',ordinal:n,recipients:1,text:'m'+n,at:Date.now()}])];
+ const seeded=await post('/seed',rows.map(([table,row])=>({table,row})));assert.equal(seeded.seeded,rows.length,JSON.stringify(seeded));
+ const generated=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8');
+ const {api}=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(generated,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
+ assert.equal(api.receiptFamilies.chat.member.name,'receiptMember');assert.equal(api.receiptFamilies.chat.mapping.floor,'joinedOrdinal');
+ const persist=memoryPersistence();
+ const device=tier==='wasm'?webDevice({wasm,persist}):processDevice({binary,dir:join(dir,'device'),spawn:(cmd,args)=>spawn(cmd,args,{stdio:['pipe','pipe','inherit']}),writeFile:async(path,value)=>writeFileSync(path,value)});
+ const options={url,persona:'bob',device,fetch:async(...args)=>{if(offline)throw Error('offline');return fetch(...args);}};
+ client=await createLocalClient(options);await client.sync();
+ const history=await client.query(api.history,{conversation:'c',c:null});assert.deepEqual(history.data.map(m=>m.id).sort(),['m1','m2','m3']);
+ const own=()=>{const owner=new SeenOwner(client,api.receiptFamilies.chat,'c');const stop=owner.subscribe(()=>{});const value={owner,stop};owners.push(value);return value;};
+ let a=own(),b=own();
+ await waitFor(async()=>{a.owner.update(1,true);b.owner.update(1,true);return (await client.query(api.receiptMember,{conversation:'c'})).data?.seenOrdinal===1;},'visible m1 confirmed');
+ assert.equal((await client.query(api.receiptMember,{conversation:'c'})).data.seenOrdinal,1,'loaded unseen m2/m3 do not become seen');
+ offline=true;a.owner.update(2,true);await waitFor(async()=> (await client.pendingWrites()).some(w=>w.op==='seen'),'offline seen in ordinary outbox');
+ a.stop();b.stop();await client.close();client=await createLocalClient(options);await client.sync();
+ assert.ok((await client.pendingWrites()).some(w=>w.op==='seen'),'restart preserves admitted seen');
+ offline=false;await client.sync();await waitFor(async()=>{await client.sync();return (await client.query(api.receiptMember,{conversation:'c'})).data?.seenOrdinal===2;},'reopened seen settles');
+ a=own();a.owner.update(3,false);await client.sync();assert.equal((await client.query(api.receiptMember,{conversation:'c'})).data.seenOrdinal,2,'hidden restart sends no new seen');
+ const left=await client.mutate(api.leave,{conversation:'c'});assert.equal(left.state,'sent',JSON.stringify(left));await client.sync();
+ const retained=await client.query(api.history,{conversation:'c',c:null});const decorations=await client.query(api.guardedDecorations,{conversation:'c'});
+ assert.deepEqual(retained.data.map(m=>m.id).sort(),['m1','m2','m3']);assert.ok('denied'in decorations);assert.equal(a.owner.getSnapshot().through,0);
+ const joined=await post('/m/add',{id:'join-bob',args:{conversation:'c',principal:'dev:bob'}});assert.equal(joined.state,'sent',JSON.stringify(joined));await client.sync();
+ a.owner.update(3,true);await client.sync();assert.equal((await client.query(api.receiptMember,{conversation:'c'})).data.joinedOrdinal,3);
+ const send=await post('/m/send',{id:'four',args:{conversation:'c',text:'four'}});assert.equal(send.state,'sent');await client.sync();
+ await waitFor(async()=>{a.owner.update(4,true);return (await client.query(api.receiptMember,{conversation:'c'})).data?.seenOrdinal===4;},'new membership sees new message');
+});

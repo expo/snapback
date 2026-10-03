@@ -82701,3 +82701,46 @@ check reports inherited drift and missing generated prerequisites; the
 [validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
 retains the full red and its causes. Commit locally with the requested Astra
 co-author trailer; no push or publication.
+
+
+## 2026-10-03 — Lane R: generated receipt families and useSeen
+
+Implements LLP 3000.032 §4.3 under Charlie's full-implementation ruling.
+`api.receiptFamilies` carries compiler-derived typed member/seen handles, actual
+argument names, accounting mapping and the existing fingerprint. `useSeen` owns
+monotonic visible progress, shared admission/pending work, bounded admission
+retry and membership/session lifetimes. The name limits its claim to seen.
+The app supplies visible confirmed positions and foreground/viewport evidence;
+the hook neither pages history nor reports delivery. Bare retained history and
+current receipt/decorations remain independent reads. No core receipt protocol,
+capability, custody or allocator changes. The contract addition is a type-only
+re-export; no existing Client/Read/Write shape changes.
+
+LLP 3000.022 §14.6 records the API and fences. Guide client/receipt/social cards,
+package references and declaration comments, `why`, and the social starter use
+the new API. The filesystem proposal is resolved. Real preserved G47/Cal29
+pilots: R3 37 lines / 1,742 B → 6 / 366; R4 2 / 371 → 2 / 297. Counting actual
+visibility integration, G47 loses 22 lines / 602 B across its changed client
+files; Cal29 grows 4 lines / 381 B. No overall Cal29 size saving or score gain.
+G47's prerequisite migration to existing declarative receipts is not helper
+savings. Pilots check schemas, generated types and receipt integrations; no
+full application/native UI qualification claim.
+
+Complete guide 110/110; declarative receipts 154/154; focused client lifecycle,
+React and process/wasm checks 68/68; public type checks 6/6. Full script ran once:
+`== 2 failure(s) in 1518 s` (Cargo artifact build and client tests). Models pass
+79/79. The repaired complete Rust inventory runs 285 binaries / 998 executions
+and doctests; five failed targets are our copied-contract fixtures and a
+symlinked private-store parent, all repaired with passing affected reruns.
+The original client sweep reports 5,751 passed, 45 failed, 10 skipped. Our
+missing census entries/incomplete doc example were fixed; other failures were
+shared-binary replacement, out-of-tree witness lookup and a Node HTTP teardown
+exception. All affected files plus starter checks pass with the isolated lane
+binary: 126 passed, zero failed/skipped. Every original red and classification
+is retained in reports/20261003-r-receipt-binding/{REPORT,FAILURES}.md and logs.
+
+Wasm 2,031,329 B raw / 610,520 B gzip; unchanged 610,782 B budget, 262 B headroom.
+Source/distribution wasm hashes agree. README remains 300/300 physical lines,
+client guide 1,200 words; reference validation passes. No unresolved introduced
+failures; full-suite reds are preserved rather than relabeled green. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.

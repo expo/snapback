@@ -49,6 +49,8 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    /// Receipt member operation names, needed only by TypeScript emission.
+    pub receipt_members: std::collections::BTreeMap<String, String>,
     /// Compiler-side source map; never serialized into the client backend.
     pub refusal_sites: std::collections::BTreeMap<(String, String), String>,
     pub view_types: std::collections::BTreeMap<String, crate::types::Ty>,
@@ -243,7 +245,18 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
-    Bound { refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
+    // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
+    let receipt_members = catalog.documents.iter().flat_map(|doc| {
+        let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
+        doc.tables.iter().filter_map(move |table| table.receipts.as_ref().map(|clause|
+            (clause.name.clone(), operation_name(&module, &clause.operations[3]))))
+    }).collect();
+    if !schema.receipts.is_empty() && api_roots.contains_key("receiptFamilies") {
+        diagnostics.push(Diagnostic::new(&api_roots["receiptFamilies"].1, "E_RECEIPTS_CLAUSE",
+            "API name receiptFamilies collides with the generated receipt-family namespace",
+            "rename the operation or module receiptFamilies").guide("receipts"));
+    }
+    Bound { receipt_members, refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {

@@ -71,7 +71,7 @@ Social: native `nativeDevice`, web `webDevice()`, Expo Go online. `guide sync` c
 Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition and offline reopen/reconnect. Write replay needs an app scenario (`guide witness`).
 
 ## Receipts
-`guide receipts`: schema, mutations, `useReceipts`; SDK owns delivery reporting; screen owns visible `seen` reporting above transient rows. “Read” follows foreground newest-message `seen`. Send-time members are recipients; removal claims no reading.
+`guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.
 
 ## One-view photos
 Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Open fetches once; recycling/refetch preserves its handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
