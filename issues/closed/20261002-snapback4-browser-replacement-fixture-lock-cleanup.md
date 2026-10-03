@@ -1,6 +1,6 @@
 # Snapback 4 browser replacement fixture races SQLite and leaks its server on failure
 
-Status: Open
+Status: Resolved
 Date: 2026-10-02
 Scope: Test fixture in `snapback4/packages/snapback4/test/web-admission-review.test.mjs`
 
@@ -23,10 +23,10 @@ baseline helper against a deliberately held SQLite writer lock reproduces both
 fixture counterexample, not a second full-suite run or a production regression
 claim. FDL round 2 changes doctor formatting and UDP test initialization only.
 
-Evidence: [round-2 report](../snapback4/reports/20261002-fdl-fd-limit/REPORT.md#round-2--doctor-remediation-and-udp-probes-2026-10-02),
-[full suite](../snapback4/reports/20261002-fdl-fd-limit/round2/full-suite.log),
-[baseline helper counterexample](../snapback4/reports/20261002-fdl-fd-limit/round2/baseline-lock-repro.log),
-[stall diagnosis and cleanup](../snapback4/reports/20261002-fdl-fd-limit/round2/full-suite-stall.log).
+Evidence: [round-2 report](../../snapback4/reports/20261002-fdl-fd-limit/REPORT.md#round-2--doctor-remediation-and-udp-probes-2026-10-02),
+[full suite](../../snapback4/reports/20261002-fdl-fd-limit/round2/full-suite.log),
+[baseline helper counterexample](../../snapback4/reports/20261002-fdl-fd-limit/round2/baseline-lock-repro.log),
+[stall diagnosis and cleanup](../../snapback4/reports/20261002-fdl-fd-limit/round2/full-suite-stall.log).
 After confirming ancestry, executable and cwd, only the leftover test-owned
 server received SIGTERM; the test runner then emitted its existing failure and
 continued to the client models. No failed suite test was retried or omitted.
@@ -35,3 +35,26 @@ Follow-up: coordinate or boundedly retry the fixture's database copy, and close
 the replacement on every setup failure before returning it. Verify that an
 injected writer lock reports failure without leaving a child server or hanging
 the test process. Keep the browser's admission assertions intact.
+
+
+Resolution (QF round 0, 2026-10-02): moved setup into the shared
+`replacement-server.mjs` fixture. It acquires an immediate transaction, copies
+all three identity tables atomically, and retries only BUSY/LOCKED within five
+seconds. Server ownership spans database opening/copy and both original probe
+assertions; every failure closes and reaps the replacement before rejection.
+The browser admission assertions are unchanged.
+
+The injected-lock regression starts a real replacement and holds its writer
+past a short test-selected copy deadline. Its nested node:test process reports
+`TEST_REPLACEMENT_COPY`, exits with failure, and leaves neither its child server
+nor its temporary project. A released-lock case proves successful retry; a
+failed probe proves cleanup after the copy.
+
+Landed on its own, ahead of lane QF, so the 0.4.12 publication could be re-cut:
+the first 0.4.12 Linux qualification and its first Darwin dry run both hit this
+flake under host load, and the dry run hung on the leaked replacement server.
+This landing carries the fixture fix, its regressions and the worker fixture's
+startup-race fix, taken unchanged from lane QF (both of QF's round-0 reviews
+confirmed them). The suite-level progress watchdog and process containment land
+later with lane QF, whose report, `snapback4/reports/20261002-qf-qualification-flakes/`,
+records the qualification evidence.
