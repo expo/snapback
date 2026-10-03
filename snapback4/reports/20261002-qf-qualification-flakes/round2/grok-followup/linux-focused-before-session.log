@@ -1,0 +1,196 @@
+-- client file start: packages/snapback4/test/test-file-runner.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: file watchdog diagnoses event loop and reaps detached descendants
+ok 1 - file watchdog diagnoses event loop and reaps detached descendants
+  ---
+  duration_ms: 3386.043941
+  type: 'test'
+  ...
+# Subtest: file watchdog diagnoses leaked handle and reaps detached descendants
+ok 2 - file watchdog diagnoses leaked handle and reaps detached descendants
+  ---
+  duration_ms: 3412.375557
+  type: 'test'
+  ...
+# Subtest: file runner preserves test failures and continues to a following healthy file
+ok 3 - file runner preserves test failures and continues to a following healthy file
+  ---
+  duration_ms: 774.378155
+  type: 'test'
+  ...
+# Subtest: file exit cannot orphan an unreferenced detached child and report success
+ok 4 - file exit cannot orphan an unreferenced detached child and report success
+  ---
+  duration_ms: 447.439214
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a passing file
+ok 5 - double-forked shell helper is killed after a passing file
+  ---
+  duration_ms: 435.45756
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a stalled file
+ok 6 - double-forked shell helper is killed after a stalled file
+  ---
+  duration_ms: 3386.09451
+  type: 'test'
+  ...
+# Subtest: process inspection exit cannot establish a passing cleanup
+ok 7 - process inspection exit cannot establish a passing cleanup
+  ---
+  duration_ms: 403.100798
+  type: 'test'
+  ...
+# Subtest: process inspection timeout cannot establish a passing cleanup
+ok 8 - process inspection timeout cannot establish a passing cleanup
+  ---
+  duration_ms: 400.649122
+  type: 'test'
+  ...
+# Subtest: process inspection malformed cannot establish a passing cleanup
+ok 9 - process inspection malformed cannot establish a passing cleanup
+  ---
+  duration_ms: 413.52762
+  type: 'test'
+  ...
+# Subtest: process inspection forces C locale and refuses empty output
+ok 10 - process inspection forces C locale and refuses empty output
+  ---
+  duration_ms: 1.444355
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 11 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 4.14912
+  type: 'test'
+  ...
+# Subtest: inherited token reaps a setsid orphan after its parent exits
+ok 12 - inherited token reaps a setsid orphan after its parent exits
+  ---
+  duration_ms: 593.10794
+  type: 'test'
+  ...
+# Subtest: inherited token reaps a setpgid orphan after its parent exits
+ok 13 - inherited token reaps a setpgid orphan after its parent exits
+  ---
+  duration_ms: 585.014716
+  type: 'test'
+  ...
+# Subtest: inherited token reaps a detached Node helper orphan after its parent exits
+ok 14 - inherited token reaps a detached Node helper orphan after its parent exits
+  ---
+  duration_ms: 602.123907
+  type: 'test'
+  ...
+# Subtest: token sweep distinguishes files and never signals a different inherited token
+ok 15 - token sweep distinguishes files and never signals a different inherited token
+  ---
+  duration_ms: 187.021566
+  type: 'test'
+  ...
+# Subtest: token inspection errors cannot establish a passing cleanup
+ok 16 - token inspection errors cannot establish a passing cleanup
+  ---
+  duration_ms: 186.107285
+  type: 'test'
+  ...
+# Subtest: native environment inspection returns ownership or fails closed on kernel redaction
+ok 17 - native environment inspection returns ownership or fails closed on kernel redaction
+  ---
+  duration_ms: 123.947912
+  type: 'test'
+  ...
+# native environment token is visible
+# Subtest: a redacted native detached orphan cannot produce a passing file
+ok 18 - a redacted native detached orphan cannot produce a passing file
+  ---
+  duration_ms: 548.590206
+  type: 'test'
+  ...
+# Subtest: persistent inspection failure stays a failure and kills the owned group
+ok 19 - persistent inspection failure stays a failure and kills the owned group
+  ---
+  duration_ms: 174.213684
+  type: 'test'
+  ...
+# Subtest: fork then exit during a real snapshot cannot hide a same-group orphan
+ok 20 - fork then exit during a real snapshot cannot hide a same-group orphan
+  ---
+  duration_ms: 469.101691
+  type: 'test'
+  ...
+# Subtest: sequential and nested subtests keep progressing beyond the file stall interval
+ok 21 - sequential and nested subtests keep progressing beyond the file stall interval
+  ---
+  duration_ms: 6010.825353
+  type: 'test'
+  ...
+# Subtest: console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+ok 22 - console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+  ---
+  duration_ms: 1925.371781
+  type: 'test'
+  ...
+# Subtest: verification requires consecutive empty snapshots and retains intervening leak evidence
+ok 23 - verification requires consecutive empty snapshots and retains intervening leak evidence
+  ---
+  duration_ms: 696.052109
+  type: 'test'
+  ...
+# Subtest: synchronous subtests renew progress before the reporter can format buffered output
+ok 24 - synchronous subtests renew progress before the reporter can format buffered output
+  ---
+  duration_ms: 3412.855117
+  type: 'test'
+  ...
+# Subtest: name and skip filters preserve the selected assertion-bearing cases
+ok 25 - name and skip filters preserve the selected assertion-bearing cases
+  ---
+  duration_ms: 429.25621
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29027.580651
+-- client file ok: packages/snapback4/test/test-file-runner.test.mjs (29357 ms)
+-- client file start: packages/snapback4/test/replacement-fixture.test.mjs; stall bound 900000 ms
+(node:3743138) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+TAP version 13
+# Subtest: replacement copy waits for a held writer, retaining real identity in a distinct store
+ok 1 - replacement copy waits for a held writer, retaining real identity in a distinct store
+  ---
+  duration_ms: 328.476775
+  type: 'test'
+  ...
+# Subtest: held replacement writer fails its test, closes its server and exits without hanging
+ok 2 - held replacement writer fails its test, closes its server and exits without hanging
+  ---
+  duration_ms: 735.853261
+  type: 'test'
+  ...
+# Subtest: replacement also closes when its post-copy admission assertion fails
+ok 3 - replacement also closes when its post-copy admission assertion fails
+  ---
+  duration_ms: 262.796583
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1350.361333
+-- client file ok: packages/snapback4/test/replacement-fixture.test.mjs (1671 ms)
+-- client files: 2/2; failed 0; tests {"tests":28,"pass":28,"fail":0,"cancelled":0,"skipped":0,"todo":0}

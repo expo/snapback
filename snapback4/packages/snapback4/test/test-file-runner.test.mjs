@@ -1,10 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
 import { identity, live, processTable } from '../../../scripts/test-processes.mjs';
+import { createTokenInspector, TOKEN_KEY } from '../../../scripts/test-process-token.mjs';
 
 for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps detached descendants`, { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-file-watchdog-'));
@@ -126,19 +130,127 @@ test('process inspection forces C locale and refuses empty output', () => {
 });
 
 test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {
-  assert.equal(largestGuard('ordinary-search-oracle.test.mjs', {}), 8592000);
-  assert.equal(fileStallTimeout('ordinary-search-oracle.test.mjs', {}), 10740000);
-  assert.equal(fileStallTimeout('mixed-evidence-oracle.test.mjs', {}), 2250000);
-  assert.equal(fileStallTimeout('app-session-model.test.mjs', {}), 12500000);
-  assert.equal(fileStallTimeout('online-client-model.test.mjs', {}), 7500000);
-  assert.equal(fileStallTimeout('horizon-boundary.test.mjs', {}), 12650000);
-  assert.equal(fileStallTimeout('social-browser.test.mjs', {}), 907500);
-  assert.equal(fileStallTimeout('retained-history.test.mjs', {}), 900000);
+  const derived = {
+    'ordinary-search-oracle': [8592000,10740000], 'web-admission-review': [6832000,8540000],
+    'mixed-evidence-oracle': [1800000,2250000], 'app-session-model': [10000000,12500000],
+    'online-client-model': [6000000,7500000], 'horizon-boundary': [10120000,12650000],
+    'column-stream-recovery': [2160000,2700000], 'timeline-delivery': [2160000,2700000],
+    'acquisition': [1320000,1650000], 'sync-overflow': [2168000,2710000],
+    'per-row-work': [2120000,2650000], 'per-row-react': [2120000,2650000],
+    'social-browser': [726000,907500], 'retained-history': [372000,900000],
+  };
+  for (const [file, [guard, bound]] of Object.entries(derived)) {
+    assert.equal(largestGuard(file+'.test.mjs', {}), guard, file);
+    assert.equal(fileStallTimeout(file+'.test.mjs', {}), bound, file);
+    assert.equal(fileStallTimeout(file+'.test.mjs', {SNAPBACK4_TEST_SERIAL_CLIENT_FILES:'1'}), bound, file);
+  }
+  for (const file of ['keep-app-model', 'worker-regressions'])
+    assert.equal(fileStallTimeout(file+'.test.mjs', {}), 900000, file);
   assert.equal(fileStallTimeout('online-client-model.test.mjs', {SNAPBACK4_ONLINE_SEQUENCES:'6000'}), 15000000);
+  assert.equal(fileStallTimeout('app-session-model.test.mjs', {SNAPBACK4_SESSION_SEQUENCES:'6000'}), 15000000);
   assert.equal(fileStallTimeout('mixed-evidence-oracle.test.mjs', {RL_SEEDS:'1000'}), 7500000);
+  assert.equal(fileStallTimeout('ordinary-search-oracle.test.mjs', {SB4_SEARCH_SEEDS:Array(10).fill('75').join(',')}), 3875000);
   assert.equal(fileStallTimeout('ordinary.test.mjs'), 900000);
   for (const file of ['social-browser', 'retained-history', 'app-session-model'])
     assert.equal(fileStallTimeout(file + '.test.mjs', {SNAPBACK4_TEST_SERIAL_CLIENT_FILES:'1'}), fileStallTimeout(file + '.test.mjs', {}));
+});
+
+for (const shape of ['setsid', 'setpgid', 'setpgid with cleared token', 'detached Node helper']) test(`file custody reaps a ${shape} orphan after its parent exits`, {timeout:20000}, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-token-escape-'));
+  const binary = join(dir, 'native-sleep'), pidFile = join(dir, 'pid'), path = join(dir, 'escape.test.mjs');
+  let orphan;
+  t.after(() => {
+    if (orphan && live(orphan)) process.kill(orphan.pid, 'SIGKILL');
+    rmSync(dir, {recursive:true,force:true});
+  });
+  const compiled = spawnSync('cc', [fileURLToPath(new URL('./helpers/process-escape.c', import.meta.url)), '-o', binary], {encoding:'utf8',timeout:10000});
+  assert.equal(compiled.status, 0, compiled.stderr);
+  const helper = `const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');
+const child=spawn(${JSON.stringify(binary)},['sleep'],{detached:true,stdio:'ignore'});
+writeFileSync(${JSON.stringify(pidFile)},String(child.pid));child.unref();`;
+  writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';
+import {existsSync,readFileSync} from 'node:fs';
+test('escape with inherited token',()=>{
+${shape === 'detached Node helper' ? `execFileSync(process.execPath,['-e',${JSON.stringify(helper)}]);` : `execFileSync(${JSON.stringify(binary)},[${JSON.stringify(shape.startsWith('setpgid') ? 'setpgid' : shape)},${JSON.stringify(pidFile)}]${shape.includes('cleared') ? ',{env:{PATH:process.env.PATH}}' : ''});`}
+const end=performance.now()+5000;while((!existsSync(${JSON.stringify(pidFile)})||!readFileSync(${JSON.stringify(pidFile)},'utf8').trim())&&performance.now()<end)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);
+});`);
+  let output = '', keeper;
+  const result = await runFile(path, {onStart: child => {keeper=child.pid},onOutput:text=>{output+=text},inspect:()=>{
+    if (!orphan && existsSync(pidFile)) orphan=identity(Number(readFileSync(pidFile,'utf8')));
+    return processTable();
+  }});
+  assert.ok(orphan?.alive, 'fixture was live before cleanup');
+  assert.notEqual(orphan.group, keeper, 'fixture escaped the keeper group');
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_LEAK', output);
+  assert.match(output, /tokenOwned|sessionOwned/);
+  assert.equal(live(orphan), false, output);
+});
+
+test('token sweep distinguishes files and never signals a different inherited token', async t => {
+  const inspect = createTokenInspector();
+  const wanted = 'a'.repeat(64), different = 'b'.repeat(64);
+  const child = spawn(process.execPath, ['-e', 'console.log("ready");setInterval(()=>{},1000)'], {env:{...process.env,[TOKEN_KEY]:different},stdio:['ignore','pipe','ignore'],detached:true});
+  const record = identity(child.pid);
+  t.after(async()=>{if(live(record))child.kill('SIGKILL');await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve));});
+  await once(child.stdout,'data');
+  assert.deepEqual(inspect(wanted), []);
+  assert.ok(inspect(different).some(row=>row.pid===child.pid));
+  assert.equal(live(record), true);
+});
+
+test('token inspection errors cannot establish a passing cleanup', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-token-failure-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const path=join(dir,'pass.test.mjs');writeFileSync(path,"import test from 'node:test';test('pass',()=>{});");
+  let output='',inspections=0;
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspectToken:()=>{
+    inspections++;throw Error('TEST_PROCESS_INSPECTION: injected environment read failure');
+  }});
+  assert.equal(result.passed,false,output);
+  assert.equal(result.reason,'TEST_PROCESS_INSPECTION',output);
+  assert.ok(inspections>=1);
+  assert.match(result.inspectionFailure,/injected environment read failure/);
+});
+
+test('native environment inspection returns ownership or fails closed on kernel redaction', async t => {
+  const inspect=createTokenInspector(), token='c'.repeat(64);
+  const child=spawn('/bin/sleep',['600'],{env:{...process.env,[TOKEN_KEY]:token},stdio:'ignore',detached:true});
+  const exited=once(child,'exit');
+  t.after(async()=>{child.kill('SIGKILL');await exited;});
+  await once(child,'spawn');
+  try {
+    assert.ok(inspect(token).some(row=>row.pid===child.pid), 'readable token must identify the native process');
+    t.diagnostic('native environment token is visible');
+  } catch(error) {
+    if(process.platform!=='darwin')throw error;
+    assert.match(error.message,/TEST_PROCESS_INSPECTION:.*environment unavailable or empty/);
+    t.diagnostic('kernel redacts native environment; inspection fails closed');
+  }
+});
+
+test('a redacted native detached orphan cannot produce a passing file', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-native-token-'));
+  const path=join(dir,'native.test.mjs'),pidFile=join(dir,'pid');
+  let orphan,output='';
+  t.after(()=>{if(orphan&&live(orphan))process.kill(orphan.pid,'SIGKILL');rmSync(dir,{recursive:true,force:true});});
+  const helper=`const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');
+const child=spawn('/bin/sleep',['600'],{detached:true,stdio:'ignore'});
+child.once('spawn',()=>{writeFileSync(${JSON.stringify(pidFile)},String(child.pid));child.unref()});`;
+  writeFileSync(path,`import test from 'node:test';import {execFileSync} from 'node:child_process';test('native orphan',()=>execFileSync(process.execPath,['-e',${JSON.stringify(helper)}]));`);
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
+    if(!orphan&&existsSync(pidFile))orphan=identity(Number(readFileSync(pidFile,'utf8')));
+    return processTable();
+  }});
+  assert.equal(result.passed,false,output);
+  assert.ok(orphan?.alive);
+  if(process.platform==='darwin'&&result.reason==='TEST_PROCESS_INSPECTION') {
+    assert.match(output,/environment unavailable or empty/);
+    t.diagnostic('native environment redacted: file refused; fixture reaps its own known orphan if needed');
+  } else {
+    assert.equal(result.reason,'TEST_FILE_LEAK',output);
+    assert.equal(live(orphan),false,output);
+  }
 });
 
 test('persistent inspection failure stays a failure and kills the owned group', async t => {

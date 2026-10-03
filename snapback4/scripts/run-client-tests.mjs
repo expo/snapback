@@ -7,7 +7,9 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { randomBytes } from 'node:crypto';
 import { identity, live, records, ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
+import { createTokenInspector, TOKEN_KEY } from './test-process-token.mjs';
 
 export const FILE_STALL_FLOOR_MS = 15 * 60_000;
 // Largest SINGLE declared test guard, not the sum of sequential guards.
@@ -48,7 +50,7 @@ export const fileStallTimeout = (file, env) => {
 };
 const preload = fileURLToPath(new URL('./test-processes.mjs', import.meta.url));
 
-export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable } = {}) {
+export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable, inspectToken = createTokenInspector() } = {}) {
   timeout ??= fileStallTimeout(file, { ...process.env, ...overrides });
   const { values } = parseArgs({ args: nodeArgs, options: {
     'test-name-pattern': { type: 'string', multiple: true },
@@ -60,7 +62,9 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const temp = mkdtempSync(join(tmpdir(), 'sb4-test-file-'));
   const registry = join(temp, 'processes.jsonl'), output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
-  const env = { ...process.env, ...overrides, SNAPBACK4_TEST_PROCESS_LOG: registry };
+  const token = randomBytes(32).toString('hex');
+  const scanToken = () => inspectToken(token, keeper);
+  const env = { ...process.env, ...overrides, SNAPBACK4_TEST_PROCESS_LOG: registry, [TOKEN_KEY]: token };
   delete env.NODE_TEST_CONTEXT;
   const started = performance.now();
   onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);
@@ -97,16 +101,19 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   // An inspection failure never establishes cleanup. Best effort still kills
   // the owned, unreaped keeper's entire group and individually known detaches.
   const emergencyCleanup = () => {
-    try {
-      for (const row of records(registry)) {
-        try { if (live(row)) process.kill(row.pid, 'SIGKILL'); }
-        catch (error) { if (error.code !== 'ESRCH') diagnose(error); }
-      }
-    } catch (error) { diagnose(error); }
     if (child.pid && child.exitCode === null && child.signalCode === null) {
       try { process.kill(-child.pid, 'SIGKILL'); }
       catch (error) { if (error.code !== 'ESRCH') diagnose(error); }
     }
+    let tagged = [];
+    try { tagged = scanToken(); }
+    catch (error) { tagged = error.owned ?? []; diagnose(error); }
+    try {
+      for (const row of [...records(registry), ...tagged]) {
+        try { if (live(row)) process.kill(row.pid, 'SIGKILL'); }
+        catch (error) { if (error.code !== 'ESRCH') diagnose(error); }
+      }
+    } catch (error) { diagnose(error); }
   };
   const stop = why => {
     if (cleanup) return cleanup;
@@ -116,7 +123,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
       try {
         const owned = ownedProcesses(records(registry), keeper, inspect);
         onOutput(`owned processes: ${JSON.stringify(owned)}\n`);
-        await cleanupProcesses(owned, { keeper, inspect });
+        await cleanupProcesses(owned, { keeper, inspect, inspectToken: scanToken });
       } catch (error) { diagnose(error); emergencyCleanup(); }
       finally { forcedClose({ code: null, signal: 'SIGKILL' }); }
     })();
@@ -138,7 +145,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
         const remaining = ownedProcesses(records(registry), keeper, inspect);
         if (remaining.length) await stop('TEST_FILE_LEAK');
         else {
-          const found = await cleanupProcesses([], { keeper, inspect });
+          const found = await cleanupProcesses([], { keeper, inspect, inspectToken: scanToken });
           if (found.length) {
             reason = 'TEST_FILE_LEAK';
             onOutput(`TEST_FILE_LEAK: ${file}; found during group cleanup: ${JSON.stringify(found)}\n`);

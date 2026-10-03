@@ -8,17 +8,17 @@ const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`
 // Inspect the complete table: unlike `ps -p`, an empty selection cannot be
 // confused with a failed command. C locale makes BSD lstart exactly 24 chars.
 export function processTable({ run = spawnSync } = {}) {
-  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,lstart=,stat='], {
+  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat='], {
     encoding: 'utf8', timeout: 2000, maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, LC_ALL: 'C' },
   });
   if (result.error || result.status !== 0 || !result.stdout?.trim())
     throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
   return result.stdout.trimEnd().split('\n').map(line => {
-    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s*$/.exec(line);
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s*$/.exec(line);
     if (!match) throw inspectionError(`malformed ps row: ${line}`);
-    const [, pid, parent, group, start, state] = match;
-    return { pid: Number(pid), parent: Number(parent), group: Number(group), start, alive: !state.startsWith('Z') };
+    const [, pid, parent, group, uid, start, state] = match;
+    return { pid: Number(pid), parent: Number(parent), group: Number(group), uid: Number(uid), start, alive: !state.startsWith('Z') };
   });
 }
 
@@ -28,8 +28,8 @@ export function identity(pid) {
   try {
     const text = readFileSync(`/proc/${pid}/stat`, 'utf8');
     const fields = text.slice(text.lastIndexOf(')') + 2).trim().split(/\s+/);
-    if (!/^\d+$/.test(fields[19]) || !/^\d+$/.test(fields[2])) throw inspectionError(`malformed /proc/${pid}/stat`);
-    return { pid, start: fields[19], group: Number(fields[2]), alive: fields[0] !== 'Z' };
+    if (![1, 2, 3, 19].every(index => /^\d+$/.test(fields[index]))) throw inspectionError(`malformed /proc/${pid}/stat`);
+    return { pid, parent: Number(fields[1]), start: fields[19], group: Number(fields[2]), session: Number(fields[3]), alive: fields[0] !== 'Z' };
   } catch (error) {
     if (error.code === 'ENOENT' || error.code === 'ESRCH') return;
     throw inspectionError(`cannot identify ${pid}: ${error.message}`);
@@ -62,8 +62,8 @@ if (registry) {
 // The live keeper reserves the file's process group until whole-group cleanup.
 // Verification continues after that signal, including when the keeper is dead.
 // Reparenting (including shell double forks) cannot remove group membership.
-// Registered detached processes additionally seed ancestry discovery. Deliberate
-// setsid/setpgid escapes from non-Node descendants remain outside this boundary.
+// Registered detached processes additionally seed ancestry discovery. The
+// separate inherited-token sweep covers descendants that leave this group.
 export function ownedProcesses(owned, keeper, inspect = processTable) {
   const table = inspect(); // errors must propagate, even when no records exist
   const known = new Map();
@@ -87,15 +87,21 @@ export function ownedProcesses(owned, keeper, inspect = processTable) {
   return [...known.values()];
 }
 
-export async function cleanupProcesses(owned, { keeper, inspect = processTable } = {}) {
+export async function cleanupProcesses(owned, { keeper, inspect = processTable, inspectToken = () => [] } = {}) {
   const known = new Map(owned.map(row => [row.pid, row]));
-  const signalGroup = () => {
+  const signalGroup = (mayBeGone = false) => {
     // A new group leader with the same PID is not ours. The first signal is
     // sent while our keeper is alive; later signals stay on that same group.
     const now = identity(keeper.pid);
     if (now && now.start !== keeper.start) throw inspectionError('file group identity changed');
     try { process.kill(-keeper.pid, 'SIGKILL'); }
-    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    catch (error) {
+      if (error.code === 'ESRCH') return;
+      // Darwin can report EPERM for a now-empty group. Never ignore a denied
+      // first signal, or a denial while any live member still belongs to it.
+      if (mayBeGone && error.code === 'EPERM' && !processTable().some(row => row.group === keeper.pid && row.alive)) return;
+      throw error;
+    }
   };
   const signalDetached = () => {
     for (const row of known.values()) if (!row.vanished && live(row)) {
@@ -112,9 +118,16 @@ export async function cleanupProcesses(owned, { keeper, inspect = processTable }
   let empty = 0, remaining = [];
   do {
     remaining = ownedProcesses([...known.values()], keeper, inspect);
+    try { remaining.push(...inspectToken().filter(row => row.pid !== keeper.pid)); }
+    catch (error) {
+      // A different unreadable candidate must not strand already proven owns.
+      for (const row of error.owned ?? []) known.set(row.pid, row);
+      signalDetached();
+      throw error;
+    }
     for (const row of remaining) known.set(row.pid, row);
     if (remaining.length) {
-      empty = 0; signalGroup(); signalDetached();
+      empty = 0; signalGroup(true); signalDetached();
     } else if (++empty === 2) return [...known.values()];
     await sleep(50);
   } while (performance.now() < deadline);

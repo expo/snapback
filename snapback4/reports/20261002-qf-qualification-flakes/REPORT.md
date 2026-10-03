@@ -1,6 +1,6 @@
 # QF — qualification flakes
 
-Status: complete and locally qualified; no push or publication.
+Status: initial Round 2 qualified; Grok follow-up has inspection refusals (see below). No push or publication.
 
 Round-0 baseline: `850fea99574d969331f68b0df1417ad1f942d2a9`, branch
 `sb4-intent/qf-qualification-flakes`. Product sources match release `8e6246be14`;
@@ -680,3 +680,149 @@ were discarded in favor of the public run API's synchronous setup listeners.
 Whitespace cleanup removed a trailing blank report line. None of these outcomes
 is a product failure or a qualifying pass. No full suite was started by either
 interrupted development driver; the final full suite remains a single run.
+
+### Grok follow-up
+
+Parent: `11c5a70745`. The completed Grok round-1 review was read in full; the
+operator additionally required closing ordinary native group/session escapes.
+The progress watchdog already removes the aggregate-duration cutoff for
+retained-history, keep-app-model, social-browser and worker-regressions. Their
+largest single guards remain 372/162/726/140 seconds, with respective stall
+bounds 900/900/907.5/900 seconds. The regression now checks exact guard/bound
+pairs for **all 14 derived files**, every derived file in serial mode, the two
+additional floor-bound examples, and all four model/search seed overrides.
+Horizon remains exactly 12,650,000 ms; dropping its margin fails the assertion.
+The fresh 286-file census is in `round2/grok-followup/guards.{json,tsv}`.
+
+Each file receives a fresh 256-bit `SNAPBACK_TEST_FILE_TOKEN` in the keeper's
+initial environment, inherited by its descendants. Cleanup still kills the
+whole group first. The completeness check then combines its POSIX session,
+registered ancestry, and exact environment-token matches. It kills proven
+owners with start-identity checks and requires two consecutive empty snapshots.
+A positive token match remains evidence if the process exits while inspected;
+vanishing cannot turn that snapshot into a clean result. Observed completed-file
+orphans fail `TEST_FILE_LEAK`. Session custody catches even a child that clears
+its environment and calls setpgid while remaining in the keeper's session.
+Darwin's EPERM on a repeat signal to an already-empty group is accepted only
+when another real inspection confirms that no live group member remains.
+
+Linux reads NUL-delimited `/proc/<pid>/environ`. macOS uses a bounded Python 3
+ctypes helper for KERN_PROCARGS2 and getsid; all ps/helper calls force C locale.
+Only PID/session metadata, boolean matches and coded errors leave the reader;
+no environment contents are logged. Other users are excluded. Exact process
+identities that predate the token are excluded, as are descendants of unchanged
+pre-launch processes outside the runner's ancestor chain and members of a
+still-existing pre-launch session. These are causal exclusions: a file cannot
+spawn an older process, be adopted by an unrelated preexisting process, or join
+an existing POSIX session. Adoption by PID 1 or an ancestral subreaper does not
+establish unrelatedness. Unknown ownership never authorizes a signal.
+
+The remaining detection escape requires removing/replacing the inherited token,
+starting a new session, and losing registered/discoverable ancestry before
+inspection. **Inspection failure is a separate limit:** Darwin 27 redacts the
+environment of restricted system executables. A task-owned `/bin/sleep 600`
+probe confirmed both KERN_PROCARGS2 and `ps -E` return success without exposing
+its token. This matches Apple's [kernel implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sysctl.c),
+which can omit environment data for restricted executables. An opaque candidate
+outside the known session therefore produces `TEST_PROCESS_INSPECTION`; the
+runner cannot safely identify it for killing. This is a refused file, never a
+passing cleanup. `native-visibility.json` preserves the probe without its env.
+No claim here says the runner automatically reaps that opaque process.
+
+The three visible-token escape regressions use a small, task-compiled native
+sleep fixture, so both hosts exercise actual setsid/setpgid and a Node helper
+that spawns detached and exits, with stdio closed. A fourth fixture clears the
+token before setpgid and proves the session check still reaps it. The native
+platform-binary integration case uses real `/bin/sleep`: Linux must reap it and
+report `TEST_FILE_LEAK`; if Darwin redacts it, the runner must refuse and the
+regression itself reaps its own recorded child. Separate checks preserve token
+isolation between files and fail-closed environment inspection.
+
+Final Linux focused checks are **29/29, exit 0** (26 runner cases plus the
+unchanged three replacement cases). The mini's session-custody version passed
+29/29 before two metadata-validation checks were tightened. On the final source,
+its combined run passed all 29 assertions but refused the outer runner file
+for two opaque candidates (PIDs 41310 and 41341); the replacement file passed.
+Those candidates had exited before the later metadata-only probe, so their
+provenance is unknown. A diagnostic observer rerun of the final 26 runner cases
+passed **26/26, exit 0**, preserving the same inspection implementation while
+recording helper metadata. It caught a newly started, environment-redacted
+`mdworker_shared` in the unchanged pre-launch session 1 and correctly excluded
+it. This is evidence for the session exclusion, not permission to ignore an
+unknown candidate. `mini-observer.{mjs,json,log}` retains that investigation;
+`mini-combined.log.gz` retains the refused combined run, not relabeled green.
+
+Mini commands use `LC_ALL=de_DE.UTF-8`; the C-locale process checks and all escape
+shapes run there. Final mini source hashes match. Its published 0.4.10 binary
+provides replacement-fixture portability only, as in the initial Round 2 run.
+The actual Linux and mini logs, host hashes and scratch-removal receipt are
+under `round2/grok-followup/`. Nothing ran on the office M1 or publication MacBook.
+
+The follow-up's full suite is a separate, single invocation of
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT scripts/test.sh` on eb1000.
+The session/metadata corrections were made during its Rust phase, **before any
+client or fixture runner executed**; no Rust/product source changed. Retained
+suite prefixes, both source versions and `source-amendments.json` bind that
+transition. This does not relabel the earlier Round 2 suite or 200-repetition
+stress as a run of the new token implementation.
+
+The full run was 2026-10-02T23:39:00.292Z–2026-10-03T00:07:42.469Z.
+Its exact footer is **`== 1 failure(s) in 1722 s`**, exit **1**: the failed
+category is `client tests`. All Rust targets/doctests, builds, budgets, release
+guard, package/app checks and fixture wrappers passed. Ordinary clients passed
+**5,814 assertions**, with zero assertion failures and ten unchanged skips;
+models passed **79/79**, fixture wrappers **9/9**. Across 286 file results,
+**5,902 assertions passed, zero failed/cancelled/todo, ten skipped**. Counts
+match the initial Round 2 run except the runner file's eight added cases
+(18 → 26). The suite is **not fully qualified**: 13 ordinary files failed the
+new environment completeness check after passing their assertions.
+
+Every failed file below is classified as an **introduced inspection refusal:
+EACCES reading a new candidate's environment**. These are not established
+baseline product failures, and no ownership is inferred from denied access.
+All 14 denied candidate PIDs were absent at the later metadata-only probe;
+their provenance remains unknown. The runner did not ignore these errors or
+signal a process based only on an unreadable environment.
+
+| File (`.test.mjs`) | Assertions passed | Denied candidate PID(s) |
+| --- | ---: | --- |
+| delivery-clients | 14 | 50800 |
+| following-routing | 4 | 133250 |
+| app | 78 | 140387 |
+| asset-avatars | 14 | 146988 |
+| online-store-terminal | 16 | 160943 |
+| one-shot-review | 72 | 158783 |
+| page-authority | 13 | 168999 |
+| publication-roundtrip | 14 | 173365 |
+| schema-capabilities | 1 (four skipped) | 183040 |
+| residency | 10 | 182297, 184104 |
+| server-runtime | 47 | 185081 |
+| subscription-pressure-e2e | 2 | 193845 |
+| readauth | 10 | 198131 |
+
+`full-suite.log.gz` retains the complete run. `full-suite-summary.json`,
+`full-suite-files.tsv`, `full-suite-count-deltas.json`, and
+`full-suite-failure-classification.{json,tsv}` bind its result and every refusal;
+`refused-candidates-later-probe.json` records the later absence check.
+All **2,160 final source hashes and 18 qualification input digests** match after
+the suite. No executable input changed after the client phase began. The
+[open inspection-refusal ticket](../../../issues/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+records the remaining work without weakening fail-closed behavior or claiming
+cleanup of opaque processes. The requested local commit includes the report,
+LLP/command-sheet updates and append-only journal entry; nothing is pushed or
+published.
+
+Development outcomes are retained separately. The first Linux run passed 25/26
+assertions but refused an unreadable new candidate; causal process/session
+exclusions narrowed the candidate selection. The first mini run
+passed 24/27: all three new escape cases found their token-owned orphan, then
+failed on Darwin's repeat-group EPERM; that was our cleanup defect. The next
+two mini runs passed 26/27 and 27/28, with refusals on newly observed opaque
+candidates; the no-progress assertions themselves passed. Those candidates
+were gone by a later metadata-only check, so their provenance is not asserted.
+Session identity now supplies an additional proof of unrelatedness without
+ignoring inspection failures. All focused assertions pass with their full
+expectations retained; the final combined mini wrapper refusal is recorded
+above. Preparation mistakes (a redundant directory prefix, a
+nonexistent optional tar path, a wrong npm package scope, and the remote shell's
+reserved `status` name) were ours and ran no failing product test.

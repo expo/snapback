@@ -82823,3 +82823,56 @@ Two stopped development stress batches each contain 25 intentional aborts,
 with no spontaneous target/background failure and no additional full-suite run.
 Reference and whitespace checks accompany the local commit with the requested
 Astra co-author trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF Grok follow-up: inherited tokens and session custody
+
+Extended round 2 on top of 11c5a70745 for the operator's native-escape direction.
+Each file has a fresh inherited 256-bit environment token. Cleanup kills the
+whole group first, then checks registered ancestry, the owned POSIX session,
+and same-user token matches until two consecutive snapshots are empty. Positive
+token evidence survives a process exiting during inspection. A child clearing
+its token but remaining in the owned session is still reaped. A detection
+escape now requires removing/replacing the token, starting a new session and
+losing registered/discoverable ancestry. Exact bound assertions cover all 14
+derived files, serial mode, the four model/search overrides and the named floor
+examples; the 286-file single-guard census still fits every stall margin.
+
+Linux reads /proc environments; macOS uses bounded KERN_PROCARGS2/getsid calls
+through Python 3, with C locale and no environment values in diagnostics.
+Preexisting identities, causally unrelated ancestry and still-existing older
+sessions are excluded. Unknown ownership never authorizes a signal. The
+remaining platform restriction is real: Darwin 27 redacts /bin/sleep's token
+from both KERN_PROCARGS2 and ps -E despite successful calls. An opaque candidate
+outside the known session fails closed; its cleanup cannot be claimed. The
+native platform-binary regression refuses that file and reaps only its own
+known child. Three compiled native escape shapes and a cleared-token setpgid
+case require automatic cleanup and TEST_FILE_LEAK.
+
+Final Linux focused checks pass 29/29. On final mini source the combined run
+passed all 29 assertions but refused the outer file on two opaque candidates;
+the replacement file passed. A diagnostic observer rerun passed all 26 runner
+cases and confirmed that an unrelated environment-redacted mdworker_shared in
+preexisting session 1 is excluded by proof, not by ignoring a read failure.
+The mini used a non-C locale and the published 0.4.10 binary only for fixture
+portability. Its task scratch was deleted; no other Mac was contacted.
+
+The single follow-up eb1000 suite reports exactly `== 1 failure(s) in 1722 s`,
+exit 1. All Rust/build/app/fixture categories pass. Ordinary clients pass 5,814
+assertions, models 79/79 and fixture wrappers 9/9, with zero assertion failures
+and ten unchanged skips. Thirteen ordinary files fail the new completeness
+check on candidate-environment EACCES. These are introduced inspection refusals,
+not established baseline product failures. Every file/PID is classified in the
+report; all denied PIDs were absent at a later metadata check and their
+provenance remains unknown. Qualification is not clean. The
+[inspection-refusal ticket](../issues/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md)
+records the remaining ownership/host-access work without suppressing errors.
+
+The [Grok follow-up report](./reports/20261002-qf-qualification-flakes/REPORT.md#grok-follow-up)
+retains all successful and refused checks, final source hashes, the mini's
+redaction probe, observer metadata, every full-suite failure and cleanup receipt.
+Session/metadata corrections occurred during the suite's Rust phase before any
+client/fixture execution; no Rust/product source changed. Final 2,160 source
+hashes and 18 input digests match. Development candidate-scope refusals, our
+Darwin empty-group EPERM defect and preparation mistakes remain separately
+classified. Reference/whitespace checks accompany the local commit with the
+requested Astra co-author trailer. Nothing pushed or published.

@@ -1,0 +1,12 @@
+MacMini-Apt101-M5-A
+Darwin 27.0.0 arm64
+v24.18.0
+c1e6d662ae5fa68ee4c555883c023badb969b3e598f73cb977627ace503aca69  snapback4/scripts/run-client-tests.mjs
+267568248208a80e207ca45b3537cf27913da8d009edff982b0fe57a017aeb61  snapback4/scripts/test-file-owner.mjs
+85a5e5d46fff66989f0041e55af583db2fb9046385f3437a7ae6586df67066a9  snapback4/scripts/test-process-token.mjs
+16fba305c57c9a79d1e7892ddf94296e0555baa63826375aa45affc1d23c7457  snapback4/scripts/test-processes.mjs
+0c6525bf9f3d8215ec145be7561b4f91d97e87e33adcc19a5003087f81e6e670  snapback4/scripts/test-progress-reporter.mjs
+8073c580653f72ef30a8adddb3511b7a8e7fa03d5db22901f66d9c8baf5c9eac  snapback4/scripts/test-process-environment.py
+ad12e1075269a660cd5e11d4cffd03f9d90dd078ab614ad4f248b21a4298d92d  snapback4/packages/snapback4/test/test-file-runner.test.mjs
+525c941f14f8548a251ef4e1ca0c2150e59d951bbdebf3765a1feca9b45c5496  snapback4/packages/snapback4/test/helpers/process-escape.c
+b30b96dcb7e66abb4a13ba664d135c218d4d8383b2be45cbc294cbc0b90d8e44  package/snapback4

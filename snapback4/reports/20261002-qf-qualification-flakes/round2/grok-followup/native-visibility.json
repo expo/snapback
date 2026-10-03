@@ -1,0 +1,12 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "sysctlReturn": 0,
+  "sysctlErrno": 0,
+  "sysctlBytes": 35,
+  "sysctlTokenVisible": false,
+  "psExit": 0,
+  "psBytes": 15,
+  "psTokenVisible": false,
+  "sessionIsOwnPid": true,
+  "ownedProbeReaped": true
+}

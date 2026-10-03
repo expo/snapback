@@ -94,7 +94,7 @@ run_client_tests() {
   echo "-- client test files: ${#client_files[@]}; concurrency: $client_test_concurrency"
   # Progress watchdog: 15-minute floor; largest single guard plus 25% or
   # one minute of slack (run-client-tests.mjs), also in serial mode.
-  # Cleanup kills the whole group and requires two consecutive empty snapshots.
+  # Cleanup kills the whole group, then requires empty group/token snapshots.
   node scripts/run-client-tests.mjs "$client_test_concurrency" files "${client_files[@]}" &
   client_pids+=("$!")
   for pid in "${client_pids[@]}"; do

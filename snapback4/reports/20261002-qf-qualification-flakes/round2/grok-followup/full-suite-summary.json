@@ -1,0 +1,266 @@
+{
+  "started": "2026-10-02T23:39:00.292Z",
+  "finished": "2026-10-03T00:07:42.469Z",
+  "command": "scripts/test.sh",
+  "args": [],
+  "pid": 3757118,
+  "code": 1,
+  "signal": null,
+  "summary": "== 1 failure(s) in 1722 s",
+  "footer": [
+    "== 1 failure(s) in 1722 s"
+  ],
+  "logSha256": "e197f742969d1005e19f907c9d7dadf98fb60a0a067dd3bd947d2c45e57d4b80",
+  "fileResults": 286,
+  "totals": {
+    "tests": 5912,
+    "pass": 5902,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10,
+    "todo": 0
+  },
+  "failedFiles": [
+    {
+      "file": "packages/snapback4/test/delivery-clients.test.mjs",
+      "passed": false,
+      "elapsed": 3782,
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/following-routing.test.mjs",
+      "passed": false,
+      "elapsed": 4423,
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app.test.mjs",
+      "passed": false,
+      "elapsed": 39282,
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/asset-avatars.test.mjs",
+      "passed": false,
+      "elapsed": 46699,
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+      "passed": false,
+      "elapsed": 7931,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-review.test.mjs",
+      "passed": false,
+      "elapsed": 15744,
+      "tests": 72,
+      "pass": 72,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/page-authority.test.mjs",
+      "passed": false,
+      "elapsed": 13468,
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+      "passed": false,
+      "elapsed": 1249,
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+      "passed": false,
+      "elapsed": 821,
+      "tests": 5,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 4,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/residency.test.mjs",
+      "passed": false,
+      "elapsed": 7475,
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/server-runtime.test.mjs",
+      "passed": false,
+      "elapsed": 1498,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+      "passed": false,
+      "elapsed": 10336,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/readauth.test.mjs",
+      "passed": false,
+      "elapsed": 40462,
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "failedCategories": [
+    "-- FAIL: client tests (625 s)"
+  ],
+  "poolSummaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 283/283; failed 13; tests {\"tests\":5824,\"pass\":5814,\"fail\":0,\"cancelled\":0,\"skipped\":10,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "slowest": [
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 559640,
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "passed": true,
+      "elapsed": 446255,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "passed": true,
+      "elapsed": 403164,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "passed": true,
+      "elapsed": 386297,
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "passed": true,
+      "elapsed": 253500,
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "passed": true,
+      "elapsed": 206510,
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "passed": true,
+      "elapsed": 193632,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "passed": true,
+      "elapsed": 155884,
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ]
+}

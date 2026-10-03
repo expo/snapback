@@ -82,8 +82,13 @@ Gotchas you cannot derive from the code:
   Console output does not count as progress. Serial mode uses the same bounds.
   See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
   named work counts and recheck the census when declarations change. Every
-  file ends with a whole-group kill and two consecutive empty inspections;
-  observed survivors fail the file, and inspection errors fail closed.
+  file ends with a whole-group kill and two consecutive empty group/session
+  and inherited-token inspections. Tokens cover native session escapes;
+  same-session custody also catches a child that clears its token. Linux reads
+  `/proc` environments; macOS uses Python 3's ctypes with `KERN_PROCARGS2`.
+  Observed survivors fail the file. Unreadable/redacted candidate environments
+  fail closed; unknown ownership never authorizes a signal. See the QF Grok
+  follow-up for Darwin's restricted-executable redaction and cleanup limits.
   The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:

@@ -1,0 +1,159 @@
+[
+  {
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 14,
+    "skipped": 0,
+    "diagnostic": "environment of PID 50800: EACCES",
+    "candidatePids": [
+      50800
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 4,
+    "skipped": 0,
+    "diagnostic": "environment of PID 133250: EACCES",
+    "candidatePids": [
+      133250
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/app.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 78,
+    "skipped": 0,
+    "diagnostic": "environment of PID 140387: EACCES",
+    "candidatePids": [
+      140387
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 14,
+    "skipped": 0,
+    "diagnostic": "environment of PID 146988: EACCES",
+    "candidatePids": [
+      146988
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 16,
+    "skipped": 0,
+    "diagnostic": "environment of PID 160943: EACCES",
+    "candidatePids": [
+      160943
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 72,
+    "skipped": 0,
+    "diagnostic": "environment of PID 158783: EACCES",
+    "candidatePids": [
+      158783
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 13,
+    "skipped": 0,
+    "diagnostic": "environment of PID 168999: EACCES",
+    "candidatePids": [
+      168999
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 14,
+    "skipped": 0,
+    "diagnostic": "environment of PID 173365: EACCES",
+    "candidatePids": [
+      173365
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 1,
+    "skipped": 4,
+    "diagnostic": "environment of PID 183040: EACCES",
+    "candidatePids": [
+      183040
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 10,
+    "skipped": 0,
+    "diagnostic": "environment of PID 182297: EACCES; environment of PID 184104: EACCES",
+    "candidatePids": [
+      182297,
+      184104
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 47,
+    "skipped": 0,
+    "diagnostic": "environment of PID 185081: EACCES",
+    "candidatePids": [
+      185081
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 2,
+    "skipped": 0,
+    "diagnostic": "environment of PID 193845: EACCES",
+    "candidatePids": [
+      193845
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  },
+  {
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "classification": "introduced inspection refusal: candidate environment read denied (EACCES)",
+    "assertionsPassed": 10,
+    "skipped": 0,
+    "diagnostic": "environment of PID 198131: EACCES",
+    "candidatePids": [
+      198131
+    ],
+    "candidateOwnership": "unknown; candidate had exited before later metadata probes",
+    "baselineProductFailure": false
+  }
+]

@@ -1,0 +1,78 @@
+{
+  "result": {
+    "file": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": true,
+    "elapsed": 34842,
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 52,
+    "lastProgress": "test:complete: name and skip filters preserve the selected assertion-bearing cases"
+  },
+  "observations": [
+    {
+      "time": "2026-10-02T23:56:48.217Z",
+      "errors": [
+        {
+          "pid": 47559,
+          "match": false,
+          "session": 1,
+          "error": "environment unavailable or empty",
+          "process": {
+            "pid": 47559,
+            "parent": 1,
+            "group": 47559,
+            "uid": 501,
+            "start": "Fri Oct  2 16:56:15 2026",
+            "alive": true
+          },
+          "baselineSession": {
+            "pid": 1,
+            "parent": 0,
+            "group": 1,
+            "uid": 0,
+            "start": "Fri Oct  2 03:48:49 2026",
+            "alive": true
+          }
+        }
+      ],
+      "names": "47559     1 47559   501 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n"
+    },
+    {
+      "time": "2026-10-02T23:56:48.384Z",
+      "errors": [
+        {
+          "pid": 47559,
+          "match": false,
+          "session": 1,
+          "error": "environment unavailable or empty",
+          "process": {
+            "pid": 47559,
+            "parent": 1,
+            "group": 47559,
+            "uid": 501,
+            "start": "Fri Oct  2 16:56:15 2026",
+            "alive": true
+          },
+          "baselineSession": {
+            "pid": 1,
+            "parent": 0,
+            "group": 1,
+            "uid": 0,
+            "start": "Fri Oct  2 03:48:49 2026",
+            "alive": true
+          }
+        }
+      ],
+      "names": "47559     1 47559   501 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared\n"
+    }
+  ]
+}
