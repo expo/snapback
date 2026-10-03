@@ -61,11 +61,13 @@ fn exchange(source: &Path, target: &Path) -> Result<()> {
         if libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_SWAP) == 0 { return Ok(()); }
     }
     // Portable custody regressions use the same atomic operation on Linux;
-    // automatic native smoke itself still requires macOS.
+    // automatic native smoke itself still requires macOS. The raw syscall,
+    // not libc's renameat2 wrapper: the musl release build has no wrapper.
     #[cfg(target_os = "linux")]
     unsafe {
-        if libc::renameat2(libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), libc::RENAME_NOREPLACE) == 0 { return Ok(()); }
-        if libc::renameat2(libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), libc::RENAME_EXCHANGE) == 0 { return Ok(()); }
+        let rename = |flags: libc::c_uint| libc::syscall(libc::SYS_renameat2, libc::AT_FDCWD, source.as_ptr(), libc::AT_FDCWD, target.as_ptr(), flags);
+        if rename(libc::RENAME_NOREPLACE) == 0 { return Ok(()); }
+        if rename(libc::RENAME_EXCHANGE) == 0 { return Ok(()); }
     }
     Err(error("E_WITNESS_ARTIFACT", std::io::Error::last_os_error()))
 }
