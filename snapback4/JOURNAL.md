@@ -84137,3 +84137,42 @@ Report: `reports/20261001-nx-export-proves-native/REPORT.md`, “Round 9 — mer
 with main”; final source/evidence audits are under `round9/`. The independent
 round-8 confirmation review remains separate. Local merge only; no push or
 external publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-03 — ON2: once-media history obeys the bytes-once contract
+
+Reproduce LM's base empty-history transition on process and wasm before editing
+runtime code. Remove the sole blanket unknown dependency for `once` columns
+from `revocation::Dependencies::table`, plus its unused recursive helper.
+Charlie's bytes-once ruling permits retained handles/metadata: per-principal
+bytes remain single-serve with second-fetch HTTP 410 `E_ASSET_VIEWED`.
+Keep ordinary asset-edit dependencies and every hard withdrawal unchanged.
+Record the decision in LLP 3000.023 §12 and reference it at the classifier;
+add the small `useAsset` / “Opened” pattern to the assets guide. No machinery
+from lane ON's parked masking prototype is adopted. Close LM's ticket.
+
+The final regressions fail three cases on preserved base artifacts (process
+and wasm once settlement, online consumed-handle retention); their other 14
+controls pass on base. Final source passes 418 distinct affected client cases,
+including second-fetch refusal, real deletion, membership deadlines and
+account/store retirement on online/process/wasm. Rust soundness passes 5/5
+(90 schemas, 11,520 commits, 604,650 certified checks); whole guide 111/111,
+wasm budget 2/2, reference audit clean. Wasm shrinks from 2,048,753 raw /
+617,410 gzip B to 2,048,676 raw / 617,327 gzip B: -77 raw / -83 gzip B,
+713 B below the unchanged 618,040 B cap. No runtime growth.
+
+Run `scripts/test.sh` once: `== 2 failure(s) in 1681 s` (`cargo test`,
+`client tests`). Client pool: 5,970 passed, 40 failed, 11 skipped; serial
+models: 79 passed. All 58 individual failures are classified in the report:
+4 ours (obsolete once-dependent insertion deadline expectations, corrected to
+real deletion and passing in a 55-test follow-up); 4 inherited N_SHAPE_METER
+zero-note assertions, directly reproduced with the base compiler; and 50
+environmental. Of the latter, 14 witness Rust failures use a shared executable
+replaced by another build (42 isolated units pass; all seven exact integration
+CLI pairs match ON2), and 36 witness-acquire failures result from ON2's private
+binary layout lacking helper discovery (all 43 pass with the identical binary
+in the checkout layout). Preserve the canonical red result, do not rerun it,
+and leave the existing inherited tickets open. No unresolved ON2 product red.
+
+Report and complete evidence: `reports/20261003-on2-once-preserve/REPORT.md`;
+external handoff `~/sb5-lanes/on2.report.md`. Local commit only, no push or
+publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

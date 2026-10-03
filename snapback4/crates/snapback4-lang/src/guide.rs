@@ -477,6 +477,18 @@ viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
 a readable home row does not grant upload ownership.
 
+`once` is a bytes-once contract. The handle and metadata (id, type, dimensions,
+byte size) may remain after viewing. A visible handle is never permission to
+show content. When `useAsset` or a fetch refuses with E_ASSET_VIEWED, render
+"Opened" (or similar):
+```tsx
+function OncePhoto({ id }: { id: string }) {
+  const asset = useAsset(id); // from snapback4/react, under SnapbackProvider
+  if (asset.status === "denied" && asset.why.code === "E_ASSET_VIEWED") return <span>Opened</span>;
+  return asset.status === "ready" ? <img src={asset.url} alt="Photo" /> : null;
+}
+```
+
 At startup `dev` and `serve` try to raise the soft file-descriptor limit to the
 hard limit, capped at 65,536 (also capped by macOS host limits). Failure is
 logged once and serving continues. Startup and live `doctor` report the server's

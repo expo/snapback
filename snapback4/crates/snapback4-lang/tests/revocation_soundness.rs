@@ -322,13 +322,20 @@ fn asset_and_once_consumption_cover_every_viewer() {
         let consumer = VIEWERS[next(&mut rng) as usize % VIEWERS.len()];
         for viewer in VIEWERS { assert!(e.asset_access(viewer,&id,100).is_ok()); access_checks += 1; }
         if kind.contains("once") {
+            let tables = vec!["docs".into()];
+            let before = answer(&mut e,&tables,100);
+            let handles: Vec<_> = VIEWERS.iter().map(|viewer| e.query("rv_docs",Context::new(*viewer,[("id".into(),Value::Id("a".into()))].into()).at(100)).unwrap().data).collect();
             let seq = e.seq().unwrap();
             e.record_asset_view(consumer,&id,101).unwrap(); consumptions += 1;
             assert_eq!(e.seq().unwrap(),seq,"once consumption has no public row commit");
-            assert!(!preserved_between(e.store().conn(),e.schema(),seq,seq).contains(&"docs".into()));
-            for viewer in VIEWERS {
+            let preserved = preserved_between(e.store().conn(),e.schema(),seq,seq);
+            assert!(preserved.contains(&"docs".into()), "once consumption protects bytes, not row/field disclosure");
+            let after = answer(&mut e,&tables,101);
+            Counts::default().check(&before,&after,&preserved,"once consumption");
+            for (viewer, handle) in VIEWERS.iter().zip(handles) {
+                assert_eq!(e.query("rv_docs",Context::new(*viewer,[("id".into(),Value::Id("a".into()))].into()).at(101)).unwrap().data,handle,"consumption keeps handles and metadata");
                 let result = e.asset_access(viewer,&id,101); access_checks += 1;
-                if viewer == consumer { assert_eq!(result.unwrap_err().code(),"E_ASSET_VIEWED"); } else { assert!(result.is_ok()); }
+                if *viewer == consumer { assert_eq!(result.unwrap_err().code(),"E_ASSET_VIEWED"); } else { assert!(result.is_ok()); }
             }
         }
         let tables = vec!["docs".into()]; let before = answer(&mut e,&tables,101); let seq = e.seq().unwrap();
