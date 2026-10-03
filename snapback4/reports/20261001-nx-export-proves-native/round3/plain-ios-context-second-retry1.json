@@ -1,0 +1,20 @@
+{
+  "starter": "plain",
+  "label": "ios-context-second-retry1",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790946980533,
+  "durationMs": 974101,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "646b7054839da6ca8d405b317731ca56d2f293f0514cb3636e5977eb567721c1",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790946980632-28993/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "preparation",
+  "error": "E_WITNESS_BUILD: --build preparation failed; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790946980632-28993/preparation-stderr.log",
+  "cacheMiss": "native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

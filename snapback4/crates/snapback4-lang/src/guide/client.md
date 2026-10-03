@@ -63,7 +63,7 @@ Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (l
 `guide social`: tested route-owned screen with bounded point bodies, generation resets and hidden-route cleanup.
 
 ## Row queries
-Shared observations avoid repeated work. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.
+Shared observations avoid repetition. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
@@ -72,7 +72,7 @@ Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `use
 
 ## Expo and acquisition
 Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
-Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smoke` (about 3 minutes warm). Proves Release/local-store acquisition and offline reopen/reconnect. Write replay needs an app scenario (`guide witness`).
+Every milestone: `npm run export:ios` also proves the app runs on iOS with Xcode/runtime. Hermes: `dist/`. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs an app scenario (`guide witness`).
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.

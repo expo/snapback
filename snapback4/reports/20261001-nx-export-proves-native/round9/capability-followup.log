@@ -1,0 +1,130 @@
+✖ published 0.2.33 capability fence: timeline-v2 (2035.901667ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ timeline-v2 initial native refusal: device: /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-capability-oTuU2B/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 8729
+ℹ timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+✖ published 0.2.33 capability fence: recorded-attribution (1141.003125ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ recorded-attribution initial native refusal: device: /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-capability-o1uFmN/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3143
+ℹ recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+✖ published 0.2.33 capability fence: maintained-column (1306.956667ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ maintained-column initial native refusal: device: /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-capability-DQPCwz/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 2363
+ℹ maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+✔ published 0.2.33 control: capability-free bytes and stores stay compatible (879.843333ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+ℹ published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes
+✔ RV publication allowance is confined to commit evidence (3.584ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5410.322125
+
+✖ failing tests:
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:147:25
+✖ published 0.2.33 capability fence: timeline-v2 (2035.901667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        ],
+  +     decorationExpiry: null,
+        next: null,
+        nextExpiry: null,
+        retained: false,
+        tables: [
+          'profiles'
+
+      at sameAnswer (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:38:10)
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:222:57)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], decorationExpiry: null, next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:147:25
+✖ published 0.2.33 capability fence: recorded-attribution (1141.003125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        ],
+  +     decorationExpiry: null,
+        next: null,
+        nextExpiry: null,
+        retained: false,
+        tables: [
+          'posts'
+
+      at sameAnswer (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:38:10)
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:222:57)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], decorationExpiry: null, next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:147:25
+✖ published 0.2.33 capability fence: maintained-column (1306.956667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+
+    {
+      ok: {
+        complete: true,
+        cut: null,
+        data: [
+  ...
+        ],
+  +     decorationExpiry: null,
+        next: null,
+        nextExpiry: null,
+        retained: false,
+        tables: [
+          'posts'
+
+      at sameAnswer (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:38:10)
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:222:57)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: { complete: true, cut: null, data: [Array], decorationExpiry: null, next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    expected: { ok: { complete: true, cut: null, data: [Array], next: null, nextExpiry: null, retained: false, tables: [Array], unknown: false } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

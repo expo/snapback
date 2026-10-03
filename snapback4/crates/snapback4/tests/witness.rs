@@ -14,6 +14,8 @@ fn witness_cli_refuses_missing_bundle_with_a_recipe() {
 fn preparation_selectors_are_exclusive_and_repack_is_withdrawn() {
     for (flags, reason) in [
         (vec!["--bundle-id", "app.test", "--build", "."], "select exactly one"),
+        (vec!["--build", ".", "--export", "dist"], "--export requires --build and --smoke"),
+        (vec!["--bundle-id", "app.test", "--smoke", "--export", "dist"], "--export requires --build and --smoke"),
         (vec!["--repack=build.json"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json", "--app-project", ".", "--smoke"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json"], "repack is withdrawn; use witness ios --build"),
@@ -230,7 +232,7 @@ mod driver {
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
-            let dir = std::env::temp_dir().join(format!("sb4-witness-driver-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+            let dir = std::env::temp_dir().join(format!("00000000-0000-4000-8000-{:06}{:06}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
             for name in ["app", "data", "snapback"] {
                 fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(name)).unwrap();
             }
@@ -245,7 +247,7 @@ mod driver {
             for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
                 use std::io::Write;
                 let mut record = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(state.join(format!("{id}.json"))).unwrap();
-                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"})).unwrap();
+                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-", "ready":true})).unwrap();
             }
             Self(dir, Default::default())
         }
@@ -450,6 +452,11 @@ mod driver {
             assert_eq!(output.status.code(), Some(1));
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(receipt["simulator"]["selection"], "created");
+            assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_SIMULATOR:"), "{mode}: {receipt}");
+            let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+            assert_eq!(calls[calls.len() - 2][0], if mode.ends_with("boot-fails") { "boot" } else { "bootstatus" });
+            assert_eq!(calls.last().unwrap()[0], "delete");
+            assert_eq!(receipt["simulator"]["deleted"], true);
             assert!(receipt["error"].as_str().unwrap().contains("simctl boot"), "mode {mode}: error = {}", receipt["error"]);
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
@@ -471,6 +478,46 @@ mod driver {
             .env("WITNESS_TEST_UDID", fixture.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", "normal");
         command
     }
+    fn stalled_runtime_cli(signal: Option<i32>) {
+        use std::time::{Duration, Instant};
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("node"), "#!/bin/sh\nprintf '%s' \"$$\" > launcher.pid\nsleep 60 &\nprintf '%s' \"$!\" > descendant.pid.tmp\nmv descendant.pid.tmp descendant.pid\nwait\n").unwrap();
+        fs::set_permissions(fixture.0.join("node"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::create_dir(fixture.0.join("dist")).unwrap();
+        let mut command = build_command(&fixture);
+        command.args(["--export", "dist", "--timeout", "2"]);
+        let mut driver = watchdog::Guarded::spawn(&mut command, &fixture.0, Duration::from_secs(15));
+        let end = Instant::now() + Duration::from_secs(10);
+        while !fixture.0.join("descendant.pid").exists() && driver.is_running() && Instant::now() < end { std::thread::sleep(Duration::from_millis(10)); }
+        assert!(fixture.0.join("descendant.pid").exists());
+        let live: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/live.json")).unwrap()).unwrap();
+        let group = &live["children"]["runtime-resolution"];
+        let launcher: i32 = fs::read_to_string(fixture.0.join("launcher.pid")).unwrap().parse().unwrap();
+        let descendant: i32 = fs::read_to_string(fixture.0.join("descendant.pid")).unwrap().parse().unwrap();
+        assert_eq!(unsafe { libc::getpgid(launcher) }, group["group"].as_i64().unwrap() as i32);
+        assert!(group["leader"]["start"].is_array());
+        let started = Instant::now();
+        if let Some(signal) = signal { unsafe { libc::kill(driver.id() as i32, signal); } }
+        let output = driver.finish();
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(if signal.is_some() { "E_WITNESS_INTERRUPTED" } else { "E_WITNESS_PROCESS: Node launcher node exceeded its 2-second" }), "{stderr}");
+        if signal.is_none() { assert!(stderr.contains("installing/downloading")); }
+        for pid in [launcher, descendant] {
+            let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+            let size = std::mem::size_of_val(&info) as i32;
+            assert!(unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, &mut info as *mut _ as *mut _, size) } != size || info.pbi_status == 5, "resolver child survived driver cancellation");
+        }
+        assert!(!fixture.0.join("artifacts/finished.json").exists());
+        let cleanup = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "export-cleanup"])
+            .arg(fixture.0.join("artifacts")).arg(fixture.0.join("artifacts")).output().unwrap();
+        assert!(cleanup.status.success(), "{}", String::from_utf8_lossy(&cleanup.stderr));
+        assert!(fixture.0.join("artifacts/finished.json").exists());
+    }
+    #[test] fn real_cli_stalled_resolver_sigterm_drains_before_finished() { stalled_runtime_cli(Some(libc::SIGTERM)); }
+    #[test] fn real_cli_stalled_resolver_timeout_drains_before_finished() { stalled_runtime_cli(None); }
+
     #[test]
     fn missing_schema_uses_one_message_and_witness_exit_one() {
         for missing_schema in [true, false] {
@@ -524,6 +571,110 @@ mod driver {
             assert_eq!(fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().count(), 1);
         }
     }
+    #[test]
+    fn export_classifies_only_native_environment_setup_as_skippable() {
+        for mode in ["no-xcode", "no-runtime", "auto-create-boot-fails", "auto-create-bootstatus-fails"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("snapback/generated"), "block codegen").unwrap();
+        let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"]), watchdog::SCENARIO_GUARD);
+        assert_eq!(output.status.code(), Some(1));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_ne!(receipt["phase"], "environment");
+        assert!(receipt["error"].as_str().unwrap().contains("backend check failed"));
+    }
+    #[test]
+    fn export_selection_interrupt_and_ownership_failures_are_not_skips() {
+        for mode in ["interrupt-selection", "invalid-selection", "auto-create-owner-fails", "auto-create-delete-fails", "auto-create-interrupt"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(receipt["environmentCondition"].is_null(), "{mode}: {receipt}");
+            if mode.contains("interrupt") { assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_INTERRUPTED:"), "{receipt}"); }
+            if mode.starts_with("auto-create") {
+                if mode == "auto-create-delete-fails" {
+                    assert_eq!(receipt["simulator"]["deleted"], false);
+                    assert!(receipt["error"].as_str().unwrap().contains(fixture.0.file_name().unwrap().to_str().unwrap()));
+                } else { assert_eq!(receipt["simulator"]["deleted"], true, "{receipt}"); }
+            }
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
+    }
+    #[test]
+    fn boot_rollback_holds_the_simulator_lease_against_a_second_process() {
+        let fixture = Fixture::new();
+        let mut a = fixture.command("auto-create-race", Fixture::port(), std::path::Path::new("artifacts-a"));
+        let mut a = watchdog::Guarded::spawn(&mut a, &fixture.0, watchdog::SCENARIO_GUARD);
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !fixture.0.join("bootstatus-waiting").exists() {
+            assert!(a.is_running(), "creator exited before bootstatus");
+            assert!(std::time::Instant::now() < end);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let id = fixture.0.file_name().unwrap().to_str().unwrap();
+        let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{id}.json"));
+        let pending: Value = serde_json::from_slice(&fs::read(&state).unwrap()).unwrap();
+        assert_eq!(pending["ready"], false);
+        // Explicit selection cannot bypass the pending device's lease either.
+        let mut b = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-b"));
+        b.args(["--udid", id]);
+        let output = b.output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("another witness holds the --udid lease"));
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        // Automatic selection also skips the boot-pending record. Our fake
+        // allocator returns the same ID, so creation must refuse its held lease.
+        let output = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-c")).output().unwrap();
+        assert!(!output.status.success());
+        let calls = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap();
+        assert_eq!(calls.lines().filter(|line| line.starts_with("[\"create\"")).count(), 2);
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        fs::write(fixture.0.join("release-bootstatus"), "release").unwrap();
+        let output = a.finish();
+        assert!(!output.status.success());
+        assert!(fixture.0.join("deleted-simulator").exists());
+        assert!(!state.exists());
+    }
+
+    #[test]
+    fn export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt() {
+        for mode in ["auto-create-printed-fails", "auto-create-printed-timeout", "auto-create-buffered-timeout", "auto-create-group-interrupt"] {
+            let fixture = Fixture::new();
+            fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            let mut command = build_command(&fixture);
+            command.args(["--export", "dist"]).env("WITNESS_TEST_MODE", mode);
+            if mode.ends_with("timeout") {
+                // build_command does not supply --timeout.
+                command.args(["--timeout", "1"]);
+            }
+            let output = fixture.run_command(&mut command, watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1), "{mode}: {}", String::from_utf8_lossy(&output.stderr));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert_eq!(receipt["simulator"]["deleted"], true, "{mode}: {receipt}");
+            assert!(fixture.0.join("deleted-simulator").exists());
+            if mode.ends_with("interrupt") { assert!(fixture.0.join("create-survived-group-interrupt").exists()); }
+            let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()));
+            assert!(!state.exists());
+        }
+    }
+
     #[test]
     fn early_scene_exit_has_a_named_diagnostic_and_product_toolchain() {
         let fixture = Fixture::new();
@@ -828,7 +979,8 @@ mod driver {
         let first = Fixture::new(); let second = Fixture::new(); let artifacts = first.0.join("artifacts");
         let mut one = first.command("normal", Fixture::port(), &artifacts);
         let mut two = second.command("normal", Fixture::port(), &artifacts);
-        two.env("WITNESS_TEST_UDID", "another-simulator");
+        // Each fixture already has a distinct UUID and matching ownership
+        // record. Replacing it with a non-UUID breaks the second winner.
         let mut one = watchdog::Guarded::spawn(&mut one, &first.0, watchdog::SCENARIO_GUARD);
         let mut two = watchdog::Guarded::spawn(&mut two, &second.0, watchdog::SCENARIO_GUARD);
         let outputs = [one.finish(), two.finish()];

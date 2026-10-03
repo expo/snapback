@@ -81441,6 +81441,561 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+
+
+## 2026-10-01 — NX round 0: export proves native execution
+
+Both Expo starters now export the same Hermes payload into dist and, on an
+available Mac/Xcode simulator environment, install and smoke that exact export.
+A conservative native fingerprint and byte-validated Release base avoid a new
+native build for starter JS edits. Three bounded workers validate dependency,
+generated-native and compiler inputs; each launch binds the actual selected
+bundle hash. Missing native tooling/create/boot conditions skip; app/SDK/backend
+failures stay nonzero. SNAPBACK4_NATIVE_SMOKE=off is explicit; native:smoke still
+builds fully. The runtime smoke origin keeps the export unchanged while using
+the driver's owned loopback backend. LLP 3000.030 §15 records the design and
+its conservative boundaries; starter READMEs and client/witness cards teach it.
+
+Apartment mini final five-run complete-export warm medians: plain 17.888 s,
+social 23.870 s (native-only 15.138 / 19.969 s); cold native-cache/Pods/Xcode
+runs 170.134 / 243.806 s. All ten warm runs are under 25 s, cache hits, and load
+new distinct export hashes through all three smoke segments. Both starters'
+native-input controls rebuild, startup throws fail, missing runtimes skip,
+and opt-outs succeed. These are unpublished local candidate simulator proofs;
+empty starters do not establish application scenarios, M6/M8 or publication.
+
+Affected JS 60/60 plus final fingerprint controls 6/6; Rust witness units 14/14,
+starter integration 22/22, final full-suite witness 50/50, whole guide 110/110.
+The requested scripts/test.sh ran once; exact summary:
+`== 1 failure(s) in 2593 s` (`client tests`). Its eight generated-storage cases
+failed because our new smokeOrigin import lacked a VM fixture mock. The mock
+is corrected, all storage assertions retained, and that file passes 14/14.
+All 79 final model tests pass. The original red suite is retained, not rerun.
+The 60 s suite budget is unmet; the report records baseline serial timeout
+controls, cold compilation, full counts and phase durations. Earlier guide
+failures were ours and corrected; one baseline witness diagnostic expectation
+was corrected; interrupted capture recovery was environmental. Every failure,
+exact original output, five external-fixture skips and scope limit is reported.
+Wasm: 2,014,420 B raw / 604,666 B gzip, unchanged cap 605,225 B, 559 B headroom.
+Reference audit passes with zero errors; no runtime/core or wasm-budget change.
+
+Evidence and reproduction: reports/20261001-nx-export-proves-native/REPORT.md.
+The one owned simulator and its creation record were deleted; all lane-created
+build products and installed worktree dependencies were removed after evidence
+verification. Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 1: conservative export reuse and bounded cleanup
+
+Resolved the round-0 review findings in LLP 3000.030 §15. Application JS is
+excluded only for content-pinned resolved plugin implementations at audited
+versions and registry provenance. Forks, aliases, git/path installs and unknown
+implementations bind JS. Static config references bind their in-tree bytes;
+external paths and react-native.config.mjs refuse through preparation.
+
+Overlays remove their recorded Metro resource set before installing current
+assets and main.jsbundle. The real fresh-build comparison caught an extra
+export-only worker HBC; Expo native embed omits it, and the overlay now does too.
+Native resource names cannot occupy the reserved Metro namespaces. Selection
+skips use explicit conditions; exited-child interrupts stay interrupts; failed
+owner writes delete the new device or fail loudly with its identity. The wrapper
+forwards SIGINT/SIGTERM and waits for cleanup. Cold misses explain their reason,
+three-to-four-minute cost and opt-out before Xcode. Temporary app copies,
+preparation directories and xcresults are removed on success/failure; five
+complete runs retain full evidence and older receipts are compressed. Warm
+receipts reference their immutable native producer instead of duplicating it.
+
+Final Apartment mini five-run complete-command warm medians: plain 18.041 s,
+social 23.663 s; cold 164.037 / 232.024 s. Both median targets are met; social
+warm sample 4 is 25.033 s and remains in the cohort. Asset-require removal is a
+cache hit, and both final resource inventories and complete app topologies match
+a fresh native build using the identical saved export. Actual git-installed
+forks rebuild when their JS config input changes. Both starters pass external
+config refusal, startup-throw failure, missing-runtime skip, opt-out, selection
+SIGINT (130, no new simulator/record left) and running SIGTERM (143, app/backend
+and temporary copies cleaned).
+
+Affected JavaScript 69/69, final export controls 11/11, Rust witness units 14/14,
+full-suite witness 51/51, whole guide 110/110. scripts/test.sh ran exactly once:
+`== 1 failure(s) in 2530 s` (`client tests`). Its only failure is the unchanged
+delivery-fault fixture's transient follow site 47 not injecting its intended
+fault; client inputs match bfe1d7d722. The isolated case passes 2/2, and an open
+filesystem follow-up retains the red and asks for deterministic injection.
+Client pool: 5758 pass / 1 fail / 5 external-fixture skips; final models 79/79.
+A separate parallel witness rerun encountered a loopback-port collision (50/51);
+that case passes 1/1 in isolation and in the full suite's serial witness target.
+No assertion, seed count, hang budget or wasm budget was reduced.
+Wasm remains 2,014,420 B raw / 604,666 B gzip, 559 B below the 605,225 B cap.
+
+All five tool-created simulators are absent after cleanup. Archived all 370
+receipt files and five full-evidence runs per starter with byte verification;
+43 plain and 35 social completed runs had zero temporary app copies/directories.
+Removed target/nx's generated native projects; ordinary build/dependency caches
+remain. Report, every failure, measurements and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 1).
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 2: evaluated native config, leased boot and crash recovery
+
+Replaced the static plugin require/import walk with Expo 57's real prebuild
+configuration plus introspected iOS mod results in the native key. Explicit,
+auto-applied and legacy plugins resolve through Expo, including project-relative
+shadows. Unknown native-file writers retain application JS; audited registrations
+bind their package trees and the complete installed starter dependency snapshots
+so an external helper change revokes that audit. Both stock starters remain on
+the JS-only reuse path. LLP 3000.030 §15 and the guide are updated.
+
+Simulator creation holds its UDID lease through boot and cleanup; pending records
+cannot be reused. Isolated create processes preserve printed UUIDs on failure,
+timeout and Ctrl-C and roll back before reporting. Create timeouts cannot skip;
+failed ownership writes remove their partial file. Export runs persist process
+birth identities and leases, recover abandoned app/backend/device custody, and
+remove bulk evidence. One kernel lock serializes pruning, which cannot turn
+smoke success into export failure. Retention is five full plus twenty compressed
+runs; the current native producer receipt is kept alongside its cache. FILE/File
+schemes refuse out-of-tree config.
+
+Final Apartment mini cold: plain 258.715 s / social 291.288 s. Five-run complete
+command warm medians: **18.416 s / 24.367 s**, both below 25 s; all ten samples
+pass and remain below 25 s. Fresh-process config evaluation medians are
+177.471 / 222.479 ms per call. All twelve installed plugin controls pass;
+unknown dangerous-mod JS edits rebuild in 112.050 / 157.371 s in that functional
+cohort. Both starters pass wrapper/driver SIGKILL recovery, startup throw,
+FILE/File refusal, missing runtime and opt-out. Shared driver controls cover
+boot contention, printed-UUID create failure/timeout and process-group Ctrl-C;
+concurrent pruning, partial writes, PID reuse and held leases pass.
+
+Affected JS 72/72; final export/config/pruning 12/12; Rust witness units 17/17;
+canonical witness integration 53/53; final guide 110/110; ref-check has zero
+errors/unchecked refs. The complete scripts/test.sh ran exactly once:
+`== 1 failure(s) in 3501 s` (`client tests`). The unchanged 300-history wasm
+mixed-evidence oracle hit its 1,800 s guard and retained its worker; only that
+verified owned PID was terminated after the reported timeout so the suite could
+finish. Client pool: 5759 pass / 1 cancelled / 5 fixture skips; final models
+79/79. The unchanged wasm case then passes 300/300 in isolation in 176.905 s.
+The original red remains, with an open filesystem follow-up; its exact trigger
+is unresolved and earlier native-build overlap may have exposed it. The known
+delivery-fault injection flake did not recur. All development/harness failures,
+including the case-insensitive FILE/File evidence-name collision, are retained
+and corrected in the report. No assertions, seed counts or hang guards changed.
+Wasm stays 2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged 605,225 B cap.
+
+Archived and byte-verified all 338 retained receipts plus remaining full evidence
+(22 plain / 21 social runs; five full each; no per-run temporary apps/directories).
+All six tool-created simulators are deleted under custody; no unowned simulator
+or system setting was touched. Generated target/nx projects are removed after
+archival; ordinary build/dependency caches remain. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 2). New follow-up:
+issues/20261001-snapback4-mixed-evidence-wasm-timeout.md.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 3: honest-project cache and verified recovery custody
+
+Addressed the nine round-2 findings under the operator's explicit boundary:
+the native cache is a correctness optimization for honest projects, not a
+sandbox; config plugins already execute arbitrary code. Deliberately evasive
+registration stacks and forged plugin result lines are outside that boundary.
+The child nevertheless returns its evaluated config on a parent-owned descriptor.
+Per-export evaluation remains. Expo's resolved plugin file now makes every
+project-local plugin conservative independently of registration stacks, including
+`plugins/x.js` and plugins whose native reads depend on `ios/` existing. Remote
+URI config resources refuse, fingerprint/build pin the image implementation,
+and unobserved mod assignments are checked after deferred compilation too.
+
+Preparation workers start only after a persistent group leader's birth identity
+is journaled. Recovery verifies that leader, drains its descendants, and finishes
+cleanup before output removal or reuse. A surviving wrapper cannot mark its dead
+driver's run complete. Exports use private directories and atomically publish
+dist after proof. Buffered simulator creation reconciles the exact journaled
+name/runtime and prefix against simctl's listing; prefix alone never permits
+deletion. Both starters pass every requested detecting control, including live
+TERM-resistant preparation children, driver-only SIGKILL, simultaneous distinct
+exports and real create with its UUID withheld from stdout. LLP 3000.030 §15 and
+the guide record the boundary and resulting behavior.
+
+Final Apartment mini cold commands: **174.512 s plain / 229.510 s social**.
+Five-run warm medians: **15.820 s / 21.073 s**; all ten samples are below 25 s,
+cache hits, exact distinct loaded bundles and three passing smoke segments.
+No cohort sample was discarded. Cold removes the native cache/snapshot/Pods/
+DerivedData, with installed dependencies, Metro/system caches, the already booted
+tool-owned simulator and six verified dependency archives disclosed in the report.
+Config evaluation medians are **167.000 / 218.476 ms per call**, about **0.334 /
+0.437 s per export** for the two mandatory calls. Long batches use temporary
+command-scoped caffeinate assertions; no persistent power setting changed.
+
+The canonical scripts/test.sh ran exactly once on the final implementation:
+`== 0 failure(s) in 2174 s`. Witness integration 53/53, guide 110/110, client pool
+5,761 passed / five fixture skips / no failures or cancellations, final models
+79/79. Affected JavaScript 50/50 and witness Rust units 18/18 pass. Both 300-history
+mixed-evidence oracles pass this time; the earlier intermittent failure remains
+an open issue. All development failures are retained and classified in the
+report: our completion fixture/command/harness errors, the baseline namespace
+fixture's invalid UUID (fixed without weakening contention assertions), its
+separate baseline empty-PID race under noncanonical parallel execution, and the
+environmental Maven reset and two Xcode deadlines overlapping recorded sleep.
+No engine/contract source, timeout, model count or budget was relaxed. Wasm is
+unchanged at **2,014,420 B raw / 604,666 B gzip**, 559 B below its cap.
+
+Archived and byte-verified 371 retained receipt files from 23 plain / 17 social
+completed runs, five full each, with no per-run apps or preparation directories.
+The malformed development shim's empty unstarted directory is recorded separately
+without invented completion. Six remaining owned devices were deleted under
+verified custody; the two buffered-create devices had already been rolled back.
+All eight recorded devices are absent. No unowned simulator or unrelated process
+was touched. Candidates/caches remain locally for review. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 3). This is no new
+independent review, physical-device or application-scenario claim.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 4: wrapper lease through verified export publication
+
+Worked on `sb4-np/nx-export-proves-native-slim` from `fb9c037bd4`; the original
+branch was not used or merged. Fixed Astra's remaining P1 under the same honest-
+project boundary: Node holds a kernel flock from private export creation through
+publication, manifest verification and removal, explicitly inherited through the
+CLI shim by the publisher. Recovery drains dead-driver processes but cannot finish
+or prune a run whose wrapper/publisher holds that lease. Pruning keeps both run
+and export leases throughout deletion. A destination lock serializes exchange,
+verification against the smoke proof's paths/sizes/hashes/modes/types and old-tree
+removal. Publication mismatches fail, never skip. On the native-smoke path, dist
+switches atomically from complete old to complete new; separate opens spanning
+the switch can mix generations. Ordinary opt-out/non-macOS Expo output retains
+its existing behavior, without an atomic-replacement claim.
+
+Controls: live wrapper plus dead driver plus five newer completed runs preserves
+export and exact journal; 10,001 files survive cleanup at the exchange boundary;
+pre/post-exchange hash/size/path/extra-file tampering fails; a publisher killed
+after exchange is recovered while its concurrent survivor leaves exactly its own
+verified inventory. Actual Node tests cover kernel custody after helper/shim exit,
+SIGKILL release, and surviving-child inheritance. The retained round-3 binary
+reproduces deletion despite a live wrapper and accepts tampered publication; the
+new regressions reject both. Rust witness units 23/23, witness integration 53/53,
+JavaScript export tests 17/17. No test guard or runtime budget changed.
+
+One final JS-edit warm export per starter: **15.805 s plain / 22.944 s social**,
+both cache hits with all three smoke segments and matching published/loaded proof
+bytes. Final priming rebuilds were 89.462 / 139.918 s with native/dependency caches
+already present, not cold claims. The initial root-level publication lock entered
+the native key and caused a 96.372 s warm-attempt rebuild; fixed by locating it in
+the excluded artifacts tree and retained that attempt. The installed dependency
+audit changes only the wrapper and CLI files and pins the new complete snapshots.
+
+The requested single canonical suite reports exactly:
+`== 1 failure(s) in 2287 s`.
+Its sole failure was ours: the witness card grew to 407 lines against the existing
+399-line cap. Compacted the paragraph without raising the cap; the affected guide
+target then passes 110/110. The original suite remains red and is not rerun or
+relabeled. Its witness target passes 53/53, client pool 5,765 passed / five fixture
+skips / zero failed or cancelled, final models 79/79. Both 300-history oracles
+complete; the old intermittent issue's cause remains unresolved. Two wrong-cwd
+edit commands failed before mutation and are also recorded. Wasm remains exactly
+2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged cap and with the same
+SHA-256 as round 3. No core or contract source changed.
+
+Large evidence, gzip dumps and all six original recordings are hash-verified in
+`~/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/`; the report's
+EVIDENCE-ARCHIVE.tsv is the index. Only summaries, JSON and small logs enter git;
+the precommit audit checks the 256-KiB new-evidence and 15-MB staged-blob limits.
+Deleted only this round's recorded device after both custody checks/leases;
+mini-verify-iphone was untouched. Five full runs remain per starter, no per-run
+bulk output remains, and the known unstarted legacy directory stays untouched.
+See reports/20261001-nx-export-proves-native/REPORT.md, Round 4. Independent round-4
+review is pending. Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5: signal status, publication rollback and recorded-process custody
+
+Addressed the round-4 Astra and Grok findings on the slim NX branch without
+merging main. The CLI shim now removes its forwarding handlers before re-raising
+a child's termination signal, with a 128+signal fallback if it survives. This
+exit-zero defect **predates the NX lane and ships to every CLI user**, not just
+native export users. Installed-shim regressions cover SIGINT, SIGTERM and SIGHUP
+on Darwin and Linux. Main's open ticket
+`issues/20261002-snapback4-cli-shim-signal-exit-zero.md` is absent from this branch;
+the report records its resolution for the operator to close at landing.
+
+The export wrapper requires a matching verified publication.json, including the
+proved inventory and proof hash; status zero or an allowed environment skip
+cannot replace that receipt. A durable publication intent precedes exchange.
+Post-check failure swaps back; publisher death before the verified commit leaves
+the previous tree recoverable, protected from wrapper finally and retention.
+The next publisher restores under destination and export leases, or reports an
+identity/custody conflict without deleting either tree. The verified receipt is
+the commit point; a later crash during old-tree reclaim may leave partial old
+reclamation, with the accepted new export already verified. Namespace switches
+remain atomic, not a snapshot across separate reader opens.
+
+Linux opens a pidfd, binds the birth check to that handle, and signals through
+it. Darwin verifies identity, stops, verifies the stopped identity, then kills;
+it never sends another signal after a mismatch. The initial check-to-STOP gap
+can stop an unrelated recycled PID; it cannot safely resume that process. An
+external actor can also kill/reap or resume/exit the stopped process between the
+second check and numeric KILL, permitting reuse. These residual windows are
+explicit in LLP 3000.030 section 15 and the report, not an absolute Darwin
+PID-reuse claim. Actual parents retain their child handles. A late audit added
+a group-leader birth recheck after collecting members and before any signal.
+
+Real wrapper/shim/Rust publisher controls use a test-only syscall interposer at
+both requested termination boundaries and for post-exchange mutation. Wrapper
+finally preserves the exact previous inventory; next-export rollback and
+retention-pressure controls pass. Zero-status missing/mismatched receipts also
+fail, including environment skips. Final affected checks: Darwin witness units
+26/26 and integration 53/53; Linux units 27/27 and integration 13/13; Darwin JS
+export/shim 19/19 and Linux installed-shim/publication 6/6. Earlier fixture-path,
+config-timeout and parallel-lease failures remain recorded; the unresolved
+parallel-lease observation has a filesystem ticket. No assertion was weakened.
+
+Five warm samples per starter retain the first requested pair: plain median
+**20.840 s**, social **29.128 s**. All ten are cache hits with all three native
+segments passed, distinct exact exports and matching publication/proof hashes.
+**Social misses the requested 25 s target**; most increase is in native execution,
+but no contemporaneous baseline establishes cause. The witness card now quotes
+these measurements; the report and a ticket preserve the timing miss. Initial
+audit-pinning misses and their successful rebuild attempts are retained, not
+called warm samples. The final measured runtime differs only by the later
+abandoned-group guard, which ordinary export execution does not enter.
+
+Ran scripts/test.sh exactly once. Its exact summary is
+`== 1 failure(s) in 2240 s`, group `client tests`: 5,764 passed, three failed,
+five skipped. All three are unchanged delivery-fault fixture assertions that
+no fault was injected (47 transient/persistent at local.ts:850, 48 transient at
+local.ts:855). A focused rerun reproduces 47 transient (7/8 overall). Source
+identity is established; baseline execution and root cause are not. The ticket
+keeps this open. All other groups pass, including final models 79/79 and guide
+110/110. Canonical Rust ran before the late group guard; the final affected
+Darwin/Linux reruns cover that delta separately, not a second full-suite claim.
+
+Wasm is unchanged: SHA-256
+c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c,
+2,014,420 B raw / 604,666 B canonical gzip under the unchanged 605,225 B cap.
+No engine/contract or wasm source changed. Large logs, dumps and recordings are
+hash-indexed in the external evidence archive; only summaries and small logs
+are added to git. The precommit audit counts all staged blobs against 15 MB,
+including the existing large JOURNAL and archive index. Deleted only this
+round's recorded simulator under both leases; mini-verify-iphone was untouched.
+Retention leaves five full runs per starter; the known legacy directory stays
+untouched. See reports/20261001-nx-export-proves-native/REPORT.md, Round 5.
+Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5b: timing control, no product changes
+
+Compared e1adc01ddc (round 4) and adbabda71e (round 5) with installable local
+client/Expo/Darwin packages, verified offline npm installations and four separate
+native-cache/DerivedData project paths under ~/sb4-np/nx-r5b. Preserved the exact
+previously audited dependency snapshots; no product source or audit pin changed.
+Both exact production CLIs are hash-bound in the report. The initial source
+subset/embedded-template errors, shared Cargo output mistake and copied
+SwiftShims cache-path failure are retained as setup failures, all corrected
+before the measured cohort. Four fresh primers and four warmups then passed.
+
+Ran 24 JS-edit warm exports: six per revision per starter, in ABBA blocks. All
+hit cache, pass all three native segments, load distinct exact exports and match
+publication/proof hashes. No own suite/build ran during measurement. Round-4
+medians are 18.346 s plain / 27.786 s social; round-5 medians are 18.335 / 26.716 s.
+At the total-median sample pairs, round 5 splits into native/outside
+14.664 / 3.672 s plain and 22.416 / 4.300 s social. Native/segment timestamps,
+publisher verifiedAt, per-sample loads and top 20 CPU processes are retained.
+
+No round-5 slowdown was reproduced, but quiet qualification remains unresolved.
+Eight runs ended above load1 6. Another checkout's build/test activity caused a
+roughly nineteen-minute wait; recorded wait load1 reached 258.041. A separate
+30-minute attempt at a stricter entry condition admitted no sample: minimum
+load1 was 6.717, even above the original threshold. All samples stay in the
+record. The witness card now names shared-load medians, social still exceeds
+25 s, and issues/20261002-snapback4-nx-round5-social-warm-timing.md stays Open.
+No timeout, budget, proof or assertion was weakened to claim success.
+
+Deleted only this run's recorded device under both ownership leases;
+mini-verify-iphone was untouched. Raw logs, receipts/media, waiting snapshots
+and package tarballs are SHA-256 checked in the external evidence archive;
+only small summaries/reproduction material are committed. See the NX report's
+“Round 5b — timing control” section and its validation/size records. The separate
+round-5 dual review is not rerun or claimed here. Local commit only; no push or
+external publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Round-5b final verification: affected guide target 110/110, ref-check zero errors
+and zero unchecked, card unchanged at 399 lines. All 24 measured proof/hash
+bindings and all newly archived blobs verify. Four projects satisfy retention
+without per-run build/export residue; package and installed CLI hashes still
+match. No full product suite or independent review was run in this timing round.
+
+
+## 2026-10-02 — NX round 6: reconcile orphan publication markers
+
+Read Astra's complete round-5 review on eb1000. Kept destination-first marker
+deletion and added orphan-run reconciliation under run/export leases and a
+nonblocking destination lock. A matching destination intent remains pending;
+an absent/newer one permits removal only of this run's recorded new private
+tree (or accepts its absence), followed by its run-marker unlink. Changed private
+identity refuses. Later visible exports and newer pending intents stay intact.
+Recovery covers both unfinished and prematurely completed runs and is idempotent
+across repeated kills. LLP 3000.030 §15 records the contract in the same change.
+
+Six real-SIGKILL cases pass on the mini and Linux: commit, rejected rollback and
+pre-destination-intent creation, each with existing/initially absent destination.
+After the first kill, a later verified export is published, recovery is killed
+twice after private-tree removal, and normal cleanup still compresses and then
+prunes the abandoned run. Committed publication evidence survives compression;
+rejected private bytes do not. Independent controls verify each required lock,
+matching/newer destination intents and changed private identities. Pause hooks
+exist only in the test executable.
+
+The lease-release assertion now runs in an isolated subprocess, verifies
+FD_CLOEXEC and deliberately forks a held descriptor before dropping its owner.
+It asserts continued exclusion, releases/reaps the child and only then asserts
+reacquisition. Production spawn paths can transiently inherit a lease until
+exec/exit; no waiting pre-exec callback exists. A contender conservatively refuses
+or defers cleanup, never acquires simultaneous custody. The documented limitation
+and the intentional wrapper fd-3 custody remain distinct.
+
+Affected checks: mini 29 witness units / 53 integration / 19 JS export-shim
+passes; Linux eb1000 30 units / 13 integration / 18 JS passes, with one existing
+Darwin-only JS skip. Linux's initial source subset lacked two embedded benchmark
+inputs; its initial JS run lacked Expo dependencies. Both setup failures remain
+recorded; exact fixtures plus the frozen install fixed them without code changes.
+Initial mini standalone checks used ambient Node 26.9.0; JS rechecks and the
+canonical suite use pinned Node 24.18.0, with Rust checks repeated by that suite.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2253 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; witness integration 53/53; CLI units 232 passed, four existing
+ignored. This pre-main-fix branch did not reproduce the delivery-fault follow
+flake; NX does not claim to fix it. The raw canonical log and source archives
+are content-addressed outside git and read-back verified, with small summaries
+in the NX report's Round 6 section. Linux's exact scratch directory was deleted.
+
+The **25 s social target is unmet on the current host; quiet-host qualification
+is pending**. Round-5b's plain control/candidate medians remain 18.346/18.335 s,
+social 27.786/26.716 s; no round-5 slowdown was reproduced there. The timing ticket
+stays Open; round 6 runs no timing cohort and raises no budget. The witness card
+states that limit and stays at 399 lines. Wasm is unchanged at 2,014,420 B raw /
+604,666 B gzip under the same 605,225 B cap. No real simulator was used;
+mini-verify-iphone and X27R worktrees/simulators were untouched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+
+## 2026-10-02 — NX round 7: stable Node group anchors through launchers
+
+Read Astra's complete round-6 READY WITH CHANGES review on eb1000 and its
+surviving late-member probe. Resolve the builder's `node` once per preparation
+launch with `node -p 'JSON.stringify(process.execPath)'`, require a successful
+absolute runtime path, then execute that runtime directly as the persistent
+process-group leader. Node workers use the same runtime. Volta/asdf and shell
+launchers can select the runtime without becoming the recorded anchor. A failed
+resolution/direct launch refuses preparation. LLP 3000.030 §15 records the choice.
+Every birth, group-membership, post-snapshot birth and platform signal check
+remains intact; recovery's signaling algorithm is unchanged.
+
+Three regressions cover direct Node, a Volta-style spawn-and-wait JS launcher,
+and a non-exec shell shim on both hosts. Each verifies the actual worker parent
+and runtime against the journal, inserts a member after the recovery snapshot,
+and requires it to drain before success. Retry and repeated output cleanup pass;
+the shim is invoked exactly once for resolution. Existing reused-birth,
+anchor-loss, TERM-resistant descendant, publication and lease cases remain.
+
+Affected tests: mini 32 witness units / 53 integration / 19 JS export-shim passes;
+Linux 33 units / 13 integration / 18 JS passes with one existing Darwin-only skip.
+All mini verification keeps the actual Volta launcher on PATH, Node 24.18.0;
+Linux uses Node 24.13.1 and Rust 1.97.0. Linux's initial JS run had four setup
+failures because my source transfer omitted the built `dist/resolve-binary.js`:
+two installed-shim fixture copies and two CLI imports failed. Supplying the
+unchanged generated JS resolver fixed the same four files without code, assertion,
+guard or budget changes. Both runs and all failure classifications are retained.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2419 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 235 passed, four existing ignored; witness
+integration 53/53. No canonical failure occurred, and the known delivery-fault
+flake did not reproduce. NX does not claim to fix that unrelated flake.
+The NX report's Round 7 section binds the exact summary, tested source hashes,
+raw log and source archives. Raw gzip/binary evidence stays outside git in the
+content-addressed archive and is read-back verified. Linux scratch
+`/tmp/sb4-nx-r7.Gfl8K2` was deleted after copying and verifying its evidence.
+
+Social's **25 s warm target remains open pending quiet-host measurement**;
+no new timing cohort and no budget change. Wasm is byte-for-byte unchanged:
+2,014,420 B raw / 604,666 B gzip under the same 605,225 B cap. No real simulator
+was run; mini-verify-iphone, X27R worktrees/simulators and system settings were
+untouched. Local commit with the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.
+
+
+## 2026-10-02 — NX round 8: native custody and cancellable runtime resolution
+
+Read Astra's full round-7 READY WITH CHANGES review and surviving final-snapshot
+probe. Replaced the production Node group anchor with two native CLI helpers:
+a watchdog outside the group and an anchor that leads it. The driver syncs
+PGID, anchor birth, guardian birth and reaping-lock path before releasing
+the worker, including the Node runtime resolver. Whole-group signals replace
+per-PID snapshot draining; watchdog and recovery both demand two consecutive
+empty live-member inspections. The watchdog retains its child unreaped, and
+recovery's reaping lock prevents it from releasing that identity during signals.
+Linux reads zombie births through /proc; Darwin requires KERN_PROC_PID because
+proc_pidinfo/getpgid hide zombies. The dead-leader regression proves recovery
+with a live member on both hosts. LLP 3000.030 §15 records the structure.
+
+Linux parent-death signals and Darwin kqueue NOTE_EXIT watches prevent driver
+death from leaving work until the next export. Parent identity is checked after
+arming. Resolution is journalled before the launcher runs, uses at most 30 s
+(or a shorter --timeout), and remains cancellable through its bounded native
+handshake. Timeout names the launcher and the pinned-Node installation/download
+remedy with E_WITNESS_PROCESS. TERM/INT/timeout return only after group cleanup.
+
+Retained every earlier regression and added final-empty-child-snapshot cases
+for direct Node, non-exec shell and Volta-style shims; real resolver-owner
+TERM/INT/KILL, timeout and exited-anchor recovery on both hosts; and real public
+CLI TERM/timeout cases on Darwin using fake xcrun. Mini affected results:
+41 units / 55 integration / 19 JS passes. Linux: 42 units / 13 integration /
+18 JS passes, one existing Darwin-only skip. The mini retains actual Volta on
+PATH (Node 24.18.0); Linux uses Node 24.13.1 / Rust 1.97.0. The final mini resolver
+signal observations were 269 ms TERM, 244 ms INT and 66 ms KILL, including
+cleanup; launcher/descendant death is checked before invoking recovery.
+
+Two initial implementation failures exposed Darwin's zombie birth/group APIs;
+the resulting custody fixes are retained in the raw failure logs. Two new test
+fixture failures came from using a one-second deadline for a signal test and
+from observing a partially written PID marker. Signal cases now use the normal
+30 s deadline, the explicit timeout control uses three seconds, and markers
+publish by rename. No existing guard/assertion/budget was weakened. A final test-only path change
+confines the new fixture’s recovery scan to its own private parent; affected
+units were repeated on both hosts. The canonical source snapshot is retained
+separately; product code did not change. Linux had
+no test/setup failure. A final evidence-script print typo followed successful
+hashing/copying; a separate read-back check verified the outputs. The report's
+Round 8 ledger classifies each failure and binds both source transports.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2426 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 244 passed with four existing ignored;
+witness integration 55/55. No canonical failure occurred; the known unrelated
+delivery-fault follow flake did not reproduce, and NX does not claim to fix it.
+The full raw log and source snapshots are content-addressed outside git and
+read-back verified; small summaries and failure classifications are in the
+Round 8 report. Both Linux scratch directories were deleted after source/log
+verification. Ref-check passed with zero errors and zero unchecked refs.
+
+The remaining exceptional recovery window after another actor destroys the
+retaining guardian, legacy external reaping, intentional process-group escape,
+outside joiners and stalled inspection/kernel limitations are ticketed in
+issues/20261002-snapback4-nx-custody-recovery-residuals.md as the operator directed.
+There is no unconditional orphan-free claim. Publication verification,
+swap-back, orphan reconciliation and leases remain intact. Social's 25 s target
+remains Open pending quiet-host measurement; no new cohort or budget change.
+Wasm matches round 7 byte-for-byte: 2,014,420 B raw / 604,666 B gzip under the
+same 605,225 B cap. No real simulator or protected mini-verify-iphone/X27R
+worktree/simulator was touched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
 ## 2026-10-02 — BG round 0: busy-group live propagation
 
 Reproduced the calibration's 50-member/10,000-message conversation on eb1000
@@ -83535,6 +84090,53 @@ Evidence and bounded-marker semantics: the
 Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
 or published.
 Reference audit: 526 LLP docs, 10,110 refs, zero errors or unchecked references.
+
+## 2026-10-02 — NX round 9: merge with main
+
+Merge fetched GitHub main `5e12646aeefa` into NX round 8 `156bdee7c6`
+with a real merge commit. Preserve both append-only journal tails and LLP
+revision histories; combine main’s named simctl failures and scene/toolchain
+metadata with NX custody, recovery and verified export publication. Keep both
+witness test sets, one scene-plugin entry per starter, and the fixed CLI shim.
+Condense the merged witness/client cards within their unchanged budgets.
+Move the shim signal-exit-zero ticket to `issues/closed/` with the source fix.
+
+The merged installed package bytes need one exact Expo-tree hash and two
+complete dependency audit hashes. External dependency bytes are unchanged;
+the scene plugin differs only in its LLP annotation. Keep every conservative
+fallback. This late pin correction follows the single complete suite and
+gets fresh affected verification on both hosts; no canonical result is relabeled.
+Final mini witness units 41, integration 76 and JS export/shim 19 pass;
+Linux units 42, integration 31 and JS 18 pass with one Darwin-only skip.
+Guide 111 passes. Main’s unchanged wasm cap is 618,040 B; merged output is
+2,047,812 B raw / 617,239 B gzip, leaving 801 B.
+
+Canonical `scripts/test.sh` ran once: `== 2 failure(s) in 2585 s`
+(`cargo test`, `client tests`). Eight test failures are baseline: four UB
+N_SHAPE_METER assertions independently reproduced on main alone; one already
+tracked replay stderr-observation race with unchanged main source; three
+published-0.2.33 capability comparisons reject SJ’s `decorationExpiry: null`.
+The latter reproduce in isolation, with test/core/device source identical to
+main, and receive a new filesystem follow-up ticket. Do not fix UB here.
+Client pool: 5,961 passed, 3 failed, 5 skipped; serial models: 79 passed.
+
+Final warm `npm run export:ios`: plain 23.161 s and social 29.560 s,
+both cache hits with prime/offline/restart passed, exact exported/installed HBC
+and verified publication inventories (8/32 entries). Priming is 102.414 /
+258.029 s with existing dependencies/system caches. Load1 crosses 6 for plain
+and remains above 9 for social; these are functional samples, not quiet-host
+qualification. Social’s 25-second target and custody residuals stay open.
+The first heavily contended resolver cleanup failure, local-tarball setup
+refusal and pre-audit cache miss are retained and classified in the report.
+
+Raw evidence stays in the existing external SHA-256 archive. Delete both
+verified eb1000 scratch directories and local source-transfer scratch; archive
+then remove only round 9’s recorded simulator under its ownership leases.
+Never target mini-verify-iphone or another session’s X27R checkout/simulators.
+Report: `reports/20261001-nx-export-proves-native/REPORT.md`, “Round 9 — merge
+with main”; final source/evidence audits are under `round9/`. The independent
+round-8 confirmation review remains separate. Local merge only; no push or
+external publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 
 ## 2026-10-03 — Lane L: bounded route-owned observations before an active hook
 

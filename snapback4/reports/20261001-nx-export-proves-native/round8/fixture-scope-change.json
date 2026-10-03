@@ -1,0 +1,10 @@
+{
+  "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+  "beforeSha256": "9d053754a86d7a62057e95c7afcc3484937fad4878c1fd783c4a92d8cd1fc034",
+  "afterSha256": "1b44dc5bb1952ee924648709ddcbfcc0aae2b829ea90343223f63ec610650352",
+  "scope": "test-only scratch path: give stalled-resolver cases their own parent directory instead of scanning the host temp root during recovery::begin",
+  "canonicalSuiteRestarted": false,
+  "productionSourceIdentical": true,
+  "miniUnitRecheck": "41 passed",
+  "linuxUnitRecheck": "42 passed"
+}

@@ -1,0 +1,13 @@
+{
+  "artifacts": {},
+  "bundleId": "",
+  "cliVersion": "0.4.10",
+  "error": "E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)",
+  "events": [],
+  "exitStatus": 1,
+  "finishedAt": 1790899323637,
+  "phase": "environment",
+  "segment": "smoke",
+  "startedAt": 1790899323526,
+  "timestampUnit": "unix-ms"
+}

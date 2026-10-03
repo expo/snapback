@@ -1,0 +1,54 @@
+[
+  {
+    starter: 'plain',
+    mode: 'shadow',
+    before: '82740688d27bcfa12a10032293701d6410607ff0261be6bcc1ae581135bdb0d1',
+    after: 'b70677d0195de96ae0016462e96352282b55214846eedb7c4c04d9b6a233d111',
+    dependencyAudit: {
+      sha256: '827720b0e1417f0fa04a2309a69237a0b9ae654c94b15da30383d61c8fe68c06',
+      audited: true
+    },
+    applicationJsExcluded: true,
+    evaluatedBefore: 'first',
+    evaluatedAfter: 'second'
+  },
+  {
+    starter: 'plain',
+    mode: 'auto',
+    before: 'ee942f7140ed066d0f8e22a758aee8b540decbe4565e932fd08cfa6efa072db0',
+    after: '5b6d840fdda39d82bd5465a0284c25389f7e48175878831d65faddc8850bd78f',
+    dependencyAudit: {
+      sha256: '827720b0e1417f0fa04a2309a69237a0b9ae654c94b15da30383d61c8fe68c06',
+      audited: true
+    },
+    applicationJsExcluded: true,
+    evaluatedBefore: 'first',
+    evaluatedAfter: 'second'
+  },
+  {
+    starter: 'social',
+    mode: 'shadow',
+    before: 'aa621e8154883c4b921987e87cac3a04c22c75053a231a10fda70391e9c52350',
+    after: '000b43be48e1e0da568903a614f7c58eb386e08dc75e19579c17f1cf05674bab',
+    dependencyAudit: {
+      sha256: 'af886e79185d1f8603332cfd9973713f0fcfb94995a134ad16c2b97bf5d4453e',
+      audited: true
+    },
+    applicationJsExcluded: true,
+    evaluatedBefore: 'first',
+    evaluatedAfter: 'second'
+  },
+  {
+    starter: 'social',
+    mode: 'auto',
+    before: '9cf76c77c49881f767094ddad6414734752e4d0210e3aef400a0ddeb7fe00931',
+    after: '6103942ee31d1075e61713f61de6865f6689734dc82e39acf63bcb1b84303606',
+    dependencyAudit: {
+      sha256: 'af886e79185d1f8603332cfd9973713f0fcfb94995a134ad16c2b97bf5d4453e',
+      audited: true
+    },
+    applicationJsExcluded: true,
+    evaluatedBefore: 'first',
+    evaluatedAfter: 'second'
+  }
+]

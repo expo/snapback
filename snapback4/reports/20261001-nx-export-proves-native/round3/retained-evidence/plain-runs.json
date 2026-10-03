@@ -1,0 +1,3531 @@
+[
+  {
+    "run": "1790943648692-18182",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790944103192,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "717979041e9ce23cb6a14dd9bc08c85ed72bb496568d2aeff86fbd7e82250d37",
+        "archive": "evidence/plain-development-smoke/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 486,
+        "sha256": "139ffc79c37017fdb42c40337b5346cf7ad23b11fdfca86f684bf01527409558",
+        "archive": "evidence/plain-development-smoke/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json.gz",
+        "bytes": 10268,
+        "sha256": "7d9bf2c63b877bd2ae6f485d755c19b5704104a83ad0189538c167faa48bc5f7",
+        "archive": "evidence/plain-development-smoke/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 965,
+        "sha256": "a6d4ef77ec6eaf2b16aa0b7d8bb1c27fd47d75f672137cc936d3e1b5b48c0b91",
+        "archive": "retained-evidence/plain/1790943648692-18182/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 822,
+        "sha256": "b683391ddfa1c7ee03f30d223f5cbb051f120792311d97efdbf03b0e7cf3324c",
+        "archive": "evidence/plain-development-smoke/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790945203370-20393",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790945424290,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42186753,
+        "sha256": "7f1d8b9fba510762118fb5e641cf0843dc2eb7995f27539035d4aad3f1e6a909",
+        "archive": "evidence/plain-ios-context-first/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "1334df7572ebe24214c7dcfab126b7b288a2c06b554a715c029af5f38cf6dd6c",
+        "archive": "evidence/plain-ios-context-first/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "e027630fedf02d8de15d2b7f2f30d4ea2f2d79be98dea4bf8ebee8a5d6257659",
+        "archive": "evidence/plain-ios-context-first/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 920,
+        "sha256": "d7814ec3977ffb1458ac3aa852b2e716c770809ce57548fbbd72c997ca0d0bbe",
+        "archive": "evidence/plain-ios-context-first/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47997995,
+        "sha256": "8e29d91dc516b030cb209c41eb0e30290576f43dfbfac565c18251d2fdca027d",
+        "archive": "evidence/plain-ios-context-first/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55085,
+        "sha256": "ebb0c8914bad78e79dc2fcebffea4ca00ea2781716f849db6720945c84e8501a",
+        "archive": "evidence/plain-ios-context-first/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 2069,
+        "sha256": "e550bc2f3355c93da3410f11a535106c15cb733431d06ebc493b14d8af783f7c",
+        "archive": "retained-evidence/plain/1790945203370-20393/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "247bb651c5935b56755f7a37d6ac3624887af1e3158e53ebb4b261c2423df49e",
+        "archive": "evidence/plain-ios-context-first/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17569,
+        "sha256": "dee832e840872b094fc56fc1a77a04f396802eb00a007c33159722605e4c1712",
+        "archive": "evidence/plain-ios-context-first/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790945425188-25450",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790946625096,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "70b8fbf181a68f9fd8ba757a843a4f072087cc619beee0fa07b6dd4df3a5aa89",
+        "archive": "evidence/plain-ios-context-second/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 421,
+        "sha256": "eb2184d06c9a13b1527b4aa1bb7cf5c805439e34952e4f92a184195c4f4528e2",
+        "archive": "evidence/plain-ios-context-second/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json.gz",
+        "bytes": 22439,
+        "sha256": "64efa80d3b1598b20f5c5e1605ab2d537378994813d78ba1d255ad285d273792",
+        "archive": "evidence/plain-ios-context-second/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1082,
+        "sha256": "ed30856a7d075b6e6d140c6bd8e8cd42c995c9aca51fb93f70f8cbfdc0acf66d",
+        "archive": "retained-evidence/plain/1790945425188-25450/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 802,
+        "sha256": "bca201924d959a607d176a867e209e54ee34e042a7c6694949a0f3a8c8fc42c6",
+        "archive": "evidence/plain-ios-context-second/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790946980632-28993",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790947954614,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "c46be39ad2a5194c367f522de2de2109bc33bbc05072569ba0858a3b5c04cb58",
+        "archive": "evidence/plain-ios-context-second-retry1/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 421,
+        "sha256": "2d87f46370274cf2da0fa99b1762e41e8cfbafb8ca4024fcf7f37fd6cf3b24b7",
+        "archive": "evidence/plain-ios-context-second-retry1/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json.gz",
+        "bytes": 22441,
+        "sha256": "d6ffee096733dd14847d290c5e249ee43e12152e374a8005571254310d8d2f1e",
+        "archive": "evidence/plain-ios-context-second-retry1/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1082,
+        "sha256": "ed30856a7d075b6e6d140c6bd8e8cd42c995c9aca51fb93f70f8cbfdc0acf66d",
+        "archive": "retained-evidence/plain/1790945425188-25450/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 802,
+        "sha256": "2e545b538e9b91dd90e5f9c08cd4b12ba748023ea1438d5ba21324ff79cce76e",
+        "archive": "evidence/plain-ios-context-second-retry1/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790948473516-32319",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790948565365,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42188167,
+        "sha256": "e9b596e486690ed668719cdc4b68c721adfb140ecc4d6f9f5cb58b803a4e2401",
+        "archive": "evidence/plain-ios-context-second-retry2/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "b072794d4a3b292739f7a3bc8bffd04e3e7da43bff34051903ab1a46b6c203cf",
+        "archive": "evidence/plain-ios-context-second-retry2/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "40c399aae8f7c283357a89e80f8fc0fbeb6653390abbe3ade4c5ab4bb8acc9ce",
+        "archive": "evidence/plain-ios-context-second-retry2/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 919,
+        "sha256": "7937aedaa8159c180d376610f2ccec07e78271dde86e0a88909ce6d7d9776928",
+        "archive": "evidence/plain-ios-context-second-retry2/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47999409,
+        "sha256": "7040a3f0f2f445eaaa46809b79e25cb1c67b9ca4c037f62cefd55c33d22e9fef",
+        "archive": "evidence/plain-ios-context-second-retry2/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55084,
+        "sha256": "552b45ef3fb593cd02fd8d665c07da371840514a6c6ba0c9b852dd1cd1931888",
+        "archive": "evidence/plain-ios-context-second-retry2/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 2069,
+        "sha256": "e550bc2f3355c93da3410f11a535106c15cb733431d06ebc493b14d8af783f7c",
+        "archive": "retained-evidence/plain/1790945203370-20393/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "dd5caac1df8a4ca04f9265e18a5010e9f2900a05b1ba8e6257f0ff71149512f8",
+        "archive": "evidence/plain-ios-context-second-retry2/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17568,
+        "sha256": "1ba7cae2060120a08932bc85a62c27d3791de1ed98a8d54d4de504cf94bca52d",
+        "archive": "evidence/plain-ios-context-second-retry2/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790948567038-35329",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790948572202,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "279ad90ebced1044d04a8aa670bd0ee56c371cc254bb93206cea59220fcd5e4e",
+        "archive": "evidence/plain-remote-icon/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 420,
+        "sha256": "f50fa13b285dbeb195588de4b452b49c3cf15ef17ea03ccd17b58e6270a188fd",
+        "archive": "evidence/plain-remote-icon/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-failure.json.gz",
+        "bytes": 4618,
+        "sha256": "f00466a2c1a97341a48f901a9ac0345f2bc3445ae75de759788e338b9592b170",
+        "archive": "evidence/plain-remote-icon/preparation-failure.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 702,
+        "sha256": "4d41ae42ff22415318ad00562030af146ebefd90548b490d92125808b31c2940",
+        "archive": "retained-evidence/plain/1790948567038-35329/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 821,
+        "sha256": "ed5b17845cc68a5e34f42154f0ce786ba6effbeba54b15fd9b213e759e6fc4f1",
+        "archive": "evidence/plain-remote-icon/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790948944334-45709",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949042205,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42182188,
+        "sha256": "199ea939e5342003a4cb941c5ebc06f58b274d2a8735340042361e1deacc47d7",
+        "archive": "evidence/plain-lifecycle-prime/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "373f7287f5b46911667890c876fa289d6a7bee8dc33105be39a78164fd50502a",
+        "archive": "evidence/plain-lifecycle-prime/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "786908b314525acb0b63d7d7862636647d8b1e8c1771c06b17f8f8232e9eacd6",
+        "archive": "evidence/plain-lifecycle-prime/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 918,
+        "sha256": "8800858509b499e489d5519f6bd24a1fc526c6765236eb0472792157ad25b24e",
+        "archive": "evidence/plain-lifecycle-prime/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47993199,
+        "sha256": "8e722cca1e2e2880562042e5e794bbcac7d5f32e8762b02013604d1fcc17f3a0",
+        "archive": "evidence/plain-lifecycle-prime/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55052,
+        "sha256": "27e08374bd1b52e967aaa941558ef20bbce28ad5c3c6e38bc52015365d921f28",
+        "archive": "evidence/plain-lifecycle-prime/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 2069,
+        "sha256": "e550bc2f3355c93da3410f11a535106c15cb733431d06ebc493b14d8af783f7c",
+        "archive": "retained-evidence/plain/1790945203370-20393/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "6cf6137f638ba5c8d8f927db2e0ac3dd0f3924458c34cce208117d5666cf46bb",
+        "archive": "evidence/plain-lifecycle-prime/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17568,
+        "sha256": "b829eb14bd60b0f96c62825820fce16ea309737fbc7145d3e67a41d533756926",
+        "archive": "evidence/plain-lifecycle-prime/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949043434-48697",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949136033,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42185997,
+        "sha256": "9a808fb2363e7c9d05bc2a3de13ee8e1bd4c4dc0dc46d0fef4ec3ecf669b2b91",
+        "archive": "evidence/plain-driver-only-death/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "8eccf89986413d122d16d1980c1fafe641cb44c9400e0875695d78475cd167ce",
+        "archive": "evidence/plain-driver-only-death/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "eed21dc8e8532eb037cfda2dce7d94344993a44ceac6fb2af2bd01c1224f2b3a",
+        "archive": "evidence/plain-driver-only-death/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 918,
+        "sha256": "70d561a0507498c6080d9ce5b6720b09d593cb7e37440946c0cd72894590f4dd",
+        "archive": "evidence/plain-driver-only-death/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 48001308,
+        "sha256": "5fbef5eb0573d09f33028bcbe7a2416925e708f36a1e6ad6c777bb58813a0ffe",
+        "archive": "evidence/plain-driver-only-death/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55052,
+        "sha256": "02cc1fb579e82c2885db08a4e52d3b3a30f4b32df6bb5e1b18cc2e97e3c58d35",
+        "archive": "evidence/plain-driver-only-death/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1681,
+        "sha256": "0e89b322a03a39c6c06ac0dcd4466666d4a356972c6963f1ce6c5d033724f33e",
+        "archive": "retained-evidence/plain/1790949043434-48697/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949136853-50761",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949267633,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42191137,
+        "sha256": "2a9ba67fe101ea25b491e595b42b6bbf94aa704eca9b5945102db1637bab7621",
+        "archive": "evidence/plain-after-driver-only/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "fb7a9ed6da9682979cba6a75e9114ba668df4952cf89023411c0eeb54d0dfdb7",
+        "archive": "evidence/plain-after-driver-only/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "67551b2e492b08b9a3fb12d6bad5f597f78dd6790cb2ecca966a48fd19b32f82",
+        "archive": "evidence/plain-after-driver-only/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 985,
+        "sha256": "e41885d69425aa4a220f303acdb327c26b7be414eff3ce207f7e982b46f6589d",
+        "archive": "evidence/plain-after-driver-only/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 48006448,
+        "sha256": "7d40da1d698589fb8d0d8477de640032109951d5030374cd386e6e319f20f6d3",
+        "archive": "evidence/plain-after-driver-only/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55053,
+        "sha256": "d0517181e77a0a73d4ca9f0c79b862d40d6faf5d97db7fd6c1a05669f980d615",
+        "archive": "evidence/plain-after-driver-only/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 2121,
+        "sha256": "5e4b467a299c91180f34ce3111eb3a3b5796a2284b34bae16c7b8683703d80ec",
+        "archive": "retained-evidence/plain/1790949136853-50761/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "024b6b97c82b771cb19a22658ff6d125e4dbdd84558ee567b20a4afde96c2fab",
+        "archive": "evidence/plain-after-driver-only/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17589,
+        "sha256": "c32d6870c1101b7813a1dab8f488fdee59843a24066692064428d1a241a518a3",
+        "archive": "evidence/plain-after-driver-only/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949320748-54710",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949336296,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37171,
+        "sha256": "38bac358488f5e1cfd627bd49579fa25fb12d0835f50c67cd2c78760b42f53de",
+        "archive": "evidence/plain-lifecycle-prime-final/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "de2bc2e7b97870832a686b05c42f47b9793deebacbdd2a5ec4442b1956463f39",
+        "archive": "evidence/plain-lifecycle-prime-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "cc416d0e326578bcccb6f4d8f54033b8214aeec678402925bb0394f1ef08a31a",
+        "archive": "evidence/plain-lifecycle-prime-final/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 919,
+        "sha256": "be95dfda94b0c037cadf5b10360454fc11f216344e2d798482085e4f937dc3c4",
+        "archive": "evidence/plain-lifecycle-prime-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55047,
+        "sha256": "d6e9c3abcaf190820bfcca3c538290d52812cccdbfdafa5d3af0030280fc08f3",
+        "archive": "evidence/plain-lifecycle-prime-final/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1566,
+        "sha256": "dc095a35ae2f726785ec9ad399f87272b50dfbfb9d40a5568de33523454f26eb",
+        "archive": "retained-evidence/plain/1790949320748-54710/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "548cab4186fbec151b53c8465e0ddf03a2557233f29bc015dc08162391bb4226",
+        "archive": "evidence/plain-lifecycle-prime-final/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17567,
+        "sha256": "30161de8ccbce61870fa67a27f3e6c801c617ab5e172a94df634ca6ee6355fca",
+        "archive": "evidence/plain-lifecycle-prime-final/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949336991-56292",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949349799,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37171,
+        "sha256": "63e4fb51ceec0df48ec982059e4796daeab31afb5722a7dc4afde32e91eed5aa",
+        "archive": "evidence/plain-driver-only-death-final/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "c995244a9c5c2efac311761f580f6175fdfd072749235c31e9bb89e446610063",
+        "archive": "evidence/plain-driver-only-death-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "363d8ca7f6d6d52d55aabd3a5b243664888aa7d5589973a520342b3906799b03",
+        "archive": "evidence/plain-driver-only-death-final/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 919,
+        "sha256": "3254ae1e3174d6645455df3a2c1858e2e3244a421ad059b4ec41a0fbec57a815",
+        "archive": "evidence/plain-driver-only-death-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55047,
+        "sha256": "5eb735702f0b9fd2951c0f3a9f93a32547da54881bf8858a330dba8472bfaa47",
+        "archive": "evidence/plain-driver-only-death-final/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1178,
+        "sha256": "5b86c97939e28592086fc8633ae1caa822346450ed7236e17e622da6808001be",
+        "archive": "retained-evidence/plain/1790949336991-56292/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949350011-57253",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949388516,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37178,
+        "sha256": "61bc305464d1c8e0ffa4ae4cb0e5591942215351253c18432e58556fb93f4f36",
+        "archive": "evidence/plain-after-driver-only-final/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "bed78138cbabbfe5c7c06b60ee4b2c6b291966e31480aee1226ee26f88fec050",
+        "archive": "evidence/plain-after-driver-only-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "cd55a9d3ff3235ddfa3533b45c3b04311e25c17160375970aa1a0d3067818898",
+        "archive": "evidence/plain-after-driver-only-final/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 984,
+        "sha256": "4c4acd05c1096076feb1f6e8aabe67b76e65071f8e14530a854376b0d1c6a273",
+        "archive": "evidence/plain-after-driver-only-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55048,
+        "sha256": "9eae721923103c1cebffb3b45ab33dea899e2f6cb67c48d9a672cf6d70f6f8fc",
+        "archive": "evidence/plain-after-driver-only-final/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1618,
+        "sha256": "a7e7682346521bfd5371aaf08954daa934a87cc3dace9ec4fc3148d705f392a4",
+        "archive": "retained-evidence/plain/1790949350011-57253/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "cd846889fe9ee32d96e9004b0208ca66066eb751d6ada726a2ab8725ece2d89b",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17587,
+        "sha256": "7693494316ea3385922c2534f1e6c0d2abac256a9043c4ab988b2e7d7d2b08e1",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949389466-59334",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949399791,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "7e7d246b143f851a4d0dcfffd5ffe0cd92773f5f9a2c8909ade60c98f9aed259",
+        "archive": "evidence/plain-live-preparation-child-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 420,
+        "sha256": "f10daa2b5b4a0eb460740e3f9000c87588018e79184589372a35aac96198d459",
+        "archive": "evidence/plain-live-preparation-child-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 372,
+        "sha256": "49c367fabf680c6335c83a2e8592794af5e3cb213a54fdadd3858da664cf492b",
+        "archive": "retained-evidence/plain/1790949389466-59334/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949400716-60132",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949439085,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37179,
+        "sha256": "a0e5c23dabafa556a0c96ae035583044f0d8c1608c5919341b5adb0bc1c1a66b",
+        "archive": "evidence/plain-after-preparation-child-final/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "7e835b4c93587d83e360989900eed7741aa698fb3aef6a3f960ce00f2da9afda",
+        "archive": "evidence/plain-after-preparation-child-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "4054751403e5c5808eb23da65dd3f2e9b0eaf4024ebaf24dc88b5eaacddee2fb",
+        "archive": "evidence/plain-after-preparation-child-final/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 984,
+        "sha256": "4a19a3a785bb099107e50f72da5e1cd5173b30135cefcdf8460b76c20f171763",
+        "archive": "evidence/plain-after-preparation-child-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55048,
+        "sha256": "a550110c6cd57a0249e099c2982fea91e38850b61b8412f3369faa106df15032",
+        "archive": "evidence/plain-after-preparation-child-final/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1618,
+        "sha256": "a7e7682346521bfd5371aaf08954daa934a87cc3dace9ec4fc3148d705f392a4",
+        "archive": "retained-evidence/plain/1790949350011-57253/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "bc8b813bb86a736c23b0e6e6f7451a69fd99ca24a205a3aaed5cd979ee459324",
+        "archive": "evidence/plain-after-preparation-child-final/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17587,
+        "sha256": "1265d022cbdf90b00edbf7723f8dc68f8cc8555699d718695005ff0a19ee6dd7",
+        "archive": "evidence/plain-after-preparation-child-final/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949439766-62174",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949444508,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "b3b9a665ae9ec5aefaca476df9b22c0c0ac42961e357a068c3c01f9d8244b38d",
+        "archive": "evidence/plain-buffered-create-kill-final/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 436,
+        "sha256": "c337d3a119c01592f408a27e416459ec4da832abe89dd79830f09a863743945f",
+        "archive": "evidence/plain-buffered-create-kill-final/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 114,
+        "sha256": "d119d5823fe6fae800f63491bb47e66e989102eee89c16d7944c3e33e50a6a0d",
+        "archive": "retained-evidence/plain/1790949439766-62174/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949444670-62378",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949465131,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 37171,
+        "sha256": "141f9b0719fe9a89e318982df65cf158e96c845dd527003d56333f934322c9c5",
+        "archive": "retained-evidence/plain/1790949444670-62378/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "257436a65544d1de5ab51554490b2f54a2f2d78d5807149066ec939f102be590",
+        "archive": "retained-evidence/plain/1790949444670-62378/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "ea924d95810f79adcd08daebe2df99ff1c10231aaf11c8c56ac0f34bea350f92",
+        "archive": "retained-evidence/plain/1790949444670-62378/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 920,
+        "sha256": "a1591235754834f5f72bd78e29fd5b2e24111379be36f995b4b64d5be4d05bcb",
+        "archive": "retained-evidence/plain/1790949444670-62378/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55047,
+        "sha256": "76089c2ec19b4dee483a4e991b014275e9a6e59f37fe8f6f4b3a261d6eccb327",
+        "archive": "retained-evidence/plain/1790949444670-62378/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 1566,
+        "sha256": "dc095a35ae2f726785ec9ad399f87272b50dfbfb9d40a5568de33523454f26eb",
+        "archive": "retained-evidence/plain/1790949320748-54710/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6164,
+        "sha256": "cc37eff79bd87d911da13ffa57ca0b45346cab48df3aa609d5dd3539f63f5675",
+        "archive": "retained-evidence/plain/1790949444670-62378/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17567,
+        "sha256": "85741454730a680810d35bfd535cfb5a89563b9244633cdbd8fcabc4c55a3494",
+        "archive": "retained-evidence/plain/1790949444670-62378/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790949454629-63131",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790949458228,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "a6c9cefb53aea87e77e37eab7b0336dee2ab4b33425c56fd72faf7e3fa16f05b",
+        "archive": "retained-evidence/plain/1790949454629-63131/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 143,
+        "sha256": "314141ece2c6df4c1a0c9b3bc55c4c19331fe44669802d2f95def52879eccaf3",
+        "archive": "retained-evidence/plain/1790949454629-63131/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 86,
+        "sha256": "e56b0d0b24d5b5b64d5d02778781265a6e0858048b8d398e0f65747c7060234c",
+        "archive": "retained-evidence/plain/1790949454629-63131/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 333,
+        "sha256": "9943aba04a9343ef7aa6b2ba2a3b508623b212c65de38cff3ac3422e0da8cd00",
+        "archive": "retained-evidence/plain/1790949454629-63131/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952019479-7175",
+    "compressed": true,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952193798,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "build.json.gz",
+        "bytes": 42179828,
+        "sha256": "e4f260b103fff0b57548983a11289c0dc52533f775129fc5a11fa8a0b0e1e727",
+        "archive": "evidence/plain-cold/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "0ee36f3fea55190b3af7244a547f92f2c0063ac50a1e595a33c6f1c26bde12fc",
+        "archive": "evidence/plain-cold/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json.gz",
+        "bytes": 20273,
+        "sha256": "f0a0baa285bdf1f1c2594b834fabe695764ed88f6ec9d93598d94749e5f50f12",
+        "archive": "evidence/plain-cold/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json.gz",
+        "bytes": 917,
+        "sha256": "ee57385f8396b4949c9c7852e27bd120e629295bcba8e86c33134a721bc81bfb",
+        "archive": "evidence/plain-cold/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-base.json.gz",
+        "bytes": 47990588,
+        "sha256": "8cce884f9536ed82c5c3fb14eaa2ec4f2d21bfa2c63ed0a1f51239c5a11a0f9a",
+        "archive": "evidence/plain-cold/native-base.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json.gz",
+        "bytes": 55049,
+        "sha256": "f2c3b9ec32a068d4d8f4f1ffe77f5ee74bb26b4b3912b95df7c55c14db21455c",
+        "archive": "evidence/plain-cold/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "retention.json",
+        "bytes": 2069,
+        "sha256": "e550bc2f3355c93da3410f11a535106c15cb733431d06ebc493b14d8af783f7c",
+        "archive": "retained-evidence/plain/1790945203370-20393/retention.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl.gz",
+        "bytes": 6161,
+        "sha256": "b70ff23a91d91cdd10c858a86dfb777b3f6fc2087f89d82930c3ca998e09594c",
+        "archive": "evidence/plain-cold/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-run.json.gz",
+        "bytes": 17542,
+        "sha256": "dfc8d90e820dacbcd5b89f0b764f52b9f8f1ca96c71744455c3b857415f80fd4",
+        "archive": "evidence/plain-cold/smoke-ios-run.json.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952194579-11548",
+    "compressed": false,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952210284,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "before-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37171,
+        "sha256": "4ed9ea8360b9a7d029352aa9f66440c9f0924aa08031d74fa47696184e2caaea",
+        "archive": "evidence/plain-warm1/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "5a2d6b53816ac6164afbfffdf1adf5c1d5685aa0b891d793a2bdeb2cfba7e259",
+        "archive": "evidence/plain-ios-context-second-retry2/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 6048,
+        "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+        "archive": "retained-evidence/plain/1790952194579-11548/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17382,
+        "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+        "archive": "retained-evidence/plain/1790952194579-11548/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-after-driver-only-final/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-after-driver-only-final/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-after-driver-only-final/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-after-driver-only-final/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "870b7b16547d91ab89bf3fdeba2891445082e49cd507dfea90044ad40b918e37",
+        "archive": "evidence/plain-warm1/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790952194579-11548/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "2d9f66c1d4a4023f8acb43c09259f5ce179b25decda753414a0e43ec333c47ef",
+        "archive": "evidence/plain-warm1/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 920,
+        "sha256": "004a4d32435da6e40fa0cb0341490063ad5ed01e1ad2c49c0e438fcd862306c1",
+        "archive": "evidence/plain-warm1/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1470,
+        "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+        "archive": "evidence/plain-after-driver-only-final/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790952194579-11548/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "aa0d280dad91410e0e1aa79f339c97d0edef5b66164f4fcc05eae5b1588c529b",
+        "archive": "evidence/plain-warm1/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-runner.mjs",
+        "bytes": 674,
+        "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+        "archive": "retained-evidence/plain/1790952194579-11548/preparation-runner.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21649,
+        "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+        "archive": "retained-evidence/plain/1790952194579-11548/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55047,
+        "sha256": "76388c2c9b9d9578f60f8f0849752dba7c8213106d786f1b7d3f10794e10f58e",
+        "archive": "evidence/plain-warm1/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "96920d87c5018d96fc3ab068899cc65d0f1d6dde43bf57c2a63b34653cfcb2b6",
+        "archive": "evidence/plain-warm1/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "673f6a369588b66122b4bc1a26c547224bc181f0b08de123c4d15ce6aea529cd",
+        "archive": "evidence/plain-warm1/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8219925,
+        "sha256": "2173e6e27dd6d8a7978be59bd6a77e1ce2382848ce51bcccb4cc11788e496bdb",
+        "archive": "evidence/plain-warm1/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "5cffae696c0c265257adba69c379951d6d6890a82c21cbf0a5e06b0e7ae2ba91",
+        "archive": "evidence/plain-warm1/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 49213,
+        "sha256": "333e2cbb7f4da821f3e43e94982d1f1883a5dff703f3f7b7fc088df030f540d3",
+        "archive": "retained-evidence/plain/1790952194579-11548/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 48950,
+        "sha256": "3f4d5f0de11561675ca901733d27246b4bbb75ca7428819de81583e35daae327",
+        "archive": "retained-evidence/plain/1790952194579-11548/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6166,
+        "sha256": "9c50d18293b524cf0ac95daba7d0e41ac100b86980719a54c1f070e72a554021",
+        "archive": "evidence/plain-warm1/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 48950,
+        "sha256": "3f4d5f0de11561675ca901733d27246b4bbb75ca7428819de81583e35daae327",
+        "archive": "retained-evidence/plain/1790952194579-11548/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17572,
+        "sha256": "a65cfc76af3db16e7a82f0c2fe9c9dda246467ea5ad6c50174fed982315e1c7d",
+        "archive": "evidence/plain-warm1/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 3328807,
+        "sha256": "a3d63cf2f1857440cec650b8467139b3a035c2f8137f4276689ceed22419920e",
+        "archive": "retained-evidence/plain/1790952194579-11548/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "421d73e48fb30c976d4c19db67494b4d83771db2e13d837a358f5bafb590f002",
+        "archive": "evidence/social-warm1/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790952194579-11548/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952210495-13098",
+    "compressed": false,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952226135,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "before-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37171,
+        "sha256": "1ddf417b6453ec4e0159affafdea456a208b0cfa5c240706c9a79776fd7891a1",
+        "archive": "evidence/plain-warm2/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "5a2d6b53816ac6164afbfffdf1adf5c1d5685aa0b891d793a2bdeb2cfba7e259",
+        "archive": "evidence/plain-ios-context-second-retry2/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 6048,
+        "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+        "archive": "retained-evidence/plain/1790952194579-11548/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17382,
+        "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+        "archive": "retained-evidence/plain/1790952194579-11548/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-after-driver-only-final/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-after-driver-only-final/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-after-driver-only-final/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-after-driver-only-final/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "1f58d5dc2e92445edcf83077cf780485e6c0653badbe804dc3513b297d940f8f",
+        "archive": "evidence/plain-warm2/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790952194579-11548/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "53447c9429970e98e1c37e054de1a4016f9ef28996c5c39a1e75e45d657c97d4",
+        "archive": "evidence/plain-warm2/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 920,
+        "sha256": "3ebe49e8016f9c875b9cfbaee8689409e768d6118b599f44a9c54ffed4263e74",
+        "archive": "evidence/plain-warm2/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1470,
+        "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+        "archive": "evidence/plain-after-driver-only-final/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790952194579-11548/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "e49d8866fe684fb8785fcb8ba0b73739cc17b663e19d3b4b627cc5dce82e84d2",
+        "archive": "evidence/plain-warm2/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-runner.mjs",
+        "bytes": 674,
+        "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+        "archive": "retained-evidence/plain/1790952194579-11548/preparation-runner.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21649,
+        "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+        "archive": "retained-evidence/plain/1790952194579-11548/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55047,
+        "sha256": "9ba3c2081c60bc9bd62a73ee6790b38d3ffb98e1881dd673ce3d54c8ef0d60e7",
+        "archive": "evidence/plain-warm2/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "df1c1eda9428a9d5382ff82a7f3c016b4426cfdc3ebfbd657830f6715b631e9c",
+        "archive": "evidence/plain-warm2/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "d9b92ceaed9d37c16087e14379929cfa9136103a69f309932a2ad91d050135a6",
+        "archive": "evidence/plain-warm2/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8238288,
+        "sha256": "b0bcab49968a6c71a74e2327112cdddf834b588e9aacf19f7a91e8f559acab4c",
+        "archive": "evidence/plain-warm2/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "741a4d698e25f804a520fe7f743a7c9cf7bdad3a9a97fa72d4e5a2be975efe9f",
+        "archive": "evidence/plain-warm2/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 49200,
+        "sha256": "b8483146d554785917c9257af661eb1d7e1a6b7077218466ee9fc9b7bf96a97b",
+        "archive": "retained-evidence/plain/1790952210495-13098/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 48933,
+        "sha256": "2a88852d6b7eccc1b45a1c862550d5311293573ba116e7cfdc49a54f317cecab",
+        "archive": "retained-evidence/plain/1790952210495-13098/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6168,
+        "sha256": "7a565d28de206dabec544157697fc5e866c853d850cf1b5f79c446f8f6c4898f",
+        "archive": "evidence/plain-warm2/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 48933,
+        "sha256": "2a88852d6b7eccc1b45a1c862550d5311293573ba116e7cfdc49a54f317cecab",
+        "archive": "retained-evidence/plain/1790952210495-13098/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17576,
+        "sha256": "471595ed5dac0f2dd5c82d5f38f698c4f0842c2f486e31356f4bf41df96a889c",
+        "archive": "evidence/plain-warm2/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 3489884,
+        "sha256": "a90315ed5320e442fcad7e355596666a23969054538fe99da9cc7a270aba6c44",
+        "archive": "retained-evidence/plain/1790952210495-13098/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "421d73e48fb30c976d4c19db67494b4d83771db2e13d837a358f5bafb590f002",
+        "archive": "evidence/social-warm1/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790952194579-11548/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952226327-14571",
+    "compressed": false,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952242014,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "before-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37171,
+        "sha256": "7484b9cfee236956e166d5e74ae742adfaabb8fdd2597d73058893d008f5e7c6",
+        "archive": "evidence/plain-warm3/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "b955a707c859a486af2187e768e6aec6baf45f59841d055ab5144a8033030d36",
+        "archive": "evidence/plain-warm3/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 6048,
+        "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+        "archive": "retained-evidence/plain/1790952194579-11548/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17382,
+        "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+        "archive": "retained-evidence/plain/1790952194579-11548/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-after-driver-only-final/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-after-driver-only-final/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-after-driver-only-final/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-after-driver-only-final/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "833e605506d72a51f00485520223765730bb513f98d6a83e891ac3726769f2ab",
+        "archive": "evidence/plain-warm3/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790952194579-11548/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "254e160190291a0e241f07c751abd6f095cb382b66023db8ef300a52ddc7d946",
+        "archive": "evidence/plain-warm3/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 919,
+        "sha256": "338df24ca14156de6ee9038d68ab70adfb80295ab3f14318d63403afe2975a43",
+        "archive": "evidence/plain-warm3/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1470,
+        "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+        "archive": "evidence/plain-after-driver-only-final/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790952194579-11548/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "acaa0f671933a3c8bc5b61654af62bbc43ba5a024394e00e56e0d60db9252661",
+        "archive": "evidence/plain-warm3/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-runner.mjs",
+        "bytes": 674,
+        "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+        "archive": "retained-evidence/plain/1790952194579-11548/preparation-runner.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21649,
+        "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+        "archive": "retained-evidence/plain/1790952194579-11548/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55047,
+        "sha256": "979b01bdcc2a1ecd4f0daaded49901c2a2f58e01c54e3c013588f3773f9f54a7",
+        "archive": "evidence/plain-warm3/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "717960bc12624280d0f33e5fcb099c129a9b494af2764453dd18619f898808f2",
+        "archive": "evidence/plain-warm3/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "6cb188bfcd18d9b57c1dd9ffed9588f3676c2e309cf662e1a08a8024f2500668",
+        "archive": "evidence/plain-warm3/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8226138,
+        "sha256": "f798b27ff477373c6d9dc508f81d93dc43a073b7af86a04df149927d93beccf0",
+        "archive": "evidence/plain-warm3/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "b3673ed093f6b3249d6a302748d1b4f9bc505074badb2f2fce4ed2a414d8f51d",
+        "archive": "evidence/plain-warm3/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 49459,
+        "sha256": "3797df8214edcb9bbafbac56932dc4cdfb16b2206e85524ffc002b51ff199d51",
+        "archive": "retained-evidence/plain/1790952226327-14571/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 49181,
+        "sha256": "50d81b77e35590c25f22c3422546da0aef8c37c41f90f876d57226aae2a3be20",
+        "archive": "retained-evidence/plain/1790952226327-14571/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6168,
+        "sha256": "c88a1c65f61d706c5fc4bb7c44f746d1654387adb1927fef7d418f9ab8534259",
+        "archive": "evidence/plain-warm3/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 48819,
+        "sha256": "00513944afe6537dd1a44c75788995acdfd794c18c356fb4878b1f64653a2c7f",
+        "archive": "retained-evidence/plain/1790952226327-14571/smoke-ios-restart.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17576,
+        "sha256": "926aa50267e7e5dcc57c0ea584d859ac1d31399f9375b0c543b81d4dfccca9d3",
+        "archive": "evidence/plain-warm3/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 3381640,
+        "sha256": "25654c76e63f1a245a6ef2aa33c4b352e55fbb8971404b9fd12ebfbb7643cab7",
+        "archive": "retained-evidence/plain/1790952226327-14571/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "421d73e48fb30c976d4c19db67494b4d83771db2e13d837a358f5bafb590f002",
+        "archive": "evidence/social-warm1/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790952194579-11548/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952242222-16123",
+    "compressed": false,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952257777,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "before-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37171,
+        "sha256": "f4669dd77996c4e84165f055e37e97d4b8fa6c80bc0a81ba9155287a6f77d30a",
+        "archive": "evidence/plain-warm4/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "b955a707c859a486af2187e768e6aec6baf45f59841d055ab5144a8033030d36",
+        "archive": "evidence/plain-warm3/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 6048,
+        "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+        "archive": "retained-evidence/plain/1790952194579-11548/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17382,
+        "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+        "archive": "retained-evidence/plain/1790952194579-11548/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-after-driver-only-final/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-after-driver-only-final/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-after-driver-only-final/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-after-driver-only-final/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "ded40c505d0ecc7fb1e8ec10b18fb830bdaa5b020f306b66dd2900620e5c052a",
+        "archive": "evidence/plain-warm4/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790952194579-11548/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "b422e21ce9afb991cca2de2cdb0440f0955626cd3715b3503fb00478dd6fcc8d",
+        "archive": "evidence/plain-warm4/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 920,
+        "sha256": "884c37cd2f8255f452c99562c88d6703ac7aa0f2162f625aab8fbfcc3554a21a",
+        "archive": "evidence/plain-warm4/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1470,
+        "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+        "archive": "evidence/plain-after-driver-only-final/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790952194579-11548/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "35fd4e236f523d7522c7e18b55bb2435298c5c5e9ba59178765de1491e099aa4",
+        "archive": "evidence/plain-warm4/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-runner.mjs",
+        "bytes": 674,
+        "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+        "archive": "retained-evidence/plain/1790952194579-11548/preparation-runner.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21649,
+        "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+        "archive": "retained-evidence/plain/1790952194579-11548/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55047,
+        "sha256": "d3faca5ab8e876469dff2c1c54e3be486c9b8f4cbaacc308af4ec68a7a42b28a",
+        "archive": "evidence/plain-warm4/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "75d6f184a407c4a086c58e4f35ed1254450fecda83544b45ca9d537708aca58b",
+        "archive": "evidence/plain-warm4/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "dd6883ced8dab9ee098a847279413caeea5d74b6d79b970dbc556a13e889c8d5",
+        "archive": "evidence/plain-warm4/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8233855,
+        "sha256": "3878bfd0f7b40cee19e8b054338bf633f23596a9e2a89153b446fd3361ef9196",
+        "archive": "evidence/plain-warm4/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "12595f8801fcb2f653646f61794b5034df9f411e552fb062b5e535264a971867",
+        "archive": "evidence/plain-warm4/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 49675,
+        "sha256": "bd42f19f6fb77a325d6a19741c7dca2a8118ed774242c08308937e95292349e4",
+        "archive": "retained-evidence/plain/1790952242222-16123/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 49423,
+        "sha256": "f652206919b43d98696179603fcc6b7c914926ddd572f2d8f78e43b3df01bddc",
+        "archive": "retained-evidence/plain/1790952242222-16123/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6168,
+        "sha256": "2be28f2bf3ac34b9096ee2dcea180625297794c1e4ebdce40b1f532ca281e323",
+        "archive": "evidence/plain-warm4/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 49423,
+        "sha256": "f652206919b43d98696179603fcc6b7c914926ddd572f2d8f78e43b3df01bddc",
+        "archive": "retained-evidence/plain/1790952242222-16123/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17576,
+        "sha256": "ade060a78dae06026b19d248941513766e51fa3bdb9b84e1e5f5d8df6685dbdd",
+        "archive": "evidence/plain-warm4/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 3245479,
+        "sha256": "b2d600394b972c0b8f7621fca6ad1ba38f0bf06fa8b8020806e1a08c15d723dc",
+        "archive": "retained-evidence/plain/1790952242222-16123/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "421d73e48fb30c976d4c19db67494b4d83771db2e13d837a358f5bafb590f002",
+        "archive": "evidence/social-warm1/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790952194579-11548/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  },
+  {
+    "run": "1790952257973-17616",
+    "compressed": false,
+    "finished": {
+      "abandoned": true,
+      "finishedAt": 1790952273582,
+      "recovered": true
+    },
+    "files": [
+      {
+        "source": "before-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "before-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "build.json",
+        "bytes": 37171,
+        "sha256": "23540e0f25b7b435b1f739c9de71c218e6a990383990ab8a7d9f6263638dbcf6",
+        "archive": "evidence/plain-warm5/build.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "check-stdout.log",
+        "bytes": 492,
+        "sha256": "b955a707c859a486af2187e768e6aec6baf45f59841d055ab5144a8033030d36",
+        "archive": "evidence/plain-warm3/check-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "effective-config.mjs",
+        "bytes": 6048,
+        "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+        "archive": "retained-evidence/plain/1790952194579-11548/effective-config.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-cache.mjs",
+        "bytes": 17382,
+        "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+        "archive": "retained-evidence/plain/1790952194579-11548/export-cache.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-copy-base.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-developer.log",
+        "bytes": 93,
+        "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+        "archive": "evidence/plain-after-driver-only-final/export-developer.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-pod-version.log",
+        "bytes": 7,
+        "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+        "archive": "evidence/plain-after-driver-only-final/export-pod-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-ruby-version.log",
+        "bytes": 72,
+        "sha256": "1d3829ff24d6a937a101027f67597375dcbef35fe351955a13fe3adccaeb0da4",
+        "archive": "evidence/plain-after-driver-only-final/export-ruby-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-build.log",
+        "bytes": 7,
+        "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-build.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-path.log",
+        "bytes": 117,
+        "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-path.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-sdk-version.log",
+        "bytes": 5,
+        "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+        "archive": "evidence/plain-after-driver-only-final/export-sdk-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-ld.log",
+        "bytes": 90,
+        "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-ld.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swift-frontend.log",
+        "bytes": 102,
+        "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swift-frontend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-tool-swiftc.log",
+        "bytes": 94,
+        "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+        "archive": "evidence/plain-after-driver-only-final/export-tool-swiftc.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "export-xcode-version.log",
+        "bytes": 33,
+        "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+        "archive": "evidence/plain-after-driver-only-final/export-xcode-version.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "finished.json",
+        "bytes": 62,
+        "sha256": "0fc975f0d7a12533f33a5e59e45c49a84739111e1ab7f03c9da1fff1264af365",
+        "archive": "evidence/plain-warm5/finished.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "install-check.mjs",
+        "bytes": 223,
+        "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+        "archive": "retained-evidence/plain/1790952194579-11548/install-check.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "installed.json",
+        "bytes": 20273,
+        "sha256": "1bbdcff90828d25a4ca27986caf3c07bec6b1d1a1443eadd4ea936e3510f5acc",
+        "archive": "evidence/plain-warm5/installed.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "live.json",
+        "bytes": 920,
+        "sha256": "26a61af3f47be6abce81d8b33e12a1040556b319d185f13b842a69e85fe24247",
+        "archive": "evidence/plain-warm5/live.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-closure.mjs",
+        "bytes": 23846,
+        "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-closure.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-inputs.mjs",
+        "bytes": 11211,
+        "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-inputs.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-mods.json",
+        "bytes": 1470,
+        "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+        "archive": "evidence/plain-after-driver-only-final/native-mods.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "native-scripts.mjs",
+        "bytes": 8789,
+        "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+        "archive": "retained-evidence/plain/1790952194579-11548/native-scripts.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "payload.mjs",
+        "bytes": 3859,
+        "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+        "archive": "retained-evidence/plain/1790952194579-11548/payload.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-phases.json",
+        "bytes": 4704,
+        "sha256": "b963db3ef659b36feeb7d3b033cfde8a579811d4d6113cc321b29ffb1eda35fb",
+        "archive": "evidence/plain-warm5/preparation-phases.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-runner.mjs",
+        "bytes": 674,
+        "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+        "archive": "retained-evidence/plain/1790952194579-11548/preparation-runner.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "preparation-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "prepare.mjs",
+        "bytes": 21649,
+        "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+        "archive": "retained-evidence/plain/1790952194579-11548/prepare.mjs.gz",
+        "gzip": true
+      },
+      {
+        "source": "proof.json",
+        "bytes": 55047,
+        "sha256": "6e27da90f72a1ade7d3ba9c690426b043c41d709556f7c035ee2afde92715127",
+        "archive": "evidence/plain-warm5/proof.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "run.lock",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend-stdout.log",
+        "bytes": 46,
+        "sha256": "daa28e9d0aaa6a0081783000a870f93834474fbcfb30ec22ac2fa9cc90f8648f",
+        "archive": "evidence/plain-warm5/smoke-ios-backend-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-backend.log",
+        "bytes": 1770,
+        "sha256": "5894ada285ba4357819620c5db9326fa0fbcafb86edb2af6ca1a40f1aa0d54d7",
+        "archive": "evidence/plain-warm5/smoke-ios-backend.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-device.log",
+        "bytes": 8247659,
+        "sha256": "883f94661d6eb97f1b30e920a2d05508e04c9bd4e0593fe37cfcc3d821a9f453",
+        "archive": "evidence/plain-warm5/smoke-ios-device.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-launch.log",
+        "bytes": 78,
+        "sha256": "4d0017313df02c7274f723d42b881b078d5a79b2634d33023725f05c03869969",
+        "archive": "evidence/plain-warm5/smoke-ios-launch.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-log-stderr.log",
+        "bytes": 44,
+        "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+        "archive": "evidence/plain-after-driver-only-final/smoke-ios-log-stderr.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-offline.png",
+        "bytes": 48646,
+        "sha256": "4481662b1b4d6e74d7ea779202e7a609668f61aa50582036471b03eaff467d50",
+        "archive": "retained-evidence/plain/1790952257973-17616/smoke-ios-offline.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-prime.png",
+        "bytes": 48389,
+        "sha256": "f83f3b2db99bcae2008ede1227c81b7c493d527efc37a5b90b0e0a38d6433248",
+        "archive": "retained-evidence/plain/1790952257973-17616/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-receipts.jsonl",
+        "bytes": 6168,
+        "sha256": "3b6a40a388cceffdd1750527d4ca9910ff53376b217114ad53b8ec029998ed88",
+        "archive": "evidence/plain-warm5/smoke-ios-receipts.jsonl.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-reserved",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-restart.png",
+        "bytes": 48389,
+        "sha256": "f83f3b2db99bcae2008ede1227c81b7c493d527efc37a5b90b0e0a38d6433248",
+        "archive": "retained-evidence/plain/1790952257973-17616/smoke-ios-prime.png",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-run.json",
+        "bytes": 17576,
+        "sha256": "5f50d93666915a162eff0c3a5896b794cc4b116ba4d1724ae34d3587b5a9629a",
+        "archive": "evidence/plain-warm5/smoke-ios-run.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "smoke-ios-screen.mp4",
+        "bytes": 3232815,
+        "sha256": "3e2619d28aff86a18772c58aa7e5fefad3b444e2f5fa833136c21fe836a2fd3d",
+        "archive": "retained-evidence/plain/1790952257973-17616/smoke-ios-screen.mp4",
+        "gzip": false
+      },
+      {
+        "source": "smoke-ios-video.log",
+        "bytes": 131,
+        "sha256": "421d73e48fb30c976d4c19db67494b4d83771db2e13d837a358f5bafb590f002",
+        "archive": "evidence/social-warm1/smoke-ios-video.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-collection-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-install-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-offline-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-prime-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-status.json",
+        "bytes": 26,
+        "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-status.json.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify-restart-stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "archive": "evidence/plain-after-driver-only-final/verify-restart-stdout.log.gz",
+        "gzip": true
+      },
+      {
+        "source": "verify.mjs",
+        "bytes": 167,
+        "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+        "archive": "retained-evidence/plain/1790952194579-11548/verify.mjs.gz",
+        "gzip": true
+      }
+    ]
+  }
+]

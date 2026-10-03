@@ -1,0 +1,14 @@
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (37.494084ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.165125ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (145.974709ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (26.288042ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (145.637958ms)
+✔ negative header topology follows SDK root aliases (1.168625ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 417.151625

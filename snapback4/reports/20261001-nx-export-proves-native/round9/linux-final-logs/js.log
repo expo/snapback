@@ -1,0 +1,28 @@
+✔ installed CLI shim preserves each forwarded child termination signal (145.409349ms)
+✔ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (3696.701136ms)
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (2468.878096ms)
+✔ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (2230.598977ms)
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-prune-r2-40gJPj/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (44.184816ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1429.502102ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.331838ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (99.376613ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (12.624155ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (210.563722ms)
+✔ negative header topology follows SDK root aliases (2.0478ms)
+✔ config file references bind excluded source bytes and refuse external paths (79.602219ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (31.609676ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (415.308369ms)
+﹣ react-native.config.mjs refuses through the real static preparation adapter (0.403635ms) # SKIP
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (138.467624ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (74.020994ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (51.575005ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (84.013022ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 4799.689078

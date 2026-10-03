@@ -1,0 +1,7 @@
+{
+  "sha256": "200187c093be9f2648d0e58d293aaba56c9b49a57bad193c034b860514da6b93",
+  "pythonGzipWithoutFilenameBytes": 617214,
+  "buildScriptGzipWithFilenameBytes": 617239,
+  "authoritative": "buildScriptGzipWithFilenameBytes",
+  "reason": "The initial metadata helper used gzip.compress(mtime=0); corrected to the build script command including its filename header. The wasm bytes did not change."
+}

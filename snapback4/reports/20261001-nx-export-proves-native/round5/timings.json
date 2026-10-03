@@ -1,0 +1,88 @@
+[
+  {
+    "starter": "plain",
+    "medianMs": 20840,
+    "under25s": true,
+    "distinctBundles": 5,
+    "samples": [
+      {
+        "label": "warm-final",
+        "durationMs": 22256,
+        "nativeDurationMs": 18032,
+        "otherMs": 4224,
+        "bundleHash": "9a4d61867bbad5164669c0437cde6e69a217475a39b87c350cbd3fc9a20965bc"
+      },
+      {
+        "label": "warm2-final",
+        "durationMs": 19838,
+        "nativeDurationMs": 16177,
+        "otherMs": 3661,
+        "bundleHash": "f4fd96fdee2e0e9ed057b169f5036d604dc995d5f0853d56a6ae5c1d089ca6e5"
+      },
+      {
+        "label": "warm3-final",
+        "durationMs": 20840,
+        "nativeDurationMs": 16353,
+        "otherMs": 4487,
+        "bundleHash": "a2784bb86ff318a6e8ed8a1734ba013ba41a8ca54b32541c4957a7acf7d8ed88"
+      },
+      {
+        "label": "warm4-final",
+        "durationMs": 20405,
+        "nativeDurationMs": 16254,
+        "otherMs": 4151,
+        "bundleHash": "0b98d863cb3e4a694f3751bdd2c4b0aca84ac05648461b5a6b5757cccde6b667"
+      },
+      {
+        "label": "warm5-final",
+        "durationMs": 20905,
+        "nativeDurationMs": 16515,
+        "otherMs": 4390,
+        "bundleHash": "b5ad6f1b5ea2432cf510b1600de964a5a55c853618555b3bf13a0b971caa259c"
+      }
+    ]
+  },
+  {
+    "starter": "social",
+    "medianMs": 29128,
+    "under25s": false,
+    "distinctBundles": 5,
+    "samples": [
+      {
+        "label": "warm-final",
+        "durationMs": 26686,
+        "nativeDurationMs": 21264,
+        "otherMs": 5422,
+        "bundleHash": "aa90a404afd96e804823d1ac53a65f2aeea19ec7c3d52ed40128fcfeaf06c993"
+      },
+      {
+        "label": "warm2-final",
+        "durationMs": 29128,
+        "nativeDurationMs": 24968,
+        "otherMs": 4160,
+        "bundleHash": "18a530ff107d42acba323a860d25145a073f4486b6dacfe1d73f96f03f5ab288"
+      },
+      {
+        "label": "warm3-final",
+        "durationMs": 28563,
+        "nativeDurationMs": 23595,
+        "otherMs": 4968,
+        "bundleHash": "1655bd8d50a866da3a1392cdcc229aba3c7f2e976214600a8c59addd235dca89"
+      },
+      {
+        "label": "warm4-final",
+        "durationMs": 30380,
+        "nativeDurationMs": 25506,
+        "otherMs": 4874,
+        "bundleHash": "931d384cc70568ee57ca2c33fc69c0d5eac8bf33f2cd4be68268d7cdd08f0044"
+      },
+      {
+        "label": "warm5-final",
+        "durationMs": 29797,
+        "nativeDurationMs": 24404,
+        "otherMs": 5393,
+        "bundleHash": "41fb782e48881a5cba05b6de272db9e95a2f760a4be05b2759507a99d5ccdd2a"
+      }
+    ]
+  }
+]

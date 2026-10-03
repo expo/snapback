@@ -1,0 +1,34 @@
+[
+  {
+    "path": "linux-logs/rust-integration-linux.log",
+    "originalSha256": "26539a98a449ea150e7327da717dc397a5471419eb71ed68ad25e93dc0883f89",
+    "committedSha256": "a08de92511ee0b22453fc86d6db191aeba4129c6bff4518c463d0229e7611f61",
+    "rawArchive": "round6/linux-logs/rust-integration-linux.log.gz",
+    "gzipSha256": "ce2cf504d451d2e2f47f747e8993e73c4176315cfeaaab90feb962366825b5a7",
+    "change": "Remove only the extra final blank line; original bytes preserved in the external archive."
+  },
+  {
+    "path": "linux-logs/rust-witness-linux.log",
+    "originalSha256": "0f96d042f475facea564d6cdde33f12cf07d7dcc67f3f49bf25ef6af566ebd17",
+    "committedSha256": "ff4f8e1de2654b68ea328f86e0472809106fd15076e6a1e4b2fef66b66d2e6f0",
+    "rawArchive": "round6/linux-logs/rust-witness-linux.log.gz",
+    "gzipSha256": "5c051e74d76f7c6573f87fd36df1a3aaef1e7ac21be45a99725af49af9e0906a",
+    "change": "Remove only the extra final blank line; original bytes preserved in the external archive."
+  },
+  {
+    "path": "rust-integration-mini.log",
+    "originalSha256": "dc26454dadb4d25fd1f8b79250c2791e216e30ab21fef4438cb43e347f25dd54",
+    "committedSha256": "2076f6a7a262c041e05f2aa65a88177c519c8380170ccc64a083d85f6ee050ba",
+    "rawArchive": "round6/rust-integration-mini.log.gz",
+    "gzipSha256": "73ac1426713cfe9caefdcd51798e5905bcdb0416083cc7197abe56589612ff65",
+    "change": "Remove only the extra final blank line; original bytes preserved in the external archive."
+  },
+  {
+    "path": "rust-witness-mini.log",
+    "originalSha256": "b63655e9979f0601163f42ab21a292795c175002679411be7f1fa7528b51b2fa",
+    "committedSha256": "b0ed4232503474906608ae778a31f048972f37182691aeb62f273ffed3e3b788",
+    "rawArchive": "round6/rust-witness-mini.log.gz",
+    "gzipSha256": "0ccfd8e78978650e0cd5be0d430351f6ad6665cd679327980bea0a65f955a1c5",
+    "change": "Remove only the extra final blank line; original bytes preserved in the external archive."
+  }
+]

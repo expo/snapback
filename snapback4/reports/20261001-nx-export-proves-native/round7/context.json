@@ -1,0 +1,14 @@
+{
+  "host": "MacMini-Apt101-M5-A",
+  "base": "bb943663952d666854eb1ec3aa252fd9b4a47caa",
+  "startedAt": 1790990626.145668,
+  "nodeLauncher": "/Users/ccheever/.volta/bin/node",
+  "nodeVersion": "v24.18.0",
+  "review": "eb1000:~/sb4-intent/reviews/nx-r6.astra.md",
+  "localScratch": "/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-nx-r7-qel8zbqx",
+  "simulatorsTouched": [],
+  "nodeRuntime": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+  "voltaVersion": "2.0.2",
+  "rustVersion": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "nodeOnPathDuringAllMiniVerification": "/Users/ccheever/.volta/bin/node"
+}

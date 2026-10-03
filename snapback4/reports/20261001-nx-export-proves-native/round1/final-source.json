@@ -1,0 +1,137 @@
+{
+  "baseCommit": "bfe1d7d722f7e3346bef4aa48b2f2ffde3ab8b4b",
+  "files": [
+    {
+      "path": "issues/20261001-snapback4-delivery-fault-follow-injection-flake.md",
+      "sha256": "7479c472c8e1dfeecb8bec9940a80329a05aa497c7f327ce5504f7e60c7f81d4",
+      "bytes": 1783
+    },
+    {
+      "path": "llp/3000.030-native-proof-in-minutes.rfc.md",
+      "sha256": "e21678e43244d7e6de1535675e89aa8972a06ab789b2e03ec5ac773f05991dbc",
+      "bytes": 115971
+    },
+    {
+      "path": "snapback4/JOURNAL.md",
+      "sha256": "741911b60fb5939f9124faf9848f4c5f9b62d04bd2fe48c99a3247f7affadf73",
+      "bytes": 5086145
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "5db942c9192005db642d8c78ba22d7c27a5c385f17ef8b1056eb86605a321640",
+      "bytes": 25009
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "sha256": "b8e5a1afbd888f9c86f0d1ce7fa287524bbcf3b4e2854ecc996ccb77f4bf919c",
+      "bytes": 40269
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/acquire.rs",
+      "sha256": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+      "bytes": 1400
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs",
+      "sha256": "e9c760e5a8a18cf13bf1554b9b1fb481d1db35789a77c0521ac5d88f89c8af3b",
+      "bytes": 15636
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs",
+      "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+      "bytes": 23846
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-inputs.mjs",
+      "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+      "bytes": 11211
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-scripts.mjs",
+      "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+      "bytes": 8789
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/ownership.rs",
+      "sha256": "2da6335f93c0e1ad2bb2d9acfc437e119482fcb12151a9129103e99fafb827fe",
+      "bytes": 5182
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/payload.mjs",
+      "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+      "bytes": 3859
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/plugin-audit.json",
+      "sha256": "32127c3613f637b6cca28933a612235bd5cbe365f3a09c1465d54c8354bed877",
+      "bytes": 341713
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/plugin-audit.mjs",
+      "sha256": "cbc2602bb23c6ba47ce75811afdc542aaa749bfd256dcfe17f0d5bd9f0acfc47",
+      "bytes": 2723
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+      "sha256": "5dc0826c5e14da051471cd5c31c204a9bb0a3c7e278ccd045f22c1b7ce86d54a",
+      "bytes": 20582
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/prepare.mjs",
+      "sha256": "a1486f58369b2dd672ad4bb9b13ee60ffa08a57427f5f488752e941657947a80",
+      "bytes": 21612
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/protocol.rs",
+      "sha256": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+      "bytes": 11147
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/simulator.rs",
+      "sha256": "ae101bffe151e6c820157564d2959ea156bb2979ecd4e1b51f687ebc481a483e",
+      "bytes": 8328
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/smoke.rs",
+      "sha256": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+      "bytes": 19874
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/fixtures/witness-simctl.py",
+      "sha256": "a1c03e69d446ca857658ca00dc3cca1825c87731508939070b255b13163d678c",
+      "bytes": 13011
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/witness.rs",
+      "sha256": "10422a78186cbe3183cc09358defa6ca5974678fdd815766cb5d627a6a2e1703",
+      "bytes": 49604
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "4a30015d7c0c82b525eeb9153c2c1266399d0757a1fba00fbd4324be482b817b",
+      "bytes": 5526
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-native.test.mjs",
+      "sha256": "7387a7f3a6654643ed0d30abb35b46fc20d43d1b0fc2dbb01e467bf2958dc675",
+      "bytes": 20289
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/witness-preparation.test.mjs",
+      "sha256": "640cd81ddb32b232f8363d9a27303704762c8c6135ab20b8c9496321b6371470",
+      "bytes": 41780
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/REPORT.md",
+      "sha256": "2080b1396fc8a7e88fc71c4ddac67c9630b3d507f7fda725e78370aa6c8659de",
+      "bytes": 31161
+    }
+  ],
+  "measuredBinary": {
+    "path": "target/nx/timing-cli",
+    "sha256": "1f80a693c7dc56a1912592000a57b4dfeadd43ec4f2373ed40916ac9dc265be3",
+    "bytes": 15070480
+  },
+  "retainedEquivalentBinary": "snapback4/target/production/snapback4",
+  "postMeasurementChanges": "metric prose and fixture initialization only; executable native inputs unchanged"
+}

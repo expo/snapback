@@ -1,0 +1,7 @@
+{
+  "pid": 935530,
+  "cwd": "/tmp/sb4-nx-r9.O0cNyk/merged/snapback4",
+  "cmd": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node --heap-prof-interval=524288 --cpu-prof-interval=1000 --test-coverage-functions=0 --test-concurrency=0 --inspect-publish-uid=stderr,http --inspect-port=127.0.0.1:9229 --report-signal=SIGUSR2 --test-coverage-lines=0 --test-isolation=process --tls-cipher-list=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA --v8-pool-size=4 --trace-event-file-pattern=node_trace.${rotation}.log --secure-heap-min=2 --watch-kill-signal=SIGTERM --node-snapshot --use-largepages=off --secure-heap=0 --test-coverage-branches=0 --max-http-header-size=16384 --test-timeout=0 --network-family-autoselection-attempt-timeout=250 --stack-trace-limit=10 --heapsnapshot-near-heap-limit=0 packages/snapback4/test/export-publication.test.mjs ",
+  "at": 1790999841.0736966,
+  "reason": "Own scratch JS fixture waits for stdout from absent hardcoded CLI; setup used CARGO_TARGET_DIR without its workspace alias. Terminate only this verified test subprocess; runner records failure and continues baseline."
+}

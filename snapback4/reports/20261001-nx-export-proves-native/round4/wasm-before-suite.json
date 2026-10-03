@@ -1,0 +1,10 @@
+{
+  "sha256": "c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c",
+  "rawBytes": 2014420,
+  "round3Sha256": "c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c",
+  "unchanged": true,
+  "budgetChanged": false,
+  "gzipWithoutFilenameBytes": 604641,
+  "gzipBytes": 604666,
+  "measurement": "gzip -9 -c named artifact, matching build-wasm.sh"
+}

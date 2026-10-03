@@ -1,0 +1,10 @@
+{
+  "sha256": "c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c",
+  "rawBytes": 2014420,
+  "gzipBytes": 604666,
+  "capBytes": 605225,
+  "unchangedFromBeforeSuite": true,
+  "unchangedFromRound6": true,
+  "budgetChanged": false,
+  "gzipMethod": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm (suite method)"
+}

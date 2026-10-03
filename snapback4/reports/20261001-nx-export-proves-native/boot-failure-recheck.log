@@ -1,0 +1,31 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 5.95s
+     Running tests/witness.rs (snapback4/target/debug/deps/witness-769310ab071b6ab4)
+
+running 1 test
+test driver::boot_failure_keeps_created_identity_in_receipt ... FAILED
+
+failures:
+
+---- driver::boot_failure_keeps_created_identity_in_receipt stdout ----
+
+thread 'driver::boot_failure_keeps_created_identity_in_receipt' (78665668) panicked at crates/snapback4/tests/witness.rs:340:13:
+auto-create-boot-fails: {"artifacts":{},"bundleId":"dev.test","cliVersion":"0.4.10","error":"E_WITNESS_SIMULATOR: xcrun simctl failed; check --udid, --bundle-id and the simulator/runtime","events":[],"exitStatus":1,"finishedAt":1790898593533,"phase":"preparation","runtime":"com.apple.CoreSimulator.SimRuntime.iOS-26-5","segment":"offline","simulator":{"name":"snapback4-smoke-1790898593316-20583","prefix":"snapback4-smoke-","runtime":"com.apple.CoreSimulator.SimRuntime.iOS-26-5","selection":"created","udid":"sb4-witness-driver-20580-0"},"startedAt":1790898592984,"timestampUnit":"unix-ms","udid":"sb4-witness-driver-20580-0"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    driver::boot_failure_keeps_created_identity_in_receipt
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.94s
+
+error: test failed, to rerun pass `-p snapback4 --test witness`

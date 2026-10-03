@@ -68,6 +68,7 @@ fn main() -> ExitCode {
         Ok(listener) => listener,
         Err(error) => { eprintln!("{error}"); return ExitCode::from(1); }
     };
+    if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
         println!("{HELP}");

@@ -1,0 +1,506 @@
+{
+  "plain": {
+    "warmMedianMs": 17888,
+    "nativeWarmMedianMs": 15138,
+    "runs": {
+      "cold": {
+        "starter": "plain",
+        "label": "cold",
+        "startedAt": 1790898947478,
+        "durationMs": 170134,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "86129d102844af44a5e060a0c728171696deff9c6afc7ddef0dc384c939dfa8d",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790898950477-42711/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": false
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 167075,
+        "loadedHash": "86129d102844af44a5e060a0c728171696deff9c6afc7ddef0dc384c939dfa8d"
+      },
+      "warm1": {
+        "starter": "plain",
+        "label": "warm1",
+        "startedAt": 1790899117640,
+        "durationMs": 19527,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "c40de9235af92407f6b53642dffb213aa119d9080c97e12eadc7288489e90666",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899120547-48438/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 16579,
+        "loadedHash": "c40de9235af92407f6b53642dffb213aa119d9080c97e12eadc7288489e90666"
+      },
+      "warm2": {
+        "starter": "plain",
+        "label": "warm2",
+        "startedAt": 1790899137194,
+        "durationMs": 17795,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "b09a4a6fc010f330be0cc9c9c7ba88cc0493ea48299960e2ec733b2091f255f7",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899139959-50596/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 14986,
+        "loadedHash": "b09a4a6fc010f330be0cc9c9c7ba88cc0493ea48299960e2ec733b2091f255f7"
+      },
+      "warm3": {
+        "starter": "plain",
+        "label": "warm3",
+        "startedAt": 1790899155016,
+        "durationMs": 18320,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "56f00854260a9cdc4413c56e424169d8ec6353619605dcbc5f9d8d7c124e266b",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899157761-52710/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 15540,
+        "loadedHash": "56f00854260a9cdc4413c56e424169d8ec6353619605dcbc5f9d8d7c124e266b"
+      },
+      "warm4": {
+        "starter": "plain",
+        "label": "warm4",
+        "startedAt": 1790899173366,
+        "durationMs": 17888,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "7f418b6a930f5a53edf056b1f589570c4e560b05bf3a5d9bf468c3494eee60fb",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899176081-54833/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 15138,
+        "loadedHash": "7f418b6a930f5a53edf056b1f589570c4e560b05bf3a5d9bf468c3494eee60fb"
+      },
+      "warm5": {
+        "starter": "plain",
+        "label": "warm5",
+        "startedAt": 1790899191282,
+        "durationMs": 17776,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "da7bf949a5ad6c659b0a717f1602bd7967beda04d3a255b13ed539bc1211f26f",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899194097-57246/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "d527365ca28784dbc8dd461ec3cd88ef7cc78e7ab5c6f49b1ae28786f6567ea4"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 14927,
+        "loadedHash": "da7bf949a5ad6c659b0a717f1602bd7967beda04d3a255b13ed539bc1211f26f"
+      },
+      "native-change": {
+        "starter": "plain",
+        "label": "native-change",
+        "startedAt": 1790899209085,
+        "durationMs": 97638,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "b8d966dc886b63d25e5f8819a2d14b36d489ef5502a414325e84f68ae26354cb"
+            }
+          },
+          "hit": false
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 94753,
+        "loadedHash": "ef5a7976662ac19fbb7e4bc808d3a2dd5334610f93c983d567ee20d9e0da684f"
+      },
+      "startup-throw": {
+        "starter": "plain",
+        "label": "startup-throw",
+        "startedAt": 1790899306795,
+        "durationMs": 13683,
+        "status": 1,
+        "signal": null,
+        "bundleHash": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "b8d966dc886b63d25e5f8819a2d14b36d489ef5502a414325e84f68ae26354cb"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 1,
+        "error": "E_WITNESS_STEP: app step failed; check --segment and see receipts and device log",
+        "segments": {
+          "offline": "not-run",
+          "prime": "failed",
+          "restart": "not-run"
+        },
+        "nativeDurationMs": 10572,
+        "loadedHash": "9f883f2adb833943d7bc395e8850582f7a8058b5c1e2bb91a8ce00d66b7447d4"
+      },
+      "missing-runtime": {
+        "starter": "plain",
+        "label": "missing-runtime",
+        "startedAt": 1790899320510,
+        "durationMs": 3134,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "22eb16fd25a29439dd651bbb5e156b006bf7d5d132e66f8ca028e562d0d9d992",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899323493-64810/smoke-ios-run.json",
+        "receiptExit": 1,
+        "phase": "environment",
+        "error": "E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)"
+      },
+      "opt-out": {
+        "starter": "plain",
+        "label": "opt-out",
+        "startedAt": 1790899323673,
+        "durationMs": 2957,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "04d7cab96fd1d7d1bb80983a69db3595a4275e402504384c278122f81fd0a79a"
+      }
+    }
+  },
+  "social": {
+    "warmMedianMs": 23870,
+    "nativeWarmMedianMs": 19969,
+    "runs": {
+      "cold": {
+        "starter": "social",
+        "label": "cold",
+        "startedAt": 1790898400223,
+        "durationMs": 243806,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "816ce98052080ef23c59891f86693380ac1dcbcb908507b0e2d87e10e5139686",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898403805-14743/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": false
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 239881,
+        "loadedHash": "816ce98052080ef23c59891f86693380ac1dcbcb908507b0e2d87e10e5139686"
+      },
+      "warm1": {
+        "starter": "social",
+        "label": "warm1",
+        "startedAt": 1790898644060,
+        "durationMs": 23349,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "e280676336ed61d54f3a15f3935d713c07ab28703a7acef75cbea557094329d6",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898647617-23102/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 19756,
+        "loadedHash": "e280676336ed61d54f3a15f3935d713c07ab28703a7acef75cbea557094329d6"
+      },
+      "warm2": {
+        "starter": "social",
+        "label": "warm2",
+        "startedAt": 1790898667437,
+        "durationMs": 24404,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "752ff5159646c7b04fcf82344b9a3c0116efdb560e3762fee00d8393b9636669",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898670880-25604/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 20926,
+        "loadedHash": "752ff5159646c7b04fcf82344b9a3c0116efdb560e3762fee00d8393b9636669"
+      },
+      "warm3": {
+        "starter": "social",
+        "label": "warm3",
+        "startedAt": 1790898691868,
+        "durationMs": 23283,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "da1b40ffc19f74615af480e4324a217473ceffada538bca19152ba77de7f3328",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898695411-28139/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 19704,
+        "loadedHash": "da1b40ffc19f74615af480e4324a217473ceffada538bca19152ba77de7f3328"
+      },
+      "warm4": {
+        "starter": "social",
+        "label": "warm4",
+        "startedAt": 1790898715177,
+        "durationMs": 24876,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "660971d0366d73cb14ac1edea56cd98a5e7947cbab87fcab96eb73ef4274a2ec",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898718759-30659/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 21257,
+        "loadedHash": "660971d0366d73cb14ac1edea56cd98a5e7947cbab87fcab96eb73ef4274a2ec"
+      },
+      "warm5": {
+        "starter": "social",
+        "label": "warm5",
+        "startedAt": 1790898740080,
+        "durationMs": 23870,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "581ddd6781d80598e48c09181634900b5c7a2385e8b695a3d52b4a68654a9f22",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898743940-33171/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "a9db0d225837935e6d879859cdfd8427d603a8986b3e3aef3f2b1e071280e3be"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 19969,
+        "loadedHash": "581ddd6781d80598e48c09181634900b5c7a2385e8b695a3d52b4a68654a9f22"
+      },
+      "native-change": {
+        "starter": "social",
+        "label": "native-change",
+        "startedAt": 1790898763977,
+        "durationMs": 160679,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "ecf176d0b6aa91527cd5a049bc4fdf375dcb6c4197ae02bfa4650cba2c498786",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898767702-35672/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "5f30d2cf9d95dca5a9a4604112f7bba14099e1f667884a69203faf954dec6d21"
+            }
+          },
+          "hit": false
+        },
+        "proofKind": "application-export",
+        "receiptExit": 0,
+        "error": null,
+        "segments": {
+          "offline": "passed",
+          "prime": "passed",
+          "restart": "passed"
+        },
+        "nativeDurationMs": 156914,
+        "loadedHash": "ecf176d0b6aa91527cd5a049bc4fdf375dcb6c4197ae02bfa4650cba2c498786"
+      },
+      "startup-throw": {
+        "starter": "social",
+        "label": "startup-throw",
+        "startedAt": 1790898924742,
+        "durationMs": 15234,
+        "status": 1,
+        "signal": null,
+        "bundleHash": "1c4c16f10baea3dcb9860e828215deaeb613fc7884563fabc83122ac4e88e0dd",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898928540-41076/smoke-ios-run.json",
+        "cache": {
+          "fingerprint": {
+            "fingerprint": {
+              "hash": "5f30d2cf9d95dca5a9a4604112f7bba14099e1f667884a69203faf954dec6d21"
+            }
+          },
+          "hit": true
+        },
+        "proofKind": "application-export",
+        "receiptExit": 1,
+        "error": "E_WITNESS_APP: owned app exited or was replaced while awaiting its receipt",
+        "segments": {
+          "offline": "not-run",
+          "prime": "failed",
+          "restart": "not-run"
+        },
+        "nativeDurationMs": 11398,
+        "loadedHash": "1c4c16f10baea3dcb9860e828215deaeb613fc7884563fabc83122ac4e88e0dd"
+      },
+      "missing-runtime": {
+        "starter": "social",
+        "label": "missing-runtime",
+        "startedAt": 1790898940004,
+        "durationMs": 3800,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "433211ca528f67591ea51a2e772c20f9fd8868123c39d753bfcdde4a3338ab67",
+        "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898943659-42568/smoke-ios-run.json",
+        "receiptExit": 1,
+        "phase": "environment",
+        "error": "E_WITNESS_PLATFORM: native smoke needs Xcode and an iOS simulator runtime; install Xcode, open Settings > Components to install iOS, then retry (set DEVELOPER_DIR to Xcode.app/Contents/Developer if needed)"
+      },
+      "opt-out": {
+        "starter": "social",
+        "label": "opt-out",
+        "startedAt": 1790898943830,
+        "durationMs": 3575,
+        "status": 0,
+        "signal": null,
+        "bundleHash": "c6ed77ad8579649448cd5639a17bffb95bfcf1e48d5cd70db3646af82e610bb8"
+      }
+    }
+  }
+}

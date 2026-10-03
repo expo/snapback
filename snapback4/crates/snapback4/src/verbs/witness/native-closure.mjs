@@ -260,6 +260,12 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
           if (!/\.(?:c|cc|cpp|cxx|m|mm|swift)$/.test(file)) refuse('unsupported compilation input');
           sources.add(file); hasSources = true;
         }
+        // The export adapter reserves these embed destinations for Metro;
+        // native folder resources would otherwise be mistaken for old JS assets.
+        if (phase.isa === 'PBXResourcesBuildPhase' && [file, objects[bf.fileRef]?.name, objects[bf.fileRef]?.path]
+            .some(p => typeof p === 'string' && ['assets', '_expo'].includes(path.basename(p).toLowerCase()))) {
+          refuse('native resource collides with Metro resource namespace');
+        }
         if (phase.isa === 'PBXResourcesBuildPhase' && file.endsWith('.xcassets')) {
           const assets = dir => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
             const p = path.join(dir, e.name); if (e.isDirectory()) assets(p);

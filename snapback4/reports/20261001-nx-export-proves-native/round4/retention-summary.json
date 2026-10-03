@@ -1,0 +1,24 @@
+[
+  {
+    "starter": "plain",
+    "runs": 26,
+    "full": 5,
+    "compressed": 20,
+    "bulkRemaining": [],
+    "publicationLockPresent": true,
+    "unfinishedLegacy": [
+      "1790949268365-54513"
+    ],
+    "legacyNote": "The round-3 malformed-shim unstarted directory is retained without inventing completion."
+  },
+  {
+    "starter": "social",
+    "runs": 19,
+    "full": 5,
+    "compressed": 14,
+    "bulkRemaining": [],
+    "publicationLockPresent": true,
+    "unfinishedLegacy": [],
+    "legacyNote": null
+  }
+]

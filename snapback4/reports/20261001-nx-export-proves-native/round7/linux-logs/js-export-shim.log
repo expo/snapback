@@ -1,0 +1,136 @@
+✖ installed CLI shim preserves each forwarded child termination signal (1.335873ms)
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (0.842113ms)
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (2441.795522ms)
+✔ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (2201.586021ms)
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-prune-r2-PnZA6w/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (50.721557ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1355.85846ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.740339ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (102.654259ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (19.143925ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (201.23932ms)
+✔ negative header topology follows SDK root aliases (1.964585ms)
+✔ config file references bind excluded source bytes and refuse external paths (71.456266ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (43.168505ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (442.999797ms)
+﹣ react-native.config.mjs refuses through the real static preparation adapter (0.425237ms) # SKIP
+✖ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (29.365717ms)
+✖ publication refuses changed inventory and a changed proof; no success receipt (33.926402ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (52.219032ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (77.513346ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 14
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 4757.979514
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-failure.test.mjs:24:1
+✖ installed CLI shim preserves each forwarded child termination signal (1.335873ms)
+  Error: ENOENT: no such file or directory, copyfile '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js' -> '/tmp/sb4-shim-signals-iFPXup/node_modules/snapback4/dist/resolve-binary.js'
+      at Object.copyFileSync (node:fs:3102:11)
+      at install (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-failure.test.mjs:17:6)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-failure.test.mjs:27:18)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'copyfile',
+    path: '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js',
+    dest: '/tmp/sb4-shim-signals-iFPXup/node_modules/snapback4/dist/resolve-binary.js'
+  }
+
+test at packages/snapback4/test/export-failure.test.mjs:36:1
+✖ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (0.842113ms)
+  Error: ENOENT: no such file or directory, copyfile '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js' -> '/tmp/sb4-wrapper-fault-8upant/node_modules/snapback4/dist/resolve-binary.js'
+      at Object.copyFileSync (node:fs:3102:11)
+      at install (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-failure.test.mjs:17:6)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-failure.test.mjs:39:5)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'copyfile',
+    path: '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js',
+    dest: '/tmp/sb4-wrapper-fault-8upant/node_modules/snapback4/dist/resolve-binary.js'
+  }
+
+test at packages/snapback4/test/export-publication.test.mjs:31:1
+✖ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (29.365717ms)
+  Error: node:internal/modules/esm/resolve:275
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js' imported from /tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/bin/snapback4.js
+      at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+      at moduleResolve (node:internal/modules/esm/resolve:866:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+      at #resolve (node:internal/modules/esm/loader:701:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)
+      at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js'
+  }
+
+  Node.js v24.13.1
+
+      at acquireExportLease (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4-expo/export-ios.mjs:86:54)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-publication.test.mjs:37:13)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+
+test at packages/snapback4/test/export-publication.test.mjs:56:1
+✖ publication refuses changed inventory and a changed proof; no success receipt (33.926402ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_PROOF/. Input:
+
+  'node:internal/modules/esm/resolve:275\n' +
+    '    throw new ERR_MODULE_NOT_FOUND(\n' +
+    '          ^\n' +
+    '\n' +
+    "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js' imported from /tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/bin/snapback4.js\n" +
+    '    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n' +
+    '    at moduleResolve (node:internal/modules/esm/resolve:866:10)\n' +
+    '    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n' +
+    '    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)\n' +
+    '    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)\n' +
+    '    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)\n' +
+    '    at #resolve (node:internal/modules/esm/loader:701:17)\n' +
+    '    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)\n' +
+    '    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)\n' +
+    '    at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {\n' +
+    "  code: 'ERR_MODULE_NOT_FOUND',\n" +
+    "  url: 'file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js'\n" +
+    '}\n' +
+    '\n' +
+    'Node.js v24.13.1\n'
+
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/test/export-publication.test.mjs:63:46)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "node:internal/modules/esm/resolve:275\n    throw new ERR_MODULE_NOT_FOUND(\n          ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js' imported from /tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/bin/snapback4.js\n    at finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:866:10)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)\n    at #resolve (node:internal/modules/esm/loader:701:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)\n    at ModuleJob.link (node:internal/modules/esm/module_job:245:17) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///tmp/sb4-nx-r7.Gfl8K2/snapback4/packages/snapback4/dist/resolve-binary.js'\n}\n\nNode.js v24.13.1\n",
+    expected: /E_WITNESS_PROOF/,
+    operator: 'match',
+    diff: 'simple'
+  }

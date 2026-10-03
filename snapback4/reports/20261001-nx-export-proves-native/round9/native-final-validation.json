@@ -1,0 +1,50 @@
+[
+  {
+    "starter": "plain",
+    "wholeCommandSeconds": 23.16118884086609,
+    "nativeSeconds": 19.002,
+    "publishedInventoryEntries": 8,
+    "publicationProofSha256": "a30c9d4c41ed51c4ea0cd4e451b04d43fd284c689983dc1efa3b68b937f89eb9",
+    "exportedEqualsInstalledHBC": true,
+    "cacheHit": true,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "loadBefore": [
+      6.34912109375,
+      5.44140625,
+      8.44384765625
+    ],
+    "loadAfter": [
+      5.728515625,
+      5.37158203125,
+      8.3310546875
+    ]
+  },
+  {
+    "starter": "social",
+    "wholeCommandSeconds": 29.55976891517639,
+    "nativeSeconds": 24.576,
+    "publishedInventoryEntries": 32,
+    "publicationProofSha256": "b252ac4eb9e3b14dcbad2de08ffb71c5e20528ae0b2d55799dee7c7570a47b97",
+    "exportedEqualsInstalledHBC": true,
+    "cacheHit": true,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "loadBefore": [
+      12.767578125,
+      10.37744140625,
+      9.7333984375
+    ],
+    "loadAfter": [
+      9.5341796875,
+      9.82861328125,
+      9.55615234375
+    ]
+  }
+]

@@ -1,0 +1,101 @@
+{
+  "base": "5d29493e1b",
+  "branch": "sb4-np/nx-export-proves-native",
+  "files": [
+    {
+      "path": "target/nx/timing-cli",
+      "sha256": "c852230ef1127de49f53f8f4c664023a15022b98fcd9fddb29770afa33624e24",
+      "bytes": 14790032
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness.rs",
+      "sha256": "20e305d477fb570fb9779fbaff476e1f1d6be4524b72fd9a4a8cdd527e3ce91c",
+      "bytes": 41002
+    },
+    {
+      "path": "packages/snapback4-expo/export-ios.mjs",
+      "sha256": "cd6af2fe8ae70758d4e92cc3a618cdc03133cf909698333eabbb525e406e67ab",
+      "bytes": 4995
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/acquire.rs",
+      "sha256": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+      "bytes": 1400
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/effective-config.mjs",
+      "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+      "bytes": 6048
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/export-cache.mjs",
+      "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+      "bytes": 17382
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-closure.mjs",
+      "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+      "bytes": 23846
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-inputs.mjs",
+      "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+      "bytes": 11211
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-mods.json",
+      "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+      "bytes": 1470
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/native-scripts.mjs",
+      "sha256": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+      "bytes": 8789
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/ownership.rs",
+      "sha256": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+      "bytes": 7491
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/payload.mjs",
+      "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+      "bytes": 3859
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/preparation-runner.mjs",
+      "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+      "bytes": 674
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/preparation.rs",
+      "sha256": "de70d830f064a31c8522c05baf0e96a92f242ebbe44e62b72c1c810ff615b7e8",
+      "bytes": 21496
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/prepare.mjs",
+      "sha256": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+      "bytes": 21649
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/protocol.rs",
+      "sha256": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+      "bytes": 11147
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "a20e3abe8eed9ad026b4e6d12294fbdbba115d68661123217a630777c5527493",
+      "bytes": 22541
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/simulator.rs",
+      "sha256": "fa6c31eb87fb530af12216e651b814a286a05271d1bcb4aa9dcf69fc99095136",
+      "bytes": 13038
+    },
+    {
+      "path": "crates/snapback4/src/verbs/witness/smoke.rs",
+      "sha256": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+      "bytes": 19874
+    }
+  ]
+}

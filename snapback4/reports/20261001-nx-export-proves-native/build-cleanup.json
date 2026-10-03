@@ -1,0 +1,20 @@
+{
+  "startedAt": 1790901963.932705,
+  "freeBytesBefore": 178550857728,
+  "removed": [
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/node_modules",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/apps/chat-expo/node_modules",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/apps/chat/snapback/generated",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/native-fixtures/rescore/Cargo.lock",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/native-fixtures/rescore/src/schema.rs",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/dist",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/src/wasm",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework",
+    "/tmp/sb4-nx-install.log",
+    "/tmp/sb4-nx-docs.py"
+  ],
+  "finishedAt": 1790901984.330923,
+  "freeBytesAfter": 203879546880,
+  "retainedEvidence": "retention.json: original app inventories and startup bindings verified before cleanup"
+}

@@ -1,0 +1,11 @@
+{
+  "times": [
+    24367,
+    24935,
+    23591,
+    24894,
+    24302
+  ],
+  "medianMs": 24367,
+  "distinctLoadedBundles": 5
+}

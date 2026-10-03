@@ -1,0 +1,17 @@
+{
+  "source.tar.gz": {
+    "sha256": "86b45062bff3048123d8cf19a923c9d56f897ac50b60a9feed1a6027137aaa77",
+    "bytes": 18475923,
+    "path": "round9/source.tar.gz"
+  },
+  "main.tar.gz": {
+    "sha256": "e38ef573fba879f71d5d278a8399452e52815842ead878fb5b75717dd8529c4a",
+    "bytes": 18281876,
+    "path": "round9/main.tar.gz"
+  },
+  "source-manifest": {
+    "sha256": "aab02d630677646fd78acb0d957df35b151f62193e39ed53e64127448f8dca18",
+    "bytes": 117836,
+    "path": "round9/source-manifest.json.gz"
+  }
+}

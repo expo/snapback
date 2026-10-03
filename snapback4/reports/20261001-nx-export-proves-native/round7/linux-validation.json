@@ -1,0 +1,20 @@
+{
+  "remote": "/tmp/sb4-nx-r7.Gfl8K2",
+  "hashes": {
+    "logs/context.log": "46d4c68534c85aa1329c9edc4f89851e8cee6a1e8f967739ed83462d9b165bbf",
+    "logs/bun-install.log": "32ba495728ec363a1a023ead23b4aa0709910c7600e8e77650a24cad9e7c2c9d",
+    "logs/cargo-build.log": "6d7b0b5db29523cd8b13d3bda05b7bb99d95a3d2eec2f6d6c426cccea9c04fa6",
+    "logs/done": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/rust-integration.log": "315946cff1c3360f1db185cf762c6036d1a9a144937821c0b3df0eebc197ca3c",
+    "logs/js-export-shim.log": "0802f7e4e7b30b87aaca401ead30cd38dc9fab2f6b16f0d4cad1a05cfc0f77d8",
+    "logs/status.txt": "e5a2592012e0e7350b373d37f5722188fe908ef8d92bce1aad9d75fac99d812c",
+    "logs/rust-witness.log": "e8dda919a78a251a850f1ade06957d9a98ce4d3d0a1aa32a9fac280acfb27636",
+    "logs/js-export-shim-with-resolver.log": "2598b33dc4641ae1429a46e555ab32f7e161a420f99063f82356c90f282acdec",
+    "source.tar.gz": "36f7e006d9073f5e54f1f53601b1cef1c7de1ae5cf0839e36458db8ef266f460",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "b26a699a2806bc7beb6f91d5e7eff5d1c0b827d7dc6be890ebab8b5ec5b80907",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "a8657be290f8c79f9134626f022ca78367ce60f0111e6c446fbd163554cd07e7",
+    "snapback4/packages/snapback4/dist/resolve-binary.js": "b0d1d4bd1cb6a0e3b216cd9e414d126960056620aa9ea5971e11310fe8a0f86d"
+  },
+  "allCopiedLogsVerified": true,
+  "affectedSourceMatches": true
+}

@@ -1,0 +1,28 @@
+{
+  "starter": "social",
+  "label": "startup-throw",
+  "startedAt": 1790898924742,
+  "durationMs": 15234,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "1c4c16f10baea3dcb9860e828215deaeb613fc7884563fabc83122ac4e88e0dd",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790898928540-41076/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "5f30d2cf9d95dca5a9a4604112f7bba14099e1f667884a69203faf954dec6d21"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 1,
+  "error": "E_WITNESS_APP: owned app exited or was replaced while awaiting its receipt",
+  "segments": {
+    "offline": "not-run",
+    "prime": "failed",
+    "restart": "not-run"
+  },
+  "nativeDurationMs": 11398,
+  "loadedHash": "1c4c16f10baea3dcb9860e828215deaeb613fc7884563fabc83122ac4e88e0dd"
+}

@@ -1,0 +1,13 @@
+{
+  "starter": "social",
+  "label": "recovery-warm",
+  "startedAt": 1790897462730,
+  "durationMs": 133945,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "a79ed3cb1e2e1b3b8a5f81241992821c66faf28b090c2b46f73fbf1cc910d4fe",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790897466394-90200/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "preparation",
+  "error": "E_WITNESS_APP: app is running; refusing replacement"
+}

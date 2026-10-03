@@ -1,0 +1,28 @@
+✔ installed CLI shim preserves each forwarded child termination signal (304.555959ms)
+✔ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (4397.660583ms)
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (1464.524584ms)
+✔ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (1437.575375ms)
+native smoke evidence cleanup deferred: spawnSync /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-prune-r2-aKZKcj/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (163.869ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1339.085959ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.188542ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (107.601667ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (15.271209ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (105.127708ms)
+✔ negative header topology follows SDK root aliases (0.856833ms)
+✔ config file references bind excluded source bytes and refuse external paths (98.348958ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (105.469334ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (412.317667ms)
+✔ react-native.config.mjs refuses through the real static preparation adapter (34.542334ms)
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (165.791333ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (81.637833ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (61.341708ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (107.371791ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4745.071709

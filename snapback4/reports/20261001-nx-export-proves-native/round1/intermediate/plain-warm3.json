@@ -1,0 +1,74 @@
+{
+  "starter": "plain",
+  "label": "warm3",
+  "startedAt": 1790906872119,
+  "durationMs": 23610,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "383354c8d7fa2b95d85fd86d2fae3081a7cb955c1f08fcd5f233d181d1ddc4f9",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790906874868-68374/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "65a3ee99203d1fa2099b132b17dad4e563f31106848c59076583a26b565fd336"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 20577,
+  "loadedHash": "383354c8d7fa2b95d85fd86d2fae3081a7cb955c1f08fcd5f233d181d1ddc4f9",
+  "metroResources": [
+    {
+      "path": "_expo",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios/web-worker-entry-0cfe0908746b891f518bb1494903aca1.hbc",
+      "mode": 420,
+      "type": "file",
+      "bytes": 211212,
+      "sha256": "677d58015025ae1793910cb11435405ad8c6b50e38d951a9b842b6790fe3bcf3"
+    },
+    {
+      "path": "assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/src",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/src/retired.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 68,
+      "sha256": "c054eec0ca71070d8406b12c9e0b1745c861d337f4818c5fe8334e1b4c0dc425"
+    }
+  ]
+}

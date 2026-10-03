@@ -1,0 +1,8 @@
+{
+  "crates/snapback4/src/verbs/witness.rs": "2c7b3d100d809b58381b2098d627920303dbe7722dfa5a507aa86f1c218e8f3f",
+  "crates/snapback4/src/verbs/witness/prepare.mjs": "cc41968bd705236cc8e0040a66b9bd62854e60a9b2c38bdc9341cfa1466e5f56",
+  "crates/snapback4/src/verbs/witness/export-cache.mjs": "852350440105f4e6fa1c148a2350b165aa4668050d855de8683fecad50a16ddf",
+  "crates/snapback4/src/verbs/witness/preparation.rs": "24f8a5b834a703eb19298acc04ac767520a96cadbf1a63ee6c48a85f5e04fe7b",
+  "packages/snapback4-expo/export-ios.mjs": "d817e3ed4b74d524c247dfa6323fbb35b5097aded2e123e984d4b93e06d9f74d",
+  "packages/snapback4-expo/src/witness.ts": "ac2958c34f9eb325dd1da4ecbb610b85cb801c16f0f71115c597e38171349e57"
+}

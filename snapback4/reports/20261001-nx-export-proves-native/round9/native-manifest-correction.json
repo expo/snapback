@@ -1,0 +1,30 @@
+[
+  {
+    "starter": "plain",
+    "file": "package.json",
+    "beforeSha256": "df4501cd49049f5223fa66145dcc4d0c31cdbef2084632401e3be711efc8b551",
+    "afterSha256": "b9fbad13c4ce7d1cd776e158344e6aedef735adf3ea88ef9cc404d3f3db0e975",
+    "change": "Restore generated 0.4.11 root declarations; retain installed local tarball resolved/integrity identities."
+  },
+  {
+    "starter": "plain",
+    "file": "package-lock.json",
+    "beforeSha256": "087186993596892fa55451b0384ac90dc12a9557157b2ef86a0522596ef6e295",
+    "afterSha256": "5868be7716f7341d0ff05daf7fdb7de9c67344cebbed97d9e8992cdf66c102b4",
+    "change": "Restore generated 0.4.11 root declarations; retain installed local tarball resolved/integrity identities."
+  },
+  {
+    "starter": "social",
+    "file": "package.json",
+    "beforeSha256": "96f817ee33bf026508db3ccfa11b6d3b6670e481bb7a412da2577cd25df2a29f",
+    "afterSha256": "33a5d0218fca899a593d3196fd755baeeb11bf8f1c45d796154478a081b648e9",
+    "change": "Restore generated 0.4.11 root declarations; retain installed local tarball resolved/integrity identities."
+  },
+  {
+    "starter": "social",
+    "file": "package-lock.json",
+    "beforeSha256": "ac8ac767bec89f2292dc8032b7c10356bcd8817f76feb8d50e3de029a7278a8d",
+    "afterSha256": "6b1e695d024687ae2d8d506953a4a4309adf85820e89bcd321e57a9777919458",
+    "change": "Restore generated 0.4.11 root declarations; retain installed local tarball resolved/integrity identities."
+  }
+]

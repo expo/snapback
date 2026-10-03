@@ -1,0 +1,495 @@
+{
+  "starter": "plain",
+  "label": "warm",
+  "startedAt": 1790974941979,
+  "durationMs": 119877,
+  "status": 0,
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790974942138-9792/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "d4bf68e8781912f5e370141e76a6f46f8e55da2229606d2b054fb45a2c4b1dd5"
+      }
+    },
+    "hit": false
+  },
+  "exitStatus": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "c820c9eec3bbc9e58cab847ed7192a6fdb1494df4a79798d210ad4906caec60f",
+  "exportHash": "c820c9eec3bbc9e58cab847ed7192a6fdb1494df4a79798d210ad4906caec60f",
+  "publicationProofHash": "51109a784e62b9e3dbbf77d382ed209164659664217577bb6c5a3f806869b9eb",
+  "proofHash": "51109a784e62b9e3dbbf77d382ed209164659664217577bb6c5a3f806869b9eb",
+  "publishedFiles": 8,
+  "evidence": [
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/before-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "ea2847a258124fa4ae141628a8dfd7696765bbc79b1a848f31dc49350118ee11",
+      "bytes": 11474,
+      "path": "round5/evidence/plain-warm/build-settings.log.gz"
+    },
+    {
+      "sha256": "1205e9e0c77ea7d1b1beb1da6e5d165b277059961013e83d74b31aaff8324860",
+      "bytes": 6195194,
+      "path": "round5/evidence/plain-warm/build.json.gz"
+    },
+    {
+      "sha256": "3c2ad73df23cd5456ffadc5975916e0dda8511aec732a6c977ca8f001f97d2d8",
+      "bytes": 61,
+      "path": "round5/evidence/plain-warm/cache-miss.json.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/check-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/check-stderr.log.gz"
+    },
+    {
+      "sha256": "2377a1070fbc23a7f65070742cd4542268026a1b28443ad5136a195828ca66c6",
+      "bytes": 342,
+      "path": "round5/evidence/plain-warm/check-stdout.log.gz"
+    },
+    {
+      "sha256": "ae55fba010db8f3a61559a24083892303b7448f387fc635d083af837b48b1a85",
+      "bytes": 2336,
+      "path": "round5/evidence/plain-warm/effective-config.mjs.gz"
+    },
+    {
+      "sha256": "a19d561d83d7ff406f00d4b0003566ec8d1830fe304ff6665258c7f77124c7cd",
+      "bytes": 5806,
+      "path": "round5/evidence/plain-warm/export-cache.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "94677aabbb9247b511e1418dde2a680a49715e58bd1090937f3b2d940b9fffc7",
+      "bytes": 96,
+      "path": "round5/evidence/plain-warm/export-developer.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "faa16e16681ef159b277f0fcc883f5385e5dcb8a79bd4618bb5a575c85b3f333",
+      "bytes": 92,
+      "path": "round5/evidence/plain-warm/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5/evidence/plain-warm/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5/evidence/plain-warm/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "9b0c841b33217a1be5795fd8dd8fc0a62d0dbe1f90acd9af1e9943fc3a60d144",
+      "bytes": 94,
+      "path": "round5/evidence/plain-warm/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "4e3f7dfa9251a9ac2e720d7ffb29c37a238b66e69366a4188798b0f9544bd941",
+      "bytes": 102,
+      "path": "round5/evidence/plain-warm/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "7471df41e55c50253bee278eea408e832b34ec6e5ea2c6593bae66d6d37e19e8",
+      "bytes": 97,
+      "path": "round5/evidence/plain-warm/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5/evidence/plain-warm/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "f1117bcf995342cda9808d23a74e0a7f8ba1d8cca4a420587ec1281042ce5e51",
+      "bytes": 4503,
+      "path": "round5/evidence/plain-warm/fingerprint-after.log.gz"
+    },
+    {
+      "sha256": "f1117bcf995342cda9808d23a74e0a7f8ba1d8cca4a420587ec1281042ce5e51",
+      "bytes": 4503,
+      "path": "round5/evidence/plain-warm/fingerprint-before.log.gz"
+    },
+    {
+      "sha256": "dd93fbe92546bb35b03f4aa1dcd4136199fb7f951a418ead47b4579c9d520450",
+      "bytes": 76,
+      "path": "round5/evidence/plain-warm/finished.json.gz"
+    },
+    {
+      "sha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584",
+      "bytes": 196,
+      "path": "round5/evidence/plain-warm/hermes-version.log.gz"
+    },
+    {
+      "sha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8",
+      "bytes": 157,
+      "path": "round5/evidence/plain-warm/install-check.mjs.gz"
+    },
+    {
+      "sha256": "a2e7d54f716961720906afa430cd97d5a067678e9fe82ca46dab86fe18188380",
+      "bytes": 3692,
+      "path": "round5/evidence/plain-warm/installed.json.gz"
+    },
+    {
+      "sha256": "2c27556a91989355d12efac35e5894a42ddc32155411bb6e9987e11fb39cafb6",
+      "bytes": 486,
+      "path": "round5/evidence/plain-warm/live.json.gz"
+    },
+    {
+      "sha256": "13b0829d1941bf740f4c8a2ce6f635bffb2b8209b3072ddd5f80c75821269513",
+      "bytes": 6793335,
+      "path": "round5/evidence/plain-warm/native-base.json.gz"
+    },
+    {
+      "sha256": "1749c0b20af1c5874f102356d7d6f8abbf73bdaa64cff46528f903fcd491ab9f",
+      "bytes": 217155,
+      "path": "round5/evidence/plain-warm/native-closure.json.gz"
+    },
+    {
+      "sha256": "69f78c2c7c0fab1f98b8a85e0c3a955056506fb08fc4a267c5cb1f85f5a0994a",
+      "bytes": 7847,
+      "path": "round5/evidence/plain-warm/native-closure.mjs.gz"
+    },
+    {
+      "sha256": "41c9621779a5d476fd6ea3d1aabe0dad3de8cd330f9775dfd3d0053a78118a29",
+      "bytes": 4494,
+      "path": "round5/evidence/plain-warm/native-inputs.mjs.gz"
+    },
+    {
+      "sha256": "83bef4086e60b39735d603a67c97d709d6f309faa8137fdee700fb2b9eea79e7",
+      "bytes": 993,
+      "path": "round5/evidence/plain-warm/native-mods.json.gz"
+    },
+    {
+      "sha256": "b1322c829a923ca99bdc2f3c295cc2ae2f881efd310d12c4279f6dced7b8a33d",
+      "bytes": 3807,
+      "path": "round5/evidence/plain-warm/native-scripts.mjs.gz"
+    },
+    {
+      "sha256": "94db9b14cf09ac1d614fc01464892e01f2ec6a5fdbd9a4e9886a1b5772e3b61f",
+      "bytes": 1709,
+      "path": "round5/evidence/plain-warm/payload.mjs.gz"
+    },
+    {
+      "sha256": "d00b3e494de475024f9b14f63ed16e3eec889963dc5d99a6043ee4f0bd5afdd8",
+      "bytes": 5622,
+      "path": "round5/evidence/plain-warm/plist-23.log.gz"
+    },
+    {
+      "sha256": "9168b1289d011e777b6e0f1c3da920d868a1379f4c472869e00dd533525b460e",
+      "bytes": 218076,
+      "path": "round5/evidence/plain-warm/plist-25.log.gz"
+    },
+    {
+      "sha256": "5ca2b096a6bdf81b0066d7a7f4ba8a66529ae642d5cbc9b0234034f23bd94b90",
+      "bytes": 927,
+      "path": "round5/evidence/plain-warm/plist-29.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm/pod-version.log.gz"
+    },
+    {
+      "sha256": "acf0e340cf78b444489f3fd6c8e0323e568f5a109821c233eb7b71fada5ddf26",
+      "bytes": 2193,
+      "path": "round5/evidence/plain-warm/pods.log.gz"
+    },
+    {
+      "sha256": "1a54c43188abad227ae13064fd93c2929a175fcf5d6651fdc665ef281a4388f7",
+      "bytes": 153,
+      "path": "round5/evidence/plain-warm/prebuild.log.gz"
+    },
+    {
+      "sha256": "19792ea6b52a664b1b28bc295f0d980072760b982d15b2bd3e62f5d0cdffce42",
+      "bytes": 3229,
+      "path": "round5/evidence/plain-warm/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "cfe080a278c8f730f799760d23fb6232ed9e0b3336e616b8be2a2331d7e96ca0",
+      "bytes": 417,
+      "path": "round5/evidence/plain-warm/preparation-runner.mjs.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/preparation-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "4ea25dd1daaf77004d80118fe14257eaa319861bdba8a6dc327bc4e2a839aff4",
+      "bytes": 7103,
+      "path": "round5/evidence/plain-warm/prepare.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/preserve-app.log.gz"
+    },
+    {
+      "sha256": "2d61f45942dede35e330f08b3e7c44d9743b61ff92fe14e400ab65b1ce714dc9",
+      "bytes": 7714,
+      "path": "round5/evidence/plain-warm/proof.json.gz"
+    },
+    {
+      "sha256": "9f8154b33829479fbbfe1d715158c600d4a5e96b76c7248265ed69ef9e7ba5d9",
+      "bytes": 249,
+      "path": "round5/evidence/plain-warm/public-config.log.gz"
+    },
+    {
+      "sha256": "85683b3c78fb5e4e7de1fd16d79849e7c850d7e9bb6b91cb305efb794615f573",
+      "bytes": 598,
+      "path": "round5/evidence/plain-warm/publication.json.gz"
+    },
+    {
+      "sha256": "2a4295c26a3de2841df209aaa75c3b7f2658f8cd6446907fa2b0d6488d96191d",
+      "bytes": 1774376,
+      "path": "round5/evidence/plain-warm/resolved-native.json.gz"
+    },
+    {
+      "sha256": "c4ccbd436a3b97e213d2bd6741061cb9d9afd65e7c203cc065ed2c25051b827a",
+      "bytes": 1202,
+      "path": "round5/evidence/plain-warm/runtime.log.gz"
+    },
+    {
+      "sha256": "1ae4d91b57e6ac675ac3b186cc15f99a8520ec9b2d4e80d1022c00d6dc92bb52",
+      "bytes": 829,
+      "path": "round5/evidence/plain-warm/schemes.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm/sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5/evidence/plain-warm/sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5/evidence/plain-warm/sdk-version.log.gz"
+    },
+    {
+      "sha256": "d8926889eb4596408d526c6dd42cd58ff7d083f3e4965706dbcefcd135dd58e7",
+      "bytes": 44,
+      "path": "round5/evidence/plain-warm/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "69391160539e3b0060c81311aed484d52a2a0b7365f37f78d6cb14e6f0c82b6c",
+      "bytes": 514,
+      "path": "round5/evidence/plain-warm/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "1157d6ca36a4f0f32ad8a04df55666dc3f15c7b8f410179270df9b276e7a58c1",
+      "bytes": 297723,
+      "path": "round5/evidence/plain-warm/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "cf9a61e0736948d4b449972f0944370b6c4764e27751c75aa4497e8a15c9bb7a",
+      "bytes": 57,
+      "path": "round5/evidence/plain-warm/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c",
+      "bytes": 63,
+      "path": "round5/evidence/plain-warm/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "651fc4bee01504b587befbd2b7592f428610f908f9e3c53b246b6e225e9432e3",
+      "bytes": 49830,
+      "path": "round5/evidence/plain-warm/smoke-ios-offline.png"
+    },
+    {
+      "sha256": "77f6bb717fc76a1e7c8a27e3662eb406d31c4f906df3ae5ce1c06ff41f6d49cb",
+      "bytes": 49577,
+      "path": "round5/evidence/plain-warm/smoke-ios-prime.png"
+    },
+    {
+      "sha256": "077e58d41d7bef9a51eef3a7f3b49f6ea3dacff44d795ec2c2c4bf207dae6eff",
+      "bytes": 1237,
+      "path": "round5/evidence/plain-warm/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/smoke-ios-reserved.gz"
+    },
+    {
+      "sha256": "77f6bb717fc76a1e7c8a27e3662eb406d31c4f906df3ae5ce1c06ff41f6d49cb",
+      "bytes": 49577,
+      "path": "round5/evidence/plain-warm/smoke-ios-restart.png"
+    },
+    {
+      "sha256": "df410c2dac11094e44e6553255262caf9d40afaaba0b15f2be678d25b9956db8",
+      "bytes": 3195,
+      "path": "round5/evidence/plain-warm/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "6b46e1a5cfd2312840ab24d74fd4c94d4cd48c79fbd8c429785f1edb0e200158",
+      "bytes": 4092973,
+      "path": "round5/evidence/plain-warm/smoke-ios-screen.mp4"
+    },
+    {
+      "sha256": "375e9f3ae866f5d1a67507abfbd6dd33bd7859589e4659d3cd7e660ec0ee0bc4",
+      "bytes": 139,
+      "path": "round5/evidence/plain-warm/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/snapshot.log.gz"
+    },
+    {
+      "sha256": "5ecb562291fe78483301e7f6be9bfd55df21f028c49b83c7ad42f85fbf78d081",
+      "bytes": 1504,
+      "path": "round5/evidence/plain-warm/source-inputs.json.gz"
+    },
+    {
+      "sha256": "66290fb9d826fc3b6637e261e13614fa593498d3ff46713f3e6c32005fe95970",
+      "bytes": 21741,
+      "path": "round5/evidence/plain-warm/target-settings-0.log.gz"
+    },
+    {
+      "sha256": "6a399a3a7ca40b36cf0b017a5edd2a52871ced38f69cb9a2836437d55fa6fccd",
+      "bytes": 792404,
+      "path": "round5/evidence/plain-warm/target-settings-1.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2",
+      "bytes": 154,
+      "path": "round5/evidence/plain-warm/verify.mjs.gz"
+    },
+    {
+      "sha256": "f6b564d2dd9812b0ec756457817cfd15070d3ff894f44e92461b7b497c9323ae",
+      "bytes": 180452,
+      "path": "round5/evidence/plain-warm/xcode-build.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5/evidence/plain-warm/xcode-version.log.gz"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "plugin": "expo-status-bar",
+  "spec": "git+file:///Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain-plugin-fork",
+  "installed": {
+    "version": "57.0.1",
+    "resolved": "git+file:///Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain-plugin-fork#9e467ad783d3a8fa1f6c70043a002eeb50366735",
+    "license": "MIT",
+    "peerDependencies": {
+      "expo": "*",
+      "react": "*",
+      "react-native": "*"
+    }
+  },
+  "source": "const fs=require('fs');const path=require('path');const original=require('./plugin/build/withStatusBar');module.exports=(config,props)=>{config=(original.default||original)(config,props);config.ios??={};config.ios.infoPlist??={};config.ios.infoPlist.NXNativeMode=fs.readFileSync(path.join(config._internal.projectRoot,'src/native-mode.js'),'utf8');return config;};\n"
+}

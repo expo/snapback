@@ -535,3 +535,40 @@ before baseline reproduction. Intermediate logs remain separate from final proof
 
 No full-suite rerun, native UI qualification, push or publication is claimed.
 The round-0 full-suite inherited failures remain outside this recipe/pilot change.
+
+## Merge current main before landing — 2026-10-03
+
+Merged `origin/main` at `1b879881bee0079c357356685f1a671fe0aed13b`
+into review-complete L at `b9d435d09952981c05a8b4b5accd46b8de0206a9`.
+The two conflicts were the journal tail and client card. The journal is exactly
+main's bytes followed by L's two entries verbatim, each appearing once. All
+revision-history clauses from both parents survive. The client card keeps NX's
+export-integrated native proof, A's `readPresentation` teaching and unknown-count
+sentence, B's pending-intent material, and L's route-owned lifetime pointer.
+
+The first whole-guide run found 1,201 words against the unchanged 1,200-word cap.
+Changing “avoid repeated work” to “avoid repetition” restores that cap; the card
+also fits its 114-line limit at 110 lines. No teaching or budget was removed.
+Both the initial result and corrected result are preserved in `checks/merge-*`.
+
+| Merged-tree check | Result |
+| --- | --- |
+| Lifetime/screen, React, page authority/observation/readiness, retention/adoption, social, README and read-presentation suites | 252 passed, 0 failed, 0 skipped; includes process and wasm devices |
+| Whole guide after the wording correction | 111 passed, 0 failed |
+| README and social starter against the final rebuilt CLI | 20 passed, 0 failed |
+| Package types/build and regenerated pilot schema/API/specimen | Pass; pilot measurements regenerate byte-identically |
+| Documentation budget | README 300/300 lines; self-containment test passes |
+| Rebuilt wasm against main's byte-identical budget file | 2,048,753 B raw / 617,410 B gzip; cap 618,040 B, headroom 630 B |
+| Reference check | 527 LLPs, 0 errors, 0 unchecked |
+
+Commands use the requested PATH, shared Cargo target and disabled incremental
+compilation. The current checkout's crates were rebuilt; test CLI copies and
+the wasm input copied into the local script path isolate the verification from
+shared-target replacement. Generated package/wasm/API outputs were rebuilt,
+and measured pilot files were regenerated rather than merged by hand.
+
+`git diff --check` and `git diff --check origin/main` pass, and the tracked-file
+grep finds no `<<<<<<<` or `>>>>>>>` conflict markers. The staged diff against
+the L parent flags whitespace in 43 imported NX historical-log files; those
+records remain unchanged from main. No complete-suite or native iOS rerun is
+claimed. Local merge commit only, with the requested co-author trailer; no push.

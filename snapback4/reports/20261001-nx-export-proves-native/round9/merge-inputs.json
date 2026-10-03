@@ -1,0 +1,11 @@
+{
+  "lane": "156bdee7c6cbbf7aeeac3a927d1a987d8a9da6c2",
+  "main": "5e12646aeefa896e698b6ea1b5f34203d2919cdb",
+  "conflicts": [
+    "llp/3000.030-native-proof-in-minutes.rfc.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "snapback4/crates/snapback4/tests/witness.rs"
+  ]
+}

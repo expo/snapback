@@ -1,0 +1,12 @@
+✔ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (10763.799584ms)
+✔ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (31278.846459ms)
+native smoke evidence cleanup deferred: spawnSync /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-prune-r2-2YVSRd/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (436.821125ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42561.449834

@@ -1,0 +1,360 @@
+{
+  "starter": "plain",
+  "label": "warm2-final",
+  "startedAt": 1790975784588,
+  "durationMs": 19838,
+  "status": 0,
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790975784705-41594/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "a69f873b89d737b1c96cd5a5b1d538847cf23389b632eed212e0d82ffcde0358"
+      }
+    },
+    "hit": true
+  },
+  "exitStatus": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "f4fd96fdee2e0e9ed057b169f5036d604dc995d5f0853d56a6ae5c1d089ca6e5",
+  "exportHash": "f4fd96fdee2e0e9ed057b169f5036d604dc995d5f0853d56a6ae5c1d089ca6e5",
+  "publicationProofHash": "91cd4c8800b733879b43816d14805ba2031017179190f432aeda1ab262b4e58e",
+  "proofHash": "91cd4c8800b733879b43816d14805ba2031017179190f432aeda1ab262b4e58e",
+  "publishedFiles": 8,
+  "evidence": [
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/before-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "4f4ea9e82f678fc0aa04d0b7f5f3b567de6e1d18cfc4bb2dc1788d7167cf64a3",
+      "bytes": 6969,
+      "path": "round5/evidence/plain-warm2-final/build.json.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/check-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/check-stderr.log.gz"
+    },
+    {
+      "sha256": "8f18977e47d541b25a9239b4bfde50295f332ab9cf117846374424d0851c8f70",
+      "bytes": 338,
+      "path": "round5/evidence/plain-warm2-final/check-stdout.log.gz"
+    },
+    {
+      "sha256": "ae55fba010db8f3a61559a24083892303b7448f387fc635d083af837b48b1a85",
+      "bytes": 2336,
+      "path": "round5/evidence/plain-warm2-final/effective-config.mjs.gz"
+    },
+    {
+      "sha256": "a19d561d83d7ff406f00d4b0003566ec8d1830fe304ff6665258c7f77124c7cd",
+      "bytes": 5806,
+      "path": "round5/evidence/plain-warm2-final/export-cache.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "94677aabbb9247b511e1418dde2a680a49715e58bd1090937f3b2d940b9fffc7",
+      "bytes": 96,
+      "path": "round5/evidence/plain-warm2-final/export-developer.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm2-final/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "faa16e16681ef159b277f0fcc883f5385e5dcb8a79bd4618bb5a575c85b3f333",
+      "bytes": 92,
+      "path": "round5/evidence/plain-warm2-final/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5/evidence/plain-warm2-final/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5/evidence/plain-warm2-final/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5/evidence/plain-warm2-final/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "9b0c841b33217a1be5795fd8dd8fc0a62d0dbe1f90acd9af1e9943fc3a60d144",
+      "bytes": 94,
+      "path": "round5/evidence/plain-warm2-final/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "4e3f7dfa9251a9ac2e720d7ffb29c37a238b66e69366a4188798b0f9544bd941",
+      "bytes": 102,
+      "path": "round5/evidence/plain-warm2-final/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "7471df41e55c50253bee278eea408e832b34ec6e5ea2c6593bae66d6d37e19e8",
+      "bytes": 97,
+      "path": "round5/evidence/plain-warm2-final/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5/evidence/plain-warm2-final/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "eeed342b2cba55c8545daf7b9fa1ec802161a6194ef76a2ae209239b789d27d1",
+      "bytes": 76,
+      "path": "round5/evidence/plain-warm2-final/finished.json.gz"
+    },
+    {
+      "sha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8",
+      "bytes": 157,
+      "path": "round5/evidence/plain-warm2-final/install-check.mjs.gz"
+    },
+    {
+      "sha256": "b06f1f507ca129f30d4702b9f59005677b76bf64143e87067d8dcf3125b72796",
+      "bytes": 3698,
+      "path": "round5/evidence/plain-warm2-final/installed.json.gz"
+    },
+    {
+      "sha256": "2506bcecc70519a66d68891c771d993219c5179710d1b1a133cbd4435bea8526",
+      "bytes": 480,
+      "path": "round5/evidence/plain-warm2-final/live.json.gz"
+    },
+    {
+      "sha256": "69f78c2c7c0fab1f98b8a85e0c3a955056506fb08fc4a267c5cb1f85f5a0994a",
+      "bytes": 7847,
+      "path": "round5/evidence/plain-warm2-final/native-closure.mjs.gz"
+    },
+    {
+      "sha256": "41c9621779a5d476fd6ea3d1aabe0dad3de8cd330f9775dfd3d0053a78118a29",
+      "bytes": 4494,
+      "path": "round5/evidence/plain-warm2-final/native-inputs.mjs.gz"
+    },
+    {
+      "sha256": "a71e571a0282fdde244e7c152d40e5d96a942efa4fc33d4037d2070f18110204",
+      "bytes": 1033,
+      "path": "round5/evidence/plain-warm2-final/native-mods.json.gz"
+    },
+    {
+      "sha256": "b1322c829a923ca99bdc2f3c295cc2ae2f881efd310d12c4279f6dced7b8a33d",
+      "bytes": 3807,
+      "path": "round5/evidence/plain-warm2-final/native-scripts.mjs.gz"
+    },
+    {
+      "sha256": "94db9b14cf09ac1d614fc01464892e01f2ec6a5fdbd9a4e9886a1b5772e3b61f",
+      "bytes": 1709,
+      "path": "round5/evidence/plain-warm2-final/payload.mjs.gz"
+    },
+    {
+      "sha256": "b0de182431408d4f758c0c29cc1d0cfec94a58cf4dbfb358fa24c56c093ebbe1",
+      "bytes": 1030,
+      "path": "round5/evidence/plain-warm2-final/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "cfe080a278c8f730f799760d23fb6232ed9e0b3336e616b8be2a2331d7e96ca0",
+      "bytes": 417,
+      "path": "round5/evidence/plain-warm2-final/preparation-runner.mjs.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/preparation-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "4ea25dd1daaf77004d80118fe14257eaa319861bdba8a6dc327bc4e2a839aff4",
+      "bytes": 7103,
+      "path": "round5/evidence/plain-warm2-final/prepare.mjs.gz"
+    },
+    {
+      "sha256": "496e620f1de10eefd3c97b99837baa4033072f659b72ad1df25cdab051bfc821",
+      "bytes": 7724,
+      "path": "round5/evidence/plain-warm2-final/proof.json.gz"
+    },
+    {
+      "sha256": "70fbb0fae4ca28959b325f543f35cdffde702a88045f74e76e220fb0b03fa2af",
+      "bytes": 596,
+      "path": "round5/evidence/plain-warm2-final/publication.json.gz"
+    },
+    {
+      "sha256": "ccf99532435d4d9a197397a21ba79fa398c817826bdf95cf4c3aac645be4f4a4",
+      "bytes": 44,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "28bb5b8e14556b64ffcceed5227369995c6fac5254a065cd855097eb8a4e1bdd",
+      "bytes": 510,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "a105927408339fb24856e37382e4c9a49beead561acf31569b95570331580e20",
+      "bytes": 297241,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "8d6d139ab8895165f23dd42fe7693e7fc72beacee42b2104b20775e78de86589",
+      "bytes": 59,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c",
+      "bytes": 63,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "af46b50698cde457450ef98db838a35588fcc28dd558048acf173f10c693a263",
+      "bytes": 49425,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-offline.png"
+    },
+    {
+      "sha256": "d7b269a60bab1ed758ccb2ab49d1a79fc1e484ed912efd9ca0a444dbfc842dc6",
+      "bytes": 49145,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-prime.png"
+    },
+    {
+      "sha256": "f630043e617607ea45a777be2f7a0105593e1e9ecd7469c25250495ffb5ffdb4",
+      "bytes": 1248,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-reserved.gz"
+    },
+    {
+      "sha256": "d7b269a60bab1ed758ccb2ab49d1a79fc1e484ed912efd9ca0a444dbfc842dc6",
+      "bytes": 49145,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-restart.png"
+    },
+    {
+      "sha256": "f12e5e851b399793496010d09f557f2a5bcea23016652936c5c9f4492f3a38da",
+      "bytes": 3192,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "b90e298dde1433998ffc76d98c45e00d429ae1e69d0f03562dca6cbfda5cc26c",
+      "bytes": 4012935,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-screen.mp4"
+    },
+    {
+      "sha256": "375e9f3ae866f5d1a67507abfbd6dd33bd7859589e4659d3cd7e660ec0ee0bc4",
+      "bytes": 139,
+      "path": "round5/evidence/plain-warm2-final/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5/evidence/plain-warm2-final/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5/evidence/plain-warm2-final/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2",
+      "bytes": 154,
+      "path": "round5/evidence/plain-warm2-final/verify.mjs.gz"
+    }
+  ]
+}

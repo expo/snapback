@@ -1,0 +1,11 @@
+{
+  "canonicalSourceFiles": 1818,
+  "postCanonicalDelta": [
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/native-mods.json",
+      "suiteSha256": "f918f557db79ee66e8fbb4a5013e411f00f31b13bd2a55c2435787b60ce2de31",
+      "finalSha256": "8d31680522ac81cd7a4b5ff99c146211bbbbe25922370f2670b648210a94a299"
+    }
+  ],
+  "reason": "Exact merged package audit pin additions; fresh affected verification and native proofs use final pin bytes."
+}

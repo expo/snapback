@@ -1,0 +1,27 @@
+{
+  "starter": "plain",
+  "label": "warm3",
+  "startedAt": 1790895983289,
+  "durationMs": 21511,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "811a304a328bcd4fd8a8eb75e459bd3bb154e15691d53407eff5b4bb02b59bc4",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790895986150-34927/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "6d74d80fb2d77ef610d7ff353ef3bbe421f13d68787b859124e2dc28684b7f25"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "811a304a328bcd4fd8a8eb75e459bd3bb154e15691d53407eff5b4bb02b59bc4"
+}

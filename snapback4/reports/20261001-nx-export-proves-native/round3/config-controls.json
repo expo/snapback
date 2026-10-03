@@ -1,0 +1,72 @@
+[
+  {
+    "starter": "plain",
+    "reference": "./x.js",
+    "first": "22c502d00057c97f8f3ec2d6524fd4ef725c8f5c3b99515ddb447727b07ecb00",
+    "second": "34f6ccbb6620691939ce882f39db5e5f9d08b3460ecf74b9a1a5b861d399c892",
+    "conservativePlugins": [
+      "x.js"
+    ],
+    "retainsJs": true,
+    "evaluatedNativeModeAbsent": true
+  },
+  {
+    "starter": "plain",
+    "reference": "plugins/x.js",
+    "first": "4fc30c6cdd347766637157c931c9e968d28d9e37882a918b8d74eb4afdf55ad5",
+    "second": "3d216626b5cb6cf89e3788bdccee1ccccf6175b6a7a542ecc4c0c250d7ccb529",
+    "conservativePlugins": [
+      "plugins/x.js"
+    ],
+    "retainsJs": true,
+    "evaluatedNativeModeAbsent": true
+  },
+  {
+    "starter": "plain",
+    "lateUnobserved": [
+      "late"
+    ],
+    "retainsJs": true
+  },
+  {
+    "starter": "plain",
+    "remoteIcon": "refused",
+    "phase": "preparation",
+    "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948567038-35329/preparation-stderr.log"
+  },
+  {
+    "starter": "social",
+    "reference": "./x.js",
+    "first": "e944abc0169753a1a06df1fc361dbdac8ee522254af02ad1e58869f6afa732c7",
+    "second": "ab6773d8fdc9dae7d80e6854d07814d34e759c52b5b164a52af341ca0b397af5",
+    "conservativePlugins": [
+      "x.js"
+    ],
+    "retainsJs": true,
+    "evaluatedNativeModeAbsent": true
+  },
+  {
+    "starter": "social",
+    "reference": "plugins/x.js",
+    "first": "1b357a0c0e08fb13d1c9e3eecd016949e423718ef6186c57f91689e48860deec",
+    "second": "246241d05bddaf2f552df6786269708c26e4a527649c840da0ed98b17972d698",
+    "conservativePlugins": [
+      "plugins/x.js"
+    ],
+    "retainsJs": true,
+    "evaluatedNativeModeAbsent": true
+  },
+  {
+    "starter": "social",
+    "lateUnobserved": [
+      "late"
+    ],
+    "retainsJs": true
+  },
+  {
+    "starter": "social",
+    "remoteIcon": "refused",
+    "phase": "preparation",
+    "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948935865-45321/preparation-stderr.log"
+  }
+]

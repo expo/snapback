@@ -1,0 +1,26 @@
+
+> snapback4-expo-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+iOS Bundled 2361ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-d6227e4ad944b1c94342a3909222fb0d.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: dist
+witness: using simulator sb4-nx-1790894904995-92367 (40F37BC8-7B71-497A-BFDE-022928C5B98C), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+witness: backend-ready
+witness: recording-started
+witness: waiting-primed
+witness: recording-stopped
+witness: backend-refuses-connections
+E_WITNESS_STEP: app step failed; check --segment and see receipts and device log; see snapback4 guide witness
+native smoke failed; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/smoke-ios-run.json

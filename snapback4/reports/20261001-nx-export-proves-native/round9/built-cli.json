@@ -1,0 +1,12 @@
+{
+  "debug": {
+    "binarySha256": "61e55c1b2c9e1f37fd1d84ce910be6f65580821ab0ec3fdfebc49067bf333298",
+    "embeddedClientWords": 1200,
+    "matchesFinalGuide": true
+  },
+  "production": {
+    "binarySha256": "290b8c865b5ded5f0e1365708b6e4d0bfaff8eeed775da06ef5964fa5b653f42",
+    "embeddedClientWords": 1207,
+    "matchesFinalGuide": false
+  }
+}

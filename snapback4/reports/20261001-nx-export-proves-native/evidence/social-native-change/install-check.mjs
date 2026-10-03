@@ -1,0 +1,1 @@
+import {inventory,installedInventory,readJSON,seal} from './payload.mjs'; const p=readJSON(process.argv[2]); seal(process.argv[4],installedInventory(p.executedApp.inventory,inventory(process.argv[3]),p.executedApp.native));

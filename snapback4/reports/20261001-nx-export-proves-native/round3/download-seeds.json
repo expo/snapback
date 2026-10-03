@@ -1,0 +1,74 @@
+[
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-dependencies-0.86.3-debug.tar.gz",
+    "bytes": 18746275,
+    "sha256": "fa019419384f6f859655fec80b2d20736bb0441bb911cb1944b91719322ae512"
+  },
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-core-0.86.3-debug.tar.gz",
+    "bytes": 98779707,
+    "sha256": "95283572f0d46919c8e208811d7470eca174d47b6152505f205d805867f99e1f"
+  },
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/hermes-ios-250829098.0.17-release.tar.gz",
+    "bytes": 25541302,
+    "sha256": "2967ee51b41bd433b3027dda875e96194354e2b4d715f9f186fd0c04ccef309d"
+  },
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-dependencies-0.86.3-release.tar.gz",
+    "bytes": 10420036,
+    "sha256": "5e06070fdad3315f9f3020283d16875395f93e8a59e175be36d8971e64095892"
+  },
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/hermes-ios-250829098.0.17-debug.tar.gz",
+    "bytes": 32748118,
+    "sha256": "01ff9328903b2d8e4184b6efd9003eb33959ba1c1913c13258fefc42e16c20c2"
+  },
+  {
+    "starter": "plain",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-core-0.86.3-release.tar.gz",
+    "bytes": 31000150,
+    "sha256": "05359752100c0db4be9229423fc673eb3b981ba97aa6210707b878a708320a98"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-dependencies-0.86.3-debug.tar.gz",
+    "bytes": 18746275,
+    "sha256": "fa019419384f6f859655fec80b2d20736bb0441bb911cb1944b91719322ae512"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-core-0.86.3-debug.tar.gz",
+    "bytes": 98779707,
+    "sha256": "95283572f0d46919c8e208811d7470eca174d47b6152505f205d805867f99e1f"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/hermes-ios-250829098.0.17-release.tar.gz",
+    "bytes": 25541302,
+    "sha256": "2967ee51b41bd433b3027dda875e96194354e2b4d715f9f186fd0c04ccef309d"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-dependencies-0.86.3-release.tar.gz",
+    "bytes": 10420036,
+    "sha256": "5e06070fdad3315f9f3020283d16875395f93e8a59e175be36d8971e64095892"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/hermes-ios-250829098.0.17-debug.tar.gz",
+    "bytes": 32748118,
+    "sha256": "01ff9328903b2d8e4184b6efd9003eb33959ba1c1913c13258fefc42e16c20c2"
+  },
+  {
+    "starter": "social",
+    "source": "/Users/ccheever/Library/Caches/ReactNative/reactnative-core-0.86.3-release.tar.gz",
+    "bytes": 31000150,
+    "sha256": "05359752100c0db4be9229423fc673eb3b981ba97aa6210707b878a708320a98"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "base": "bb943663952d666854eb1ec3aa252fd9b4a47caa",
+  "localScratch": "/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-nx-r7-qel8zbqx",
+  "archive": "/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-nx-r7-qel8zbqx/source.tar.gz",
+  "sha256": "36f7e006d9073f5e54f1f53601b1cef1c7de1ae5cf0839e36458db8ef266f460",
+  "files": 2357,
+  "linuxScratch": "/tmp/sb4-nx-r7.Gfl8K2",
+  "sourceManifest": {
+    "sha256": "ba0b1015bfdffa9d6ee8be382dc91e173b3fad5c6d26adab2fd4c495376d1c4b",
+    "bytes": 114038,
+    "path": "round7/source-manifest.json.gz"
+  },
+  "archiveIdentity": {
+    "sha256": "36f7e006d9073f5e54f1f53601b1cef1c7de1ae5cf0839e36458db8ef266f460",
+    "bytes": 9214244,
+    "path": "round7/source.tar.gz"
+  }
+}
