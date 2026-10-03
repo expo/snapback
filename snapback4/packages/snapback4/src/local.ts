@@ -1,6 +1,6 @@
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
-import { readyRead } from "./read-existence.ts";
+import { readyRead, copyOnce } from "./read-existence.ts";
 import { currentDecorations, copyDecorations } from "./read-decoration.ts";
 import { heldQueryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { matchingReads } from "./read-key.ts";
@@ -765,7 +765,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void scheduleRead(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
-          watch.publish(readyRead({ ...read, fresh: true }, watch.pending?.() ?? false));
+          watch.publish(copyOnce(watch.snapshot, readyRead({ ...read, fresh: true }, watch.pending?.() ?? false)));
           notify(watch);
         }
       }
@@ -1022,7 +1022,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (watch.snapshot !== read) {
           watch.tables = tables; watch.scopes = result.scopes;
           watch.setExistenceTables(result.existenceTables ?? null); const denied = unavailable(); // Rule 1: immediately before notifying observers.
-          watch.publish(denied ? { denied } : copyDecorations(result.read, result.transportOffline && "data" in result.read ? { ...result.read, revalidating: true as const } : result.read));
+          watch.publish(denied ? { denied } : copyOnce(result.read, copyDecorations(result.read, result.transportOffline && "data" in result.read ? { ...result.read, revalidating: true as const } : result.read)));
           notify(watch);
         }
         return true;

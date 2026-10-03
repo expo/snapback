@@ -141,7 +141,12 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let (result, unknown, retained, components, provenance) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
                 let mut reply = match result {
                     Ok(mut outcome) => {
+                        let once = device.once_read(text(&request, "name")?);
+                        // The private per-reader ledger is never synced. A device
+                        // can prove the rows, but cannot restore these cells.
+                        if let Some(plan) = &once { plan.mask(&mut outcome.data, |_, _, _| false); }
                         let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "decorationExpiry": outcome.decoration_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
+                        if let Some(plan) = once { reply["once"] = encoded(&plan)?; }
                         if search { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());

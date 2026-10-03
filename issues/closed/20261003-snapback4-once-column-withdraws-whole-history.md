@@ -2,7 +2,7 @@
 
 **Opened:** 2026-10-03, from lane LM (merge 3d1ec31ff6), investigating calibration #29's empty-list transition
 **Area:** client read preservation (LLP 3000.023, lane RV's preservation certificate), `once` media authority
-**Status:** Open — queued for an sb5 lane after the current 3000.032 lanes free eb1000
+**Status:** Resolved — lane ON, 2026-10-03
 
 ## What happens
 
@@ -13,3 +13,20 @@ This is the documented conservative authorization boundary, not a lost message. 
 ## Wanted
 
 Narrow the withdrawal to what the unknown authority can actually affect: the `once` column's value or asset handle, not row membership or the rest of the row. Then a settlement episode keeps the list on screen and masks only the unproven column. The narrowing must keep LLP 3000.023's hard withdrawals and the view-once guarantee: a revoked once-asset must never be shown.
+
+
+## Resolution
+
+LLP 3000.023 §12 now admits conditional row preservation for a proved bare
+point/page while every once cell is null. Other fields and row membership keep
+their existing certificate; private view-ledger authority is checked in the
+server query transaction before restoration. Devices mask unproven cells.
+Filtered/derived queries and all hard withdrawals remain conservative.
+
+LM's base empty transition was reproduced on process and wasm, then its oracle
+was changed to require retained rows. New regressions cover real asset values,
+revocation, second-view refusal, deletion, denial, sign-out and facade/page
+masking; the real store replacement harness now includes a once column.
+Qualification, disclosure audit, mutation result, wasm bytes and full-suite
+failure classifications are recorded in
+`snapback4/reports/20261003-on-once-narrow/REPORT.md` and `~/sb5-lanes/on.report.md`.

@@ -17,6 +17,7 @@ const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4")
 const wasm = readFileSync(join(root, "packages/snapback4/dist/wasm/snapback4_device_bg.wasm"));
 const source = `use personas alice
 table notes:
+  photo: image <=10000 once ?
   body: text <=100
   public 'reconnect fixture'
   insert <- allow

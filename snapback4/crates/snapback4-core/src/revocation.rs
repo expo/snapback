@@ -81,18 +81,26 @@ impl Footprint {
     }
     pub fn preserved(&self, schema: &Schema) -> Vec<String> {
         if self.unknown || schema.tables.len() > LIMIT { return Vec::new(); }
-        schema.visible_tables().filter(|(name, table)| {
-            if self.tables.get(*name).is_some_and(|c| c.deleted) { return false; }
+        schema.visible_tables().filter_map(|(name, table)| {
+            if name.starts_with("~once:") { return None; } // reserved evidence namespace, including hand-built schemas
+            if self.tables.get(name).is_some_and(|c| c.deleted) { return None; }
             let mut deps = Dependencies::default();
+            // @ref LLP 3000.023#12 — the namespaced certificate requires a proved
+            // bare-row answer with every once column masked. Legacy readers
+            // cannot mistake it for full field authority.
+            let masked = table.columns.values().any(once);
+            if masked && name.len() > 120 { return None; }
+            if masked { deps.masked = Some(name.clone()); }
             deps.table(schema, name, table);
-            !deps.unknown && !deps.tables.iter().any(|(name, columns)| self.tables.get(name).is_some_and(|change|
-                columns.is_none() || columns.as_ref().is_some_and(|cols| !cols.is_disjoint(&change.columns))))
-        }).map(|(name, _)| name.clone()).collect()
+            (!deps.unknown && !deps.tables.iter().any(|(name, columns)| self.tables.get(name).is_some_and(|change|
+                columns.is_none() || columns.as_ref().is_some_and(|cols| !cols.is_disjoint(&change.columns)))))
+                .then(|| if masked { format!("~once:{name}") } else { name.clone() })
+        }).collect()
     }
 }
 
 #[derive(Default)]
-struct Dependencies { tables: BTreeMap<String, Option<BTreeSet<String>>>, visited: BTreeSet<String>, unknown: bool }
+struct Dependencies { tables: BTreeMap<String, Option<BTreeSet<String>>>, visited: BTreeSet<String>, unknown: bool, masked: Option<String> }
 impl Dependencies {
     fn column(&mut self, table: &str, column: &str) {
         self.tables.entry(table.into()).or_insert_with(|| Some(BTreeSet::new())).as_mut().map(|s| s.insert(column.into()));
@@ -158,6 +166,7 @@ impl Dependencies {
         if let Some(c) = &table.expire { self.column(name,c); }
         if table.is_expiring() { self.column(name,"$deadline"); self.column(name,"$parentDeadline"); }
         for (column, kind) in &table.columns {
+            if once(kind) && self.masked.as_deref() == Some(name) { continue; }
             if asset(kind) { self.column(name,column); }
             // The once ledger is not an ordinary row table. Until it has an audience
             // mapping this dependency is unknown, including for opaque native reads.
@@ -169,7 +178,7 @@ fn asset(kind: &ColumnType) -> bool {
     match kind { ColumnType::Image { .. } | ColumnType::Video { .. } => true,
         ColumnType::Optional(t) | ColumnType::List { of: t, .. } => asset(t), _ => false }
 }
-fn once(kind: &ColumnType) -> bool {
+pub(crate) fn once(kind: &ColumnType) -> bool {
     match kind { ColumnType::Image { once, .. } => *once,
         ColumnType::Optional(t) | ColumnType::List { of: t, .. } => once(t), _ => false }
 }

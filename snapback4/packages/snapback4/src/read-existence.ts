@@ -1,4 +1,6 @@
 import type { Ready, ReadyMetadata } from "./contract.ts";
+import { copyOnce } from "./read-once.ts";
+export { copyOnce };
 
 // @ref LLP 3000.031#1.1 — page absence uses the predicate, not a predecessor's partial word.
 // A preceding page can be partial solely because it has a continuation.
@@ -19,5 +21,5 @@ export function readyExistence(read: ReadyMetadata & { readonly data: unknown },
 export function readyRead<T>(read: ReadyMetadata & { readonly data: T }, pending = false): Ready<T> {
   const result = { ...read, existence: readyExistence(read, pending) } as Ready<T>;
   pendingFacts.set(result, pending);
-  return result;
+  return copyOnce(read, result);
 }

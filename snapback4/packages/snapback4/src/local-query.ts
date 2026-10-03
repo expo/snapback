@@ -1,3 +1,4 @@
+import { withOnce, oncePlan, copyOnce, unproveOnce, currentOnce } from "./read-once.ts";
 import { decorationPaths, withDecorations, valueDeadline, mergeValueDeadlines, type ValueDeadlines } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
 import { checkRead } from "./read-work.ts";
@@ -32,7 +33,7 @@ import type { ColdReadControl } from "./device-control.ts";
 type Result<R> = ValueDeadlines & { heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
-type Outcome = Coverage & { decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+type Outcome = Coverage & { once?: unknown; decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
@@ -146,6 +147,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (last) for (const table of last.tables) tables.add(table);
     const read: Read<R> = last ? readyRead({ ...last.read, data: last.read.data as R, fresh: false, since: Math.min(last.at, Date.now()) })
       : watch ? { loading: true } : { denied: env.offline() };
+    if (last) { copyOnce(last.read, read); unproveOnce(read); }
     // Rules 4/5: recovery still depends on the local branch's next deadline.
     // Its wakeup is separate from the remembered answer's server-clock expiry.
     // Absent memory is an explicit replacement (including an ordered denial),
@@ -172,6 +174,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
       : readyRead({ data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null });
+    withOnce(read, outcome.once, true);
     latest = { outcome, result: { read, tables, nextExpiry, valueDevice: "data" in read ? valueDeadline(outcome.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null, valueServer: null, scopes: outcome.scopes } };
     return latest;
   };
@@ -201,6 +204,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
+        withOnce(read, json.once);
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
         return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueDevice: null, valueServer: "data" in read ? valueDeadline(json.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
@@ -214,6 +218,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const wantsServer = (coverage: Coverage) => !!coverage.unknown && !coverage.retained;
   // Rules 2–4 apply to every local observation, including an expiry retry.
   const routeLocal = async (first: { outcome: Outcome; result: Result<R> }, retain = true): Promise<Candidate<R>> => {
+    if (oncePlan(first.result.read) && !first.outcome.retained && !held && env.link === "online") return server(false, retain);
     if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
@@ -358,7 +363,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, scopes: result.scopes, at: Date.now(), nextExpiry: result.serverExpiry ?? null, decorationExpiry: result.valueServer, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
-      if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);
+      if (followingPending && "data" in result.read) result.read = copyOnce(result.read, readyRead<R>({ ...result.read, complete: false }, pendingHere));
       // @ref LLP 3000.023#11 — only a static permanence proof permits a
       // terminal held refusal. Actual read tables alone cannot rule out a
       // changing time/argument/coverage/membership branch. Observations keep loading.
@@ -366,12 +371,13 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         result.heldUnavailable = permanentlyUnavailableHeldCount(program, env.backend.schema);
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
-      return { ...result, read: readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere) };
+      return { ...result, read: copyOnce(result.read, readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere)) };
     }
   };
   try {
     const candidate = await route(); checkpoint();
     const result = await publish(candidate); checkpoint();
+    result.read = currentOnce(result.read);
     withDecorations(result.read, env.backend.schema.operations?.[op.name]?.search_decoration ? decorationPaths(program) : [],
       result.valueDevice, result.valueServer, env.deviceNow, env.serverNow);
     return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };

@@ -326,6 +326,7 @@ fn asset_and_once_consumption_cover_every_viewer() {
             e.record_asset_view(consumer,&id,101).unwrap(); consumptions += 1;
             assert_eq!(e.seq().unwrap(),seq,"once consumption has no public row commit");
             assert!(!preserved_between(e.store().conn(),e.schema(),seq,seq).contains(&"docs".into()));
+            assert!(preserved_between(e.store().conn(),e.schema(),seq,seq).contains(&"~once:docs".into()), "only the masked row can preserve authority through once consumption");
             for viewer in VIEWERS {
                 let result = e.asset_access(viewer,&id,101); access_checks += 1;
                 if viewer == consumer { assert_eq!(result.unwrap_err().code(),"E_ASSET_VIEWED"); } else { assert!(result.is_ok()); }

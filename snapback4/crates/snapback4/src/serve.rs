@@ -1218,7 +1218,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths, once) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1233,9 +1233,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         trace::mark("query_start");
                         let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
                         trace::mark("query_end");
+                        let once = reader.program(&op).and_then(|program| snapback4_core::once_read::plan(reader.schema(), program));
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1250,8 +1251,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
                         let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
+                        let once = engine.program(&op).and_then(|program| snapback4_core::once_read::plan(engine.schema(), program));
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths, once)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1259,6 +1261,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            once: &'a Option<snapback4_core::once_read::OnceRead>,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             scopes: &'a Option<Json>,
                             #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
@@ -1313,7 +1317,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { once: &once, scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {

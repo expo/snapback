@@ -167,7 +167,14 @@ fn wrap(ty: &Ty) -> String {
 
 fn column_ts(kind: &ColumnType, schema: &Schema) -> String {
     let _ = schema;
-    ty_ts(&Ty::from_column(kind))
+    // @ref LLP 3000.023#12 — a bare row's whole once cell can be pending,
+    // even when the stored column is required. Write arguments stay exact.
+    fn once(kind: &ColumnType) -> bool { match kind {
+        ColumnType::Image { once, .. } => *once,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => once(inner), _ => false,
+    } }
+    let ty = Ty::from_column(kind);
+    ty_ts(&if once(kind) { ty.optional() } else { ty })
 }
 
 fn property(name: &str) -> String {

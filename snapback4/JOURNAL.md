@@ -83172,3 +83172,54 @@ receipt snippet 2 → 2; whole-client deltas stay −22 and +4 respectively.
 Details and lossless logs: reports/20261003-r-receipt-binding/REPORT.md, Round 1,
 and round1/. The same record is appended to ~/sb5-lanes/r.report.md. Commit locally
 with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+
+## 2026-10-03 — Lane ON: preserve history while once cells await authority
+
+Reproduced LM's original one-second empty transition on both process and wasm
+before changing the runtime. The unconditional once-ledger dependency refused
+RV's certificate for an entire table, even with an unused nullable column.
+LLP 3000.023 §12 now permits a namespaced conditional certificate for a proved
+bare point/page: row membership and other columns remain certified while whole
+once cells become null. Rule/owner/expiry/deletion and session/store boundaries
+stay conservative; filtered and derived reads do not opt in. Devices always
+mask unproven cells. Online restoration proves the asset home and unconsumed
+view ledger inside the same transaction as row authority, without consuming a
+view. Fixed prepayment includes null/absent slots so later restoration cannot
+reveal an earlier masked cell through the proof allowance.
+
+Mask state follows retained reads, facades and pages. Copies preserve private
+pending/existence facts; the full suite caught an empty-partial-page recursion
+when that fact was lost, and a base/fix browser comparison plus a reentrant-read
+regression verifies the repair. The other introduced red was the zero-await
+census entry for the synchronous mask module; it is repaired and passes.
+The guide and generated required-once row types describe the null placeholder.
+The original filesystem ticket is resolved under issues/closed/.
+
+Final affected clients 366/366 (process and wasm), browser DM 8/8, core proof
+3/3, whole guide 110/110, revocation model 5/5; package typecheck and delivery
+census pass. Disabling the mask transition fails the public immediate-null test
+on a real asset; restoring it passes. Full script ran once and reported exactly:
+`== 5 failure(s) in 1823 s`. Its Rust inventory was 287 binaries / 1,000
+executions plus doctests. Client sweep 5,909 passed, 24 failed, 10 skipped;
+client models 79/79. Two client reds were ours and repaired; one missing-script
+import and four Rust note assertions are inherited (base evidence retained).
+Twenty-one client cases, two Rust cases and chat generation/typechecks fail
+on this external-target layout. One completed-but-stuck native-opening file
+needed a lane-owned SIGTERM after missing-binary failures; no other lane was
+touched. Every failure, original log and final affected rerun is in the report.
+
+Measured Linux wasm 2,052,110 B raw / 618,230 B gzip, versus rebuilt base
+2,048,753 / 617,410 (+3,357 raw / +820 gzip). Raise the 618,040 cap only by the
+required 190 B, with no added slack. This is the shared query-shape proof,
+conditional classifier and device mask; no independent function attribution
+or macOS measurement. A temporary build-wasm target-path correction was used
+for measurement and the full run, then restored to honor the requested host
+boundary. No target directory/symlink exists, and the full run is not claimed
+as an unmodified build-script qualification. The final proof-budget hardening
+is server-only and has separate affected checks; no post-restoration wasm
+rebuild is claimed. Source/distribution wasm hashes match.
+
+Report: reports/20261003-on-once-narrow/REPORT.md and ~/sb5-lanes/on.report.md.
+Commit locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

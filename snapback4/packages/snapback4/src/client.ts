@@ -1,3 +1,4 @@
+import { withOnce } from "./read-once.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
@@ -607,6 +608,7 @@ export function createClient(options: ClientOptions): Client {
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
     const read = readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter });
+    withOnce(read, json.once);
     withDecorations(read, Array.isArray(json.decorationPaths) ? json.decorationPaths as DecorationPaths : [], values.valueDevice,
       values.valueServer, clock.issuedDeviceNow, clock.estimatedServerNow);
     return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, ...values, refresh };
@@ -1015,7 +1017,7 @@ export function createClient(options: ClientOptions): Client {
       return observeWatch(watches, key,
         () => {
           const watch: Watch = Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
-          watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes });
+          watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes, read: watch.snapshot });
           return watch;
         },
         watch => { watchEphemeral(watch); void scheduleRead(watch); void poll(); },

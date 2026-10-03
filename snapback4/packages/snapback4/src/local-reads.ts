@@ -393,7 +393,7 @@ export function localWatch(keep: boolean | undefined, op: Query<unknown, unknown
   pending: (tables: Set<string> | null) => boolean): LocalWatch {
   const watch: LocalWatch = Object.assign(new ReadObservation<unknown>(keep), { op, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation,
     setExistenceTables(tables: Set<string> | null) { watch.pending = () => pending(tables); } });
-  watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes });
+  watch.dependencies = () => ({ tables: watch.tables, scopes: watch.scopes, read: watch.snapshot });
   watch.setExistenceTables(null);
   return watch;
 }

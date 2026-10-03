@@ -41,6 +41,9 @@ export const scope = {
   // adds delivery I/O or absorbs failures. read-existence.test.mjs exercises
   // rejection and incarnation/revision fencing at both new continuation sites.
   // client.ts changes only erased generic arguments; read-existence is sync.
+  // LLP 3000.023 ON: read-once is synchronous metadata/masking. Once routing
+  // reuses local-query's existing server path and its pending/publication fences;
+  // it adds no await or delivery I/O site.
   // The shared decoder now owns both mutation-body I/O and optional query
   // decoding. Retry waits/send calls remain covered by their caller awaits.
   'http-response.ts': ['readResponse'],

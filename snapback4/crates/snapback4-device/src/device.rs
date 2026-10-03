@@ -1223,6 +1223,10 @@ impl<S: DeviceStore> Device<S> {
         &self.schema
     }
 
+    pub fn once_read(&self, name: &str) -> Option<snapback4_core::once_read::OnceRead> {
+        snapback4_core::once_read::plan(&self.schema, self.programs.get(name)?)
+    }
+
     pub fn store(&self) -> &S {
         &self.store
     }

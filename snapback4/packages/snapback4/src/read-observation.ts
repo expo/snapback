@@ -1,4 +1,5 @@
 import { copyDecorations, currentDecorations } from "./read-decoration.ts";
+import { copyOnce, currentOnce, unproveOnce } from "./read-once.ts";
 import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
@@ -13,6 +14,7 @@ export function answerObservation(read: Read<unknown>): ReadObservation<unknown>
 
 function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   copyDecorations(from, to);
+  copyOnce(from, to);
   identities.set(to, answerIdentity(from));
   const owner = owners.get(from);
   if (owner) owners.set(to, owner);
@@ -21,7 +23,7 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
 }
 
 export function decorationAnswer<T>(read: Read<T>): Read<T> {
-  const next = currentDecorations(read);
+  const next = currentDecorations(currentOnce(read));
   return next === read ? read : copyAnswer(read, next);
 }
 
@@ -50,6 +52,9 @@ export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
 // @ref LLP 3000.031#1.1 — pending changes reclassify the held answer, preserving its identity.
 export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: boolean): Read<T> {
   if (!("data" in read)) return read;
+  unproveOnce(read);
+  read = decorationAnswer(read);
+  if (!("data" in read)) return read;
   const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
   const next = readyExistence(read, blocked);
   if (read.revalidating && read.existence === next && (next === "present" || pendingRead(read) === blocked)) {
@@ -63,8 +68,8 @@ export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: 
 /** Retention and the subscriber-free lifetime are independent policies. */
 export class ReadObservation<T> {
   // @ref LLP 3000.023#12 — source B cannot hide the dependencies of facade-held A.
-  dependencies?: () => { tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined };
-  readonly protectedReads = new Set<{ tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined }>();
+  dependencies?: () => { tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined; read?: Read<unknown> };
+  readonly protectedReads = new Set<{ tables: ReadonlySet<string>; scopes?: import("./local-reads.ts").ReadScopes | undefined; read?: Read<unknown> }>();
   readonly retain: boolean;
   readonly linger: boolean;
   constructor(keep?: boolean) {
@@ -224,6 +229,7 @@ export class ReadObservation<T> {
       ...(read.since !== undefined ? { since: Math.min(read.since, Date.now()) } : {}),
     }, this.pending?.() ?? pendingRead(read)) : { ...read };
     copyDecorations(read, this.snapshot);
+    copyOnce(read, this.snapshot);
     this.snapshot = decorationAnswer(this.snapshot);
     this.transportOffline = this.transportOffline && "data" in read && !read.fresh;
     identities.set(this.snapshot, {});

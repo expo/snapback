@@ -988,7 +988,9 @@ impl Engine {
                 runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
             }
         }
-        let data = runner.run_server_query(&program)?;
+        let mut data = runner.run_server_query(&program)?;
+        // @ref LLP 3000.023#12 — row and once-cell authority share the query snapshot.
+        crate::once_read::authorize(&tx, &self.schema, &program, &runner.context.viewer, &mut data, &mut runner.meter);
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
