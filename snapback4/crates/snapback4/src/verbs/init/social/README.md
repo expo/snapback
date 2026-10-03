@@ -21,7 +21,7 @@ is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
 contains the complete provider example. There is no separate worker launcher.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
 `npm run native:smoke` always runs the full Release build. Automatic smoke reuses
 only a matching native app, installs the exact exported bundle, chooses its own
 simulator/free port, and writes `artifacts/native-smoke/<timestamp>`. Unavailable

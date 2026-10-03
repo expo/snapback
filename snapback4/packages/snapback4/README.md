@@ -79,7 +79,7 @@ Availability and handle saves use the server; your private profile is held local
 Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
 Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
 Both Expo starters include the wrapper. Matching native inputs reuse a Release app; native changes rebuild. `npm run native:smoke` always runs the full build.
 Unavailable environments skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
 Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Empty starters prove lifecycle; write replay needs an app scenario.

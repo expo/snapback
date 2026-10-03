@@ -66,7 +66,7 @@ runner, commands and artifact contract are in `snapback4 guide witness`
 “Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
 Release witness.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (18–24 s warm, 170–244 s cold on this mini).
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
 `npm run native:smoke` always runs the full Release build; `SNAPBACK4_NATIVE_SMOKE=off` skips the automatic smoke. Unavailable hosts skip, app/SDK failures fail.
 The smoke prepares and installs your Release app, chooses its own simulator and free
 port, and keeps receipts in `artifacts/native-smoke/<timestamp>`. It proves local
