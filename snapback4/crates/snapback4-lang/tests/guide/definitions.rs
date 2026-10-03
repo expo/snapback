@@ -271,6 +271,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_MODIFIER_SCOPE", "E_QUARRY_MODIFIER_SCOPE means a nested read's modifiers are ambiguous."),
     ("E_QUARRY_PLACEMENT", "E_QUARRY_PLACEMENT means a statement is valid only in another context."),
     ("E_QUARRY_POSITIONAL_SCAN", "E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population."),
+    ("E_QUARRY_NULL_KEY", "arguments for nullable columns of the selected unique key must be provably non-null"),
     ("E_QUARRY_RETAIN", "E_QUARRY_RETAIN means a table repeats its retention declaration or uses an unknown policy."),
     ("E_QUARRY_SYNTAX", "E_QUARRY_SYNTAX means the parser could not read the form at the reported file, line and column."),
     ("E_QUARRY_TYPE", "E_QUARRY_TYPE means the expression's type does not fit its position."),

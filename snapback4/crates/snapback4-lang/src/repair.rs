@@ -23,13 +23,20 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
         if diagnostic.rewrite.is_empty() { continue; }
         let candidate = documents.iter().flat_map(|doc| &doc.source.repairs).rev()
             .find(|candidate| candidate.site == diagnostic.site && candidate.rewrite == diagnostic.rewrite);
-        let verified = candidate.and_then(|candidate| match check(documents, candidate) {
-            Check::Accepted => Some(candidate.clone()),
-            Check::Unbound => {
-                let page = key_page(documents, candidate)?;
-                (check(documents, &page) == Check::Accepted).then_some(page)
+        let verified = candidate.and_then(|candidate| {
+            // A where population cannot become a nullable unique point, even
+            // when the bare point compiles (for example, a required outer key).
+            if nullable_key(documents, candidate) && let Some(page) = key_page(documents, candidate) {
+                return (check(documents, &page) == Check::Accepted).then_some(page);
             }
-            Check::Rejected => None,
+            match check(documents, candidate) {
+                Check::Accepted => Some(candidate.clone()),
+                Check::Unbound => {
+                    let page = key_page(documents, candidate)?;
+                    (check(documents, &page) == Check::Accepted).then_some(page)
+                }
+                Check::Rejected => None,
+            }
         });
         if let Some(candidate) = verified {
             diagnostic.rewrite = candidate.rewrite;
@@ -41,8 +48,17 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
 #[derive(PartialEq, Eq)]
 enum Check { Accepted, Unbound, Rejected }
 
-// A page fallback is a different intended plan, so retry only after a binding
-// failure, never to bypass rejection of an otherwise compiling wrong plan.
+fn nullable_key(documents: &[Document], candidate: &Candidate) -> bool {
+    let Some(read) = &candidate.intended else { return false; };
+    let Some(table) = documents.iter().flat_map(|doc| &doc.tables).find(|table| table.name == read.table) else { return false; };
+    table.indexes.iter().any(|index| index.unique && index.is_plain()
+        && index.columns.len() == read.keys.len()
+        && index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))
+        && index.columns.iter().any(|column| table.columns.iter().any(|c| &c.name == column && c.type_.optional)))
+}
+
+// A nullable key must retain a population. Other page fallbacks retry only
+// after a binding failure, never to bypass a compiling wrong plan.
 fn key_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
     let mut page = candidate.clone();
     let read = page.intended.as_mut()?;
@@ -55,17 +71,16 @@ fn key_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> 
     let total = pinned("id") || table.indexes.iter().any(|index| index.unique && index.is_plain()
         && index.columns.iter().all(|column| pinned(column) && (column == "id"
             || table.columns.iter().any(|c| &c.name == column && !c.type_.optional))));
-    if total {
-        read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
-        page.rewrite.push_str(" first 1");
-        if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
-    } else if table.indexes.iter().any(|index| index.unique && index.is_plain()
-        && index.columns.len() == read.keys.len() && index.columns.iter().all(|column| pinned(column))) {
-        // @ref LLP 3000.013#2.2 — an exact nullable key is a point too;
-        // preserve a population consumer with an explicit order, never first 1.
+    if nullable_key(documents, candidate) {
+        // @ref LLP 3000.013#2.2 — preserve every nullable unique tie with
+        // an explicit population order; verification still checks its bound.
         read.order_keys.push("id".into());
         page.rewrite.push_str(" by .id");
         if let Some(message) = &mut page.message { message.push_str(" with `by .id` to keep every null match"); }
+    } else if total {
+        read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
+        page.rewrite.push_str(" first 1");
+        if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
     } else { return None; }
     Some(page)
 }

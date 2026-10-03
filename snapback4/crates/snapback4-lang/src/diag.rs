@@ -144,7 +144,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_WRITE_TESTS" => "writes",
         "E_QUARRY_RULE_SPELLING" => "rules",
         "E_QUARRY_JOB_SCHEDULE" => "jobs",
-        "E_QUARRY_AMBIGUOUS" | "E_CURSOR_INDEX" | "E_CONSTRAINT" => "indexes",
+        "E_QUARRY_AMBIGUOUS" | "E_QUARRY_NULL_KEY" | "E_CURSOR_INDEX" | "E_CONSTRAINT" => "indexes",
         "E_QUARRY_PLACEMENT" | "E_INTERNAL" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" | "E_QUARRY_BOUND" => "bounds",
         "E_SYNC" | "E_SYNC_GENERATION" => "sync",

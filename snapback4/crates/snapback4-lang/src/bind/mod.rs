@@ -19,6 +19,7 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
 mod helper_names;

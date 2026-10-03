@@ -84833,3 +84833,43 @@ and store code and retains the verification record. The ticket is closed
 under `issues/closed/`. Local commit includes
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
 no remote machine or unrelated process was touched.
+
+## 2026-10-03 — NL round 1: nullable unique points require non-null proof
+
+This supersedes the preceding NL entry's first-candidate interpretation.
+A server chooses from its live rows and then authorizes that candidate; a
+replica chooses from the rows it holds. Null ties can therefore produce
+different complete point answers. The operator chose compile-time refusal:
+`E_QUARRY_NULL_KEY` requires every argument on a nullable column of the
+selected unique key to be provably non-null, through its static type or a
+null guard. Both spellings, program/rule `exists`, `created` and keyed writes
+share the check. Rule short circuits and focal shape-field guards retain
+presence facts. Diagnostics offer guards, a bounded population, or row id;
+literal null needs replacement. Storage uniqueness, total population equality,
+required-key null misses and maintained null groups remain unchanged.
+
+Exact unique keys now outrank competing nonunique indexes in point probes,
+including rules. Named reads still prefer a shorter total unique key when
+available and check remaining equalities; plan identity is conditional on
+selecting the same index without residual predicates. Nullable population
+repairs retain `by .id` when verified, including guarded shape fields where
+a bare point would compile; otherwise no rewrite. Existing page bounds are
+preserved. The guide, LLP 3000.013 §2.2 and closed ticket now state this rule.
+Calibration #29's sorted, non-null principal keys remain legal.
+
+All 318 affected tests pass across language, core, memory and SQLite. The
+complete eb1000 suite with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
+passed with zero failures in 1,397 s: 6,034 client tests passed with 11 existing
+skips, and 79 model tests passed. Legacy disclosure fixtures now guard nullable
+unique probes; timeline privacy probes address the same foreign row by its
+engine-defined id. Their privacy assertions remain intact. After the final
+repair-only adjustment, the entire Rust inventory was repeated on the final
+code: 288 test binaries, 1,001 executions and doctests, all passing.
+
+Wasm is byte-identical to Round 0: 2,048,676 B raw / 617,398 B gzip, 642 B below
+the unchanged 618,040 B budget. Reference and whitespace checks pass. The
+[Round 1 report](./reports/20261003-nl-named-key-lookup/REPORT.md) records code,
+review dispositions and logs, including the superseded in-progress runs.
+Only this session's test processes were signaled. No other machine was used;
+nothing pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

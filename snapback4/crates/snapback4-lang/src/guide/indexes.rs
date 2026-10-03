@@ -30,9 +30,12 @@ needs no `by` declaration for these reads.
 exactly one declared unique key of that arity, in its declared order.
 Name columns when several keys have that arity: `tasks[ownerId = viewer,
 projectId = projectId]`. Synthesized indexes never choose positional meaning.
-In either key spelling, null matches null on optional columns (ties select the
-first live candidate by id, subject to read rules); null for a required column
-returns null. Use a bounded `where` read to retrieve every null match.
+In either key spelling (also `exists`), arguments for nullable columns of the
+selected unique key must be provably non-null: use required types or `if x != null` guards
+(`x != null and exists ...` in rules). Otherwise `E_QUARRY_NULL_KEY` refuses
+the ambiguous null ties across replicas. To read null matches, use a bounded
+`where` population ordered `by .id`, or address a row by id. Null for a
+required key column returns null; maintained aggregate null groups are unchanged.
 A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.

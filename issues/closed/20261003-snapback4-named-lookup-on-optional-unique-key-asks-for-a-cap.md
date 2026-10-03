@@ -47,16 +47,25 @@ Copy the calibration #29 source (`.../astra/source/snapback/{schema.q,windows.q,
 
 ## Resolved — 2026-10-03, Lane NL
 
-Exact named equalities over a plain unique key now use the positional point
-plan in either order, including nullable columns. Null-bearing keys permit
-duplicates; a point selects the first live candidate by id and applies its
-read rule. Null for a required key column returns null. Bounded `where`
-equality still returns all null matches. The planner no longer asks for a
-cap for the full-key lookup; partial keys retain their bound requirement.
+Exact named equalities over a plain unique key now select a point in either
+order, including nullable columns. Round 1 supersedes the initial null rule:
+every argument on a nullable column of the selected key must be provably
+non-null (required type or guard). Otherwise both spellings and `exists`
+refuse with `E_QUARRY_NULL_KEY`, explaining replica-ambiguous null ties and
+offering a guard, an explicitly bounded population, or an id lookup. No cap
+is suggested as a repair of the point itself. Partial keys still need bounds.
+Required-key null arguments address nothing. Storage null-bearing uniqueness,
+population equality and maintained aggregate null groups are unchanged.
+
+Point plans match when both spellings select the same index without residual
+equalities. A shorter total unique key can instead serve a named lookup with
+extra equality checks. Competing nonunique indexes no longer make exact
+unique rule probes ambiguous. A nullable unique population repair retains
+`by .id` if it compiles; otherwise no rewrite is offered.
 
 Regressions cover server, memory and SQLite, all required/optional and null
 combinations of two- and three-column keys, every named order, duplicate
-writes, identical plans, and the real calibration #29 source. Its copied app
+writes, qualified plan identity, and the real calibration #29 source. Its copied app
 passes `check` with the named form. The indexes guide and LLP 3000.013 §2.2
 document the semantics. A verified diagnostic repair for an aggregate now
 adds `by .id` so its population keeps every tied null row.

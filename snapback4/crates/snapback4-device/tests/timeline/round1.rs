@@ -25,22 +25,24 @@ pub fn assert_partition<S: Images>(d: &mut Device<S>, e: &Engine, viewer: &str) 
 }
 pub fn add_probes(b: &mut Backend) {
     let queries = r#"
-query inboxPoint(eventId: id):
-  return feedFeed['bob', eventId, null] by byReaderEvent { readerId, eventId }
+query inboxPoint(feedId: feedFeed):
+  return feedFeed[feedId] { readerId, eventId }
 query inboxScan():
   return feedFeed['bob'] first 100 by byReaderTime { readerId, eventId }
 query inboxMerge():
   return merge feedFeed last 100 by byReaderTime:
     ['bob']
-query inboxProbe(eventId: id):
-  return exists feedFeed['bob', eventId, null] by byReaderEvent
+query inboxProbe(feedId: feedFeed):
+  return exists feedFeed[feedId]
 "#;
     let compiled=fixture::compile(&format!("{}{}{queries}",fixture::APP,fixture::DECLARATION));
     b.programs.extend(compiled.programs.into_iter().filter(|p|p.program.kind==snapback4_core::ir::ProgramKind::Query).map(|p|p.program));
 }
 pub fn assert_private<S: Images>(d: &mut Device<S>, post: &str) {
         for query in ["inboxPoint","inboxScan","inboxMerge","inboxProbe"] {
-            let args=if query=="inboxPoint" || query=="inboxProbe" {json!({"eventId":post})} else {json!({})};
+            // Address the exact foreign row by its engine-defined id. Its
+            // nullable epoch is not an admissible authored unique point key.
+            let args=if query=="inboxPoint" || query=="inboxProbe" {json!({"feedId":owned_id("feed","Feed",&[fixture::id("bob"),fixture::id(post),Value::Null])})} else {json!({})};
             let answer=d.query(query,"alice",&args,100).unwrap();
             assert!(answer.data==Value::Null || answer.data==Value::Bool(false) || answer.data==Value::Array(vec![]),"foreign disclosure via {query}: {answer:?}");
         }

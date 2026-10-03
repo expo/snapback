@@ -219,3 +219,91 @@ fn nullable_unique_aggregate_keeps_tied_null_rows() {
     assert_eq!(page.data.as_array().unwrap().len(), 2);
     for row in page.data.as_array().unwrap() { assert_eq!(row.field("n").unwrap(), &Value::Int(2)); }
 }
+
+#[test]
+fn nullable_unique_shape_repair_keeps_the_population_or_offers_no_rewrite() {
+    for capped in [false, true] {
+        let model = MODEL.replace("conversation: id", "conversation: id ?")
+            .replace("  public", &format!("  unique conversation\n{}  public", if capped { "  cap 20 by conversation\n" } else { "" }));
+        for required_outer in [false, true] {
+            let outer = if required_outer { "parents" } else { "members" };
+            let source = format!("{model}table parents:\n  conversation: id\n  public\nquery q(c: cursor ?):\n  return {outer} first 20 after c {{ twin: members where .conversation = .conversation }}\n");
+            let refused = checked(&source);
+            let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+            // Different focal types may instead offer an argument edit; that
+            // keeps the where population and must not offer a bare point.
+            if required_outer { assert!(!d.rewrite.starts_with("members["), "{d:?}"); continue; }
+            if !capped { assert!(d.rewrite.is_empty(), "{d:?}"); continue; }
+            assert_eq!(d.rewrite, "members[conversation = .conversation] by .id");
+            let bound = checked(&source.replace("members where .conversation = .conversation", &d.rewrite));
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            engine.seed(["a", "m"].map(|id| ("members".into(), object([
+                ("id", Value::Id(id.into())), ("conversation", Value::Null),
+                ("active", Value::Bool(true)), ("score", Value::Int(10)),
+            ])))).unwrap();
+            let page = engine.query("q", Context::new("bob", [("c".into(), Value::Null)].into())).unwrap();
+            assert!(page.complete);
+            assert_eq!(page.data.as_array().unwrap().len(), 2);
+            for row in page.data.as_array().unwrap() {
+                let ids = row.field("twin").unwrap().as_array().unwrap().iter().map(|row| row.field("id").unwrap().clone()).collect::<Vec<_>>();
+                assert_eq!(ids, vec![Value::Id("a".into()), Value::Id("m".into())]);
+            }
+        }
+    }
+}
+
+#[test]
+fn nullable_population_repair_does_not_accept_a_guarded_bare_point() {
+    for capped in [false, true] {
+        let model = MODEL.replace("conversation: id", "conversation: id ?")
+            .replace("  public", &format!("  unique conversation\n{}  public", if capped { "  cap 20 by conversation\n" } else { "" }));
+        let population = "members where .conversation = .conversation";
+        let point = "members[conversation = .conversation]";
+        let source = format!("{model}query q():\n  return members first 20 {{ twin: ({population}) if .conversation != null else null }}\n");
+        // The guard admits the point. Typechecking alone is therefore not a
+        // proof that a proposed repair retained the population result form.
+        let bare = checked(&source.replace(population, point));
+        assert!(bare.diagnostics.is_empty(), "{:?}", bare.diagnostics);
+        for condition in [".conversation = null", ".conversation != null or true"] {
+            let unsafe_point = checked(&source.replace(population, point).replace(".conversation != null", condition));
+            assert!(unsafe_point.diagnostics.iter().any(|d| d.code == "E_QUARRY_NULL_KEY"), "{:?}", unsafe_point.diagnostics);
+        }
+        let refused = checked(&source);
+        let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+        if capped {
+            assert_eq!(d.rewrite, format!("{point} by .id"));
+            let bound = checked(&source.replace(population, &d.rewrite));
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            assert_eq!(snapback4_core::ir::scans(&bound.programs[0].program).len(), 2);
+            let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            engine.seed([("a", Value::Null), ("m", Value::Null), ("present", Value::Id("conversation".into()))].map(|(id, conversation)| ("members".into(), object([
+                ("id", Value::Id(id.into())), ("conversation", conversation),
+                ("active", Value::Bool(true)), ("score", Value::Int(10)),
+            ])))).unwrap();
+            let page = engine.query("q", Context::new("bob", Default::default())).unwrap();
+            assert!(page.complete);
+            let rows = page.data.as_array().unwrap();
+            assert_eq!(rows.len(), 3);
+            assert_eq!(rows[0].field("twin").unwrap(), &Value::Null);
+            assert_eq!(rows[1].field("twin").unwrap(), &Value::Null);
+            let twin = rows[2].field("twin").unwrap().as_array().unwrap();
+            assert_eq!(twin.len(), 1);
+            assert_eq!(twin[0].field("id").unwrap(), &Value::Id("present".into()));
+        } else { assert!(d.rewrite.is_empty(), "{d:?}"); }
+    }
+}
+
+#[test]
+fn nullable_unique_repair_keeps_an_existing_page_bound() {
+    let model = MODEL.replace("conversation: id", "conversation: id ?")
+        .replace("  public", "  unique conversation\n  public");
+    let population = "members where .conversation = .conversation first 20";
+    let source = format!("{model}query q():\n  return members first 20 {{ twin: {population} }}\n");
+    let refused = checked(&source);
+    let d = refused.diagnostics.iter().find(|d| d.code == "E_QUARRY_SELF_EQUALITY").unwrap();
+    assert_eq!(d.rewrite, "members[conversation = .conversation] first 20");
+    let bound = checked(&source.replace(population, &d.rewrite));
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(snapback4_core::ir::scans(&bound.programs[0].program).len(), 2);
+}

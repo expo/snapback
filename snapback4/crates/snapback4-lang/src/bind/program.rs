@@ -580,6 +580,10 @@ impl<'a> Binder<'a> {
         if named && matches!(mode, ReadMode::FilteredPoint | ReadMode::Exists) {
             if let Some(width) = candidates.iter().filter(|i| info.total_unique(i)).map(|i| i.columns.len()).min() {
                 candidates.retain(|i| info.total_unique(i) && i.columns.len() == width);
+            } else if candidates.iter().any(|i| i.unique) {
+                // Exact nullable unique keys still select points. A competing
+                // nonunique index must not turn an exists probe into a tie.
+                candidates.retain(|i| i.unique);
             }
         }
         // Positional keys select by type; a text literal may meet an
@@ -856,6 +860,9 @@ impl<'a> Binder<'a> {
         }))?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
+        // @ref LLP 3000.007#10 — the focal row is a lexical snapshot too;
+        // let its field guards carry presence facts into point-key arguments.
+        self.scopes.last_mut().unwrap().insert(row_var.into(), Binding { runtime: row_var.into(), declared: row_ty.clone(), ty: row_ty.clone(), parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         let result = (|| {
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
@@ -1050,6 +1057,8 @@ impl<'a> Binder<'a> {
         }
         let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index, _) = self.select_index(info, &read, ReadMode::Point, out)?;
+        super::point_key::check(info, &index, &read, &bound.iter().map(|(column, _, ty)|
+            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>())?;
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
             let id = self.temp("key");

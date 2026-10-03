@@ -77,8 +77,8 @@ impl Requests {
             return;
         }
         let named = !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_some());
-        // @ref LLP 3000.013#2.2 — an exact named unique key has positional
-        // point semantics, including null ties; only extra predicates need a total key.
+        // @ref LLP 3000.013#2.2 — exact named unique keys select points;
+        // binding requires non-null arguments on nullable key columns.
         let covered = named && table.indexes.iter().any(|index| index.unique && index.is_plain()
             && (index.columns.len() == read.keys.len() || table.total_unique(index))
             && index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))));
