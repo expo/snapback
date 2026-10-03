@@ -414,21 +414,28 @@ impl Binder<'_> {
 
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
+        self.narrow_inner(condition, then_branch, self.point_guard_safe(condition));
+    }
+
+    fn narrow_inner(&mut self, condition: &A, then_branch: bool, points: bool) {
         match condition {
-            A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow(&A::Binary {
+            A::Exists { read, .. } if then_branch && points => self.narrow_point(read),
+            A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow_inner(&A::Binary {
                 op: "!=".into(), left: Box::new(args[0].clone()), right: Box::new(A::Literal { value: Literal::Null, site: site.clone() }), site: site.clone(),
-            }, then_branch),
-            A::Unary { op, value, .. } if op == "not" => self.narrow(value, !then_branch),
+            }, then_branch, points),
+            A::Unary { op, value, .. } if op == "not" => self.narrow_inner(value, !then_branch, points),
             A::Binary { op, left, right, .. } if (op == "and" && then_branch) || (op == "or" && !then_branch) => {
-                self.narrow(left, then_branch);
-                self.narrow(right, then_branch);
+                self.narrow_inner(left, then_branch, points);
+                self.narrow_inner(right, then_branch, points);
             }
             A::Binary { op, left, right, .. } if op == "!=" || op == "=" => {
                 let candidate = match (left.as_ref(), right.as_ref()) {
                     (A::Literal { value: Literal::Null, .. }, other) | (other, A::Literal { value: Literal::Null, .. }) => other,
                     _ => return,
                 };
-                if let A::Name { name, .. } = candidate
+                if let A::Read(read) = candidate {
+                    if points && (op == "!=") == then_branch { self.narrow_point(read); }
+                } else if let A::Name { name, .. } = candidate
                     && let Some(mut binding) = self.binding(name).cloned()
                 {
                     binding.ty = if (op == "!=") == then_branch { binding.ty.required() } else { Ty::Null };
@@ -552,7 +559,7 @@ impl Binder<'_> {
             if !ty.assignable_to(&expected) {
                 return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), match (ty.required(), expected.required()) {
                     (Ty::Enum(variants), Ty::Text(max)) if variants.iter().any(|variant| variant.chars().count() > max as usize) => format!("change {name}'s parameter to `{}: {}`; not every variant fits text <={max}", declared.name, ty.name()),
-                    _ if ty.is_optional() && !expected.is_optional() => format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), site: given.site().clone() })),
+                    _ if ty.is_optional() && !expected.is_optional() => self.parent_rewrite(given).unwrap_or_else(|| format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), site: given.site().clone() }))),
                     _ => format!("pass {} for {}", expected.name(), declared.name),
                 }));
             }
@@ -610,6 +617,7 @@ impl Binder<'_> {
         self.loops = loops;
         self.caller_loops -= loops;
         self.scopes = caller;
+        if point_facts::writes(&out[start..]) { self.invalidate_points(); }
         self.focal = focal;
         result.map_err(|diagnostic| {
             if matches!(diagnostic.code.as_str(), "E_QUARRY_PLACEMENT" | "E_EMIT_IN_QUERY") || diagnostic.message == "queries cannot mint ids" {
@@ -619,7 +627,7 @@ impl Binder<'_> {
         })
     }
 
-    fn visible_bindings(&self) -> BTreeMap<String, Binding> {
+    pub(super) fn visible_bindings(&self) -> BTreeMap<String, Binding> {
         self.scopes.iter().flat_map(|scope| scope.iter().map(|(name, binding)| (name.clone(), binding.clone()))).collect()
     }
 

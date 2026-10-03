@@ -15,6 +15,7 @@ use std::fmt;
 
 pub mod columns;
 pub mod through;
+mod reference;
 pub mod ephemeral;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
@@ -641,7 +642,7 @@ impl RuleExpr {
     /// Every `.field` the rule reads, on any probe key or comparison.
     pub fn fields(&self, out: &mut BTreeSet<String>) {
         let term = |term: &RuleTerm, out: &mut BTreeSet<String>| {
-            if let RuleTerm::Field(field) = term {
+            if let RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } = term {
                 out.insert(field.clone());
             }
         };
@@ -694,6 +695,7 @@ impl RuleExpr {
     pub fn quarry(&self) -> String {
         fn term(term: &RuleTerm) -> String {
             match term {
+                RuleTerm::Reference { table, column, field, old } => format!("{table}[{}.{column}].{field}", if *old { "old" } else { "" }),
                 RuleTerm::Field(f) => format!(".{f}"),
                 RuleTerm::OldField(f) => format!("old.{f}"),
                 RuleTerm::NextField(f) => format!("next.{f}"),
@@ -719,14 +721,7 @@ impl RuleExpr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RuleTerm {
-    Field(String),
-    OldField(String),
-    NextField(String),
-    Viewer,
-    Literal(Value),
-}
+pub use reference::RuleTerm;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Constraint {
@@ -989,6 +984,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     }
                 }
                 Constraint::FinalExistsOnInsert { table: target, index, key } => {
+                    if key.iter().any(|t| matches!(t, RuleTerm::Reference { .. })) {
+                        issue(&mut issues, cpath.clone(), "E_QUARRY_RULE_HOP: after insert cannot follow references; use a mutation require with table[.ref].field".into());
+                    }
                     match schema.table(target).and_then(|t| t.index(index)) {
                         Some(target_index) if target_index.is_plain() && target_index.columns().len() == key.len() => {}
                         Some(_) => issue(&mut issues, cpath,
@@ -1030,21 +1028,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
 }
 
 fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, insert: bool, path: &str, issues: &mut Vec<SchemaIssue>) {
-    let check_term = |term: &RuleTerm, issues: &mut Vec<SchemaIssue>| match term {
-        RuleTerm::Field(field) => {
-            if !table.columns.contains_key(field) {
-                issues.push(SchemaIssue { path: path.to_owned(), message: format!("rule reads undeclared column {field}") });
-            }
-        }
-        RuleTerm::OldField(field) | RuleTerm::NextField(field) => {
-            if !update {
-                issues.push(SchemaIssue { path: path.to_owned(), message: "old and next images exist only in update rules".into() });
-            } else if !table.columns.contains_key(field) {
-                issues.push(SchemaIssue { path: path.to_owned(), message: format!("rule reads undeclared column {field}") });
-            }
-        }
-        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
-    };
+    let check_term = |term: &RuleTerm, issues: &mut Vec<SchemaIssue>| reference::validate_term(schema, table, term, update, path, issues);
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
         RuleExpr::Eq(l, r) | RuleExpr::Ne(l, r) | RuleExpr::Compare(_, l, r) => {

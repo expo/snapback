@@ -17,6 +17,10 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches one row; its `if` condition tests the old row.
 `upsert` inserts or patches, and `delete` removes the named row.
+Write results contain omitted optional columns as null and defaults as values;
+updates retain unchanged fields. These fields do not cost prediction.
+Owned/sequence/receipt fields keep their projection and settlement rules.
+E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
 Any refusal rolls back the entire mutation.
 Keep one minted write id with each intent when retrying.
 
@@ -361,13 +365,10 @@ write results, point rereads and pages carry `pending: true`.
 
 ### The application-counter spelling, which still compiles
 
-Before `sequence by`, the ordinal was an application counter. This older
-spelling still compiles; for server-arrival order prefer the engine sequence
-above, which refuses a client-supplied position. For timestamp order use
-the existing columns as shown above. The legacy recipe keeps a
-per-conversation ordinal in the same mutation as the message insert.
-Transactions serialize the increment, so committed ordinals
-order accepted writes within that conversation; they do not order groups.
+The older application-counter spelling still compiles. Prefer engine sequences
+for server-arrival order, or existing timestamps for timestamp order. This
+recipe increments the counter atomically with the insert, ordering committed
+writes within each conversation.
 
 ```quarry
 table conversations:
@@ -429,12 +430,9 @@ backwards mark. See `guide rules` for the complete Clique membership recipe.
 Other fields in the same patch require the row's update rule. Inserts by
 another principal omit readUpTo, including when its intended value is 0.
 
-The default projection is private. Append `readable by audience` for Clique's
-shared receipts. Ownership is unchanged by that visibility choice. The owner
-sees the settled mark on every device; a held-row mark write predicts offline,
-then settles through the ordinary write receipt and partition stream.
-E_FIELD_AUTHORITY names the owner column: omit the supplied field or write as
-that principal. It also refuses malformed owner declarations and private fields
-used in indexes or aggregate inputs; see the rewrite on `guide rules`.
+The projection is private; append `readable by audience` for shared receipts.
+Owners receive settled marks on every device, and held-row patches predict
+offline. E_FIELD_AUTHORITY names the owner: omit the field or write as that
+principal. See `guide rules` for declaration and private-field restrictions.
 
 "##;

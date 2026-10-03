@@ -84799,3 +84799,52 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+## 2026-10-03 — QE2: total Quarry write results, reference rules and point guards
+
+Calibration #30's data-modeling charge reproduced on 0.4.12: an omitted
+optional insert field compiled but failed E_FIELD, a write-rule reference hop
+was refused as E_QUARRY_UNKNOWN, and a guarded lookup remained nullable at a
+helper call. The shared engine now completes bound insert results with nulls
+and defaults after write authority; updates retain their total stored image.
+Private fields keep projection, assigned sequence/receipt fields keep their
+existing result paths, and maintained fields keep their compile-time refusal.
+Omitted payloads and historical program IR remain unchanged. Raw inserts that
+bind no result avoid result allocation; the full disclosure matrix found and
+motivated that regression check.
+
+Write rules admit one live, authorized reference hop on server and device.
+Absent, expired, hidden and unheld parents fail closed, including under
+negation; rule probes are prepaid and physical authority work stays bounded.
+Insert, old/next update and pre-delete images are covered. Unsupported hops
+use E_QUARRY_RULE_HOP with a concrete lookup or read-through repair. The new
+rule-reference capability fences older devices.
+
+Identical point reads narrow after existence/null guards and in present
+branches, including helper arguments. Writes, key changes and viewer scopes
+invalidate facts. Enum-to-text widening already worked; the guide now makes
+its bounds explicit. Membership cannot prove parent existence because a
+required reference is a typed id, not a foreign key. The diagnostic therefore
+names `require exists conversations[conversation] else NOT_FOUND`. The original
+calibration source and the reverted source with those guards both send,
+replay and emit the preview successfully. Its full send still cannot predict
+because of receipt-derived unread maintenance; the isolated result/rule
+scenario predicts on memory, SQLite and wasm.
+
+The final locked Linux wasm measures 2,058,160 bytes raw / 620,784 gzip,
++3,386 gzip (0.55%) over the measured base. The cap is 621,414, retaining the
+existing estimated macOS offset of 130 bytes and 500 bytes of headroom. No
+macOS size is claimed and no runtime ceiling changes. The added bytes cover
+the rule term, authorization path and total result completion. Point facts
+stay in the compiler. Guide cards and LLP 3000.007/3000.013 carry the matching
+revisions. The [QE2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md)
+retains baseline failures, fixture hashes, focused checks and final suite
+results. Work ran only in this eb1000 worktree; nothing pushed or published.
+
+Final qualification: `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh` exits 0 with `0 failure(s) in 1995 s`. Rust passes
+4,785 tests plus 17 doctests (34 existing ignored); clients pass 6,036 with
+11 existing skips across 303 files; models pass 79/79; fixture wrappers pass
+9/9. All build, documentation and typecheck categories pass. Focused checks
+cover 188 distinct Rust tests and both wire hosts. The 41 pinned inputs stayed
+unchanged; reference, source-size and whitespace audits pass.

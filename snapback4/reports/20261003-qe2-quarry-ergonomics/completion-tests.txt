@@ -1,0 +1,60 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-lang)
+   Compiling snapback4-sim v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-sim)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 43.17s
+     Running tests/qe2_ergonomics.rs (snapback4/target/debug/deps/qe2_ergonomics-669fec27571c99a6)
+
+running 2 tests
+test memory_total_results_guards_and_rule_hops ... ok
+test sqlite_total_results_guards_and_rule_hops ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/qe2_ergonomics.rs (snapback4/target/debug/deps/qe2_ergonomics-16a441155c36684a)
+
+running 17 tests
+test an_optional_column_keeps_its_field_guard_rewrite ... ok
+test reference_rule_refusals_name_the_known_construct_and_rewrite ... ok
+test point_facts_do_not_cross_job_viewer_authority_edges ... ok
+test write_rule_follows_one_authorized_reference ... ok
+test point_guards_narrow_into_helpers ... ok
+test rule_hops_are_fenced_and_invalid_raw_positions_refuse ... ok
+test point_facts_do_not_survive_changed_keys_writes_branches_or_loop_iterations ... ok
+test calibration_original_compiles ... ok
+test calibration_reverted_with_explicit_parent_guard_compiles ... ok
+test calibration_membership_alone_gets_exact_parent_rewrite ... ok
+test insert_result_is_total_and_predictable ... ok
+test total_update_and_reference_rules_execute ... ok
+test reference_rule_prepays_even_a_short_circuited_hop ... ok
+test hidden_reference_and_absence_have_identical_refusal_and_logical_meter ... ok
+test unbound_raw_insert_does_not_reserve_an_unused_result_copy ... ok
+test reference_rule_absent_hidden_expired_and_negated_fail_closed_with_fixed_meter ... ok
+test calibration_send_replays_successfully_and_emits_preview ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/maintains_recorded.rs (snapback4/target/debug/deps/maintains_recorded-222a11f69c1e4d41)
+
+running 19 tests
+test round1::malformed_target_fields_are_errors_not_null_captures ... ok
+test round1::uncovered_large_target_reserves_before_fetch_then_requires_coverage ... ok
+test round1::literal_field_lookup_and_nullable_required_target_time ... ok
+test round1::ordinary_updates_and_upsert_update_preserve_capture ... ok
+test activation_assesses_sums_using_the_new_capture_groups ... ok
+test equivalence_after_deletion_reuse_and_unswept_expiry ... ok
+test round1::a_recorded_column_cannot_have_an_application_default ... ok
+test round1::program_insert_applies_reference_default_before_capture ... ok
+test round1::ranking_and_trending_project_recorded_keys ... ok
+test round1::later_unrelated_rebuild_and_live_sum_repair_log_their_changes ... ok
+test round1::mixed_capture_repair_and_unrelated_rebuild_keep_separate_event_scopes ... ok
+test round1::capture_and_reimport_propagate_store_read_errors_without_null_writes ... ok
+test predicate_changes_read_recorded_facts_and_new_paths_capture_once ... ok
+test clique_fixture_matches_the_hand_copied_model ... ok
+test round1::activation_capture_persists_after_reopen_and_empty_capture_has_no_gap ... ok
+test activation_dangling_expired_reused_and_removed_paths ... ok
+test untrusted_import_refuses_forgery_and_trusted_restore_keeps_history ... ok
+test forged_program_payloads_and_system_jobs_are_refused_including_noop_updates ... ok
+test round1::separate_import_commits_and_winning_forgery ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s

@@ -1,8 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Types
 
-Types describe the values a column or argument accepts.
-They also set limits on text, lists and uploaded assets.
+Types bound columns, arguments, text, lists and uploads.
 
 ```quarry
 table profiles:
@@ -19,6 +18,13 @@ mutation createProfile(name: text 1..80):
 Columns are required unless their type ends in `?`; omitted optional values are null.
 A table name means a typed reference id, and `text` means `text <=10000`.
 `default` fills an omitted insert value; an explicit value wins.
+Enums widen to text within its character bounds.
+`require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
+branches narrow identical unique-key reads, including helper arguments.
+Writes, rebindings and viewer changes invalidate it.
+Membership cannot prove parent existence: use
+`require exists conversations[conversation] else NOT_FOUND`, or bind with
+`! else NOT_FOUND`.
 
 ## Limits
 
@@ -66,10 +72,10 @@ query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take 
 Types describe the values a column or argument accepts.
 They also set limits on text, lists and uploaded assets.
 
-Null guards narrow repeated pure `fn` calls with identical arguments: lexical
-names, snapshot field paths, literals, or such calls. Pure helpers read no
-tables or clocks and write nothing. Reassigning any argument root invalidates
-the fact. Other calls keep the bind-once rewrite. Both calls remain metered.
+Null guards narrow repeated pure `fn` calls over identical lexical names,
+snapshot fields, literals or pure calls. Pure helpers read no tables/clocks
+and write nothing. Rebinding argument roots invalidates facts. Other calls
+need binding once; both calls remain metered.
 
 See `expiryTtl` in `guide language`.
 

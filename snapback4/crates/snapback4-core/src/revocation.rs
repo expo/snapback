@@ -100,6 +100,7 @@ impl Dependencies {
     fn term(&mut self, table: &str, term: &RuleTerm) {
         match term {
             RuleTerm::Field(c) | RuleTerm::OldField(c) | RuleTerm::NextField(c) => self.column(table, c),
+            RuleTerm::Reference { table: target, column, field, .. } => { self.column(table, column); self.column(target, field); self.unknown = true; },
             RuleTerm::Viewer | RuleTerm::Literal(_) => (),
         }
     }

@@ -1,0 +1,9 @@
+{
+  "m4-check.txt": "031b26598988164fceb912c21a29e21d90e6c928a070241735b61cab6b9b6577",
+  "m5-check.txt": "a37e2e3b4a490f7c9f87a558d6f33a42abc9a4bfc04fd91a78a0e14b9c976db0",
+  "m6-efield.txt": "bf7d97c7808d734e163124feef0d802d106c997dd64954ff7bea9e996752db21",
+  "cal30-source/config.q": "b9b7add541e5ffba1da6aef91ccc3903bf758764928c6586aacbb11604175c17",
+  "cal30-source/schedule.q": "dd95a57021524fa6b48805f85b0e574ab3dbd296e1afb2168f6a00771aa51d32",
+  "cal30-source/schema.q": "aac0c238369601fb24e5d23ce84369d29e3d699e8424d60bc623a876e5234a37",
+  "cal30-source/workers/push.mjs": "65e722f660426aab4c2cb154fbd91849fad3bbafe21da7c6b7ce2558a3bbbffb"
+}

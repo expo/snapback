@@ -12,6 +12,11 @@ pub struct Effects {
     pub emit: bool,
 }
 impl Effects {
+    pub fn writes_in(body: &[Stmt]) -> bool {
+        let mut effects = Self::default();
+        effects.statements(body);
+        !effects.writes.is_empty()
+    }
     pub fn of(program: &Program, schema: &crate::schema::Schema) -> Self {
         let mut effects = Self::default();
         effects.statements(&program.body);

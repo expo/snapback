@@ -545,7 +545,7 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Insert { table, row } => {
                     let image = self.expr(row)?;
-                    if self.schema.tables[table].sequences.is_empty() && !self.schema.receipt_insert(table) {
+                    if !matches!(row, Expr::Variable(_)) || !self.needs_insert_result(table, &image) {
                         self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
                         self.meter.heap(expression_heap(&image))?;

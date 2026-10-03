@@ -53,6 +53,7 @@ mod provenance;
 pub mod delivery;
 mod expiry;
 pub mod rules;
+mod rule_reference;
 pub mod runner;
 pub mod validate;
 pub mod write;
