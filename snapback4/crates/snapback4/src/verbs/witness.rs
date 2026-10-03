@@ -114,6 +114,23 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     Ok(text.trim().to_owned())
 }
 
+fn command_text(program: &str, args: &[&str], timeout: Duration) -> Result<String> {
+    let mut command = Command::new(program);
+    command.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
+    let mut child = Owned::spawn(&mut command)?;
+    let mut pipe = child.0.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || { let mut text = String::new(); let _ = pipe.read_to_string(&mut text); text });
+    let end = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.status()? {
+            if !status.success() { return Err(error("E_WITNESS_PLATFORM", "toolchain probe failed")); }
+            return Ok(reader.join().unwrap_or_default().trim().to_owned());
+        }
+        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "toolchain probe timed out")); }
+        tick()?;
+    }
+}
+
 fn installed_app(udid: &str, bundle: &str, timeout: Duration) -> Result<String> {
     simctl(&["get_app_container", udid, bundle, "app"], timeout)
 }
@@ -129,7 +146,7 @@ fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
 
 struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
-    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
+    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>, app_started: u128,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
     _lease: File, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
 }
@@ -175,6 +192,7 @@ impl Run {
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
             .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(output(&self.path("launch.log"))?);
+        self.app_started = now();
         let mut child = Owned::spawn(&mut command)?;
         let mut stdout = child.0.stdout.take().unwrap();
         let reader = std::thread::spawn(move || { let mut text = String::new(); let _ = stdout.read_to_string(&mut text); text });
@@ -238,6 +256,21 @@ impl Run {
         loop {
             if let Some(child) = &mut self.video { child.alive("video recorder")?; }
             if self.app_pid.is_some() && self.running_app()? != self.app_pid {
+                if expected == "primed" && read_rows(&self.receipts(), false).is_ok_and(|rows| !rows.iter().any(|r| r["witness"]["step"] == "primed")) {
+                    // DiagnosticReports arrives asynchronously after launchctl loses the PID.
+                    let deadline = Instant::now() + Duration::from_secs(3);
+                    if let Some(home) = std::env::var_os("HOME") {
+                        let reports = PathBuf::from(home).join("Library/Logs/DiagnosticReports");
+                        loop {
+                            if let Some(crash) = scene_crash(&reports, &self.options.bundle, self.app_pid.unwrap(), &self.udid, self.app_started, deadline) {
+                                self.manifest["sceneCrash"] = crash;
+                                return Err(error("E_WITNESS_SCENE_LIFECYCLE", SCENE_REPAIR));
+                            }
+                            if Instant::now() >= deadline { break; }
+                            tick()?;
+                        }
+                    }
+                }
                 return Err(error("E_WITNESS_APP", "owned app exited or was replaced while awaiting its receipt"));
             }
             if let Some(child) = &mut self.logs { child.alive("log capture")?; }
@@ -420,6 +453,14 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
         if !output.status.success() { return Err(error("E_WITNESS_APP", format!("cannot read {key} from installed Info.plist; check --bundle-id"))); }
         build[key] = json!(String::from_utf8_lossy(&output.stdout).trim());
     }
+    for key in ["DTXcodeBuild", "DTSDKName", "DTSDKBuild"] {
+        let output = Command::new("/usr/bin/plutil").args(["-extract", key, "raw", "-o", "-"]).arg(&plist).output();
+        build[key] = output.ok().filter(|o| o.status.success()).map_or(Value::Null, |o| json!(String::from_utf8_lossy(&o.stdout).trim()));
+    }
+    let toolchain = app_toolchain(&build);
+    for key in ["xcodeBuild", "iosSdkVersion", "toolchainSource"] {
+        preparation[key] = toolchain[key].clone();
+    }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
     let installed = if options.smoke {
         json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,
@@ -434,7 +475,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
-    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+    let manifest = json!({ "xcodeBuild": toolchain["xcodeBuild"], "iosSdkVersion": toolchain["iosSdkVersion"], "toolchainSource": toolchain["toolchainSource"], "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
         "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
         "queryFacts": Value::Null, "queryGeneration": Value::Null,
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
@@ -442,7 +483,7 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
         "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, app_started: 0, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -457,7 +498,11 @@ pub fn run(args: &[String]) -> i32 {
         platform(std::env::consts::OS)?;
         reserve_artifacts(&options.artifacts, &artifact_segment(&options))?;
         let failure_path = options.artifacts.join(format!("{}-ios-run.json", artifact_segment(&options)));
-        let mut preparation = json!({ "bundleId": options.bundle, "segment": options.segment,
+        let xcode = command_text("xcodebuild", &["-version"], Duration::from_secs(10)).ok();
+        let sdk = command_text("xcrun", &["--sdk", "iphonesimulator", "--show-sdk-version"], Duration::from_secs(10)).ok();
+        let mut preparation = json!({ "xcodeBuild": xcode.as_deref().and_then(|s| s.lines().find_map(|l| l.strip_prefix("Build version "))),
+            "iosSdkVersion": sdk, "toolchainSource": "selected host; no installed product inspected",
+            "bundleId": options.bundle, "segment": options.segment,
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
             "events": [], "artifacts": {} });

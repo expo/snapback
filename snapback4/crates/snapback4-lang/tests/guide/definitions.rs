@@ -335,6 +335,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_PORT", "E_WITNESS_PORT means the requested backend port is occupied."),
     ("E_WITNESS_PROCESS", "E_WITNESS_PROCESS means a child command could not start, exited early or could not be stopped."),
     ("E_WITNESS_RECEIPT", "E_WITNESS_RECEIPT means a receipt is not a complete valid JSON object with the expected witness envelope, changed after observation, or could not be written."),
+    ("E_WITNESS_SCENE_LIFECYCLE", "E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming receipt. The detector filters reports by bundle, launch PID, simulator and mtime since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread."),
     ("E_WITNESS_SIMULATOR", "E_WITNESS_SIMULATOR means the explicit device is unavailable or simctl failed."),
     ("E_WITNESS_STEP", "E_WITNESS_STEP means an application assertion failed, milestones arrived out of order, or steps overlapped."),
     ("E_WITNESS_TIMEOUT", "E_WITNESS_TIMEOUT means a step, child command or signal did not arrive within its timeout, 120 seconds by default per driver step."),

@@ -83294,3 +83294,91 @@ Initial failure and passing rebuild logs are retained. No full-suite rerun or
 native layout claim. Round 1 is appended to
 reports/20261003-a-read-presentation/REPORT.md; evidence is under checks/round1/.
 Commit locally with the requested Astra co-author trailer; no push.
+
+
+## 2026-10-02 — X27R: one published Expo scene lifecycle
+
+On the Apartment M5 Pro mini, reproduce the unchanged reference chat Release
+launch trap at NoSceneLifecycleAdoption under Xcode 27A266a / iOS SDK 27.0.
+Retain the published snapback4-expo/plugin on the existing Expo 57.0.22 pin;
+add it to apps/chat-expo and have init --expo inherit it exactly once. Social
+keeps that same entry. Expo's supported alternative needs 57.0.23 plus
+expo-build-properties 57.0.20; replacing the published plugin would require an
+SDK migration for existing consumers or a second fallback. LLP 3000.030 §13
+records the choice. Plugin behavior/export, client/engine and versions stay
+unchanged. Baseline/fixed reference products have byte-identical JavaScript.
+
+Salvage the named scene-crash diagnostic, producing Xcode/SDK manifest fields
+and relevant tests from sb4/xcode27-uiscene, without merging or importing its
+logs. Preserve main's value-free refusals and ownership checks. Also admit the
+two exact generated Expo dSYM forms for npm's nested package layout; comparison
+with the admitted forms finds only the package path difference. Their regression
+still refuses custom scripts.
+
+Dedicated iPhone 17e only: reference offline and restart scenarios pass;
+fresh plain and social npm native:smoke pass in 171.820 / 223.500 s, and a
+standalone copy of the reference chat passes own-build smoke in 114.850 s.
+All smoke prime/offline/restart segments pass. Independent checks rehash all
+run artifacts and all 326 files in the three sealed app inventories. The
+repository Bun workspace remains outside the existing --build adapter; the
+standalone copy's exact changes and lock are retained, not called workspace
+support. Xcode 26.6 was not run; the report provides an asserting supervisor
+command for that host.
+
+Affected Rust init 22, witness integration 65 and units 14 pass; JavaScript
+witness/periphery/preparation/scenes 44 pass, and the subsequent preparation
+regression 15 pass. Whole guide 111 passes after keeping its existing line
+budget. Wasm remains 2,029,315 B raw / 609,893 B gzip against 610,782 B.
+The required complete suite ran once: `== 2 failure(s) in 2601 s`
+(`cargo test`, `client tests`). Two replay startup-log assertions failed;
+the unchanged replay target subsequently passed all 22 tests in 1.74 s.
+The known browser replacement fixture hit SQLite's writer lock and leaked
+its server. Only that verified suite-owned child was terminated so the
+existing failure could report; no test was omitted. The serial models passed
+all 79 tests. Both failures have filesystem follow-up tickets; the full result
+remains red. The Xcode 27 lifecycle ticket is closed with those limits stated.
+
+Local evidence lives only under ~/x27r-evidence/, with per-file SHA-256 and
+summaries in ~/x27r.final.md. No raw simulator, build or crash logs in git;
+no push, publication, tag, other host or other worktree mutation.
+
+
+## 2026-10-02 — X27R round 1: fold both blind reviews
+
+Filter scene crash reports by bundle, launch-time mtime, owned PID and simulator
+before choosing the newest report with NoSceneLifecycleAdoption in its faulting
+thread. A newer foreign-simulator report or an owned report without the symbol
+cannot mask the scene crash. Keep one best candidate, check the retry deadline
+inside the scan, cap actual reads at 16 MiB even if the file grows, and hash the
+bytes inspected. Update the witness card and LLP 3000.030 §13 together.
+
+Record installed-product xcodeBuild, iosSdkVersion and toolchainSource on the
+preparation manifest immediately after inspection, before later bundle, artifact
+or already-running refusals. The driver regression contrasts a 26.6 host with a
+27.0 product, then verifies absent product fields stay null. Add both concurrent
+report regressions, nonzero faulting-thread and nonfaulting-symbol controls,
+an expired scan, isolated-process memory comparison and a late report published
+600 ms after fake launchctl exits. Six deliberate mutations fail their tests,
+including deleting the retry. The old retain-all implementation peaks at
+5,046,272 / 73,809,920 bytes for 1 / 64 large reports; the fixed scan at
+5,095,424 / 8,552,448 bytes in the final run.
+
+Final checks: Rust init 22, witness integration 70, witness units 14, JavaScript
+witness/periphery/preparation/scenes 45 and whole guide 111 all pass. ref-check
+passes with 0 errors. The first run's guide pins and overly broad fake SDK change
+were corrected; an existing driver port collision is retained in the log and
+passes in the final complete affected-target run. No full suite this round.
+
+Xcode 27A266a / iOS SDK 27.0, dedicated iPhone 17e
+3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B only: reinstall the preserved round-0 products
+after verifying their executable/JavaScript hashes and scene manifests. The
+unfixed product exits 1 with E_WITNESS_SCENE_LIFECYCLE (3.896 s). Fixed reference
+offline and restart exit 0 (10.472 / 15.170 s), with 303 seeded rows, cold history,
+two ordered pending sends and restart persistence. Rehash all 20 declared
+artifacts across the three manifests. These remain installed-app scenarios;
+no new workspace-build or Xcode 26.6 qualification is claimed.
+
+Evidence: ~/x27r-evidence/round1/; appended report: ~/x27r.final.md, Round 1.
+Keep supervisor commit 4107563753 and append this existing journal as explicitly
+instructed; its size is not a review finding. No push, publish, tag, other
+simulator, other worktree or delegated agent.

@@ -16,7 +16,8 @@
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      "snapback4-expo/plugin"
     ]
   }
 }
