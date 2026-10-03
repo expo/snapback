@@ -88,9 +88,13 @@ Gotchas you cannot derive from the code:
   Runner death also closes that pipe. An unexpectedly exited keeper fails the
   file and never authorizes a runner signal. Cleanup requires two consecutive
   inspections (50 ms apart) with no living group member. Observed leftovers
-  fail as TEST_FILE_LEAK. Failed listings remain fail-closed; vanished members
-  count as exited. Processes leaving the group (setsid, setpgid or detached
-  spawns) are out of scope and are not tracked or signalled. Native Node's exit
+  fail as TEST_FILE_LEAK. Failed listings and unclassifiable PID/PPID/PGID
+  prefixes remain fail-closed. Metadata is validated for group members and
+  their visible descendants; unrelated rows only increment diagnostics.
+  Signed Darwin UIDs, variable lstart spacing and comm spaces are accepted.
+  Vanished members count as exited. Processes leaving the group (setsid,
+  setpgid or detached spawns) are outside cleanup custody; visible descendants
+  receive metadata validation but are never signalled by the runner. Native Node's exit
   status alone decides test success; reporter counts are diagnostic only.
   The reporter observes progress as Node delivers it: synchronous work that
   does not yield may buffer events in Node's child until that work finishes.

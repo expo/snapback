@@ -1,4 +1,4 @@
-// Process-group custody for the test-file runner. Escapes are out of scope.
+// Process-group custody; visible descendants also receive metadata validation.
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -27,8 +27,10 @@ function metadataFailure(pid, error, raw, exists) {
 }
 
 // Inspect the complete table: unlike `ps -p`, an empty selection cannot be
-// confused with a failed command. C locale makes BSD lstart exactly 24 chars.
-export function processTable({ run = spawnSync, exists = processExists } = {}) {
+// confused with a failed command. C locale fixes lstart's words, not spacing.
+// @ref LLP 3000#publication-suite-under-contention — classify every routing
+// prefix before validating metadata; unrelated rows cannot refuse a file.
+export function processTable({ run = spawnSync, exists = processExists, group, pid, onDiagnostic = () => {} } = {}) {
   const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
     timeout: 2000, maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, LC_ALL: 'C' },
@@ -36,25 +38,56 @@ export function processTable({ run = spawnSync, exists = processExists } = {}) {
   if (result.error || result.status !== 0 || !result.stdout?.toString().trim())
     throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
   // Split bytes, not decoded text, so a rejected row retains its exact bytes.
-  return Buffer.from(result.stdout).toString('latin1').split('\n').filter(Boolean).flatMap(bytes => {
+  const rows = Buffer.from(result.stdout).toString('latin1').split('\n').filter(Boolean).map(bytes => {
     const raw = Buffer.from(bytes, 'latin1'), line = raw.toString('utf8');
-    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.{24})\s+(\S+)\s+(.+)$/.exec(line);
-    if (!match || !Number.isFinite(Date.parse(match[5]))) {
-      const pid = Number(/^\s*(\d+)(?:\s|$)/.exec(line)?.[1]);
-      metadataFailure(Number.isSafeInteger(pid) && pid > 0 ? pid : undefined,
-        Error('malformed ps row'), raw, exists);
+    const prefix = /^\s*(\d+)\s+(\d+)\s+(\d+)(?:\s+|$)/.exec(line);
+    const ids = prefix?.slice(1).map(Number);
+    // PID 0 / PGID 0 are real kernel rows. Never guess ownership from a
+    // damaged prefix, even if its apparent PID has since disappeared.
+    if (!ids || !ids.every(id => Number.isSafeInteger(id) && id <= 0x7fffffff))
+      metadataFailure(undefined, Error('malformed ps row: pid/ppid/pgid'), raw, exists);
+    return { pid: ids[0], parent: ids[1], group: ids[2], raw, rest: line.slice(prefix[0].length) };
+  });
+  let selected;
+  if (group !== undefined) {
+    // Index once: order-independent, linear even for a 5,000-row deep tree.
+    const children = new Map();
+    for (const row of rows) {
+      if (!children.has(row.parent)) children.set(row.parent, []);
+      children.get(row.parent).push(row.pid);
+    }
+    const pending = [group, ...rows.filter(row => row.group === group).map(row => row.pid)];
+    selected = new Set(pending);
+    for (let i = 0; i < pending.length; i++) for (const child of children.get(pending[i]) ?? []) {
+      if (!selected.has(child)) { selected.add(child); pending.push(child); }
+    }
+  } else if (pid !== undefined) selected = new Set([pid]);
+  let unrelatedRows = 0;
+  const parsed = rows.flatMap(row => {
+    if (selected && !selected.has(row.pid)) { unrelatedRows++; return []; }
+    // Darwin formats uid_t through a signed decimal; Linux uses unsigned.
+    // lstart is five whitespace-separated C-locale fields, never a fixed width.
+    // stat has platform-specific flags; only Z is nonliving. The rest of the
+    // line is comm, including spaces, parentheses and <defunct>.
+    const match = /^(-?\d+)\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+([A-Za-z?][A-Za-z0-9+<>-]*?)\s+(.*)$/.exec(row.rest);
+    const start = match?.[2].replace(/\s+/g, ' ');
+    if (!match || Number(match[1]) < -0x80000000 || Number(match[1]) > 0xffffffff
+      || !Number.isFinite(Date.parse(start))) {
+      metadataFailure(row.pid, Error('malformed ps row'), row.raw, exists);
       return [];
     }
-    const [, pid, parent, group, uid, start, state, executable] = match;
-    return { pid: Number(pid), parent: Number(parent), group: Number(group), uid: Number(uid), start, executable, alive: !state.startsWith('Z') };
+    const [, uid, , state, executable] = match;
+    return { pid: row.pid, parent: row.parent, group: row.group, uid: Number(uid), start, executable, alive: !state.startsWith('Z') };
   });
+  onDiagnostic({ unrelatedRows });
+  return parsed;
 }
 
 // @ref LLP 3000#publication-suite-under-contention — a vanished candidate is
 // exited; only malformed metadata for a still-present PID refuses inspection.
 export function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable } = {}) {
   if (!Number.isInteger(pid) || pid < 1) throw inspectionError(`invalid PID ${pid}`);
-  if (platform !== 'linux') return inspect().find(row => row.pid === pid);
+  if (platform !== 'linux') return inspect({ pid }).find(row => row.pid === pid);
   let raw;
   try {
     raw = read(`/proc/${pid}/stat`);
@@ -77,7 +110,7 @@ export const live = record => {
 // @ref LLP 3000#publication-suite-under-contention — only the process group
 // created for this file is owned. Parent links and environments confer nothing.
 export function ownedProcesses(keeper, inspect = processTable, { includeKeeper = false } = {}) {
-  return inspect().filter(row => row.alive && row.group === keeper.pid && (includeKeeper || row.pid !== keeper.pid))
+  return inspect({ group: keeper.pid }).filter(row => row.alive && row.group === keeper.pid && (includeKeeper || row.pid !== keeper.pid))
     .flatMap(row => {
       // A table is a snapshot: a vanished member has exited. Recheck group
       // membership too, so a reused PID or a process that left is not a leak.

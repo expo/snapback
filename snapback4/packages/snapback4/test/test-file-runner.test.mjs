@@ -84,8 +84,11 @@ test('a stale parent link cannot claim or signal a process outside the file grou
   const path = join(dir, 'healthy.test.mjs');
   writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
   let keeper;
-  const result = await runFile(path, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: () =>
-    processTable().map(row => row.pid === sibling.pid ? { ...row, parent: keeper.pid } : row) });
+  const result = await runFile(path, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: options => {
+    const siblingRows = processTable({ pid: sibling.pid });
+    assert.equal(siblingRows.length, 1, 'the external sibling must be present in the injected snapshot');
+    return [...processTable(options), { ...siblingRows[0], parent: keeper.pid }];
+  } });
   assert.equal(result.passed, true, JSON.stringify(result));
   assert.ok(identity(sibling.pid)?.alive, 'runner left our separately launched sibling alone');
 });
@@ -160,9 +163,9 @@ import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bin/sh', ['-c', 'sleep 600 </dev/null >/dev/null 2>&1 & echo $!'])));`);
   let inspections = 0, output = '';
-  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: () => {
-    if (++inspections > 1) return processTable();
-    return processTable({ run: () => fault === 'exit' ? {status:2,stderr:'injected ps exit'}
+  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: options => {
+    if (++inspections > 1) return processTable(options);
+    return processTable({ ...options, run: () => fault === 'exit' ? {status:2,stderr:'injected ps exit'}
       : fault === 'timeout' ? {status:null,error:Error('injected ps timeout')}
       : {status:0,stdout:'broken process row'} });
   } });
@@ -243,8 +246,8 @@ test('owned helper', () => {
   let inspections = 0, output = '', orphan;
   const { existsSync } = await import('node:fs');
   const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
-  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: () => {
-    const snapshot = processTable();
+  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: options => {
+    const snapshot = processTable(options);
     if (++inspections === 1) {
       assert.ok(existsSync(ready));
       writeFileSync(go, 'go');
@@ -266,7 +269,7 @@ test('owned helper', () => {
   if (result.reason) assert.equal(result.reason, 'TEST_FILE_LEAK', output);
   assert.ok(inspections >= 3, 'two fresh empty snapshots after the stale snapshot');
   assert.equal(live(orphan), false, output);
-  assert.equal(processTable().some(row => row.group === orphan.group && row.alive), false);
+  assert.equal(processTable({ group: orphan.group }).some(row => row.group === orphan.group && row.alive), false);
 });
 
 test('sequential and nested subtests keep progressing beyond the file stall interval', { timeout: 20000 }, async t => {
@@ -297,7 +300,7 @@ test('console chatter cannot keep a stalled file alive; diagnostics include prog
   assert.ok(result.elapsed >= 1500 && result.elapsed < 8000, output);
   assert.match(output, /without progress; last progress test:dequeue: stuck with output/);
   assert.match(output, /owned processes:/);
-  assert.equal(processTable().some(row => row.group === group && row.alive), false);
+  assert.equal(processTable({ group }).some(row => row.group === group && row.alive), false);
 });
 
 test('stale exited members do not reset empty snapshots; observed live leaks remain failures', async t => {
@@ -306,8 +309,8 @@ test('stale exited members do not reset empty snapshots; observed live leaks rem
   const path = join(dir, 'leak.test.mjs');
   writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
   let inspections = 0, emptyInspections = 0, group, before, output = '';
-  const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: () => {
-    const current = processTable();
+  const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: options => {
+    const current = processTable(options);
     inspections++;
     if (inspections === 1) before = current;
     // runFile discovers, stop diagnoses, then cleanup verifies. A stale row
@@ -363,7 +366,7 @@ test('a process exiting after enumeration is absent at identity inspection', asy
   const exited = once(child, 'exit');
   try {
     await once(child.stdout, 'data');
-    const row = processTable().find(row => row.pid === child.pid);
+    const row = processTable({ pid: child.pid }).find(row => row.pid === child.pid);
     assert.ok(row?.alive);
     child.stdin.end(); await exited;
     assert.equal(identity(row.pid), undefined);
@@ -374,7 +377,7 @@ test('a process exiting after enumeration is absent at identity inspection', asy
     for (const code of ['ENOENT', 'ESRCH', 'EIO']) {
       assert.equal(identity(row.pid, {platform:'linux',read:()=>{throw Object.assign(Error(code),{code});}}), undefined);
     }
-    assert.deepEqual(processTable({run:()=>({status:0,stdout:`${row.pid} truncated\n`})}), []);
+    assert.deepEqual(processTable({run:()=>({status:0,stdout:`${row.pid} 1 2 truncated\n`})}), []);
   } finally { if (child.exitCode === null) child.kill('SIGKILL'); await exited; }
 });
 
@@ -392,7 +395,9 @@ test('ps preserves command spaces and parentheses and validates start and parent
   assert.equal(processTable({run})[0].executable,'/tmp/a name ) ( helper');
   for (const malformed of [line.replace('Sat Oct','bad day'), line.replace(`${process.pid} 1 2`,`${process.pid} bad 2`)]) {
     assert.throws(()=>processTable({run:()=>({status:0,stdout:malformed})}),/malformed ps row/);
-    assert.deepEqual(processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}),[]);
+    if (malformed.includes('bad 2'))
+      assert.throws(()=>processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}), /pid\/ppid\/pgid/);
+    else assert.deepEqual(processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}),[]);
   }
 });
 
@@ -436,12 +441,13 @@ test('a completed file passes when its enumerated group member has exited', asyn
 test('transient child',async()=>{
   const child=spawn(process.execPath,['-e','process.stdin.resume();console.log("ready")'],{stdio:['pipe','pipe','ignore']});
   const exited=once(child,'exit');await once(child.stdout,'data');
-  writeFileSync(${JSON.stringify(snapshot)},JSON.stringify(processTable().find(row=>row.pid===child.pid)));
-  child.stdin.end();await exited;
+  try {
+    writeFileSync(${JSON.stringify(snapshot)},JSON.stringify(processTable({pid:child.pid}).find(row=>row.pid===child.pid)));
+  } finally { child.stdin.end();await exited; }
 });`);
   let output='',inspections=0;
-  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
-    const rows=processTable();
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:options=>{
+    const rows=processTable(options);
     if(++inspections===1) {
       const stale=JSON.parse(readFileSync(snapshot,'utf8'));
       assert.equal(identity(stale.pid),undefined);
@@ -548,9 +554,9 @@ await runFile(${JSON.stringify(path)}, {onStart:child=>console.log(child.pid),on
   while (!existsSync(pidFile) && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,20));
   assert.ok(existsSync(pidFile));
   runner.kill('SIGKILL'); await exited;
-  while (processTable().some(row=>row.group===group && row.alive) && performance.now()<deadline)
+  while (processTable({group}).some(row=>row.group===group && row.alive) && performance.now()<deadline)
     await new Promise(resolve=>setTimeout(resolve,20));
-  assert.equal(processTable().some(row=>row.group===group && row.alive),false);
+  assert.equal(processTable({group}).some(row=>row.group===group && row.alive),false);
 });
 
 

@@ -84799,3 +84799,40 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+## 2026-10-03 — QF Round 8: process-table scope and signed Darwin UIDs
+
+Merged main through 0185dfd67e (a fast-forward) and re-applied a8c20c40e9 in
+its own commit, 6545d92a6f. Main's entry recording the publication revert remains
+unchanged. The runner accepts Darwin's signed UID presentation, tokenizes
+C-locale start time without fixed widths, and accepts platform state flags and
+spaced command names. Synthetic Darwin/Linux fixtures include the exact
+supplied distnoted row and 5,000-row cases, without user process data.
+
+LLP 3000 §7 records the rule: parse every PID/PPID/PGID prefix fail-closed;
+validate metadata for the file's group and visible transitive descendants;
+count unrelated rows without validating their metadata or probing existence.
+Ancestry expands inspection only. Keeper-owned group signaling, native Node
+verdicts, two empty snapshots, guards, seeds and skips remain unchanged.
+Test inspection adapters preserve that scope, including their deliberately
+injected stale rows. The snapshot fixture also releases its helper in finally:
+with the old parser and the real shim, it now fails promptly instead of hanging.
+
+Every distinct M5 runner failure is attributed in the Round 8 report, including
+19 failed subtests, the test-29 stall and the replacement-fixture failure.
+Controls use a real PATH ps shim. An optional live fixture row makes UID -2 and
+malformed-metadata controls decisive even when synthetic PID 889 is absent.
+Final affected checks pass 64/64 plain and 64/64 with live malformed metadata.
+The single eb1000 full suite reports `== 0 failure(s) in 1511 s`. Its three
+client phases and their separate UID-shim repeats have identical counts:
+wrappers 9/9; ordinary clients 304/304 files, 6,095 passes and 11 existing skips;
+models 79/79. Each set totals 6,183 JavaScript passes, no failures/cancellations.
+The test-only amendments and their final-source checks are explicitly recorded.
+
+The operator withdrew mini execution to protect calibration. No macOS test ran;
+all six mini phase checks are **pending operator verification**, with exact
+commands in the [Round 8 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-8--process-table-isolation-and-darwin-uid-parsing).
+The scratch created for preparation before that amendment was removed. No office
+M1 or M5 was contacted, and no unrelated process was signaled. Reference and
+whitespace checks pass. Local commits carry the required GPT-6 Astra co-author
+trailer. Nothing is pushed or published.

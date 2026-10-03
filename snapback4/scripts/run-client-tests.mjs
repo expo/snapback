@@ -61,6 +61,10 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     ...nodeArgs, resolve(file)], {
     env, detached: true, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
   });
+  const inspectionDiagnostics = { snapshots: 0, unrelatedRows: 0 };
+  const inspectRows = options => inspect({ ...options, onDiagnostic: ({ unrelatedRows }) => {
+    inspectionDiagnostics.snapshots++; inspectionDiagnostics.unrelatedRows += unrelatedRows;
+  } });
   let tail = '', reason, cleanup, spawnError, inspectionFailure, timer, counts;
   let released = false, cleanupAcknowledged = false, keeperExit;
   const release = () => {
@@ -113,9 +117,9 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms; ${Math.round(performance.now() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
     cleanup = (async () => {
       try {
-        const owned = ownedProcesses(child, inspect);
+        const owned = ownedProcesses(child, inspectRows);
         onOutput(`owned processes: ${JSON.stringify(owned)}\n`);
-        await cleanupProcesses(child, { inspect, release });
+        await cleanupProcesses(child, { inspect: inspectRows, release });
       } catch (error) { diagnose(error); emergencyCleanup(); }
       finally { forcedClose({ code: null, signal: 'SIGKILL' }); }
     })();
@@ -132,10 +136,10 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     if (cleanup) await cleanup;
     else {
       try {
-        const remaining = ownedProcesses(child, inspect);
+        const remaining = ownedProcesses(child, inspectRows);
         if (remaining.length) await stop('TEST_FILE_LEAK');
         else {
-          const found = await cleanupProcesses(child, { inspect, release });
+          const found = await cleanupProcesses(child, { inspect: inspectRows, release });
           if (found.length) {
             reason = 'TEST_FILE_LEAK';
             onOutput(`TEST_FILE_LEAK: ${file}; found during group cleanup: ${JSON.stringify(found)}\n`);
@@ -161,12 +165,13 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     }
     const text = readFileSync(output, 'utf8');
     onOutput(text);
+    onOutput(`-- process inspection: ${JSON.stringify(inspectionDiagnostics)}\n`);
     if (spawnError) onOutput(String(spawnError) + '\n');
     const elapsed = Math.round(performance.now() - started);
     // Native node --test owns test semantics. Counts are diagnostic only.
     const passed = result.code === 0 && !reason && !spawnError && !inspectionFailure;
     onOutput(`-- client file ${passed ? 'ok' : 'FAIL'}: ${file} (${elapsed} ms)\n`);
-    return { file, ...result, passed, reason, inspectionFailure, keeperExit, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
+    return { file, ...result, passed, reason, inspectionFailure, keeperExit, inspectionDiagnostics, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
   } catch (error) {
     diagnose(error); emergencyCleanup();
     return { file, passed: false, reason, inspectionFailure, elapsed: Math.round(performance.now() - started) };

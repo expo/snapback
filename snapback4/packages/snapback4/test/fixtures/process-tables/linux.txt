@@ -1,0 +1,10 @@
+      1       0       1     0 Wed Sep 30 06:38:25 2026 Ss   init
+      2       0       0     0 Wed Sep 30 06:38:25 2026 S    kthreadd
+   4100       1    4100  1000 Sat Oct  3 01:02:03 2026 Ssl  node
+   4101    4100    4100  1000 Sat Oct 3 01:02:03 2026 R+   a name ) ( helper
+   4102    4100    4100  1000 Sat Oct  3 01:02:03 2026 D    helper
+   4103    4100    4100  1000 Sat Oct  3 01:02:03 2026 I<   kworker/0:0
+   4104    4100    4100  1000 Sat Oct  3 01:02:03 2026 t    helper
+   4105    4100    4100  1000 Sat Oct  3 01:02:03 2026 Zs   helper <defunct>
+   4106       1    4106 4294967294 Sat Oct  3 01:02:03 2026 SN helper
+   4107       1    4107 4294967295 Sat Oct  3 01:02:03 2026 SL helper

@@ -70,17 +70,24 @@ dependencies. It reports every failing category and continues through the
 remaining categories. Client files share at most 24 slots (one per three
 available CPUs); the full-count model files run afterward in one serial slot.
 
-`scripts/run-client-tests.mjs` gives each ordinary client file **15 minutes**
-and each model file **30 minutes**, measured by a separate parent process.
-Fixture-wrapper discovery also runs under the 15-minute guard. These are hang
-ceilings, not performance assertions; existing per-state/test guards and all
-seed counts still apply. A blocked event loop, a stalled teardown, or a leaked
-handle after an assertion failure produces `TEST_FILE_HANG` with the file,
-elapsed time, recorded process identities and the last 16 KiB of output.
-Cleanup allows five seconds for SIGTERM, then SIGKILL and two seconds to reap,
-plus a two-second process-tree inspection bound. Only recorded children and
-their descendants are signalled, with process start identities checked against
-PID reuse. A child leaked past file exit also fails as `TEST_FILE_LEAK`.
+`scripts/run-client-tests.mjs` runs each file as native `node --test` and uses
+Node's exit status for the test verdict. Its independent progress watchdog
+allows max(15 minutes, largest single declared guard plus 25% or one minute).
+There is no total-duration cap. Console output does not renew progress; native
+Node may buffer synchronous subtests until they yield. All seeds and guards
+remain intact. A stall produces `TEST_FILE_HANG`, the last delivered progress
+and the last 16 KiB of output.
+
+Each file has a fresh process group headed by a Node keeper. Closing its stdin
+asks the keeper to kill its own group, including when the runner dies; the
+runner never signals a test group. Unexpected keeper loss fails the file.
+Cleanup requires two empty inspections 50 ms apart within five seconds;
+leftovers fail as `TEST_FILE_LEAK`. Listings have a two-second bound. PID, PPID
+and PGID must parse for every row. Group members and visible descendants get
+full metadata validation; unrelated metadata only contributes diagnostic
+counts. Signed macOS UIDs, state flags, start-time spacing and command spaces
+are accepted. Vanished members and zombies are exited. Escaped descendants
+receive no cleanup signal and remain the fixture's responsibility.
 
 Worker fixture timeouts include the host log, exit state, persisted worker
 statuses and observed worker PIDs before cleanup removes their project. Fixture
