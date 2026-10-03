@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { tmpdir, loadavg } from 'node:os';
-import { fixture } from './helpers/answers-stay.mjs';
+import { fixture, until } from './helpers/answers-stay.mjs';
 import { marginSource } from './helpers/live-margin.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import { chromiumExecutable, root } from '../../../witness/lib.mjs';
@@ -69,13 +69,47 @@ test('React/IndexedDB live margin and two-device offline settlement', { timeout:
   const live = await page.evaluate(n => window.lmRun(n), n);
   const offline = await page.evaluate(n => window.lmOffline(n), n);
   await page.evaluate(() => window.lmClose());
+  const trials = offline.events.filter(e => e.kind === 'trial-start');
+  const liveTrials = trials.filter(e => e.phase !== 'offline');
+  const receipts = liveTrials.map(start => {
+    const events = offline.events.filter(e => e.trial === start.trial);
+    const receipt = events.find(e => e.kind === 'http-end' && e.persona === 'alice' && e.path.startsWith('/m/'));
+    const mutation = events.find(e => e.kind === 'mutation-return');
+    assert.ok(receipt && mutation?.id, `trial ${start.trial} has a live mutation receipt`);
+    return { trial: start.trial, receipt, mutation };
+  });
+  const replays = [];
+  for (const { trial, receipt, mutation } of receipts) {
+    const id = ++nextRequest;
+    const response = await fetch(f.url + receipt.path, { method: 'POST',
+      headers: { 'x-snapback-persona': 'alice', 'x-snapback-ct': String(id) },
+      body: JSON.stringify({ id: mutation.id, args: mutation.args }) });
+    const reply = await response.json();
+    assert.equal(reply.state, 'sent'); assert.equal(reply.replayed, true);
+    assert.equal(reply.id, mutation.id);
+    replays.push({ trial, request: id, reply });
+  }
+  // The trace is appended after the response. Wait for those specific records,
+  // ignoring an incomplete trailing line while the host finishes its write.
+  const readTrace = () => readFileSync(trace, 'utf8').split('\n').slice(0, -1).filter(Boolean).map(x => JSON.parse(x));
+  const tracedIds = [...receipts.map(x => Number(x.receipt.request)), ...replays.map(x => x.request)];
+  await until(() => { const ids = new Set(readTrace().map(x => x.id)); return tracedIds.every(id => ids.has(id)); }, 'live and replay traces written');
   const result = { label: process.env.LM_LABEL ?? 'smoke', n, pressure, opened, loads, calibration, requests, events: offline.events,
-    decorationCommits: offline.decorationCommits, inspections: offline.inspections, server: readFileSync(trace, 'utf8').trim().split('\n').filter(Boolean).map(x => JSON.parse(x)), errors };
+    decorationCommits: offline.decorationCommits, inspections: offline.inspections, server: readTrace(), replays, errors };
   if (process.env.LM_OUT) writeFileSync(process.env.LM_OUT, JSON.stringify(result));
   assert.deepEqual(errors, []);
-  const trials = result.events.filter(e => e.kind === 'trial-start');
   assert.equal(trials.length, 6 * n);
   assert.equal(result.events.filter(e => e.kind === 'trial-end').length, trials.length);
+  assert.equal(receipts.length, 5 * n);
+  // @ref LLP 3000.019#3.7 — only a new user mutation receives the post-commit, pre-wake stamp.
+  for (const { trial, receipt } of receipts) {
+    const stamp = result.server.find(s => String(s.id) === receipt.request);
+    assert.ok(stamp.started < stamp.mutation_commit && stamp.mutation_commit < stamp.encode_start,
+      `trial ${trial}: mutation_commit must be strictly after started and before encode_start: ${JSON.stringify(stamp)}`);
+  }
+  for (const replay of replays) assert.equal(result.server.find(s => s.id === replay.request).mutation_commit, 0,
+    `trial ${replay.trial}: posting the same mutation id again must not stamp a commit`);
+  assert.equal(result.events.filter(e => e.kind === 'settled-lists').length, 2 * n);
   // Record every unavailable/partial publication, rather than hiding it in a
   // "best of" trial. Removal may withdraw under the existing one-second rule.
   const settling = result.events.filter(e => e.phase === 'settling' && e.kind === 'render');

@@ -82725,3 +82725,36 @@ GPT-6 Astra co-author trailer; nothing pushed or published.
 Focused correction: the four Rust targets pass, 234 tests / 0 failures /
 1 ignored, plus the nested allocation probe. The full-suite red is retained.
 Reference validation: `ref-check: ok — 525 LLP docs, 10107 refs in 32478 files, 0 errors, 0 unchecked`. Staged diff whitespace check passes.
+
+## 2026-10-03 — LM round 1: fold both blind reviews
+
+Read Astra and Grok's round-0 reviews in full. Settlement now checks exact row
+identities and bodies in both process/wasm Pages accumulators and both browser
+clients' usePage items and actual DOM lists. Every completed browser settlement
+includes the original row and every prior offline send exactly once. The
+unknown-once control retains rows at 999 ms and withdraws at the specified
+1000 ms deadline before accepting the held replacement; certified preservation
+continues retaining. No runtime retention or scheduling policy changes.
+
+Each live browser mutation requires `started < mutation_commit < encode_start`.
+Posting each same id again must return a replay with a zero stamp. The Following
+ticket now identifies the user mutation's post-commit, pre-wake host time and
+explicitly excludes a later Following delivery transaction.
+
+Mutation tests catch all three gaps: empty Pages items at three rows fail all
+five LM tests; shortening the episode to 999 ms fails both unknown-once cases;
+deleting the server's mutation_commit mark fails the browser test. All injected
+changes were restored; the ordinary native binary was rebuilt and matches the
+unmutated pinned binary. The lane's existing target setup is unchanged.
+
+Affected clients: 450/450 pass (process, wasm, browser), zero skips. The five LM
+tests each pass five consecutive runs, 25/25; browser repetitions use two cycles
+and 120 competing reads per client. Whole guide: 110/110; budget helper: 2/2.
+Fresh wasm: 2,031,329 B raw / 610,519 B gzip, 263 B under the unchanged cap.
+No full suite this round, per the request; round 0's failure record is retained.
+The live-notification and Following tickets remain open. Report and full logs:
+[LM Round 1](./reports/20261003-lm-live-margin/REPORT.md#round-1--both-blind-reviews-folded-2026-10-03).
+Local commit with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
+nothing pushed or published.
+Reference validation: 525 LLP docs, 10108 refs, zero errors or unchecked refs.
+Final diff whitespace check passes.

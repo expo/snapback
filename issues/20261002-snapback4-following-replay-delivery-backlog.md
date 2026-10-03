@@ -68,7 +68,7 @@ none crossed ten seconds. These observations neither repair nor remeasure the
 6,507-task replay backlog above. The historical drain numbers and the distinction
 between `complete/fresh` and pending new-event delivery remain unchanged.
 
-The change-feed trace now stamps committed mutation completion, allowing a
-future replay investigation to distinguish delay before a derived delivery
-commit from delay carrying that commit to the device and UI. No delivery
+The change-feed trace now stamps the user mutation's post-commit, pre-wake host
+time. It does not mark a later Following delivery transaction, so separating
+that backlog from delivery-to-device/UI delay needs its own commit evidence. No delivery
 throughput, queue priority, transaction size or completeness change lands in LM.

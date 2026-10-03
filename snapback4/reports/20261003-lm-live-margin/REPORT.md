@@ -473,3 +473,123 @@ Unresolved: BN's original intermittent notification failure, the precise
 calibration #29 missed UI/media observations, the original pre-workaround empty
 frame, and the separate Following replay backlog. The new reproducible cases
 and timing artifacts narrow the mechanism without declaring those tickets fixed.
+
+## Round 1 — both blind reviews folded (2026-10-03)
+
+Read both round-0 reviews in full: `~/sb5-lanes/reviews/lm-r0.astra.md` and
+`~/sb5-lanes/reviews/lm-r0.grok.md`, both READY WITH CHANGES. This round strengthens
+the five LM tests and corrects the Following ticket. No runtime policy changes.
+
+**Orientation.** Scope: settlement, `Pages`/React rendering, and the development
+trace. Governing context: LLP 3000's Snapback 4 fence, LLP 3000.023 §12's unknown
+`once` authority and inherited one-second episode, and LLP 3000.019 §3.7's host
+commit observation. The current guide client card explicitly directs rendering
+from `page.items`. These constraints explain both the permitted temporary
+withdrawal and why a complete `history.data` alone cannot prove UI convergence.
+The repository's `llp-orient` link is still broken; read the skill from the
+existing main checkout at `~/projects/snapback/vendor/llp/skills/llp-orient/`.
+No design decision needs a new LLP or hand-off. The existing latency findings
+remain unresolved; documentation changes are this report, the journal, and the
+Following ticket's stamp wording.
+
+**Changes.** On both process and wasm, settlement now compares exact `(id, body)`
+lists against the original row and both predicted offline sends in the history
+and both `Pages` accumulators. The browser records the `usePage` items separately
+from `history.read`, and checks both clients' items and actual DOM `li` lists
+after every settlement. Its expected list includes the original row and every
+send from every preceding cycle, with exact equality rejecting missing,
+duplicate, or unexpected rows.
+
+The settlement clock now freezes before reconnect can start an episode. Unknown
+authority must have a deadline exactly 1000 ms later; both histories and Pages
+must retain their rows at 999 ms and withdraw at 1000 ms while the replacement
+is held. Certified preservation retains its two rows. Releasing the held reply
+must converge to all three rows exactly once. This pins the specified length
+independently of the implementation's budget, while preserving the permitted
+temporary withdrawal checks.
+
+Every live browser trial now joins its `/m/` response to the server trace and
+requires `started < mutation_commit < encode_start`. After both clients close,
+the test posts each live mutation's same id and arguments again: every reply
+must be a sent replay, and every replay trace must have `mutation_commit: 0`.
+The reader waits for those trace records, which are written after responses.
+The Following ticket now describes the user mutation's post-commit, pre-wake
+host time and explicitly says it does not mark a later Following delivery
+transaction.
+
+**Mutation checks.** Each mutation was applied separately and restored; only
+the intended assertions failed. Logs retain the original failure output.
+
+| Mutation | Result |
+| --- | --- |
+| `Pages` returns `items: []` for three or more rows, retaining `read.data` | All five tests fail, including browser `settled Pages items` and both process/wasm accumulators |
+| Change `beginEpisode` from 1000 ms to 999 ms | Both unknown-`once` cases fail; both certified controls pass |
+| Delete `trace::mark("mutation_commit")` and rebuild the real server | Browser test fails on trial 0 with `mutation_commit: 0` |
+
+Evidence: [empty Pages](round1/mutation-pages-empty.log.gz),
+[short episode](round1/mutation-episode-999ms.log.gz),
+[missing stamp](round1/mutation-no-stamp.log.gz), and
+[mutant server build](round1/mutation-stamp-build.log.gz).
+The generated JS was restored and rebuilt, the Rust source restored byte for
+byte, and the ordinary native binary rebuilt. Its digest matches the unmutated
+binary pinned before mutation testing. No mutant remains in the source or the
+ordinary build output.
+
+**Verification.** Commands ran on the shared host, from `snapback4/`, with:
+
+```sh
+export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH
+export CARGO_TARGET_DIR=$HOME/sb5-lanes/target
+export SNAPBACK4_BIN=$HOME/sb5-lanes/lm-artifacts/snapback4-r1
+```
+
+The existing real lane-local scratch directory and its shared build-subdirectory
+links remain unchanged. The native build waited for the shared Cargo lock and
+then passed. The pinned binary prevents a concurrent lane's build from changing
+the server or process device during qualification. Its SHA-256 is
+`43463f8062462804d6424071e209ad5754ac2fd2e78562aaf0a2db9a83acd5b8`.
+
+```sh
+cargo build -p snapback4
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+cargo test -p snapback4-lang --test guide
+node --test packages/snapback4/test/wasm-budget.test.mjs
+node --test --test-concurrency=4 packages/snapback4/test/live-propagation*.test.mjs packages/snapback4/test/answers-stay*.test.mjs packages/snapback4/test/revocation-retention.test.mjs packages/snapback4/test/subscription-pressure*.test.mjs packages/snapback4/test/per-row-progress.test.mjs packages/snapback4/test/pending-writes.test.mjs packages/snapback4/test/live-margin*.test.mjs
+# Five consecutive invocations of this command:
+LM_N=2 node --test packages/snapback4/test/live-margin-settlement.test.mjs packages/snapback4/test/live-margin-browser.test.mjs
+```
+
+Each of the five consecutive runs passes all five tests: 25 passes, zero failures
+or skips. Each browser run uses 120 competing reads per client and two cycles
+(ten live mutations with ten replay checks, then two dual-offline settlements),
+so the second settlement checks retention of the earlier offline messages too.
+The initial five-test smoke also passed. Repetition logs:
+[1](round1/repeat-1.log.gz), [2](round1/repeat-2.log.gz),
+[3](round1/repeat-3.log.gz), [4](round1/repeat-4.log.gz),
+[5](round1/repeat-5.log.gz).
+
+Affected clients, including process, wasm and the browser: **450 passed, zero
+failed, zero skipped**, in 114,960.689 ms. The
+[complete affected log](round1/affected.log.gz) retains every test result.
+
+Whole guide: **110 passed, zero failed**. Wasm budget helper: **2 passed, zero
+failed**. Fresh wasm build: **2,031,329 bytes raw / 610,519 bytes gzip**, 263 bytes
+below the unchanged 610,782-byte cap. This is this round's artifact measurement,
+not a byte-identity claim against round 0. Wasm SHA-256:
+`9f0b7f968e380f451c8e56ec9d6759f56a00b073d8f190186297d582ccc7416e`.
+Evidence: [guide](round1/guide.log.gz), [wasm build](round1/wasm-build.log.gz),
+[budget helper](round1/wasm-budget-test.log.gz),
+[native build](round1/native-build.log.gz),
+[restored native build](round1/native-restored-build.log.gz), and
+[package build](round1/package-build.log.gz).
+
+Reference validation passes: `ref-check: ok — 525 LLP docs, 10108 refs in 32478
+files, 0 errors, 0 unchecked` ([log](round1/ref-check.log)). The final diff
+whitespace check passes.
+
+A full suite was not run this round, as requested. Round 0's complete-suite
+failure record remains intact. This round makes no latency improvement claim
+and closes neither the live-notification nor the Following replay ticket.
+The commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
+nothing is pushed or published.

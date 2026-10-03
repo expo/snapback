@@ -76,12 +76,12 @@ window.lmOpen = async (pressure = 120) => {
   function View({ persona }) {
     const reactions = useQuery(reactionsOp, {}), history = usePage(historyOp, {});
     useLayoutEffect(() => {
-      const read = { reactions: plain(reactions), history: plain(history.read), items: history.items.map(x => x.body) };
+      const read = { reactions: plain(reactions), history: plain(history.read), items: history.items.map(x => x.body), itemRows: plain(history.items) };
       rendered.set(persona, read); record('render', { persona, ...read });
     });
     return React.createElement('section', { 'data-persona': persona },
       React.createElement('div', { 'data-reactions': true }, 'data' in reactions ? reactions.data.map(x => x.emoji).join(',') : 'loading'),
-      React.createElement('ol', null, history.items.map(x => React.createElement('li', { key: x.id }, x.body))),
+      React.createElement('ol', null, history.items.map(x => React.createElement('li', { key: x.id, 'data-id': x.id }, x.body))),
       React.createElement('aside', null, Array.from({ length: pressure }, (_, slot) => React.createElement(Decoration, { key: slot, slot }))));
   }
   root = createRoot(document.getElementById('root'));
@@ -99,7 +99,7 @@ window.lmRun = async (n = 20) => {
     trial++; record('trial-start', { cycle: i });
     const result = await a.client.mutate(m(name), args);
     if (result.state !== 'sent') throw Error(JSON.stringify(result));
-    record('mutation-return', { seq: result.seq });
+    record('mutation-return', { id: result.id, name, args, seq: result.seq });
     await waitFor(() => {
       const read = rendered.get('bob')?.[name === 'tombstone' || name === 'edit' ? 'history' : 'reactions'];
       return read && 'data' in read && !read.revalidating && (name === 'tombstone' || name === 'edit' ? read.data.find(x => x.id === 'item')?.body === expected : read.data[0]?.emoji === expected);
@@ -111,17 +111,32 @@ window.lmRun = async (n = 20) => {
   phase = 'done'; return { events, decorationCommits, inspections: clients.map(x => ({ persona: x.persona, ...inspect(x.client) })) };
 };
 window.lmOffline = async (n = 20) => {
+  const expected = [{ id: 'item', body: 'image-1' }];
+  const rows = items => items.map(({ id, body }) => [id, body]).sort(([a], [b]) => a.localeCompare(b));
+  const assertRows = (actual, label) => {
+    if (JSON.stringify(rows(actual)) !== JSON.stringify(rows(expected)))
+      throw Error(`${label}: expected ${JSON.stringify(rows(expected))}, got ${JSON.stringify(rows(actual))}`);
+  };
   for (let i = 0; i < n; i++) {
     phase = 'offline'; trial++; record('trial-start', { cycle: i });
     for (const x of clients) x.state.offline = true;
     await Promise.all(clients.map(x => x.client.sync()));
     await Promise.all(clients.map((x, who) => x.client.mutate(m('send'), { body: `offline-${i}-${who}` }, { waitSeconds: 0 })));
     await waitFor(() => clients.every((x, who) => rendered.get(x.persona).history.data?.some(row => row.body === `offline-${i}-${who}`)), 'own offline prediction');
+    expected.push(...clients.map((x, who) => rendered.get(x.persona).history.data.find(row => row.body === `offline-${i}-${who}`)));
     phase = 'settling'; record('reconnect');
     for (const x of clients) x.state.offline = false;
     await Promise.all(clients.map(x => x.client.sync()));
     await waitFor(() => clients.every(x => !rendered.get(x.persona).history.revalidating && [0, 1].every(who => rendered.get(x.persona).history.data?.some(row => row.body === `offline-${i}-${who}`))), 'both sends rendered on both devices');
     await waitFor(async () => (await Promise.all(clients.map(x => x.client.pendingWrites()))).every(xs => !xs.length), 'both outboxes settled');
+    for (const { persona } of clients) {
+      const read = rendered.get(persona);
+      const list = [...document.querySelectorAll(`[data-persona="${persona}"] ol li`)].map(li => ({ id: li.dataset.id, body: li.textContent }));
+      assertRows(read.history.data, `${persona} settled history`);
+      assertRows(read.itemRows, `${persona} settled Pages items`);
+      assertRows(list, `${persona} settled rendered list`);
+      record('settled-lists', { persona, expected: rows(expected), pages: rows(read.itemRows), rendered: rows(list) });
+    }
     record('trial-end');
   }
   phase = 'done'; return { events, decorationCommits, inspections: clients.map(x => ({ persona: x.persona, ...inspect(x.client) })) };
