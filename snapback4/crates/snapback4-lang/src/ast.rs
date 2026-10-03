@@ -124,6 +124,9 @@ pub struct ReadExpr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeLane {
+    /// Original row predicate: bind before accepting an optimization that erases a probe.
+    /// Compiler-only admission evidence, never emitted into the runtime plan.
+    pub admission: Option<Box<Expr>>,
     /// Nullable `in` needs one filtered scan, never a null index prefix.
     pub nulls: Option<(String, Box<ReadExpr>)>,
     pub distinct: Option<Expr>,

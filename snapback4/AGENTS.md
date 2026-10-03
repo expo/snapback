@@ -95,11 +95,12 @@ Gotchas you cannot derive from the code:
   cannot run is skipped with a named reason, never counted as a pass.
 - `snapback/generated/api.ts` is built by `check` and `dev`, never committed;
   the app's typecheck needs a `check` first (the suite does one).
-- Positional rule probes and `exists` need an index over exactly the probed columns
-  (`by byConversationPrincipalRole: conversationId, principal, role` for
-  `exists memberships[.conversationId, viewer, 'admin']`); the diagnostic
-  names the indexes that exist. Named equalities covering a total unique key
-  check any extra columns on that one row without an additional index.
+- Point rule probes and `exists` require a unique key. A fully pinned superset
+  of a required unique key is unique too (for example an explicit role index
+  containing the unique conversation/principal pair). Nullable unique key
+  arguments need non-null proof. Other existence checks use bounded populations
+  in code. Named equalities covering a total unique key check extra columns on
+  that one row without an additional index.
 - The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
 - When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json`,
   `packages/snapback4-linux-x64/package.json` and `Cargo.toml` together; a test refuses a mismatch.

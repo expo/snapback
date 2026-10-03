@@ -157,11 +157,12 @@ fn check_fix_repairs_equality_and_keeps_the_independent_error() {
 fn check_fix_applies_repairs_and_preserves_accepted_forms_byte_exact() {
     for (source, corrected) in [
         (MISSING_INDEX, MISSING_INDEX.into()),
-        (MISSING_PROBE, MISSING_PROBE.into()),
         (ARG_ONCE, ARG_ONCE.replace(" once", "")),
         (WILDCARD, WILDCARD.into()),
         (EMPTY_ARGS, EMPTY_ARGS.replace("trending:", "trending():")),
     ] { check_fix(&[("schema.q", source, &corrected)], true); }
+    let out = check_fix(&[("schema.q", MISSING_PROBE, MISSING_PROBE)], false);
+    assert!(String::from_utf8_lossy(&out.stderr).contains("E_QUARRY_POINT_KEY"));
 }
 
 #[test]

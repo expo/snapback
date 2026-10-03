@@ -189,12 +189,24 @@ impl Binder<'_> {
                 format!("{} by {}: this unscoped `where` pins no index prefix; {consequence}", read.table, index.name),
                 "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)").guide("feeds"));
         }
-        let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
+        let value = self.row_predicate(&read.table, &predicate)?;
+        Ok((read, Some(Box::new(value))))
+    }
+
+    pub(super) fn row_predicate(&mut self, table: &str, predicate: &A) -> Fallible<Expr> {
+        let row_ty = Ty::Row(table.into());
+        let prior = self.focal.replace(("$filter".into(), row_ty.clone()));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
         let predicate_context = std::mem::replace(&mut self.in_predicate, true);
         let mut body = setup::Body::default();
         self.push_scope();
-        let bound = self.expr(&predicate, &mut body);
+        // A fresh lexical row snapshot lets short-circuit guards narrow its
+        // fields without leaking facts to another scan or an enclosing row.
+        self.scopes.last_mut().unwrap().insert("$filter".into(), Binding {
+            runtime: "$filter".into(), declared: row_ty.clone(), ty: row_ty,
+            parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(),
+        });
+        let bound = self.expr(predicate, &mut body);
         self.pop_scope();
         self.kind = kind;
         self.in_predicate = predicate_context;
@@ -202,8 +214,7 @@ impl Binder<'_> {
         let (value, ty) = bound?;
         if !ty.is_bool() { return Err(type_error(predicate.site(), format!("where needs a bool predicate, got {}", ty.name()), "where .col = value")); }
         // @ref LLP 3000.007#5.6 — predicate setup, including lazy reads, runs afresh for each rule-visible row.
-        let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
-        Ok((read, Some(Box::new(value))))
+        Ok(if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } })
     }
 }
 

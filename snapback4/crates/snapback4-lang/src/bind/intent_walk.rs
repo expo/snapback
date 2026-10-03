@@ -20,6 +20,7 @@ pub(super) fn expression(value: &mut Expr, visit: &mut impl FnMut(&mut Expr)) {
             for value in [&mut merge.matching, &mut merge.filter, &mut merge.cursor].into_iter().flatten() { expression(value, visit); }
             let mut lanes = Vec::new();
             for mut lane in std::mem::take(&mut merge.lanes) {
+                if let Some(predicate) = &mut lane.admission { expression(predicate, visit); }
                 if let Some((_, read)) = &mut lane.nulls {
                     let mut value = Expr::Read(*read.clone());
                     expression(&mut value, visit);

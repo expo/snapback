@@ -214,7 +214,8 @@ fn nullable_point_arguments_require_presence_for_every_spelling() {
                             let d = &bound.diagnostics[0];
                             assert_eq!(d.code, "E_QUARRY_NULL_KEY", "{d:?}");
                             assert!(d.message.contains("ambiguous across replicas"), "{d:?}");
-                            for text in ["if ", "!= null", "where ", "by .id", "first N", "conversations[id]"] { assert!(d.rewrite.contains(text), "{d:?}"); }
+                            for text in ["non-null arguments", "presence guards", "bounded population", "key the row by id"] { assert!(d.message.contains(text), "{d:?}"); }
+                            assert!(d.rewrite.is_empty(), "no unverified source edit: {d:?}");
                         }
                     }
                 }
@@ -229,8 +230,8 @@ fn nullable_point_arguments_require_presence_for_every_spelling() {
                     let bound = snapback4_lang::compile(&[("schema.q".into(), schema(arity, optional) + &format!("query q():\n  return conversations[{key}]\n"))]);
                     assert_eq!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_NULL_KEY"), optional & (1 << position) != 0, "{:?}", bound.diagnostics);
                     if let Some(d) = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_NULL_KEY") {
-                        assert!(d.rewrite.contains("replace literal null with a non-null value"), "{d:?}");
-                        assert!(!d.rewrite.contains("if null"), "{d:?}");
+                        assert!(d.message.contains("replace literal null with a non-null value"), "{d:?}");
+                        assert!(!d.message.contains("if null"), "{d:?}");
                     }
                 }
             }

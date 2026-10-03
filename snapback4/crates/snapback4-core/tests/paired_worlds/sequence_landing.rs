@@ -2,7 +2,9 @@
 use crate::paired_worlds::*;
 use serde_json::json;
 use snapback4_core::{Context, Value, WriteState};
-const SOURCE: &str = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  read <- exists grants[parent = .parent, who = viewer]\n  insert <- allow\n  online only\nquery one():\n  return messages['own']\nquery page():\n  return messages where .parent = 'p' first 2 by .ordinal\nmutation send():\n  return insert messages { parent: 'p' }\n";
+const SOURCE: &str = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  unique byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  read <- exists grants[parent = .parent, who = viewer]\n  insert <- allow\n  online only\nquery one():\n  return messages['own']\nquery page():\n  return messages where .parent = 'p' first 2 by .ordinal\nmutation send():\n  return insert messages { parent: 'p' }\n";
+// Raw trusted seeds also exercise legacy duplicate physical versions;
+// ordinary Quarry writes now enforce the declared unique witness key.
 fn pair(populations: [usize;2], first: [Option<i64>;2], expired: bool) -> Pair {
     let seeds=[0,1].map(|world| {
         let mut rows=vec![("messages".into(),json!({"id":"own","parent":"p","owner":"alice","ordinal":1}))];
@@ -55,7 +57,7 @@ fn nested_and_sibling_page_exhaustion_have_one_empty_envelope() {
 
 #[test]
 fn redundant_witness_lifetimes_do_not_change_scan_or_write_probe_reservations() {
-    let source="table hidden:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\ntable stable:\n  tag: int\n  by byTag: tag\n  read <- deny\n  online only\ntable rows:\n  owner: principal\n  read <- (exists hidden[tag = 0] or exists stable[tag = 0]) and .owner = viewer\n  update <- exists hidden[tag = 0] or exists stable[tag = 0]\n  online only\nquery page():\n  return rows first 2\nmutation touch():\n  update rows['r'] { owner: viewer }\n";
+    let source="table hidden:\n  tag: int\n  until: time ?\n  expire at .until\n  unique byTag: tag\n  read <- deny\n  online only\ntable stable:\n  tag: int\n  unique byTag: tag\n  read <- deny\n  online only\ntable rows:\n  owner: principal\n  read <- (exists hidden[tag = 0] or exists stable[tag = 0]) and .owner = viewer\n  update <- exists hidden[tag = 0] or exists stable[tag = 0]\n  online only\nquery page():\n  return rows first 2\nmutation touch():\n  update rows['r'] { owner: viewer }\n";
     for finite in [false,true] {
         let seeds=[false,true].map(|present| {
             let mut seed=vec![("stable".into(),json!({"id":"stable","tag":0})),("rows".into(),json!({"id":"r","owner":"alice"}))];

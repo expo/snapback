@@ -178,7 +178,8 @@ impl Requests {
         let candidates: Vec<_> = table.indexes.iter().filter(|index| {
             let mut ordered = index.columns.clone();
             if ordered.last().map(String::as_str) != Some("id") { ordered.push("id".into()); }
-            (!cursor || table.total_cursor(index)) && ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
+            (index.unique || index.columns.len() > read.keys.len())
+                && (!cursor || table.total_cursor(index)) && ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
         }).collect();
         if candidates.len() > 1 {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),

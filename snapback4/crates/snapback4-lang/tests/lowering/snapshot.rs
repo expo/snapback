@@ -6,6 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 
+// NL deliberately refuses four historical programs that probe a nonunique
+// role index without a unique key. Keep the old digests; pin refusal instead.
+pub const NL_REFUSED: [&str; 4] = ["addMember", "send", "sendPhoto", "thread"];
+pub const NL_SOURCE: &str = "df0100e9f8126097acd9ae5074a7758f8f9f5668bb5bae7a9e2ef192a6d52a68";
+
 type Bind = fn(&Catalog, &str, &ast::ProgramDecl, &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -64,7 +69,12 @@ fn snapshot_shard(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool
         for doc in &catalog.documents {
             let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
             for decl in &doc.programs {
-                let Some(bound) = binder(&catalog, &module, decl, &mut diagnostics) else { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); continue; };
+                let before = diagnostics.len();
+                let bound = binder(&catalog, &module, decl, &mut diagnostics);
+                if key == NL_SOURCE && NL_REFUSED.contains(&decl.name.as_str()) {
+                    assert!(bound.is_none() && diagnostics[before..].iter().any(|d| d.code == "E_QUARRY_POINT_KEY"), "{key}/{}: {:?}", decl.name, &diagnostics[before..]);
+                }
+                let Some(bound) = bound else { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); continue; };
                 let program = bound.program;
                 if program.native || program.kind == ProgramKind::Job { continue; }
                 let name = format!("{key}:{}", program.name);

@@ -47,10 +47,11 @@ mutation gated(eventId: id):
   insert gates { id: 'gate', eventId }
 table actorGates:
   actor: principal
-  public 'prefix rule probe witness'
-  insert <- exists feedPosts[actorId = .actor]
+  public 'bounded population witness'
+  insert <- .actor = viewer
   sync public
 mutation gatedActor(actor: principal):
+  require exists feedPosts where .actorId = actor else NO_EVENT
   insert actorGates { id: 'gate', actor }
 "#
 }

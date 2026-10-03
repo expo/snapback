@@ -657,7 +657,7 @@ fn counts_cannot_be_indexed_for_rules_or_ranking() {
         assert!(
             b.diagnostics
                 .iter()
-                .any(|d| d.code == "E_VIEW_KEY" && d.rewrite.contains("view unread:")),
+                .any(|d| (d.code == "E_VIEW_KEY" && d.rewrite.contains("view unread:")) || d.code == "E_QUARRY_POINT_KEY"),
             "{:?}",
             b.diagnostics
         );

@@ -46,10 +46,13 @@ impl Host {
   Self::start_with(project, dev, blocked_stderr, &[])
  }
  fn start_with(project:Arc<Project>,dev:bool,blocked_stderr:bool,extra:&[&str])->Self {
+  Self::start_storage(project,dev,blocked_stderr,extra,true)
+ }
+ fn start_storage(project:Arc<Project>,dev:bool,blocked_stderr:bool,extra:&[&str],fresh:bool)->Self {
   if !dev {let out=Command::new(BIN).current_dir(&project.0).args(["deploy","release"]).output().unwrap();assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));}
   let stderr=project.0.join(format!("stderr-{}.log",NEXT.fetch_add(1,Ordering::Relaxed)));
   let sink=if blocked_stderr {Stdio::piped()} else {Stdio::from(fs::File::create(&stderr).unwrap())};
-  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev {vec!["dev","--fresh","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(extra).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
+  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev && fresh {vec!["dev","--fresh","--no-watch","--port","0"]} else if dev {vec!["dev","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(extra).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
   let mut line=String::new();BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
   assert!(line.starts_with("http://"),"{line}: {:?}",fs::read_to_string(&stderr));
   Self{child,project,address:line.trim().trim_start_matches("http://").into(),stderr}
@@ -155,17 +158,24 @@ impl Host {
   serde_json::from_str(reply.split_once("\r\n\r\n").unwrap().1).unwrap()
  }
 }
-const EXHAUSTION: &str = "use personas alice\ntable parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\nmutation previous():\n  return insert parents {}\n";
+const EXHAUSTION: &str = "use personas alice\ntable parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  unique byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\nmutation previous():\n  return insert parents {}\n";
 #[test]
 fn real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase() {
  let project=Project::new();fs::write(project.0.join("snapback/schema.q"),EXHAUSTION).unwrap();
- let dev=Host::start(project,true,false);
+ // Restore a preexisting physical history directly. New Quarry writes
+ // cannot create these live ties after point admission requires uniqueness.
+ fs::create_dir_all(project.0.join(".snapback4")).unwrap();
+ let bound=snapback4_lang::compile(&[("schema.q".into(),EXHAUSTION.into())]);
+ assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+ let mut engine=snapback4_core::Engine::new(snapback4_core::Store::open(&project.0.join(".snapback4/store.sqlite")).unwrap(),bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+ let now=snapback4_core::now_ms();
+ let mut rows=vec![("parents".to_owned(),json!({"id":"p"}))];
+ rows.extend((0..8193).map(|n|("grants".into(),json!({"id":format!("g{n}"),"parent":"p","until":now+3600000+n}))));
+ let rows=rows.into_iter().map(|(table,row)|{let row=snapback4_core::wire::row_from_json(&engine.schema().tables[&table],&row).unwrap();(table,row)}).collect::<Vec<_>>();
+ engine.load_trusted(rows).unwrap();drop(engine);
+ let dev=Host::start_storage(project,true,false,&[],false);
  let previous=dev.post("/m/previous",json!({}));assert_eq!(previous["why"]["code"],"E_RULE","{previous}");
  let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"previous");
- let now=snapback4_core::now_ms();
- let mut rows=vec![json!({"table":"parents","row":{"id":"p"}})];
- rows.extend((0..8193).map(|n|json!({"table":"grants","row":{"id":format!("g{n}"),"parent":"p","until":now+3600000+n}})));
- let seed=dev.post("/seed",json!(rows));assert_eq!(seed["seeded"],8194,"{seed}");
  let query=dev.post("/q/point",json!({"args":{"id":"p"}}));assert_eq!(query["denied"]["code"],"E_RULE","{query}");
  let record=dev.project.wait_record(store,"point");let point=record["records"].as_array().unwrap().last().unwrap();
  assert_eq!(point["clause"],"authorization allowance (read)");assert_eq!(point["phase"],"read rule");

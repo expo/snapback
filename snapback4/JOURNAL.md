@@ -84873,3 +84873,48 @@ review dispositions and logs, including the superseded in-progress runs.
 Only this session's test processes were signaled. No other machine was used;
 nothing pushed or published. Commit trailer:
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-03 — NL round 2: point probes require uniqueness before planning
+
+The nonunique point-exists split predates NL and also affects non-null ties:
+a hidden first server candidate can produce complete false while a device
+holding a later visible candidate produces complete true. Choose compiler
+refusal (`E_QUARRY_POINT_KEY`), keeping the point contract and using existing
+bounded population reads for searches. A fully pinned superset of a required
+unique key is unique too; nullable unique arguments still need non-null proof.
+Rule, created and final-insert probes share admission. Storage equality,
+null-bearing uniqueness, maintained null groups and runtime meters are unchanged.
+
+Membership lane planning retains the original predicate as compiler-only
+admission evidence and binds it before accepting a rewritten lane. Literal-null
+probes cannot disappear during this optimization, including in planned views.
+Scan predicates now bind their focal row in a fresh scope, allowing presence
+guards to narrow its fields without leaking facts across scans. Point diagnostics
+explain the recovery choices without offering unverified source edits. Population
+planning avoids fully pinned nonunique range indexes and adds the needed id
+component. Existing valid page repairs remain valid; nullable populations never
+receive a bare-point repair.
+
+Regressions cover server, memory and SQLite, hidden first null/non-null ties,
+explicit competing indexes, code and rule probes, planning erasure, guarded
+scans and views, and population alternatives. Legacy source fixtures declare
+unique witnesses or use two unique witness slots. Physical-store tests retain
+injected historical ties and their privacy, deadline and meter assertions;
+frozen compatibility tests explicitly pin newly refused historical programs.
+The guide, LLP 3000.013 §2.2, closed ticket and
+[Round 2 report](./reports/20261003-nl-named-key-lookup/REPORT.md) record the change.
+
+Affected compiler suites (303 tests), the lookup/admission matrix (25 tests),
+and the affected legacy fixtures pass. The final complete eb1000 run of
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+passed with zero failures in 1,466 s: 289 Rust test binaries, 1,002 executions
+and doctests; 6,034 client tests passed with 11 existing skips; 79 model tests
+passed. Earlier full runs exposed legacy fixture probes; all were corrected
+and included in the clean final run. Logs: `/tmp/sb4-nl-r2-verification/`, with
+`full-suite-complete.log` recording the final result.
+
+Wasm remains byte-identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the
+unchanged 618,040 B budget. Reference validation and whitespace checks pass.
+Only this session's test processes were signaled. No other machine was used;
+nothing pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

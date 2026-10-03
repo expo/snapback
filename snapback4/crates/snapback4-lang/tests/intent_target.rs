@@ -264,10 +264,9 @@ fn audience_indexes_follow_probe_order_and_inferred_horizons() {
     assert_eq!(b.schema.tables["members"].indexes[&audience.principal_index].columns(), ["principal", "roomKey"]);
     let named_probe = "table grants:\n  z: id\n  a: principal\n  read <- deny\ntable posts:\n  group: id\n  read <- exists grants[z = .group, a = viewer]\n";
     let b = compile(&[("schema.q".into(), named_probe.into())]);
-    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    if let snapback4_core::schema::RuleExpr::Exists { index, .. } = &b.schema.tables["posts"].rules.read {
-        assert_eq!(b.schema.tables["grants"].indexes[index].columns(), ["z", "a"]);
-    } else { panic!("exact rule probe"); }
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"), "{:?}", b.diagnostics);
+    // Inferring an access index cannot establish the uniqueness that a
+    // replica-independent point needs. The row's product key must do so.
 }
 
 #[test]

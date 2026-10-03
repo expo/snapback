@@ -36,6 +36,10 @@ selected unique key must be provably non-null: use required types or `if x != nu
 the ambiguous null ties across replicas. To read null matches, use a bounded
 `where` population ordered `by .id`, or address a row by id. Null for a
 required key column returns null; maintained aggregate null groups are unchanged.
+E_QUARRY_POINT_KEY refuses a point probe whose key can match several rows.
+A fully pinned superset of a required unique key counts as unique too.
+Use a unique key or a bounded `where` population; its scalar probe reports unavailable
+when a scan is cut. Rule probes require a unique key.
 A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.

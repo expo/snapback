@@ -13,7 +13,7 @@ fn maintained_value_rule_keeps_permit_deadline_over_http_and_two_read_through_li
     let f=Fixture::new("count-deadline");
     let schema=include_str!("../../snapback4-core/tests/row_view_witness/schema.q")
         .replace("MEMBER_EXPIRY", "").replace("  public", "  public\n  insert <- allow")
-        .replace("PREDICATE","not exists unread[member = .member, value = 0] or exists permits[member = .member]");
+        .replace("PREDICATE","not exists unread[member = .member, value = 0] or exists permits[member = .member, slot = 0] or exists permits[member = .member, slot = 1]");
     let source=format!("use personas alice\n{schema}\nmutation setup():\n  insert rooms {{id:'r'}}\n  insert members {{id:'u',room:'r'}}\n  insert messages {{id:'m',room:'r',until:now+10000}}\n  insert permits {{id:'p',member:'u',until:now+20000}}\n  insert gates {{id:'g',member:'u'}}\n  insert links {{id:'l',gate:'g'}}\n  insert leaves {{id:'z',link:'l'}}\n  return now+20000\n")
         .replace("table gates:\n", "table gates:\n  insert <- allow\n")
         .replace("table links:\n", "table links:\n  insert <- allow\n")

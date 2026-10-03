@@ -611,6 +611,7 @@ for (const form of ["rule", "require", "constraint", "named constraint", "postco
     if (form === "empty index") sequence = sequence.replace("  return row\nmutation join", "  require exists messages[conversationId = conversationId, ordinal = 6] else NO_SIX\n  return row\nmutation join");
     if (form === "upsert index") sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique conversationId, ordinal").replace("  return row\nmutation join", "  upsert messages[conversationId = conversationId, ordinal = 6] { body: 'updated' }\n  return row\nmutation join");
     if (form === "postcondition index") {
+      sequence = sequence.replace("  immutable ordinal", "  immutable ordinal\n  unique conversationId, ordinal");
       sequence += "\ntable gates:\n  parent: conversations\n  public\n  insert <- allow\n  sync public\n  after insert <- exists messages[conversationId = .parent, ordinal = 6]\n";
       sequence = sequence.replace("  return row\nmutation join", "  insert gates { parent: conversationId }\n  return row\nmutation join");
     }

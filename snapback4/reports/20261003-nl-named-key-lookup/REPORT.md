@@ -6,6 +6,7 @@ All changes are in the compiler, diagnostics, tests and docs; runtime code
 and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
+Round 1: `42391bb340`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -13,10 +14,11 @@ branch `sb4-intent/nl-named-key-lookup`.
 | Case | Contract |
 | --- | --- |
 | Stored unique key contains null | Multiple rows remain legal. [`check_constraints`](../../crates/snapback4-core/src/engine/write.rs#L436) skips null-bearing collisions; device prediction uses the same interpreter. |
-| Fully non-null key | Duplicate writes fail; a point reads the matching row, subject to authorization and device coverage. |
+| Fully non-null unique key | Duplicate writes fail; a point reads the matching row, subject to authorization and device coverage. |
 | Nullable selected key column, possibly null argument | Compilation refuses with `E_QUARRY_NULL_KEY`. A required argument type or presence guard admits the lookup. |
 | Required key column, null argument | No row (false for `exists`): [`get_prepared`](../../crates/snapback4-core/src/engine/read_point.rs#L133). |
 | Population `.col = arg`, null argument | Equality remains total: null equals null ([`BinaryOp::Eq`](../../crates/snapback4-core/src/engine/runner.rs#L1230)); a bounded population can return every visible null match. |
+| Nonunique point probe | `E_QUARRY_POINT_KEY` refuses. A fully pinned superset of a required unique key is unique too; otherwise use population `exists` in code. |
 | Maintained aggregate null group | Unchanged; it addresses a maintained group, exempt from the point refusal. |
 
 The original first-candidate interpretation was **not a shared host contract**.
@@ -104,6 +106,66 @@ round are superseded by the operator's Round 1 decision below.
   Log: `final-rust-inventory.log` in the same directory.
 - `ref-check --verbose`: 527 LLPs, 10,287 refs, zero errors or unchecked refs.
   Whitespace checks pass. No runtime source or wasm-budget change.
+
+## Round 2
+
+- **The nonunique `exists` split predates NL.** On Round 1's head, null
+  and non-null ties with a hidden first row returned complete `false` on the
+  server and complete `true` on both devices. The explicit-index Exists-mode
+  selection already exists at `9e41df69f3`; the four lookup/witness/store files
+  above have no diff from that base. Reproduction source and output:
+  `/tmp/sb4-nl-r2-verification/baseline-probe-executed.rs`, `baseline-split.log`;
+  historical comparison: `pre-nl-exists-selection.txt`, `pre-nl-runtime.diff`.
+- Chose **compile-time refusal**, not new point-runtime search semantics.
+  This preserves the point contract and reuses the population path's existing
+  bounds and meters rather than introducing a second search contract.
+  [`point_key::check`](../../crates/snapback4-lang/src/bind/point_key.rs) now
+  requires uniqueness for code/rule probes, `created` and final-insert probes.
+  Required unique subsets prove a fully pinned larger key unique, preserving
+  existing role checks. Explicit nonunique nullable inverses still refuse:
+  select the unique key and prove nullable arguments present. Existing
+  population `exists` keeps its bounded search and unavailable result on cuts.
+  Unqualified named predicates can already plan as bounded populations;
+  the new admission check governs point probes, including explicit `by`.
+- [`intent_lanes`](../../crates/snapback4-lang/src/bind/intent_lanes.rs) retains
+  the authored predicate as compiler-only admission evidence. Before emitting
+  a proposed lane, [`planned_view`](../../crates/snapback4-lang/src/bind/program/views.rs)
+  binds that predicate in the caller's original scope. Literal-null probes
+  cannot disappear, including inside views. [`row_predicate`](../../crates/snapback4-lang/src/bind/program/reads.rs)
+  supplies a scoped focal binding, so `and`/`or` guards narrow row fields.
+- Point diagnostics retain recovery guidance but emit **no unverified source
+  edit**. Page planning excludes fully pinned nonunique indexes and supplies
+  an unpinned id component. The competing-index population now compiles.
+  LLP §2.2 and the ticket distinguish retaining an existing valid page repair
+  from trying `by .id` for an otherwise bare nullable key.
+- [New regressions](../../crates/snapback4-device/tests/point_probe_admission.rs)
+  cover null/non-null ties with hidden first candidates, both device stores,
+  positional/named/reordered code and rule probes, final-insert probes,
+  planner erasure, direct and planned-view guards, scope isolation, required
+  unique subsets, and population alternatives. The original arity/permutation
+  matrix and calibration #29 continue passing.
+- Legacy fixtures now declare unique witnesses, or enumerate two witnesses
+  through unique slots. Physical-store privacy tests retain deliberately
+  injected historical ties and all their meter/deadline assertions. One old
+  ambiguous expiry assertion now pins refusal. The frozen tests explicitly
+  pin the refused `repair-probe.q` and four historical lowering operations;
+  all still-admitted schema, TypeScript and IR bytes retain their old goldens.
+- **Affected checks pass:** 303 language tests, the 25-test lookup/admission
+  matrix, and the affected privacy, expiry, lowering, CLI and client fixtures.
+  Both newly refused client fixtures retain their original queueing/expiry
+  assertions through explicit unique keys or slots.
+- The locked wasm build is still byte-identical: **2,048,676 B raw / 617,398 B
+  gzip**, **642 B** below the unchanged **618,040 B** budget, with the same
+  SHA-256 recorded in Round 1. Reference validation: 527 LLPs, 10,289 refs,
+  zero errors or unchecked refs. Whitespace checks pass.
+- **Full suite: zero failures in 1,466 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **289 binaries, 1,002 executions and workspace doctests** (525 s).
+  Clients: **6,034 passed, 11 existing skips** (592 s); serial models:
+  **79 passed** (305 s). Final log: `full-suite-complete.log` under
+  `/tmp/sb4-nl-r2-verification/`. Earlier runs exposed legacy fixtures,
+  including two client cases; their affected reruns pass. Only owned processes
+  were stopped. No other machine, push, or publication was used.
 
 ## Governing context
 

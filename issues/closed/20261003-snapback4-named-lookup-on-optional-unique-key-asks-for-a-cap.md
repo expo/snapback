@@ -60,8 +60,9 @@ population equality and maintained aggregate null groups are unchanged.
 Point plans match when both spellings select the same index without residual
 equalities. A shorter total unique key can instead serve a named lookup with
 extra equality checks. Competing nonunique indexes no longer make exact
-unique rule probes ambiguous. A nullable unique population repair retains
-`by .id` if it compiles; otherwise no rewrite is offered.
+unique rule probes ambiguous. A nullable unique population repair keeps an
+existing valid page bound; an otherwise bare key gets `by .id` only when
+verified in context, or no rewrite.
 
 Regressions cover server, memory and SQLite, all required/optional and null
 combinations of two- and three-column keys, every named order, duplicate
@@ -69,5 +70,11 @@ writes, qualified plan identity, and the real calibration #29 source. Its copied
 passes `check` with the named form. The indexes guide and LLP 3000.013 §2.2
 document the semantics. A verified diagnostic repair for an aggregate now
 adds `by .id` so its population keeps every tied null row.
+
+Round 2 also refuses ambiguous nonunique point probes (`E_QUARRY_POINT_KEY`),
+including explicit indexes, and preserves probe admission through lane planning.
+Scan and planned-view guards now narrow focal columns. Point diagnostics give
+recovery guidance without unverified executable edits. Population equality
+and maintained null groups remain unchanged.
 
 See the [verification report](../../snapback4/reports/20261003-nl-named-key-lookup/REPORT.md).
