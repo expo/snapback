@@ -60,8 +60,10 @@ Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/b
 Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
+`guide social`: tested route-owned screen with bounded point bodies, generation resets and hidden-route cleanup.
+
 ## Row queries
-Wire-equivalent observations share retention. Paging avoids 1,000 row evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.
+Shared observations avoid repetition. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
@@ -69,14 +71,14 @@ Flashes: `inspect(client)` from `snapback4/inspection` compares `queued`/`inFlig
 Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
-Social: native `nativeDevice`, web `webDevice()`, Expo Go online. `guide sync` covers acquisition/Workers.
+Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
 Every milestone: `npm run export:ios` also proves the app runs on iOS with Xcode/runtime. Hermes: `dist/`. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs an app scenario (`guide witness`).
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.
 
 ## One-view photos
-Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
+Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes even late responses. Close on `absent`/denied/tombstone/changed-asset/deadline; deadlines run through loading.
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
