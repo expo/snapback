@@ -49,8 +49,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.022#14.3 — older devices must not execute newly eligible
     // writes using their receipt-derived maintenance path.
     ("receipt-derived-prediction-v1", |s| s.maintains.iter().any(|m| s.receipt_dependencies.contains_key(&m.target))
-        || s.tables.iter().any(|(name, table)| table.maintained.keys().any(|field|
-            s.receipt_dependencies.get(name).is_some_and(|fields| fields.contains(field))))),
+        || s.has_receipt_columns()),
     ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
@@ -68,6 +67,10 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
 ];
 
 impl Schema {
+    fn has_receipt_columns(&self) -> bool {
+        self.tables.iter().any(|(name, table)| table.maintained.keys().any(|field|
+            self.receipt_dependencies.get(name).is_some_and(|fields| fields.contains(field))))
+    }
     pub fn required_capabilities(&self) -> BTreeSet<String> {
         CAPABILITIES.iter().filter(|(_, needs)| needs(self)).map(|(name, _)| (*name).into()).collect()
     }
@@ -125,9 +128,8 @@ impl<'de> Deserialize<'de> for Schema {
         // RP stamps every emitted schema so old devices refuse its new prediction
         // facts, but an RP reader must still open RY's kept backend/database.
         // All other capabilities and the carrier shape remain exact.
-        if !declared.contains("receipt-derived-prediction-v1") {
-            required.remove("receipt-derived-prediction-v1");
-        }
+        let legacy_receipt_prediction = !declared.contains("receipt-derived-prediction-v1")
+            && required.remove("receipt-derived-prediction-v1");
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain
@@ -142,6 +144,15 @@ impl<'de> Deserialize<'de> for Schema {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }
         schema.prepare_receipt_dependencies();
+        // Absence alone proves no age. A projection has no private write
+        // footprint here: conservatively queue every mutation until a stamped,
+        // priced backend is adopted. Queries, server writes and custody survive.
+        // Full schemas rebuild prices above; projections cannot invent them.
+        if legacy_receipt_prediction || (schema.has_receipt_columns() && schema.receipt_column_costs.is_empty()) {
+            for fact in schema.operations.values_mut().filter(|f| f.predicts.is_some()) {
+                fact.predicts = Some("never".into());
+            }
+        }
         Ok(schema)
     }
 }

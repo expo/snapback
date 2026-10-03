@@ -84911,3 +84911,64 @@ records fixture provenance, counterexamples, measurements and qualification
 hashes. Work stayed on eb1000; no Apartment mini, office M1 or M5. Local
 commit includes Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed
 or published.
+
+
+## 2026-10-03 — RP round 2: complete reservations, conservative decode and canceled groups
+
+Round 2 fixes the six findings in both NOT READY round-1 reviews. Online-only
+row-keyed views now reserve before skipping unheld maintenance: six fanout-50
+receipt counts queue without a provisional row on memory, SQLite and wasm,
+matching the server's 1,202-row E_BOUND; one count still predicts. Every device
+source-write attempt also charges declared image/video list slots through the
+shared interpreter, including null/empty cells: per slot, 2 written rows,
+4 examined, 8 steps and 16,384 transient heap bytes. Devices never take the asset
+ledger. The existing server formula, heap lifetime and runtime ceilings stay
+unchanged. Regressions cover 480-slot unread sends, 16-insert/32-slot bursts,
+public/private counts, video lists and plain writes without receipts. Receipt
+refusals keep custody; ordinary known-input refusals keep their immediate-error
+contract. No test, timeout or runtime ceiling was weakened.
+
+A missing receipt-derived-prediction-v1 stamp no longer authorizes prediction.
+Authentic old backends still open, but every mutation fact in an unstamped
+receipt-maintenance schema is conservatively downgraded to never. A projected
+receipt parent column with missing prices receives the same downgrade, even
+when stamped; full schemas recompute prices. This also queues unrelated
+mutations until a genuine current adoption, because private write footprints
+are absent during projection decode. Queries, outbox and delivery debt survive.
+The old-version fixtures are unchanged and their six native opening modes and
+wasm upgrade tests pass. New stripped-current tests cover removing either or
+both stamp and prices on all three runtimes; current adoption restores sends.
+
+Predicted deletes save only ordinary group keys before their last image goes
+away. Canceled inserts therefore mark their own group across reopen, including
+empty ids and same-mutation insert/delete, while unrelated groups remain live
+and expire. Saved keys carry no receipt fields or guessed ordinals, and clear
+with replay/reset. One canceled entry adds at most one metadata point lookup;
+there is no source scan. Legacy no-image entries without saved keys, computed
+keys and missing fields retain the conservative fallback. LLP 3000.020 §§3.3,
+3.6 and 4 now exempt receipt-derived badges from L+: render a stable number
+with a quiet refreshing indication. Updated both guides and LLPs 3000.019 and
+3000.022 to match the shared prices, decoding and grouping rules.
+
+Affected checks: 192 receipt/RY tests, 112 guide, 46 row-keyed language,
+58 core row-view, 4 maintained-column review, 3 asset-column, 340 device, and
+84 client tests passed. Full eb1000 suite: **== 0 failure(s) in 1442 s**,
+exit 0. Rust unit/integration: 4,804 passed, 34 existing ignores; doctests: 17;
+clients: 6,040 passed, 11 existing skips; serial models: 79; fixture wrappers: 9.
+No failure needed an unmodified-main exception. All 1,841 qualification inputs
+remained unchanged during the full run. Reference and whitespace checks pass.
+
+Locked eb1000 wasm: **2,072,900 B raw / 624,929 B gzip**, +3,363 raw / +1,495
+gzip over Round 1, and +24,224 raw / +7,602 gzip (+1.23%) over the same-host
+unmodified a8c20c40e9 base rebuilt in Round 1. The shared media/online charges,
+conservative decode and durable deleted keys require this whole-artifact growth.
+Set the cap to **625,059 B = Linux measurement + 130 B macOS allowance**,
++1,625 over Round 1. The budget history records actual host differences of 108
+and 127 B and a later 110–130 B allowance; use its upper bound with no additional
+padding. No macOS build is claimed. No gzip, video, wasm or new oversized file
+is committed; this existing journal receives the requested append.
+
+The [Round 2 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-2--2026-10-03)
+records counterexamples, remaining limits, artifact/log hashes and validation.
+Work stayed on eb1000; no Apartment mini, office M1 or M5. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

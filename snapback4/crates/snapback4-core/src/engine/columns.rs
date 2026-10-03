@@ -94,15 +94,14 @@ impl Runner<'_> {
     pub(super) fn reserve_columns(&mut self, source: &str) -> Result<(),RuntimeError> {
         if self.device {
             if let Some(cost) = self.schema.receipt_column_costs.get(source) { self.charge_columns(*cost)?; }
-            return Ok(());
-        }
-        #[cfg(feature = "sqlite")]
-        {
+        } else {
+            #[cfg(feature = "sqlite")]
             self.charge_columns(reservation(self.schema, source))?;
-            let assets = if let Some(table) = self.schema.table(source) { self.reserve_assets(table)? } else { 0 };
-            self.column_heap = self.column_heap.saturating_add(assets);
-            self.assets_prepaid = true;
         }
+        let assets = if let Some(table) = self.schema.table(source) { self.reserve_assets(table)? } else { 0 };
+        self.column_heap = self.column_heap.saturating_add(assets);
+        #[cfg(feature = "sqlite")]
+        { self.assets_prepaid = true; }
         Ok(())
     }
     fn charge_columns(&mut self, cost: ReceiptColumnCost) -> Result<(),RuntimeError> {

@@ -504,11 +504,14 @@ test("social starter wasm: offline history predicts in compose order and settles
 test("social starter wasm: receipt-derived unread badges leave sends pending in history", { timeout: hangBudget(30) }, async t => {
   const generated = starter(t);
   const schemaPath = join(generated, "snapback/schema.q");
-  const source = readFileSync(schemaPath, "utf8") + `
+  const source = readFileSync(schemaPath, "utf8").replace("  insert <- .sender = viewer", "  delete <- .sender = viewer\n  insert <- .sender = viewer") + `
 view unreadCounts: count messages by members m
   where .conversation = m.conversation and .ordinal > m.seenOrdinal and .ordinal > m.joinedOrdinal
 mutation sendNamed(conversation: conversations, text: text <=2000, id: id):
   insert messages { id, conversation, sender: viewer, text, photo: null, at: now }
+mutation cancelNamed(conversation: conversations, id: id):
+  insert messages { id, conversation, sender: viewer, text: 'cancel', photo: null, at: now }
+  delete messages[id]
 query badges(conversation: conversations):
   return unreadCounts where .conversation = conversation first 50 by .id { member, value, recountPending }
 `;
@@ -564,4 +567,17 @@ query badges(conversation: conversations):
   const badges = await local.query(api.badges, { conversation });
   assert.equal(badges.complete, true, JSON.stringify(badges));
   assert.deepEqual(badges.data.map(row => [row.value, row.recountPending]), [[4, false]]);
+  offline = true; await local.sync();
+  const cancel = await local.mutate(api.cancelNamed, { conversation, id: "canceled" }, { waitSeconds: 0 });
+  assert.equal(cancel.state, "pending", JSON.stringify(cancel));
+  const dirty = await local.query(api.badges, { conversation });
+  assert.equal(dirty.complete, false);
+  assert.deepEqual(dirty.data.map(row => [row.value, row.recountPending]), [[4, true]]);
+  const unrelated = await local.query(api.badges, { conversation: clean.result });
+  assert.equal(unrelated.complete, true, JSON.stringify(unrelated));
+  assert.deepEqual(unrelated.data.map(row => [row.value, row.recountPending]), [[0, false]]);
+  assert.equal((await local.query(api.history, { conversation })).data.length, 4);
+  offline = false; await local.sync();
+  await until(async () => !(await local.pendingWrites()).some(w => w.id === cancel.id), "canceled source settles");
+  assert.deepEqual((await local.query(api.badges, { conversation })).data.map(row => row.value), [4]);
 });

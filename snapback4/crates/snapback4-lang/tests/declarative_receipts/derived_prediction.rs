@@ -4,6 +4,8 @@ use super::*;
 
 #[path = "prediction_round1.rs"]
 mod round1;
+#[path = "prediction_round2.rs"]
+mod round2;
 
 fn fixture(expiring: bool) -> String {
     let mut src = source().replace("mutation createConversation(", "mutation createGroup(").replace("mutation add(", "mutation addMember(").replace("  text: text <=2000", "  tombstone: bool default false\n  text: text <=2000")

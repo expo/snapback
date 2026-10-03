@@ -57,9 +57,7 @@ impl Runner<'_> {
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
             for m in views {
-                if self.device && self.schema.tables[&m.target].sync.is_none() {
-                    continue;
-                }
+                let online = self.device && self.schema.tables[&m.target].sync.is_none();
                 let deferred = self.defer_receipt_maintain(m);
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
@@ -77,6 +75,7 @@ impl Runner<'_> {
                         .saturating_sub(self.meter.used.heap_bytes);
                     self.meter.heap(heap)?;
                     self.meter.used.heap_bytes -= heap;
+                    if online { continue; }
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
                     let result = if deferred {
@@ -90,6 +89,8 @@ impl Runner<'_> {
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
                     self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
+                    // Online-only recipients are unheld, but their fixed price is public.
+                    if online { continue; }
                     self.maintain_prepaid = true;
                     if deferred { self.row_view_recipient_cap(m, old, new)?; }
                     else { self.row_view_source(m, old, new)?; }

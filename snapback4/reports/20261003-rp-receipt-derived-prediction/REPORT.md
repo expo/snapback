@@ -3,7 +3,9 @@
 2026-10-03. Branch `sb4-intent/rp-receipt-derived-prediction`.
 Base: `a8c20c40e986f8af98f4579386bdb80b9fa7f69e` (unmodified main at lane start).
 The initial sections record round 0. **Round 1 below supersedes its compatibility,
-reservation and table-wide pending behavior**, and records the new qualification.
+reservation and table-wide pending behavior**, and records its qualification.
+**Round 2 supersedes Round 1's remaining reservation gaps, permissive capability
+waiver, canceled-insert fallback and exact-Linux wasm cap.**
 All execution stayed in the provided eb1000 Linux workspace (OS hostname
 `expose-builder-pixel`). No office M1/M5, push or publication.
 
@@ -398,3 +400,181 @@ zero errors, zero unchecked** (`/tmp/rp-r1-refcheck-qualified.log`). Final
 whitespace and artifact-size checks pass. The report and requested append-only
 JOURNAL entry retain the bounded evidence; raw logs, builds and temporary harnesses
 stay outside git. Nothing is pushed or published.
+
+
+## Round 2 — 2026-10-03
+
+Addresses the six findings in `~/sb4-intent/reviews/rp-r1.astra.md` and
+`rp-r1.grok.md`, starting from Round 1 commit `770dbef5a1`. All execution stays
+on eb1000. No Apartment mini, office M1 or M5; nothing pushed or published.
+
+### Reservations on every predicting source write
+
+The online-only row-view early return now follows its fixed reservation. A
+source write pays `fanout × 4` written rows even when the target has no sync
+clause. Member writes also reserve before the online-only skip. This uses
+schema prices; it reads neither an unheld recipient nor a receipt predicate.
+The existing synchronized recipient-cap check and maintenance behavior are
+unchanged. Six online-only views with fanout 50 now queue without a provisional
+row on memory, SQLite and wasm. The one-view control still predicts.
+
+The media list-slot walker and reservation moved from the SQLite-only asset
+module to the shared interpreter. Every device source-write attempt charges
+**2 written rows, 4 examined, 8 steps and 16,384 transient heap bytes per declared
+image/video list slot**, including null, empty and unchanged cells. Optional
+and nested lists use the existing recursive declared-maximum formula; scalar
+media contributes no list slots. The server's formula, scratch admission and
+ledger operations are unchanged. Devices receive no asset ledger. Existing
+per-attempt heap release also releases this reservation on the device.
+
+These are runtime bounds, not static `predicts: never` classifications. The
+schemas remain eligible; oversized receipt writes keep their allocation-refusal
+custody, with an empty prediction and no provisional history. Ordinary writes
+without receipt allocation retain their existing immediate known-input
+`E_BOUND` refusal instead of gaining a new outbox policy.
+
+| Regression shape | Device outcome | Server written rows / outcome |
+| --- | --- | --- |
+| One online-only row-keyed receipt count | Predicts | 202 / sent |
+| Six online-only counts | Queues, no row | 1,202 / `E_BOUND` |
+| Row-keyed unread send, null image or video list `<=480` | Queues, no row | 1,162 / `E_BOUND` |
+| 16 receipt messages, null image list `<=32`, no view | Queues, no rows | 1,054 / `E_BOUND` |
+| Same burst with public count | Queues, no rows | 1,069 / `E_BOUND` |
+| Same burst with private count and video list | Queues, no rows | 1,048 / `E_BOUND` |
+| Single receipt message, null image list `<=480`, no view | Predicts | 962 / sent |
+| Single receipt message, null image list `<=512`, no view | Queues, no row | 1,025 / `E_BOUND` |
+
+The table's cases run on both native stores and wasm. Additional native tests
+remove the receipts clause entirely: an ordinary 480-slot insert predicts and
+commits, while a 512-slot insert and a 16-insert/32-slot mutation refuse on
+both sides and leave zero rows. No upload or populated list is needed for any
+counterexample. No ceiling, timeout or existing expectation was weakened.
+
+### Old stores and stripped current schemas
+
+Missing `receipt-derived-prediction-v1` remains accepted for opening authentic
+old blobs, but no longer grants prediction eligibility. Decoding a receipt-
+maintenance schema without it downgrades **all mutation facts** to `never`.
+The same downgrade applies to a public projection with receipt-derived parent
+columns and an absent/empty `receipt_column_costs`, even if its stamp remains.
+Full schemas recompute their private prices from the authoritative formulas.
+
+This is deliberately broader than finding exactly the affected operations:
+private write footprints are unavailable during public-schema decoding. An
+unrelated mutation in such an old/stripped backend also queues until normal
+adoption of a current stamped/priced backend. Queries, server execution,
+outbox custody and delivery debt are unaffected. Authentic predecessor fixture
+tests still cover Kept, Initial and Install on memory and SQLite; the wasm
+upgrade and restart witnesses still pass. Those fixtures were not modified.
+
+New regressions remove (1) stamp and prices, (2) stamp alone, and (3) prices
+alone from a genuinely current ten-private-count projection. Both native stores
+and wasm queue without provisional rows. The wasm test also submits a small
+send, proving the downgrade itself rather than merely the burst ceiling.
+Adopting the intact backend restores ordinary send prediction while the
+30-message burst still queues at its legitimate reservation. Other capability
+checks stay exact. Arbitrarily forged nonempty compiler price maps remain
+outside the trusted-backend contract; this change closes the absence waiver,
+not a new untrusted-schema execution surface.
+
+### Canceled rows and unread rendering
+
+Before a predicted delete removes its last image, the device stores just the
+ordinary group-key fields needed by receipt-dependent maintained targets in
+transactional overlay metadata. Receipt-owned/derived fields, guessed ordinals
+and unrelated payload are excluded. The rollback base remains unchanged.
+If both base and current images are absent, the group lookup uses these saved
+keys rather than marking the whole target. Settlement/replay and reset clear
+the metadata with the overlay, including refusal rollback.
+
+Both-store regressions cover separate insert/delete mutations, a same-mutation
+insert/delete, empty ids, reopen between reads, refusal settlement and metadata
+cleanup. Conversation `c` retains its pending settled snapshot while `d` stays
+complete and expires independently. The test asserts the saved row contains
+only `conversation`. The wasm social-starter witness adds a canceled insert
+without changing its existing unread-count assertions and keeps another
+conversation complete. A canceled row adds at most one metadata point lookup
+after its empty current-row lookup; there is no source scan and the per-target
+query cache remains O(pending). No new independent latency claim is made.
+
+The conservative whole-target fallback remains for computed/receipt-derived
+keys, missing group fields, or an older no-image overlay with no saved keys.
+LLP 3000.020 §§3.3, 3.6 and 4 now explicitly exempt receipt-derived unread
+badges from `L+`. Every incomplete receipt-derived count renders a stable number
+with a quiet refreshing indication, since expiry can make its settled snapshot
+too high. The exception applies when the range is uncovered as well. Online
+fallback and the existing answer contract stay unchanged.
+
+The affected design audit covered LLP 3000 §7, 3000.022 §14.3, 3000.019 §3.5,
+3000.020 §§3.3/3.6/4, 3000.015 §3 and 3000.007.001's private reservation rule.
+The first three affected child LLPs and both guide cards now agree on prices,
+old-backend decoding, saved keys and snapshot rendering. The RY read fence,
+receipt-derived sum refusal and server-authoritative settlement are unchanged.
+
+### Wasm and affected validation
+
+Locked Linux build on eb1000: Rust 1.97.0, wasm-bindgen 0.2.127 and Binaryen
+132.0.0, through `scripts/build-wasm.sh` and its gzip -9 measurement.
+
+| Artifact | Raw bytes | Gzip bytes |
+| --- | ---: | ---: |
+| a8c20c40e9, same-host unmodified base rebuilt in Round 1 | 2,048,676 | 617,327 |
+| RP Round 1 | 2,069,537 | 623,434 |
+| RP Round 2 | 2,072,900 | 624,929 |
+| Round 2 minus Round 1 | +3,363 | **+1,495** |
+| Round 2 minus original base | +24,224 | **+7,602 (+1.23%)** |
+
+The new cap is **625,059 B = 624,929 measured Linux + 130 macOS allowance**,
++1,625 over Round 1's cap. The budget file records actual host offsets of 108
+and 127 bytes and the later 110–130-byte convention; this uses the upper 130
+with no additional discretionary padding. No macOS build was run or claimed.
+The whole-artifact growth pays for shared media/online-view charges, the decode
+downgrade and durable canceled-row keys; it is not per-function attribution.
+The initial build exceeded the old cap as expected; the final full suite checks
+the new cap. Raw/gzip artifacts stay out of git.
+
+Affected checks on eb1000:
+
+| Check | Result |
+| --- | --- |
+| `declarative_receipts`, including all RY escape tests and authentic predecessor upgrades | 192 passed |
+| Guide / row-keyed view language tests | 112 / 46 passed |
+| Core row-view / maintained-column review / asset-column tests | 58 / 4 / 3 passed |
+| Affected device library and integration suites | 340 passed |
+| Social starter, delivery integrated, unread range and receipt upgrade clients | 84 passed, zero failures or skips |
+
+Logs: `/tmp/rp-r2-{lang,core,columns,assets-core,device}-qualified.log` and
+`/tmp/rp-r2-client-final.log`. The client run includes all five old-backend/R2
+wasm tests. The new social fixture initially attached its delete rule to the
+wrong table; correcting that test setup passed the targeted witness and then
+all 84 selected clients. No product exception is taken for that resolved error.
+
+Final full suite on eb1000, exit **0**:
+
+```text
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh
+== 0 failure(s) in 1442 s
+```
+
+All 1,000 Rust test executions completed: **4,804 passed, zero failed, 34 existing
+ignores**; doctests: **17 passed**. Clients: **6,040 passed, zero failed, 11
+existing skips**; serial models: **79 passed**; fixture wrappers: **9 passed**.
+Cargo/wasm builds, release guard, docs budget, package build/typecheck and both
+app typechecks passed. No full-suite failure required an unmodified-main
+exception. The full run retains every existing test and all RY escape cases.
+
+Full log: `/tmp/rp-r2-full-suite.log`, SHA-256
+`54caa82417b00352bc815ef0c45a342751b6ce6b34d6ff432cd979365bbd4582`. The qualification manifest covers
+**1,841 source/test/build/budget files**; every path and hash remained unchanged
+through the full run. Final manifest: `/tmp/rp-r2-qualified-source-final.sha256`,
+SHA-256 `3d11f3e1b32dcdb6317f06cfb8e85be3e7fd7ffcda7b24e8a035378b38c45306`.
+The full-run wasm SHA-256 is
+`75f7999b771100a63cfec4c19037884090c3cafc3b355a4a7c40de67f0d75b1b`,
+identical to the measured artifact above. Its budget check reports
+`wasm 2072900 B raw, 624929 B gzip (budget 625059: ok)`.
+
+`./ref-check --verbose` passes: **527 LLP docs, 10,295 refs in 33,922 files,
+zero errors, zero unchecked** (`/tmp/rp-r2-refcheck-final.log`). Whitespace and
+new-artifact checks pass. No new file is over 256 KB, and no gzip, video or wasm
+artifact is committed. The existing append-only JOURNAL receives the requested
+entry; logs and build outputs stay outside git. Nothing is pushed or published.

@@ -329,6 +329,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
             self.tx.set_meta(&key, &floor.to_string())?;
         }
         predictions::remember(self.tx, table_name, old.field("id")?.as_str()?)?;
+        predictions::remember_deleted(self.tx, self.schema, table_name, old)?;
         self.written.borrow_mut().push(format!("{table_name}/{}", old.field("id")?.as_str()?));
         self.tx.delete(table_name, table, old)
     }

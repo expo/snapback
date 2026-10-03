@@ -692,7 +692,7 @@ query unreadBadges(conversationId: conversations, c: cursor ?):
 ```
 
 Predicted writes freeze only affected parent groups: source/member base and current images name
-both groups of a move, including deletes. Other groups keep live counts and expiry. Dirty counts
+both groups of a move; deletes durably save keys even for canceled inserts. Other groups stay live. Dirty counts
 return the settled snapshot with `recountPending: true` and `complete: false`; a new member has no
 count yet. O(pending) point reads are cached per target/query; unknown or computed group keys fall
 back to the whole target. These flags also describe incomplete live counts, so for receipt-derived
