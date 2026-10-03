@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
-import { identity, live, processTable, signalGroup } from '../../../scripts/test-processes.mjs';
+import { identity, live, processTable } from '../../../scripts/test-processes.mjs';
+
+const nativeEnv = { ...process.env };
+delete nativeEnv.NODE_TEST_CONTEXT;
+const nativeTest = path => spawnSync(process.execPath, ['--test', '--test-reporter=tap', path], { env: nativeEnv, encoding: 'utf8', timeout: 10000 });
 
 for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps group descendants`, { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-file-watchdog-'));
@@ -58,11 +62,11 @@ for (const todo of [false, true]) test(`Node failure semantics survive ${todo ? 
   writeFileSync(path, `import test from 'node:test';
 test('fails', {todo:${todo}}, () => { throw Error('failure'); });
 ${todo ? '' : "process.on('beforeExit', () => { process.exitCode = 0; });"}`);
-  const native = spawnSync(process.execPath, ['--test', path], { encoding: 'utf8', timeout: 10000 });
+  const native = nativeTest(path);
   assert.equal(native.status, todo ? 0 : 1, native.stdout + native.stderr);
   let output = '';
   const result = await runFile(path, { onOutput: text => { output += text; } });
-  assert.equal(result.code, 0, output);
+  assert.equal(result.code, native.status, output);
   assert.equal(result.passed, todo, output);
   assert.equal(result.counts.fail, todo ? 0 : 1, output);
   assert.equal(result.counts.todo, todo ? 1 : 0, output);
@@ -84,7 +88,6 @@ test('a stale parent link cannot claim or signal a process outside the file grou
     processTable().map(row => row.pid === sibling.pid ? { ...row, parent: keeper.pid } : row) });
   assert.equal(result.passed, true, JSON.stringify(result));
   assert.ok(identity(sibling.pid)?.alive, 'runner left our separately launched sibling alone');
-  assert.throws(() => signalGroup(keeper), /keeper exited before cleanup/, 'reaped group IDs cannot authorize signals');
 });
 
 test('a cancelled test cannot pass by overriding its exit status', async t => {
@@ -94,12 +97,12 @@ test('a cancelled test cannot pass by overriding its exit status', async t => {
   writeFileSync(path, `import test from 'node:test';
 test('cancelled', {signal:AbortSignal.abort()}, () => {});
 process.on('beforeExit', () => { process.exitCode = 0; });`);
-  const native = spawnSync(process.execPath, ['--test', path], { encoding: 'utf8', timeout: 10000 });
+  const native = nativeTest(path);
   assert.equal(native.status, 1, native.stdout + native.stderr);
   const result = await runFile(path, { onOutput: () => {} });
-  assert.equal(result.code, 0);
+  assert.equal(result.code, native.status);
   assert.equal(result.passed, false);
-  assert.equal(result.counts.cancelled, 1);
+  assert.equal(result.counts.cancelled, Number(/^# cancelled (\d+)$/m.exec(native.stdout)[1]));
 });
 
 test('file exit cannot orphan an unreferenced group child and report success', async t => {
@@ -256,8 +259,11 @@ test('owned helper', () => {
     }
     return snapshot;
   } });
-  assert.equal(result.passed, true, output);
-  assert.equal(result.reason, undefined, output);
+  assert.equal(result.code, 0, output);
+  // Pipe release is asynchronous: if verification sees the orphan before the
+  // keeper kills it, that observation must still fail the file as a leak.
+  assert.equal(result.passed, result.reason === undefined, output);
+  if (result.reason) assert.equal(result.reason, 'TEST_FILE_LEAK', output);
   assert.ok(inspections >= 3, 'two fresh empty snapshots after the stale snapshot');
   assert.equal(live(orphan), false, output);
   assert.equal(processTable().some(row => row.group === orphan.group && row.alive), false);
@@ -299,23 +305,26 @@ test('stale exited members do not reset empty snapshots; observed live leaks rem
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'leak.test.mjs');
   writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
-  let inspections = 0, before, output = '';
-  const result = await runFile(path, {onOutput: text => {output+=text}, inspect: () => {
+  let inspections = 0, emptyInspections = 0, group, before, output = '';
+  const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: () => {
     const current = processTable();
     inspections++;
     if (inspections === 1) before = current;
     // runFile discovers, stop diagnoses, then cleanup verifies. A stale row
     // whose process has exited cannot revive a leak or reset the empty count.
-    if (inspections === 4) return before;
+    if (inspections >= 3) {
+      emptyInspections = current.some(row => row.group === group && row.alive) ? 0 : emptyInspections + 1;
+      if (emptyInspections) return before;
+    }
     return current;
   }});
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_FILE_LEAK', output);
-  assert.equal(inspections, 4, 'gone members do not invalidate the second empty inspection');
+  assert.equal(emptyInspections, 2, 'stale exited rows cannot reset either empty inspection');
 });
 
 
-test('synchronous subtests renew progress before the reporter can format buffered output', { timeout: 20000 }, async t => {
+test('native buffered synchronous tests are bounded until Node delivers progress', { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-sync-progress-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'sync.test.mjs');
@@ -325,10 +334,12 @@ for(let i=0;i<10;i++)test('synchronous '+i,{timeout:500},()=>{
 });`);
   let output = '';
   const result = await runFile(path, {timeout:1000,onOutput:text=>{output+=text}});
-  assert.equal(result.passed, true, output);
-  assert.equal(result.counts.pass, 10);
-  assert.ok(result.elapsed > 3 * result.stallMs);
-  assert.equal(result.progressCount, 20, 'start and completion for every synchronous body');
+  assert.equal(nativeTest(path).status, 0);
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_HANG');
+  assert.match(result.lastProgress, /test:dequeue: .*sync.test.mjs/);
+  // The production floor is 15 minutes. A reporter cannot observe events the
+  // native child has not flushed; do not change isolation to bypass that fact.
 });
 
 test('name and skip filters preserve the selected assertion-bearing cases', async t => {
@@ -343,7 +354,7 @@ test('wanted skip',()=>{throw Error('skip filter lost')});`);
   assert.equal(result.passed, true, output);
   assert.equal(result.counts.pass, 1);
   assert.equal(result.counts.tests, 1);
-  assert.equal(result.progressCount, 2);
+  assert.equal(result.progressCount, 4, 'native file wrapper plus the selected subtest');
 });
 
 // Round 4: enumeration and each per-process read are separate snapshots.
@@ -441,4 +452,130 @@ test('transient child',async()=>{
   assert.equal(result.passed,true,output);
   assert.equal(result.inspectionFailure,undefined,output);
   assert.ok(inspections>=3,'cleanup still requires two fresh empty inspections');
+});
+
+for (const [name, body] of [
+  ['only does not filter without --test-only', "test.only('selected',()=>{});test('must fail',()=>{throw Error('failure')});"],
+  ['after-hook failure', "test('passes',()=>{});test.after(()=>{throw Error('teardown failure')});"],
+  ['late uncaught exception', "test('passes',()=>{setImmediate(()=>{throw Error('late exception')})});"],
+  ['late unhandled rejection', "test('passes',()=>{setImmediate(()=>{Promise.reject(Error('late rejection'))})});"],
+  ['skipped failure', "test.skip('skipped',()=>{throw Error('skipped failure')});"],
+  ['explicit successful exit', 'process.exit(0);'],
+]) test(`native node --test parity: ${name} with exit-code override`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-native-parity-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'parity.test.mjs');
+  writeFileSync(path, `import test from 'node:test';${body}
+process.on('beforeExit',()=>{process.exitCode=0});`);
+  const native = nativeTest(path);
+  assert.equal(native.error, undefined);
+  assert.equal(native.signal, null);
+  assert.equal(native.status, name.startsWith('skipped') || name.startsWith('explicit') ? 0 : 1, native.stdout + native.stderr);
+  let output = '';
+  const result = await runFile(path, {onOutput: text => { output += text; }});
+  assert.equal(result.reason, undefined, output);
+  assert.equal(result.code, native.status, output);
+  assert.equal(result.passed, native.status === 0, output);
+});
+
+test('a test killing its own group fails without any runner signal', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-self-kill-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'kill.test.mjs');
+  writeFileSync(path, "import test from 'node:test';test('kill own group',()=>process.kill(0,'SIGKILL'));");
+  // Both groups are freshly created here, so the fixture can only kill its own.
+  const native = spawnSync(process.execPath, ['--test', path], {env: nativeEnv, detached: true, timeout:10000});
+  assert.equal(native.signal, 'SIGKILL');
+  const calls = [], kill = process.kill;
+  t.mock.method(process, 'kill', (pid, signal) => {
+    if (signal !== 0) { calls.push({pid,signal}); throw Error('runner must not signal'); }
+    return kill(pid, signal);
+  });
+  let output = '';
+  const result = await runFile(path, { onOutput: text => {output += text;} });
+  assert.equal(result.passed, false, output);
+  assert.equal(result.reason, 'TEST_FILE_KEEPER_EXIT', output);
+  assert.match(output, /TEST_FILE_KEEPER_EXIT/);
+  assert.deepEqual(calls, []);
+});
+
+test('reaped keeper before its exit callback cannot make the runner send a signal', {timeout:20000}, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-reaped-keeper-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const first = spawn(process.execPath, ['-e', 'process.stdin.resume();console.log("ready")'], {stdio:['pipe','pipe','ignore']});
+  const firstDone = once(first, 'exit');
+  await once(first.stdout, 'data');
+  const controller = new AbortController(), calls = [], kill = process.kill;
+  t.mock.method(process, 'kill', (pid, signal) => {
+    if (signal !== 0) { calls.push({pid,signal}); throw Error('runner must not signal'); }
+    return kill(pid, signal);
+  });
+  let keeper, probe;
+  first.on('exit', () => {
+    probe = { present: !!identity(keeper.pid), exitCode: keeper.exitCode, signalCode: keeper.signalCode };
+    controller.abort();
+  });
+  const path = join(dir, 'healthy.test.mjs');
+  writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
+  const result = await runFile(path, { signal:controller.signal, onOutput:()=>{}, onStart: child => {
+    keeper = child;
+    child.stdin.end(); first.stdin.end();
+    // Hold JS until both exit; libuv then reaps both before calling the first
+    // handle's exit listener, leaving the keeper's JS fields temporarily null.
+    const deadline = performance.now() + 5000;
+    while ((identity(first.pid)?.alive || identity(child.pid)?.alive) && performance.now() < deadline)
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  } });
+  await firstDone;
+  assert.deepEqual(probe, {present:false,exitCode:null,signalCode:null}, 'exercise the actual libuv reaping window');
+  assert.equal(result.passed, false);
+  assert.equal(result.reason, 'TEST_FILE_ABORT');
+  assert.deepEqual(calls, []);
+});
+
+test('runner death closes the keeper pipe and kills its living group', {timeout:20000}, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-runner-death-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const pidFile = join(dir, 'pid'), path = join(dir, 'alive.test.mjs'), driver = join(dir, 'driver.mjs');
+  writeFileSync(path, `import test from 'node:test';import {writeFileSync} from 'node:fs';
+test('living',()=>{writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000)});`);
+  writeFileSync(driver, `import {runFile} from ${JSON.stringify(new URL('../../../scripts/run-client-tests.mjs',import.meta.url).href)};
+await runFile(${JSON.stringify(path)}, {onStart:child=>console.log(child.pid),onOutput:()=>{}});`);
+  const runner = spawn(process.execPath, [driver], {env:nativeEnv,stdio:['ignore','pipe','ignore']});
+  const exited = once(runner,'exit');
+  const group = Number((await once(runner.stdout,'data'))[0].toString().trim());
+  const deadline = performance.now()+5000;
+  while (!existsSync(pidFile) && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,20));
+  assert.ok(existsSync(pidFile));
+  runner.kill('SIGKILL'); await exited;
+  while (processTable().some(row=>row.group===group && row.alive) && performance.now()<deadline)
+    await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(processTable().some(row=>row.group===group && row.alive),false);
+});
+
+
+test('keeper exit before its queued cleanup acknowledgement is still an expected release', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-keeper-ack-'));
+  t.after(() => rmSync(dir, {recursive:true,force:true}));
+  const path = join(dir, 'healthy.test.mjs');
+  writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
+  let exited = false, deliveredAfterExit = false, pending;
+  const result = await runFile(path, {onOutput:()=>{},onStart:child=>{
+    const emit = child.emit.bind(child);
+    child.emit = (event, ...args) => {
+      if (event === 'message' && args[0].releasing) {
+        if (!exited) { pending = args; return true; }
+        deliveredAfterExit = true;
+      }
+      return emit(event, ...args);
+    };
+    child.once('exit',()=>{
+      exited = true;
+      if (pending) { deliveredAfterExit = true; emit('message', ...pending); }
+    });
+  }});
+  assert.equal(deliveredAfterExit, true);
+  assert.equal(result.keeperExit.cleanupAcknowledged, true);
+  assert.equal(result.reason, undefined, JSON.stringify(result));
+  assert.equal(result.passed, true, JSON.stringify(result));
 });

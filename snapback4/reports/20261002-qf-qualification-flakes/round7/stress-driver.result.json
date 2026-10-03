@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "reports/20261002-qf-qualification-flakes/stress.mjs",
+    "after",
+    "reports/20261002-qf-qualification-flakes/round7/stress",
+    "200",
+    "both"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-qf/snapback4",
+  "start": "2026-10-03T07:03:49.135056+00:00",
+  "pid": 577036,
+  "status": 0,
+  "end": "2026-10-03T07:29:12.724303+00:00"
+}

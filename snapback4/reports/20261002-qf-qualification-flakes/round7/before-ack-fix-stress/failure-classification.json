@@ -1,0 +1,1501 @@
+[
+  {
+    "label": "load-35",
+    "file": "astra-projection.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 894,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/astra-projection.test.mjs",
+    "at": "2026-10-03T06:59:50.328Z",
+    "load": [
+      29.97,
+      15.25,
+      8.74
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-40",
+    "file": "close-boundary.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 8223,
+    "counts": {
+      "tests": 41,
+      "pass": 41,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 84,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/close-boundary.test.mjs",
+    "at": "2026-10-03T06:59:58.616Z",
+    "load": [
+      29.39,
+      15.6,
+      8.92
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-32",
+    "file": "asset-retry.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 11654,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 78,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/asset-retry.test.mjs",
+    "at": "2026-10-03T07:00:00.658Z",
+    "load": [
+      29.39,
+      15.6,
+      8.92
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-76",
+    "file": "expiry-retry-watch.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 3787,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 30,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "at": "2026-10-03T07:00:14.115Z",
+    "load": [
+      29.55,
+      16.3,
+      9.25
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-93",
+    "file": "identity-invitation-issuance.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 634,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 78,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "at": "2026-10-03T07:00:22.792Z",
+    "load": [
+      27.91,
+      16.39,
+      9.36
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-95",
+    "file": "identity-profile.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 516,
+    "counts": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/identity-profile.test.mjs",
+    "at": "2026-10-03T07:00:23.309Z",
+    "load": [
+      27.91,
+      16.39,
+      9.36
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-98",
+    "file": "init-recipe.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 1227,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 10,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/init-recipe.test.mjs",
+    "at": "2026-10-03T07:00:24.598Z",
+    "load": [
+      27.91,
+      16.39,
+      9.36
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-84",
+    "file": "first-account.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 9936,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 10,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/first-account.test.mjs",
+    "at": "2026-10-03T07:00:25.287Z",
+    "load": [
+      27.91,
+      16.39,
+      9.36
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-38",
+    "file": "client-lifecycle.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 41341,
+    "counts": {
+      "tests": 57,
+      "pass": 57,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 116,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+    "at": "2026-10-03T07:00:30.973Z",
+    "load": [
+      27.11,
+      16.41,
+      9.41
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-109",
+    "file": "keep-observation.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 2716,
+    "counts": {
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 68,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/keep-observation.test.mjs",
+    "at": "2026-10-03T07:00:32.753Z",
+    "load": [
+      25.74,
+      16.31,
+      9.41
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-114",
+    "file": "keepalive-reuse.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 4321,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/keepalive-reuse.test.mjs",
+    "at": "2026-10-03T07:00:38.011Z",
+    "load": [
+      24.88,
+      16.28,
+      9.44
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "replacement-9",
+    "file": "web-admission-review.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 4046,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 8540000,
+    "progressCount": 6,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/web-admission-review.test.mjs",
+    "at": "2026-10-03T07:00:42.534Z",
+    "load": [
+      23.85,
+      16.21,
+      9.45
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-134",
+    "file": "native-smoke.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 599,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 32,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/native-smoke.test.mjs",
+    "at": "2026-10-03T07:00:43.322Z",
+    "load": [
+      23.85,
+      16.21,
+      9.45
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-137",
+    "file": "one-shot-bounds.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 8552,
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 72,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/one-shot-bounds.test.mjs",
+    "at": "2026-10-03T07:00:52.346Z",
+    "load": [
+      23.63,
+      16.42,
+      9.59
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "worker-12",
+    "file": "worker-regressions.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 1607,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+    "at": "2026-10-03T07:00:55.238Z",
+    "load": [
+      23.63,
+      16.42,
+      9.59
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "worker-14",
+    "file": "worker-regressions.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 1604,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+    "at": "2026-10-03T07:01:06.163Z",
+    "load": [
+      21.55,
+      16.32,
+      9.67
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-173",
+    "file": "prediction-routing.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 4915,
+    "counts": {
+      "tests": 223,
+      "pass": 223,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 448,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/prediction-routing.test.mjs",
+    "at": "2026-10-03T07:01:16.102Z",
+    "load": [
+      20.8,
+      16.32,
+      9.75
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-201",
+    "file": "remembered-answers.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 661,
+    "counts": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 44,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/remembered-answers.test.mjs",
+    "at": "2026-10-03T07:01:21.980Z",
+    "load": [
+      20.42,
+      16.32,
+      9.78
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-168",
+    "file": "per-row-react.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 18193,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 2650000,
+    "progressCount": 16,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/per-row-react.test.mjs",
+    "at": "2026-10-03T07:01:24.902Z",
+    "load": [
+      20.42,
+      16.32,
+      9.78
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-213",
+    "file": "retention-online-boundaries.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 1777,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 18,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "at": "2026-10-03T07:01:27.126Z",
+    "load": [
+      19.5,
+      16.2,
+      9.77
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-206",
+    "file": "repair-b-round9.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 5082,
+    "counts": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 96,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/repair-b-round9.test.mjs",
+    "at": "2026-10-03T07:01:28.209Z",
+    "load": [
+      19.5,
+      16.2,
+      9.77
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-228",
+    "file": "server-clock-browser.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 9049,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 10,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/server-clock-browser.test.mjs",
+    "at": "2026-10-03T07:01:39.480Z",
+    "load": [
+      23.3,
+      17.1,
+      10.14
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-239",
+    "file": "social-starter.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 12408,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 26,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "at": "2026-10-03T07:01:47.885Z",
+    "load": [
+      23.41,
+      17.33,
+      10.29
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-218",
+    "file": "routes.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 25006,
+    "counts": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 28,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/routes.test.mjs",
+    "at": "2026-10-03T07:01:52.133Z",
+    "load": [
+      22.42,
+      17.22,
+      10.29
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-249",
+    "file": "subscription-pressure-memory.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 8956,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 26,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "at": "2026-10-03T07:01:57.095Z",
+    "load": [
+      22.46,
+      17.32,
+      10.36
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "replacement-25",
+    "file": "web-admission-review.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 4215,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 8540000,
+    "progressCount": 6,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/web-admission-review.test.mjs",
+    "at": "2026-10-03T07:02:13.110Z",
+    "load": [
+      21.39,
+      17.32,
+      10.47
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-282",
+    "file": "wasm-families.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_KEEPER_EXIT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": false
+    },
+    "elapsed": 550,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 900000,
+    "progressCount": 22,
+    "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/wasm-families.test.mjs",
+    "at": "2026-10-03T07:02:16.114Z",
+    "load": [
+      21.92,
+      17.5,
+      10.56
+    ],
+    "active": 23,
+    "classification": "introduced keeper acknowledgement ordering refusal"
+  },
+  {
+    "label": "load-37",
+    "file": "bounded-following.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 161455,
+    "stallMs": 900000,
+    "progressCount": 62,
+    "lastProgress": "test:dequeue: bounded Following native: a predicted post fences fallback until observation",
+    "at": "2026-10-03T07:02:31.019Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 23,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-102",
+    "file": "keep-app-model.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 125495,
+    "stallMs": 900000,
+    "progressCount": 14,
+    "lastProgress": "test:dequeue: createApp keep=undefined property: process, seed 23, 50ms authority",
+    "at": "2026-10-03T07:02:31.073Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 22,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-105",
+    "file": "keep-clock.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 124240,
+    "stallMs": 900000,
+    "progressCount": 16,
+    "lastProgress": "test:dequeue: wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline)",
+    "at": "2026-10-03T07:02:31.129Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 21,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-131",
+    "file": "mixed-evidence-oracle.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 109923,
+    "stallMs": 2250000,
+    "progressCount": 4,
+    "lastProgress": "test:dequeue: mixed evidence schedule process: 300 independent histories",
+    "at": "2026-10-03T07:02:31.186Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 20,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-149",
+    "file": "ordinary-search-oracle.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 99786,
+    "stallMs": 10740000,
+    "progressCount": 2,
+    "lastProgress": "test:dequeue: ordinary search generated oracle process: 300 seeds",
+    "at": "2026-10-03T07:02:31.241Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 19,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-152",
+    "file": "overload.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 98884,
+    "stallMs": 900000,
+    "progressCount": 212,
+    "lastProgress": "test:dequeue: online: nonretryable changes (false) is visible and stops polling",
+    "at": "2026-10-03T07:02:31.295Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 18,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-234",
+    "file": "server-e2e.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 58052,
+    "stallMs": 900000,
+    "progressCount": 16,
+    "lastProgress": "test:dequeue: parked action operator disposition records known provider acceptance without resuming original work",
+    "at": "2026-10-03T07:02:31.348Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 17,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-251",
+    "file": "subscription-pressure-noop.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 41528,
+    "stallMs": 900000,
+    "progressCount": 24,
+    "lastProgress": "test:dequeue: process: no-op unrelated sync replaces out-of-horizon answer with keep=undefined",
+    "at": "2026-10-03T07:02:31.407Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 16,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-267",
+    "file": "sync-overflow.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 31912,
+    "stallMs": 2710000,
+    "progressCount": 30,
+    "lastProgress": "test:dequeue: process an oversized first commit arriving during zero-head snapshot catch-up restarts inline",
+    "at": "2026-10-03T07:02:31.463Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 15,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-269",
+    "file": "test-file-runner.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 31725,
+    "stallMs": 900000,
+    "progressCount": 42,
+    "lastProgress": "test:dequeue: native buffered synchronous tests are bounded until Node delivers progress",
+    "at": "2026-10-03T07:02:31.520Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 14,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-270",
+    "file": "timeline-delivery.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 31720,
+    "stallMs": 2700000,
+    "progressCount": 2,
+    "lastProgress": "test:dequeue: oversized historical timeline commit recovers by snapshot with pending writes on both hosts",
+    "at": "2026-10-03T07:02:31.579Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 13,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-271",
+    "file": "transport-http.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 30942,
+    "stallMs": 900000,
+    "progressCount": 20,
+    "lastProgress": "test:dequeue: idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores",
+    "at": "2026-10-03T07:02:31.636Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 12,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-272",
+    "file": "transport-outcomes.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 29501,
+    "stallMs": 900000,
+    "progressCount": 42,
+    "lastProgress": "test:dequeue: native action: rejected fetch after dispatch is pending; close=false",
+    "at": "2026-10-03T07:02:31.693Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 11,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-275",
+    "file": "unread-range.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 22489,
+    "stallMs": 900000,
+    "progressCount": 98,
+    "lastProgress": "test:dequeue: unread range wasm: null-source-authority-lost",
+    "at": "2026-10-03T07:02:31.752Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 10,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-276",
+    "file": "upload-lifetime.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 22483,
+    "stallMs": 900000,
+    "progressCount": 78,
+    "lastProgress": "test:dequeue: online upload preserves admission refusal after a completed admission refresh failure",
+    "at": "2026-10-03T07:02:31.810Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 9,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-278",
+    "file": "value-deadline-types.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 20072,
+    "stallMs": 900000,
+    "progressCount": 1,
+    "lastProgress": "test:dequeue: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/value-deadline-types.test.mjs",
+    "at": "2026-10-03T07:02:31.867Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 8,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-281",
+    "file": "wasm-codec-census.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 18583,
+    "stallMs": 900000,
+    "progressCount": 1,
+    "lastProgress": "test:dequeue: /home/ccheever/sb4-intent/lane-qf/snapback4/packages/snapback4/test/wasm-codec-census.test.mjs",
+    "at": "2026-10-03T07:02:31.926Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 7,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-283",
+    "file": "web-admission-review.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 15868,
+    "stallMs": 8540000,
+    "progressCount": 19,
+    "lastProgress": "test:dequeue: a hide during the startup probe waits for its replacement decision",
+    "at": "2026-10-03T07:02:31.984Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 6,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-285",
+    "file": "web-navigation.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 14895,
+    "stallMs": 900000,
+    "progressCount": 18,
+    "lastProgress": "test:dequeue: first pagehide dispatch survives a stalled status save (cleanup blocked=false)",
+    "at": "2026-10-03T07:02:32.042Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 5,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-287",
+    "file": "web-receipt-upgrade.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 14179,
+    "stallMs": 900000,
+    "progressCount": 13,
+    "lastProgress": "test:dequeue: a shared correction never hides this device's qualified or pending custody (replacement local history)",
+    "at": "2026-10-03T07:02:32.098Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 4,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-288",
+    "file": "web-review.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 11453,
+    "stallMs": 900000,
+    "progressCount": 19,
+    "lastProgress": "test:dequeue: publication clears only a proved deletion range, atomically with rows and the watermark",
+    "at": "2026-10-03T07:02:32.156Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 3,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-289",
+    "file": "web-session-authority.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 10846,
+    "stallMs": 900000,
+    "progressCount": 15,
+    "lastProgress": "test:dequeue: a visible same-epoch tombstone refuses synchronously",
+    "at": "2026-10-03T07:02:32.214Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 2,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "load-291",
+    "file": "web-start.test.mjs",
+    "code": null,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 7185,
+    "stallMs": 900000,
+    "progressCount": 3,
+    "lastProgress": "test:dequeue: createApp and generated api journal before immediate location.assign",
+    "at": "2026-10-03T07:02:32.272Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 1,
+    "classification": "operator interruption"
+  },
+  {
+    "label": "replacement-28",
+    "file": "web-admission-review.test.mjs",
+    "code": 0,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_FILE_ABORT",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 6708,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 8540000,
+    "progressCount": 2,
+    "lastProgress": "test:dequeue: web admission review: recovery and transport respect the session boundary",
+    "at": "2026-10-03T07:02:32.326Z",
+    "load": [
+      21.63,
+      17.67,
+      10.73
+    ],
+    "active": 0,
+    "classification": "operator interruption"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "qualificationSourcesMatched": 2438,
+  "finalSources": 2438,
+  "postQualificationChanges": [
+    "snapback4/JOURNAL.md (append only)"
+  ],
+  "miniSourcesMatched": 10,
+  "builtInputsMatched": true,
+  "stressRows": 1901,
+  "stressRefusals": 0,
+  "suiteSummary": "== 0 failure(s) in 1484 s"
+}

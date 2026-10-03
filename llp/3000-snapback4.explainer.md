@@ -2279,23 +2279,31 @@ The replacement-browser fixture copies identity tables in one transaction,
 retries SQLite contention for at most five seconds, and retains server custody
 until every setup assertion succeeds; all setup failures close that server.
 
-**2026-10-03 — QF Round 6 simplification.** An independent parent starts
-each file in its own fresh POSIX process group, with a keeper surviving
-node:test's exit. Ownership is only that group. Ancestry links, session
-membership, spawn registries and environment tokens confer no ownership and
-are no longer inspected. This replaces the Round 1–4 escape-detection policy;
-those rounds' evidence remains historical in the QF report.
+**2026-10-03 — QF Round 7 native execution and keeper-owned cleanup.** Each
+file runs as native `node --test <file>` with default process isolation. A tiny
+Node keeper is the first member of a fresh POSIX group and starts Node's test
+parent in that group. It never exits on test completion; its referenced stdin
+pipe holds it alive. No compiler or host-specific helper is needed. Ownership
+is only that group. Ancestry links, sessions, spawn registries and environment
+tokens confer nothing; the Round 1–4 escape policy remains superseded.
 
-Cleanup signals the **whole group** with SIGKILL exactly once through the
-runner's child handle while its keeper is still held and has not been reaped,
-even if preliminary inspection found no descendants. No individually discovered
-PID is signalled. After release, the runner only inspects: it never signals a
-reaped group ID. Verification requires two consecutive inspections 50 ms apart
-with no living group member, including the keeper. Any observed leftover
-member fails a completed file as `TEST_FILE_LEAK`, even if it subsequently exits;
-a stalled file retains `TEST_FILE_HANG`. Zombies are exited. Verification has a
-five-second retry window; each ps call is bounded at two seconds. Failed
-inspection or cleanup never establishes a pass.
+The runner **never sends a process-group signal**. On completion, stall or
+abort it closes the keeper's stdin pipe. The keeper calls `kill(0, SIGKILL)`
+on data, EOF or a pipe error, including EOF when the runner dies. That live
+caller necessarily belongs to its own current group; no cached PGID or JS
+exit field authorizes a signal. An unexpectedly dead keeper is diagnosed as
+`TEST_FILE_KEEPER_EXIT` and fails the file. Closing an already broken pipe
+cannot signal a reused process or group. This replaces Round 6's invalid
+assumption that null ChildProcess exit fields prove unreaped custody.
+
+After requesting cleanup the runner only inspects. Verification requires two
+consecutive inspections 50 ms apart with no living group member, including
+the keeper. Any observed leftover fails a completed file as `TEST_FILE_LEAK`,
+even if it subsequently exits; a stalled file retains `TEST_FILE_HANG`. Pipe
+release is asynchronous, so verification can observe a leftover before the
+keeper kills it. Zombies are exited. Verification has a five-second retry
+window; each ps call is bounded at two seconds. Failed inspection or cleanup
+never establishes a pass.
 
 A process disappearing between enumeration and identity inspection counts as
 exited. Failed per-process metadata reads recheck existence; present malformed
@@ -2310,20 +2318,24 @@ to establish a leak, regardless of their ancestry or environment. Fixtures
 that create such processes must manage their own lifetimes. This runner is
 not an arbitrary-daemon sandbox or adopted subreaper.
 
-A file passes only with test-process exit status 0 and an independent reporter
-failure count of 0 with no cancellations, without watchdog, leak or inspection failure. Counts come
-from Node's complete `test:summary` event over IPC, not test-authored TAP text
-or the test process's mutable exit code. Expected TODO failures count as Node
-counts them: they increase TODO, not failure, and do not fail the file.
+Native Node's test-parent exit status is the sole test verdict. The reporter
+is attached only with `--test-reporter`: it observes progress and summary
+counts for diagnostics, never executes files or decides success. There is no
+`run()` wrapper or `isolation: 'none'` path. Default `only`, TODO, skip, hook,
+cancellation and late asynchronous-error semantics are Node's, including
+in-file exit-code overrides. A passing file additionally requires successful
+watchdog and group cleanup checks; those refusals remain independently named.
 
 The file watchdog measures **lack of subtest progress**, not total duration.
-The execution helper uses Node's public `node:test.run()` API with synchronous
-listeners for actual `test:dequeue` (execution start) and `test:complete` events,
-relayed over IPC. Each file already has an isolated external process, so the
-helper uses `isolation: none` to avoid a second child serializer: that serializer
-and async reporters can buffer events across synchronous CPU-bound subtests.
-TAP formatting remains separate; presentation-ordered `test:start` and console
-output are never the clock source. Each event resets the independent parent's timer. The bound is
+The reporter observes actual `test:dequeue` (execution start) and
+`test:complete` events from Node's native test parent and relays them over IPC.
+Each delivered event resets the independent runner's timer. TAP formatting,
+presentation-ordered `test:start` and console output are never the clock source.
+Native isolation can buffer child events across synchronous subtests that do
+not yield. Those events cannot renew the timer until delivered; that unreported
+interval is subject to the same stall bound. The regression records this limit
+with a shortened test-only bound rather than changing Node's execution model.
+Asynchronous and nested tests continue to renew progress. The bound is
 `max(900 seconds, largest single declared guard + max(60 seconds, 25% of guard))`,
 including model seed overrides, with the same rule in serial mode. There is
 **no absolute duration ceiling**: a file making real subtest progress may run

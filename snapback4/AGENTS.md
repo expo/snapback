@@ -82,15 +82,19 @@ Gotchas you cannot derive from the code:
   Console output does not count as progress. Serial mode uses the same bounds.
   See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
   named work counts and recheck the census when declarations change. Every
-  file runs in its own process group, held by a keeper until cleanup. Cleanup
-  signals that group once through the unreaped child handle, then requires two
-  consecutive inspections (50 ms apart) with no living group member. Observed
-  leftovers fail as TEST_FILE_LEAK. Failed process listings remain fail-closed;
-  vanished members count as exited. Ancestry, sessions and environment tokens
-  never extend ownership. Processes that leave the group (setsid, setpgid or
-  detached spawns) are out of scope and are not tracked or signalled. A file
-  passes only with exit status 0 and Node's independent reporter failure count
-  0 with no cancellations; expected TODO failures retain node --test semantics. See QF Round 6.
+  file runs as native `node --test` with default isolation, in a process group
+  whose first member is a tiny Node keeper. The runner closes the keeper's stdin
+  on completion, stall or abort; only the keeper calls `kill(0, SIGKILL)`.
+  Runner death also closes that pipe. An unexpectedly exited keeper fails the
+  file and never authorizes a runner signal. Cleanup requires two consecutive
+  inspections (50 ms apart) with no living group member. Observed leftovers
+  fail as TEST_FILE_LEAK. Failed listings remain fail-closed; vanished members
+  count as exited. Processes leaving the group (setsid, setpgid or detached
+  spawns) are out of scope and are not tracked or signalled. Native Node's exit
+  status alone decides test success; reporter counts are diagnostic only.
+  The reporter observes progress as Node delivers it: synchronous work that
+  does not yield may buffer events in Node's child until that work finishes.
+  Such an unreported interval is subject to the same stall bound. See QF Round 7.
   The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:

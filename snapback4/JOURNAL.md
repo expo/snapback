@@ -84638,3 +84638,63 @@ preceded the full suite's client phase; final checks on both hosts and the
 fixture wrappers cover it. Reference/whitespace checks accompany the local
 commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing is pushed
 or published.
+
+
+## 2026-10-03 — QF round 7: native Node and keeper-owned cleanup
+
+Read Round 6's Astra NOT READY review in full and implemented the operator's
+replacement architecture. Merged origin/main 484c94733c, including the fixed UB
+baseline at 9c048bf174, in a46e58a12f; the only conflict was this append-only
+journal and both complete histories are preserved. No product, Rust, original
+flaky-test assertion, guard, seed or skip changed outside that main merge.
+
+Each file now runs as native node --test with default isolation. Its native
+parent's exit status supplies the test verdict. The reporter only observes
+progress and diagnostic counts; the custom run() and isolation:none path is
+gone. The keeper is a small Node helper held alive by stdin. On completion,
+stall, abort or runner death, pipe EOF makes that live keeper kill its own group
+with kill(0, SIGKILL). The runner never sends a group signal, including when
+libuv has reaped the keeper before delivering its exit callback. Unexpected
+keeper loss is recorded and fails the file. A cleanup acknowledgment is judged
+after the IPC pipe drains, since exit callbacks may arrive first.
+
+Final focused checks pass 42/42 on eb1000 and 42/42 on the Apartment mini,
+with zero skips or outer refusals. Cases cover only, TODO, skip, assertion and
+cancellation overrides, after-hook failure, uncaught exceptions and unhandled
+rejections with overrides, explicit exit, the real reaped-before-callback
+window, group self-kill, runner death, acknowledgment ordering, leaks, stalls,
+failed listings and vanished members. Fixture wrappers separately pass 9/9.
+All ten mini source hashes match; its task scratch was removed. The published
+0.4.10 fixture binary is portability evidence, not current-release Mac product
+qualification. No other Mac was contacted and no unrelated process was signalled.
+
+The watchdog retains its 15-minute floor and largest-single-guard margin;
+305 files have no undercovered guard. Native Node can buffer events across
+synchronous tests that do not yield. Such an unreported interval remains
+subject to the stall bound; the retained synchronous fixture demonstrates that
+limit at a shortened test-only bound. Async/nested progression remains covered.
+Escapes through setsid, setpgid or detached spawning remain explicitly outside
+custody. Failed inspection stays fail-closed and vanished means exited.
+
+The single eb1000 scripts/test.sh invocation exits 0 with the exact summary
+`== 0 failure(s) in 1484 s`. Every category passes, including UB. Ordinary
+clients: 302/302 files, 6,060 passed and 11 existing skips; models 79/79;
+fixture wrappers 9/9. Introduced, baseline, environmental and runner-refusal
+suite failures are all zero. Final 24-file stress passes both original targets
+200/200 with 23 background slots active at every target completion. All 1,501
+background executions across 302 files pass and drain naturally. All 1,901
+results have native exit 0, populated counts and acknowledged keeper cleanup;
+there are zero runner refusals or assertion failures.
+
+The initial stress exposed 27 introduced false keeper-loss refusals caused by
+checking acknowledgment before queued IPC, followed by 24 aborts when that run
+was stopped. Those results and the corrected deterministic regression are
+retained separately. The correction preceded the full suite's ordinary clients;
+final focused checks on both hosts and fixture wrappers cover the final source.
+The 2,438 selected source hashes and three binary/wasm hashes stayed unchanged
+through final qualification. This journal append follows that qualification.
+
+The [Round 7 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-7--native-node-and-keeper-owned-cleanup)
+retains every result, source amendment and failure classification, including
+development attempts. Reference and whitespace checks accompany the local commit
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -86,16 +86,7 @@ export function ownedProcesses(keeper, inspect = processTable, { includeKeeper =
     });
 }
 
-// The ChildProcess handle must still hold the group leader unreaped. Never
-// signal from an enumerated PID, or signal this group again after its release.
-export function signalGroup(child) {
-  if (!child.pid || child.exitCode !== null || child.signalCode !== null)
-    throw inspectionError('file group keeper exited before cleanup');
-  try { process.kill(-child.pid, 'SIGKILL'); }
-  catch (error) { if (error.code !== 'ESRCH') throw error; }
-}
-
-export async function cleanupProcesses(keeper, { inspect = processTable, release = () => signalGroup(keeper) } = {}) {
+export async function cleanupProcesses(keeper, { inspect = processTable, release } = {}) {
   release(); // unconditional, even when preliminary inspection found no leak
   const deadline = performance.now() + 5000;
   const found = new Map();

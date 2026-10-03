@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-03T07:03:35.190896+00:00",
+  "changes": {
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": {
+      "before": "4457bc6e9ddfc670cffdfeec37a4db88a907b4bf028c7d3794da4d98c3cd5c66",
+      "after": "7e6472ede1fff37f6027fbdd9b22d98d55fedbf18c03186bc20d5fa36116c1a2"
+    },
+    "snapback4/scripts/run-client-tests.mjs": {
+      "before": "d622142d73e15d29428251d57513b7018e70aa999fbb9f785394e64d03f2898e",
+      "after": "ceb0a502f4a895b9f32b5bbbb798a1e1226c18bcfa2eee188d4070f8af18d0f1"
+    }
+  },
+  "suiteBoundary": "During Rust tests, before ordinary clients. Fixtures rerun separately."
+}

@@ -6,8 +6,7 @@ import { mkdtempSync, rmSync, readFileSync, openSync, closeSync, writeSync } fro
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
-import { ownedProcesses, processTable, cleanupProcesses, signalGroup } from './test-processes.mjs';
+import { ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
 
 export const FILE_STALL_FLOOR_MS = 15 * 60_000;
 // Largest SINGLE declared test guard, not the sum of sequential guards.
@@ -50,13 +49,6 @@ export const fileStallTimeout = (file, env) => {
 
 export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {}, onOutput = text => process.stdout.write(text), onStart = () => {}, signal, inspect = processTable } = {}) {
   timeout ??= fileStallTimeout(file, { ...process.env, ...overrides });
-  const { values } = parseArgs({ args: nodeArgs, options: {
-    'test-name-pattern': { type: 'string', multiple: true },
-    'test-skip-pattern': { type: 'string', multiple: true },
-  } });
-  // Node 24's in-process test tree also reads filters from the CLI, so pass
-  // the validated flags to Node as well as the public run() options.
-  const testOptions = { testNamePatterns: values['test-name-pattern'], testSkipPatterns: values['test-skip-pattern'] };
   const temp = mkdtempSync(join(tmpdir(), 'sb4-test-file-'));
   const output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
@@ -65,22 +57,27 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const started = performance.now();
   onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);
   const child = spawn(process.execPath, [fileURLToPath(new URL('./test-file-owner.mjs', import.meta.url)),
-    ...nodeArgs, fileURLToPath(new URL('./test-progress-reporter.mjs', import.meta.url)), resolve(file), JSON.stringify(testOptions)], {
-    env, detached: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    '--test', '--test-reporter', fileURLToPath(new URL('./test-progress-reporter.mjs', import.meta.url)),
+    ...nodeArgs, resolve(file)], {
+    env, detached: true, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
   });
   let tail = '', reason, cleanup, spawnError, inspectionFailure, timer, counts;
-  let released = false;
+  let released = false, cleanupAcknowledged = false, keeperExit;
   const release = () => {
     if (released) return;
     released = true;
-    signalGroup(child);
+    // EOF asks the keeper to kill its own group. Even if libuv already reaped
+    // it without delivering the exit callback, this pipe cannot target a reuse.
+    child.stdin.end();
   };
+  child.stdin.on('error', error => onOutput(`TEST_FILE_KEEPER_PIPE: ${error.message}\n`));
   let lastProgress = started, progress = 'file startup', progressCount = 0;
   const capture = b => { writeSync(fd, b); tail = (tail + b).slice(-16384); };
   child.stdout.on('data', capture); child.stderr.on('data', capture);
   const closed = new Promise(resolve => child.once('close', resolve));
   const completed = new Promise(resolve => {
     child.on('message', result => {
+      if (result.releasing) { cleanupAcknowledged = true; return; }
       if (result.progress) {
         if (cleanup) return;
         lastProgress = performance.now(); progress = `${result.progress}: ${result.name}`; progressCount++;
@@ -92,7 +89,10 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
       resolve(result);
     });
     child.once('error', error => { spawnError = error; resolve({ code: null, signal: null }); });
-    child.once('exit', () => resolve({ code: null, signal: null }));
+    child.once('exit', (code, signal) => {
+      keeperExit = { code, signal };
+      resolve({ code: null, signal: null });
+    });
   });
   let forcedClose;
   const forced = new Promise(resolve => { forcedClose = resolve; });
@@ -103,7 +103,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     onOutput(`${diagnostic}\n`);
   };
   // Fail closed, but still release the group if inspection itself broke.
-  // The same one-shot release prevents any signal after the keeper is reaped.
+  // Closing the control pipe never signals from this runner, even after reaping.
   const emergencyCleanup = () => {
     try { release(); } catch (error) { diagnose(error); }
   };
@@ -152,20 +152,27 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
       diagnose(Error('TEST_PROCESS_CLEANUP: output pipes remained open after group release'));
       emergencyCleanup();
     }
+    // Exit callbacks can precede queued IPC. Judge the acknowledgement only
+    // after close has drained the keeper's pipes, never from exit-field timing.
+    if (keeperExit) keeperExit.cleanupAcknowledged = cleanupAcknowledged;
+    if (keeperExit && !cleanupAcknowledged) {
+      reason ??= 'TEST_FILE_KEEPER_EXIT';
+      onOutput(`TEST_FILE_KEEPER_EXIT: ${file}; keeper ${child.pid}; code ${keeperExit.code}, signal ${keeperExit.signal}\n`);
+    }
     const text = readFileSync(output, 'utf8');
     onOutput(text);
     if (spawnError) onOutput(String(spawnError) + '\n');
     const elapsed = Math.round(performance.now() - started);
-    // The reporter sends Node's own summary over IPC. Neither a mutable exit
-    // code nor test-authored TAP-looking console output can erase failures.
-    const passed = result.code === 0 && counts?.fail === 0 && counts.cancelled === 0 && !reason && !spawnError && !inspectionFailure;
+    // Native node --test owns test semantics. Counts are diagnostic only.
+    const passed = result.code === 0 && !reason && !spawnError && !inspectionFailure;
     onOutput(`-- client file ${passed ? 'ok' : 'FAIL'}: ${file} (${elapsed} ms)\n`);
-    return { file, ...result, passed, reason, inspectionFailure, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
+    return { file, ...result, passed, reason, inspectionFailure, keeperExit, elapsed, counts, stallMs: timeout, progressCount, lastProgress: progress };
   } catch (error) {
     diagnose(error); emergencyCleanup();
     return { file, passed: false, reason, inspectionFailure, elapsed: Math.round(performance.now() - started) };
   } finally {
     clearTimeout(timer); signal?.removeEventListener('abort', abort);
+    release(); child.stdin.destroy();
     child.stdout.destroy(); child.stderr.destroy(); child.unref();
     if (child.connected) child.disconnect();
     closeSync(fd); rmSync(temp, { recursive: true, force: true });

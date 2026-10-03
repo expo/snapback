@@ -1,0 +1,3967 @@
+[
+  {
+    "file": "fixtures/",
+    "passed": true,
+    "elapsed": 12703,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "passed": true,
+    "elapsed": 724,
+    "counts": {
+      "tests": 51,
+      "pass": 51,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-outcomes.test.mjs",
+    "passed": true,
+    "elapsed": 1966,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-receipts.test.mjs",
+    "passed": true,
+    "elapsed": 2032,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-retirement.test.mjs",
+    "passed": true,
+    "elapsed": 2098,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+    "passed": true,
+    "elapsed": 2148,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-local-session.test.mjs",
+    "passed": true,
+    "elapsed": 3186,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-storage.test.mjs",
+    "passed": true,
+    "elapsed": 3250,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-handles.test.mjs",
+    "passed": true,
+    "elapsed": 4008,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-global.test.mjs",
+    "passed": true,
+    "elapsed": 4081,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+    "passed": true,
+    "elapsed": 4191,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+    "passed": true,
+    "elapsed": 4222,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/approval-notifications.test.mjs",
+    "passed": true,
+    "elapsed": 2312,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/approval-review.test.mjs",
+    "passed": true,
+    "elapsed": 2317,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "passed": true,
+    "elapsed": 2392,
+    "counts": {
+      "tests": 36,
+      "pass": 36,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-state.test.mjs",
+    "passed": true,
+    "elapsed": 4629,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+    "passed": true,
+    "elapsed": 4748,
+    "counts": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/astra-projection.test.mjs",
+    "passed": true,
+    "elapsed": 803,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/astra-arguments.test.mjs",
+    "passed": true,
+    "elapsed": 1441,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/codec.test.mjs",
+    "passed": true,
+    "elapsed": 582,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+    "passed": true,
+    "elapsed": 6523,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "passed": true,
+    "elapsed": 2375,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+    "passed": true,
+    "elapsed": 2876,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+    "passed": true,
+    "elapsed": 1441,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-online.test.mjs",
+    "passed": true,
+    "elapsed": 8867,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/composed-authority.test.mjs",
+    "passed": true,
+    "elapsed": 2422,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+    "passed": true,
+    "elapsed": 10255,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-activation.test.mjs",
+    "passed": true,
+    "elapsed": 2298,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "passed": true,
+    "elapsed": 6535,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-cas.test.mjs",
+    "passed": true,
+    "elapsed": 1670,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "passed": true,
+    "elapsed": 7631,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+    "passed": true,
+    "elapsed": 11500,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-crash.test.mjs",
+    "passed": true,
+    "elapsed": 1562,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/close-boundary.test.mjs",
+    "passed": true,
+    "elapsed": 8197,
+    "counts": {
+      "tests": 41,
+      "pass": 41,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+    "passed": true,
+    "elapsed": 2862,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "passed": true,
+    "elapsed": 4016,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery.test.mjs",
+    "passed": true,
+    "elapsed": 868,
+    "counts": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+    "passed": true,
+    "elapsed": 2522,
+    "counts": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/device-diet.test.mjs",
+    "passed": true,
+    "elapsed": 523,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "passed": true,
+    "elapsed": 1291,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-web.test.mjs",
+    "passed": true,
+    "elapsed": 2570,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "passed": true,
+    "elapsed": 11851,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+    "passed": true,
+    "elapsed": 6140,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+    "passed": true,
+    "elapsed": 17070,
+    "counts": {
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/device-residency.test.mjs",
+    "passed": true,
+    "elapsed": 3069,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-publication.test.mjs",
+    "passed": true,
+    "elapsed": 6420,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "passed": true,
+    "elapsed": 661,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "passed": true,
+    "elapsed": 2741,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+    "passed": true,
+    "elapsed": 12569,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "passed": true,
+    "elapsed": 647,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "passed": true,
+    "elapsed": 2360,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+    "passed": true,
+    "elapsed": 605,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+    "passed": true,
+    "elapsed": 3100,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "passed": true,
+    "elapsed": 6354,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/event-slots.test.mjs",
+    "passed": true,
+    "elapsed": 2261,
+    "counts": {
+      "tests": 46,
+      "pass": 46,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+    "passed": true,
+    "elapsed": 755,
+    "counts": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "passed": true,
+    "elapsed": 5273,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "passed": true,
+    "elapsed": 5155,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/expo-scenes.test.mjs",
+    "passed": true,
+    "elapsed": 1946,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "passed": true,
+    "elapsed": 3844,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+    "passed": true,
+    "elapsed": 12022,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "passed": true,
+    "elapsed": 988,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "passed": true,
+    "elapsed": 4783,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "passed": true,
+    "elapsed": 3067,
+    "counts": {
+      "tests": 10,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "passed": true,
+    "elapsed": 5410,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/familiar-forms.test.mjs",
+    "passed": true,
+    "elapsed": 3197,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "passed": true,
+    "elapsed": 4588,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "passed": true,
+    "elapsed": 606,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+    "passed": true,
+    "elapsed": 34058,
+    "counts": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app.test.mjs",
+    "passed": true,
+    "elapsed": 35235,
+    "counts": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/following-unfollow.test.mjs",
+    "passed": true,
+    "elapsed": 7398,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/id-from.test.mjs",
+    "passed": true,
+    "elapsed": 849,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "passed": true,
+    "elapsed": 19480,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/identity-organizations.test.mjs",
+    "passed": true,
+    "elapsed": 1237,
+    "counts": {
+      "tests": 4,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "passed": true,
+    "elapsed": 1385,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-approval.test.mjs",
+    "passed": true,
+    "elapsed": 28627,
+    "counts": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/first-account.test.mjs",
+    "passed": true,
+    "elapsed": 10764,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/identity-profile.test.mjs",
+    "passed": true,
+    "elapsed": 1438,
+    "counts": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/http-bounds.test.mjs",
+    "passed": true,
+    "elapsed": 4051,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/intent-views.test.mjs",
+    "passed": true,
+    "elapsed": 942,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/init-recipe.test.mjs",
+    "passed": true,
+    "elapsed": 1298,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+    "passed": true,
+    "elapsed": 39823,
+    "counts": {
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/approval-model.test.mjs",
+    "passed": true,
+    "elapsed": 39185,
+    "counts": {
+      "tests": 425,
+      "pass": 425,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+    "passed": true,
+    "elapsed": 1945,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/identity-review.test.mjs",
+    "passed": true,
+    "elapsed": 4740,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/identity.test.mjs",
+    "passed": true,
+    "elapsed": 4852,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+    "passed": true,
+    "elapsed": 24557,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-authority.test.mjs",
+    "passed": true,
+    "elapsed": 4160,
+    "counts": {
+      "tests": 51,
+      "pass": 51,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "passed": true,
+    "elapsed": 42669,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "passed": true,
+    "elapsed": 41435,
+    "counts": {
+      "tests": 57,
+      "pass": 57,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+    "passed": true,
+    "elapsed": 3869,
+    "counts": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-reset.test.mjs",
+    "passed": true,
+    "elapsed": 2892,
+    "counts": {
+      "tests": 36,
+      "pass": 36,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-observation.test.mjs",
+    "passed": true,
+    "elapsed": 3040,
+    "counts": {
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-adoption.test.mjs",
+    "passed": true,
+    "elapsed": 9109,
+    "counts": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/linux-package.test.mjs",
+    "passed": true,
+    "elapsed": 1029,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-expiry.test.mjs",
+    "passed": true,
+    "elapsed": 6487,
+    "counts": {
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+    "passed": true,
+    "elapsed": 27128,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+    "passed": true,
+    "elapsed": 20879,
+    "counts": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+    "passed": true,
+    "elapsed": 2615,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+    "passed": true,
+    "elapsed": 12547,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+    "passed": true,
+    "elapsed": 4602,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+    "passed": true,
+    "elapsed": 6155,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/local-reads.test.mjs",
+    "passed": true,
+    "elapsed": 1029,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/local-signout.test.mjs",
+    "passed": true,
+    "elapsed": 1072,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+    "passed": true,
+    "elapsed": 4571,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+    "passed": true,
+    "elapsed": 797,
+    "counts": {
+      "tests": 8,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/loopbar.test.mjs",
+    "passed": true,
+    "elapsed": 802,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/measure-launch.test.mjs",
+    "passed": true,
+    "elapsed": 584,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/maintains.test.mjs",
+    "passed": true,
+    "elapsed": 1477,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-device.test.mjs",
+    "passed": true,
+    "elapsed": 14837,
+    "counts": {
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+    "passed": true,
+    "elapsed": 55445,
+    "counts": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "passed": true,
+    "elapsed": 50808,
+    "counts": {
+      "tests": 65,
+      "pass": 65,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/media-dependencies.test.mjs",
+    "passed": true,
+    "elapsed": 1829,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/native-smoke.test.mjs",
+    "passed": true,
+    "elapsed": 658,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/native-opening.test.mjs",
+    "passed": true,
+    "elapsed": 814,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/node-transport.test.mjs",
+    "passed": true,
+    "elapsed": 739,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/decorated-search.test.mjs",
+    "passed": true,
+    "elapsed": 49755,
+    "counts": {
+      "tests": 57,
+      "pass": 57,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "passed": true,
+    "elapsed": 5025,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "passed": true,
+    "elapsed": 8644,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "passed": true,
+    "elapsed": 58334,
+    "counts": {
+      "tests": 59,
+      "pass": 59,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-intent-store.test.mjs",
+    "passed": true,
+    "elapsed": 1158,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-read-order.test.mjs",
+    "passed": true,
+    "elapsed": 998,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+    "passed": true,
+    "elapsed": 13287,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/native-e2e.test.mjs",
+    "passed": true,
+    "elapsed": 6930,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-store-order.test.mjs",
+    "passed": true,
+    "elapsed": 2715,
+    "counts": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-session.test.mjs",
+    "passed": true,
+    "elapsed": 3779,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+    "passed": true,
+    "elapsed": 17850,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "passed": true,
+    "elapsed": 911,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "passed": true,
+    "elapsed": 572,
+    "counts": {
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+    "passed": true,
+    "elapsed": 8493,
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/local-e2e.test.mjs",
+    "passed": true,
+    "elapsed": 13621,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+    "passed": true,
+    "elapsed": 32194,
+    "counts": {
+      "tests": 82,
+      "pass": 82,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-model.test.mjs",
+    "passed": true,
+    "elapsed": 10623,
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "passed": true,
+    "elapsed": 8605,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/one-shot.test.mjs",
+    "passed": true,
+    "elapsed": 10782,
+    "counts": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/overload-browser.test.mjs",
+    "passed": true,
+    "elapsed": 5265,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/follow-window.test.mjs",
+    "passed": true,
+    "elapsed": 40738,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/live-propagation.test.mjs",
+    "passed": true,
+    "elapsed": 17927,
+    "counts": {
+      "tests": 28,
+      "pass": 28,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/package-typecheck.test.mjs",
+    "passed": true,
+    "elapsed": 3481,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+    "passed": true,
+    "elapsed": 1181,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+    "passed": true,
+    "elapsed": 1773,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+    "passed": true,
+    "elapsed": 3101,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "passed": true,
+    "elapsed": 14577,
+    "counts": {
+      "tests": 72,
+      "pass": 72,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/own-keys.test.mjs",
+    "passed": true,
+    "elapsed": 7359,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "passed": true,
+    "elapsed": 58311,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/page-ready.test.mjs",
+    "passed": true,
+    "elapsed": 7180,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/pending-items.test.mjs",
+    "passed": true,
+    "elapsed": 7148,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+    "passed": true,
+    "elapsed": 4937,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+    "passed": true,
+    "elapsed": 6649,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-publication.test.mjs",
+    "passed": true,
+    "elapsed": 4708,
+    "counts": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-progress.test.mjs",
+    "passed": true,
+    "elapsed": 6842,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search.test.mjs",
+    "passed": true,
+    "elapsed": 16528,
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-retry.test.mjs",
+    "passed": true,
+    "elapsed": 3162,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+    "passed": true,
+    "elapsed": 9071,
+    "counts": {
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "passed": true,
+    "elapsed": 13205,
+    "counts": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-retention.test.mjs",
+    "passed": true,
+    "elapsed": 5313,
+    "counts": {
+      "tests": 54,
+      "pass": 54,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/pending-writes.test.mjs",
+    "passed": true,
+    "elapsed": 12712,
+    "counts": {
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "passed": true,
+    "elapsed": 1435,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-work.test.mjs",
+    "passed": true,
+    "elapsed": 4773,
+    "counts": {
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/page-observation.test.mjs",
+    "passed": true,
+    "elapsed": 15530,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/prediction-routing.test.mjs",
+    "passed": true,
+    "elapsed": 4675,
+    "counts": {
+      "tests": 223,
+      "pass": 223,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/maintained-columns.test.mjs",
+    "passed": true,
+    "elapsed": 31977,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-history.test.mjs",
+    "passed": true,
+    "elapsed": 22780,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/periphery.test.mjs",
+    "passed": true,
+    "elapsed": 5997,
+    "counts": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/publish-signing.test.mjs",
+    "passed": true,
+    "elapsed": 2268,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+    "passed": true,
+    "elapsed": 1881,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-existence.test.mjs",
+    "passed": true,
+    "elapsed": 589,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-observation.test.mjs",
+    "passed": true,
+    "elapsed": 831,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+    "passed": true,
+    "elapsed": 1913,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+    "passed": true,
+    "elapsed": 1197,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/qualify-linux.test.mjs",
+    "passed": true,
+    "elapsed": 4086,
+    "counts": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-presentation.test.mjs",
+    "passed": true,
+    "elapsed": 577,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/publish-linux.test.mjs",
+    "passed": true,
+    "elapsed": 5104,
+    "counts": {
+      "tests": 48,
+      "pass": 48,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/presence-refresh.test.mjs",
+    "passed": true,
+    "elapsed": 7502,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+    "passed": true,
+    "elapsed": 2411,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "passed": true,
+    "elapsed": 4168,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/react.test.mjs",
+    "passed": true,
+    "elapsed": 4540,
+    "counts": {
+      "tests": 64,
+      "pass": 64,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "passed": true,
+    "elapsed": 492,
+    "counts": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+    "passed": true,
+    "elapsed": 3564,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/presence-composed.test.mjs",
+    "passed": true,
+    "elapsed": 11616,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+    "passed": true,
+    "elapsed": 4538,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/remembered-answers.test.mjs",
+    "passed": true,
+    "elapsed": 810,
+    "counts": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+    "passed": true,
+    "elapsed": 44612,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-through.test.mjs",
+    "passed": true,
+    "elapsed": 4773,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+    "passed": true,
+    "elapsed": 590,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "passed": true,
+    "elapsed": 3889,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/release-activation.test.mjs",
+    "passed": true,
+    "elapsed": 3550,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+    "passed": true,
+    "elapsed": 4246,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/presence-live.test.mjs",
+    "passed": true,
+    "elapsed": 13901,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "passed": true,
+    "elapsed": 5881,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/per-row-react.test.mjs",
+    "passed": true,
+    "elapsed": 18540,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/query-publication-session.test.mjs",
+    "passed": true,
+    "elapsed": 10618,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retention-pages.test.mjs",
+    "passed": true,
+    "elapsed": 684,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+    "passed": true,
+    "elapsed": 2082,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retention-episode.test.mjs",
+    "passed": true,
+    "elapsed": 1702,
+    "counts": {
+      "tests": 65,
+      "pass": 65,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+    "passed": true,
+    "elapsed": 3818,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "passed": true,
+    "elapsed": 1813,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b.test.mjs",
+    "passed": true,
+    "elapsed": 4076,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "passed": true,
+    "elapsed": 1457,
+    "counts": {
+      "tests": 34,
+      "pass": 34,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "passed": true,
+    "elapsed": 771,
+    "counts": {
+      "tests": 6,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 4,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+    "passed": true,
+    "elapsed": 5183,
+    "counts": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+    "passed": true,
+    "elapsed": 1106,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/revocation-retention.test.mjs",
+    "passed": true,
+    "elapsed": 2437,
+    "counts": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/schema-session.test.mjs",
+    "passed": true,
+    "elapsed": 672,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+    "passed": true,
+    "elapsed": 2336,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/seen.test.mjs",
+    "passed": true,
+    "elapsed": 562,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+    "passed": true,
+    "elapsed": 8286,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "passed": true,
+    "elapsed": 7019,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/review-probes.test.mjs",
+    "passed": true,
+    "elapsed": 5302,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+    "passed": true,
+    "elapsed": 9312,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "passed": true,
+    "elapsed": 1112,
+    "counts": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/seen-devices.test.mjs",
+    "passed": true,
+    "elapsed": 3838,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock.test.mjs",
+    "passed": true,
+    "elapsed": 796,
+    "counts": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "passed": true,
+    "elapsed": 2199,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-live.test.mjs",
+    "passed": true,
+    "elapsed": 3241,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-routes.test.mjs",
+    "passed": true,
+    "elapsed": 661,
+    "counts": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "passed": true,
+    "elapsed": 1037,
+    "counts": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/session-security.test.mjs",
+    "passed": true,
+    "elapsed": 1037,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-check.test.mjs",
+    "passed": true,
+    "elapsed": 5605,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+    "passed": true,
+    "elapsed": 998,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/screen-lifetimes.test.mjs",
+    "passed": true,
+    "elapsed": 9037,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+    "passed": true,
+    "elapsed": 8977,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "passed": true,
+    "elapsed": 528,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+    "passed": true,
+    "elapsed": 557,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "passed": true,
+    "elapsed": 4311,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/store-reset.test.mjs",
+    "passed": true,
+    "elapsed": 8432,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/screen-lifetimes-react.test.mjs",
+    "passed": true,
+    "elapsed": 17612,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "passed": true,
+    "elapsed": 12036,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+    "passed": true,
+    "elapsed": 986,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+    "passed": true,
+    "elapsed": 22665,
+    "counts": {
+      "tests": 186,
+      "pass": 186,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+    "passed": true,
+    "elapsed": 2450,
+    "counts": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+    "passed": true,
+    "elapsed": 747,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+    "passed": true,
+    "elapsed": 551,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/social-browser.test.mjs",
+    "passed": true,
+    "elapsed": 16920,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/routes.test.mjs",
+    "passed": true,
+    "elapsed": 25180,
+    "counts": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+    "passed": true,
+    "elapsed": 4415,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+    "passed": true,
+    "elapsed": 1936,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+    "passed": true,
+    "elapsed": 814,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "passed": true,
+    "elapsed": 119787,
+    "counts": {
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "passed": true,
+    "elapsed": 10480,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "passed": true,
+    "elapsed": 8891,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "passed": true,
+    "elapsed": 20491,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+    "passed": true,
+    "elapsed": 767,
+    "counts": {
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "passed": true,
+    "elapsed": 3174,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+    "passed": true,
+    "elapsed": 2333,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "passed": true,
+    "elapsed": 5863,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/sync-after-call.test.mjs",
+    "passed": true,
+    "elapsed": 1156,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-review.test.mjs",
+    "passed": true,
+    "elapsed": 21328,
+    "counts": {
+      "tests": 60,
+      "pass": 60,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "passed": true,
+    "elapsed": 2262,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+    "passed": true,
+    "elapsed": 7834,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "passed": true,
+    "elapsed": 40412,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/typing-expiry.test.mjs",
+    "passed": true,
+    "elapsed": 4245,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/unicode.test.mjs",
+    "passed": true,
+    "elapsed": 513,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/sync-scale.test.mjs",
+    "passed": true,
+    "elapsed": 9225,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/sync-generation.test.mjs",
+    "passed": true,
+    "elapsed": 9883,
+    "counts": {
+      "tests": 41,
+      "pass": 40,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/navigation-model.test.mjs",
+    "passed": true,
+    "elapsed": 81299,
+    "counts": {
+      "tests": 62,
+      "pass": 62,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "passed": true,
+    "elapsed": 18677,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/wasm-absent.test.mjs",
+    "passed": true,
+    "elapsed": 466,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/presence-local.test.mjs",
+    "passed": true,
+    "elapsed": 61162,
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+    "passed": true,
+    "elapsed": 40411,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/wasm-families.test.mjs",
+    "passed": true,
+    "elapsed": 476,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/wasm-budget.test.mjs",
+    "passed": true,
+    "elapsed": 3020,
+    "counts": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-durability.test.mjs",
+    "passed": true,
+    "elapsed": 1084,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+    "passed": true,
+    "elapsed": 20831,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/upload-retry.test.mjs",
+    "passed": true,
+    "elapsed": 11511,
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "passed": true,
+    "elapsed": 56383,
+    "counts": {
+      "tests": 68,
+      "pass": 68,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/acquisition.test.mjs",
+    "passed": true,
+    "elapsed": 151018,
+    "counts": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-pages.test.mjs",
+    "passed": true,
+    "elapsed": 7169,
+    "counts": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-shell.test.mjs",
+    "passed": true,
+    "elapsed": 683,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "passed": true,
+    "elapsed": 142511,
+    "counts": {
+      "tests": 335,
+      "pass": 335,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-worker-control.test.mjs",
+    "passed": true,
+    "elapsed": 501,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+    "passed": true,
+    "elapsed": 28834,
+    "counts": {
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+    "passed": true,
+    "elapsed": 23312,
+    "counts": {
+      "tests": 46,
+      "pass": 46,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "passed": true,
+    "elapsed": 57322,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "passed": true,
+    "elapsed": 946,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "passed": true,
+    "elapsed": 18244,
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "passed": true,
+    "elapsed": 3942,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-start.test.mjs",
+    "passed": true,
+    "elapsed": 9596,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/overload.test.mjs",
+    "passed": true,
+    "elapsed": 96722,
+    "counts": {
+      "tests": 109,
+      "pass": 109,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/word-expansion.test.mjs",
+    "passed": true,
+    "elapsed": 2741,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-review.test.mjs",
+    "passed": true,
+    "elapsed": 12406,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-session-authority.test.mjs",
+    "passed": true,
+    "elapsed": 12805,
+    "counts": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "passed": true,
+    "elapsed": 6236,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+    "passed": true,
+    "elapsed": 40613,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "passed": true,
+    "elapsed": 41669,
+    "counts": {
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+    "passed": true,
+    "elapsed": 30803,
+    "counts": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "passed": true,
+    "elapsed": 21729,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/write-authority.test.mjs",
+    "passed": true,
+    "elapsed": 7739,
+    "counts": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/transport-http.test.mjs",
+    "passed": true,
+    "elapsed": 42687,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/unread-range.test.mjs",
+    "passed": true,
+    "elapsed": 36266,
+    "counts": {
+      "tests": 62,
+      "pass": 62,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-navigation.test.mjs",
+    "passed": true,
+    "elapsed": 27004,
+    "counts": {
+      "tests": 28,
+      "pass": 28,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "passed": true,
+    "elapsed": 56839,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/write-ids.test.mjs",
+    "passed": true,
+    "elapsed": 17984,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "passed": true,
+    "elapsed": 56708,
+    "counts": {
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/worker.test.mjs",
+    "passed": true,
+    "elapsed": 40642,
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/bounded-following.test.mjs",
+    "passed": true,
+    "elapsed": 204998,
+    "counts": {
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-clock.test.mjs",
+    "passed": true,
+    "elapsed": 193325,
+    "counts": {
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "passed": true,
+    "elapsed": 82916,
+    "counts": {
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/web-admission-review.test.mjs",
+    "passed": true,
+    "elapsed": 121254,
+    "counts": {
+      "tests": 55,
+      "pass": 55,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/keep-app-model.test.mjs",
+    "passed": true,
+    "elapsed": 380138,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "passed": true,
+    "elapsed": 384083,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "passed": true,
+    "elapsed": 486438,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "passed": true,
+    "elapsed": 445924,
+    "counts": {
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-session-model.test.mjs",
+    "passed": true,
+    "elapsed": 257888,
+    "counts": {
+      "tests": 52,
+      "pass": 52,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/online-client-model.test.mjs",
+    "passed": true,
+    "elapsed": 65408,
+    "counts": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  }
+]

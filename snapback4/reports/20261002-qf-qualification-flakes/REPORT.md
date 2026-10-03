@@ -1557,3 +1557,165 @@ The affected documentation audit reconciles LLP 3000 and AGENTS with the new
 group-only contract while preserving every historical JOURNAL entry. Reference
 and whitespace checks accompany the local commit. The commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published.
+
+
+## Round 7 — native Node and keeper-owned cleanup
+
+Round 6's Astra review is **NOT READY**, with all three P1s reproduced on
+Linux and the Apartment mini: stale JS exit fields authorizing a group signal,
+`isolation: 'none'` changing `test.only`, and reporter counts concealing hook
+and late asynchronous failures after an exit-code override. The complete input
+is retained in `round7/input-astra.md.gz`. This round implements the operator's
+replacement architecture and claims no new independent review verdict.
+
+### Context and integration
+
+The `llp-orient` scope is the runner, keeper, reporter, process inspection and
+focused regressions. [LLP 3000's publication-suite section](../../../llp/3000-snapback4.explainer.md#publication-suite-under-contention)
+(in `current/`, not `foundation/`) governs this scope. LLP 2000.000 supplies the
+design brief; `rules/RULES.md` and `snapback4/NOT-DOING.md` supply the fence and
+shared-machine constraints. Active constraints are unchanged guards, fail-closed
+inspection, vanished-as-exited handling and group-only ownership. The operator's
+Round 7 instruction supersedes the old runner-signal and reporter-verdict rules.
+The living LLP and AGENTS notes are reconciled in this change. Hand-off: none.
+
+Starting commit: **8c4fadb44e**. Fetched and merged `origin/main`
+**484c94733c** in **a46e58a12f**, including UB baseline fix **9c048bf174**.
+The only merge conflict was the append-only JOURNAL; both histories are retained.
+Outside the main merge, no Rust, product, original flaky-test assertion, guard,
+seed or skip changed.
+
+### Implementation and limits
+
+Every file now runs as native `node --test <file>` with default isolation.
+Node's own test parent creates the test child and supplies the exit status.
+`--test-reporter` attaches an observer through Node's [custom reporter API](https://nodejs.org/docs/latest-v24.x/api/test.html#custom-reporters)
+for progress and diagnostic summaries; it contains no `run()` call, isolation
+override or exit-code assignment.
+Reporter counts do not decide success. Tests compare native exits for `only`,
+TODO, skip, assertion and cancellation overrides, `after` failure, uncaught
+exceptions, unhandled rejections and explicit successful exit.
+
+The keeper is a 26-line Node helper using the runtime already on PATH; it needs
+no compiler, binary distribution or platform-specific build. It starts as the
+fresh group's first member, starts native Node within that group, and stays alive
+on its stdin pipe after Node finishes. Completion, stall and abort close that
+pipe. EOF, including runner death, makes the keeper call `kill(0, SIGKILL)`.
+The runner never signals a group or derives signal authority from an inspected
+PID or ChildProcess exit fields. An already reaped keeper leaves a broken pipe;
+no PID/PGID reuse can redirect that pipe into a signal.
+
+A cleanup acknowledgment distinguishes requested cleanup from unexpected keeper
+loss. It is diagnostic only and confers no signal authority. The runner waits
+for pipe closure before judging it, since libuv may deliver exit before queued
+IPC. Unexpected keeper death fails with `TEST_FILE_KEEPER_EXIT`. Regressions
+cover the actual absent-kernel-process/null-JS-fields interleaving, a test killing
+its own group, runner death, and the exit-before-acknowledgment ordering. Signal
+interception asserts the runner sends no nonzero signal in the hostile cases.
+
+Group verification still requires two consecutive empty inspections 50 ms apart.
+Observed in-group leaks fail; failed listings remain fail-closed, vanished members
+count as exited, and the first inspection error is retained. Pipe release is
+asynchronous, so an orphan newly observed during cleanup also counts as a leak.
+Processes escaping through `setsid`, `setpgid` or detached spawning remain out
+of scope, regardless of ancestry or environment; fixtures own those lifetimes.
+
+The watchdog still uses `max(15 minutes, largest declared guard + max(60 seconds,
+25%))`, with no total-duration cap and no credit for console output. The census
+covers **305 files with zero undercovered guards**. **Native buffering limit:**
+CPU-bound synchronous tests that do not yield can withhold their lifecycle events
+inside Node's child. The observer renews progress only when Node delivers those
+events. A regression preserves the original ten synchronous bodies and shows
+that a deliberately shortened one-second watchdog expires while native Node
+alone passes; the production floor stays 15 minutes. Async/nested progression,
+stalled JS, leaked handles and console chatter retain their regressions. This
+limit cannot be removed by an observational reporter without changing Node's
+execution model again.
+
+### Focused verification and development record
+
+Final focused checks pass **42/42 on eb1000 and 42/42 on the Apartment mini**,
+zero skips or outer runner refusals. Both run:
+
+```sh
+node snapback4/scripts/run-client-tests.mjs 1 files \
+  snapback4/packages/snapback4/test/test-file-runner.test.mjs \
+  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+The mini uses `LC_ALL=de_DE.UTF-8`, Node 24.18.0 and published
+`snapback4-darwin-arm64@0.4.10` for the replacement fixture; eb1000 uses Node
+24.13.1 and its rebuilt binary. This is runner/fixture portability evidence,
+not current-release macOS product qualification. No office M1 or publication
+M5 was contacted, and no unrelated process received a terminating signal.
+Final logs, commands, statuses and source hashes are retained in `round7/`.
+
+Development failures are retained rather than substituted for qualification:
+`development-linux.log` caught the reporter's constructor-vs-generator interface;
+`development-linux-2.log` caught six old assumptions about native subprocess
+environment, asynchronous cleanup and progress event counts/buffering;
+`development-linux-3.log` caught the changed native cancellation summary;
+`development-linux-4.log` caught a TAP parser applied to native spec output.
+All were corrected before the final focused runs. The intermediate 41/41 runs
+on both hosts precede the acknowledgment ordering regression and are retained
+as `before-ack-fix-*`.
+
+The first stress attempt ran 350 file executions before it was stopped: **27
+introduced false `TEST_FILE_KEEPER_EXIT` refusals**, caused by testing the cleanup
+acknowledgment in the exit callback before queued IPC arrived, and **24 operator
+aborts**. Native test assertions all passed in the 27 false refusals.
+`before-ack-fix-stress/` retains every result and per-failure classification.
+The final fix delays that diagnostic until pipe closure; no signal authority
+is added. Source amendment records bind the correction during the full suite's
+Rust phase, before ordinary clients. Fixture wrappers are separately rerun on
+final source. The final stress run starts afresh after the correction.
+
+### Single eb1000 suite and final stress
+
+The sole `scripts/test.sh` invocation ran on eb1000 from
+**2026-10-03T06:56:46Z** to **2026-10-03T07:21:30Z**, exit **0**:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Exact summary: **`== 0 failure(s) in 1484 s`**. Every category passed, including
+the now-fixed UB Rust cases. Failure classifications: **introduced 0, baseline 0,
+environmental 0, runner refusals 0**. Ordinary clients: **302/302 files,
+6,060 assertions passed, 11 existing skips**. Models: **79/79**; fixture wrappers:
+**9/9**, also **9/9** in their separate final-source run. Total JavaScript:
+**6,148 passed, zero failed or cancelled, 11 skipped across 305 file results**.
+The full log, command/status/timing record, per-file results and failure
+classification are retained under `round7/`.
+
+The final 24-file stress ran **2026-10-03T07:03:49Z–07:29:12Z**, exit **0**:
+
+```sh
+node reports/20261002-qf-qualification-flakes/stress.mjs after \
+  reports/20261002-qf-qualification-flakes/round7/stress 200 both
+```
+
+Worker **200/200**, with one intended assertion per run; observed replacement
+**200/200**, with two intended assertions per run. Every target completion has
+**23 active background slots**. All **1,501 background executions across 302
+files pass**, and drain naturally. All **1,901 results** have native exit 0,
+nonempty diagnostic counts and acknowledged keeper cleanup, with **zero runner
+refusals, assertion failures or cancellations**. `stress-stats.json` independently
+recounts the retained JSONL, and the failure-classification record is empty.
+
+The harness metadata's `sourceCommit` is its historical before-fix fixture pin;
+`source-finalized.json`, the amendment records and built-input hashes bind the
+source actually executed in this round. The 2,438 selected source hashes and
+three binary/wasm hashes remain unchanged through final qualification. Ten
+copied source hashes match the mini; its task scratch was removed after
+collection. Inspection escapes remain explicitly excluded, and actual kernel
+PID/PGID reuse was not forced. The regression exercises the reaped-before-callback
+window and proves no runner signal, without relying on reuse occurring.
+
+
+The affected documentation audit reconciles LLP 3000 and AGENTS with native
+execution, keeper-owned signaling and the native buffering limit. Every earlier
+JOURNAL entry remains unchanged. Final reference and staged whitespace checks
+pass. Logs and JSONL/load timelines are gzip-compressed where indicated by their
+filenames; `summarize.py` reads either representation. The local commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published.
