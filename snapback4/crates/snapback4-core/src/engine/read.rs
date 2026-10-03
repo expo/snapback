@@ -207,7 +207,10 @@ impl<'r> Runner<'r> {
         self.aggregate_source_dependency(table);
         if !self.device { return Ok(()); }
         let Some(maintain) = self.schema.maintain_for(table) else { return Ok(()); };
-        self.receipt_maintain_pending(maintain)?;
+        if self.defer_receipt_maintain(maintain) {
+            let group = self.receipt_read_group(maintain, index, key)?;
+            self.receipt_maintain_pending(maintain, group.as_deref())?;
+        }
         if let Some(k) = &maintain.row_key {
             // A projected view uses its member's acquisition; absence beyond that
             // horizon is unknown even though the projection has no order columns.

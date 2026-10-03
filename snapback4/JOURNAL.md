@@ -84850,3 +84850,64 @@ dated revision; LLP 3000.015 points to the specialization. The
 the refusal audit, development failures, exact checks and bounded evidence.
 Reference/whitespace checks pass. No new file over 256 KB, gzip or video is
 committed. Work stayed on eb1000; nothing pushed or published.
+
+## 2026-10-03 — RP round 1: existing stores, maintenance charges and affected groups
+
+Round 1 addresses both NOT READY reviews. It supersedes the preceding RP
+entry's skipped reservations, table-wide pending marks and claim that source
+writes run the member/source-group authority check. Only member writes run
+that check; ordinary write authorization remains on both paths.
+
+The compiler still stamps receipt-derived-prediction-v1 so older devices
+refuse newly eligible operations. RP accepts the authentic predecessor
+capability set when opening kept backends and server databases. Fixtures
+produced by a8c20c40e9 retain the real server incarnation, pending send and
+delivery debt. Memory and SQLite open through Kept, Initial and Install,
+adopt, preserve custody and converge to count 3 with delivery debt [1,3].
+The wasm upgrade test preserves both queued writes across restart. The actual
+predecessor wasm opens its fixture and rejects the new emitted backend.
+Each new fixture is below 256 KB; SQLite repacking preserved the entire SQL dump.
+
+Deferred row-keyed maintenance now charges its full reservation, including
+fanout × 4 written rows, before skipping its predicate/delta. A key-only live
+recipient scan retains E_VIEW_KEY. Public ordinary aggregates retain their
+reservation, with a conservative fixed charge for deferred inserts. An added
+adversary also caught private parent counts: 30 sends feeding ten counts had
+predicted despite a server E_BOUND. The public receipt_column_costs map now
+preserves the server's fixed private-maintenance prices without its formulas
+or totals. Both stores and wasm queue the burst; ordinary single sends still
+predict. No runtime ceiling or existing test was weakened.
+
+Pending source/member base and current images name the affected groups,
+including deletes, moves and empty ids. Clean groups keep live counts and
+expiry across reopen. Instrumented queries use exactly P source point reads
+for P pending rows and zero source scans, cached across three badge reads.
+Only unavailable, computed or receipt-owned group keys fall back to the whole
+target. All incomplete receipt-derived badges render a stable number with a
+quiet refreshing indication; both later L+ instructions now apply only to
+non-receipt live lower bounds. Updated both guides and LLPs 3000.022 and
+3000.007.001 with the compatibility, reservation and rendering rules.
+
+Affected receipt/RY tests: 182; guide: 112; row-keyed language: 46; core row-view:
+58; maintained-column review: 4; affected device suites/library: 340; affected
+client tests: 81. Final full suite on eb1000: **== 0 failure(s) in 1469 s**,
+exit 0. Rust unit/integration: 4,794 passed and 34 existing ignores; doctests:
+17 passed; clients: 6,037 passed and 11 existing skips; models: 79 passed;
+fixture wrappers: 9 passed. No failure required a baseline-main exception.
+Implementation/test inputs stayed unchanged through qualification; the final
+prose-only L+ clarification separately passed all 112 guide tests. Reference
+and whitespace checks pass.
+
+Same-host locked wasm: base a8c20c40e9 is 2,048,676 B raw / 617,327 B gzip;
+RP is 2,069,537 B raw / 623,434 B gzip, **+6,107 gzip bytes (+0.99%)**.
+Raise round 0's 618,306-byte cap by exactly 5,128 bytes to 623,434, with no
+headroom, for compatible schema decoding, group-key overlay reads and
+preserved public/private maintenance reservations. Compact price tuples save
+95 gzip bytes versus resource objects. No wasm, gzip, video or new oversized
+file is committed; the existing journal receives this requested append.
+
+The [Round 1 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-1--2026-10-03)
+records fixture provenance, counterexamples, measurements and qualification
+hashes. Work stayed on eb1000; no Apartment mini, office M1 or M5. Local
+commit includes Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed
+or published.

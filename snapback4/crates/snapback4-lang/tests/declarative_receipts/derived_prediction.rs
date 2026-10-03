@@ -2,6 +2,9 @@
 // @ref LLP 3000.022#14.3 — exclude predicted maintenance and retain static readers.
 use super::*;
 
+#[path = "prediction_round1.rs"]
+mod round1;
+
 fn fixture(expiring: bool) -> String {
     let mut src = source().replace("mutation createConversation(", "mutation createGroup(").replace("mutation add(", "mutation addMember(").replace("  text: text <=2000", "  tombstone: bool default false\n  text: text <=2000")
         .replace("  retain delivered-history\n  sync to members[.conversation] last 500", "  update <- .sender = viewer\n  delete <- .sender = viewer\n  retain delivered-history\n  sync to members[.conversation] last 500");

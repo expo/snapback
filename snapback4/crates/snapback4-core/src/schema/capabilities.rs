@@ -13,6 +13,8 @@ struct Wire {
     receipts: Vec<ReceiptFamily>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    receipt_column_costs: BTreeMap<String, columns::ReceiptColumnCost>,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
@@ -46,7 +48,9 @@ struct Wire {
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.022#14.3 — older devices must not execute newly eligible
     // writes using their receipt-derived maintenance path.
-    ("receipt-derived-prediction-v1", |s| s.maintains.iter().any(|m| s.receipt_dependencies.contains_key(&m.target))),
+    ("receipt-derived-prediction-v1", |s| s.maintains.iter().any(|m| s.receipt_dependencies.contains_key(&m.target))
+        || s.tables.iter().any(|(name, table)| table.maintained.keys().any(|field|
+            s.receipt_dependencies.get(name).is_some_and(|fields| fields.contains(field))))),
     ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
@@ -116,7 +120,14 @@ impl<'de> Deserialize<'de> for Schema {
                 return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: unsupported engine capability {name}; upgrade the engine/device")));
             }
         }
-        let required = schema.required_capabilities();
+        let mut required = schema.required_capabilities();
+        // @ref LLP 3000.022#14.3 — RY already serialized the dependency closure.
+        // RP stamps every emitted schema so old devices refuse its new prediction
+        // facts, but an RP reader must still open RY's kept backend/database.
+        // All other capabilities and the carrier shape remain exact.
+        if !declared.contains("receipt-derived-prediction-v1") {
+            required.remove("receipt-derived-prediction-v1");
+        }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain

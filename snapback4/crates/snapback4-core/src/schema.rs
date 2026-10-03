@@ -34,6 +34,9 @@ pub struct Schema {
     pub receipts: Vec<ReceiptFamily>,
     /// Schema-time closure; retained on device projections without private derivations.
     pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
+    /// Public, schema-derived reservation prices; private maintained formulas
+    /// are omitted from device projections, but their write charge is not.
+    pub receipt_column_costs: BTreeMap<String, columns::ReceiptColumnCost>,
     pub tables: BTreeMap<String, Table>,
     pub delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]

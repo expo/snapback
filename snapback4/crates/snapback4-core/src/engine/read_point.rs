@@ -114,7 +114,8 @@ impl Runner<'_> {
             if self.device && m.parent_key.is_some() {
                 // A locally synthesized total has no settled row to freeze.
                 // @ref LLP 3000.022#14.3 — never recount provisional receipt inputs.
-                if self.beyond_horizon || self.receipt_maintain_pending(m)? { return Ok((unavailable_aggregate(), 0)); }
+                let group = self.receipt_read_group(m, &read.index, key)?;
+                if self.beyond_horizon || self.receipt_maintain_pending(m, group.as_deref())? { return Ok((unavailable_aggregate(), 0)); }
                 // The parent-key view is derived locally from fully held children;
                 // its generated table need not have an invertible sync audience.
                 let fields = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));

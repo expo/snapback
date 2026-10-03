@@ -3,6 +3,25 @@
 //! are replayed in submission order over the confirmed base.
 use super::*;
 
+// @ref LLP 3000.022#14.3 — overlay metadata, never a history scan. Include
+// empty ids, the deleted base, and both domains of an update/member move.
+pub(super) fn provisional_groups<T: DeviceTx>(tx: &T, table: &str, fields: &[String]) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+    let mut groups = Vec::new();
+    if !tx.base_has_table(table)? { return Ok(Some(groups)); }
+    for (name, id, base) in tx.base_entries()? {
+        if name != table { continue; }
+        let base = base.as_deref().map(decoded::<Value>).transpose()?;
+        let current = tx.get(table, &id)?;
+        if base.is_none() && current.is_none() { return Ok(None); }
+        for image in [base, current].into_iter().flatten() {
+            let key = fields.iter().map(|f| image.field(f).cloned().ok()).collect::<Option<Vec<_>>>();
+            let Some(key) = key else { return Ok(None); };
+            groups.push(key);
+        }
+    }
+    Ok(Some(groups))
+}
+
 // @ref LLP 3000#7-decisions-during-execution — pending belongs to the device
 // card, not the application row supplied to the shared mutation interpreter.
 // Only this metadata is removed; undeclared application fields still refuse.

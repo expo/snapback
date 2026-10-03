@@ -60,14 +60,7 @@ impl Runner<'_> {
                 if self.device && self.schema.tables[&m.target].sync.is_none() {
                     continue;
                 }
-                if self.defer_receipt_maintain(m) {
-                    // Keep the ordinary authority precondition, without evaluating
-                    // the predicate or reading any count or provisional ordinal.
-                    if m.row_key.as_ref().is_some_and(|k| k.table == table) {
-                        if let Some(row) = new { self.row_view_member_authority(m, row)?; }
-                    }
-                    continue;
-                }
+                let deferred = self.defer_receipt_maintain(m);
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
                     self.reserve_row_view(m, 1)?;
@@ -86,7 +79,11 @@ impl Runner<'_> {
                     self.meter.used.heap_bytes -= heap;
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
-                    let result = self.row_view_member(m, old, new);
+                    let result = if deferred {
+                        // Member writes retain their authority precondition. Source
+                        // writes have no corresponding member-authority check.
+                        new.map_or(Ok(()), |row| self.row_view_member_authority(m, row))
+                    } else { self.row_view_member(m, old, new) };
                     self.meter = reserved;
                     self.maintain_prepaid = false;
                     result?;
@@ -94,7 +91,8 @@ impl Runner<'_> {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
                     self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
                     self.maintain_prepaid = true;
-                    self.row_view_source(m, old, new)?;
+                    if deferred { self.row_view_recipient_cap(m, old, new)?; }
+                    else { self.row_view_source(m, old, new)?; }
                     self.maintain_prepaid = false;
                 }
             }
@@ -102,6 +100,34 @@ impl Runner<'_> {
         })();
         self.maintain_prepaid = prepaid;
         result
+    }
+
+    // The refusal depends only on ordinary parent/expiry index keys. Preserve it
+    // after the same public reservation, without loading members or receipt fields.
+    fn row_view_recipient_cap(&mut self, m: &Maintain, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let table = &self.schema.tables[&k.table];
+        let index = if table.is_expiring() { k.live_member_index() } else { k.member_index() };
+        let mut previous = None;
+        for row in [old, new].into_iter().flatten() {
+            let parent = row.field(&k.source_key)?;
+            if previous == Some(parent) { continue; }
+            previous = Some(parent);
+            let mut live = 0;
+            let ranges = if table.is_expiring() {
+                vec![Bounds { lte: Some(Value::Null), ..Bounds::default() },
+                    Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Bounds::default() }]
+            } else { vec![Bounds::default()] };
+            for mut bounds in ranges {
+                loop {
+                    let Some(key) = self.metered_scan(|r, scope| r.tx.index_head(scope, &k.table, &index, std::slice::from_ref(parent), &bounds, Dir::Asc))? else { break; };
+                    bounds.after = Some(key.into_iter().skip(1).collect());
+                    live += 1;
+                    if live > k.fanout { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "recipient cap exceeded; repair the member group (guide maintains)".into() }); }
+                }
+            }
+        }
+        Ok(())
     }
 
     // @ref LLP 3000.015#3 — two parent groups, each bounded by the declared live cap.
@@ -817,7 +843,7 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
-        if self.receipt_maintain_pending(m)? {
+        if self.receipt_maintain_pending(m, Some(std::slice::from_ref(member.field(&m.row_key.as_ref().unwrap().member_key)?)))? {
             self.pending_view_read()?;
             let mut row = row;
             if let Value::Row(fields) = &mut row { fields.insert("recountPending".into(), Value::Bool(true)); }

@@ -691,13 +691,14 @@ query unreadBadges(conversationId: conversations, c: cursor ?):
   return unreadCounts where .conversationId = conversationId first 50 after c { member, value, recountPending }
 ```
 
-Predicted writes leave the last settled count with `recountPending: true` and `complete: false`.
-Show a refreshing badge: this is a settled snapshot, not an optimistic estimate or an `L+`
-lower bound. Query recounts exclude the overlay, even at expiry. The check covers the whole
-source/member table, including other held groups. A new predicted member has no count yet.
-Settlement installs the server count; replay leaves it unchanged; refusal withdraws the
-prediction. Once the overlay clears, normal expiry and range coverage resume. A mutation
-that reads the count still cannot predict. See `guide receipts` for the refusal boundaries.
+Predicted writes freeze only affected parent groups: source/member base and current images name
+both groups of a move, including deletes. Other groups keep live counts and expiry. Dirty counts
+return the settled snapshot with `recountPending: true` and `complete: false`; a new member has no
+count yet. O(pending) point reads are cached per target/query; unknown or computed group keys fall
+back to the whole target. These flags also describe incomplete live counts, so for receipt-derived
+badges always show a stable number with a quiet refreshing indication, never `L+`. Settlement or
+refusal clears the overlay; expiry/range coverage resumes. Mutations reading the count still cannot
+predict. Sends retain maintenance reservations; see `guide receipts` for the refusal boundaries.
 
 The view carries only the member's read-rule columns, `id`, `member` (the same member id), `value` and
 `recountPending`. It never copies unrelated member columns or engine-recorded attribution keys. Delivery
@@ -707,8 +708,7 @@ table. For a view without receipt dependencies, a device predicts source deltas 
 member even outside other members' horizons; retained members are not updated.
 
 The receipts clause allocates positions per conversation; the view excludes pre-join history.
-Own sends and tombstones are excluded explicitly. A source already expired at its commit clock is retired
-in that transaction, before adding a contribution; it will not be subtracted later. Server certification
+Own sends and tombstones are excluded explicitly. A source expired at commit is retired in that transaction before adding a contribution; it will not be subtracted later. Server certification
 may first probe a necessary predicate index: at most 65 stored keys decide whether at most 64 candidates
 can certify the count. These candidates include unswept expired inputs; expiry and the full predicate
 exclude them from the count. Larger ranges and background recounts use the null and future ranges of the
@@ -739,9 +739,9 @@ without a sync. Deleting or expiring the floor row never moves that saved floor.
 ordinal it uses the greatest; null is the weakest bound. Only when every range operand is null does it
 require the whole group.
 
-Without a pending receipt write, if the unread range extends below the floor, `value` is the number of current,
+For views without receipt dependencies, if the unread range extends below the floor, `value` counts current,
 authorized, live matching rows examined locally, with `recountPending: true`
-and `complete: false`. Show it as `L+`; online, the client asks the server for
+and `complete: false`. Only this live lower bound can be shown as `L+`; online, the client asks the server for
 its exact count when permitted: an unobserved predicted write or a `held` query
 still blocks replacement. The pending bound is not speculative. Retained history never contributes. This bound describes the
 evaluated replica, including its usual optimistic writes, not settled server
@@ -809,7 +809,7 @@ a count: an uncovered device reports a pending count until it can
 certify that live input. A device mutation that cannot certify the count,
 including an already settled count above its local allowance, enters the
 outbox without a predicted result; the server decides and settles it.
-Rules and writers on `value` require certification; composed rule deadlines follow count-predicate truth transitions, within the shared physical allowance. Incomplete values cannot decide a rule. `recountPending` and device `pending` may be selected only directly into query result data; returning the row also preserves them. Use `recountPending` with `complete` to display `L+`. Every other selection refuses with E_VIEW_KEY: bindings (even unused ones), helpers, conditions, comparisons, arithmetic, sort/group keys, aggregates, `exists`, all rules, sync, indexes and constraints. Compute with `value`, identity or copied member fields. Objects, lists, helpers and projections preserve the row's static type. Any assignment of a maintained row, even in a skipped branch or loop, makes that local maintenance-carrying at every use in its scope; a later reset cannot clear it. Helper parameters and results join all call sites and return paths. If you reuse a local for other data, use a separate variable for the row. Any nested maintenance-bearing value is refused by inspecting builtins, including min/max, share, sort/group, aggregates and hashing: project the field you need first, for example `min(row.value, row.value)` or `share(1, [row.id], row.id)`. Only explicitly non-inspecting selectors/cardinality (`first`, `last`, `at`, `slice`, `count`) and list concatenation may forward these values; text conversion/JSON encoding during evaluation refuses. Future builtins default to inspecting. Private `$basis`/`$recount` rows and their `id`, `cursor`, `total`, `parked`, `at`, `deadline` and `version` are never application data. On a public view these names refuse unless declared copied member columns; a copied `total` is ordinary data. Other undeclared names, including `$private`, refuse too. Dynamic/heterogeneous receivers and recursively widened raw types cannot prove a receiver type; their field access refuses conservatively. Helper-block, intermediate and ordered-view maintenance projections also refuse: select status in the final query shape, or return the row and display its status in the UI. Indexes/ranking by `value` or `recountPending` refuse
+Rules and writers on `value` require certification; composed rule deadlines follow count-predicate truth transitions, within the shared physical allowance. Incomplete values cannot decide a rule. `recountPending` and device `pending` may be selected only directly into query result data; returning the row also preserves them. For a non-receipt live lower bound, use `recountPending` with `complete` to display `L+`; incomplete receipt-derived badges use a quiet refreshing indication. Every other selection refuses with E_VIEW_KEY: bindings (even unused ones), helpers, conditions, comparisons, arithmetic, sort/group keys, aggregates, `exists`, all rules, sync, indexes and constraints. Compute with `value`, identity or copied member fields. Objects, lists, helpers and projections preserve the row's static type. Any assignment of a maintained row, even in a skipped branch or loop, makes that local maintenance-carrying at every use in its scope; a later reset cannot clear it. Helper parameters and results join all call sites and return paths. If you reuse a local for other data, use a separate variable for the row. Any nested maintenance-bearing value is refused by inspecting builtins, including min/max, share, sort/group, aggregates and hashing: project the field you need first, for example `min(row.value, row.value)` or `share(1, [row.id], row.id)`. Only explicitly non-inspecting selectors/cardinality (`first`, `last`, `at`, `slice`, `count`) and list concatenation may forward these values; text conversion/JSON encoding during evaluation refuses. Future builtins default to inspecting. Private `$basis`/`$recount` rows and their `id`, `cursor`, `total`, `parked`, `at`, `deadline` and `version` are never application data. On a public view these names refuse unless declared copied member columns; a copied `total` is ordinary data. Other undeclared names, including `$private`, refuse too. Dynamic/heterogeneous receivers and recursively widened raw types cannot prove a receiver type; their field access refuses conservatively. Helper-block, intermediate and ordered-view maintenance projections also refuse: select status in the final query shape, or return the row and display its status in the UI. Indexes/ranking by `value` or `recountPending` refuse
 with E_VIEW_KEY. Pure view existence follows the member's lifetime, including
 when its count is zero. `online only` on the view opts
 out of member-audience delivery. E_VIEW_KEY includes the admitted rewrite.

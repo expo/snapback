@@ -2,6 +2,10 @@
 // @ref LLP 3000.007.001#2 — the binder and raw-schema admission share this walk.
 use super::*;
 
+/// Fixed public reservation: steps, index entries, examined, rows written, heap.
+/// A compact wire tuple avoids a second resource-object codec in the device.
+pub type ReceiptColumnCost = [u64; 5];
+
 pub const GROUP: &str = "$parent";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

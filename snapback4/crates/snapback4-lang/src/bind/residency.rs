@@ -97,7 +97,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
                 && (m.source == table || m.row_key.as_ref().is_some_and(|k| k.table == table)) {
                 fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: String::new(),
                     kind: "deferred receipt maintenance".into(), class: SiteClass::Held,
-                    reason: format!("receipt-derived maintenance {} stays settled during prediction; readers report incomplete until settlement", m.target),
+                    reason: format!("receipt-derived maintenance {} stays settled during prediction; affected groups report incomplete until settlement", m.target),
                     rewrite: String::new() });
             }
         }

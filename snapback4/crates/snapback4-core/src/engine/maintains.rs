@@ -18,24 +18,67 @@ impl Runner<'_> {
         self.device && self.schema.receipt_dependencies.contains_key(&m.target)
     }
 
-    // Overlay metadata includes deletions, so hiding an old source cannot make
-    // a live recount silently certify a smaller count. No source scan or taint.
-    #[inline(never)] // One shared overlay check for point, scan and live-count reads.
-    pub(super) fn receipt_maintain_pending(&mut self, m: &Maintain) -> Result<bool, RuntimeError> {
+    // Cache ordinary group keys once per target/query. Predicates and receipt
+    // fields are never evaluated; unknown/computed keys conservatively freeze
+    // the target. An unpinned read is incomplete if any group is dirty, while
+    // each returned row still decides independently whether to recount.
+    #[inline(never)]
+    pub(super) fn receipt_maintain_pending(&mut self, m: &Maintain, group: Option<&[Value]>) -> Result<bool, RuntimeError> {
         if !self.defer_receipt_maintain(m) { return Ok(false); }
-        for table in std::iter::once(m.source.as_str()).chain(m.row_key.as_ref().map(|k| k.table.as_str())) {
-            // Device puts remember the base image before writing, including
-            // writes in this invocation. The metadata lookup covers both.
-            if self.tx.has_provisional(table)? {
-                self.value_source_incomplete = true;
-                self.components.note(|frame| frame.pending = true);
-                return Ok(true);
+        if !self.receipt_pending_groups.contains_key(&m.target) {
+            let fields = if let Some(k) = &m.row_key { vec![k.source_key.clone()] }
+                else { m.by.iter().map(|f| m.aliases.get(f).unwrap_or(f).clone()).collect() };
+            let mut groups = self.receipt_overlay_groups(&m.source, &fields, !m.computed.is_empty())?;
+            if let Some(k) = &m.row_key {
+                let member = self.receipt_overlay_groups(&k.table, std::slice::from_ref(&k.member_key), false)?;
+                groups = groups.zip(member).map(|(mut source, member)| { source.extend(member); source });
             }
+            self.receipt_pending_groups.insert(m.target.clone(), groups);
         }
-        Ok(false)
+        let dirty = self.receipt_pending_groups[&m.target].as_ref().is_none_or(|keys|
+            group.map_or(!keys.is_empty(), |group| keys.iter().any(|key| key == group)));
+        if dirty {
+            self.value_source_incomplete = true;
+            self.components.note(|frame| frame.pending = true);
+        }
+        Ok(dirty)
+    }
+
+    fn receipt_overlay_groups(&self, table: &str, fields: &[String], computed: bool) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+        if !self.tx.has_provisional(table)? { return Ok(Some(Vec::new())); }
+        if computed || fields.iter().any(|f| self.schema.receipt_dependencies.get(table).is_some_and(|owned| owned.contains(f))) {
+            return Ok(None);
+        }
+        self.tx.provisional_groups(table, fields)
+    }
+
+    // Recover a read's parent/group from the pinned index. A member point uses
+    // one ordinary-key lookup; a scan without the parent stays conservative.
+    pub(super) fn receipt_read_group(&mut self, m: &Maintain, index: &str, key: &[Value]) -> Result<Option<Vec<Value>>, RuntimeError> {
+        if !self.defer_receipt_maintain(m) { return Ok(None); }
+        let columns = self.schema.tables[&m.target].indexes[index].columns();
+        let pinned = |field: &str| columns.iter().position(|c| c == field).and_then(|i| key.get(i)).cloned();
+        if let Some(k) = &m.row_key {
+            if let Some(parent) = pinned(&k.member_key) { return Ok(Some(vec![parent])); }
+            if let Some(id) = pinned("member").or_else(|| pinned("id")) {
+                let row = self.metered_scan(|r, scope| r.tx.get(scope, &k.table, id.as_str()?))?;
+                return Ok(row.and_then(|row| row.field(&k.member_key).ok().cloned()).map(|v| vec![v]));
+            }
+            return Ok(None);
+        }
+        Ok(m.by.iter().map(|f| pinned(f)).collect())
     }
 
     pub(super) fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        self.receipt_pending_groups.clear();
+        // Inserts ordinarily charge their actual aggregate work. A deferred
+        // predicate cannot select that work on a device, so use the same public
+        // worst-case reservation as update/delete before skipping it. Already
+        // prepaid writes must not pay twice.
+        if self.device && !self.maintain_prepaid && self.schema.maintains.iter().any(|m|
+            m.source == source && m.private.is_none() && m.row_key.is_none() && self.defer_receipt_maintain(m)) {
+            self.reserve_maintains(source, &self.schema.tables[source])?;
+        }
         self.maintain_row_views(source, old, new)?;
         let maintains = self.schema.maintains.iter().filter(|maintain| maintain.source == source && maintain.row_key.is_none());
         for maintain in maintains {

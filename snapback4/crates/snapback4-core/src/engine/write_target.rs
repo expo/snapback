@@ -361,9 +361,10 @@ pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
 impl Runner<'_> {
     // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
     pub(in crate::engine) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
-        if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
-        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none() && m.row_key.is_none() && !self.defer_receipt_maintain(m)).collect();
-        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring()) { return Ok(()); }
+        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none() && m.row_key.is_none()).collect();
+        let deferred = maintains.iter().any(|m| self.defer_receipt_maintain(m));
+        if !deferred && (table.rules.read.is_uniformly_readable() || self.context.is_system()
+            || !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring())) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;
         // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.

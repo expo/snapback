@@ -139,6 +139,7 @@ impl super::Schema {
     pub fn prepare_receipt_dependencies(&mut self) {
         if self.receipts.is_empty() {
             self.receipt_dependencies.clear();
+            self.receipt_column_costs.clear();
             return;
         }
         let mut fields = self.receipt_dependencies.clone();
@@ -207,6 +208,16 @@ impl super::Schema {
         }
         fields.retain(|_, fields| !fields.is_empty());
         self.receipt_dependencies = fields;
+        // @ref LLP 3000.022#14.3 — retain prices, never private predicates or
+        // values, when the public projection removes column derivations.
+        #[cfg(feature = "sqlite")]
+        if (self.maintains.iter().any(|m| m.private.is_some()) || self.tables.values().all(|t| t.maintained.is_empty())) && self.maintains.iter().all(|m|
+            m.private.as_ref().is_none_or(|owner| self.tables.contains_key(&m.source)
+                && self.tables.contains_key(&m.target) && self.tables.contains_key(&owner.table))) {
+            self.receipt_column_costs = self.maintains.iter().filter(|m| m.private.is_some()
+                && self.receipt_dependencies.contains_key(&m.target))
+                .map(|m| (m.source.clone(), crate::engine::columns::reservation(self, &m.source))).collect();
+        }
     }
 
     pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {

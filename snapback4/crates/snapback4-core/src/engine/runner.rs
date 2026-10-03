@@ -173,6 +173,7 @@ pub struct Runner<'a> {
     pub(crate) page_overflow: bool,
     pub(super) discovering_values: bool,
     pub(super) value_source_incomplete: bool,
+    pub(super) receipt_pending_groups: BTreeMap<String, Option<Vec<Vec<Value>>>>,
     pub(crate) timeline_pending: bool,
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
@@ -322,6 +323,7 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,
+            receipt_pending_groups: BTreeMap::new(),
             timeline_pending: false,
             word_cut_at: None,
             device: false,

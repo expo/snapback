@@ -533,6 +533,8 @@ query badges(conversation: conversations):
   const created = await local.mutate(api.createConversation, { title: "receipt badge" });
   assert.equal(created.state, "sent", JSON.stringify(created));
   const conversation = created.result;
+  const clean = await local.mutate(api.createConversation, { title: "unrelated badge" });
+  assert.equal(clean.state, "sent");
   await local.sync(); offline = true; await local.sync();
   const writes = [];
   for (const text of ["one", "two", "three"]) {
@@ -547,6 +549,9 @@ query badges(conversation: conversations):
     const badges = await local.query(api.badges, { conversation });
     assert.equal(badges.complete, false, JSON.stringify(badges));
     assert.deepEqual(badges.data.map(row => [row.value, row.recountPending]), [[0, true]]);
+    const unrelated = await local.query(api.badges, { conversation: clean.result });
+    assert.equal(unrelated.complete, true, JSON.stringify(unrelated));
+    assert.deepEqual(unrelated.data.map(row => [row.value, row.recountPending]), [[0, false]]);
   }
   // Another device of this user allocates first, shifting all three positions.
   assert.equal((await remote.mutate(api.send, { conversation, text: "other device", photo: null })).state, "sent");
