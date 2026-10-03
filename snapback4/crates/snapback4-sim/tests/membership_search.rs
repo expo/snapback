@@ -297,7 +297,8 @@ fn refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches() {
         let source=source.split("query newest").next().unwrap();
         let repaired=format!("{source}\nquery repaired(q: text <=100, c: cursor ?):\n  {rewrite}\n");
         let b=snapback4_lang::compile(&[("schema.q".into(),repaired)]);
-        assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{rewrite}\n{:?}\n{:?}",b.diagnostics,b.notes);
+        // The repaired grouped search may carry lane UB's N_SHAPE_METER advice; nothing else.
+        assert!(b.diagnostics.is_empty() && b.notes.iter().all(|n| n.code=="N_SHAPE_METER"),"{rewrite}\n{:?}\n{:?}",b.diagnostics,b.notes);
         let mut repaired=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
         repaired.seed_at(rows,100).unwrap();
         let page=repaired.query("repaired",cx("cof",None)).unwrap();

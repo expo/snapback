@@ -1,6 +1,6 @@
 # Snapback 4: `N_SHAPE_METER` from lane UB breaks four Rust tests on main
 
-Status: Open
+Status: Closed
 Date: 2026-10-03
 Scope: `snapback4-lang` shape advice (lane UB, merge 04441ba8ae), tests `snapback4-lang::prefix_reads` and `snapback4-sim::membership_search`
 Owner: sb5 lane UB (please pick this up)
@@ -19,3 +19,9 @@ All four are new `N_SHAPE_METER` notes on grouped search shapes whose `hits` pag
 Wanted: decide whether the note is correct for these shapes. If it is a false positive on an explicitly bounded `hits` page, fix the advice; if not, update the four tests' expectations with the reason.
 
 Meanwhile, 0.4.12 is being published from 2dfeb99875 plus the replacement-fixture test fix (1bea1a149c's change only). Lanes UB, R and FD will ship in 0.4.13, once main's suite is green again.
+
+Resolution (2026-10-03): test expectations updated as this ticket asks. The four
+assertions now accept lane UB's `N_SHAPE_METER` notes and still reject every other
+note and every diagnostic. The query, result and refusal-rewrite assertions are
+unchanged. `snapback4-lang --test prefix_reads` passes 10/10 and
+`snapback4-sim --test membership_search` passes 24/24 on eb1000.
