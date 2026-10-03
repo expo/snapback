@@ -82726,3 +82726,44 @@ remains red. The Xcode 27 lifecycle ticket is closed with those limits stated.
 Local evidence lives only under ~/x27r-evidence/, with per-file SHA-256 and
 summaries in ~/x27r.final.md. No raw simulator, build or crash logs in git;
 no push, publication, tag, other host or other worktree mutation.
+
+
+## 2026-10-02 — X27R round 1: fold both blind reviews
+
+Filter scene crash reports by bundle, launch-time mtime, owned PID and simulator
+before choosing the newest report with NoSceneLifecycleAdoption in its faulting
+thread. A newer foreign-simulator report or an owned report without the symbol
+cannot mask the scene crash. Keep one best candidate, check the retry deadline
+inside the scan, cap actual reads at 16 MiB even if the file grows, and hash the
+bytes inspected. Update the witness card and LLP 3000.030 §13 together.
+
+Record installed-product xcodeBuild, iosSdkVersion and toolchainSource on the
+preparation manifest immediately after inspection, before later bundle, artifact
+or already-running refusals. The driver regression contrasts a 26.6 host with a
+27.0 product, then verifies absent product fields stay null. Add both concurrent
+report regressions, nonzero faulting-thread and nonfaulting-symbol controls,
+an expired scan, isolated-process memory comparison and a late report published
+600 ms after fake launchctl exits. Six deliberate mutations fail their tests,
+including deleting the retry. The old retain-all implementation peaks at
+5,046,272 / 73,809,920 bytes for 1 / 64 large reports; the fixed scan at
+5,095,424 / 8,552,448 bytes in the final run.
+
+Final checks: Rust init 22, witness integration 70, witness units 14, JavaScript
+witness/periphery/preparation/scenes 45 and whole guide 111 all pass. ref-check
+passes with 0 errors. The first run's guide pins and overly broad fake SDK change
+were corrected; an existing driver port collision is retained in the log and
+passes in the final complete affected-target run. No full suite this round.
+
+Xcode 27A266a / iOS SDK 27.0, dedicated iPhone 17e
+3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B only: reinstall the preserved round-0 products
+after verifying their executable/JavaScript hashes and scene manifests. The
+unfixed product exits 1 with E_WITNESS_SCENE_LIFECYCLE (3.896 s). Fixed reference
+offline and restart exit 0 (10.472 / 15.170 s), with 303 seeded rows, cold history,
+two ordered pending sends and restart persistence. Rehash all 20 declared
+artifacts across the three manifests. These remain installed-app scenarios;
+no new workspace-build or Xcode 26.6 qualification is claimed.
+
+Evidence: ~/x27r-evidence/round1/; appended report: ~/x27r.final.md, Round 1.
+Keep supervisor commit 4107563753 and append this existing journal as explicitly
+instructed; its size is not a review finding. No push, publish, tag, other
+simulator, other worktree or delegated agent.

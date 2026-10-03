@@ -250,8 +250,8 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
   --segment restart --artifacts artifacts/restart --port 4400 --prime --relaunch
 ```
 
-Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` artifact prefixes.
-Preparation is unknown; no smoke proves M6/M8 assertions or benchmark admission.
+Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` prefixes. Preparation
+is unknown; no smoke proves M6/M8 assertions or benchmark admission.
 
 Each ordinary scenario writes `<segment>-ios-screen.mp4` (uninterrupted native screen
 recording), `<segment>-ios-receipts.jsonl` (the app's assertions and completed
@@ -260,16 +260,15 @@ build identifiers, `xcodeBuild` and `iosSdkVersion` from that installed product,
 backend command/origin/port, millisecond timestamps,
 termination/relaunch events, byte counts, SHA-256 digests and exit status).
 Missing producing-toolchain metadata stays null; it is never inferred from the
-selected host. A preparation failure before product inspection labels its
-toolchain fields as selected-host information.
-The device log and backend/capture logs accompany them. Missing or empty
-artifacts, malformed receipts, failed steps, timeouts and backend failures
+selected host. A failure before product inspection labels selected-host information;
+a failure after toolchain inspection keeps the product fields, including nulls.
+Device and backend/capture logs accompany them. Missing/empty artifacts,
+malformed receipts, failed steps, timeouts and backend failures
 exit nonzero with an `E_WITNESS_*` diagnostic. Existing artifacts are never
 overwritten; choose a fresh directory for a retry. Keep the manifest with
 the exact video and receipt files it hashes.
 A persistent `<segment>-ios-reserved` marker exclusively reserves all output
-names; concurrent runs cannot share them, and backend/launch logs append
-across restart and relaunch.
+names; concurrent runs cannot share them. Backend/launch logs append across restart and relaunch.
 Every complete receipt is validated, including rows after a milestone and
 again at collection; after `done`, only app receipts with the unchanged
 `between-steps` state are accepted.
@@ -304,14 +303,15 @@ device, and pass its exact `--udid`. If simctl itself fails, repair that
 simulator/runtime first; do not let the witness choose someone else's device.
 
 E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming
-receipt and its newest matching crash report contains `NoSceneLifecycleAdoption`.
+receipt. The detector filters reports by bundle, launch PID, simulator and mtime
+since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread.
 For the pinned Expo 57.0.22 starter, include `snapback4-expo/plugin` in
 app.json's plugins, regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release.
 Keep native customizations when regenerating an existing iOS project; custom
-projects must adopt UIScene in their own lifecycle. The detector
-matches the bundle, launch PID, simulator and report time; unrelated exits retain the ordinary app-exit diagnostic.
-The manifest retains the matching report's digest and faulting frames. An
-app that already wrote its priming receipt keeps the ordinary exit diagnostic.
+projects must adopt UIScene in their own lifecycle. The three-second retry checks its
+deadline during scanning; reports are limited to 16 MiB and only one best candidate is retained.
+The manifest retains the selected report's digest and faulting frames. Other exits,
+including an app that already wrote its priming receipt, keep the ordinary exit diagnostic.
 
 E_WITNESS_PORT means the requested backend port is occupied. For example,
 a manual `snapback4 dev` already listening on 4400 prevents the witness

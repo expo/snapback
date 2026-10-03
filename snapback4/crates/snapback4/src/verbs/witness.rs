@@ -262,7 +262,7 @@ impl Run {
                     if let Some(home) = std::env::var_os("HOME") {
                         let reports = PathBuf::from(home).join("Library/Logs/DiagnosticReports");
                         loop {
-                            if let Some(crash) = scene_crash(&reports, &self.options.bundle, self.app_pid.unwrap(), &self.udid, self.app_started) {
+                            if let Some(crash) = scene_crash(&reports, &self.options.bundle, self.app_pid.unwrap(), &self.udid, self.app_started, deadline) {
                                 self.manifest["sceneCrash"] = crash;
                                 return Err(error("E_WITNESS_SCENE_LIFECYCLE", SCENE_REPAIR));
                             }
@@ -458,6 +458,9 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
         build[key] = output.ok().filter(|o| o.status.success()).map_or(Value::Null, |o| json!(String::from_utf8_lossy(&o.stdout).trim()));
     }
     let toolchain = app_toolchain(&build);
+    for key in ["xcodeBuild", "iosSdkVersion", "toolchainSource"] {
+        preparation[key] = toolchain[key].clone();
+    }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
     let installed = if options.smoke {
         json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,

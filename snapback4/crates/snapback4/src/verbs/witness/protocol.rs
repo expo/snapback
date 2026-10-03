@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{fs, io::Read, net::{SocketAddr, TcpListener, TcpStream}, path::Path, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{fs, io::Read, net::{SocketAddr, TcpListener, TcpStream}, path::Path, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 
 pub type Result<T> = std::result::Result<T, String>;
 pub fn error(code: &str, message: impl std::fmt::Display) -> String { format!("{code}: {message}") }
@@ -13,28 +13,39 @@ pub fn name(value: &str) -> bool { !value.is_empty() && value.bytes().all(|b| b.
 pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoSceneLifecycleAdoption). For the pinned Expo 57 starter, add snapback4-expo/plugin to app.json plugins, regenerate the iOS project with expo prebuild --platform ios, then rebuild and reinstall the Release app. See snapback4 why E_WITNESS_SCENE_LIFECYCLE";
 
 // @ref LLP 3000.030#13 — diagnose only this launch, never a neighbouring simulator.
-pub fn scene_crash(dir: &Path, bundle: &str, pid: u32, udid: &str, since: u128) -> Option<Value> {
-    let mut reports = Vec::new();
+pub fn scene_crash(dir: &Path, bundle: &str, pid: u32, udid: &str, since: u128, deadline: Instant) -> Option<Value> {
+    const MAX_REPORT: u64 = 16 * 1024 * 1024;
+    let mut best = None;
+    let device_path = format!("/Devices/{udid}/");
     for entry in fs::read_dir(dir).ok()?.flatten() {
+        if Instant::now() >= deadline { break; }
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) != Some("ips") { continue; }
         let Ok(meta) = entry.metadata() else { continue; };
         let Some(modified) = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|t| t.as_millis()) else { continue; };
-        if modified < since || meta.len() > 16 * 1024 * 1024 { continue; }
-        let Ok(text) = fs::read_to_string(&path) else { continue; };
+        if modified < since || !meta.is_file() || meta.len() > MAX_REPORT { continue; }
+        if best.as_ref().is_some_and(|(time, _)| modified <= *time) { continue; }
+        let Ok(file) = fs::File::open(&path) else { continue; };
+        let mut text = String::new();
+        // Bound the read even if a report grows after metadata inspection.
+        if file.take(MAX_REPORT + 1).read_to_string(&mut text).is_err()
+            || text.len() as u64 > MAX_REPORT || Instant::now() >= deadline { continue; }
         let Some((header, body)) = text.split_once('\n') else { continue; };
         let Ok(header) = serde_json::from_str::<Value>(header) else { continue; };
         if header["bundleID"] != bundle { continue; }
         let Ok(body) = serde_json::from_str::<Value>(body) else { continue; };
-        reports.push((modified, path, body));
+        if body["pid"].as_u64() != Some(pid as u64)
+            || !body["procPath"].as_str().is_some_and(|p| p.contains(&device_path)) { continue; }
+        let Some(thread) = body["faultingThread"].as_u64().and_then(|n| usize::try_from(n).ok()) else { continue; };
+        let Some(frames) = body["threads"].get(thread).and_then(|t| t.get("frames")).and_then(Value::as_array) else { continue; };
+        if !frames.iter().any(|f| f["symbol"].as_str().is_some_and(|s| s.contains("NoSceneLifecycleAdoption"))) { continue; }
+        // Keep only the best matching evidence, not every parsed report body.
+        // Hash the bytes inspected above rather than reopening a changing file.
+        best = Some((modified, json!({ "report": { "path": path, "bytes": text.len(),
+            "sha256": format!("{:x}", Sha256::digest(text.as_bytes())) }, "pid": pid,
+            "exception": body["exception"], "frames": frames })));
     }
-    let (_, path, body) = reports.into_iter().max_by_key(|(time, _, _)| *time)?;
-    if body["pid"].as_u64() != Some(pid as u64)
-        || !body["procPath"].as_str()?.contains(&format!("/Devices/{udid}/")) { return None; }
-    let thread = body["faultingThread"].as_u64()? as usize;
-    let frames = body["threads"].get(thread)?.get("frames")?.as_array()?;
-    if !frames.iter().any(|f| f["symbol"].as_str().is_some_and(|s| s.contains("NoSceneLifecycleAdoption"))) { return None; }
-    Some(json!({ "report": artifact(&path).ok()?, "pid": pid, "exception": body["exception"], "frames": frames }))
+    best.map(|(_, report)| report)
 }
 
 pub fn app_toolchain(info: &Value) -> Value {
