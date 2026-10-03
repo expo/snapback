@@ -1,0 +1,640 @@
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":1707.194059}
+✔ process: pending cut preserves transition before sync publication (4613.07529ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":98.14127899999949}
+✔ process: pending cut preserves emptyTransition before sync publication (5183.997765ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":24.431781000001138}
+✔ process: pending cut preserves presentTransition before sync publication (1946.27642ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":22.165844999999536}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1586.206433ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":38.84103700000014}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1700.559989ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":14.845148999997036}
+✔ wasm: pending cut preserves transition before sync publication (3458.053194ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":3.899876999999833}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1168.22924ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":24.774144999999407}
+✔ wasm: pending cut preserves presentTransition before sync publication (1217.99144ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":2.869301999999152}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1221.528142ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.8072690000008151}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1103.487457ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27633.448559
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":82.97256400000015}
+✔ process: pending cut preserves transition before sync publication (3641.714147ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":86.63156000000072}
+✔ process: pending cut preserves emptyTransition before sync publication (2870.342586ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":62.6185260000002}
+✔ process: pending cut preserves presentTransition before sync publication (2020.924972ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":66.62830900000154}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (2035.207333ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":6.392164000000776}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1958.608113ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":3.3390660000004573}
+✔ wasm: pending cut preserves transition before sync publication (2268.869677ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":9.551149999999325}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1327.989606ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":2.8698530000001483}
+✔ wasm: pending cut preserves presentTransition before sync publication (1296.60564ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.665327000002435}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1233.126593ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.4123379999982717}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1132.70773ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24359.738356
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":53.3722929999999}
+✔ process: pending cut preserves transition before sync publication (3253.6289ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":73.33544400000028}
+✔ process: pending cut preserves emptyTransition before sync publication (3871.359505ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":71.33744800000022}
+✔ process: pending cut preserves presentTransition before sync publication (2928.114022ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":44.27430099999947}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1331.541055ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":31.412076999999044}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (979.6073ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":11.153422999999748}
+✔ wasm: pending cut preserves transition before sync publication (3162.008066ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":10.794174000002386}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1735.893205ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":2.9796769999993558}
+✔ wasm: pending cut preserves presentTransition before sync publication (1271.507409ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":2.3104650000022957}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1275.503259ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":5.402810999999929}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1044.393491ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25168.720779
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":113.89827999999989}
+✔ process: pending cut preserves transition before sync publication (3362.06567ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":25.085250000000087}
+✔ process: pending cut preserves emptyTransition before sync publication (2420.558088ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":129.14821400000073}
+✔ process: pending cut preserves presentTransition before sync publication (2387.70003ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":40.52102400000149}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (2087.109047ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":30.098336999999447}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1576.730329ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":27.283755999998903}
+✔ wasm: pending cut preserves transition before sync publication (2638.288121ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":3.087709999999788}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1036.049047ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":5.747396999999182}
+✔ wasm: pending cut preserves presentTransition before sync publication (949.59771ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.903904999999213}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (745.247966ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.947489999998652}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (983.020039ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22697.129528
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":114.284987}
+✔ process: pending cut preserves transition before sync publication (1599.794107ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":18.86203999999998}
+✔ process: pending cut preserves emptyTransition before sync publication (1913.26945ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":74.6880000000001}
+✔ process: pending cut preserves presentTransition before sync publication (2050.762751ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":12.39111800000046}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1876.571184ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":52.741524999999456}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (2292.859211ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":6.990421000000424}
+✔ wasm: pending cut preserves transition before sync publication (3624.940985ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":46.316962999999305}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1683.608687ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":2.0119869999980438}
+✔ wasm: pending cut preserves presentTransition before sync publication (1284.112834ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.6758819999995467}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1254.389599ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.3541109999969194}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1457.956175ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23609.838716
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":44.711996}
+✔ process: pending cut preserves transition before sync publication (1869.023579ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":38.98014199999989}
+✔ process: pending cut preserves emptyTransition before sync publication (1089.047247ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":44.37135500000022}
+✔ process: pending cut preserves presentTransition before sync publication (1735.357252ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":46.534098000000085}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1705.970611ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":84.24691999999959}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1738.360562ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":9.192251999998916}
+✔ wasm: pending cut preserves transition before sync publication (2698.442185ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":8.44955900000059}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1505.804108ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":6.164722000001348}
+✔ wasm: pending cut preserves presentTransition before sync publication (1180.021087ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":4.736041000000114}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1176.042491ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.3385359999992943}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1344.992684ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20219.474415
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":51.166021999999884}
+✔ process: pending cut preserves transition before sync publication (2237.031003ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":21.240405999999894}
+✔ process: pending cut preserves emptyTransition before sync publication (2409.017707ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":24.67280099999971}
+✔ process: pending cut preserves presentTransition before sync publication (1559.206953ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":30.459577000000536}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (978.24534ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":24.330497999999352}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (982.043514ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":7.58360999999968}
+✔ wasm: pending cut preserves transition before sync publication (1944.281342ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":8.205082000000402}
+✔ wasm: pending cut preserves emptyTransition before sync publication (958.154576ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":14.588391999999658}
+✔ wasm: pending cut preserves presentTransition before sync publication (829.011245ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.560989999999947}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1114.559028ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.1601900000005116}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (1005.15346ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18384.948777
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":47.6640809999999}
+✔ process: pending cut preserves transition before sync publication (1992.412233ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":81.58917399999973}
+✔ process: pending cut preserves emptyTransition before sync publication (2439.965804ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":58.862200000000485}
+✔ process: pending cut preserves presentTransition before sync publication (2414.343646ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":92.85946200000035}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (2106.300225ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":41.72674900000129}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1977.481439ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":6.277270999999018}
+✔ wasm: pending cut preserves transition before sync publication (1940.25905ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":6.075459000001501}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1010.186164ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":10.636276999999609}
+✔ wasm: pending cut preserves presentTransition before sync publication (636.717958ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":5.394618000000264}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (892.257719ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.424566000001505}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (971.534655ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20506.553403
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":15.383935000000292}
+✔ process: pending cut preserves transition before sync publication (1781.254853ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":33.95778100000007}
+✔ process: pending cut preserves emptyTransition before sync publication (1192.639144ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":109.71566199999961}
+✔ process: pending cut preserves presentTransition before sync publication (1015.647308ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":22.942306999999346}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (811.705706ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":27.05427099999997}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (872.493983ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":6.795188000000053}
+✔ wasm: pending cut preserves transition before sync publication (2614.832524ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":1.9024420000005193}
+✔ wasm: pending cut preserves emptyTransition before sync publication (1171.601871ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":10.48731300000145}
+✔ wasm: pending cut preserves presentTransition before sync publication (488.026396ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.3749509999997827}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1258.976757ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":5.088028000000122}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (619.49439ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16222.018862
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":12.012038999999959}
+✔ process: pending cut preserves transition before sync publication (939.379035ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":32.92558400000007}
+✔ process: pending cut preserves emptyTransition before sync publication (1224.221145ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":71.57691100000011}
+✔ process: pending cut preserves presentTransition before sync publication (1108.896313ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":12.498428999999305}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (573.68046ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":7.328918000000158}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (937.23554ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":8.019443000000138}
+✔ wasm: pending cut preserves transition before sync publication (1607.207415ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":5.41127299999971}
+✔ wasm: pending cut preserves emptyTransition before sync publication (558.041463ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.682122000000163}
+✔ wasm: pending cut preserves presentTransition before sync publication (877.187412ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.5024130000001605}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (702.993322ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.082472999998572}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (806.228706ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13683.623188
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":18.37086199999999}
+✔ process: pending cut preserves transition before sync publication (1118.458383ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":7.169128000000001}
+✔ process: pending cut preserves emptyTransition before sync publication (1140.353028ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":63.72053199999982}
+✔ process: pending cut preserves presentTransition before sync publication (1156.57568ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":27.84924299999966}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1112.92782ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":31.193696999999702}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (767.996363ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":2.0680099999999584}
+✔ wasm: pending cut preserves transition before sync publication (1970.990573ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":5.465834000000541}
+✔ wasm: pending cut preserves emptyTransition before sync publication (863.76999ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":2.4062570000005508}
+✔ wasm: pending cut preserves presentTransition before sync publication (527.973289ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":6.835608999999749}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (1024.666973ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":5.231343000001289}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (563.661064ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14925.27219
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":30.43393799999967}
+✔ process: pending cut preserves transition before sync publication (3632.84633ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":39.69585400000051}
+✔ process: pending cut preserves emptyTransition before sync publication (934.935069ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":15.598777000000155}
+✔ process: pending cut preserves presentTransition before sync publication (1222.650452ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":21.797059000000445}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (758.924206ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":42.81466900000032}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (981.836004ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":5.9629989999993995}
+✔ wasm: pending cut preserves transition before sync publication (1916.007666ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":1.8032129999992321}
+✔ wasm: pending cut preserves emptyTransition before sync publication (901.749243ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.5925569999999425}
+✔ wasm: pending cut preserves presentTransition before sync publication (496.695643ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.5380659999991622}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (493.814383ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.0096640000010666}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (536.024206ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16362.169852
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":14.007520999999997}
+✔ process: pending cut preserves transition before sync publication (3525.421339ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":54.792757000000165}
+✔ process: pending cut preserves emptyTransition before sync publication (995.435387ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":26.756594000000405}
+✔ process: pending cut preserves presentTransition before sync publication (1108.626746ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":73.10804499999995}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (835.901378ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":15.81543099999999}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (878.958599ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":4.976451000000452}
+✔ wasm: pending cut preserves transition before sync publication (1971.238796ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":5.48715699999957}
+✔ wasm: pending cut preserves emptyTransition before sync publication (926.963208ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.5940899999986868}
+✔ wasm: pending cut preserves presentTransition before sync publication (908.887458ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.4409099999993487}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (825.341765ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.0693030000002182}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (508.468509ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16957.353849
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":61.52371700000003}
+✔ process: pending cut preserves transition before sync publication (982.096412ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":31.26236999999992}
+✔ process: pending cut preserves emptyTransition before sync publication (1070.518447ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":26.81030499999997}
+✔ process: pending cut preserves presentTransition before sync publication (1154.679252ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":26.697304999999687}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (709.171336ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":31.79927399999997}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (811.799058ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":2.1079399999998714}
+✔ wasm: pending cut preserves transition before sync publication (1662.081679ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":1.7134589999996024}
+✔ wasm: pending cut preserves emptyTransition before sync publication (542.150043ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.7118660000014643}
+✔ wasm: pending cut preserves presentTransition before sync publication (866.119274ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.3348409999998694}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (509.17779ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":0.9746510000004491}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (491.513587ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13368.58501
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":69.48885900000005}
+✔ process: pending cut preserves transition before sync publication (969.056046ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":53.70742900000005}
+✔ process: pending cut preserves emptyTransition before sync publication (1253.315273ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":35.56515000000036}
+✔ process: pending cut preserves presentTransition before sync publication (987.688349ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":43.80837800000063}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1139.16822ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":26.9338400000006}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (794.661099ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":6.123521000000437}
+✔ wasm: pending cut preserves transition before sync publication (2176.943108ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":1.7152409999998781}
+✔ wasm: pending cut preserves emptyTransition before sync publication (632.077451ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.7041249999983847}
+✔ wasm: pending cut preserves presentTransition before sync publication (894.025746ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.305226999998922}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (499.480769ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.1363239999991492}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (468.012882ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14359.46734
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":28.98378200000002}
+✔ process: pending cut preserves transition before sync publication (898.679561ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":34.66744400000016}
+✔ process: pending cut preserves emptyTransition before sync publication (1107.727568ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":46.81408400000009}
+✔ process: pending cut preserves presentTransition before sync publication (1083.757863ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":13.507200000000012}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (778.154078ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":4.8766820000000735}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (785.832368ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":5.866575000000012}
+✔ wasm: pending cut preserves transition before sync publication (1706.173774ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":10.053712999999334}
+✔ wasm: pending cut preserves emptyTransition before sync publication (930.311352ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.543163000000277}
+✔ wasm: pending cut preserves presentTransition before sync publication (473.533487ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.291547000000719}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (502.086292ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":0.9213419999996404}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (481.051898ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13127.863358
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":74.38903500000015}
+✔ process: pending cut preserves transition before sync publication (3569.57461ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":48.64390700000058}
+✔ process: pending cut preserves emptyTransition before sync publication (1022.090344ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":61.62800299999981}
+✔ process: pending cut preserves presentTransition before sync publication (1063.147727ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":46.12936699999955}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (820.879316ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":33.861345000000256}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (804.935053ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":2.063473000000158}
+✔ wasm: pending cut preserves transition before sync publication (1652.219986ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":6.256449999998949}
+✔ wasm: pending cut preserves emptyTransition before sync publication (951.056157ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.6315159999994648}
+✔ wasm: pending cut preserves presentTransition before sync publication (477.703726ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.263132999998561}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (484.205903ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.0000589999999647}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (521.848978ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15871.086586
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":15.061599999999999}
+✔ process: pending cut preserves transition before sync publication (918.918624ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":19.164441000000352}
+✔ process: pending cut preserves emptyTransition before sync publication (1123.550528ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":68.44277899999997}
+✔ process: pending cut preserves presentTransition before sync publication (1188.398167ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":16.250482000000375}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (647.877248ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":38.31147599999986}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (920.741495ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":2.3045949999996083}
+✔ wasm: pending cut preserves transition before sync publication (1647.165028ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":6.628327000000354}
+✔ wasm: pending cut preserves emptyTransition before sync publication (924.096144ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":1.5889619999998104}
+✔ wasm: pending cut preserves presentTransition before sync publication (512.523224ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.3669790000003559}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (597.618138ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":0.9925579999999172}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (506.849969ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13435.904636
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":15.841550000000097}
+✔ process: pending cut preserves transition before sync publication (3498.753957ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":49.96046999999999}
+✔ process: pending cut preserves emptyTransition before sync publication (1159.600086ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":13.11424100000022}
+✔ process: pending cut preserves presentTransition before sync publication (1150.972322ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":28.061118999999962}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1087.17151ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":5.010030999999799}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (1119.753047ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":3.39081299999998}
+✔ wasm: pending cut preserves transition before sync publication (2169.596413ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":1.828601000001072}
+✔ wasm: pending cut preserves emptyTransition before sync publication (859.529831ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":8.862096000000747}
+✔ wasm: pending cut preserves presentTransition before sync publication (554.946892ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.24908300000061}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (466.682136ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":1.0527379999984987}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (862.129127ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17214.130241
+LM_NOTIFICATION {"host":"process","scenario":"transition","ms":33.512091000000055}
+✔ process: pending cut preserves transition before sync publication (3561.774795ms)
+LM_NOTIFICATION {"host":"process","scenario":"emptyTransition","ms":47.753701999999976}
+✔ process: pending cut preserves emptyTransition before sync publication (1267.313512ms)
+LM_NOTIFICATION {"host":"process","scenario":"presentTransition","ms":30.627487000000656}
+✔ process: pending cut preserves presentTransition before sync publication (978.186916ms)
+LM_NOTIFICATION {"host":"process","scenario":"refusal","ms":13.80558800000017}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (1145.096735ms)
+LM_NOTIFICATION {"host":"process","scenario":"held-refusal","ms":30.83625000000029}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (823.810496ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"transition","ms":2.16398400000071}
+✔ wasm: pending cut preserves transition before sync publication (2127.62661ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"emptyTransition","ms":12.868162000000666}
+✔ wasm: pending cut preserves emptyTransition before sync publication (625.262966ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"presentTransition","ms":7.933504000000539}
+✔ wasm: pending cut preserves presentTransition before sync publication (672.587364ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"refusal","ms":1.3540300000004208}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (858.353762ms)
+LM_NOTIFICATION {"host":"wasm","scenario":"held-refusal","ms":4.339425000000119}
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (742.930972ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17236.782054

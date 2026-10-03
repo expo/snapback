@@ -1,0 +1,22 @@
+{
+  "summary": "== 1 failure(s) in 1560 s",
+  "category": "cargo test",
+  "baseline": {
+    "failedTests": [
+      "explicit_caps_stay_silent_and_predicting_short_pages_stay_refused",
+      "prefix_reads_compile_without_notes_and_caps_follow_one_schema_number",
+      "edges::calendar_repair_executes_the_same_offset_boundary_predicate",
+      "refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches"
+    ],
+    "proofMainCommit": "1b879881bee0079c357356685f1a671fe0aed13b",
+    "proofLog": "main-rust-baseline.log.gz",
+    "ticket": "issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md"
+  },
+  "ours": [],
+  "merge": [],
+  "environmental": [],
+  "runnerRefusals": [],
+  "preQualificationIntegrationCorrection": "One undercovered guard for main's live-margin-browser file; corrected before client phase. Original census failure retained.",
+  "preparationError": "Initial census command used the wrong working-directory-relative path; no test executed.",
+  "macOSOnlyBaselines": "Not exercised by the mini runner checks; no reproduction claimed."
+}

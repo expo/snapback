@@ -46,6 +46,8 @@ query global(c: cursor ?):
   return activity last 20 by .at after c { *, card: posts[.post] }
 query home(c: cursor ?):
   return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
+query profile(actor: principal, c: cursor ?):
+  return posts where .authorId = actor and not .removed last 20 by .at after c
 ```
 
 Planned `home` serves server pages over a moderate corpus, with no per-follower inbox or offline floor. Behind many newer unrelated posts it can hit the meter and fail closed: `complete: false`, no `next`, never a complete empty page.
@@ -127,25 +129,21 @@ Own-key coverage is the default for this social example. The public windows stay
 delete cannot immediately change them. Another principal's missing key is
 still unknown outside the public window. Do not render loading as false.
 
-The policy accepts non-expiring public windows, immutable total unique keys
-containing the principal, and caller-owned writes. Key fields must be readable
-and required; `id` and `value` are reserved by the projection. The compiler
-chooses one qualifying unique key; a direct `viewer` owner expression on that
-key qualifies. It proves existence only:
-row fields, extra predicates, counts and write targets keep their own coverage.
-Predicted writes overlay keys transactionally; unpredicted writes remain pending
-intents. Sign-out preserves the replica and the owner's proof for an offline
-reopen as the same principal. A different caller cannot use that partition's proof;
-its own whole partition must be acquired. Interrupted acquisition or adoption
-grants no empty-partition proof. Existing windows do not opt in.
+The policy needs non-expiring public windows, immutable total unique keys containing
+the principal, and caller-owned writes. Keys must be readable and required; `id` and
+`value` are reserved. The compiler chooses one qualifying unique key;
+a direct `viewer` owner expression qualifies. Only existence is proved; row fields,
+extra predicates, counts and write targets keep their own coverage. Predicted writes
+overlay keys transactionally; unpredicted writes stay pending intents.
+Sign-out preserves the replica and the owner's proof for an offline reopen as the
+same principal. A different caller cannot use that partition's proof; acquire its whole
+partition first. Interrupted acquisition/adoption proves no absence. Existing windows do not opt in.
 
-Each viewer pays for their lifetime keys, plus the public window. The server
-pays for an owner index, one maintained row per key and private log events in
-the source transaction. Backfill precedes adoption publication. This replaces
-public interaction summaries that send everybody's keys to every device; it
-does not make prolific owners bounded. Measure with `client.residency()`.
-Devices predating the `owner-key-coverage` capability refuse this backend;
-upgrade devices before enabling the policy. See `guide sync`.
+Each viewer pays for lifetime keys plus the public window. The server pays for an
+owner index, one maintained row per key and private log events in the source
+transaction. Backfill precedes adoption publication. Private key delivery replaces public
+interaction summaries; prolific owners remain unbounded. Measure with `client.residency()`.
+Devices need the `owner-key-coverage` capability; upgrade before enabling it (`guide sync`).
 
 ## Trending: a bounded predicate read
 
@@ -198,6 +196,11 @@ refresh the ranking as time passes. The upper bound excludes future events.
 
 ## Following contract
 
+Following deliberately shows each followed actor's newest 1,000 events at follow
+time, plus new events afterward. Older posts are on the actor's profile: page with
+the single server `profile(actor, c)` query above, passing its `next` as `c`. At the feed's
+end (complete, no `next`, not updating), link followed actors: “See older posts on their profile”.
+
 - Events appear newest first by event time, then event id.
 - Your own events appear immediately. Followers receive new events shortly
   after, normally within a second on an idle host.
@@ -212,14 +215,12 @@ refresh the ranking as time passes. The upper bound excludes future events.
 
 Key events by `id`; shape `{ *, card: posts[.post] }`, keeping reposts of removed cards.
 
-The source floors are **global and non-sliding**, fixed at acquisition time,
-not per followed author. New arrivals accumulate; nothing evicts older held
-rows. The private inbox acquires its newest 1,000 copies per reader. This
-acquisition limit does not change the 1,000-event history window per followed
-author. Events follow their source rows: a fully synced kind keeps its owned event rows;
-a floored kind keeps its event state in engine slots on held sources. Online-only
-kinds keep neither. Removal records remain fully synced. Application follows may
-be fully synced, floored, or online only; the feed uses its private owned edges.
+Source floors are **global and non-sliding**, fixed at acquisition, not per actor.
+New arrivals accumulate without eviction. The private inbox acquires its newest
+1,000 copies per reader, separately from the history window per followed actor.
+Events follow sources: fully synced kinds keep owned event rows; floored kinds keep
+event slots on held sources; online-only kinds keep neither. Removal records stay fully synced.
+Application follows may use any public residency; the feed uses its private owned edges.
 
 An inbox page within its floor needs no posts. A shaped page is complete offline
 only when every card is held too. A recent repost of an old original, or a quiet
@@ -319,11 +320,10 @@ after a short time slice; each cursor commits with its writes. Waiting requests
 get the engine before the next chunk, and delivery retains a turn under continuous
 request traffic. Disk transactions use WAL `synchronous=FULL`, so a published
 device watermark does not rely on a later request to make its commit durable.
-A crash resumes from the committed cursor without duplicate copies. Follow uses
-an edge epoch and a 1,000-event window. Transaction sequence and write ordinals
-separate backfill from later delivery, so delayed delivery cannot enlarge history
-or revive an old follow. Reads check the current edge epoch and removal tombstone
-for every examined row. Removal purges copies before tombstone retirement.
+A crash resumes the committed cursor without duplicate copies. Transaction sequence
+and write ordinals separate backfill from later delivery; delayed delivery cannot
+enlarge history or revive an old follow. Reads check the current edge epoch and
+removal tombstone per examined row. Removal purges copies before tombstone retirement.
 `snapback4 doctor` lists pending and parked work.
 
 A merge cursor from generation N survives compatible adoption; direct cursors bind it.

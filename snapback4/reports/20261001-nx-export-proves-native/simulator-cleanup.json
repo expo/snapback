@@ -1,0 +1,34 @@
+{
+  "simulator": {
+    "name": "sb4-nx-1790894904995-92367",
+    "prefix": "sb4-nx-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+  },
+  "actions": [
+    {
+      "command": [
+        "xcrun",
+        "simctl",
+        "shutdown",
+        "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "xcrun",
+        "simctl",
+        "delete",
+        "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "ownershipRecordRemoved": "/Users/ccheever/.local/state/snapback4/witness/simulators/40F37BC8-7B71-497A-BFDE-022928C5B98C.json"
+}

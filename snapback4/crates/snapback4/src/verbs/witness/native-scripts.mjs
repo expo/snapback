@@ -1,6 +1,8 @@
-// @ref LLP 3000.030#4 — exact generated Expo 57 / RN 0.86 / CocoaPods 1.17 script forms.
+// @ref LLP 3000.030#3 — exact generated Expo 57 / RN 0.86 / CocoaPods 1.17 script forms.
 // Unknown scripts require manual installed-app preparation.
 export const phaseHashes = new Set([
+  "3e2a5090f73c411aeadd8332363ac8261e4a6b414811029c2c03d42cb22b81e4", // ExpoFileSystem dSYM, npm nested under expo
+  "e6b30c4260813b6108907f9d8453992397d24f4b66e5776690f6dc6e6f44b9d5", // ExpoFont dSYM, npm nested under expo
   "00ae9f1f54878059fe8373fd4b06cbf0c93dbadb949d9fdafff9441d2c189f70", // [CP-User] [Expo] Resolve ExpoFont dSYM source maps
   "040ad4446562a62eb8aac582bc2aa20f0887630b8f8bcc377271782a14aa4f5b", // Copy generated compatibility header
   "04154ec1ba16d2463cf4aa3de08b0f51692d9f5bc679b9f819ad93559e68c5be", // Copy generated compatibility header

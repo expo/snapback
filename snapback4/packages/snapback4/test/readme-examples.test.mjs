@@ -21,10 +21,13 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 
 // Each block is a separate module: no ambient client/api/any can hide a broken example.
 // The generated module stands for the app's schema; package imports always reach real source.
-const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from "snapback4/contract";
+const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor, ReceiptFamily } from "snapback4/contract";
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  history: Query<{ conversation: string; c?: Cursor | null }, { id: string; ordinal: number; pending?: boolean }[]>;
+  messageReceipts: Query<{ conversation: string; c?: Cursor | null }, { id: string; receipt: string }[]>;
+  receiptFamilies: { chat: ReceiptFamily<{ id: string; joinedOrdinal: number; deliveredOrdinal: number; seenOrdinal: number }, "conversation", "through"> };
   myMembership: Query<{ conversationId: string }, { id: string } | null>;
   members: Query<{ conversationId: string }, { id: string }[]>;
   inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
@@ -39,6 +42,9 @@ export declare const api: {
   inbox: Query<{ c?: Cursor | null }, { conversationId: string }[]>;
   send: Mutation<{ conversationId: string; body: string }, { id: string }>;
   sendPhoto: Mutation<{ conversationId: string; photo: { id: string } }, { id: string }>;
+  sendById: Mutation<{ id: string; conversationId: string; body: string }, { id: string }>;
+  sendMediaById: Mutation<{ id: string; conversationId: string; photo: { id: string } }, { id: string }>;
+  setLike: Mutation<{ postId: string; set: boolean }, void>;
   invite: Action<{ email: string }, { principal: string }>;
   social: { follow: Mutation<{ principal: string }, null> };
   identityByInvocation: OidcTransactionOperations["byInvocation"];

@@ -1,0 +1,32 @@
+✖ 47 transient: local.ts:850 follow (244.918625ms)
+✔ 47 persistent: local.ts:850 follow (89.375ms)
+✔ 48 transient: local.ts:855 follow (74.354708ms)
+✔ 48 persistent: local.ts:855 follow (76.513917ms)
+✔ 147 transient: local-search.ts:206 ordinarySearch (80.4505ms)
+✔ 147 persistent: local-search.ts:206 ordinarySearch (77.210375ms)
+✔ 148 transient: local-search.ts:208 ordinarySearch (69.953125ms)
+✔ 148 persistent: local-search.ts:208 ordinarySearch (58.246625ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 123014.345125
+
+✖ failing tests:
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:49:3
+✖ 47 transient: local.ts:850 follow (244.918625ms)
+  AssertionError [ERR_ASSERTION]: the classified await must actually experience an injected fault
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-np/lane-nx/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:264:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

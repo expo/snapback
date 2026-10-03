@@ -72,12 +72,21 @@ fn searchPeers(room: id):
 "#;
 fn compile(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{source}\n{:?}\n{:?}",b.diagnostics,b.notes);
+    assert!(b.diagnostics.is_empty(),"{source}\n{:?}",b.diagnostics);
+    if source.contains("hits:") {
+        // Grouped repairs bound returned hits, but further search terms can
+        // reject arbitrary candidates. Require advice on the words preview.
+        let words = snapback4_core::ir::scans(&b.programs[0].program).into_iter().find(|scan| !scan.existence
+            && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))).unwrap();
+        assert_eq!(b.notes.len(), 1, "{source}: {:?}", b.notes);
+        assert_eq!(b.notes[0].code, "N_SHAPE_METER");
+        assert!(b.notes[0].message.contains("shape field `hits`") && b.notes[0].message.contains(&format!("read {} on posts:", words.site)), "{:?}", b.notes);
+    } else { assert!(b.notes.is_empty(), "{source}: {:?}", b.notes); }
     b
 }
 
 #[test]
-fn grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview() {
+fn grouped_and_refusal_repairs_keep_the_preview_and_its_meter_advice() {
     let source=format!("{SCHEMA}\nquery newest(needle: text <=100, position: cursor ?):\n  return posts matching needle where not .tombstone and .sender = viewer and exists roster[.roomId, viewer] last 7 by .sent after position\n");
     let b=compile(&source);
     let p=&b.programs[0].program;
@@ -180,8 +189,49 @@ fn builtin_repairs_use_quarry_spellings_on_the_originating_schema() {
         assert!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),"{predicate}: {notes:?}");
         for note in notes {
             assert!(note.rewrite.contains("last 3 by .sent"),"{note:?}");
-            let fixed=compile(&format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n",note.rewrite));
+            let source = format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n", note.rewrite);
+            let fixed = snapback4_lang::compile(&[("schema.q".into(), source)]);
+            assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
+            // The rewrite preserves the residual on each hits preview. A page
+            // bounds matches, so candidate work still deserves meter advice.
+            assert_eq!(fixed.notes.len(), 2, "{predicate}: both the words preview and its residual browse twin need advice: {:?}", fixed.notes);
+            assert!(fixed.notes.iter().all(|n| n.code == "N_SHAPE_METER" && n.message.contains("rejected candidates")), "{:?}", fixed.notes);
+            for scan in snapback4_core::ir::scans(&fixed.programs[0].program).into_iter().filter(|scan| scan.table == "posts" && !scan.existence) {
+                assert!(fixed.notes.iter().any(|n| n.message.contains(&format!("read {} on posts:", scan.site))), "{predicate}: missing advice for {scan:?}: {:?}", fixed.notes);
+            }
             assert!(classify(&fixed.schema,&fixed.programs[0].program).is_empty(),"{note:?}");
         }
     }
+}
+
+#[test]
+fn lifted_search_and_precise_non_key_refusals() {
+    let base = include_str!("../../../../crates/snapback4-sim/tests/decorated_search.q");
+    for (name, body, reason) in [
+        ("point", "messages matching q last 20 by .at after c { *, title: rooms[.room].title }", None),
+        ("nonkey", "messages matching q last 20 by .at after c { *, peers: members[room = .room] first 3 by .id }", Some("projection")),
+        ("aggregate", "messages matching q last 20 by .at after c { *, peers: count(members[room = .room] first 3 by .id) }", Some("projection")),
+        ("filtered", "messages matching q where rooms[.room].title = 'Room' last 20 by .at after c", Some("filter depends on a decoration value")),
+    ] {
+        let b = snapback4_lang::compile(&[("schema.q".into(), format!("{base}\nquery {name}(q: text, c: cursor ?):\n  return {body}\n"))]);
+        assert!(b.diagnostics.is_empty(), "{name}: {:?}", b.diagnostics);
+        let p = &b.programs.last().unwrap().program;
+        let notes = classify(&b.schema, p);
+        let note = notes.iter().find(|n| n.code == "N_SEARCH_SHAPE");
+        if let Some(reason) = reason {
+            assert!(!b.schema.operations[name].search_decoration);
+            assert!(note.is_some_and(|n|n.message.contains(reason)), "{name}: {notes:?}");
+        } else {
+            assert!(b.schema.operations[name].search_decoration);
+            assert!(note.is_none(), "{notes:?}");
+            let cost = super::super::analyze(&b.schema, p);
+            assert!(cost.search_decoration.unwrap().contains("one read per distinct decoration key"));
+            let bare = &b.programs.iter().find(|p|p.program.name=="bare").unwrap().program;
+            let baseline = super::super::analyze(&b.schema, bare);
+            assert_eq!(cost.bounds.rows_examined, baseline.bounds.rows_examined + 20);
+            assert_eq!(cost.bounds.probes, baseline.bounds.probes + 40); // reservation + witness evaluation
+        }
+    }
+    let b = snapback4_lang::compile(&[("schema.q".into(), format!("{base}\nquery ordered(q: text):\n  return messages matching q last 20 by rooms[.room].title\n"))]);
+    assert!(!b.diagnostics.is_empty(), "ordering by a decoration must be diagnosed");
 }

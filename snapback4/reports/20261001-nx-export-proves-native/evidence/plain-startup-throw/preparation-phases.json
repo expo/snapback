@@ -1,0 +1,168 @@
+[
+  {
+    "label": "export-xcode-version",
+    "executable": "xcodebuild",
+    "args": [
+      "-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899310794,
+    "durationMs": 62,
+    "status": 0,
+    "signal": null,
+    "log": "export-xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77"
+  },
+  {
+    "label": "export-sdk-version",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899310856,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a"
+  },
+  {
+    "label": "export-sdk-build",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-build-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899310865,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be"
+  },
+  {
+    "label": "export-developer",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "clang"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899310874,
+    "durationMs": 10,
+    "status": 0,
+    "signal": null,
+    "log": "export-developer.log",
+    "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24"
+  },
+  {
+    "label": "export-tool-swiftc",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "swiftc"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899310989,
+    "durationMs": 11,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-swiftc.log",
+    "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89"
+  },
+  {
+    "label": "export-tool-swift-frontend",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "swift-frontend"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899311124,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-swift-frontend.log",
+    "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a"
+  },
+  {
+    "label": "export-tool-ld",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "ld"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899311214,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-ld.log",
+    "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88"
+  },
+  {
+    "label": "export-sdk-path",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-path"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899311224,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec"
+  },
+  {
+    "label": "export-pod-version",
+    "executable": "pod",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899311238,
+    "durationMs": 288,
+    "status": 0,
+    "signal": null,
+    "log": "export-pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+  },
+  {
+    "label": "export-ruby-version",
+    "executable": "ruby",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899311527,
+    "durationMs": 11,
+    "status": 0,
+    "signal": null,
+    "log": "export-ruby-version.log",
+    "sha256": "e206508cdef0a6c6b14b656b71ad9366db219b3e83e5efcf0839a50c87fd8dba"
+  },
+  {
+    "label": "export-copy-base",
+    "executable": "/bin/cp",
+    "args": [
+      "-cR",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/export-base.app",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899309865-63315/export.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899312980,
+    "durationMs": 18,
+    "status": 0,
+    "signal": null,
+    "log": "export-copy-base.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

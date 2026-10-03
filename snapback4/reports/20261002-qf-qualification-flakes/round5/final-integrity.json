@@ -1,0 +1,17 @@
+{
+  "qualifiedTrackedInputs": 2436,
+  "sourceChangesAfterQualification": [
+    "snapback4/JOURNAL.md"
+  ],
+  "sourceChangesAfterQualificationAreDocumentationOnly": true,
+  "binaryUnchanged": true,
+  "mainJournalPrefixPreserved": true,
+  "unresolvedConflicts": [],
+  "mainParent": "1b879881bee0079c357356685f1a671fe0aed13b",
+  "laneParent": "4291d06dee9897a1658a69973580aff8174c4c21",
+  "fullSuiteInvocations": 1,
+  "fullSuiteLogSha256": "674fac2369ab52a1fc11c90719f37cd708db998a57e902cc3aacba9f8ee6b62e",
+  "referenceAudit": "ref-check: ok \u2014 527 LLP docs, 10274 refs in 33812 files, 0 errors, 0 unchecked",
+  "stagedWhitespaceAgainstMainExit": 0,
+  "baselineWorktreeRemoved": true
+}

@@ -1,0 +1,3871 @@
+[
+  {
+    "file": "packages/snapback4/test/acquisition.test.mjs",
+    "largestMs": 1320000,
+    "stallMs": 1650000,
+    "guards": [
+      {
+        "expression": "hangBudget(600)",
+        "ms": 1320000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "largestMs": 182000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(31)",
+        "ms": 182000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+    "largestMs": 148000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+    "largestMs": 162000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+    "largestMs": 166000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(23)",
+        "ms": 166000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+    "largestMs": 178000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(29)",
+        "ms": 178000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-global.test.mjs",
+    "largestMs": 174000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-handles.test.mjs",
+    "largestMs": 168000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+    "largestMs": 150000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-local-session.test.mjs",
+    "largestMs": 144000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-online.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/app-outcomes.test.mjs",
+    "largestMs": 150000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-receipts.test.mjs",
+    "largestMs": 146000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-retirement.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/app-session-model.test.mjs",
+    "largestMs": 10000000,
+    "stallMs": 12500000,
+    "guards": [
+      {
+        "expression": "Math.max(240_000, count * 2000)",
+        "ms": 10000000
+      },
+      {
+        "expression": "hangBudget(20 * 2)",
+        "ms": 200000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-state.test.mjs",
+    "largestMs": 168000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app-storage.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/app.test.mjs",
+    "largestMs": 184000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      },
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(20)",
+        "ms": 160000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(23)",
+        "ms": 166000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(22)",
+        "ms": 164000
+      },
+      {
+        "expression": "hangBudget(32)",
+        "ms": 184000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/approval-model.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/approval-notifications.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/approval-review.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "largestMs": 228000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(54)",
+        "ms": 228000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "largestMs": 144000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "largestMs": 190000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      },
+      {
+        "expression": "hangBudget(31)",
+        "ms": 182000
+      },
+      {
+        "expression": "hangBudget(34)",
+        "ms": 188000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(35)",
+        "ms": 190000
+      },
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      },
+      {
+        "expression": "hangBudget(22)",
+        "ms": 164000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "largestMs": 134000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "largestMs": 128000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/astra-arguments.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/astra-projection.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/bounded-following.test.mjs",
+    "largestMs": 174000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      },
+      {
+        "expression": "hangBudget(26)",
+        "ms": 172000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "largestMs": 172000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(26)",
+        "ms": 172000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "largestMs": 182000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(31)",
+        "ms": 182000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/close-boundary.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/codec.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+    "largestMs": 2160000,
+    "stallMs": 2700000,
+    "guards": [
+      {
+        "expression": "hangBudget(1020)",
+        "ms": 2160000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/composed-authority.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/decorated-search.test.mjs",
+    "largestMs": 270000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "270000",
+        "ms": 270000
+      },
+      {
+        "expression": "60000",
+        "ms": 60000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/delivery-activation.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-approval.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-cas.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-crash.test.mjs",
+    "largestMs": 132000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+    "largestMs": 162000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+    "largestMs": 136000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/delivery-publication.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery-web.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/delivery.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/device-diet.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/device-residency.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "largestMs": 136000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "largestMs": 152000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "largestMs": 174000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "largestMs": 146000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/event-slots.test.mjs",
+    "largestMs": 130000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "largestMs": 186000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(33)",
+        "ms": 186000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+    "largestMs": 126000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/expo-scenes.test.mjs",
+    "largestMs": 60000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "60_000",
+        "ms": 60000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "largestMs": 120000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "5000",
+        "ms": 5000
+      },
+      {
+        "expression": "120000",
+        "ms": 120000
+      },
+      {
+        "expression": "20000",
+        "ms": 20000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/familiar-forms.test.mjs",
+    "largestMs": 192000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(36)",
+        "ms": 192000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/first-account.test.mjs",
+    "largestMs": 174000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/follow-window.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/following-unfollow.test.mjs",
+    "largestMs": 216000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(48)",
+        "ms": 216000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "largestMs": 132000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+    "largestMs": 10120000,
+    "stallMs": 12650000,
+    "guards": [
+      {
+        "expression": "hangBudget(5000)",
+        "ms": 10120000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(300)",
+        "ms": 720000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/http-bounds.test.mjs",
+    "largestMs": 266000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(73)",
+        "ms": 266000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/id-from.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "largestMs": 132000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/identity-organizations.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/identity-profile.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/identity-review.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/identity.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/init-recipe.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/intent-views.test.mjs",
+    "largestMs": 138000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keep-adoption.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-app-model.test.mjs",
+    "largestMs": 162000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keep-authority.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-clock.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-device.test.mjs",
+    "largestMs": 150000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keep-expiry.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keep-observation.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keep-reset.test.mjs",
+    "largestMs": 146000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+    "largestMs": 132000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+    "largestMs": 130000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+    "largestMs": 128000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+    "largestMs": 192000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(36)",
+        "ms": 192000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/linux-package.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+    "largestMs": 1720000,
+    "stallMs": 2150000,
+    "guards": [
+      {
+        "expression": "hangBudget(800)",
+        "ms": 1720000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+    "largestMs": 180000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(30)",
+        "ms": 180000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "largestMs": 152000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/live-propagation.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/local-e2e.test.mjs",
+    "largestMs": 164000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(22)",
+        "ms": 164000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/local-reads.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/local-signout.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/loopbar.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "largestMs": 146000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/maintained-columns.test.mjs",
+    "largestMs": 222000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(51)",
+        "ms": 222000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/maintains.test.mjs",
+    "largestMs": 150000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/measure-launch.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/media-dependencies.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "largestMs": 1800000,
+    "stallMs": 2250000,
+    "guards": [
+      {
+        "expression": "Math.max(240000, seeds * schedulesPerSeed * 2000)",
+        "ms": 1800000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/native-e2e.test.mjs",
+    "largestMs": 172000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(26)",
+        "ms": 172000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/native-opening.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/native-smoke.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/navigation-model.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/node-transport.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-model.test.mjs",
+    "largestMs": 576000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12 * 19)",
+        "ms": 576000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/one-shot.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/online-client-model.test.mjs",
+    "largestMs": 6000000,
+    "stallMs": 7500000,
+    "guards": [
+      {
+        "expression": "Math.max(180_000, count * 2000)",
+        "ms": 6000000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/online-intent-store.test.mjs",
+    "largestMs": 138000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/online-read-order.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/online-session.test.mjs",
+    "largestMs": 130000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/online-store-order.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-history.test.mjs",
+    "largestMs": 178000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      },
+      {
+        "expression": "hangBudget(29)",
+        "ms": 178000
+      },
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "largestMs": 8592000,
+    "stallMs": 10740000,
+    "guards": [
+      {
+        "expression": "hangBudget(oracleWork)",
+        "ms": 8592000
+      },
+      {
+        "expression": "hangBudget(limit + 8)",
+        "ms": 336000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/ordinary-search.test.mjs",
+    "largestMs": 198000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(39)",
+        "ms": 198000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/overload-browser.test.mjs",
+    "largestMs": 152000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/overload.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/own-keys.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/package-typecheck.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "largestMs": 152000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/page-observation.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/page-ready.test.mjs",
+    "largestMs": 192000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(36)",
+        "ms": 192000
+      },
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/pending-items.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/pending-writes.test.mjs",
+    "largestMs": 168000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(20)",
+        "ms": 160000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/per-row-progress.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/per-row-publication.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/per-row-react.test.mjs",
+    "largestMs": 2120000,
+    "stallMs": 2650000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(1000)",
+        "ms": 2120000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/per-row-retention.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/per-row-retry.test.mjs",
+    "largestMs": 138000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "caseTimeout",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/per-row-work.test.mjs",
+    "largestMs": 2120000,
+    "stallMs": 2650000,
+    "guards": [
+      {
+        "expression": "hangBudget(1000)",
+        "ms": 2120000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/periphery.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/prediction-routing.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/presence-composed.test.mjs",
+    "largestMs": 148000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/presence-live.test.mjs",
+    "largestMs": 148000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/presence-local.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/presence-refresh.test.mjs",
+    "largestMs": 124000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "60_000",
+        "ms": 60000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/publish-linux.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/publish-signing.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/qualify-linux.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/query-publication-session.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/react.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "largestMs": 174000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-existence.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/read-observation.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-presentation.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+    "largestMs": 162000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(21)",
+        "ms": 162000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-through.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "largestMs": 206000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(43)",
+        "ms": 206000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "largestMs": 148000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+    "largestMs": 136000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/release-activation.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/remembered-answers.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+    "largestMs": 166000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(23)",
+        "ms": 166000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+    "largestMs": 134000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+    "largestMs": 136000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+    "largestMs": 246000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(63)",
+        "ms": 246000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/repair-b.test.mjs",
+    "largestMs": 176000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(27)",
+        "ms": 174000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+    "largestMs": 30000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "30000",
+        "ms": 30000
+      },
+      {
+        "expression": "15000",
+        "ms": 15000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "largestMs": 148000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "largestMs": 372000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(126)",
+        "ms": 372000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/retention-episode.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/retention-pages.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/review-probes.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/revocation-retention.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/routes.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+    "largestMs": 130000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "largestMs": 138000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/schema-session.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/seen-devices.test.mjs",
+    "largestMs": 300000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(90)",
+        "ms": 300000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/seen.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/server-check.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+    "largestMs": 180000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(30)",
+        "ms": 180000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-live.test.mjs",
+    "largestMs": 158000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "largestMs": 132000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/server-clock.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "largestMs": 158000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(19)",
+        "ms": 158000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-routes.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "largestMs": 128000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/session-security.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/social-browser.test.mjs",
+    "largestMs": 726000,
+    "stallMs": 907500,
+    "guards": [
+      {
+        "expression": "hangBudget(303)",
+        "ms": 726000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(40)",
+        "ms": 200000
+      },
+      {
+        "expression": "hangBudget(199)",
+        "ms": 518000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "largestMs": 244000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(62)",
+        "ms": 244000
+      },
+      {
+        "expression": "hangBudget(41)",
+        "ms": 202000
+      },
+      {
+        "expression": "30_000",
+        "ms": 30000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "largestMs": 176000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(17)",
+        "ms": 154000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/store-reset-review.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/store-reset.test.mjs",
+    "largestMs": 176000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      },
+      {
+        "expression": "hangBudget(15)",
+        "ms": 150000
+      },
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "largestMs": 616000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(2 * 124)",
+        "ms": 616000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "largestMs": 168000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "largestMs": 144000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "largestMs": 128000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/sync-after-call.test.mjs",
+    "largestMs": 138000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/sync-generation.test.mjs",
+    "largestMs": 160000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(20)",
+        "ms": 160000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "largestMs": 2168000,
+    "stallMs": 2710000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(1024)",
+        "ms": 2168000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/sync-scale.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "largestMs": 20000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "20000",
+        "ms": 20000
+      },
+      {
+        "expression": "3000",
+        "ms": 3000
+      },
+      {
+        "expression": "10000",
+        "ms": 10000
+      },
+      {
+        "expression": "2000",
+        "ms": 2000
+      },
+      {
+        "expression": "1500",
+        "ms": 1500
+      },
+      {
+        "expression": "1000",
+        "ms": 1000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+    "largestMs": 2160000,
+    "stallMs": 2700000,
+    "guards": [
+      {
+        "expression": "hangBudget(1020)",
+        "ms": 2160000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/transport-http.test.mjs",
+    "largestMs": 152000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(16)",
+        "ms": 152000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/typing-expiry.test.mjs",
+    "largestMs": 176000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(28)",
+        "ms": 176000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/unicode.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/unread-range.test.mjs",
+    "largestMs": 222000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(9 + Math.ceil((c.n ?? 6) / 512) + (c.actions?.length ?? 0))",
+        "ms": 222000
+      },
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(2 + Math.ceil(20000 / 512))",
+        "ms": 204000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/upload-retry.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/wasm-absent.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/wasm-budget.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/wasm-families.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/web-admission-review.test.mjs",
+    "largestMs": 6832000,
+    "stallMs": 8540000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "(54 + 2) * scenarioTimeout",
+        "ms": 6832000
+      },
+      {
+        "expression": "scenarioTimeout",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-durability.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/web-navigation.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(1)",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-pages.test.mjs",
+    "largestMs": 184000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(32)",
+        "ms": 184000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "largestMs": 630000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(255)",
+        "ms": 630000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-review.test.mjs",
+    "largestMs": 412000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(146)",
+        "ms": 412000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-session-authority.test.mjs",
+    "largestMs": 448000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(164)",
+        "ms": 448000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-shell.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/web-start.test.mjs",
+    "largestMs": 360000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(120)",
+        "ms": 360000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/web-worker-control.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "largestMs": 124000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "largestMs": 122000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/word-expansion.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  },
+  {
+    "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "largestMs": 142000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(11)",
+        "ms": 142000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "largestMs": 140000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(3)",
+        "ms": 126000
+      },
+      {
+        "expression": "hangBudget(5)",
+        "ms": 130000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/worker.test.mjs",
+    "largestMs": 170000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(24)",
+        "ms": 168000
+      },
+      {
+        "expression": "hangBudget()",
+        "ms": 122000
+      },
+      {
+        "expression": "hangBudget(25)",
+        "ms": 170000
+      },
+      {
+        "expression": "hangBudget(2)",
+        "ms": 124000
+      },
+      {
+        "expression": "hangBudget(14)",
+        "ms": 148000
+      },
+      {
+        "expression": "hangBudget(23)",
+        "ms": 166000
+      },
+      {
+        "expression": "hangBudget(10)",
+        "ms": 140000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(4)",
+        "ms": 128000
+      },
+      {
+        "expression": "hangBudget(13)",
+        "ms": 146000
+      },
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(7)",
+        "ms": 134000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/write-authority.test.mjs",
+    "largestMs": 144000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(8)",
+        "ms": 136000
+      },
+      {
+        "expression": "hangBudget(12)",
+        "ms": 144000
+      },
+      {
+        "expression": "hangBudget(6)",
+        "ms": 132000
+      },
+      {
+        "expression": "hangBudget(9)",
+        "ms": 138000
+      }
+    ]
+  },
+  {
+    "file": "packages/snapback4/test/write-ids.test.mjs",
+    "largestMs": 156000,
+    "stallMs": 900000,
+    "guards": [
+      {
+        "expression": "hangBudget(18)",
+        "ms": 156000
+      }
+    ]
+  },
+  {
+    "file": "fixtures/clique.test.mjs",
+    "largestMs": 0,
+    "stallMs": 900000,
+    "guards": []
+  }
+]

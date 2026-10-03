@@ -1,0 +1,56 @@
+[
+  {
+    "command": [
+      "sw_vers"
+    ],
+    "status": 0,
+    "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "sysctl",
+      "hw.ncpu",
+      "hw.memsize",
+      "machdep.cpu.brand_string"
+    ],
+    "status": 0,
+    "stdout": "hw.ncpu: 18\nhw.memsize: 68719476736\nmachdep.cpu.brand_string: Apple M5 Pro\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcodebuild",
+      "-version"
+    ],
+    "status": 0,
+    "stdout": "Xcode 27.0\nBuild version 27A266a\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "--version"
+    ],
+    "status": 0,
+    "stdout": "v24.18.0\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "rustc",
+      "--version"
+    ],
+    "status": 0,
+    "stdout": "rustc 1.97.0 (2d8144b78 2026-07-07)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "uptime"
+    ],
+    "status": 0,
+    "stdout": " 6:43  up  2:55, 12 users, load averages: 4.23 5.57 11.76\n",
+    "stderr": ""
+  }
+]

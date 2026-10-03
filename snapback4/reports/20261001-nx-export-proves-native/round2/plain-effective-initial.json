@@ -1,0 +1,2233 @@
+{
+  "config": {
+    "android": {
+      "package": "dev.snapback4.chat",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "dev.snapback4.chat",
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "$(DEVELOPMENT_LANGUAGE)",
+        "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+        "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+        "CFBundleName": "$(PRODUCT_NAME)",
+        "CFBundlePackageType": "$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+        "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleSignature": "????",
+        "LSMinimumSystemVersion": "12.0",
+        "LSRequiresIPhoneOS": true,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        },
+        "UILaunchStoryboardName": "SplashScreen",
+        "UIRequiredDeviceCapabilities": [
+          "armv7"
+        ],
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UIStatusBarStyle": "UIStatusBarStyleDefault",
+        "CADisableMinimumFrameDurationOnPhone": true,
+        "CFBundleShortVersionString": "0.0.1",
+        "CFBundleVersion": "1",
+        "RCTMetroPort": "$(RCT_METRO_PORT)",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "snapback4chat",
+              "dev.snapback4.chat"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "exp+snapback4-chat"
+            ]
+          }
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UIRequiresFullScreen": false,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown"
+        ],
+        "CFBundleDisplayName": "Snapback 4 chat",
+        "NSBonjourServices": [
+          "_expo._tcp"
+        ],
+        "NSLocalNetworkUsageDescription": "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
+        "UIUserInterfaceStyle": "Light",
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+              }
+            ]
+          }
+        },
+        "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
+      },
+      "entitlements": {}
+    },
+    "name": "Snapback 4 chat",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-status-bar",
+      "snapback4-expo/plugin"
+    ],
+    "scheme": "snapback4chat",
+    "slug": "snapback4-chat",
+    "version": "0.0.1",
+    "sdkVersion": "57.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
+  },
+  "modResults": {
+    "podfileProperties": {
+      "expo.inlineModules.watchedDirectories": "[]",
+      "expo.inlineModules.xcodeProjectTargets": "{\"mainTarget\":\"Snapback4chat\",\"targets\":[]}"
+    },
+    "infoPlist": {
+      "CFBundleDevelopmentRegion": "$(DEVELOPMENT_LANGUAGE)",
+      "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+      "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+      "CFBundleName": "$(PRODUCT_NAME)",
+      "CFBundlePackageType": "$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+      "CFBundleInfoDictionaryVersion": "6.0",
+      "CFBundleSignature": "????",
+      "LSMinimumSystemVersion": "12.0",
+      "LSRequiresIPhoneOS": true,
+      "NSAppTransportSecurity": {
+        "NSAllowsArbitraryLoads": true,
+        "NSExceptionDomains": {
+          "localhost": {
+            "NSExceptionAllowsInsecureHTTPLoads": true
+          }
+        }
+      },
+      "UILaunchStoryboardName": "SplashScreen",
+      "UIRequiredDeviceCapabilities": [
+        "armv7"
+      ],
+      "UIViewControllerBasedStatusBarAppearance": false,
+      "UIStatusBarStyle": "UIStatusBarStyleDefault",
+      "CADisableMinimumFrameDurationOnPhone": true,
+      "CFBundleShortVersionString": "0.0.1",
+      "CFBundleVersion": "1",
+      "RCTMetroPort": "$(RCT_METRO_PORT)",
+      "CFBundleURLTypes": [
+        {
+          "CFBundleURLSchemes": [
+            "snapback4chat",
+            "dev.snapback4.chat"
+          ]
+        },
+        {
+          "CFBundleURLSchemes": [
+            "exp+snapback4-chat"
+          ]
+        }
+      ],
+      "UISupportedInterfaceOrientations~ipad": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight"
+      ],
+      "UIRequiresFullScreen": false,
+      "UISupportedInterfaceOrientations": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown"
+      ],
+      "CFBundleDisplayName": "Snapback 4 chat",
+      "NSBonjourServices": [
+        "_expo._tcp"
+      ],
+      "NSLocalNetworkUsageDescription": "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
+      "UIUserInterfaceStyle": "Light",
+      "UIApplicationSceneManifest": {
+        "UIApplicationSupportsMultipleScenes": false,
+        "UISceneConfigurations": {
+          "UIWindowSceneSessionRoleApplication": [
+            {
+              "UISceneConfigurationName": "Default Configuration",
+              "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+            }
+          ]
+        }
+      },
+      "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
+    },
+    "entitlements": {},
+    "expoPlist": {
+      "EXUpdatesEnabled": false,
+      "EXUpdatesCheckOnLaunch": "ALWAYS",
+      "EXUpdatesLaunchWaitMs": 0,
+      "EXUpdatesEnableBsdiffPatchSupport": true
+    }
+  },
+  "mods": [
+    {
+      "mod": "podfileProperties",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-sqlite",
+          "version": "57.0.3",
+          "sha256": "84a007b39372a1df621ca86e46ac47086481955cd653f780ced5565086fddd06",
+          "audited": false,
+          "file": "plugin/build/withSQLite.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/plugins/withConfigPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/Config.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Permissions.js"
+        },
+        {
+          "name": "expo-secure-store",
+          "version": "57.0.4",
+          "sha256": "ed2d49d0d1a070be7bcc9ff02eba07141c67588af9d7781506b27ae6e68f2f63",
+          "audited": false,
+          "file": "plugin/build/withSecureStore.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/plugins/withConfigPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/Config.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "appDelegate",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "snapback4-expo",
+          "version": "0.4.10",
+          "sha256": "5f83fdccf6f2dfe725536569286b563d6a52b3655710617562346efb365b280d",
+          "audited": false,
+          "file": "plugin.cjs"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/plugins/withConfigPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/Config.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "snapback4-expo",
+          "version": "0.4.10",
+          "sha256": "5f83fdccf6f2dfe725536569286b563d6a52b3655710617562346efb365b280d",
+          "audited": false,
+          "file": "plugin.cjs"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/plugins/withConfigPlugins.js"
+        },
+        {
+          "name": "@expo/config",
+          "version": "57.0.9",
+          "sha256": "bbdd325bd871b21b2c2649998f90db5f01938b4cd5217ca9cf326924d3eafc9d",
+          "audited": false,
+          "file": "build/Config.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Maps.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "podfile",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Maps.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "appDelegate",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Maps.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "entitlements",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-apple-authentication.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "entitlements",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-contacts.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "expoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Updates.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-updates.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "podfileProperties",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/BuildProperties.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Updates.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-updates.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-system-ui/withIosRootViewBackgroundColor.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/createLegacyPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "podfileProperties",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/BuildProperties.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/unversioned/expo-inline-modules/withInlineModules.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-dev-launcher",
+          "version": "57.0.20",
+          "sha256": "ce29bcc9d1e3ab7f57fdf1be1902d6b7a9f31b84c6f6fcfb587be6445f0ad396",
+          "audited": false,
+          "file": "plugin/build/withDevLauncher.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-dev-launcher",
+          "version": "57.0.20",
+          "sha256": "ce29bcc9d1e3ab7f57fdf1be1902d6b7a9f31b84c6f6fcfb587be6445f0ad396",
+          "audited": false,
+          "file": "plugin/build/withDevLauncher.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-dev-launcher",
+          "version": "57.0.20",
+          "sha256": "ce29bcc9d1e3ab7f57fdf1be1902d6b7a9f31b84c6f6fcfb587be6445f0ad396",
+          "audited": false,
+          "file": "plugin/build/withDevLauncher.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-dev-client",
+          "version": "57.0.19",
+          "sha256": "41ada0086497c7690cdaa1522427d92f6fb96f7f2fb20e2a8498b701a1480bc4",
+          "audited": false,
+          "file": "plugin/build/withGeneratedIosScheme.js"
+        },
+        {
+          "name": "expo-dev-client",
+          "version": "57.0.19",
+          "sha256": "41ada0086497c7690cdaa1522427d92f6fb96f7f2fb20e2a8498b701a1480bc4",
+          "audited": false,
+          "file": "plugin/build/withDevClient.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "expo-file-system",
+          "version": "57.0.7",
+          "sha256": "6428cf39756ecc83b64d6088aea70dad388234373a177b75f07b6cbb06765be8",
+          "audited": false,
+          "file": "plugin/build/withFileSystem.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withRunOnce.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/BundleIdentifier.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Google.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Name.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "infoPlist",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Google.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/DeploymentTarget.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "podfileProperties",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/BuildProperties.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "entitlements",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/DeviceFamily.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Bitcode.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/Locales.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/ios/DevelopmentTeam.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "dangerous",
+      "callers": [
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/icons/withIosIcons.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    },
+    {
+      "mod": "xcodeproj",
+      "callers": [
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/ios-plugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/icons/withIosIcons.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withStaticPlugin.js"
+        },
+        {
+          "name": "@expo/config-plugins",
+          "version": "57.0.9",
+          "sha256": "88eea824e13fc3e43a33d7032bf56c772ebc6a47c2b1e4db6ec1d0c7503ee2c7",
+          "audited": false,
+          "file": "build/plugins/withPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/plugins/withDefaultPlugins.js"
+        },
+        {
+          "name": "@expo/prebuild-config",
+          "version": "57.0.16",
+          "sha256": "d7a9f3967b0eaa96f44c0cbd8144a537f71242f235d885c6343bf14e74703321",
+          "audited": false,
+          "file": "build/getPrebuildConfig.js"
+        }
+      ],
+      "audited": false
+    }
+  ],
+  "unobserved": [],
+  "retainApplicationJs": true
+}

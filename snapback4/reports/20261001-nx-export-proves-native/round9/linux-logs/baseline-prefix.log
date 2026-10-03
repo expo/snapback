@@ -1,0 +1,73 @@
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/main/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 48.66s
+     Running tests/prefix_reads.rs (/tmp/sb4-nx-r9.O0cNyk/target/debug/deps/prefix_reads-51af01d7e437cc19)
+
+running 10 tests
+E_QUARRY_SYNTAX: exists takes a domain read; omit first, last and cursor clauses
+rewrite: exists messages[roomId = roomId]
+E_QUARRY_SYNTAX: exists takes a domain read; omit first, last and cursor clauses
+rewrite: exists messages[roomId = roomId] matching q by byRoomWords
+E_QUARRY_BOUND: members's whole group has cap 50000, above the 8192 examined ceiling; one read cannot examine the whole group
+rewrite: page with `first N` and a cursor: `members where .roomId = roomId first 50 by .id after c` (declare `c: cursor ?`)
+E_QUARRY_BOUND: members by byPrincipalRoom: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns
+rewrite: use `first N`: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with unread, roomId, id and pin the deciding columns (N_NEVER_COMPLETE)
+E_QUARRY_SYNTAX: exists takes a domain read; omit first, last and cursor clauses
+rewrite: exists messages[roomId = roomId]
+test matching_exists_modifier_rewrite_compiles_verbatim ... ok
+E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+E_QUARRY_SYNTAX: exists takes a domain read; omit first, last and cursor clauses
+rewrite: exists messages[roomId = roomId]
+E_STRUCTURAL_FANOUT: `checkPrefix` can read only the members its viewer may read (`.unread = {"Int":0}`). A check over them would miss hidden members rows, so it is refused
+rewrite: use a constraint every write obeys, whoever wrote the clashing row: declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `checkPrefix`; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. See `snapback4 guide writes` for the per-night example
+E_QUARRY_BOUND: members by byPrincipalRoom: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns
+rewrite: use `first N`: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with unread, roomId, id and pin the deciding columns (N_NEVER_COMPLETE)
+test prefix_exists_plain_and_matching_are_scans_but_full_keys_stay_probes ... ok
+E_QUARRY_SYNTAX: exists takes a domain read; omit first, last and cursor clauses
+rewrite: exists messages[roomId = roomId]
+test oversize_caps_fall_back_to_the_meter_only_in_query_domains ... ok
+E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+test nonuniform_meter_domains_refuse_but_an_explicit_page_compiles ... ok
+E_STRUCTURAL_FANOUT: bad scans expiring messages but may predict
+rewrite: Make `bad` `: server`.
+
+thread 'explicit_caps_stay_silent_and_predicting_short_pages_stay_refused' (983325) panicked at crates/snapback4-lang/tests/prefix_reads.rs:98:5:
+assertion failed: checked(&explicit).notes.is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test explicit_caps_stay_silent_and_predicting_short_pages_stay_refused ... FAILED
+E_QUARRY_MODIFIER_SCOPE: matching could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`
+rewrite: (messages[roomId = .roomId] matching q)
+E_QUARRY_PLACEMENT: fn total: members has no cap over this prefix; this position needs a bounded page; meter-bounded prefix loops and lane sources belong in queries (at schema.q:30:12)
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+
+thread 'prefix_reads_compile_without_notes_and_caps_follow_one_schema_number' (983332) panicked at crates/snapback4-lang/tests/prefix_reads.rs:16:9:
+[Diagnostic { site: Site { file: "schema.q", line: 50, col: 158 }, code: "N_SHAPE_METER", message: "query grouped shape field `hits` at schema.q:50:152, read programs.grouped.2 on messages: its page limit bounds matches, but rejected candidates can grow past the default 8192-row examined meter; the shape may fail to finish at scale (E_SHAPE_EXCEEDS_METER on a no-progress returned-page retry); use a maintained count/view (guide views), `first N`/`last N` for a preview, or move the work out of the returned shape", rewrite: "use a maintained count or view for an exact total (`view unreadCounts: count messages by members m where ...`, then `unreadCounts[.id]`; guide views); use `first N`/`last N` for a bounded preview, keeping residual candidate work bounded; or move this work out of the returned shape into a separate query", guide: "reads", mechanical: false, cascade_of: None }]
+E_STRUCTURAL_FANOUT: read or declaration on messages (roomId, id) at schema.q:29:18 (page bound 1): matching word scans expand hidden words before deciding visibility
+rewrite: read this page in a query, then pass the selected ids to the mutation
+test prefix_reads_compile_without_notes_and_caps_follow_one_schema_number ... FAILED
+E_QUARRY_UNKNOWN: a rule probe takes equalities, not a range
+rewrite: exists t[key = .key]
+test exists_modifiers_and_rule_probes_keep_their_boundaries ... ok
+test whole_table_domains_filters_and_bound_pages_share_prefix_recognition ... ok
+E_QUARRY_PLACEMENT: fn total: members has no cap over this prefix; this position needs a bounded page; meter-bounded prefix loops and lane sources belong in queries (at schema.q:30:12)
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[principal = viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+E_STRUCTURAL_FANOUT: read or declaration on messages (roomId, id) at schema.q:29:18 (page bound 1): matching word scans expand hidden words before deciding visibility
+rewrite: read this page in a query, then pass the selected ids to the mutation
+test mutation_exists_requires_uniform_plain_prefixes_and_server_expiry_phase ... ok
+test prefix_positions_refuse_with_working_page_rewrites ... ok
+
+failures:
+
+failures:
+    explicit_caps_stay_silent_and_predicting_short_pages_stay_refused
+    prefix_reads_compile_without_notes_and_caps_follow_one_schema_number
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test prefix_reads`

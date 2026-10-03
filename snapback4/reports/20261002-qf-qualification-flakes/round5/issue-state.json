@@ -1,0 +1,18 @@
+[
+  {
+    "path": "issues/20261002-snapback4-worker-refusal-tests-wait-entire-hang-guard.md",
+    "openDuplicate": null
+  },
+  {
+    "path": "issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md",
+    "openDuplicate": false
+  },
+  {
+    "path": "issues/closed/20261003-snapback4-malformed-proc-stat-during-stress.md",
+    "openDuplicate": false
+  },
+  {
+    "path": "issues/closed/20261003-snapback4-token-inspection-refusals-on-shared-hosts.md",
+    "openDuplicate": false
+  }
+]

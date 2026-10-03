@@ -1,3 +1,4 @@
+import { smokeOrigin } from "snapback4-expo/witness";
 import { withIntentStorage } from "./intents";
 import { intentStorage } from "./intent-store";
 import { Platform } from "react-native";
@@ -12,7 +13,7 @@ const sessionStore = withIntentStorage({
   set: async (key: string, value: string) => SecureStore.setItemAsync(key, value),
   delete: async (key: string) => SecureStore.deleteItemAsync(key),
 }, intentStorage);
-export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+export const url = smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
 // Browser persistence is explicit: scripts on the page can read the token.
 export const app = createApp({ url,

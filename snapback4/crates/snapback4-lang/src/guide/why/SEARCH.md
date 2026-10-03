@@ -14,8 +14,12 @@ rewrites and explanations, and `check --cost` adds execution costs:
   it again. Try a longer first term or a pinned chat. Grouped reads bound previews. Other
   merges retain the old opening cut, which can lack next and E_SEARCH_OPEN.
 - **N_SEARCH_SHAPE:** `peers: searchPeers(.conversation)` repeats a group
-  read per hit (a message). Return a bare hit page and read each chat's details
-  separately. Bounded message previews on a membership page are allowed.
+  read per hit (a message). This non-key subquery cannot be lifted. A shape
+  using point lookups, such as `{ *, chatTitle: conversations[.conversation].title }`,
+  lifts after page selection and preserves ordinary retained/current search.
+  Aggregates, filters or ordering on decoration values retain their evaluator;
+  the diagnostic names the unliftable portion. Bounded message previews on a
+  membership page are allowed.
 
 **E_SEARCH_OPEN** is an incomplete read with a coded refusal, a site and the
 grouped rewrite when renderable. Heap exhaustion within a compact page also

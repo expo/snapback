@@ -81441,6 +81441,561 @@ the new file passes 4/4 with the publication cache; the original file fails the
 same three cases in the same tree (control); with the variable unset the fence
 downloads, verifies both pinned 0.2.33 tarballs and passes 4/4. No product code
 changed.
+
+
+## 2026-10-01 — NX round 0: export proves native execution
+
+Both Expo starters now export the same Hermes payload into dist and, on an
+available Mac/Xcode simulator environment, install and smoke that exact export.
+A conservative native fingerprint and byte-validated Release base avoid a new
+native build for starter JS edits. Three bounded workers validate dependency,
+generated-native and compiler inputs; each launch binds the actual selected
+bundle hash. Missing native tooling/create/boot conditions skip; app/SDK/backend
+failures stay nonzero. SNAPBACK4_NATIVE_SMOKE=off is explicit; native:smoke still
+builds fully. The runtime smoke origin keeps the export unchanged while using
+the driver's owned loopback backend. LLP 3000.030 §15 records the design and
+its conservative boundaries; starter READMEs and client/witness cards teach it.
+
+Apartment mini final five-run complete-export warm medians: plain 17.888 s,
+social 23.870 s (native-only 15.138 / 19.969 s); cold native-cache/Pods/Xcode
+runs 170.134 / 243.806 s. All ten warm runs are under 25 s, cache hits, and load
+new distinct export hashes through all three smoke segments. Both starters'
+native-input controls rebuild, startup throws fail, missing runtimes skip,
+and opt-outs succeed. These are unpublished local candidate simulator proofs;
+empty starters do not establish application scenarios, M6/M8 or publication.
+
+Affected JS 60/60 plus final fingerprint controls 6/6; Rust witness units 14/14,
+starter integration 22/22, final full-suite witness 50/50, whole guide 110/110.
+The requested scripts/test.sh ran once; exact summary:
+`== 1 failure(s) in 2593 s` (`client tests`). Its eight generated-storage cases
+failed because our new smokeOrigin import lacked a VM fixture mock. The mock
+is corrected, all storage assertions retained, and that file passes 14/14.
+All 79 final model tests pass. The original red suite is retained, not rerun.
+The 60 s suite budget is unmet; the report records baseline serial timeout
+controls, cold compilation, full counts and phase durations. Earlier guide
+failures were ours and corrected; one baseline witness diagnostic expectation
+was corrected; interrupted capture recovery was environmental. Every failure,
+exact original output, five external-fixture skips and scope limit is reported.
+Wasm: 2,014,420 B raw / 604,666 B gzip, unchanged cap 605,225 B, 559 B headroom.
+Reference audit passes with zero errors; no runtime/core or wasm-budget change.
+
+Evidence and reproduction: reports/20261001-nx-export-proves-native/REPORT.md.
+The one owned simulator and its creation record were deleted; all lane-created
+build products and installed worktree dependencies were removed after evidence
+verification. Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 1: conservative export reuse and bounded cleanup
+
+Resolved the round-0 review findings in LLP 3000.030 §15. Application JS is
+excluded only for content-pinned resolved plugin implementations at audited
+versions and registry provenance. Forks, aliases, git/path installs and unknown
+implementations bind JS. Static config references bind their in-tree bytes;
+external paths and react-native.config.mjs refuse through preparation.
+
+Overlays remove their recorded Metro resource set before installing current
+assets and main.jsbundle. The real fresh-build comparison caught an extra
+export-only worker HBC; Expo native embed omits it, and the overlay now does too.
+Native resource names cannot occupy the reserved Metro namespaces. Selection
+skips use explicit conditions; exited-child interrupts stay interrupts; failed
+owner writes delete the new device or fail loudly with its identity. The wrapper
+forwards SIGINT/SIGTERM and waits for cleanup. Cold misses explain their reason,
+three-to-four-minute cost and opt-out before Xcode. Temporary app copies,
+preparation directories and xcresults are removed on success/failure; five
+complete runs retain full evidence and older receipts are compressed. Warm
+receipts reference their immutable native producer instead of duplicating it.
+
+Final Apartment mini five-run complete-command warm medians: plain 18.041 s,
+social 23.663 s; cold 164.037 / 232.024 s. Both median targets are met; social
+warm sample 4 is 25.033 s and remains in the cohort. Asset-require removal is a
+cache hit, and both final resource inventories and complete app topologies match
+a fresh native build using the identical saved export. Actual git-installed
+forks rebuild when their JS config input changes. Both starters pass external
+config refusal, startup-throw failure, missing-runtime skip, opt-out, selection
+SIGINT (130, no new simulator/record left) and running SIGTERM (143, app/backend
+and temporary copies cleaned).
+
+Affected JavaScript 69/69, final export controls 11/11, Rust witness units 14/14,
+full-suite witness 51/51, whole guide 110/110. scripts/test.sh ran exactly once:
+`== 1 failure(s) in 2530 s` (`client tests`). Its only failure is the unchanged
+delivery-fault fixture's transient follow site 47 not injecting its intended
+fault; client inputs match bfe1d7d722. The isolated case passes 2/2, and an open
+filesystem follow-up retains the red and asks for deterministic injection.
+Client pool: 5758 pass / 1 fail / 5 external-fixture skips; final models 79/79.
+A separate parallel witness rerun encountered a loopback-port collision (50/51);
+that case passes 1/1 in isolation and in the full suite's serial witness target.
+No assertion, seed count, hang budget or wasm budget was reduced.
+Wasm remains 2,014,420 B raw / 604,666 B gzip, 559 B below the 605,225 B cap.
+
+All five tool-created simulators are absent after cleanup. Archived all 370
+receipt files and five full-evidence runs per starter with byte verification;
+43 plain and 35 social completed runs had zero temporary app copies/directories.
+Removed target/nx's generated native projects; ordinary build/dependency caches
+remain. Report, every failure, measurements and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 1).
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-01 — NX round 2: evaluated native config, leased boot and crash recovery
+
+Replaced the static plugin require/import walk with Expo 57's real prebuild
+configuration plus introspected iOS mod results in the native key. Explicit,
+auto-applied and legacy plugins resolve through Expo, including project-relative
+shadows. Unknown native-file writers retain application JS; audited registrations
+bind their package trees and the complete installed starter dependency snapshots
+so an external helper change revokes that audit. Both stock starters remain on
+the JS-only reuse path. LLP 3000.030 §15 and the guide are updated.
+
+Simulator creation holds its UDID lease through boot and cleanup; pending records
+cannot be reused. Isolated create processes preserve printed UUIDs on failure,
+timeout and Ctrl-C and roll back before reporting. Create timeouts cannot skip;
+failed ownership writes remove their partial file. Export runs persist process
+birth identities and leases, recover abandoned app/backend/device custody, and
+remove bulk evidence. One kernel lock serializes pruning, which cannot turn
+smoke success into export failure. Retention is five full plus twenty compressed
+runs; the current native producer receipt is kept alongside its cache. FILE/File
+schemes refuse out-of-tree config.
+
+Final Apartment mini cold: plain 258.715 s / social 291.288 s. Five-run complete
+command warm medians: **18.416 s / 24.367 s**, both below 25 s; all ten samples
+pass and remain below 25 s. Fresh-process config evaluation medians are
+177.471 / 222.479 ms per call. All twelve installed plugin controls pass;
+unknown dangerous-mod JS edits rebuild in 112.050 / 157.371 s in that functional
+cohort. Both starters pass wrapper/driver SIGKILL recovery, startup throw,
+FILE/File refusal, missing runtime and opt-out. Shared driver controls cover
+boot contention, printed-UUID create failure/timeout and process-group Ctrl-C;
+concurrent pruning, partial writes, PID reuse and held leases pass.
+
+Affected JS 72/72; final export/config/pruning 12/12; Rust witness units 17/17;
+canonical witness integration 53/53; final guide 110/110; ref-check has zero
+errors/unchecked refs. The complete scripts/test.sh ran exactly once:
+`== 1 failure(s) in 3501 s` (`client tests`). The unchanged 300-history wasm
+mixed-evidence oracle hit its 1,800 s guard and retained its worker; only that
+verified owned PID was terminated after the reported timeout so the suite could
+finish. Client pool: 5759 pass / 1 cancelled / 5 fixture skips; final models
+79/79. The unchanged wasm case then passes 300/300 in isolation in 176.905 s.
+The original red remains, with an open filesystem follow-up; its exact trigger
+is unresolved and earlier native-build overlap may have exposed it. The known
+delivery-fault injection flake did not recur. All development/harness failures,
+including the case-insensitive FILE/File evidence-name collision, are retained
+and corrected in the report. No assertions, seed counts or hang guards changed.
+Wasm stays 2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged 605,225 B cap.
+
+Archived and byte-verified all 338 retained receipts plus remaining full evidence
+(22 plain / 21 social runs; five full each; no per-run temporary apps/directories).
+All six tool-created simulators are deleted under custody; no unowned simulator
+or system setting was touched. Generated target/nx projects are removed after
+archival; ordinary build/dependency caches remain. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 2). New follow-up:
+issues/20261001-snapback4-mixed-evidence-wasm-timeout.md.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 3: honest-project cache and verified recovery custody
+
+Addressed the nine round-2 findings under the operator's explicit boundary:
+the native cache is a correctness optimization for honest projects, not a
+sandbox; config plugins already execute arbitrary code. Deliberately evasive
+registration stacks and forged plugin result lines are outside that boundary.
+The child nevertheless returns its evaluated config on a parent-owned descriptor.
+Per-export evaluation remains. Expo's resolved plugin file now makes every
+project-local plugin conservative independently of registration stacks, including
+`plugins/x.js` and plugins whose native reads depend on `ios/` existing. Remote
+URI config resources refuse, fingerprint/build pin the image implementation,
+and unobserved mod assignments are checked after deferred compilation too.
+
+Preparation workers start only after a persistent group leader's birth identity
+is journaled. Recovery verifies that leader, drains its descendants, and finishes
+cleanup before output removal or reuse. A surviving wrapper cannot mark its dead
+driver's run complete. Exports use private directories and atomically publish
+dist after proof. Buffered simulator creation reconciles the exact journaled
+name/runtime and prefix against simctl's listing; prefix alone never permits
+deletion. Both starters pass every requested detecting control, including live
+TERM-resistant preparation children, driver-only SIGKILL, simultaneous distinct
+exports and real create with its UUID withheld from stdout. LLP 3000.030 §15 and
+the guide record the boundary and resulting behavior.
+
+Final Apartment mini cold commands: **174.512 s plain / 229.510 s social**.
+Five-run warm medians: **15.820 s / 21.073 s**; all ten samples are below 25 s,
+cache hits, exact distinct loaded bundles and three passing smoke segments.
+No cohort sample was discarded. Cold removes the native cache/snapshot/Pods/
+DerivedData, with installed dependencies, Metro/system caches, the already booted
+tool-owned simulator and six verified dependency archives disclosed in the report.
+Config evaluation medians are **167.000 / 218.476 ms per call**, about **0.334 /
+0.437 s per export** for the two mandatory calls. Long batches use temporary
+command-scoped caffeinate assertions; no persistent power setting changed.
+
+The canonical scripts/test.sh ran exactly once on the final implementation:
+`== 0 failure(s) in 2174 s`. Witness integration 53/53, guide 110/110, client pool
+5,761 passed / five fixture skips / no failures or cancellations, final models
+79/79. Affected JavaScript 50/50 and witness Rust units 18/18 pass. Both 300-history
+mixed-evidence oracles pass this time; the earlier intermittent failure remains
+an open issue. All development failures are retained and classified in the
+report: our completion fixture/command/harness errors, the baseline namespace
+fixture's invalid UUID (fixed without weakening contention assertions), its
+separate baseline empty-PID race under noncanonical parallel execution, and the
+environmental Maven reset and two Xcode deadlines overlapping recorded sleep.
+No engine/contract source, timeout, model count or budget was relaxed. Wasm is
+unchanged at **2,014,420 B raw / 604,666 B gzip**, 559 B below its cap.
+
+Archived and byte-verified 371 retained receipt files from 23 plain / 17 social
+completed runs, five full each, with no per-run apps or preparation directories.
+The malformed development shim's empty unstarted directory is recorded separately
+without invented completion. Six remaining owned devices were deleted under
+verified custody; the two buffered-create devices had already been rolled back.
+All eight recorded devices are absent. No unowned simulator or unrelated process
+was touched. Candidates/caches remain locally for review. Report and reproduction:
+reports/20261001-nx-export-proves-native/REPORT.md (round 3). This is no new
+independent review, physical-device or application-scenario claim.
+Nothing pushed or published. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 4: wrapper lease through verified export publication
+
+Worked on `sb4-np/nx-export-proves-native-slim` from `fb9c037bd4`; the original
+branch was not used or merged. Fixed Astra's remaining P1 under the same honest-
+project boundary: Node holds a kernel flock from private export creation through
+publication, manifest verification and removal, explicitly inherited through the
+CLI shim by the publisher. Recovery drains dead-driver processes but cannot finish
+or prune a run whose wrapper/publisher holds that lease. Pruning keeps both run
+and export leases throughout deletion. A destination lock serializes exchange,
+verification against the smoke proof's paths/sizes/hashes/modes/types and old-tree
+removal. Publication mismatches fail, never skip. On the native-smoke path, dist
+switches atomically from complete old to complete new; separate opens spanning
+the switch can mix generations. Ordinary opt-out/non-macOS Expo output retains
+its existing behavior, without an atomic-replacement claim.
+
+Controls: live wrapper plus dead driver plus five newer completed runs preserves
+export and exact journal; 10,001 files survive cleanup at the exchange boundary;
+pre/post-exchange hash/size/path/extra-file tampering fails; a publisher killed
+after exchange is recovered while its concurrent survivor leaves exactly its own
+verified inventory. Actual Node tests cover kernel custody after helper/shim exit,
+SIGKILL release, and surviving-child inheritance. The retained round-3 binary
+reproduces deletion despite a live wrapper and accepts tampered publication; the
+new regressions reject both. Rust witness units 23/23, witness integration 53/53,
+JavaScript export tests 17/17. No test guard or runtime budget changed.
+
+One final JS-edit warm export per starter: **15.805 s plain / 22.944 s social**,
+both cache hits with all three smoke segments and matching published/loaded proof
+bytes. Final priming rebuilds were 89.462 / 139.918 s with native/dependency caches
+already present, not cold claims. The initial root-level publication lock entered
+the native key and caused a 96.372 s warm-attempt rebuild; fixed by locating it in
+the excluded artifacts tree and retained that attempt. The installed dependency
+audit changes only the wrapper and CLI files and pins the new complete snapshots.
+
+The requested single canonical suite reports exactly:
+`== 1 failure(s) in 2287 s`.
+Its sole failure was ours: the witness card grew to 407 lines against the existing
+399-line cap. Compacted the paragraph without raising the cap; the affected guide
+target then passes 110/110. The original suite remains red and is not rerun or
+relabeled. Its witness target passes 53/53, client pool 5,765 passed / five fixture
+skips / zero failed or cancelled, final models 79/79. Both 300-history oracles
+complete; the old intermittent issue's cause remains unresolved. Two wrong-cwd
+edit commands failed before mutation and are also recorded. Wasm remains exactly
+2,014,420 B raw / 604,666 B gzip, 559 B below the unchanged cap and with the same
+SHA-256 as round 3. No core or contract source changed.
+
+Large evidence, gzip dumps and all six original recordings are hash-verified in
+`~/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/`; the report's
+EVIDENCE-ARCHIVE.tsv is the index. Only summaries, JSON and small logs enter git;
+the precommit audit checks the 256-KiB new-evidence and 15-MB staged-blob limits.
+Deleted only this round's recorded device after both custody checks/leases;
+mini-verify-iphone was untouched. Five full runs remain per starter, no per-run
+bulk output remains, and the known unstarted legacy directory stays untouched.
+See reports/20261001-nx-export-proves-native/REPORT.md, Round 4. Independent round-4
+review is pending. Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5: signal status, publication rollback and recorded-process custody
+
+Addressed the round-4 Astra and Grok findings on the slim NX branch without
+merging main. The CLI shim now removes its forwarding handlers before re-raising
+a child's termination signal, with a 128+signal fallback if it survives. This
+exit-zero defect **predates the NX lane and ships to every CLI user**, not just
+native export users. Installed-shim regressions cover SIGINT, SIGTERM and SIGHUP
+on Darwin and Linux. Main's open ticket
+`issues/20261002-snapback4-cli-shim-signal-exit-zero.md` is absent from this branch;
+the report records its resolution for the operator to close at landing.
+
+The export wrapper requires a matching verified publication.json, including the
+proved inventory and proof hash; status zero or an allowed environment skip
+cannot replace that receipt. A durable publication intent precedes exchange.
+Post-check failure swaps back; publisher death before the verified commit leaves
+the previous tree recoverable, protected from wrapper finally and retention.
+The next publisher restores under destination and export leases, or reports an
+identity/custody conflict without deleting either tree. The verified receipt is
+the commit point; a later crash during old-tree reclaim may leave partial old
+reclamation, with the accepted new export already verified. Namespace switches
+remain atomic, not a snapshot across separate reader opens.
+
+Linux opens a pidfd, binds the birth check to that handle, and signals through
+it. Darwin verifies identity, stops, verifies the stopped identity, then kills;
+it never sends another signal after a mismatch. The initial check-to-STOP gap
+can stop an unrelated recycled PID; it cannot safely resume that process. An
+external actor can also kill/reap or resume/exit the stopped process between the
+second check and numeric KILL, permitting reuse. These residual windows are
+explicit in LLP 3000.030 section 15 and the report, not an absolute Darwin
+PID-reuse claim. Actual parents retain their child handles. A late audit added
+a group-leader birth recheck after collecting members and before any signal.
+
+Real wrapper/shim/Rust publisher controls use a test-only syscall interposer at
+both requested termination boundaries and for post-exchange mutation. Wrapper
+finally preserves the exact previous inventory; next-export rollback and
+retention-pressure controls pass. Zero-status missing/mismatched receipts also
+fail, including environment skips. Final affected checks: Darwin witness units
+26/26 and integration 53/53; Linux units 27/27 and integration 13/13; Darwin JS
+export/shim 19/19 and Linux installed-shim/publication 6/6. Earlier fixture-path,
+config-timeout and parallel-lease failures remain recorded; the unresolved
+parallel-lease observation has a filesystem ticket. No assertion was weakened.
+
+Five warm samples per starter retain the first requested pair: plain median
+**20.840 s**, social **29.128 s**. All ten are cache hits with all three native
+segments passed, distinct exact exports and matching publication/proof hashes.
+**Social misses the requested 25 s target**; most increase is in native execution,
+but no contemporaneous baseline establishes cause. The witness card now quotes
+these measurements; the report and a ticket preserve the timing miss. Initial
+audit-pinning misses and their successful rebuild attempts are retained, not
+called warm samples. The final measured runtime differs only by the later
+abandoned-group guard, which ordinary export execution does not enter.
+
+Ran scripts/test.sh exactly once. Its exact summary is
+`== 1 failure(s) in 2240 s`, group `client tests`: 5,764 passed, three failed,
+five skipped. All three are unchanged delivery-fault fixture assertions that
+no fault was injected (47 transient/persistent at local.ts:850, 48 transient at
+local.ts:855). A focused rerun reproduces 47 transient (7/8 overall). Source
+identity is established; baseline execution and root cause are not. The ticket
+keeps this open. All other groups pass, including final models 79/79 and guide
+110/110. Canonical Rust ran before the late group guard; the final affected
+Darwin/Linux reruns cover that delta separately, not a second full-suite claim.
+
+Wasm is unchanged: SHA-256
+c2fff10dc870dd371a2dd1f8b31ab9db70ce429bd69b7beba30e0c1229d30d5c,
+2,014,420 B raw / 604,666 B canonical gzip under the unchanged 605,225 B cap.
+No engine/contract or wasm source changed. Large logs, dumps and recordings are
+hash-indexed in the external evidence archive; only summaries and small logs
+are added to git. The precommit audit counts all staged blobs against 15 MB,
+including the existing large JOURNAL and archive index. Deleted only this
+round's recorded simulator under both leases; mini-verify-iphone was untouched.
+Retention leaves five full runs per starter; the known legacy directory stays
+untouched. See reports/20261001-nx-export-proves-native/REPORT.md, Round 5.
+Nothing pushed or externally published. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — NX round 5b: timing control, no product changes
+
+Compared e1adc01ddc (round 4) and adbabda71e (round 5) with installable local
+client/Expo/Darwin packages, verified offline npm installations and four separate
+native-cache/DerivedData project paths under ~/sb4-np/nx-r5b. Preserved the exact
+previously audited dependency snapshots; no product source or audit pin changed.
+Both exact production CLIs are hash-bound in the report. The initial source
+subset/embedded-template errors, shared Cargo output mistake and copied
+SwiftShims cache-path failure are retained as setup failures, all corrected
+before the measured cohort. Four fresh primers and four warmups then passed.
+
+Ran 24 JS-edit warm exports: six per revision per starter, in ABBA blocks. All
+hit cache, pass all three native segments, load distinct exact exports and match
+publication/proof hashes. No own suite/build ran during measurement. Round-4
+medians are 18.346 s plain / 27.786 s social; round-5 medians are 18.335 / 26.716 s.
+At the total-median sample pairs, round 5 splits into native/outside
+14.664 / 3.672 s plain and 22.416 / 4.300 s social. Native/segment timestamps,
+publisher verifiedAt, per-sample loads and top 20 CPU processes are retained.
+
+No round-5 slowdown was reproduced, but quiet qualification remains unresolved.
+Eight runs ended above load1 6. Another checkout's build/test activity caused a
+roughly nineteen-minute wait; recorded wait load1 reached 258.041. A separate
+30-minute attempt at a stricter entry condition admitted no sample: minimum
+load1 was 6.717, even above the original threshold. All samples stay in the
+record. The witness card now names shared-load medians, social still exceeds
+25 s, and issues/20261002-snapback4-nx-round5-social-warm-timing.md stays Open.
+No timeout, budget, proof or assertion was weakened to claim success.
+
+Deleted only this run's recorded device under both ownership leases;
+mini-verify-iphone was untouched. Raw logs, receipts/media, waiting snapshots
+and package tarballs are SHA-256 checked in the external evidence archive;
+only small summaries/reproduction material are committed. See the NX report's
+“Round 5b — timing control” section and its validation/size records. The separate
+round-5 dual review is not rerun or claimed here. Local commit only; no push or
+external publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Round-5b final verification: affected guide target 110/110, ref-check zero errors
+and zero unchecked, card unchanged at 399 lines. All 24 measured proof/hash
+bindings and all newly archived blobs verify. Four projects satisfy retention
+without per-run build/export residue; package and installed CLI hashes still
+match. No full product suite or independent review was run in this timing round.
+
+
+## 2026-10-02 — NX round 6: reconcile orphan publication markers
+
+Read Astra's complete round-5 review on eb1000. Kept destination-first marker
+deletion and added orphan-run reconciliation under run/export leases and a
+nonblocking destination lock. A matching destination intent remains pending;
+an absent/newer one permits removal only of this run's recorded new private
+tree (or accepts its absence), followed by its run-marker unlink. Changed private
+identity refuses. Later visible exports and newer pending intents stay intact.
+Recovery covers both unfinished and prematurely completed runs and is idempotent
+across repeated kills. LLP 3000.030 §15 records the contract in the same change.
+
+Six real-SIGKILL cases pass on the mini and Linux: commit, rejected rollback and
+pre-destination-intent creation, each with existing/initially absent destination.
+After the first kill, a later verified export is published, recovery is killed
+twice after private-tree removal, and normal cleanup still compresses and then
+prunes the abandoned run. Committed publication evidence survives compression;
+rejected private bytes do not. Independent controls verify each required lock,
+matching/newer destination intents and changed private identities. Pause hooks
+exist only in the test executable.
+
+The lease-release assertion now runs in an isolated subprocess, verifies
+FD_CLOEXEC and deliberately forks a held descriptor before dropping its owner.
+It asserts continued exclusion, releases/reaps the child and only then asserts
+reacquisition. Production spawn paths can transiently inherit a lease until
+exec/exit; no waiting pre-exec callback exists. A contender conservatively refuses
+or defers cleanup, never acquires simultaneous custody. The documented limitation
+and the intentional wrapper fd-3 custody remain distinct.
+
+Affected checks: mini 29 witness units / 53 integration / 19 JS export-shim
+passes; Linux eb1000 30 units / 13 integration / 18 JS passes, with one existing
+Darwin-only JS skip. Linux's initial source subset lacked two embedded benchmark
+inputs; its initial JS run lacked Expo dependencies. Both setup failures remain
+recorded; exact fixtures plus the frozen install fixed them without code changes.
+Initial mini standalone checks used ambient Node 26.9.0; JS rechecks and the
+canonical suite use pinned Node 24.18.0, with Rust checks repeated by that suite.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2253 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; witness integration 53/53; CLI units 232 passed, four existing
+ignored. This pre-main-fix branch did not reproduce the delivery-fault follow
+flake; NX does not claim to fix it. The raw canonical log and source archives
+are content-addressed outside git and read-back verified, with small summaries
+in the NX report's Round 6 section. Linux's exact scratch directory was deleted.
+
+The **25 s social target is unmet on the current host; quiet-host qualification
+is pending**. Round-5b's plain control/candidate medians remain 18.346/18.335 s,
+social 27.786/26.716 s; no round-5 slowdown was reproduced there. The timing ticket
+stays Open; round 6 runs no timing cohort and raises no budget. The witness card
+states that limit and stays at 399 lines. Wasm is unchanged at 2,014,420 B raw /
+604,666 B gzip under the same 605,225 B cap. No real simulator was used;
+mini-verify-iphone and X27R worktrees/simulators were untouched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+
+## 2026-10-02 — NX round 7: stable Node group anchors through launchers
+
+Read Astra's complete round-6 READY WITH CHANGES review on eb1000 and its
+surviving late-member probe. Resolve the builder's `node` once per preparation
+launch with `node -p 'JSON.stringify(process.execPath)'`, require a successful
+absolute runtime path, then execute that runtime directly as the persistent
+process-group leader. Node workers use the same runtime. Volta/asdf and shell
+launchers can select the runtime without becoming the recorded anchor. A failed
+resolution/direct launch refuses preparation. LLP 3000.030 §15 records the choice.
+Every birth, group-membership, post-snapshot birth and platform signal check
+remains intact; recovery's signaling algorithm is unchanged.
+
+Three regressions cover direct Node, a Volta-style spawn-and-wait JS launcher,
+and a non-exec shell shim on both hosts. Each verifies the actual worker parent
+and runtime against the journal, inserts a member after the recovery snapshot,
+and requires it to drain before success. Retry and repeated output cleanup pass;
+the shim is invoked exactly once for resolution. Existing reused-birth,
+anchor-loss, TERM-resistant descendant, publication and lease cases remain.
+
+Affected tests: mini 32 witness units / 53 integration / 19 JS export-shim passes;
+Linux 33 units / 13 integration / 18 JS passes with one existing Darwin-only skip.
+All mini verification keeps the actual Volta launcher on PATH, Node 24.18.0;
+Linux uses Node 24.13.1 and Rust 1.97.0. Linux's initial JS run had four setup
+failures because my source transfer omitted the built `dist/resolve-binary.js`:
+two installed-shim fixture copies and two CLI imports failed. Supplying the
+unchanged generated JS resolver fixed the same four files without code, assertion,
+guard or budget changes. Both runs and all failure classifications are retained.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2419 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 235 passed, four existing ignored; witness
+integration 53/53. No canonical failure occurred, and the known delivery-fault
+flake did not reproduce. NX does not claim to fix that unrelated flake.
+The NX report's Round 7 section binds the exact summary, tested source hashes,
+raw log and source archives. Raw gzip/binary evidence stays outside git in the
+content-addressed archive and is read-back verified. Linux scratch
+`/tmp/sb4-nx-r7.Gfl8K2` was deleted after copying and verifying its evidence.
+
+Social's **25 s warm target remains open pending quiet-host measurement**;
+no new timing cohort and no budget change. Wasm is byte-for-byte unchanged:
+2,014,420 B raw / 604,666 B gzip under the same 605,225 B cap. No real simulator
+was run; mini-verify-iphone, X27R worktrees/simulators and system settings were
+untouched. Local commit with the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer; no push or publication.
+
+
+## 2026-10-02 — NX round 8: native custody and cancellable runtime resolution
+
+Read Astra's full round-7 READY WITH CHANGES review and surviving final-snapshot
+probe. Replaced the production Node group anchor with two native CLI helpers:
+a watchdog outside the group and an anchor that leads it. The driver syncs
+PGID, anchor birth, guardian birth and reaping-lock path before releasing
+the worker, including the Node runtime resolver. Whole-group signals replace
+per-PID snapshot draining; watchdog and recovery both demand two consecutive
+empty live-member inspections. The watchdog retains its child unreaped, and
+recovery's reaping lock prevents it from releasing that identity during signals.
+Linux reads zombie births through /proc; Darwin requires KERN_PROC_PID because
+proc_pidinfo/getpgid hide zombies. The dead-leader regression proves recovery
+with a live member on both hosts. LLP 3000.030 §15 records the structure.
+
+Linux parent-death signals and Darwin kqueue NOTE_EXIT watches prevent driver
+death from leaving work until the next export. Parent identity is checked after
+arming. Resolution is journalled before the launcher runs, uses at most 30 s
+(or a shorter --timeout), and remains cancellable through its bounded native
+handshake. Timeout names the launcher and the pinned-Node installation/download
+remedy with E_WITNESS_PROCESS. TERM/INT/timeout return only after group cleanup.
+
+Retained every earlier regression and added final-empty-child-snapshot cases
+for direct Node, non-exec shell and Volta-style shims; real resolver-owner
+TERM/INT/KILL, timeout and exited-anchor recovery on both hosts; and real public
+CLI TERM/timeout cases on Darwin using fake xcrun. Mini affected results:
+41 units / 55 integration / 19 JS passes. Linux: 42 units / 13 integration /
+18 JS passes, one existing Darwin-only skip. The mini retains actual Volta on
+PATH (Node 24.18.0); Linux uses Node 24.13.1 / Rust 1.97.0. The final mini resolver
+signal observations were 269 ms TERM, 244 ms INT and 66 ms KILL, including
+cleanup; launcher/descendant death is checked before invoking recovery.
+
+Two initial implementation failures exposed Darwin's zombie birth/group APIs;
+the resulting custody fixes are retained in the raw failure logs. Two new test
+fixture failures came from using a one-second deadline for a signal test and
+from observing a partially written PID marker. Signal cases now use the normal
+30 s deadline, the explicit timeout control uses three seconds, and markers
+publish by rename. No existing guard/assertion/budget was weakened. A final test-only path change
+confines the new fixture’s recovery scan to its own private parent; affected
+units were repeated on both hosts. The canonical source snapshot is retained
+separately; product code did not change. Linux had
+no test/setup failure. A final evidence-script print typo followed successful
+hashing/copying; a separate read-back check verified the outputs. The report's
+Round 8 ledger classifies each failure and binds both source transports.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 2426 s`**, exit 0.
+Client pool 5,767 passed, zero failed, five existing skips; final models 79/79;
+guide 110/110; complete CLI units 244 passed with four existing ignored;
+witness integration 55/55. No canonical failure occurred; the known unrelated
+delivery-fault follow flake did not reproduce, and NX does not claim to fix it.
+The full raw log and source snapshots are content-addressed outside git and
+read-back verified; small summaries and failure classifications are in the
+Round 8 report. Both Linux scratch directories were deleted after source/log
+verification. Ref-check passed with zero errors and zero unchecked refs.
+
+The remaining exceptional recovery window after another actor destroys the
+retaining guardian, legacy external reaping, intentional process-group escape,
+outside joiners and stalled inspection/kernel limitations are ticketed in
+issues/20261002-snapback4-nx-custody-recovery-residuals.md as the operator directed.
+There is no unconditional orphan-free claim. Publication verification,
+swap-back, orphan reconciliation and leases remain intact. Social's 25 s target
+remains Open pending quiet-host measurement; no new cohort or budget change.
+Wasm matches round 7 byte-for-byte: 2,014,420 B raw / 604,666 B gzip under the
+same 605,225 B cap. No real simulator or protected mini-verify-iphone/X27R
+worktree/simulator was touched. Local commit with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
 ## 2026-10-02 — BG round 0: busy-group live propagation
 
 Reproduced the calibration's 50-member/10,000-message conversation on eb1000
@@ -82644,6 +83199,49 @@ source custody. One local commit with the requested Astra co-author trailer;
 nothing pushed or published.
 
 
+## 2026-10-02 — SJ round 0: point-decorated ordinary search
+
+LLP 3000.028 §3.3.1 now defines a bare page followed by row-preserving point
+decorations. Ordinary global and pinned search can return chat titles, sender
+names and nested key lookups in the hit projection. The source page keeps its
+IDs, order, completeness, cut, continuation and freshness. Distinct point keys
+share one ordinary authorized read per page/authority; missing or unreadable
+rows become null. Unsupported aggregates, decoration predicates and non-key
+subqueries retain their evaluator and narrowed diagnostics.
+
+The one-call SDK merge carries source ordering keys separately from presentation,
+so projections need not expose their ID/order fields. The server decorates only
+selected current rows; the existing final device state-fence call decorates
+only emitted retained rows. Shared logical and physical allowances remain in
+force. The social starter's search/searchChat and rendered labels use this form,
+and the search/client/why guide surfaces now teach it. There are no separate
+detail queries. CLI cost output names the lift and its distinct-key reads, with
+conservative numeric allowances for projection points and their authorization.
+
+The generated process/Wasm oracle passed 985 page comparisons per host, including
+random memberships, departures/rejoins, scope moves, delete/reinsert, decoration
+edits, offline reads, hidden/deleted details and suppression-shortened pages.
+Independent point reads check decoration authority. The real Chromium retained
+search witnesses pass with title/name labels and all query paths recorded.
+Twenty hits in three rooms cost 46 → 50 examined rows; the established W13
+30,030-message corpus costs 2,040 → 2,061 for 20 rooms and one sender.
+
+Affected Rust: 4,662 passes, 34 ignored, zero failures across 286 summaries;
+final CLI rerun 848 passes; guide 110; final focused JS 462. The frozen complete
+suite reports exactly `== 0 failure(s) in 1390 s`, including 5,800 client passes
+(10 conditional skips) and all 79 models. An earlier full attempt reported
+`== 1 failure(s) in 1510 s`: my concurrent Wasm rebuild caused four ENOENT leaf
+cases and their failed parent summary. These were ours, not baseline failures;
+all 119 tests in the three affected files passed afterward, then the entire
+suite passed with source/artifacts frozen. The report also records corrected
+development failures and one transient unchanged smoke-test ownership conflict.
+
+Linux Wasm is 2,050,348 B raw / 616,951 B gzip. Raise the 610,782 B cap to
+617,581 B for the projection/cache and retained decoration path: estimated
+macOS 617,081 B (+130 B), plus 500 B headroom. Runtime ceilings are unchanged.
+Small metering, oracle, hash and verification receipts accompany the
+[report](./reports/20261002-sj-decorated-search/REPORT.md). No publication or push.
+
 ## 2026-10-02 — BG round 9: merge with main
 
 Merge origin/main 9ca48d2804 into reviewed round 8 at 58e3c443af, without rebase.
@@ -82679,6 +83277,866 @@ Reference validation: `ref-check: ok — 525 LLP docs, 10103 refs in 32316 files
 During qualification main advanced to 96ae8da9a5 with 0.4.11 versions and
 publication records. The qualified merge remains pinned to 9ca48d2804 and
 merge-tree confirms it still merges cleanly with the newer tip; no second suite.
+
+## 2026-10-03 — CX: measured client-contract costs and Draft proposals
+
+[LLP 3000.032](../llp/3000.032-client-contract-builder-costs.research.md)
+records the requested cross-calibration research: all 33 matching records,
+the Grok comparative and Cal29 bundle, 79 exact quotations, series fits,
+and 14 measured builder code excerpts. Current behavior was checked against
+the implementation and paved client/receipt guide. No product code changed.
+
+For Charlie's ruling, recommend generated receipt-family binding/seen reporting
+first and pending-intent presentation second. Five linked filesystem tickets
+remain Draft proposals; the 1,000-event history alternatives are unselected.
+The evidence supports recurring integration work, not causal score deductions
+or guaranteed score gains. The small Cal29 fallback does not justify a large
+LOC-saving claim; the copied G47 receipt hook offers a concrete 31–33-line
+replacement target.
+
+Reference checks and research arithmetic/source checks pass. The root guide
+check reports inherited drift and missing generated prerequisites; the
+[validation record](./reports/20261003-cx-client-contract/VALIDATION.md)
+retains the full red and its causes. Commit locally with the requested Astra
+co-author trailer; no push or publication.
+## 2026-10-02 — SJ round 1: preserve search pages across decoration expiry
+
+Read both complete round-0 reviews (Astra READY/P3; Grok READY WITH CHANGES,
+Medium and Low). Merge origin/main e15de2e49a with real merge commit 878da80018;
+retain both JOURNAL tails and BG count/maintenance rules alongside SJ's lift.
+CT, FDL and FIM semantics remain intact. Decoration children now return a
+separate value-refresh deadline: watches keep current and retained rows and
+bare-page freshness while fields re-evaluate to null. Only source deadlines
+withdraw the page. One-shots reject crossed decoration deadlines through their
+existing bounded publication retry. LLP 3000.028 §3.3.1 and the guide record it.
+
+Internal order keys outside the exact JavaScript integer range travel as decimal
+strings and compare with BigInt; cursor tokens retain exact i64 numeric text.
+Public numeric writes retain their signed-53 restriction. The unsafe-key Rust
+witness uses storage seeding, and eight SDK witnesses cover adjacent +/-2^53
+keys, both directions and i64 extrema. Ordinary devices stop constructing,
+metering and serializing unused searchRows: isolated saving 400 B gzip.
+
+Linux locked Wasm measures 2,048,753 B raw / 617,410 B gzip. Raise the cap from
+617,581 to 618,040 B: Linux +130 B estimated macOS offset +500 B reserve.
+MacOS is estimated at 617,540 B, not measured. Same-host rebuilt base 96ae8da9a5
+is 2,032,879 / 610,147, incoming main e15de2e49a is 2,030,224 / 610,085.
+Thus BG/incoming main saves 2,655 raw / 62 gzip; SJ on that main adds 18,529 raw /
+7,325 gzip. Net versus rebuilt base is +15,874 raw / +7,263 gzip. These are
+successive whole-artifact deltas; runtime ceilings are unchanged. The budget
+file and commit record the same reason.
+
+Affected Rust: 4,713 passed, 0 failed, 34 ignored across 286 summaries, including
+binary units, all integration targets, and guide 110. Decorated search is 11/11;
+the 30,030-message/1,000-room case remains 2,040 -> 2,061 examined rows. Generated
+process/Wasm oracles check 1,970 pages plus mixed current/retained expiry witnesses
+and independent device/server wakeup cases. Focused JS initially passed 539/540;
+only the changed client await-boundary hash needed refreshing (all 58 awaits and
+classified site IDs unchanged); its targeted rerun passes. Final generic deadline
+selection is 64/64. All development failures are ours and corrected; the report
+classifies them individually.
+
+The single final scripts/test.sh run exits 0: `== 0 failure(s) in 1394 s`.
+Rust: 286 binaries / 999 executions plus doctests; clients 5,816 passed, 0 failed,
+10 explicit platform/fixture skips; models 79/79. Full-suite failure classification:
+ours 0, baseline 0, environmental 0. No full-suite rerun or waiver.
+
+Final diff review restored the W13 fixture's original public seed setup; a final
+11/11 affected-target run verifies it after the full suite. Product sources and
+measured Wasm stayed unchanged throughout qualification. The report's Round 1
+section and small hash/verification/measurement receipts retain the evidence.
+No push or publication. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-10-02 — SJ round 2: decoration deadlines never gate page availability
+
+Read both complete round-1 reviews (Astra READY WITH CHANGES/P2; Grok READY
+WITH CHANGES/Medium). Expired or uncertain decoration deadlines now mask values
+at publication and synchronous watch access without rejecting the page. The
+online-only client, composed local client, remembered offline answers, one-shots
+and approved facade holds apply the same rule. Hits, order, completeness, cut,
+continuation and freshness remain the bare page's; its own deadlines and the
+existing authority/sequence fences still withdraw. LLP 3000.028 §3.3.1 and the
+search guide state the rule.
+
+Conservatively null every top-level output field containing a point read when
+either page-wide decoration deadline cannot prove freshness. Source fields and
+point-independent outputs survive. No per-row or per-field deadlines: server
+replies carry one static field-name list, and the local client derives it from
+its compiled projection. One field adds 29 B per page, the four-field oracle
+64 B; an explicit no-expiry null adds 24 B where round 1 omitted it. Online
+watches accept the server's page, retry values with 25 ms to 1 s bounded backoff
+without a give-up count, and stop when the server proves no upcoming expiry.
+
+Astra's unsynced/public reproduction passes for one-shot and watch on process
+and Wasm. Grok's real-server skew window exceeds the old four-attempt window,
+including an open revocation episode and unknown deadlines. The fields are null
+while HTTP is held, and one-shots return the page in one call. Bare source expiry
+still withdraws. An older facade-approved page retains its own value deadline.
+The random oracle now seeds room/profile/card expiries and advances through them:
+1,970 pages, 1,528 after profile expiry, 710 explicit expired-label checks before
+deletion, with both authorities checked against independent ordinary point reads.
+
+Affected Rust: 11 decorated-search tests and 110 guide tests pass. The broad
+client selection first passed 1,027 with three failures caused by our unnecessary
+clock-method call; corrected clock/decorated coverage passes 83/83 and final
+focused witnesses 9/9. Other development fixture/type/invocation failures are
+classified in the report; the unavailable local orient symlink was resolved by
+reading the existing skill in lane-dx. Existing await classifications and hashes
+are unchanged; the new synchronous module adds zero awaits.
+
+The single final suite exits 0: `== 0 failure(s) in 1419 s`. All 286 Rust binaries /
+999 executions plus doctests, 5,822 client tests (10 explicit platform/fixture
+skips), and 79 models pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. All 15 qualified source hashes remain unchanged. Linux Wasm
+is byte-identical to round 1: 2,048,753 B raw / 617,410 B gzip, 630 B below the
+unchanged 618,040 B budget. No macOS measurement or budget raise. The
+[Round 2 report](./reports/20261002-sj-decorated-search/REPORT.md#round-2--value-deadlines-in-every-client-path-2026-10-02)
+and small receipts retain commands, byte accounting and log/source hashes.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No merge, push or publication in this round.
+
+## 2026-10-03 — SJ round 3: nested placeholders and structural value deadlines
+
+Read both complete round-2 reviews (Astra READY WITH CHANGES/P2, Grok READY
+WITH CHANGES/Medium), starting at 1202d4cb56. Mask point-dependent output paths
+at any depth, keeping constructed objects, literal/source siblings and generated
+client types aligned. Whole point-read values remain nullable. Selecting a
+literal from an object with an unused point-read sibling keeps that literal.
+Server replies name static paths; local clients derive the same paths. No
+per-row/per-field clocks, extra requests or authority changes.
+
+Both value deadlines are now required `number | null` fields in local, ordinary
+search and online query results. Retained-row and object-component composition
+merge the earliest deadline per authority, preserving unknown deadlines.
+Three deliberate omitted-field mutations fail TypeScript. Recovery, loading,
+refusals and forwarding returns explicitly construct or preserve both fields;
+the Round 3 report lists every internal query-result return site. Source-page
+withdrawal remains independent. LLP 3000.028 §3.3.1 and the guide explain that
+masked values are placeholders, not absence; page freshness does not certify
+every decoration; a refresh restores values after proving a later deadline.
+
+Nested/doubly nested projections pass on process, Wasm and the online client,
+including held refresh, stable siblings, generated types and restored values.
+Sixteen live process/Wasm browse regressions cover empty, whitespace,
+punctuation and emoji needles, watches and one-shots, with actual retained-row
+provenance and composition. Twelve oracle seeds per host check 2,950 pages,
+including 758 browse pages after profile expiry and 1,052 explicit expired-label
+checks before deletion. Mutation controls detect both reviewed defects.
+
+Affected clients: 955/955; guide: 110/110; Rust decorated search: 11/11.
+The single final suite exits 0: `== 0 failure(s) in 1509 s`. All 4,729 Rust tests
+(34 ignored), 5,882 client tests (10 explicit platform/fixture skips) and 79
+models pass. Full-suite failures: ours 0, baseline 0, environmental 0. The report
+classifies corrected fixture/type/build-invocation/mutation-harness failures
+separately from the intentional negative controls. All 11 qualified source hashes
+remain unchanged after the suite.
+
+Locked Linux Wasm is byte-identical to round 2: 2,048,753 B raw / 617,410 B gzip,
+630 B below the unchanged 618,040 B budget. No Mac measurement. Only the local
+Linux host was used; neither the office M1 nor M5. The
+[Round 3 report](./reports/20261002-sj-decorated-search/REPORT.md#round-3--structural-value-deadlines-and-nested-placeholders-2026-10-03)
+retains return-site audit, commands, byte accounting and small verification
+receipts. Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing merged, pushed or published.
+
+
+## 2026-10-03 — SJ round 4: enforce value deadlines through publication
+
+Read round 3's Astra review (READY WITH CHANGES, one P3; Grok READY).
+Reproduced its undefined-deadline mutation compiling against 1bb5c5732d.
+No production omission existed. Explicit result types now preserve required
+ValueDeadlines through the final local wrapper and runLocal; shared/local/online
+scheduler inputs require them, and absent deadlines are explicit nulls.
+Audited and annotated the remaining inferred query-result helpers. LLP 3000.028
+§3.3.1 and the report record the enforcement boundary.
+
+Package typecheck/build pass; permanent compiler controls pass 17/17, rejecting
+16 mutations including Astra's exact return. Decorated search passes 57/57 on
+process, Wasm and online paths (2,950 oracle pages); affected clients 903/903;
+local-read/lifecycle/sign-out/ephemeral resets 75/75. Zero final failures/skips.
+The sole development failure was an ambiguous mutation-test anchor, corrected.
+Reference validation passes: 525 LLPs / 10,114 refs / zero errors or unchecked.
+
+Emitted JavaScript changes only absent scheduler deadlines to explicit nulls;
+runtime behavior is unchanged, so no full-suite run. One await hash changes
+for an erased annotation; all 32 local-query awaits and delivery classifications
+remain. Wasm stays byte-identical: 2,048,753 B raw / 617,410 B gzip under the
+unchanged 618,040 B cap. The Round 4 report and receipt retain commands,
+source/log hashes and scope. Only local Linux; neither office M1 nor M5.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-10-03 — LM: live margin and settlement investigation
+
+Investigated calibration #29 with standalone package fixtures, without the
+Clique instrument. Two React/IndexedDB devices render 120 competing reads each;
+the measured reads sit last in observation order. Twenty cycles per condition
+cover reaction set/replace/clear, text tombstone/restore and two-device offline
+settlement. The controlled condition adds 16 owned busy loops on CPUs 80–83,
+with the harness and descendants pinned there too. All workers were reaped.
+Removal commit-to-React p95 is 81.21 ms without burners / 323.52 ms with them;
+set is 79.27 / 402.83 ms. No ten-second miss was reproduced. The unchanged
+frozen-clock notification fixture also passes 400 cases, 200 per condition.
+These results do not close either original live-notification or Following ticket.
+
+A deterministic process/wasm paired control reproduces RV-permitted empty
+presentation during two offline sends settling: an unused nullable once column
+makes history preservation unknown; a held replacement crosses the existing
+one-second episode deadline, ReadEpisode withdraws to loading, and Pages exposes
+zero items. Both sends appear exactly once after release. Without the once
+column the previous complete answer remains. This explains an admissible path,
+not the exact unretained calibration frame. No authorization rule, scheduling
+policy, timeout or ceiling changes. LLP 3000.023 remains unchanged. The only
+runtime change is an opt-in mutation_commit qualification stamp before durable
+poll wakeup; LLP 3000.019 §3.7 documents its meaning and clock uncertainty.
+
+Affected clients: 449 passed, 0 failed; whole guide: 110 passed, 0 failed.
+Wasm: 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B cap;
+budget-helper tests 2/2. The complete suite ran once, exit 1:
+`== 2 failure(s) in 1893 s`. Its 25 Rust failures came from LM's target-directory
+symlink being rejected by the private-store guard; 36 witness CLI failures came
+from LM's relocated binary lacking a client-helper path. These are LM setup
+failures, individually classified, not a clean full run. A real local scratch
+directory with shared build-subdirectory links fixes the former setup; the
+existing SNAPBACK4_ACQUIRE_HELPER override fixes the latter (43/43 unchanged
+witness tests pass). Compilation remains in the requested shared Cargo target.
+The original client total is 5,753 passed / 36 failed / 10 skipped; final models
+79/79. Focused Rust correction results and every verbatim check are retained in
+[the LM report](./reports/20261003-lm-live-margin/REPORT.md) and its failure ledger.
+
+Both requested tickets are updated and remain open. No product latency fix or
+before/after-fix improvement is claimed. Local commit only, with the requested
+GPT-6 Astra co-author trailer; nothing pushed or published.
+
+Focused correction: the four Rust targets pass, 234 tests / 0 failures /
+1 ignored, plus the nested allocation probe. The full-suite red is retained.
+Reference validation: `ref-check: ok — 525 LLP docs, 10107 refs in 32478 files, 0 errors, 0 unchecked`. Staged diff whitespace check passes.
+
+## 2026-10-03 — LM round 1: fold both blind reviews
+
+Read Astra and Grok's round-0 reviews in full. Settlement now checks exact row
+identities and bodies in both process/wasm Pages accumulators and both browser
+clients' usePage items and actual DOM lists. Every completed browser settlement
+includes the original row and every prior offline send exactly once. The
+unknown-once control retains rows at 999 ms and withdraws at the specified
+1000 ms deadline before accepting the held replacement; certified preservation
+continues retaining. No runtime retention or scheduling policy changes.
+
+Each live browser mutation requires `started < mutation_commit < encode_start`.
+Posting each same id again must return a replay with a zero stamp. The Following
+ticket now identifies the user mutation's post-commit, pre-wake host time and
+explicitly excludes a later Following delivery transaction.
+
+Mutation tests catch all three gaps: empty Pages items at three rows fail all
+five LM tests; shortening the episode to 999 ms fails both unknown-once cases;
+deleting the server's mutation_commit mark fails the browser test. All injected
+changes were restored; the ordinary native binary was rebuilt and matches the
+unmutated pinned binary. The lane's existing target setup is unchanged.
+
+Affected clients: 450/450 pass (process, wasm, browser), zero skips. The five LM
+tests each pass five consecutive runs, 25/25; browser repetitions use two cycles
+and 120 competing reads per client. Whole guide: 110/110; budget helper: 2/2.
+Fresh wasm: 2,031,329 B raw / 610,519 B gzip, 263 B under the unchanged cap.
+No full suite this round, per the request; round 0's failure record is retained.
+The live-notification and Following tickets remain open. Report and full logs:
+[LM Round 1](./reports/20261003-lm-live-margin/REPORT.md#round-1--both-blind-reviews-folded-2026-10-03).
+Local commit with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`;
+nothing pushed or published.
+Reference validation: 525 LLP docs, 10108 refs, zero errors or unchecked refs.
+Final diff whitespace check passes.
+
+## 2026-10-03 — UB: advise on shape reads that outgrow the meter
+
+Calibration #29's inbox was accepted at check and refused only at full scale.
+Before changing the compiler, reproduced the silent check and the inclusive
+follow's E_SHAPE_EXCEEDS_METER with 9,000 messages, both for an inline unread
+count and the remaining unreadIn helper. The reduced schema and engine witness
+are now compiler regressions.
+
+Add N_SHAPE_METER, advisory rather than static refusal, under LLP 3000.007 §24.
+It identifies the query shape field, source and lowered read site, including
+transitive helpers, and points to maintained counts/views, bounded previews or
+separate queries. Fitting declared table/group caps, pinned total unique keys,
+maintained scalar lookups, ordinary bounded pages and indexed extrema stay
+clean. Residual filters can inspect unbounded rejected candidates despite a
+page limit. Plain unbounded nested collections retain E_QUARRY_BOUND. The note
+is not a whole-shape cost certificate and changes no runtime admission or IR.
+
+Update the why registry and pages, reads/views guidance and defining/recovery
+facts. Repair the jobs guide's own raw unread shape by sharing the inbox and a
+separate unreadTotal query with the digest; retain exact totals and atomic
+emission. Update the corresponding job witnesses and the search-repair test's
+expectation for valid residual-filter meter advice.
+
+Sweep all 606 repository Quarry files (including 75 calibration source modules)
+and calibration #29's two-module schema: nine justified notes in five groups,
+zero new refusals or changed exits. 201 groups already refuse under the baseline
+and are recorded as such. The maintained inbox remains clean. Final affected
+checks pass: 110 guide, seven shape-meter, 18 job-viewer, 84 Quarry check, 242
+CLI unit, 40 expiry-write and 27 fix tests. Wasm is unchanged byte-for-byte:
+2,030,224 B raw / 610,085 B gzip against the unchanged 610,782 B budget.
+
+The requested root inventory check fails in unchanged Snapback 1 inputs:
+unregistered caps.test.mjs, stale/missing generated artifacts and authoring
+profile baselines, and the capabilities page size budget. Snapback 4's diagnostic
+registry checks pass. Shared target artifacts were replaced by concurrent lanes;
+pinned CLI copies and a separate artifact fingerprint within the required shared
+target make the final focused checks attributable to this source. All commands,
+reproduction, complete diagnostic census and failure classifications are in
+`~/sb5-lanes/ub.report.md` with logs in `~/sb5-lanes/ub-evidence/`.
+
+The single complete suite reports exactly `== 2 failure(s) in 1758 s`, exit 1:
+`cargo test` and `client tests`. Rust has ten failed targets: 25 private-store
+assertions rejected this lane's initial ignored target symlink; two job-viewer
+and two search-repair assertions needed the expectation updates above; two
+CLI/guide comparisons and four current-executable child launches suffered shared
+artifact replacement; one simulator target exited without output, with cause
+unproven. Final focused reruns cover all failures and pass. Replacing the target
+symlink with a real local directory also left the event-slot trace in its old
+location; regenerating it restored all 48 affected client cases. The other 36
+client failures could not find witness-acquire's JavaScript helper outside the
+shared executable's ancestors; its existing helper-path override restored all
+43 witness tests. No assertion was weakened to accommodate those environment
+failures. Full-run clients: 5,700 passed, 38 failed, ten skipped; all 79 models
+passed. The whole suite was not rerun; its red result remains explicit.
+
+Reference audit: `ref-check: ok — 525 LLP docs, 10104 refs in 32454 files, 0 errors, 0 unchecked`.
+One local commit with the requested GPT-6 Astra co-author trailer; nothing
+pushed or published.
+
+## 2026-10-03 — UB round 1: fold both blind shape-meter reviews
+
+Fold Astra and Grok's READY WITH CHANGES reviews of b2c0984105. Pair index
+components with scalar prefix keys so words terms cannot pin the next column;
+exclude words scans from the ordinary-page exemption unless their candidates
+have an independent fitting bound. Ordered min/max use the one-value advice
+bound only on non-expiring tables: expired candidates are charged and skipped.
+Correct the why page, LLP 3000.007 §24 and the views card's unreadCounts lookup.
+Runtime admission, authorization, IR and meters are unchanged.
+
+Eleven shape-meter tests pass. New regressions cover both reviewed word-index
+shapes and independently assert on their words scan; correct table/room caps
+stay clean. The literal 'a z' search over 9,000 children containing only 'a'
+emits advice and its cursor follow refuses E_SHAPE_EXCEEDS_METER (64 MiB heap
+isolates the unchanged examined ceiling). Both min and max over 9,000 expired
+children emit advice and refuse on follow at default ceilings. The clean extrema
+fixture gains expiry and capped-expiry controls. An unpinned owner read rule's
+nested page now has uncapped and capped N_SHAPE_METER controls.
+
+All four applied mutations fail tests: forcing uniform=true, restoring the
+word pin bug, allowing words pages, and allowing expiring seeks. Restored code
+passes all eleven. The existing grouped-search guide examples now teach their
+shape note and require that precise note; builtin repair predicates require
+both words and residual-browse advice. No vacuous empty-note assertion remains
+there. Guide wording was shortened to keep existing budgets and compiled examples.
+
+Requested affected checks pass: 110 guide, 18 job-viewer, two search-guidance,
+eight search-repair, 84 Quarry check and 40 expiry-write tests (the latter also
+includes the search-repair module). No complete suite was run this round.
+
+Repeat the same 606-file / 393-group census plus calibration #29. Shape notes
+rise from nine in five groups to 26 in 21 groups: 17 additional words-preview
+notes, each classified in the Round 1 report. All are justified: sixteen have
+no message candidate cap; one has a 200,000-row cap above the ceiling. The 193
+accepted groups and 201 baseline refusals are unchanged, with zero new refusals
+or changed exits. Calibration #29's notes are unchanged.
+
+The isolated wasm output matches round 0 byte-for-byte: 2,030,224 B raw /
+610,085 B gzip against 610,782 B, 697 B spare. An earlier mutable shared-target
+artifact measured 610,519 B; a unique Cargo output followed by the same pinned
+optimizer steps recovered the original SHA-256. No budget raised. Logs, mutation
+results, full sweep outputs and each new note's classification are under
+`~/sb5-lanes/ub-evidence/`; `~/sb5-lanes/ub.report.md` has the Round 1 report.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+Reference validation passes: 525 LLP docs, 10,104 refs in 32,454 files,
+zero errors and zero unchecked; git diff --check passes.
+
+
+## 2026-10-03 — Lane R: generated receipt families and useSeen
+
+Implements LLP 3000.032 §4.3 under Charlie's full-implementation ruling.
+`api.receiptFamilies` carries compiler-derived typed member/seen handles, actual
+argument names, accounting mapping and the existing fingerprint. `useSeen` owns
+monotonic visible progress, shared admission/pending work, bounded admission
+retry and membership/session lifetimes. The name limits its claim to seen.
+The app supplies visible confirmed positions and foreground/viewport evidence;
+the hook neither pages history nor reports delivery. Bare retained history and
+current receipt/decorations remain independent reads. No core receipt protocol,
+capability, custody or allocator changes. The contract addition is a type-only
+re-export; no existing Client/Read/Write shape changes.
+
+LLP 3000.022 §14.6 records the API and fences. Guide client/receipt/social cards,
+package references and declaration comments, `why`, and the social starter use
+the new API. The filesystem proposal is resolved. Real preserved G47/Cal29
+pilots: R3 37 lines / 1,742 B → 6 / 366; R4 2 / 371 → 2 / 297. Counting actual
+visibility integration, G47 loses 22 lines / 602 B across its changed client
+files; Cal29 grows 4 lines / 381 B. No overall Cal29 size saving or score gain.
+G47's prerequisite migration to existing declarative receipts is not helper
+savings. Pilots check schemas, generated types and receipt integrations; no
+full application/native UI qualification claim.
+
+Complete guide 110/110; declarative receipts 154/154; focused client lifecycle,
+React and process/wasm checks 68/68; public type checks 6/6. Full script ran once:
+`== 2 failure(s) in 1518 s` (Cargo artifact build and client tests). Models pass
+79/79. The repaired complete Rust inventory runs 285 binaries / 998 executions
+and doctests; five failed targets are our copied-contract fixtures and a
+symlinked private-store parent, all repaired with passing affected reruns.
+The original client sweep reports 5,751 passed, 45 failed, 10 skipped. Our
+missing census entries/incomplete doc example were fixed; other failures were
+shared-binary replacement, out-of-tree witness lookup and a Node HTTP teardown
+exception. All affected files plus starter checks pass with the isolated lane
+binary: 126 passed, zero failed/skipped. Every original red and classification
+is retained in reports/20261003-r-receipt-binding/{REPORT,FAILURES}.md and logs.
+
+Wasm 2,031,329 B raw / 610,520 B gzip; unchanged 610,782 B budget, 262 B headroom.
+Source/distribution wasm hashes agree. README remains 300/300 physical lines,
+client guide 1,200 words; reference validation passes. No unresolved introduced
+failures; full-suite reds are preserved rather than relabeled green. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+
+## 2026-10-03 — Lane R round 1: fold both blind reviews
+
+Closes Astra's action namespace collision and listener-cleanup test findings,
+and Grok's terminal seen-progress wedge and exact-floor test findings against
+`23049b4fc2`. Receipt-family collision checking now uses final bound API roots,
+including actions, and refuses `E_RECEIPTS_CLAUSE`. Terminal non-admission
+failures remember the rejected position and reset the target to covered progress
+before failing. A fresh different visible position can start a new attempt;
+retry, reconnect and repeated input cannot resubmit the rejected position.
+Reset clears it. LLP 3000.022 §14.6 and the receipt/client documentation match.
+
+New regressions cover bare/action-only-module collisions, 100 refused then 40
+sent for PAST_LAST_MESSAGE/NOT_MEMBER/thrown E_CLIENT, exact rejoin floors on
+process and wasm, and zero remaining client/observation listeners after final
+unmount including Strict Mode. Temporary mutants removing the failed guard,
+unsubscription loop, inclusive floor check or terminal reset all fail tests;
+the final restored implementation passes.
+
+Binding 4/4; whole guide 110/110; seen/client lifecycle 68/68; React/public types
+64/64, including six type tests; client/CLI builds, doc budget and references
+pass. The initial action fixtures missed `use server`; corrected and the red
+retained. No full-suite rerun this round. Wasm 2,031,329 B raw / 610,519 B gzip,
+unchanged 610,782 B ceiling, 263 B headroom; source/distribution hashes agree.
+R3 and Cal29 pilots rerun successfully with zero source line/byte changes from
+round 0; all 12 preserved hashes/counts match. R3 stays 37 → 6 lines, Cal29's
+receipt snippet 2 → 2; whole-client deltas stay −22 and +4 respectively.
+
+Details and lossless logs: reports/20261003-r-receipt-binding/REPORT.md, Round 1,
+and round1/. The same record is appended to ~/sb5-lanes/r.report.md. Commit locally
+with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push/publication.
+
+## 2026-10-03 — Lane FD: Following keeps the history window
+
+Recorded Charlie's ruling: Following copies each actor's newest 1,000 events at
+follow time and receives new events afterward; older posts are on the actor's
+profile. LLP 3000.016.000 is Shelved, linked from its parent, with the ruling in
+LLP 3000.016 §3 and LLP 3000.032 §4.4. Closed the follow-history-options ticket.
+The version-3 `timeline experimental history all` prototype remains recoverable
+on `origin/sb5/f-follow-history-prototype-parked` at 0936b660f0; no engine,
+compiler or client implementation is imported. Any future older Following
+support should prefer on-demand pages under a separate design.
+
+Imported only F's RFC and reports/20261003-f-follow-history/ from that commit.
+All 42 evidence files (238,996 file bytes; 384 KiB on disk) match their source
+blobs, and every RFC measurement is preserved. The reasons are followers ×
+history storage (99,000 extra copies / about 286 MB for one reader of a
+100,000-event actor; about 9.9M copies for 100 readers by arithmetic), whole-feed
+withholding during backfill, growing catch-up traffic despite the same device
+floor, and 2/14 calibration mentions with zero workaround lines.
+
+The feeds card states this product boundary, supplies a one-query server
+profile read, and offers “See older posts on their profile” links at the
+complete feed's end. It remains 401/401 lines, with its 15/15-line opening.
+The initial placement beside windowed sources emitted N_SYNC_ORDER; placing
+the profile query with the card's online-only source example makes its server
+requirement explicit. Complete guide suite: 110 passed, 0 failed. Ref-check:
+0 errors, 0 unchecked; edited document links resolve. This is a documentation
+commit only, with no push or publication.
+
+## 2026-10-03 — Lane A: read presentation and a stable screen
+
+Implemented LLP 3000.032 §4.1 under Charlie's full-implementation commission.
+`readPresentation` from `snapback4/contract` consumes `existence` and unchanged
+metadata: read-loading `pending`, ready `incomplete` (partial/coverage/cut/next),
+`stale`, independent `revalidating`, exact refusal and timestamp. No data
+inspection, subscription, saved result, alternate absence proof or permission
+flag. LLP 3000.031 §7 records the decided API. RV/ON retention, once-media,
+pending predicates and hard withdrawals are unchanged.
+
+The complete React/Expo screen keys its shell by backend/account/resource;
+current results and notices update without unmounting its draft. A browser runs
+the actual published recipe under Strict Mode, checking focus/draft retention,
+withdrawn results, key resets, membership action rules and listener cleanup.
+Native host views are DOM stubs, not native UI qualification. The client,
+offline-interactions and social guide cards, social Search/README, package
+README/reference and generated declaration comments teach the helper. The
+client card stays 1,199 words; README stays 300 lines.
+
+A1/A2 use frozen real Cal29/G47 source with verified evidence-ledger hashes.
+Selected snippets: 1 line / 123 B → 1 / 80 B; 7 / 281 → 4 / 191. Full files
+plus new notices grow by 10 lines / 667 B and 11 / 688 B. A same-behavior
+recipe-only comparison costs 124/81 B more respectively; A2 has equal total
+lines. All 1,010 notice cases per pilot render identically between alternatives.
+The helper earns a small place by centralizing the incomplete predicate,
+including nonempty results. The shell alone removes A2's latch. No overall
+code-size saving or cold-builder score gain. Pilots check generated API types
+and changed integrations, not full app/native execution.
+
+Whole guide 110/110, focused client/types/examples 36/36, expanded real-device
+presentation 7/7, pure presentation 7/7, browser recipe 1/1; source and emitted
+package typechecks pass. Wasm is 2,048,753 B raw / 617,410 B gzip, unchanged
+618,040 B ceiling, 630 B headroom; source/distribution hashes agree. The first
+guide word-budget/required-wording failures and missing browser-runtime alias
+were introduced and repaired, with original red logs retained.
+
+The complete script is running once. Its Rust inventory ran 287 binaries /
+1,000 executions and doctests; five targets failed. Three native fixture
+targets failed because the host-only Cargo artifact-copy wrapper mishandled
+nested builds without CARGO_TARGET_DIR; the repaired environment's reruns pass
+2 + 8 + 11 tests, with one existing ignored test. Four N_SHAPE_METER no-note
+assertions in prefix_reads/membership_search reproduce on untouched base
+1bea1a149c6df00bae7276c7114c06ea5749b7bf with Rust 1.97.0. They are filed in
+issues/20261003-snapback4-shape-meter-test-expectations.md. Final suite summary
+and any client classifications will follow below before this local commit.
+
+Evidence: reports/20261003-a-read-presentation/REPORT.md and pilots/check logs;
+external handoff: ~/sb5-lanes/a.report.md. Commit locally with
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; no push or publication.
+
+Lane A final verification: the script completed with the verbatim summary
+`== 2 failure(s) in 1853 s` (`cargo test`, `client tests`). Client models pass
+79/79. The client sweep is 5,927 passed, 4 failed, 10 skipped; its three failing
+social-search assertions plus parent expected incomplete notices to remain
+hidden on nonempty pages. Updated only those expectations to the new truthful
+presentation; all four browser tests pass on the real wasm starter rerun.
+The guide's readPresentation/read-presentation aliases pass the whole guide
+again, 110/110. Original red logs remain in the report. Every introduced
+failure is repaired with passing affected reruns; the four base-reproduced
+N_SHAPE_METER compiler assertions remain ticketed. No full-suite green claim.
+
+## 2026-10-03 — Lane A round 1: fold both blind reviews
+
+Read Astra and Grok's complete round-0 reviews and folded every requested
+change. The stable screen clears the draft synchronously before admission,
+pairs submitted text with a minted write ID, and offers Edit/Dismiss for that
+latest submission's refusal. New Chromium regressions hold admission while
+identical text is deleted/retyped, and cover refusal both at admission and
+after pending custody. Newer drafts and focus survive.
+
+Loading and denial now each independently follow a nonempty protected read;
+both must immediately remove protected text and preserve the draft/input/focus.
+A last-ready-items cache mutant fails both. A stale nonempty incomplete read
+has an exact present/incomplete/stale assertion; forcing incomplete false when
+stale fails it. The stale empty screen must still say there are no messages.
+
+Restored “Unknown counts never hide conversations.” with a guide assertion;
+the client card is 1,199/1,200 words. Search docs, screen and decision table use
+the helper's incomplete flag for notices. The contract comment states its
+exact condition. The research §4 lead marks implemented §4.1 and §4.3, while
+§4.2 remains a proposal on main. LLP 3000.031 §7 records the recipe regressions.
+
+Rebased cleanly onto main f0c7d7a038 (round 0 became 3bc5aa80cd). Final affected
+checks pass 36/36, including process/wasm, Chromium, type tests and published
+examples; whole guide 110/110; package build/typecheck and both pilots pass.
+Each pilot retains 1,010 equivalent notice cases and unchanged size counts.
+Wasm remains 2,048,753 B raw / 617,410 B gzip, 630 B below the unchanged budget.
+The first wasm attempt used stale shared-target core artifacts; forcing a
+core rebuild by mtime, with no source changes, produced the same round-0 hash.
+Initial failure and passing rebuild logs are retained. No full-suite rerun or
+native layout claim. Round 1 is appended to
+reports/20261003-a-read-presentation/REPORT.md; evidence is under checks/round1/.
+Commit locally with the requested Astra co-author trailer; no push.
+
+
+## 2026-10-02 — X27R: one published Expo scene lifecycle
+
+On the Apartment M5 Pro mini, reproduce the unchanged reference chat Release
+launch trap at NoSceneLifecycleAdoption under Xcode 27A266a / iOS SDK 27.0.
+Retain the published snapback4-expo/plugin on the existing Expo 57.0.22 pin;
+add it to apps/chat-expo and have init --expo inherit it exactly once. Social
+keeps that same entry. Expo's supported alternative needs 57.0.23 plus
+expo-build-properties 57.0.20; replacing the published plugin would require an
+SDK migration for existing consumers or a second fallback. LLP 3000.030 §13
+records the choice. Plugin behavior/export, client/engine and versions stay
+unchanged. Baseline/fixed reference products have byte-identical JavaScript.
+
+Salvage the named scene-crash diagnostic, producing Xcode/SDK manifest fields
+and relevant tests from sb4/xcode27-uiscene, without merging or importing its
+logs. Preserve main's value-free refusals and ownership checks. Also admit the
+two exact generated Expo dSYM forms for npm's nested package layout; comparison
+with the admitted forms finds only the package path difference. Their regression
+still refuses custom scripts.
+
+Dedicated iPhone 17e only: reference offline and restart scenarios pass;
+fresh plain and social npm native:smoke pass in 171.820 / 223.500 s, and a
+standalone copy of the reference chat passes own-build smoke in 114.850 s.
+All smoke prime/offline/restart segments pass. Independent checks rehash all
+run artifacts and all 326 files in the three sealed app inventories. The
+repository Bun workspace remains outside the existing --build adapter; the
+standalone copy's exact changes and lock are retained, not called workspace
+support. Xcode 26.6 was not run; the report provides an asserting supervisor
+command for that host.
+
+Affected Rust init 22, witness integration 65 and units 14 pass; JavaScript
+witness/periphery/preparation/scenes 44 pass, and the subsequent preparation
+regression 15 pass. Whole guide 111 passes after keeping its existing line
+budget. Wasm remains 2,029,315 B raw / 609,893 B gzip against 610,782 B.
+The required complete suite ran once: `== 2 failure(s) in 2601 s`
+(`cargo test`, `client tests`). Two replay startup-log assertions failed;
+the unchanged replay target subsequently passed all 22 tests in 1.74 s.
+The known browser replacement fixture hit SQLite's writer lock and leaked
+its server. Only that verified suite-owned child was terminated so the
+existing failure could report; no test was omitted. The serial models passed
+all 79 tests. Both failures have filesystem follow-up tickets; the full result
+remains red. The Xcode 27 lifecycle ticket is closed with those limits stated.
+
+Local evidence lives only under ~/x27r-evidence/, with per-file SHA-256 and
+summaries in ~/x27r.final.md. No raw simulator, build or crash logs in git;
+no push, publication, tag, other host or other worktree mutation.
+
+
+## 2026-10-02 — X27R round 1: fold both blind reviews
+
+Filter scene crash reports by bundle, launch-time mtime, owned PID and simulator
+before choosing the newest report with NoSceneLifecycleAdoption in its faulting
+thread. A newer foreign-simulator report or an owned report without the symbol
+cannot mask the scene crash. Keep one best candidate, check the retry deadline
+inside the scan, cap actual reads at 16 MiB even if the file grows, and hash the
+bytes inspected. Update the witness card and LLP 3000.030 §13 together.
+
+Record installed-product xcodeBuild, iosSdkVersion and toolchainSource on the
+preparation manifest immediately after inspection, before later bundle, artifact
+or already-running refusals. The driver regression contrasts a 26.6 host with a
+27.0 product, then verifies absent product fields stay null. Add both concurrent
+report regressions, nonzero faulting-thread and nonfaulting-symbol controls,
+an expired scan, isolated-process memory comparison and a late report published
+600 ms after fake launchctl exits. Six deliberate mutations fail their tests,
+including deleting the retry. The old retain-all implementation peaks at
+5,046,272 / 73,809,920 bytes for 1 / 64 large reports; the fixed scan at
+5,095,424 / 8,552,448 bytes in the final run.
+
+Final checks: Rust init 22, witness integration 70, witness units 14, JavaScript
+witness/periphery/preparation/scenes 45 and whole guide 111 all pass. ref-check
+passes with 0 errors. The first run's guide pins and overly broad fake SDK change
+were corrected; an existing driver port collision is retained in the log and
+passes in the final complete affected-target run. No full suite this round.
+
+Xcode 27A266a / iOS SDK 27.0, dedicated iPhone 17e
+3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B only: reinstall the preserved round-0 products
+after verifying their executable/JavaScript hashes and scene manifests. The
+unfixed product exits 1 with E_WITNESS_SCENE_LIFECYCLE (3.896 s). Fixed reference
+offline and restart exit 0 (10.472 / 15.170 s), with 303 seeded rows, cold history,
+two ordered pending sends and restart persistence. Rehash all 20 declared
+artifacts across the three manifests. These remain installed-app scenarios;
+no new workspace-build or Xcode 26.6 qualification is claimed.
+
+Evidence: ~/x27r-evidence/round1/; appended report: ~/x27r.final.md, Round 1.
+Keep supervisor commit 4107563753 and append this existing journal as explicitly
+instructed; its size is not a review finding. No push, publish, tag, other
+simulator, other worktree or delegated agent.
+
+## 2026-10-03 — B: pending intent cards through observed settlement
+
+Implemented Charlie's 2026-10-02 ruling on LLP 3000.032 §4.2. The decided API
+is in LLP 3000.019 §3.3.1: `usePendingItems` composes explicit scoped row/intent
+keys over existing custody and receipt facts; `usePendingState` selects the
+last admitted set-state intent. Terminal local success remains `settling` until
+the existing device observed-write retirement. Prediction only suppresses a
+duplicate card. Scope retirement synchronously exposes no old arguments,
+including during failed or delayed reads. No second outbox, row, receipt
+accounting, media handle, timer retirement or replay mechanism was added.
+The Client contract and Rust engine are unchanged. Online success references
+are session-only; the existing journal's retirement is unchanged.
+
+Real Cal29 B1/B2/B3 rewrites cover text, omitted media sends and like/repost
+selection. Selected code remains 3 physical lines, 561 → 753 B (+192 B);
+whole-file change is +204 B. The pilot shows no code-size saving or measured
+builder-score improvement. Both real rewritten files typecheck. Paved client,
+writes/social guide cards, starter recipe, package README/reference and emitted
+TypeScript declaration docs describe the API. Report and specimens:
+[Lane B](./reports/20261003-b-pending-intents/REPORT.md).
+
+Checks: 14 pending-intent regressions (process and wasm), 110 guide tests,
+150 affected client reruns, 30 store integration and 56 row-view unit reruns,
+and 48 event-slot client reruns pass. The complete required suite ran once;
+its model stage passed all 79 tests. Original summary, verbatim:
+
+```text
+== 2 failure(s) in 2103 s
+   cargo test
+   client tests
+```
+
+Lane-owned guide/example defects were fixed; environmental failures came from
+an initially symlinked private-store directory, a displaced generated trace,
+foreign shared CLI output, and SDK-helper discovery from the shared binary path.
+Every failing case is named in the report and passed its affected rerun. There
+is no single green full-suite receipt. Latest wasm: 2,031,329 B raw / 610,520 B
+gzip, below the unchanged 610,782 B cap; initial build was 2,030,224 / 610,085.
+These shared-target artifacts are not a paired feature-size attribution.
+Commit locally with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push
+or publication.
+
+
+## 2026-10-03 — B round 1: bounded ownership and sequence-backed settlement
+
+Folded both NOT READY blind reviews of 80ec6b66dd. Mounted hooks retain only
+matching online intent arguments, bounded at 256 references and 1 MiB serialized
+payloads, oldest first. Reads reuse frozen payloads; unmount/resource changes
+release unowned arguments. Eviction marks previously returned references
+`evicted` and removes them from later reads, never claiming row observation.
+A 1,000-write probe without a hook retains zero entries (2 B serialized `[]`);
+with an owner it retains 256 (316,674 B for the 1 KiB-payload fixture).
+
+Presentation scope is principal/store; separate read revisions fence bearer,
+schema and generation resets while settling text survives. Account/store
+retirement and close still withdraw synchronously. Online peers retain arguments
+they observed in shared custody across another owner's receipt transition;
+journal entries precede identification callers. No journal format, persistence,
+replay, Client contract or wasm engine change. `usePendingState` accepts the
+authorized `read` supplying current state and retires success when its private
+sequence covers the receipt, including an opposite value from another writer.
+LLP 3000.019 §3.3.1 and the paved client documentation state the corrected rules.
+
+Six Node regressions and three React correctness regressions fail against
+round-0 code. Two further real-online React tests kill the requested disabled-
+observation and predicted-retirement mutations. Empty-argument restart mutation
+is rejected on both process and wasm. Final repeat batch: 83/83 passed five
+times, including all new cases, existing pending-intent process/wasm tests and
+the complete React harness. Affected client run: 363/363. Whole guide: 110/110;
+type/declaration/example checks and docs budget pass. Full suite not rerun this
+round, as requested. Final wasm: 2,031,329 B raw / 610,519 B gzip, 263 B below
+the unchanged cap. Shared-target artifacts are not paired feature attribution.
+
+B1–B3 pilot typechecks again and still saves zero physical lines: 561 → 753 B
+(+192 B selected, +204 B for both whole files); unchanged from round 0. Its
+local-device code does not measure online read-evidence plumbing. The Round 1
+report records baseline failures, mutation controls, development fixture/type
+errors and all final checks. Local commit with the requested Astra co-author
+trailer; nothing pushed or published.
+
+
+## 2026-10-03 — B round 2: principal fences and terminal-only intent retention
+
+Folded both round-1 NOT READY reviews of 6cd62525b4. Fixed the raw-client
+viewer disclosure first: queued arguments carry their admitting principal and
+retire permanently on account change, including late receipt capture. Initial
+token-only identification still adopts its own queue. The presentation audit
+also found direct online custody reactivating across Alice → Bob → Alice;
+that custody lifetime now pauses at its first viewer change.
+
+Pending journal rows borrow their payloads outside the 256-reference / 1 MiB
+terminal pool, so pending backlogs cannot evict a successful card. Arguments
+copy/freeze once at the successful receipt transition. Each id keeps one
+admission ordinal across pending/settling output; a newer settled toggle wins
+over an older held peer write. Payload-free observation markers block recapture
+and settlement retries while failed receipt persistence leaves custody
+outstanding, and release with custody or scope retirement. No new journal
+format, replay authority, contract, engine or meter change.
+
+Six permanent Node regressions fail on exact round-1 source, including the
+additional custody round trip; the token-only preservation control passes.
+The real React saved-read test retains covering sequence evidence, rotates the
+bearer, and refuses to retire success with the invalidated read. Removing only
+`evidence.current()` fails that assertion on both baseline and final source.
+All 91 focused process/wasm/React tests pass five times (455 executions), all
+363 affected clients pass, the whole guide passes 110, and type/declaration/
+example, delivery-boundary and docs-budget checks pass. Development errors
+and intentional negative controls are retained and classified in the report;
+no final ordinary failure is waived. No complete suite was requested or run.
+
+Wasm is 2,030,224 B raw / 610,085 B gzip, 697 B below the unchanged 610,782 B
+cap. Shared-target differences are not paired feature-size attribution. The
+actual Cal29 pilot typechecks and has unchanged measurements: zero lines saved,
+561 → 753 B selected (+192 B), +204 B whole files, no builder-score claim.
+LLP 3000.019 §3.3.1 and the client reference state the corrected rules. The
+[Round 2 report](./reports/20261003-b-pending-intents/REPORT.md#round-2--both-round-1-reviews-folded-2026-10-03)
+retains reproductions, mutation loaders and qualification evidence. Commit
+locally with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.
+
+
+## 2026-10-03 — B round 3: eviction ordering and opening custody retirement
+
+Folded the final round-2 READY WITH CHANGES items on aa5d4c15fc. Online eviction
+keeps a payload-free admission marker so `pendingState` returns `current` rather
+than an older pending value, unless a later scoped match exists. With arguments
+discarded, the marker conservatively fences earlier selection for its operation.
+Markers coalesce to one per operation with older owned intent and release with
+that intent, final unmount or scope retirement. The 256-reference / 1 MiB terminal
+payload bound stands. No new custody, replay, journal format, contract or meter.
+
+Custody subscribes to viewer changes before its opening journal read, records a
+flag while initialization is incomplete, then pauses on that flag or a different
+viewer. A full Alice → Bob → Alice during the read cannot revive startup-secret.
+The raw regression now holds its reply through that same round trip and asserts
+empty direct/pending/mounted views before and after settlement. Removing either
+permanent-retirement guard independently fails at the corresponding assertion.
+The client guide distinguishes withdrawing a prediction from confirmed retirement;
+LLP 3000.019 §3.3.1 records eviction ordering and opening-read retirement.
+
+Both cap cases (two 600,000-byte settles; 256 tiny settles), the opening-read case,
+and the wording assertion fail on exact reviewed source. The raw implementation
+was already correct; its new test passes the baseline and kills the requested
+mutation. All 96 focused process/wasm/React tests pass five times (480 executions),
+all 363 affected clients pass, guide 110 passes, declaration/example/type checks
+pass, and docs budget and delivery-boundary checks pass. Wasm: 2,030,224 B raw /
+610,085 B gzip, 697 B below the unchanged cap. No complete-suite run was requested.
+Evidence and bounded-marker semantics: the
+[Round 3 report](./reports/20261003-b-pending-intents/REPORT.md#round-3--final-round-2-review-items-2026-10-03).
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published.
+Reference audit: 526 LLP docs, 10,110 refs, zero errors or unchecked references.
+
+## 2026-10-02 — NX round 9: merge with main
+
+Merge fetched GitHub main `5e12646aeefa` into NX round 8 `156bdee7c6`
+with a real merge commit. Preserve both append-only journal tails and LLP
+revision histories; combine main’s named simctl failures and scene/toolchain
+metadata with NX custody, recovery and verified export publication. Keep both
+witness test sets, one scene-plugin entry per starter, and the fixed CLI shim.
+Condense the merged witness/client cards within their unchanged budgets.
+Move the shim signal-exit-zero ticket to `issues/closed/` with the source fix.
+
+The merged installed package bytes need one exact Expo-tree hash and two
+complete dependency audit hashes. External dependency bytes are unchanged;
+the scene plugin differs only in its LLP annotation. Keep every conservative
+fallback. This late pin correction follows the single complete suite and
+gets fresh affected verification on both hosts; no canonical result is relabeled.
+Final mini witness units 41, integration 76 and JS export/shim 19 pass;
+Linux units 42, integration 31 and JS 18 pass with one Darwin-only skip.
+Guide 111 passes. Main’s unchanged wasm cap is 618,040 B; merged output is
+2,047,812 B raw / 617,239 B gzip, leaving 801 B.
+
+Canonical `scripts/test.sh` ran once: `== 2 failure(s) in 2585 s`
+(`cargo test`, `client tests`). Eight test failures are baseline: four UB
+N_SHAPE_METER assertions independently reproduced on main alone; one already
+tracked replay stderr-observation race with unchanged main source; three
+published-0.2.33 capability comparisons reject SJ’s `decorationExpiry: null`.
+The latter reproduce in isolation, with test/core/device source identical to
+main, and receive a new filesystem follow-up ticket. Do not fix UB here.
+Client pool: 5,961 passed, 3 failed, 5 skipped; serial models: 79 passed.
+
+Final warm `npm run export:ios`: plain 23.161 s and social 29.560 s,
+both cache hits with prime/offline/restart passed, exact exported/installed HBC
+and verified publication inventories (8/32 entries). Priming is 102.414 /
+258.029 s with existing dependencies/system caches. Load1 crosses 6 for plain
+and remains above 9 for social; these are functional samples, not quiet-host
+qualification. Social’s 25-second target and custody residuals stay open.
+The first heavily contended resolver cleanup failure, local-tarball setup
+refusal and pre-audit cache miss are retained and classified in the report.
+
+Raw evidence stays in the existing external SHA-256 archive. Delete both
+verified eb1000 scratch directories and local source-transfer scratch; archive
+then remove only round 9’s recorded simulator under its ownership leases.
+Never target mini-verify-iphone or another session’s X27R checkout/simulators.
+Report: `reports/20261001-nx-export-proves-native/REPORT.md`, “Round 9 — merge
+with main”; final source/evidence audits are under `round9/`. The independent
+round-8 confirmation review remains separate. Local merge only; no push or
+external publication, with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 
 
 ## 2026-10-02 — QF round 0: qualification fixture races and file containment
@@ -82987,3 +84445,48 @@ unrelated process received a terminating signal. All 18 final runner/fixture/
 binary inputs stayed unchanged through qualification. Reference/whitespace
 checks accompany the local commit with the requested GPT-6 Astra co-author
 trailer. Nothing pushed or published.
+
+## 2026-10-03 — QF round 5: merge with main
+
+Merged origin/main 1b879881bee0079c357356685f1a671fe0aed13b into QF round 4
+4291d06dee with a real merge, preserving both histories. The replacement
+regression imports the now-landing shared runFile and keeps main's assertions;
+the replacement-lock ticket keeps main's closed status and independent-landing
+history. The JOURNAL conflict retains main's complete prefix and QF's complete
+suffix, with no earlier entry removed or rewritten. Main's replacement-server,
+worker readiness and devServer PID fixes remain byte-identical. The other lanes'
+product changes and all main Rust source are preserved.
+
+The post-merge guard census exposed one integration gap: main's new live-margin
+browser test declares hangBudget(800), above the default runner stall bound.
+Added that existing work count to the runner and asserted its 2,150,000 ms
+bound in normal and serial mode. All 303 files now fit the unchanged margin
+formula. No product assertion, timeout or seed changed. This correction landed
+in the working tree during Rust execution, before the client phase; both
+hosts' focused checks were then repeated on final source.
+
+Final focused checks pass on eb1000 (42 passed, six Darwin-only skips) and the
+Apartment mini (48/48), without outer file refusals. All 13 mini source hashes
+match; its published 0.4.10 binary is fixture-portability evidence only. The
+mini scratch was removed; no other Mac was contacted and no unrelated process
+received a terminating signal.
+
+The single full eb1000 suite reports exactly `== 1 failure(s) in 1560 s`,
+exit 1. Its only failed category is cargo test: UB's two prefix_reads and two
+membership_search assertions. All four reproduce on a clean main-only
+1b879881be worktree without the QF runner and remain tracked by the existing
+UB ticket. All builds, budgets, doctests, package/app checks and JavaScript
+pass: ordinary clients 6,036 passed / 17 skips across 300 files, serial models
+79/79 and fixture wrappers 9/9. QF failures, remaining merge failures,
+environmental suite failures and runner refusals are all zero. Twenty-one
+opaque host candidates were diagnosed and skipped under Round 3's rule.
+The macOS replay/publication regressions were not exercised by the mini's
+focused runner checks; no new reproduction or fix is claimed for them.
+
+The [Round 5 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-5--merge-with-main-2026-10-03)
+retains the conflict resolutions, failed and corrected guard censuses, both
+focused runs per host, full suite, clean-main baseline, source manifests and
+all failure classifications. The reference check and QF whitespace delta pass;
+43 inherited whitespace-bearing evidence files match main exactly. The local
+merge commit lists every conflict and carries the requested GPT-6 Astra
+co-author trailer. Nothing is pushed or published.

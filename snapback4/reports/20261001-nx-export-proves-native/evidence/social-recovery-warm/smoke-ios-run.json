@@ -1,0 +1,22 @@
+{
+  "artifacts": {},
+  "bundleId": "",
+  "cliVersion": "0.4.10",
+  "error": "E_WITNESS_APP: app is running; refusing replacement",
+  "events": [],
+  "exitStatus": 1,
+  "finishedAt": 1790897596663,
+  "phase": "preparation",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "segment": "smoke",
+  "simulator": {
+    "name": "sb4-nx-1790894904995-92367",
+    "prefix": "sb4-nx-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+  },
+  "startedAt": 1790897466423,
+  "timestampUnit": "unix-ms",
+  "udid": "40F37BC8-7B71-497A-BFDE-022928C5B98C"
+}

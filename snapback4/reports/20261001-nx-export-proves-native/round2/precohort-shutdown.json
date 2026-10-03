@@ -1,0 +1,15 @@
+{
+  "udid": "A49AC80F-F0AD-4810-B662-D8347E2749ED",
+  "ownership": {
+    "name": "sb4-nx-recovery-r2-1790920931224-23518",
+    "prefix": "sb4-nx-recovery-r2-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "A49AC80F-F0AD-4810-B662-D8347E2749ED"
+  },
+  "stateLeaseHeld": true,
+  "homeLeaseHeld": true,
+  "at": 1790921577.969611,
+  "action": "shutdown unused recovery-control simulator before final timing cohort"
+}

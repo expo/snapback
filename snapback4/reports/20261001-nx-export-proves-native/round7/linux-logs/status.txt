@@ -1,0 +1,6 @@
+bun-install 0
+rust-witness 0
+rust-integration 0
+cargo-build 0
+js-export-shim 1
+js-export-shim-with-resolver 0

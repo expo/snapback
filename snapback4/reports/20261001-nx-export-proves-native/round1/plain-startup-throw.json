@@ -1,0 +1,36 @@
+{
+  "starter": "plain",
+  "label": "startup-throw",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790909393069,
+  "durationMs": 14040,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "2c426d3fa62c6435fc44081ae992c01ec3ce8af5a765764c57746668016521d8",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790909396295-68412/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "09e2c48febbe1cb1ab39ba73c88b439f2cbec2f1fbe7021685bdfc733faec8cb"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 1,
+  "error": "E_WITNESS_STEP: app step failed; check --segment and see receipts and device log",
+  "segments": {
+    "offline": "not-run",
+    "prime": "failed",
+    "restart": "not-run"
+  },
+  "nativeDurationMs": 10299,
+  "loadedHash": "2c426d3fa62c6435fc44081ae992c01ec3ce8af5a765764c57746668016521d8",
+  "metroResources": [],
+  "warmReceiptBytes": 37147
+}

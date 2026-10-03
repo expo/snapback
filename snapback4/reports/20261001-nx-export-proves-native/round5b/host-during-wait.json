@@ -1,0 +1,23 @@
+{
+  "atMs": 1790982164928,
+  "load": [
+    5.92822265625,
+    23.23486328125,
+    50.77197265625
+  ],
+  "memory": {
+    "status": 0,
+    "stdout": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    55635.\nPages active:                                1662030.\nPages inactive:                              1684366.\nPages speculative:                              3319.\nPages throttled:                                   0.\nPages wired down:                             446411.\nPages purgeable:                               36333.\n\"Translation faults\":                     1883188235.\nPages copy-on-write:                        81764839.\nPages zero filled:                         958733890.\nPages reactivated:                           2015143.\nPages purged:                                1579961.\nFile-backed pages:                           1601017.\nAnonymous pages:                             1748698.\nPages stored in compressor:                   750815.\nPages occupied by compressor:                 273530.\nDecompressions:                               588916.\nCompressions:                                1358203.\nPageins:                                    37229816.\nPageouts:                                        536.\nSwapins:                                           0.\nSwapouts:                                          0.\nPages tagged:                                 206614.\nPages tagged resident:                        185694.\nPages tagged compressed:                       20920.\nPages tag-storage:                            131072.\nPages tag-storage holding tags:                 8697.\nPages tag-storage free:                          109.\nPages tag-storage non-tag pageable:           122158.\nPages tag-storage non-tag wired:                   8.\nBytes of compressed tags:                    3170816.\nTagged compressions:                           38054.\nTagged decompressions:                         15666.\n",
+    "stderr": ""
+  },
+  "swap": {
+    "status": 0,
+    "stdout": "vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)\n",
+    "stderr": ""
+  },
+  "thermal": {
+    "status": 0,
+    "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+    "stderr": ""
+  }
+}

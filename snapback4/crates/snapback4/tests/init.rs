@@ -547,14 +547,15 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         let root = if social { dir.0.join("social") } else { dir.0.clone() };
         let package: Value = serde_json::from_slice(&fs::read(root.join("package.json")).unwrap()).unwrap();
         assert_eq!(package["scripts"]["native:smoke"], "snapback4 witness ios --build . --smoke");
-        assert_eq!(package["scripts"]["export:ios"], "expo export --platform ios");
+        assert_eq!(package["scripts"]["export:ios"], "snapback4-export-ios");
         assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.13");
         let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();
         assert_eq!(config["expo"]["newArchEnabled"], true);
         assert!(config["expo"]["plugins"].as_array().unwrap().contains(&json!("snapback4-expo/plugin")));
+        assert_eq!(config["expo"]["plugins"].as_array().unwrap().iter().filter(|p| **p == json!("snapback4-expo/plugin")).count(), 1);
         assert!(root.join("src/native-smoke.ts").exists());
         let readme = fs::read_to_string(root.join("README.md")).unwrap();
-        for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "about 3 minutes warm", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
+        for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "also proves the app runs on iOS", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
             assert!(readme.to_lowercase().contains(&text.to_lowercase()), "missing {text}");
         }
     }

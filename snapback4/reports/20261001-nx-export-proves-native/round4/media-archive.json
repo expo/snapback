@@ -1,0 +1,32 @@
+[
+  {
+    "sha256": "8f1052a7f4cffd3e9d6109c547f1990738769b5be619bf67528eb54731aad59a",
+    "bytes": 3348117,
+    "path": "round4/evidence/plain-prime-final/smoke-ios-screen.mp4"
+  },
+  {
+    "sha256": "27dac6b5b132fe0a7e68c347fd230627bf727f5887740e0a0d328c024666a0ae",
+    "bytes": 3300990,
+    "path": "round4/evidence/plain-prime/smoke-ios-screen.mp4"
+  },
+  {
+    "sha256": "38f734f741d6cfbefd366d03ff0f786d61439affe67e6514c847cc3129732434",
+    "bytes": 3319683,
+    "path": "round4/evidence/plain-warm-final/smoke-ios-screen.mp4"
+  },
+  {
+    "sha256": "bb2551c581e3d174ff0db1f3282f1b751af2aae4f231b6d5658a4d95a15b0abf",
+    "bytes": 3660383,
+    "path": "round4/evidence/plain-warm/smoke-ios-screen.mp4"
+  },
+  {
+    "sha256": "e2216f2e9b2fee0ff2f81a1451b5797a289fbf8bcd86216a05ea832bb659b029",
+    "bytes": 4485939,
+    "path": "round4/evidence/social-prime-final/smoke-ios-screen.mp4"
+  },
+  {
+    "sha256": "d798f860bf89a8c2ecad1fe56ae5eb3f0fd68529efc863f3f2ad8a48e9ffc2c3",
+    "bytes": 4614623,
+    "path": "round4/evidence/social-warm-final/smoke-ios-screen.mp4"
+  }
+]

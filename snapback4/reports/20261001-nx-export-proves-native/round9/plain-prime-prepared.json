@@ -1,0 +1,53 @@
+{
+  "starter": "plain",
+  "phase": "prime",
+  "status": 0,
+  "durationSeconds": 190.13782787322998,
+  "startedAt": 1791002260.6029902,
+  "loadBefore": [
+    3.61767578125,
+    4.3232421875,
+    11.95849609375
+  ],
+  "loadAfter": [
+    6.103515625,
+    5.56884765625,
+    10.9716796875
+  ],
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1791002260706-52856/smoke-ios-run.json",
+  "receiptExit": 0,
+  "proofKind": "application-export",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "5b075ed7a1e2abc2418769697ebc51de8aa4999642d2013f8562ade5f952065a"
+      }
+    },
+    "hit": false
+  },
+  "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A",
+  "simulator": {
+    "name": "sb4-nx-r9-1790999661144-93718",
+    "prefix": "sb4-nx-r9-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A"
+  },
+  "nativeDurationMs": 186181,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "proof.json": {
+    "sha256": "1ceb8a4166b600d030bb2f8e88ee0ee41165a0fc90b38809cc428da02d94f9ef",
+    "bytes": 55089
+  },
+  "publication.json": {
+    "sha256": "e400963015c43f40db43e4c9ad8896fa49253288104ba443e0ef5b0cd4ee8c4c",
+    "bytes": 1468
+  },
+  "exportedBundleSha256": "665b6f8ccd28fe47819d0c5738474f1789ea2742515607782d29c15c3b64d8d6",
+  "installedBundleSha256": "665b6f8ccd28fe47819d0c5738474f1789ea2742515607782d29c15c3b64d8d6"
+}

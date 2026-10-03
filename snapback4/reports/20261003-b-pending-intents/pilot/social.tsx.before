@@ -1,0 +1,34 @@
+import React,{useState} from 'react';
+import {View,Text,ScrollView,Linking,Platform,Image} from 'react-native';
+import {router,useLocalSearchParams} from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import {useClient,useAsset,usePage,useQuery,useMutation,usePendingWrites} from 'snapback4/react';
+import {mintId} from 'snapback4/client';
+import {api} from '../snapback/generated/api';
+import {FeedCard} from '../ui/src/FeedCard';
+import {FeedTabs} from '../ui/src/FeedTabs';
+import {Composer,ComposerAttachment} from '../ui/src/Composer';
+import {Btn,Nav} from './screens';
+import {Video} from './Video';
+import {Trending} from './insights';
+import {Chats} from './chat';
+import {TrendingRow} from '../ui/src/TrendingRow';
+const poster=require('../instrument/fixtures/media/img-01.png');
+export const posterUri=Platform.OS==='web'?poster.uri??poster:Image.resolveAssetSource(poster).uri;
+export function PostCard({card,repost,actor,rank}:{card:any,repost?:boolean,actor?:any,rank?:number}){
+ const pendingLikes=usePendingWrites(api.setLike).filter(w=>w.args.postId===card?.id),pendingReposts=usePendingWrites(api.setRepost).filter(w=>w.args.postId===card?.id);const liked=pendingLikes.at(-1)?.args.set??card?.liked,reposted=pendingReposts.at(-1)?.args.set??card?.reposted;
+ const avatar=useAsset(card?.author?.avatar?.id??null),a=useAsset(card?.images?.[0]?.id??null),b=useAsset(card?.images?.[1]?.id??null),c=useAsset(card?.images?.[2]?.id??null),d=useAsset(card?.images?.[3]?.id??null),video=useAsset(card?.video?.id??null);const like=useMutation(api.setLike),share=useMutation(api.setRepost);const [playing,P]=useState(false),[error,E]=useState('');
+ if(!card)return <Text>Post unavailable</Text>;
+ const run=async(op:any,args:any)=>{const r=await op.run(args,{waitSeconds:0});if(r.state==='failed')E(r.why.message)};
+ const Card=rank?(props:any)=><TrendingRow rank={rank} post={props}/>:FeedCard;
+ return <View><Card authorName={card.author?.displayName??'Account'} authorIdentity={card.author?.handle} authorHandle={card.author?.handle} authorAvatarUri={avatar.status==='ready'?avatar.url:undefined} text={card.text} timestamp={new Date(card.at).toLocaleString()} imageUris={[a,b,c,d].filter(x=>x.status==='ready').map((x:any)=>x.url)} videoUri={video.status==='ready'?video.url:undefined} videoPosterUri={posterUri} likeCount={card.likeCount} liked={liked} repostCount={card.repostCount} reposted={reposted} replyCount={card.replies??0} repostedByName={repost?actor?.displayName:undefined} repostedByIdentity={repost?actor?.handle:undefined} onPressLike={()=>void run(like,{postId:card.id,set:!liked})} onPressRepost={()=>void run(share,{postId:card.id,set:!reposted})} onPressReply={()=>router.push(`/post/${card.id}`)} onPress={()=>router.push(`/post/${card.id}`)} onPressAuthor={()=>router.push(`/profile/${card.author?.handle}`)} onPressLink={u=>void Linking.openURL(u)} onPressMedia={()=>P(!playing)}/>{playing&&video.status==='ready'&&<Video uri={video.url} onClose={()=>P(false)}/>}{(pendingLikes.length>0||pendingReposts.length>0)&&<Text>Pending</Text>}{error&&<Text>{error}</Text>}</View>
+}
+export function PostComposer({parent}:{parent?:string}){const client=useClient(),publish=useMutation(api.publish);const [text,T]=useState(''),[files,F]=useState<ComposerAttachment[]>([]),[error,E]=useState(''),[busy,B]=useState(false);
+ async function pick(){const r=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images','videos'],allowsMultipleSelection:true,selectionLimit:4});if(!r.canceled)F(r.assets.map(x=>x.type==='video'?{kind:'video',uri:x.uri,posterUri:posterUri??''}:{kind:'image',uri:x.uri}));}
+ async function send(){B(true);try{const images=[];let video=null;for(const f of files){const u=await client.upload(await(await fetch(f.uri)).blob());if(!u.ok)throw Error(u.why.message);if(f.kind==='video')video={id:u.asset.id};else images.push({id:u.asset.id});}const r=await publish.run({id:mintId(),text,parentId:parent??null,images:images.length?images:null,video});if(r.state==='failed')throw Error(r.why.message);T('');F([]);E('');}catch(e){E(String(e))}finally{B(false)}}
+ return <View><Composer variant="post" value={text} onChangeText={T} onSend={()=>void send()} sending={busy} onPressAttach={()=>void pick()} attachments={files} onRemoveAttachment={i=>F(files.filter((_,n)=>n!==i))}/>{error&&<Text>{error}</Text>}</View>
+}
+export function Feed(){const params=useLocalSearchParams<{tab?:string}>();const [tab,T]=useState<'following'|'global'|'trending'>(params.tab==='trending'?'trending':params.tab==='global'?'global':'following');return <><Nav feed/><View style={{flex:1,flexDirection:Platform.OS==='web'?'row':'column'}}><View style={{width:Platform.OS==='web'?250:'100%',maxHeight:Platform.OS==='web'?undefined:160}}><Chats embedded/></View><View style={{flex:1}}><FeedTabs active={tab} onChange={T}/>{tab==='trending'?<Trending/>:<FeedList key={tab} tab={tab}/>}</View></View></>}
+function FeedList({tab}:{tab:string}){const page=usePage(tab==='following'?api.home:api.global,{});return <ScrollView onScroll={({nativeEvent:n})=>{if(n.contentOffset.y+n.layoutMeasurement.height>=n.contentSize.height-300&&page.hasMore)page.loadMore()}} scrollEventThrottle={100}><PostComposer/>{page.items.map((r:any)=><PostCard key={`${r.id}:${r.repost}`} card={r.card} repost={r.repost} actor={r.actorProfile}/>)}{page.hasMore&&<Btn title="Load more" onPress={page.loadMore}/>}<Text>{'denied'in page.read?page.read.denied.message:'loading'in page.read?'Loading posts…':!page.read.complete?'Updating…':''}</Text></ScrollView>}
+export function UserPosts({owner}:{owner:string}){const page=usePage(api.profilePosts,{owner});return <>{page.items.map(p=><PostCard key={p.id} card={p}/>)}{page.hasMore&&<Btn title="Load more" onPress={page.loadMore}/>}</>}
+export function Thread({id}:{id:string}){const parent=useQuery(api.post,{id}),replies=usePage(api.replies,{parent:id});return <ScrollView><Nav/>{'data'in parent&&<PostCard card={parent.data}/>}<Text>Replies</Text>{replies.items.map(p=><PostCard key={p.id} card={p}/>)}<PostComposer parent={id}/>{replies.hasMore&&<Btn title="Load more" onPress={replies.loadMore}/>}</ScrollView>}

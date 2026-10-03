@@ -1,4 +1,6 @@
-import type { PendingWrite, Refusal } from "./contract.ts";
+import type { IdentityWait } from "./identity-admission.ts";
+import { pendingIntent, registerPendingIntents, type PendingIntent } from "./pending-items.ts";
+import type { Client, PendingWrite, Refusal } from "./contract.ts";
 import type { Queued } from "./local-types.ts";
 import { successSequence } from "./local-receipts.ts";
 import type { WriteHistory } from "./writes.ts";
@@ -78,4 +80,37 @@ export function localPendingHolds(call: (request: Record<string, unknown>) => Pr
       return reasons;
     },
   };
+}
+
+// @ref LLP 3000.019#3.3.1 — retain the device's successful unobserved entry,
+// even when the public pending list excludes it. Read-only, never a second outbox.
+export function registerLocalPendingIntents(client: Client, queued: () => Promise<Queued[]>, history: WriteHistory,
+  identification: IdentityWait, holds: ReturnType<typeof localPendingHolds>, scope: () => unknown, acquired: () => boolean, revision: () => unknown = scope) {
+  registerPendingIntents(client, { scope, revision, async read() {
+    const before = scope(), epoch = revision();
+    if (before == null) return [];
+    const entries = await queued();
+    if (before !== scope() || epoch !== revision()) return [];
+    const receipts = await history.presentationReceipts();
+    if (before !== scope() || epoch !== revision()) return [];
+    const reasons = await holds.reasons(entries);
+    if (before !== scope() || epoch !== revision()) return [];
+    const items: PendingIntent[] = [];
+    for (const entry of entries) {
+      const receipt = receipts.get(entry.id);
+      if (receipt?.state === "failed") continue;
+      const seq = successSequence(entry) ?? (receipt?.state === "sent" ? receipt.seq : undefined);
+      const reason = reasons.get(entry.id) ?? entry.dispatch;
+      const state = reason ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued";
+      const write = { id: entry.id, op: entry.op, args: entry.args, predicted: entry.predicted, state,
+        ...(reason ? { reason } : state === "queued" && !entry.predictable && !entry.predicted.length
+          ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) } as const;
+      items.push(seq === undefined ? pendingIntent(write) : { write, phase: "settling", receipt: { state: "sent", id: entry.id, seq, replayed: true } });
+    }
+    // A terminal receipt can precede release of the identity/admission caller.
+    // It always wins over that caller's still-live saving indicator.
+    const admitted = new Set(entries.map(entry => entry.id));
+    for (const write of identification.pending()) if (!admitted.has(write.id) && !receipts.has(write.id)) items.push(pendingIntent(write, true));
+    return before === scope() && epoch === revision() ? items : [];
+  } });
 }

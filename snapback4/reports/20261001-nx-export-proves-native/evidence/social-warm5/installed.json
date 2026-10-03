@@ -1,0 +1,848 @@
+{
+  "sha256": "8eef34abe1e68c03be8e7cb77b74f683b5a7ebf91ce180bfef14a5a9071c94dc",
+  "bytes": 53791823,
+  "files": [
+    {
+      "path": "AppIcon60x60@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 578,
+      "sha256": "8a87a4aff1ec02470a53f93d24d3cd6effbc186afc0ea69183230ea45537020c"
+    },
+    {
+      "path": "AppIcon76x76@2x~ipad.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 837,
+      "sha256": "2eee84ce9360a23d36fbcf41cda65c53ac6481c5129ebd5eec10a3f3cdcf6c27"
+    },
+    {
+      "path": "Assets.car",
+      "mode": 420,
+      "type": "file",
+      "bytes": 20328,
+      "sha256": "05eff6e53fcf715dfca8acf1d68dd6f11842f178629a79688557a61026839e60"
+    },
+    {
+      "path": "EXConstants.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "EXConstants.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 751,
+      "sha256": "490cafa66decc890cd5248f56ad0a0dfbb613ea7b428aee457313ff4e6407057"
+    },
+    {
+      "path": "EXConstants.bundle/app.config",
+      "mode": 420,
+      "type": "file",
+      "bytes": 463,
+      "sha256": "a26ca9547271c9a8bf5f50b85fb40fd7901a91715d9afce02a90f3b363c496c4"
+    },
+    {
+      "path": "Expo.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 173,
+      "sha256": "05ba13f24655445d029d47b626ac23ce8003e2e0722b7f8926b82b89c94ec51b"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 773,
+      "sha256": "64ff9e8639733268f51291839adab820d5903739960af6670f34791acedaafd5"
+    },
+    {
+      "path": "ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 607,
+      "sha256": "2b2d8edb71d51c5b1f1ace4cdb28a94baf22fdde9bbf2e2bfc17d187ff7b5f47"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "ExpoFileSystem_privacy.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 774,
+      "sha256": "1e7718284fba7daaf2cad2b911a7d925bdfa1d4fad6df798afc181d1c1ff9699"
+    },
+    {
+      "path": "Frameworks",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1138048,
+      "sha256": "22a03cb5ed0f9b60a29883061bb3018cf3b9f76db58fc867e80fed548dcee8e8"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 746,
+      "sha256": "5f9a269baff07c93ed53674b76667a8b84b8acd9aa6dd96d94c326bd1e7e6b7d"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "3ae83871cd2b1afb35fff45f2130a05d9cadeb11984ec8075e6d879c0d5b3ee3"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/ExpoFont",
+      "mode": 420,
+      "type": "file",
+      "bytes": 209024,
+      "sha256": "b8dc277448260f3396b2ab4e26bbef146933b664c8c333b2ed89514c92bc10cf"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 728,
+      "sha256": "7f0220334b9f441a188a322be1848cccabfdbf269a11846db72d2ebe2db3fb1a"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoFont.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "31c71f755e0bfab32d7d59ab5d6fa0ac432864ecbdc952909c831823277e8a97"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+      "mode": 420,
+      "type": "file",
+      "bytes": 3802736,
+      "sha256": "0fd30f547c8966bcf2a270021513fb3ededec8874cc34433b6804e7283a590e6"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 752,
+      "sha256": "8ae666bb0e42debb4b0febf3c8f6b99569b00714fcf1188d01e12d3b53c42218"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "3d9801e35651b90ebcb931edd49aa11a4b1a8a55adc4c13ef8543e56a695e098"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+      "mode": 420,
+      "type": "file",
+      "bytes": 510448,
+      "sha256": "bedf4888ed356a79be44e349de01bea233595870bbff91b2e6ec7062a67790e2"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 739,
+      "sha256": "d74e5ea509971690ecbd0547420f4b8c67cca86011a622d24270be3556a98e7a"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "d2408759fc2a484e7e0e297a2be30a3e9d44d87ca14b24b892acde8d512ec1ee"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+      "mode": 420,
+      "type": "file",
+      "bytes": 164656,
+      "sha256": "e2bc4b29218b6d45ece648965c3b325ecf4a81ef7294e4cec0966ebecdb50bf1"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 764,
+      "sha256": "b24dd1a13fa165c1ff101c7944d4f431414e1162a2c0fd9e62ddfdaa7399a9c7"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "80be1448b69b59bcb539d691de897f29675c591f7162a6fbe2af679bf0538154"
+    },
+    {
+      "path": "Frameworks/React.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 724,
+      "sha256": "c9be56123cc6ba97e94958755e20537471fd84b0c1cd579e4982ae9255816301"
+    },
+    {
+      "path": "Frameworks/React.framework/React",
+      "mode": 420,
+      "type": "file",
+      "bytes": 11993344,
+      "sha256": "7cb38905c98d1fb6039e15f0370691669ab1ab31332e03d9589a3807a790bc24"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/React.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "9f22235918b33cc61280bff9f60b6fc25e491f693db5d1e0589a3e33eb952261"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 761,
+      "sha256": "043d66b265858b73ca23f8cbbf15e7043bb40f97e6104708e4f69d1f9d00fa96"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1236656,
+      "sha256": "df125ae05db964b31a67345272d7ce0a390a6b404379f7ec29d922456879d150"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 669,
+      "sha256": "16db1275ce3a9d70994d079ae4fe4e7f8894b2f92fb3c6b33b03fa3a2e5d0971"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 776,
+      "sha256": "d3559c988dff940d4f758f37a0ba1863208304e33ab0b97c0e3dd5d3762f5f1d"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "type": "file",
+      "bytes": 156,
+      "sha256": "178f3bdcfed97cc13ad4e518330448c56e00f47360560e105d55cfcd7598d9b8"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "type": "file",
+      "bytes": 12,
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "type": "file",
+      "bytes": 204,
+      "sha256": "d2393f211df2ea2bc6e03061789759c9818f99ffd177b408422ccf4d0b37f94e"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2032,
+      "sha256": "557fba743e35172838832cca93f1d17e34b8bd696f96eeb3032e529502ea945e"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "type": "file",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 669,
+      "sha256": "5abf3977eef24726730e03a648dca022c8f993596e122cd94cf322985ac8ac76"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 552,
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "type": "file",
+      "bytes": 156,
+      "sha256": "25ccd0685a97962d86509fb66694af0eb207890862bcb49c3e14bd3ddbe4ddfc"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "type": "file",
+      "bytes": 12,
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "type": "file",
+      "bytes": 204,
+      "sha256": "dee967a352e0d990a9bc3d34c5a66c6597254ec4431de379acd35ef3fe94a03b"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2032,
+      "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "type": "file",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 667,
+      "sha256": "8b97a53cf72f56810fed094013c2f521c034e5267a495081570a861a0adc4c41"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 552,
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory",
+      "mode": 420,
+      "type": "file",
+      "bytes": 155,
+      "sha256": "d7cb7c11cc0a0c8f4ee3e91df163b072d20f5258f28106b6c71a06a3a5d29383"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements",
+      "mode": 420,
+      "type": "file",
+      "bytes": 12,
+      "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1",
+      "mode": 420,
+      "type": "file",
+      "bytes": 203,
+      "sha256": "e54537eaff8aa25202925da339bf7d4c92854298ba76e0417eec916e16c2a0ec"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2032,
+      "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature",
+      "mode": 420,
+      "type": "file",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 8326,
+      "sha256": "026fa759fda61dfe4afd30edeb70dbb873a5b8ec77c8a35ff849b8a846420780"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 866,
+      "sha256": "0767523a61a3ab293e6e39ea3de61622d833f2dacee418afd89f6a57d67c8119"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1798,
+      "sha256": "9df1dd70347063371bf92d07d0a9dad2dbb2a15a943d8073f5d3d3ba5b34e8c0"
+    },
+    {
+      "path": "Frameworks/hermesvm.framework/hermesvm",
+      "mode": 420,
+      "type": "file",
+      "bytes": 5064800,
+      "sha256": "d85fe57c05efafc7e5c9d83838ac1e3296d3d6d07bbe758cfbbe0934ca440d0b"
+    },
+    {
+      "path": "Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 4286,
+      "sha256": "2525baaba9b91588496bf1c48d12a168a9f81b56f2473bb7ef84a916c206ded0"
+    },
+    {
+      "path": "PkgInfo",
+      "mode": 420,
+      "type": "file",
+      "bytes": 8,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "path": "PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 986,
+      "sha256": "06949f6d09a83cea00c3a4895bb7300f2580d52852c6ade1a9caa169934a1001"
+    },
+    {
+      "path": "React-Core_privacy.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "React-Core_privacy.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 766,
+      "sha256": "12a27ac878f0e2d66f316284c44f0d8b00b02688a2f084b2eff2a1d0c9624239"
+    },
+    {
+      "path": "React-Core_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 768,
+      "sha256": "7c08969e459621a6ecec043ccdb9012651f185811945f75517c623dae2e11627"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 774,
+      "sha256": "c13b28d0f7b96cc910285274bad55b8e7bcee6482acc7954c542d951cbebdcae"
+    },
+    {
+      "path": "React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 552,
+      "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+    },
+    {
+      "path": "React-timing_privacy.bundle",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "React-timing_privacy.bundle/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 770,
+      "sha256": "52ddba6e2f24673a59487a6083d45cafa701968b2e9ef0602f732570e6b88a30"
+    },
+    {
+      "path": "React-timing_privacy.bundle/PrivacyInfo.xcprivacy",
+      "mode": 420,
+      "type": "file",
+      "bytes": 553,
+      "sha256": "23ddfa062a6d4392e65882d151fdececbd29904a227ad8918c0144ebc777ee61"
+    },
+    {
+      "path": "Smallsocial",
+      "mode": 493,
+      "type": "file",
+      "bytes": 22176576,
+      "sha256": "bdb54d11ea3caa04d337e360d2e2846c75664d3f51ea9dc396026b33c9982979"
+    },
+    {
+      "path": "SplashScreen.storyboardc",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib",
+      "mode": 420,
+      "type": "file",
+      "bytes": 2171,
+      "sha256": "55e32476d2306023fb544ef0efed26ed4688e48c2703ddcfd2e39a8c1de4af67"
+    },
+    {
+      "path": "SplashScreen.storyboardc/Info.plist",
+      "mode": 420,
+      "type": "file",
+      "bytes": 225,
+      "sha256": "74dbceed6cf0a5e5c69834793328c9783ecab1de482d4954e257ca2132b743af"
+    },
+    {
+      "path": "SplashScreen.storyboardc/SplashScreenViewController.nib",
+      "mode": 420,
+      "type": "file",
+      "bytes": 1004,
+      "sha256": "9c1a34c121d22479408cf0eaacb3491548ced16655799bae3b5f7f2380314ba8"
+    },
+    {
+      "path": "_CodeSignature",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_CodeSignature/CodeResources",
+      "mode": 420,
+      "type": "file",
+      "bytes": 28923,
+      "sha256": "62d4bed49b1994a1bcd770127019074077c5f7b1865b6ff7e1656eee76b14540"
+    },
+    {
+      "path": "_expo",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios/entry-e5e249f0ff4b6ac8dad9580fe053568b.hbc",
+      "mode": 420,
+      "type": "file",
+      "bytes": 3578908,
+      "sha256": "581ddd6781d80598e48c09181634900b5c7a2385e8b695a3d52b4a68654a9f22"
+    },
+    {
+      "path": "_expo/static/js/ios/web-worker-entry-544fb818b5934e456ff1045cd158fbb8.hbc",
+      "mode": 420,
+      "type": "file",
+      "bytes": 211212,
+      "sha256": "e493b137a305d772fa6914816ce403dc2dfbde2e58240f8070718bb6193accd2"
+    },
+    {
+      "path": "assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/arrow_down.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 9456,
+      "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/error.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 469,
+      "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/file.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 138,
+      "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/forward.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 188,
+      "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/pkg.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 364,
+      "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 653,
+      "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 290,
+      "sha256": "2cdfeb8e5ccde7976f7012fb8cce73af2229029ee21d4f1509fed114871c6cd8"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 405,
+      "sha256": "2b7443a9a58e92ca11a575bdc11598615a57dde305cd8ce70d602606b302cd98"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 761,
+      "sha256": "3ddd0773ed27e23d25789f301731b3ac455ad8be5aa27a0a1b838f89c6d27225"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 220,
+      "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 334,
+      "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 502,
+      "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 141,
+      "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 201,
+      "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 266,
+      "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 317,
+      "sha256": "dc56b976bd45638e1125f6689743525e6886ae0bef2c8f4651994833685a831f"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 589,
+      "sha256": "ef13fc0dfc52ec23817585fd7e109fbdf593a3b2549c40ce71ac9b0eda12cc2c"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 839,
+      "sha256": "b434a7cf18c2d4ce747c70942ea2fee2d4412d93967ed92b372f810bb9261ea5"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/sitemap.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 465,
+      "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/unmatched.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 4752,
+      "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447"
+    },
+    {
+      "path": "main.jsbundle",
+      "mode": 420,
+      "type": "file",
+      "bytes": 3578908,
+      "sha256": "581ddd6781d80598e48c09181634900b5c7a2385e8b695a3d52b4a68654a9f22"
+    }
+  ]
+}

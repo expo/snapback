@@ -1,0 +1,25 @@
+{
+  "stagedBlobBytesExcludingAudit": 7258597,
+  "stagedBlobBytesIncludingAudit": 7259299,
+  "stagedFilesIncludingAudit": 110,
+  "newFilesIncludingAudit": 99,
+  "newBlobBytesExcludingAudit": 641589,
+  "largestNewFile": {
+    "path": "snapback4/reports/20261001-nx-export-proves-native/round5/plain-retained.json",
+    "bytes": 91464
+  },
+  "roundBlobBudgetBytes": 15000000,
+  "newFileLimitBytes": 256000,
+  "forbiddenNewEvidence": [],
+  "existingRequiredDocumentsOverFileLimit": [
+    {
+      "path": "snapback4/JOURNAL.md",
+      "bytes": 5102939
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/EVIDENCE-ARCHIVE.tsv",
+      "bytes": 1177837
+    }
+  ],
+  "passed": true
+}

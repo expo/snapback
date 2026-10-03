@@ -1,0 +1,92 @@
+{
+  "affected_rust": {
+    "exit": 0,
+    "rust_summaries": 286,
+    "rust_passed": 4662,
+    "rust_failed": 0,
+    "rust_ignored": 34
+  },
+  "final_units": {
+    "exit": 0,
+    "rust_summaries": 4,
+    "rust_passed": 261,
+    "rust_failed": 0,
+    "rust_ignored": 1
+  },
+  "final_cli": {
+    "exit": 0,
+    "rust_summaries": 41,
+    "rust_passed": 848,
+    "rust_failed": 0,
+    "rust_ignored": 10
+  },
+  "final_guide": {
+    "exit": 0,
+    "rust_summaries": 1,
+    "rust_passed": 110,
+    "rust_failed": 0,
+    "rust_ignored": 0
+  },
+  "decorated_rust": {
+    "exit": 0,
+    "rust_summaries": 1,
+    "rust_passed": 9,
+    "rust_failed": 0,
+    "rust_ignored": 0
+  },
+  "final_search_js": {
+    "exit": 0,
+    "summary": [
+      "\u2139 tests 462",
+      "\u2139 pass 462",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 duration_ms 140978.464142"
+    ]
+  },
+  "artifact_failure_reruns": {
+    "exit": 0,
+    "summary": [
+      "\u2139 tests 119",
+      "\u2139 pass 119",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 duration_ms 78491.073305"
+    ]
+  },
+  "preliminary_full": {
+    "exit": 1,
+    "summary": "== 1 failure(s) in 1510 s",
+    "stage": "client tests",
+    "classification": "ours: concurrent Wasm rebuild removed the artifact during four leaf cases",
+    "client_passed": 5795,
+    "client_failed": 5,
+    "client_skipped": 10,
+    "model_passed": 79
+  },
+  "frozen_final_rust": {
+    "exit": 0,
+    "binaries": 286,
+    "executions": 999,
+    "seconds": 452
+  },
+  "frozen_final_client": {
+    "exit": 0,
+    "passed": 5800,
+    "failed": 0,
+    "skipped": 10,
+    "seconds": 587
+  },
+  "frozen_final_full": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1390 s",
+    "model_passed": 79,
+    "model_failed": 0,
+    "client_passed": 5800,
+    "client_failed": 0,
+    "client_skipped": 10
+  }
+}

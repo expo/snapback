@@ -1,0 +1,22 @@
+{
+  "scope": "Novel staged blobs relative to BOTH merge parents; inherited parent evidence is unchanged and excluded.",
+  "novelStagedFilesExcludingThisAudit": 142,
+  "totalNovelBlobBytesExcludingThisAudit": 8154920,
+  "largestBlob": {
+    "path": "snapback4/JOURNAL.md",
+    "bytes": 5247291,
+    "oid": "48465c9a92d8d0e509134f0fdd534e88985b61c4",
+    "sha256": "5dd7b44ea564bdced932b7a74dec0e91d0ae6ae28afafb1d253cb5cf5cc7601f"
+  },
+  "allNovelBlobsUnder15MB": true,
+  "totalNovelBlobsUnder15MB": true,
+  "newRound9FilesUnder256KiB": true,
+  "rawBinaryOrGzipPathsInNewStage": [],
+  "newExternalPathsVerified": 772,
+  "newExternalDistinctBlobsVerified": 330,
+  "testedSourceMatchesStage": true,
+  "canonicalPostRunDelta": "Exact cache pins only; final mini/Linux witness, JS export/shim and native proofs verified.",
+  "canonicalSummary": "== 2 failure(s) in 2585 s",
+  "canonicalInvocations": 1,
+  "novelWhitespaceCheck": true
+}

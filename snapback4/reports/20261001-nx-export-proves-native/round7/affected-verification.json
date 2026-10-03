@@ -1,0 +1,62 @@
+{
+  "rust-witness-mini.log": {
+    "sha256": "114a572b3b150dfb41cc08003b9fed768d1aa627c4b8eb25f1bb087128c95e31",
+    "summary": [
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 2.58s"
+    ]
+  },
+  "rust-witness-mini-final.log": {
+    "sha256": "5b6d90906232f5ca6e15d3ea1ddf5c0479be1c75b17125510797a789ae9343e6",
+    "summary": [
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 2.53s"
+    ]
+  },
+  "rust-integration-mini.log": {
+    "sha256": "207e834ba0411a03930116e8cea0419ad45d30c6737e35ffcf6902ca22d48940",
+    "summary": [
+      "test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.33s"
+    ]
+  },
+  "js-export-shim-mini.log": {
+    "sha256": "87480686c874d664cea6872065c06d68e88ef2285d2e0414891a00087d6842f5",
+    "summary": [
+      "ℹ tests 19",
+      "ℹ pass 19",
+      "ℹ fail 0",
+      "ℹ skipped 0",
+      "ℹ duration_ms 4221.38775"
+    ]
+  },
+  "linux-logs/rust-witness.log": {
+    "sha256": "cbc922f4473d75a68bda4aaeb1e64eadab7f3114db64f06057e9cdf040d7b9cd",
+    "summary": [
+      "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 10.59s"
+    ]
+  },
+  "linux-logs/rust-integration.log": {
+    "sha256": "4e81174b3a5712d448a4de07e6617b7fa61d91c2ab121188d3d03d80c12db190",
+    "summary": [
+      "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s"
+    ]
+  },
+  "linux-logs/js-export-shim.log": {
+    "sha256": "824e55e8d3f0f598b1d175371e44bd856a2f0dc9b25b8719773cd5448659897a",
+    "summary": [
+      "ℹ tests 19",
+      "ℹ pass 14",
+      "ℹ fail 4",
+      "ℹ skipped 1",
+      "ℹ duration_ms 4757.979514"
+    ]
+  },
+  "linux-logs/js-export-shim-with-resolver.log": {
+    "sha256": "2598b33dc4641ae1429a46e555ab32f7e161a420f99063f82356c90f282acdec",
+    "summary": [
+      "ℹ tests 19",
+      "ℹ pass 18",
+      "ℹ fail 0",
+      "ℹ skipped 1",
+      "ℹ duration_ms 4720.724567"
+    ]
+  }
+}

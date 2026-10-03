@@ -1,0 +1,86 @@
+[
+  {
+    "starter": "plain",
+    "digest": "17665670b5be78050c1a161a014a1f3f2f9f5eb873b70a72615088484885f859",
+    "plugin": "e13b089809580b2ae0ab4b1b73a84b8cbfd54607e7a2f2bae04f95acb92f9202",
+    "delta": [
+      {
+        "path": "node_modules/snapback4/bin/snapback4.js",
+        "before": {
+          "path": "node_modules/snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 1613,
+          "sha256": "aaa4f85b9d33b23db92e10e2fd9cf02b9eb82424b9cd43118cd27567dc99ee0b"
+        },
+        "after": {
+          "path": "node_modules/snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 2167,
+          "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075"
+        }
+      },
+      {
+        "path": "node_modules/snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 5978,
+          "sha256": "6fcd2fd6539f1044684164ae61c444225f3a641f7870d87548c873cb5c671a90"
+        },
+        "after": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 8357,
+          "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa"
+        }
+      }
+    ],
+    "reason": "Only CLI signal handling and export wrapper changed; no plugin/native writer changes."
+  },
+  {
+    "starter": "social",
+    "digest": "158df3df0212e391f88c6b1d1951c485074de296921cbf020fb0d9fbca43008a",
+    "plugin": "e13b089809580b2ae0ab4b1b73a84b8cbfd54607e7a2f2bae04f95acb92f9202",
+    "delta": [
+      {
+        "path": "node_modules/snapback4/bin/snapback4.js",
+        "before": {
+          "path": "node_modules/snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 1613,
+          "sha256": "aaa4f85b9d33b23db92e10e2fd9cf02b9eb82424b9cd43118cd27567dc99ee0b"
+        },
+        "after": {
+          "path": "node_modules/snapback4/bin/snapback4.js",
+          "mode": 511,
+          "type": "file",
+          "bytes": 2167,
+          "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075"
+        }
+      },
+      {
+        "path": "node_modules/snapback4-expo/export-ios.mjs",
+        "before": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 5978,
+          "sha256": "6fcd2fd6539f1044684164ae61c444225f3a641f7870d87548c873cb5c671a90"
+        },
+        "after": {
+          "path": "node_modules/snapback4-expo/export-ios.mjs",
+          "mode": 493,
+          "type": "file",
+          "bytes": 8357,
+          "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa"
+        }
+      }
+    ],
+    "reason": "Only CLI signal handling and export wrapper changed; no plugin/native writer changes."
+  }
+]

@@ -1,0 +1,9 @@
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048575 hard=unlimited
+snapback4 dev: http://127.0.0.1:60377  (schema: snapback/, types: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/snapback/generated/api.ts)
+store: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="worker" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"

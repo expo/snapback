@@ -650,3 +650,6 @@ mod round4;
 
 #[path = "declarative_receipts/allocation.rs"]
 mod allocation;
+
+#[path = "declarative_receipts/client_binding.rs"]
+mod client_binding;

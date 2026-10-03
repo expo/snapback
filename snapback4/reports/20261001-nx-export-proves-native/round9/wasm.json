@@ -1,0 +1,9 @@
+{
+  "rawBytes": 2047812,
+  "gzipBytes": 617239,
+  "budget": 618040,
+  "sha256": "200187c093be9f2648d0e58d293aaba56c9b49a57bad193c034b860514da6b93",
+  "budgetSource": "origin/main 5e12646aeefa896e698b6ea1b5f34203d2919cdb",
+  "measurement": "canonical scripts/test.sh -> scripts/build-wasm.sh; gzip -9 -c with filename header",
+  "headroomBytes": 801
+}

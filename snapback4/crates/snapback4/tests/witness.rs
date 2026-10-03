@@ -14,6 +14,8 @@ fn witness_cli_refuses_missing_bundle_with_a_recipe() {
 fn preparation_selectors_are_exclusive_and_repack_is_withdrawn() {
     for (flags, reason) in [
         (vec!["--bundle-id", "app.test", "--build", "."], "select exactly one"),
+        (vec!["--build", ".", "--export", "dist"], "--export requires --build and --smoke"),
+        (vec!["--bundle-id", "app.test", "--smoke", "--export", "dist"], "--export requires --build and --smoke"),
         (vec!["--repack=build.json"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json", "--app-project", ".", "--smoke"], "repack is withdrawn; use witness ios --build"),
         (vec!["--repack", "build.json"], "repack is withdrawn; use witness ios --build"),
@@ -107,6 +109,118 @@ fn artifacts_require_bytes_and_bind_the_digest() {
     std::fs::remove_file(path).unwrap();
 }
 
+fn scene_report(dir: &std::path::Path, name: &str, bundle: &str, pid: u32, device: &str, faulting: usize, symbols: &[&str], age: u64) {
+    use serde_json::json;
+    let path = dir.join(name);
+    std::fs::create_dir_all(dir).unwrap();
+    std::fs::write(&path, format!("{}\n{}", json!({"bundleID": bundle}), json!({"pid": pid,
+        "procPath": format!("/CoreSimulator/Devices/{device}/data/App"), "faultingThread": faulting,
+        "threads": symbols.iter().map(|s| json!({"frames": [{"symbol": s}]})).collect::<Vec<_>>() }))).unwrap();
+    std::fs::File::options().write(true).open(path).unwrap().set_times(std::fs::FileTimes::new()
+        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(age))).unwrap();
+}
+const SCENE_SYMBOL: &str = "___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke";
+fn scan_scene(dir: &std::path::Path) -> Option<serde_json::Value> {
+    protocol::scene_crash(dir, "dev.test", 42, "ours", 2000,
+        std::time::Instant::now() + std::time::Duration::from_secs(3))
+}
+
+#[test]
+fn scene_report_requires_owned_launch_and_selects_newest_matching_report() {
+    let dir = std::env::temp_dir().join(format!("sb4-scene-owned-{}", std::process::id()));
+    scene_report(&dir, "old.ips", "dev.test", 42, "ours", 0, &[SCENE_SYMBOL], 1);
+    scene_report(&dir, "bundle.ips", "other.app", 42, "ours", 0, &[SCENE_SYMBOL], 4);
+    scene_report(&dir, "pid.ips", "dev.test", 43, "ours", 0, &[SCENE_SYMBOL], 4);
+    scene_report(&dir, "simulator.ips", "dev.test", 42, "theirs", 0, &[SCENE_SYMBOL], 4);
+    assert!(scan_scene(&dir).is_none());
+    scene_report(&dir, "new.ips", "dev.test", 42, "ours", 0, &[SCENE_SYMBOL], 3);
+    scene_report(&dir, "newest.ips", "dev.test", 42, "ours", 0, &[SCENE_SYMBOL], 5);
+    std::fs::write(dir.join("partial.ips"), "{unfinished").unwrap();
+    let report = scan_scene(&dir).unwrap();
+    assert_eq!(report["report"], protocol::artifact(&dir.join("newest.ips")).unwrap());
+    assert!(protocol::scene_crash(&dir, "dev.test", 42, "ours", 2000, std::time::Instant::now()).is_none(),
+        "an expired scan must not read even one candidate");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn newer_report_from_another_simulator_does_not_mask_owned_scene_crash() {
+    let dir = std::env::temp_dir().join(format!("sb4-scene-concurrent-{}", std::process::id()));
+    scene_report(&dir, "owned.ips", "dev.test", 42, "ours", 0, &[SCENE_SYMBOL], 3);
+    scene_report(&dir, "foreign.ips", "dev.test", 42, "theirs", 0, &[SCENE_SYMBOL], 4);
+    assert_eq!(scan_scene(&dir).unwrap()["report"]["path"], dir.join("owned.ips").to_str().unwrap());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn newer_owned_report_without_scene_symbol_does_not_mask_scene_crash() {
+    let dir = std::env::temp_dir().join(format!("sb4-scene-unrelated-{}", std::process::id()));
+    scene_report(&dir, "owned.ips", "dev.test", 42, "ours", 0, &[SCENE_SYMBOL], 3);
+    scene_report(&dir, "other-crash.ips", "dev.test", 42, "ours", 0, &["OtherCrash"], 4);
+    assert_eq!(scan_scene(&dir).unwrap()["report"]["path"], dir.join("owned.ips").to_str().unwrap());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn scene_symbol_must_be_on_the_selected_nonzero_faulting_thread() {
+    let dir = std::env::temp_dir().join(format!("sb4-scene-thread-{}", std::process::id()));
+    scene_report(&dir, "crash.ips", "dev.test", 42, "ours", 1, &["OtherCrash", SCENE_SYMBOL], 3);
+    let report = scan_scene(&dir).unwrap();
+    assert_eq!(report["frames"][0]["symbol"], SCENE_SYMBOL);
+    scene_report(&dir, "crash.ips", "dev.test", 42, "ours", 1, &[SCENE_SYMBOL, "OtherCrash"], 3);
+    assert!(scan_scene(&dir).is_none(), "a scene symbol on a nonfaulting thread is not a scene crash");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn many_large_scene_reports_keep_constant_peak_memory() {
+    // Isolated processes keep other parallel tests and allocator high-water marks
+    // out of the measurement. All bodies match the bundle/time but lack the symbol:
+    // retaining them until selection costs roughly one extra MiB per report.
+    if let Ok(dir) = std::env::var("SB4_SCENE_MEMORY_DIR") {
+        assert!(protocol::scene_crash(std::path::Path::new(&dir), "dev.test", 42, "ours", 2000,
+            std::time::Instant::now() + std::time::Duration::from_secs(30)).is_none());
+        let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+        assert_eq!(unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) }, 0);
+        let rss = unsafe { usage.assume_init() }.ru_maxrss as u64;
+        println!("scene-peak-bytes={}", if cfg!(target_os = "macos") { rss } else { rss * 1024 });
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("sb4-scene-memory-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let report = format!("{{\"bundleID\":\"dev.test\"}}\n{}", serde_json::json!({"pid": 42,
+        "procPath": "/CoreSimulator/Devices/ours/data/App", "faultingThread": 0,
+        "threads": [{"frames": [{"symbol": "OtherCrash"}]}], "padding": "x".repeat(1024 * 1024)}));
+    let measure = || {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "many_large_scene_reports_keep_constant_peak_memory", "--nocapture"])
+            .env("SB4_SCENE_MEMORY_DIR", &dir).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        String::from_utf8(output.stdout).unwrap().lines().find_map(|line|
+            line.strip_prefix("scene-peak-bytes=").map(|n| n.parse::<u64>().unwrap())).unwrap()
+    };
+    std::fs::write(dir.join("0.ips"), &report).unwrap();
+    let one = measure();
+    for n in 1..64 { std::fs::write(dir.join(format!("{n}.ips")), &report).unwrap(); }
+    let many = measure();
+    std::fs::remove_dir_all(dir).unwrap();
+    println!("scene scan peak: one={one} bytes, 64={many} bytes");
+    assert!(many < one + 16 * 1024 * 1024, "report bodies accumulated: one={one}, 64={many}");
+}
+
+#[test]
+fn witness_toolchain_comes_from_the_product_and_keeps_unknowns_explicit() {
+    use serde_json::json;
+    let toolchain = protocol::app_toolchain(&json!({"DTXcodeBuild": "27A266a", "DTSDKName": "iphonesimulator27.0"}));
+    assert_eq!(toolchain["xcodeBuild"], "27A266a");
+    assert_eq!(toolchain["iosSdkVersion"], "27.0");
+    assert_eq!(protocol::app_toolchain(&json!({"DTSDKName": "iphoneos26.5"}))["iosSdkVersion"], "26.5");
+    let unknown = protocol::app_toolchain(&json!({}));
+    assert!(unknown.get("xcodeBuild").unwrap().is_null());
+    assert!(unknown.get("iosSdkVersion").unwrap().is_null());
+}
+
 // The process choreography uses a fake simctl and a real `snapback4 dev`.
 // It is a driver test, never native execution evidence.
 #[cfg(target_os = "macos")]
@@ -118,12 +232,12 @@ mod driver {
     impl Fixture {
         fn new() -> Self {
             static SERIAL: AtomicUsize = AtomicUsize::new(0);
-            let dir = std::env::temp_dir().join(format!("sb4-witness-driver-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+            let dir = std::env::temp_dir().join(format!("00000000-0000-4000-8000-{:06}{:06}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
             for name in ["app", "data", "snapback"] {
                 fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(name)).unwrap();
             }
             fs::write(dir.join("snapback/schema.q"), "use personas alice\ntable rows:\n  body: text <=40\n  public 'fixture'\nquery rows():\n  return rows first 10\n").unwrap();
-            fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string></dict></plist>"#).unwrap();
+            fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string><key>DTXcodeBuild</key><string>27A266a</string><key>DTSDKName</key><string>iphonesimulator27.0</string></dict></plist>"#).unwrap();
             fs::write(dir.join("app/TestApp"), "fake app for driver tests").unwrap();
             fs::write(dir.join("app/main.jsbundle"), "fake bundle for driver tests").unwrap();
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
@@ -133,7 +247,7 @@ mod driver {
             for (id, runtime) in [(dir.file_name().unwrap().to_str().unwrap(), "26-5"), ("owned-old", "9-3"), ("owned-18", "18-0"), ("deleted-device", "99")] {
                 use std::io::Write;
                 let mut record = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(state.join(format!("{id}.json"))).unwrap();
-                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-"})).unwrap();
+                write!(record, "{}", serde_json::json!({"udid":id, "name":"snapback4-smoke-prior", "runtime":format!("com.apple.CoreSimulator.SimRuntime.iOS-{runtime}"), "prefix":"snapback4-smoke-", "ready":true})).unwrap();
             }
             Self(dir, Default::default())
         }
@@ -153,7 +267,7 @@ mod driver {
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
                 .env("XDG_STATE_HOME", self.0.with_extension("state")).env("WITNESS_TEST_PORT", port.to_string())
-                .env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
+                .env("HOME", &self.0).env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
             command
         }
         fn run(&self, mode: &str, port: u16) -> std::process::Output {
@@ -338,6 +452,11 @@ mod driver {
             assert_eq!(output.status.code(), Some(1));
             let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(receipt["simulator"]["selection"], "created");
+            assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_SIMULATOR:"), "{mode}: {receipt}");
+            let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+            assert_eq!(calls[calls.len() - 2][0], if mode.ends_with("boot-fails") { "boot" } else { "bootstatus" });
+            assert_eq!(calls.last().unwrap()[0], "delete");
+            assert_eq!(receipt["simulator"]["deleted"], true);
             assert!(receipt["error"].as_str().unwrap().contains("simctl boot"), "mode {mode}: error = {}", receipt["error"]);
             assert_eq!(receipt["udid"].as_str(), fixture.0.file_name().unwrap().to_str());
             assert_eq!(receipt["runtime"], "com.apple.CoreSimulator.SimRuntime.iOS-26-5");
@@ -359,6 +478,46 @@ mod driver {
             .env("WITNESS_TEST_UDID", fixture.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", "normal");
         command
     }
+    fn stalled_runtime_cli(signal: Option<i32>) {
+        use std::time::{Duration, Instant};
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("node"), "#!/bin/sh\nprintf '%s' \"$$\" > launcher.pid\nsleep 60 &\nprintf '%s' \"$!\" > descendant.pid.tmp\nmv descendant.pid.tmp descendant.pid\nwait\n").unwrap();
+        fs::set_permissions(fixture.0.join("node"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::create_dir(fixture.0.join("dist")).unwrap();
+        let mut command = build_command(&fixture);
+        command.args(["--export", "dist", "--timeout", "2"]);
+        let mut driver = watchdog::Guarded::spawn(&mut command, &fixture.0, Duration::from_secs(15));
+        let end = Instant::now() + Duration::from_secs(10);
+        while !fixture.0.join("descendant.pid").exists() && driver.is_running() && Instant::now() < end { std::thread::sleep(Duration::from_millis(10)); }
+        assert!(fixture.0.join("descendant.pid").exists());
+        let live: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/live.json")).unwrap()).unwrap();
+        let group = &live["children"]["runtime-resolution"];
+        let launcher: i32 = fs::read_to_string(fixture.0.join("launcher.pid")).unwrap().parse().unwrap();
+        let descendant: i32 = fs::read_to_string(fixture.0.join("descendant.pid")).unwrap().parse().unwrap();
+        assert_eq!(unsafe { libc::getpgid(launcher) }, group["group"].as_i64().unwrap() as i32);
+        assert!(group["leader"]["start"].is_array());
+        let started = Instant::now();
+        if let Some(signal) = signal { unsafe { libc::kill(driver.id() as i32, signal); } }
+        let output = driver.finish();
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(if signal.is_some() { "E_WITNESS_INTERRUPTED" } else { "E_WITNESS_PROCESS: Node launcher node exceeded its 2-second" }), "{stderr}");
+        if signal.is_none() { assert!(stderr.contains("installing/downloading")); }
+        for pid in [launcher, descendant] {
+            let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+            let size = std::mem::size_of_val(&info) as i32;
+            assert!(unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, &mut info as *mut _ as *mut _, size) } != size || info.pbi_status == 5, "resolver child survived driver cancellation");
+        }
+        assert!(!fixture.0.join("artifacts/finished.json").exists());
+        let cleanup = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "export-cleanup"])
+            .arg(fixture.0.join("artifacts")).arg(fixture.0.join("artifacts")).output().unwrap();
+        assert!(cleanup.status.success(), "{}", String::from_utf8_lossy(&cleanup.stderr));
+        assert!(fixture.0.join("artifacts/finished.json").exists());
+    }
+    #[test] fn real_cli_stalled_resolver_sigterm_drains_before_finished() { stalled_runtime_cli(Some(libc::SIGTERM)); }
+    #[test] fn real_cli_stalled_resolver_timeout_drains_before_finished() { stalled_runtime_cli(None); }
+
     #[test]
     fn missing_schema_uses_one_message_and_witness_exit_one() {
         for missing_schema in [true, false] {
@@ -411,6 +570,163 @@ mod driver {
             assert!(fixture.0.join("artifacts/native-smoke").exists());
             assert_eq!(fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().count(), 1);
         }
+    }
+    #[test]
+    fn export_classifies_only_native_environment_setup_as_skippable() {
+        for mode in ["no-xcode", "no-runtime", "auto-create-boot-fails", "auto-create-bootstatus-fails"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("snapback/generated"), "block codegen").unwrap();
+        let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"]), watchdog::SCENARIO_GUARD);
+        assert_eq!(output.status.code(), Some(1));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_ne!(receipt["phase"], "environment");
+        assert!(receipt["error"].as_str().unwrap().contains("backend check failed"));
+    }
+    #[test]
+    fn export_selection_interrupt_and_ownership_failures_are_not_skips() {
+        for mode in ["interrupt-selection", "invalid-selection", "auto-create-owner-fails", "auto-create-delete-fails", "auto-create-interrupt"] {
+            let fixture = Fixture::new();
+            if mode.starts_with("auto-create") {
+                fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            }
+            let output = fixture.run_command(build_command(&fixture).args(["--export", "dist"])
+                .env("WITNESS_TEST_MODE", mode), watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert!(receipt["environmentCondition"].is_null(), "{mode}: {receipt}");
+            if mode.contains("interrupt") { assert!(receipt["error"].as_str().unwrap().starts_with("E_WITNESS_INTERRUPTED:"), "{receipt}"); }
+            if mode.starts_with("auto-create") {
+                if mode == "auto-create-delete-fails" {
+                    assert_eq!(receipt["simulator"]["deleted"], false);
+                    assert!(receipt["error"].as_str().unwrap().contains(fixture.0.file_name().unwrap().to_str().unwrap()));
+                } else { assert_eq!(receipt["simulator"]["deleted"], true, "{receipt}"); }
+            }
+            assert!(!fixture.0.join("artifacts/prepare.mjs").exists());
+        }
+    }
+    #[test]
+    fn boot_rollback_holds_the_simulator_lease_against_a_second_process() {
+        let fixture = Fixture::new();
+        let mut a = fixture.command("auto-create-race", Fixture::port(), std::path::Path::new("artifacts-a"));
+        let mut a = watchdog::Guarded::spawn(&mut a, &fixture.0, watchdog::SCENARIO_GUARD);
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !fixture.0.join("bootstatus-waiting").exists() {
+            assert!(a.is_running(), "creator exited before bootstatus");
+            assert!(std::time::Instant::now() < end);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let id = fixture.0.file_name().unwrap().to_str().unwrap();
+        let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{id}.json"));
+        let pending: Value = serde_json::from_slice(&fs::read(&state).unwrap()).unwrap();
+        assert_eq!(pending["ready"], false);
+        // Explicit selection cannot bypass the pending device's lease either.
+        let mut b = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-b"));
+        b.args(["--udid", id]);
+        let output = b.output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("another witness holds the --udid lease"));
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        // Automatic selection also skips the boot-pending record. Our fake
+        // allocator returns the same ID, so creation must refuse its held lease.
+        let output = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts-c")).output().unwrap();
+        assert!(!output.status.success());
+        let calls = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap();
+        assert_eq!(calls.lines().filter(|line| line.starts_with("[\"create\"")).count(), 2);
+        assert!(!fixture.0.join("deleted-simulator").exists());
+        fs::write(fixture.0.join("release-bootstatus"), "release").unwrap();
+        let output = a.finish();
+        assert!(!output.status.success());
+        assert!(fixture.0.join("deleted-simulator").exists());
+        assert!(!state.exists());
+    }
+
+    #[test]
+    fn export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt() {
+        for mode in ["auto-create-printed-fails", "auto-create-printed-timeout", "auto-create-buffered-timeout", "auto-create-group-interrupt"] {
+            let fixture = Fixture::new();
+            fs::remove_file(fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()))).unwrap();
+            let mut command = build_command(&fixture);
+            command.args(["--export", "dist"]).env("WITNESS_TEST_MODE", mode);
+            if mode.ends_with("timeout") {
+                // build_command does not supply --timeout.
+                command.args(["--timeout", "1"]);
+            }
+            let output = fixture.run_command(&mut command, watchdog::SCENARIO_GUARD);
+            assert_eq!(output.status.code(), Some(1), "{mode}: {}", String::from_utf8_lossy(&output.stderr));
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["phase"], "environment", "{mode}: {receipt}");
+            assert_eq!(receipt["simulator"]["deleted"], true, "{mode}: {receipt}");
+            assert!(fixture.0.join("deleted-simulator").exists());
+            if mode.ends_with("interrupt") { assert!(fixture.0.join("create-survived-group-interrupt").exists()); }
+            let state = fixture.0.with_extension("state").join(format!("snapback4/witness/simulators/{}.json", fixture.0.file_name().unwrap().to_str().unwrap()));
+            assert!(!state.exists());
+        }
+    }
+
+    #[test]
+    fn early_scene_exit_has_a_named_diagnostic_and_product_toolchain() {
+        let fixture = Fixture::new();
+        let output = fixture.run("scene-exit", Fixture::port());
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_SCENE_LIFECYCLE"), "{}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["exitStatus"], 1);
+        assert_eq!(manifest["xcodeBuild"], "27A266a");
+        assert_eq!(manifest["iosSdkVersion"], "27.0");
+        assert_eq!(manifest["sceneCrash"]["pid"], 7001);
+        assert!(manifest["error"].as_str().unwrap().contains("snapback4-expo/plugin"));
+    }
+    #[test]
+    fn scene_report_written_after_simctl_exits_is_found_during_retry() {
+        let fixture = Fixture::new();
+        let dir = fixture.0.clone();
+        let writer = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + watchdog::SCENARIO_GUARD;
+            let marker = dir.join("scene-exit-observed");
+            let pid = loop {
+                if let Some(pid) = fs::read_to_string(&marker).ok().and_then(|s| s.parse::<i32>().ok()) { break pid; }
+                assert!(std::time::Instant::now() < deadline, "driver never observed the app exit");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            };
+            while unsafe { libc::kill(pid, 0) } == 0 {
+                assert!(std::time::Instant::now() < deadline, "fake launchctl did not exit");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            // The first scan has no report. DiagnosticReports publishes it later,
+            // well inside the driver's three-second retry window.
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            let report = fs::read(dir.join("pending-scene-report")).unwrap();
+            fs::write(dir.join("Library/Logs/DiagnosticReports/App.ips"), report).unwrap();
+        });
+        let output = fixture.run("scene-exit-late", Fixture::port());
+        writer.join().unwrap();
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("E_WITNESS_SCENE_LIFECYCLE:"), "{stderr}");
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["sceneCrash"]["pid"], 7001);
+        assert_eq!(manifest["sceneCrash"]["report"], protocol::artifact(&fixture.0.join("Library/Logs/DiagnosticReports/App.ips")).unwrap());
+    }
+    #[test]
+    fn a_scene_report_after_the_priming_receipt_keeps_the_ordinary_exit_diagnostic() {
+        let fixture = Fixture::new();
+        let output = fixture.run("scene-exit-after-prime", Fixture::port());
+        assert!(!output.status.success());
+        let text = String::from_utf8_lossy(&output.stderr);
+        assert!(text.contains("E_WITNESS_APP:"), "{text}");
+        assert!(!text.contains("E_WITNESS_SCENE_LIFECYCLE"), "{text}");
     }
     #[test]
     fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
@@ -576,6 +892,9 @@ mod driver {
         let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).expect("preparation failure must have a manifest")).unwrap();
         assert_eq!(manifest["exitStatus"], 1);
         assert_eq!(manifest["phase"], "preparation");
+        assert!(manifest.get("xcodeBuild").is_some());
+        assert_eq!(manifest["iosSdkVersion"], "27.0");
+        assert_eq!(manifest["toolchainSource"], "selected host; no installed product inspected");
         assert!(manifest["error"].as_str().unwrap().contains("E_WITNESS_TIMEOUT"));
     }
     fn invalid_protocol(mode: &str, code: &str) {
@@ -600,11 +919,27 @@ mod driver {
     fn cli_rejects_malformed_envelope() { invalid_protocol("envelope", "E_WITNESS_RECEIPT"); }
     #[test]
     fn cli_refuses_an_existing_app_and_never_terminates_a_replacement() {
-        let fixture = Fixture::new(); let output = fixture.run("running", Fixture::port());
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("xcodebuild"), "#!/bin/sh\nprintf 'Xcode 26.6\\nBuild version 26G1\\n'\n").unwrap();
+        fs::set_permissions(fixture.0.join("xcodebuild"), fs::Permissions::from_mode(0o755)).unwrap();
+        let output = fixture.run("running", Fixture::port());
         assert!(!output.status.success(), "existing app was taken over");
         assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: --bundle-id selects an app already running on --udid"), "{}", String::from_utf8_lossy(&output.stderr));
         assert!(!fixture.0.join("process-events.jsonl").exists());
         assert!(!fixture.0.join(".snapback4").exists());
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["xcodeBuild"], "27A266a");
+        assert_eq!(manifest["iosSdkVersion"], "27.0");
+        assert_eq!(manifest["toolchainSource"], "installed Info.plist; absent values are unknown");
+        let plist = fixture.0.join("app/Info.plist");
+        fs::write(&plist, fs::read_to_string(&plist).unwrap()
+            .replace("<key>DTXcodeBuild</key><string>27A266a</string>", "")
+            .replace("<key>DTSDKName</key><string>iphonesimulator27.0</string>", "")).unwrap();
+        let output = fixture.run_command(&mut fixture.command("running", Fixture::port(), std::path::Path::new("unknown-artifacts")), watchdog::SCENARIO_GUARD);
+        assert!(!output.status.success());
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("unknown-artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert!(manifest["xcodeBuild"].is_null() && manifest["iosSdkVersion"].is_null());
+        assert_eq!(manifest["toolchainSource"], "installed Info.plist; absent values are unknown");
         let fixture = Fixture::new(); let output = fixture.run("replacement", Fixture::port());
         assert!(!output.status.success());
         assert_eq!(fs::read_to_string(fixture.0.join("app-pid")).unwrap(), "9999");
@@ -644,7 +979,8 @@ mod driver {
         let first = Fixture::new(); let second = Fixture::new(); let artifacts = first.0.join("artifacts");
         let mut one = first.command("normal", Fixture::port(), &artifacts);
         let mut two = second.command("normal", Fixture::port(), &artifacts);
-        two.env("WITNESS_TEST_UDID", "another-simulator");
+        // Each fixture already has a distinct UUID and matching ownership
+        // record. Replacing it with a non-UUID breaks the second winner.
         let mut one = watchdog::Guarded::spawn(&mut one, &first.0, watchdog::SCENARIO_GUARD);
         let mut two = watchdog::Guarded::spawn(&mut two, &second.0, watchdog::SCENARIO_GUARD);
         let outputs = [one.finish(), two.finish()];

@@ -1,0 +1,15 @@
+node:fs:561
+  return binding.open(
+                 ^
+
+Error: ENOENT: no such file or directory, open '/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist/metadata.json'
+    at Object.openSync (node:fs:561:18)
+    at Object.readFileSync (node:fs:445:35)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round3/run.mjs:30:32 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/dist/metadata.json'
+}
+
+Node.js v24.18.0

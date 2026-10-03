@@ -1,0 +1,36 @@
+{
+  "starter": "plain",
+  "label": "cold",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790921652155,
+  "durationMs": 258715,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "bf05793981daafa8a488ca1d824e8139167ccfd60b94aa67a4ddbfa4ee93c80c",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790921655262-33281/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "5702296a1635dfe740dfff543d8784de40ae3228886c7de13ae039a41b13f57d"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 254880,
+  "loadedHash": "bf05793981daafa8a488ca1d824e8139167ccfd60b94aa67a4ddbfa4ee93c80c",
+  "metroResources": [],
+  "cacheMiss": "native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

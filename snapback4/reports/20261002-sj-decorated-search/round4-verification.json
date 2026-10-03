@@ -1,0 +1,118 @@
+{
+  "round": 4,
+  "parent": "1bb5c5732d9ccb7d38c4d426138d9509d22b1ac2",
+  "host": "expose-builder-pixel",
+  "platform": "linux-x86_64",
+  "cwd": "/home/ccheever/sb4-intent/lane-sj/snapback4",
+  "commands": {
+    "typecheck": "bun run --cwd packages/snapback4 typecheck",
+    "build": "bun run --cwd packages/snapback4 build",
+    "negative_compile": "node --test packages/snapback4/test/value-deadline-types.test.mjs",
+    "decorated_search": "node --test packages/snapback4/test/decorated-search.test.mjs",
+    "affected_clients": "node --test --test-concurrency=8 packages/snapback4/test/prediction-routing.test.mjs packages/snapback4/test/ordinary-search*.test.mjs packages/snapback4/test/server-clock*.test.mjs packages/snapback4/test/raw-read-deadlines.test.mjs packages/snapback4/test/read-observation.test.mjs packages/snapback4/test/expiry-retry-watch.test.mjs packages/snapback4/test/remembered-answers.test.mjs packages/snapback4/test/query-publication-session.test.mjs packages/snapback4/test/read-through-provenance.test.mjs packages/snapback4/test/approval-lifecycle.test.mjs packages/snapback4/test/approval-notifications.test.mjs packages/snapback4/test/delivery-fault-matrix.test.mjs packages/snapback4/test/keep-expiry.test.mjs packages/snapback4/test/read-types.test.mjs",
+    "reset_clients": "node --test --test-concurrency=4 packages/snapback4/test/local-reads.test.mjs packages/snapback4/test/client-lifecycle.test.mjs packages/snapback4/test/local-signout.test.mjs packages/snapback4/test/ephemeral-fencing.test.mjs packages/snapback4/test/ephemeral-keep.test.mjs"
+  },
+  "all_command_exit_codes": 0,
+  "negative_compile": {
+    "tests": 17,
+    "pass": 17,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 27547.273985
+  },
+  "mutations_rejected": 16,
+  "round3_astra_mutation_diagnostics": 0,
+  "decorated_search": {
+    "tests": 57,
+    "pass": 57,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 55363.155967
+  },
+  "oracle_pages_process_and_wasm": 2950,
+  "affected_clients": {
+    "tests": 903,
+    "pass": 903,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 505879.732681
+  },
+  "reset_clients": {
+    "tests": 75,
+    "pass": 75,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 41396.421156
+  },
+  "ref_check": {
+    "command": "./ref-check --verbose",
+    "cwd": "/home/ccheever/sb4-intent/lane-sj",
+    "exit": 0,
+    "summary": "ref-check: ok \u2014 525 LLP docs, 10114 refs in 32473 files, 0 errors, 0 unchecked"
+  },
+  "emitted_js_audit": {
+    "type_erasure_identical": [
+      "local-query.ts",
+      "local-read-deadlines.ts",
+      "local-search.ts",
+      "read-expiry.ts"
+    ],
+    "only_absent_deadlines_made_explicit_null": [
+      "local.ts",
+      "client.ts"
+    ]
+  },
+  "full_suite": {
+    "run": false,
+    "reason": "Runtime behavior unchanged; explicit types and no-deadline nulls only."
+  },
+  "wasm": {
+    "sha256": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8",
+    "raw_bytes": 2048753,
+    "gzip_bytes": 617410,
+    "gzip_budget_bytes": 618040,
+    "rebuilt": false,
+    "matches_round3": true
+  },
+  "await_boundary": {
+    "changed_hash_only": "local-query.ts",
+    "await_count": 32,
+    "classifications_changed": false
+  },
+  "source_sha256": {
+    "snapback4/packages/snapback4/src/client.ts": "24a6e8f218915577022878ff45215bc73568977c93e80315891c6fc556a46d56",
+    "snapback4/packages/snapback4/src/local.ts": "4c798c5400f34cfebc2b37fac429f5904c3c46e04a4239959298e9a2afa6e4f4",
+    "snapback4/packages/snapback4/src/local-query.ts": "e17aad434e19386a4e286e230e53817a35210d695614f37326b332ed3e40017d",
+    "snapback4/packages/snapback4/src/local-read-deadlines.ts": "1150e340dc30b32ff6462ce484ec42cf0133a08ca80dff7bda941d8579122b56",
+    "snapback4/packages/snapback4/src/local-search.ts": "c1f3479e33492d8c50755c19cb9364e4cfa37478d6cda813fce19d7926429ed1",
+    "snapback4/packages/snapback4/src/read-expiry.ts": "c15d088ef519da1c5a5e9adea6c121c18ae0db0cbf721a95f922c9a11ab1d252",
+    "snapback4/packages/snapback4/test/value-deadline-types.test.mjs": "b9485c3d4361f67ee3d14f0dec555cff8485caeea55ea7395bca62c9ea746028",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "279a27cdc120749e2dcb30d88aed8037078f0237574b9a29705a7909e42e562f"
+  },
+  "qualified_source_unchanged": true,
+  "log_directory": "/home/ccheever/sb4-intent/reviews/sj-r4-evidence",
+  "log_sha256": {
+    "affected-clients.log": "09e0d7b39d2190f8fb519e750c3831e897e5a53196b676148487b1071dc5f69e",
+    "astra-parent-control.log": "a97383781bf3126fd28f64e5d36bf1ab9399d68d239e4a24f0874a8496ec86eb",
+    "client-build.log": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "decorated-search.log": "bff1b0f58ca552c1cc2a2a2f28173c0f2a3575bebc5962e9ebdd0e98fa740579",
+    "emitted-js-audit.log": "60f607b4036928c2488d61579b97f82c54c3002bf424a35f4770bfdb2c67bd54",
+    "negative-compile-final.log": "58057c3099482384663dae8775da371b751f8d20088f24aac16b9e0dbf5890eb",
+    "negative-compile.log": "3c256a0863ad7e8d2501e558e23650db75b0bdd87388184059830b24be71bdb3",
+    "ref-check.log": "c5887b79937b78db58c2c08062ee6e7da49440530212e0475a676b511c9effa4",
+    "reset-clients.log": "177c8512f63d0b65bd8096d33bd91c1f01d374e47096644e55b7491793d2435d",
+    "typecheck.log": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+  },
+  "development_failure": {
+    "classification": "ours: test harness",
+    "detail": "runLocal mutation anchor matched four return work sites; corrected to its unique forwarding statement.",
+    "corrected": true
+  },
+  "pushed": false,
+  "published": false,
+  "office_M1_or_M5_used": false
+}

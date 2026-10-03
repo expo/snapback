@@ -1,0 +1,461 @@
+{
+  "revision": "r5",
+  "starter": "plain",
+  "label": "warmup",
+  "measured": false,
+  "jsEdit": true,
+  "project": "/Users/ccheever/sb4-np/nx-r5b/r5-plain",
+  "startedAt": 1790980277787,
+  "endedAt": 1790980308235,
+  "durationMs": 30448.385,
+  "nativeDurationMs": 24410,
+  "outsideMs": 6038.385,
+  "status": 0,
+  "hostBefore": {
+    "atMs": 1790980277650,
+    "load": [
+      26.4892578125,
+      42.14453125,
+      51.158203125
+    ],
+    "topCpu": [
+      "  PID  PPID  %CPU COMM",
+      "21336 21335  88.3 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21241 21240  87.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21426 21425  87.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21339 21337  87.2 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21346 21344  87.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21332 21331  86.2 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21547 21546  85.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21437 21436  83.2 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21480 21478  80.8 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21459 21457  79.3 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21440 21438  78.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21663 21661  68.7 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21650 21634  68.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21632 21630  67.3 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21666 21665  64.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21668 21667  61.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "21674 21673  52.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "15730 45162  16.7 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "21678 21676  16.4 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "  934     1  12.1 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd"
+    ]
+  },
+  "hostAfter": {
+    "atMs": 1790980308235,
+    "load": [
+      71.1513671875,
+      51.44677734375,
+      54.2138671875
+    ],
+    "topCpu": [
+      "  PID  PPID  %CPU COMM",
+      "23763 18720 100.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+      "23766 18720  99.1 (swift-frontend)",
+      "24060 18720  98.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+      "23762 18720  95.8 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+      "  661     1  92.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "24217 18720  72.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+      "  922     1  36.9 /System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd",
+      "24824 24820  35.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "24823 24819  34.8 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "24822 24821  34.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "18720 18612  31.7 /Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/MacOS/SWBBuildService",
+      "18612 12384  18.8 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "  417     1  17.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "24816 24217   6.3 /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server",
+      "  454     1   3.8 /usr/libexec/opendirectoryd",
+      "    1     0   2.3 /sbin/launchd",
+      "  793     1   2.1 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "24819 18720   2.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "24821 18720   1.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      "24820 18720   1.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang"
+    ]
+  },
+  "contended": true,
+  "loadExceeded6Before": true,
+  "loadExceeded6After": true,
+  "receiptPath": "/Users/ccheever/sb4-np/nx-r5b/r5-plain/artifacts/native-smoke/1790980278076-21715/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "ffc9d188cc283152e74ca54bd7a6dce3479a9328b8287a985fd0ecbbbb938b5e"
+      }
+    },
+    "hit": true
+  },
+  "exitStatus": 0,
+  "error": null,
+  "nativeTimestamps": {
+    "invokedAt": 1790980283585,
+    "startedAt": 1790980296075,
+    "endedAt": 1790980307995,
+    "durationMs": 24410
+  },
+  "segments": {
+    "offline": {
+      "durationMs": 2763,
+      "endedAt": 1790980304362,
+      "startedAt": 1790980301599,
+      "status": "passed"
+    },
+    "prime": {
+      "durationMs": 4568,
+      "endedAt": 1790980301483,
+      "startedAt": 1790980296915,
+      "status": "passed"
+    },
+    "restart": {
+      "durationMs": 2877,
+      "endedAt": 1790980307359,
+      "startedAt": 1790980304482,
+      "status": "passed"
+    }
+  },
+  "simulator": {
+    "name": "sb4-nx-r5b-1790979403193-71800",
+    "prefix": "sb4-nx-r5b-",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "reused",
+    "udid": "2FE9FBFB-4BBC-416B-A857-71824F9923AD"
+  },
+  "publicationVerifiedAt": 1790980308078,
+  "loadedHash": "178031a33ae84cad0f05e285f1db7c5c71e813ffbcf9493f5ed351850f78d699",
+  "exportHash": "178031a33ae84cad0f05e285f1db7c5c71e813ffbcf9493f5ed351850f78d699",
+  "publicationProofHash": "a5cf8c033fe5145f4d6136c4b32cbfaadb0cefc96c106843dd43b561ab992f9c",
+  "proofHash": "a5cf8c033fe5145f4d6136c4b32cbfaadb0cefc96c106843dd43b561ab992f9c",
+  "publishedFiles": 8,
+  "evidence": [
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/before-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/before-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/before-install-stdout.log.gz"
+    },
+    {
+      "sha256": "b9c609ee7f442fdc02c66e2b921866e901e59b81d60d6634f72046e2b5d17780",
+      "bytes": 6965,
+      "path": "round5b/evidence/r5-plain-warmup/build.json.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/check-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/check-stderr.log.gz"
+    },
+    {
+      "sha256": "e79874d134f743722eaf9e4fbd5a7b7a25e3e2b6f3b773cf31a7f00e77b5500a",
+      "bytes": 339,
+      "path": "round5b/evidence/r5-plain-warmup/check-stdout.log.gz"
+    },
+    {
+      "sha256": "ae55fba010db8f3a61559a24083892303b7448f387fc635d083af837b48b1a85",
+      "bytes": 2336,
+      "path": "round5b/evidence/r5-plain-warmup/effective-config.mjs.gz"
+    },
+    {
+      "sha256": "a19d561d83d7ff406f00d4b0003566ec8d1830fe304ff6665258c7f77124c7cd",
+      "bytes": 5806,
+      "path": "round5b/evidence/r5-plain-warmup/export-cache.mjs.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/export-copy-base.log.gz"
+    },
+    {
+      "sha256": "94677aabbb9247b511e1418dde2a680a49715e58bd1090937f3b2d940b9fffc7",
+      "bytes": 96,
+      "path": "round5b/evidence/r5-plain-warmup/export-developer.log.gz"
+    },
+    {
+      "sha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab",
+      "bytes": 27,
+      "path": "round5b/evidence/r5-plain-warmup/export-pod-version.log.gz"
+    },
+    {
+      "sha256": "99172872fbe10451977af42b89c771bcd73f92797b294f4d58c37890ffc22ffe",
+      "bytes": 88,
+      "path": "round5b/evidence/r5-plain-warmup/export-ruby-version.log.gz"
+    },
+    {
+      "sha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb",
+      "bytes": 27,
+      "path": "round5b/evidence/r5-plain-warmup/export-sdk-build.log.gz"
+    },
+    {
+      "sha256": "5134aa6510d3e5bc7e03dea98bcb028d1b8e3b8497b36bfbb9c63473a0bf6c6c",
+      "bytes": 107,
+      "path": "round5b/evidence/r5-plain-warmup/export-sdk-path.log.gz"
+    },
+    {
+      "sha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f",
+      "bytes": 25,
+      "path": "round5b/evidence/r5-plain-warmup/export-sdk-version.log.gz"
+    },
+    {
+      "sha256": "9b0c841b33217a1be5795fd8dd8fc0a62d0dbe1f90acd9af1e9943fc3a60d144",
+      "bytes": 94,
+      "path": "round5b/evidence/r5-plain-warmup/export-tool-ld.log.gz"
+    },
+    {
+      "sha256": "4e3f7dfa9251a9ac2e720d7ffb29c37a238b66e69366a4188798b0f9544bd941",
+      "bytes": 102,
+      "path": "round5b/evidence/r5-plain-warmup/export-tool-swift-frontend.log.gz"
+    },
+    {
+      "sha256": "7471df41e55c50253bee278eea408e832b34ec6e5ea2c6593bae66d6d37e19e8",
+      "bytes": 97,
+      "path": "round5b/evidence/r5-plain-warmup/export-tool-swiftc.log.gz"
+    },
+    {
+      "sha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e",
+      "bytes": 52,
+      "path": "round5b/evidence/r5-plain-warmup/export-xcode-version.log.gz"
+    },
+    {
+      "sha256": "d37d86b32e125d5f53d5123920f3d86750cc0ddb65840feb0051c00bd2c3a68d",
+      "bytes": 76,
+      "path": "round5b/evidence/r5-plain-warmup/finished.json.gz"
+    },
+    {
+      "sha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8",
+      "bytes": 157,
+      "path": "round5b/evidence/r5-plain-warmup/install-check.mjs.gz"
+    },
+    {
+      "sha256": "389de6a2503ac329dc658676bdd5f6baa23949a3812dd3985c40fed22c1df758",
+      "bytes": 3701,
+      "path": "round5b/evidence/r5-plain-warmup/installed.json.gz"
+    },
+    {
+      "sha256": "b05d84895ba6ff783a3a2537519bad239ecccc02ffaf12550f5993687e7e012a",
+      "bytes": 482,
+      "path": "round5b/evidence/r5-plain-warmup/live.json.gz"
+    },
+    {
+      "sha256": "69f78c2c7c0fab1f98b8a85e0c3a955056506fb08fc4a267c5cb1f85f5a0994a",
+      "bytes": 7847,
+      "path": "round5b/evidence/r5-plain-warmup/native-closure.mjs.gz"
+    },
+    {
+      "sha256": "41c9621779a5d476fd6ea3d1aabe0dad3de8cd330f9775dfd3d0053a78118a29",
+      "bytes": 4494,
+      "path": "round5b/evidence/r5-plain-warmup/native-inputs.mjs.gz"
+    },
+    {
+      "sha256": "a71e571a0282fdde244e7c152d40e5d96a942efa4fc33d4037d2070f18110204",
+      "bytes": 1033,
+      "path": "round5b/evidence/r5-plain-warmup/native-mods.json.gz"
+    },
+    {
+      "sha256": "b1322c829a923ca99bdc2f3c295cc2ae2f881efd310d12c4279f6dced7b8a33d",
+      "bytes": 3807,
+      "path": "round5b/evidence/r5-plain-warmup/native-scripts.mjs.gz"
+    },
+    {
+      "sha256": "94db9b14cf09ac1d614fc01464892e01f2ec6a5fdbd9a4e9886a1b5772e3b61f",
+      "bytes": 1709,
+      "path": "round5b/evidence/r5-plain-warmup/payload.mjs.gz"
+    },
+    {
+      "sha256": "d400630a2252c0e9b1268c12dd3e3e56f73d0ba8f71adcdd585573919923345f",
+      "bytes": 1032,
+      "path": "round5b/evidence/r5-plain-warmup/preparation-phases.json.gz"
+    },
+    {
+      "sha256": "cfe080a278c8f730f799760d23fb6232ed9e0b3336e616b8be2a2331d7e96ca0",
+      "bytes": 417,
+      "path": "round5b/evidence/r5-plain-warmup/preparation-runner.mjs.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/preparation-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/preparation-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/preparation-stdout.log.gz"
+    },
+    {
+      "sha256": "4ea25dd1daaf77004d80118fe14257eaa319861bdba8a6dc327bc4e2a839aff4",
+      "bytes": 7103,
+      "path": "round5b/evidence/r5-plain-warmup/prepare.mjs.gz"
+    },
+    {
+      "sha256": "a5d19f1be6a0b680a9de09c20239ebd6490fb14bd68fc9c4e019587a241f4c45",
+      "bytes": 7709,
+      "path": "round5b/evidence/r5-plain-warmup/proof.json.gz"
+    },
+    {
+      "sha256": "1b3019e72fad7cb7a356aac33ed79989298831e96f159aedcd6e6ae3ab2a1f7c",
+      "bytes": 586,
+      "path": "round5b/evidence/r5-plain-warmup/publication.json.gz"
+    },
+    {
+      "sha256": "98436a92dc77475754d6d8f7bc811a9a62a7d1d2928c2598c7218bf1ddf45119",
+      "bytes": 44,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-backend-stdout.log.gz"
+    },
+    {
+      "sha256": "a509cd7b9c0b6efc67dc5ff28769f1230ce899aa85a197304c202faa096e550a",
+      "bytes": 507,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-backend.log.gz"
+    },
+    {
+      "sha256": "0c9d97af0c0987023d689935fc8d9ef39632f3eeb1fb7f3667a481182c08c2f0",
+      "bytes": 302264,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-device.log.gz"
+    },
+    {
+      "sha256": "77344603b55d5a5aecf4fb1c923c4e90701f0569ecbd058546b62083b5abbd7c",
+      "bytes": 59,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-launch.log.gz"
+    },
+    {
+      "sha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c",
+      "bytes": 63,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-log-stderr.log.gz"
+    },
+    {
+      "sha256": "3666314e2b90bab93f1c4d78fb1d425d49d8acac66c8061cecb4d47dbed655ff",
+      "bytes": 49617,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-offline.png"
+    },
+    {
+      "sha256": "90faac38c3ed9c57be46181219622639f1ecc1034498c372992a6c98a7d21682",
+      "bytes": 49359,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-prime.png"
+    },
+    {
+      "sha256": "a55042571ddd1bbfd76e73f891e71e4fe33335688f14c703737f735e95e4b3ee",
+      "bytes": 1241,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-receipts.jsonl.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-reserved.gz"
+    },
+    {
+      "sha256": "90faac38c3ed9c57be46181219622639f1ecc1034498c372992a6c98a7d21682",
+      "bytes": 49359,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-restart.png"
+    },
+    {
+      "sha256": "e8a889292764c2f8cb591d8c6fda304d9ae733db5915bb14706a1b3c4c50a343",
+      "bytes": 3176,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-run.json.gz"
+    },
+    {
+      "sha256": "8e2d4b7a08d05151e428078f2eee291c6737eb6e3778c01a60253763997ed70b",
+      "bytes": 5555572,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-screen.mp4"
+    },
+    {
+      "sha256": "f28f4c315120e56c44ac197f0a05aa2376614c1a1a57a17069bb8810f85c0edc",
+      "bytes": 140,
+      "path": "round5b/evidence/r5-plain-warmup/smoke-ios-video.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/verify-collection-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-collection-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-collection-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/verify-install-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-install-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-install-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/verify-offline-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-offline-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-offline-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/verify-prime-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-prime-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-prime-stdout.log.gz"
+    },
+    {
+      "sha256": "8c85641d45df09e4ebc5469441c3f982945c5967d0b25b7f9eb5d42a5186f511",
+      "bytes": 46,
+      "path": "round5b/evidence/r5-plain-warmup/verify-restart-status.json.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-restart-stderr.log.gz"
+    },
+    {
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "bytes": 20,
+      "path": "round5b/evidence/r5-plain-warmup/verify-restart-stdout.log.gz"
+    },
+    {
+      "sha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2",
+      "bytes": 154,
+      "path": "round5b/evidence/r5-plain-warmup/verify.mjs.gz"
+    }
+  ]
+}

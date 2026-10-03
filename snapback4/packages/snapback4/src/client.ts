@@ -1,3 +1,5 @@
+import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
+import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
@@ -60,7 +62,7 @@ export interface ClientOptions {
   readonly onStoreChange?: (why: Refusal) => void;
 }
 
-interface QueryResult<R> {
+interface QueryResult<R> extends ValueDeadlines {
   generation?: number | undefined;
   deadlineWithdrawn?: () => boolean;
   delivery?: unknown; credential?: number | undefined;
@@ -202,11 +204,16 @@ export function createClient(options: ClientOptions): Client {
   const history = new WriteHistory();
   const mutationIds = new MutationIds();
   const pendingEvents = pendingChanges();
+  let intentEpoch = 0;
+  const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${viewer}:${storeIdentity}`;
+  const intentPresentation = new OnlineIntentPresentation(intentScope, pendingEvents.notify);
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
     mutationIds.finish(write.id);
     const entry = pending.find(entry => entry.id === write.id);
+    if (entry && !entry.retired && entry.owner === viewer) intentPresentation.settled(write, { id: entry.id, op: entry.op.name, args: entry.args, state: entry.state, predicted: [] });
+    intentPresentation.release(write.id);
     if (entry) entry.done = true;
     pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
@@ -214,9 +221,10 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const resetWatches = (publish = true, cause = "schema-reset") => {
+    intentEpoch++; intentPresentation.items(); pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
-      for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null, null); }
     });
     if (publish) { deliver(); for (const watch of watches.values()) notify(watch); }
     return deliver;
@@ -285,7 +293,7 @@ export function createClient(options: ClientOptions): Client {
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
 
-  const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
+  const pending: { owner: Principal | null; retired?: boolean; id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
 
   const failUnsentWrites = (why: Refusal) => {
@@ -317,6 +325,7 @@ export function createClient(options: ClientOptions): Client {
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
+    intentPresentation.clear();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
@@ -354,6 +363,13 @@ export function createClient(options: ClientOptions): Client {
 
   const setViewer = (next: Principal | null) => {
     if (viewer === next) return;
+    // @ref LLP 3000.023#3.4 — account retirement also fences queued arguments
+    // and late receipts. The initial token-only identification adopts its queue.
+    for (const entry of pending) {
+      if (viewer !== null) entry.retired = true;
+      else if (!entry.retired) entry.owner = next;
+    }
+    if (viewer !== null) intentPresentation.clear();
     viewer = next;
     void delivery?.reset(true);
     resetWatches(true, "viewer");
@@ -368,6 +384,7 @@ export function createClient(options: ClientOptions): Client {
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
     if (storeRefusal) return;
+    intentPresentation.clear();
     void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
@@ -383,7 +400,7 @@ export function createClient(options: ClientOptions): Client {
       if (refreshTimer) clearTimeout(refreshTimer);
       aborter.abort();
       stopRefresh(storeRefusal!);
-      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ denied: storeRefusal! }); scheduleExpiry(watch, null, null); }
     });
     deliver();
     // Retire every owner, including the request currently awaiting its body.
@@ -590,24 +607,29 @@ export function createClient(options: ClientOptions): Client {
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
-    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal);
-    if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
-    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
+    if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null, transportOffline: true };
     const json = result.json;
     const refresh = typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined;
-    if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null, refresh };
+    if (json.denied) return { ephemeral: json.ephemeral, read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, valueDevice: null, valueServer: null, nextExpiry: null, refresh };
+    const values: ValueDeadlines = { valueDevice: null, valueServer: valueDeadline(json.decorationExpiry, Array.isArray(json.decorationPaths)) };
     const at = Number(json.seq ?? 0);
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, refresh };
+    if (json.loading || !("data" in json)) return { ephemeral: json.ephemeral, read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry, valueDevice: null, valueServer: null, refresh };
     const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read: readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter }), tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, refresh };
+    const read = readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: !schemaLoading, next, ...meter });
+    withDecorations(read, Array.isArray(json.decorationPaths) ? json.decorationPaths as DecorationPaths : [], values.valueDevice,
+      values.valueServer, clock.issuedDeviceNow, clock.estimatedServerNow);
+    return { generation: typeof json.generation === "number" ? json.generation : undefined, scopes: json.scopes as import("./local-reads.ts").ReadScopes | undefined, delivery: json.delivery, credential: result.revision, ephemeral: json.ephemeral, read, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry, ...values, refresh };
   }
 
   const currentRead = <R>(result: QueryResult<R>, watch?: Watch) => {
+    result.read = currentDecorations(result.read);
     const current = result.epoch === queryEpoch && result.seq >= minimumReadSeq
       && (result.nextExpiry === null || result.nextExpiry > clock.estimatedServerNow())
       && (result.credential === undefined || result.credential === credentialRevision)
@@ -615,7 +637,11 @@ export function createClient(options: ClientOptions): Client {
     return current;
   };
 
-  function acceptDelivery<R>(result: QueryResult<R>, read: Read<unknown>) {
+  function acceptDelivery<R>(result: QueryResult<R> & { retryExhausted?: boolean }, read: Read<unknown>) {
+    if ("data" in result.read && !result.transportOffline && !result.retryExhausted) {
+      const scope = intentScope();
+      offerIntentRead(read, scope, result.seq, () => scope != null && scope === intentScope() && currentRead(result));
+    }
     offerDelivery(client, read, current => { void delivery?.accept(result.delivery, current).catch(() => {}); },
       () => !closed && !storeRefusal && credentials && currentRead(result));
   }
@@ -625,7 +651,7 @@ export function createClient(options: ClientOptions): Client {
     if (!tables.length) { ephemeralReads.remove(watch); return; }
     ephemeralReads.add(watch, tables, (reset, changed, preserved) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
-      if (reset) scheduleExpiry(watch, null);
+      if (reset) scheduleExpiry(watch, null, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
@@ -671,14 +697,14 @@ export function createClient(options: ClientOptions): Client {
     for (const subscriber of watch.subscribers) subscriber();
   }
 
-  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
-    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false }, clock,
-      () => !closed && watches.get(watch.key) === watch, sweepExpiries);
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null, valueServer: QueryResult<unknown>["valueServer"], valueRetry?: number) {
+    armReadExpiry(watch, { device: null, server: nextExpiry, localWakeup: false, valueDevice: null, valueServer, valueRetry }, clock,
+      () => !closed && watches.get(watch.key) === watch, sweepExpiries, undefined, link === "online");
   }
 
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
-      (watch, d) => scheduleExpiry(watch, d.server),
+      (watch, d) => scheduleExpiry(watch, d.server, d.valueServer, d.valueRetry),
       watch => { if (watches.get(watch.key) === watch) void acquireRead(watch); });
   }
 
@@ -716,7 +742,7 @@ export function createClient(options: ClientOptions): Client {
     watch.publish(result.read);
     acceptDelivery(result, watch.snapshot);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
+    if (!watch.kept) scheduleExpiry(watch, result.nextExpiry, result.valueServer);
     notify(watch);
     schedulePresence(watch, true, result.refresh);
   }
@@ -757,7 +783,7 @@ export function createClient(options: ClientOptions): Client {
         if (!result.transportOffline) {
           // Do not move either side of a row-expiry boundary into a UI batch.
           batchReady &&= watch.deadlines?.server == null && result.nextExpiry === null;
-          scheduleExpiry(watch, result.nextExpiry);
+          scheduleExpiry(watch, result.nextExpiry, result.valueServer);
         }
         return true;
       } }), signal);
@@ -770,7 +796,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || !currentRead(result, watch)) {
         if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) { retryExpired = true; return; }
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
-        if (!watch.kept) scheduleExpiry(watch, null);
+        if (!watch.kept) scheduleExpiry(watch, null, null);
         schedulePresence(watch, false);
         notify(watch);
         return;
@@ -783,7 +809,7 @@ export function createClient(options: ClientOptions): Client {
         && "data" in watch.snapshot && watch.snapshot.existence === "present") notifyReady(watch, previousDeadline);
       else notify(watch);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
-      if (exhausted && !watch.kept) scheduleExpiry(watch, null);
+      if (exhausted && !watch.kept) scheduleExpiry(watch, null, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } catch {
       if (!signal.aborted && !closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
@@ -862,7 +888,7 @@ export function createClient(options: ClientOptions): Client {
         if (await pauseRefusal(response, json.denied, aborter.signal)) continue;
         if (refusal(json.denied)) {
           changesRefusal = json.denied; queryEpoch++;
-          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null); } });
+          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null, null); } });
           deliver(); for (const watch of watches.values()) notify(watch);
           break;
         }
@@ -1030,8 +1056,9 @@ export function createClient(options: ClientOptions): Client {
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });
-        const entry: (typeof pending)[number] = { id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
+        const entry: (typeof pending)[number] = { owner: viewer, id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
         pending.push(entry);
+        intentPresentation.admit(id);
         pendingEvents.notify();
         history.remember(write);
         const attempt = flush();
@@ -1048,7 +1075,7 @@ export function createClient(options: ClientOptions): Client {
     }),
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
     async pendingWrites() {
-      return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done).map(entry => ({
+      return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done && !entry.retired && entry.owner === viewer).map(entry => ({
         id: entry.id, op: entry.op.name, args: JSON.parse(JSON.stringify(entry.args)), state: entry.state,
         ...(entry.reason ? { reason: entry.reason } : {}), predicted: [],
       }));
@@ -1161,6 +1188,7 @@ export function createClient(options: ClientOptions): Client {
       cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
       closed = true;
+      intentPresentation.clear();
       void delivery?.stop();
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
@@ -1197,5 +1225,10 @@ export function createClient(options: ClientOptions): Client {
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
+  registerPendingIntents(client, { scope: intentScope, revision: () => `${credentialRevision}:${intentEpoch}`, retain: intentPresentation.retain, read: async () => {
+    const scope = intentScope(), epoch = intentEpoch, revision = credentialRevision, pending = await client.pendingWrites();
+    return scope != null && scope === intentScope() && epoch === intentEpoch && revision === credentialRevision ? intentPresentation.sync(pending) : [];
+  } });
+  registerIntentObserver(client, ids => intentPresentation.observed(ids));
   return client;
 }

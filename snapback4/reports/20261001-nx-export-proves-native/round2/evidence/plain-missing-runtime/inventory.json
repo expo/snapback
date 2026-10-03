@@ -1,0 +1,17 @@
+[
+  {
+    "name": "finished.json",
+    "sha256": "cd9ac4ecc533ed3737cbdfc313ffd2178f79a23a5d8b2b62869b3750008301be",
+    "bytes": 28
+  },
+  {
+    "name": "live.json",
+    "sha256": "b7346df75436e7e9c345c334383c6da26e005d64fc2a3877ea0f138006b32415",
+    "bytes": 142
+  },
+  {
+    "name": "smoke-ios-run.json",
+    "sha256": "53a368144de434d22b7ea4a0b99e2d9d7bc58c30129728a51aa20428ad2009b5",
+    "bytes": 504
+  }
+]

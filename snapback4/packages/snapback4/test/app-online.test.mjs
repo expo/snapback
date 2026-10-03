@@ -110,7 +110,7 @@ test("asynchronous settlement bounds online argument reservations, including ano
   t.mock.method(MutationIds.prototype, "run", function (...args) { instances.add(this); return original.apply(this, args); });
   const make = () => {
     let callback;
-    const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
+    const raw = { viewer: () => "alice", onViewer: () => () => {}, onWrite(fn) { callback = fn; return () => {}; },
       mutate: async (op, args, { id }) => ({ state: "pending", id }), write: async () => undefined,
       close: async () => {}, signOut: async () => {} };
     trackDispatch(raw, { store: "test-store" });
@@ -156,7 +156,7 @@ for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup"
       }
       await memory.set(k, text);
     } };
-    const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
+    const raw = { viewer: () => "alice", onViewer: () => () => {}, onWrite(fn) { callback = fn; return () => {}; },
       mutate: async () => source === "mutate" ? outcome : { state: "pending", id },
       write: async () => available, close: async () => {}, signOut: async () => {} };
     trackDispatch(raw, { store: "test-store" });
@@ -197,7 +197,7 @@ test("CCP zero-wait custody survives a rejected background dispatch and pre-cust
   const memory = memorySessionStore(), errors = [];
   let failStore = false;
   const store = { ...memory, async set(key, value) { if (failStore) throw Error("disk full"); await memory.set(key, value); } };
-  const raw = { viewer: () => "alice", onWrite: () => () => {},
+  const raw = { viewer: () => "alice", onViewer: () => () => {}, onWrite: () => () => {},
     mutate: async () => { throw Error("transport exploded"); }, write: async () => undefined,
     close: async () => {}, signOut: async () => {} };
   trackDispatch(raw, { store: "test-store" });
@@ -222,7 +222,7 @@ for (const waitSeconds of [undefined, 0]) test(`CCP existing custody is not repl
   const memory = memorySessionStore(); let fail = false, dispatches = 0;
   const store = { ...memory, async set(key, value) { if (fail) throw Error("disk full"); await memory.set(key, value); } };
   const raw = () => {
-    const client = { viewer: () => "alice", onWrite: () => () => {},
+    const client = { viewer: () => "alice", onViewer: () => () => {}, onWrite: () => () => {},
       mutate: async (_op, _args, { id }) => { dispatches++; return { state: "pending", id }; },
       write: async () => undefined, close: async () => {}, signOut: async () => {} };
     trackDispatch(client, { store: "original-store" }); return client;

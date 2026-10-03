@@ -1,0 +1,630 @@
+[
+  {
+    "label": "export-xcode-version",
+    "executable": "xcodebuild",
+    "args": [
+      "-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212727,
+    "durationMs": 45,
+    "status": 0,
+    "signal": null,
+    "log": "export-xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77"
+  },
+  {
+    "label": "export-sdk-version",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212772,
+    "durationMs": 7,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a"
+  },
+  {
+    "label": "export-sdk-build",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-build-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212779,
+    "durationMs": 6,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be"
+  },
+  {
+    "label": "export-developer",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "clang"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212785,
+    "durationMs": 7,
+    "status": 0,
+    "signal": null,
+    "log": "export-developer.log",
+    "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24"
+  },
+  {
+    "label": "export-tool-swiftc",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "swiftc"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212840,
+    "durationMs": 8,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-swiftc.log",
+    "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89"
+  },
+  {
+    "label": "export-tool-swift-frontend",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "swift-frontend"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212916,
+    "durationMs": 8,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-swift-frontend.log",
+    "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a"
+  },
+  {
+    "label": "export-tool-ld",
+    "executable": "xcrun",
+    "args": [
+      "--find",
+      "ld"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899212993,
+    "durationMs": 7,
+    "status": 0,
+    "signal": null,
+    "log": "export-tool-ld.log",
+    "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88"
+  },
+  {
+    "label": "export-sdk-path",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-path"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899213002,
+    "durationMs": 7,
+    "status": 0,
+    "signal": null,
+    "log": "export-sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec"
+  },
+  {
+    "label": "export-pod-version",
+    "executable": "pod",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899213013,
+    "durationMs": 230,
+    "status": 0,
+    "signal": null,
+    "log": "export-pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+  },
+  {
+    "label": "export-ruby-version",
+    "executable": "ruby",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899213243,
+    "durationMs": 9,
+    "status": 0,
+    "signal": null,
+    "log": "export-ruby-version.log",
+    "sha256": "e206508cdef0a6c6b14b656b71ad9366db219b3e83e5efcf0839a50c87fd8dba"
+  },
+  {
+    "label": "fingerprint-before",
+    "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "args": [
+      "-e",
+      "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899215386,
+    "durationMs": 665,
+    "status": 0,
+    "signal": null,
+    "log": "fingerprint-before.log",
+    "sha256": "0d9587c030912d89bccba799e6d4f85ed6819342352a1322e17896cc8fc5ec7c"
+  },
+  {
+    "label": "xcode-version",
+    "executable": "xcodebuild",
+    "args": [
+      "-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216051,
+    "durationMs": 45,
+    "status": 0,
+    "signal": null,
+    "log": "xcode-version.log",
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77"
+  },
+  {
+    "label": "sdk-version",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216096,
+    "durationMs": 8,
+    "status": 0,
+    "signal": null,
+    "log": "sdk-version.log",
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a"
+  },
+  {
+    "label": "sdk-build",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-build-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216104,
+    "durationMs": 6,
+    "status": 0,
+    "signal": null,
+    "log": "sdk-build.log",
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be"
+  },
+  {
+    "label": "pod-version",
+    "executable": "pod",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216111,
+    "durationMs": 231,
+    "status": 0,
+    "signal": null,
+    "log": "pod-version.log",
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+  },
+  {
+    "label": "runtime",
+    "executable": "xcrun",
+    "args": [
+      "simctl",
+      "list",
+      "runtimes",
+      "--json"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216342,
+    "durationMs": 106,
+    "status": 0,
+    "signal": null,
+    "log": "runtime.log",
+    "sha256": "ed32fd3cb1eb5a5b9b9c65ead882009f2f84c0dead9af391738f85e79e3c1de3"
+  },
+  {
+    "label": "snapshot",
+    "executable": "/usr/bin/rsync",
+    "args": [
+      "-a",
+      "--delete",
+      "--exclude=/.git",
+      "--exclude=/.expo",
+      "--exclude=/.snapback4",
+      "--exclude=/.snapback4-witness",
+      "--exclude=/artifacts",
+      "--exclude=/evidence",
+      "--exclude=/dist",
+      "--exclude=/choreography",
+      "--exclude=provider-secrets.env",
+      "--exclude=.env*",
+      "--exclude=/ios",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899216449,
+    "durationMs": 1971,
+    "status": 0,
+    "signal": null,
+    "log": "snapshot.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "public-config",
+    "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "args": [
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+      "config",
+      "--type",
+      "public",
+      "--json"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899219225,
+    "durationMs": 56,
+    "status": 0,
+    "signal": null,
+    "log": "public-config.log",
+    "sha256": "246aed06d7db14c76d359777ae7b8b042fae98b2fa608dddc90d01290adffd96"
+  },
+  {
+    "label": "prebuild",
+    "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "args": [
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+      "prebuild",
+      "--platform",
+      "ios",
+      "--no-install",
+      "--clean"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899219282,
+    "durationMs": 280,
+    "status": 0,
+    "signal": null,
+    "log": "prebuild.log",
+    "sha256": "0a16cfcc425270741603d8ad89f3697550575b829c057ff089f2a33e03e4fe41"
+  },
+  {
+    "label": "pods",
+    "executable": "pod",
+    "args": [
+      "install"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios",
+    "startedAt": 1790899219562,
+    "durationMs": 9534,
+    "status": 0,
+    "signal": null,
+    "log": "pods.log",
+    "sha256": "fbf30805580b9ddfef80a8345d150f2ed4b7baa70a904a13b570bccdf28624f7"
+  },
+  {
+    "label": "schemes",
+    "executable": "xcodebuild",
+    "args": [
+      "-list",
+      "-json",
+      "-workspace",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Snapback4chat.xcworkspace"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899230866,
+    "durationMs": 1464,
+    "status": 0,
+    "signal": null,
+    "log": "schemes.log",
+    "sha256": "5ba1853e6d3ada2bf932365d51c7efdfbd5129a4433620200b03506d71ed89e8"
+  },
+  {
+    "label": "build-settings",
+    "executable": "xcodebuild",
+    "args": [
+      "-workspace",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Snapback4chat.xcworkspace",
+      "-scheme",
+      "Snapback4chat",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "id=40F37BC8-7B71-497A-BFDE-022928C5B98C",
+      "-derivedDataPath",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "ARCHS=arm64",
+      "ONLY_ACTIVE_ARCH=YES",
+      "CODE_SIGN_IDENTITY=-",
+      "RCT_NEW_ARCH_ENABLED=1",
+      "GCC_GENERATE_DEPENDENCIES=YES",
+      "SYMROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Products",
+      "OBJROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+      "DSTROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Install",
+      "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/PrecompiledHeaders",
+      "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CCHROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+      "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+      "-showBuildSettings",
+      "-json"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899232330,
+    "durationMs": 992,
+    "status": 0,
+    "signal": null,
+    "log": "build-settings.log",
+    "sha256": "1e2d6c26fce19ee7fc11d1808058fe59550f202a542deb2e8a9b2754c0249578"
+  },
+  {
+    "label": "sdk-path",
+    "executable": "xcrun",
+    "args": [
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-path"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899233325,
+    "durationMs": 8,
+    "status": 0,
+    "signal": null,
+    "log": "sdk-path.log",
+    "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec"
+  },
+  {
+    "label": "plist-23",
+    "executable": "/usr/bin/plutil",
+    "args": [
+      "-convert",
+      "json",
+      "-o",
+      "-",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Snapback4chat.xcodeproj/project.pbxproj"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899233334,
+    "durationMs": 5,
+    "status": 0,
+    "signal": null,
+    "log": "plist-23.log",
+    "sha256": "6e1609c971a89ba2f65cf17f740d12482760df66ee017c3f350577f61f058043"
+  },
+  {
+    "label": "target-settings-0",
+    "executable": "xcodebuild",
+    "args": [
+      "-project",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Snapback4chat.xcodeproj",
+      "-alltargets",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "ARCHS=arm64",
+      "GCC_GENERATE_DEPENDENCIES=YES",
+      "SYMROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Products",
+      "OBJROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+      "DSTROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Install",
+      "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/PrecompiledHeaders",
+      "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CCHROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+      "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+      "-showBuildSettings",
+      "-json"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899233340,
+    "durationMs": 758,
+    "status": 0,
+    "signal": null,
+    "log": "target-settings-0.log",
+    "sha256": "0859cafc84b59b73ac694b75e5988ffc0b1148bec348d264660288c25c0c9c45"
+  },
+  {
+    "label": "plist-25",
+    "executable": "/usr/bin/plutil",
+    "args": [
+      "-convert",
+      "json",
+      "-o",
+      "-",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj/project.pbxproj"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899234404,
+    "durationMs": 39,
+    "status": 0,
+    "signal": null,
+    "log": "plist-25.log",
+    "sha256": "6930b39f521f78f7e02627081c8bade834aeb5a24e70aaebb027c08281b34636"
+  },
+  {
+    "label": "target-settings-1",
+    "executable": "xcodebuild",
+    "args": [
+      "-project",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj",
+      "-alltargets",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "ARCHS=arm64",
+      "GCC_GENERATE_DEPENDENCIES=YES",
+      "SYMROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Products",
+      "OBJROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+      "DSTROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Install",
+      "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/PrecompiledHeaders",
+      "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CCHROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+      "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+      "-showBuildSettings",
+      "-json"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899234448,
+    "durationMs": 2375,
+    "status": 0,
+    "signal": null,
+    "log": "target-settings-1.log",
+    "sha256": "a1e073bf2409d5e192b44d531aefe0981f23aff724178cb1f94a0e1be140a6b8"
+  },
+  {
+    "label": "xcode-build",
+    "executable": "xcodebuild",
+    "args": [
+      "-workspace",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/ios/Snapback4chat.xcworkspace",
+      "-scheme",
+      "Snapback4chat",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "id=40F37BC8-7B71-497A-BFDE-022928C5B98C",
+      "-derivedDataPath",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "ARCHS=arm64",
+      "ONLY_ACTIVE_ARCH=YES",
+      "CODE_SIGN_IDENTITY=-",
+      "RCT_NEW_ARCH_ENABLED=1",
+      "GCC_GENERATE_DEPENDENCIES=YES",
+      "SYMROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Products",
+      "OBJROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+      "DSTROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Install",
+      "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/PrecompiledHeaders",
+      "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CCHROOT=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Cache",
+      "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+      "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/ModuleCache.noindex",
+      "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData",
+      "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+      "SKIP_BUNDLING=",
+      "SOURCEMAP_FILE=",
+      "-resultBundlePath",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/build.xcresult",
+      "build"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899247695,
+    "durationMs": 38310,
+    "status": 0,
+    "signal": null,
+    "log": "xcode-build.log",
+    "sha256": "783e1f638a505790427bae042116e349520f8f9880b61a9a49b0db89309df350"
+  },
+  {
+    "label": "preserve-app",
+    "executable": "/bin/cp",
+    "args": [
+      "-cR",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/DerivedData/Build/Products/Release-iphonesimulator/Snapback4chat.app",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/base.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899289476,
+    "durationMs": 15,
+    "status": 0,
+    "signal": null,
+    "log": "preserve-app.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "plist-29",
+    "executable": "/usr/bin/plutil",
+    "args": [
+      "-convert",
+      "json",
+      "-o",
+      "-",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/base.app/Info.plist"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899289515,
+    "durationMs": 6,
+    "status": 0,
+    "signal": null,
+    "log": "plist-29.log",
+    "sha256": "371501428034ef19d94be5d6b3e7e487fc02cf3ac83fae71bda1b5663e6e7bbb"
+  },
+  {
+    "label": "hermes-version",
+    "executable": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot/node_modules/hermes-compiler/hermesc/osx-bin/hermesc",
+    "args": [
+      "-version"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/snapshot",
+    "startedAt": 1790899289531,
+    "durationMs": 6,
+    "status": 0,
+    "signal": null,
+    "log": "hermes-version.log",
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000"
+  },
+  {
+    "label": "fingerprint-after",
+    "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "args": [
+      "-e",
+      "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899290393,
+    "durationMs": 759,
+    "status": 0,
+    "signal": null,
+    "log": "fingerprint-after.log",
+    "sha256": "0d9587c030912d89bccba799e6d4f85ed6819342352a1322e17896cc8fc5ec7c"
+  },
+  {
+    "label": "export-copy-base",
+    "executable": "/bin/cp",
+    "args": [
+      "-cR",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/.snapback4-witness/export-base.app",
+      "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790899211930-59356/export.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain",
+    "startedAt": 1790899294962,
+    "durationMs": 15,
+    "status": 0,
+    "signal": null,
+    "log": "export-copy-base.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "file": "plain-ios-context-second.json",
+    "status": 1,
+    "label": "ios-context-second",
+    "expectedNegative": false,
+    "error": "E_WITNESS_BUILD: --build preparation failed; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790945425188-25450/preparation-stderr.log",
+    "durationMs": 1200097
+  },
+  {
+    "file": "plain-ios-context-second-retry1.json",
+    "status": 1,
+    "label": "ios-context-second-retry1",
+    "expectedNegative": false,
+    "error": "E_WITNESS_BUILD: --build preparation failed; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790946980632-28993/preparation-stderr.log",
+    "durationMs": 974101
+  },
+  {
+    "file": "plain-remote-icon.json",
+    "status": 1,
+    "label": "remote-icon",
+    "expectedNegative": true,
+    "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790948567038-35329/preparation-stderr.log",
+    "durationMs": 5303
+  },
+  {
+    "file": "social-remote-icon.json",
+    "status": 1,
+    "label": "remote-icon",
+    "expectedNegative": true,
+    "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790948935865-45321/preparation-stderr.log",
+    "durationMs": 8018
+  }
+]

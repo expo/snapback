@@ -1,0 +1,14 @@
+[
+  {
+    "version": "round3",
+    "status": 0,
+    "stderr": "",
+    "visibleTamperedOutput": true
+  },
+  {
+    "version": "round4",
+    "status": 1,
+    "stderr": "E_WITNESS_PROOF: published export inventory differs from the proved paths, sizes or hashes\n",
+    "visibleTamperedOutput": false
+  }
+]

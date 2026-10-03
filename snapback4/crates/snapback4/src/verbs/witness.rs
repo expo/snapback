@@ -6,21 +6,27 @@ mod smoke;
 mod acquire;
 mod simulator;
 mod ownership;
+mod recovery;
+mod recorded_process;
+pub(crate) mod process_group;
+mod publication;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 extern "C" fn interrupt(_: libc::c_int) { INTERRUPTED.store(true, Ordering::Relaxed); }
-fn tick() -> Result<()> {
+fn interrupted() -> Result<()> {
     if INTERRUPTED.load(Ordering::Relaxed) { return Err(error("E_WITNESS_INTERRUPTED", "witness interrupted; stopping its owned processes")); }
-    sleep(Duration::from_millis(100)); Ok(())
+    Ok(())
+}
+fn tick() -> Result<()> { interrupted()?; sleep(Duration::from_millis(100)); Ok(())
 }
 
 struct Options {
     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
     port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
-    build: Option<PathBuf>,
+    build: Option<PathBuf>, export: Option<PathBuf>,
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
@@ -34,7 +40,7 @@ impl Options {
             let Some(raw) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", "unexpected argument; see snapback4 guide witness")); };
             let key = raw.split('=').next().unwrap();
             if ["token", "token-file"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("--{key} is unsupported for witness ios"))); }
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build", "export"].contains(&key) { return Err(error("E_WITNESS_INPUT", "unknown flag; see snapback4 guide witness")); }
             if raw.contains('=') { return Err(error("E_WITNESS_INPUT", format!("--{key} does not accept equals spelling; see snapback4 guide witness"))); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
@@ -45,6 +51,9 @@ impl Options {
         let selectors = ["bundle-id", "build"].iter().filter(|k| flags.contains_key(**k)).count();
         if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
         if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
+        if flags.contains_key("export") && (!flags.contains_key("build") || !flags.contains_key("smoke")) {
+            return Err(error("E_WITNESS_INPUT", "--export requires --build and --smoke"));
+        }
         let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "--bundle-id must be a valid bundle identifier")); }
         let smoke = flags.contains_key("smoke");
@@ -59,7 +68,7 @@ impl Options {
         let artifacts = flags.get("artifacts").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(format!("artifacts/native-smoke/{}-{}", now(), std::process::id())));
         let port = flags.get("port").map_or(Ok(if flags.contains_key("build") { 0 } else { 4400 }), |s| s.parse::<u16>()).ok().filter(|p| *p > 0 || !flags.contains_key("port")).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
+        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from), export: flags.get("export").map(PathBuf::from) })
     }
 }
 
@@ -99,19 +108,44 @@ impl Drop for Owned { fn drop(&mut self) { let _ = self.stop(libc::SIGTERM); } }
 fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     let mut command = Command::new("xcrun");
     command.arg("simctl").args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = Owned::spawn(&mut command)?;
+    let mut child = Owned(command.spawn().map_err(|e| interrupted().err().unwrap_or_else(|| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            error("E_WITNESS_PLATFORM", "xcrun is unavailable; install Xcode and its command line tools")
+        } else { error("E_WITNESS_PROCESS", e) }
+    }))?);
+    let creating = args.first() == Some(&"create");
     let stdout = child.0.stdout.take().unwrap(); let stderr = child.0.stderr.take().unwrap();
     let read = |mut pipe: Box<dyn Read + Send>| std::thread::spawn(move || { let mut text = String::new(); let _ = pipe.read_to_string(&mut text); text });
     let out = read(Box::new(stdout)); let err = read(Box::new(stderr));
     let end = Instant::now() + timeout;
     let status = loop {
-        if let Some(status) = child.status()? { break status; }
-        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
-        tick()?;
+        if let Some(status) = child.status().map_err(|e| interrupted().err().unwrap_or(e))? { break status; }
+        if Instant::now() >= end { interrupted()?; return Err(error("E_WITNESS_TIMEOUT", "xcrun simctl timed out; check --udid and --timeout")); }
+        // Creation must return its identity before cancellation can delete it.
+        // Its existing timeout still bounds a stuck simctl.
+        if creating { sleep(Duration::from_millis(50)); } else { tick()?; }
     };
     let text = out.join().unwrap_or_default(); let _ = err.join();
+    if !creating || !status.success() { interrupted()?; }
     if !status.success() { return Err(error("E_WITNESS_SIMULATOR", format!("xcrun simctl {} failed; check --udid, --bundle-id and the simulator/runtime", args.first().copied().unwrap_or("")))); }
     Ok(text.trim().to_owned())
+}
+
+fn command_text(program: &str, args: &[&str], timeout: Duration) -> Result<String> {
+    let mut command = Command::new(program);
+    command.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null());
+    let mut child = Owned::spawn(&mut command)?;
+    let mut pipe = child.0.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || { let mut text = String::new(); let _ = pipe.read_to_string(&mut text); text });
+    let end = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.status()? {
+            if !status.success() { return Err(error("E_WITNESS_PLATFORM", "toolchain probe failed")); }
+            return Ok(reader.join().unwrap_or_default().trim().to_owned());
+        }
+        if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "toolchain probe timed out")); }
+        tick()?;
+    }
 }
 
 fn installed_app(udid: &str, bundle: &str, timeout: Duration) -> Result<String> {
@@ -129,9 +163,9 @@ fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
 
 struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
-    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
+    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>, app_started: u128,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
-    _lease: File, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
+    _lease: Vec<File>, _project_lease: Vec<File>, proof: Option<Value>, reservation: Option<std::net::TcpListener>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
@@ -175,6 +209,7 @@ impl Run {
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
             .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(output(&self.path("launch.log"))?);
+        self.app_started = now();
         let mut child = Owned::spawn(&mut command)?;
         let mut stdout = child.0.stdout.take().unwrap();
         let reader = std::thread::spawn(move || { let mut text = String::new(); let _ = stdout.read_to_string(&mut text); text });
@@ -190,6 +225,7 @@ impl Run {
         // Even an interrupted or failed simctl may already have reported the
         // app it launched. Record that PID before any fallible log write.
         self.app_pid = text.lines().find_map(|l| l.strip_prefix(&prefix).and_then(|p| p.trim().parse::<u32>().ok())).filter(|p| *p > 0);
+        recovery::app(&self.options, self.app_pid, &self.udid, &self.options.bundle, &self.dir)?;
         output(&self.path("launch.log"))?.write_all(text.as_bytes()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let status = status?;
         if !status.success() { return Err(error("E_WITNESS_APP", format!("--bundle-id app launch failed ({status}); see the command's own log path: {}", self.path("launch.log").display()))); }
@@ -207,6 +243,7 @@ impl Run {
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
         crate::witness_socket::inherit(&mut command, &reservation);
         self.backend = Some(Owned::spawn(&mut command)?);
+        recovery::child(&self.options, "backend", self.backend.as_ref().unwrap().0.id())?;
         drop(reservation);
         let end = Instant::now() + self.options.timeout;
         loop {
@@ -238,6 +275,21 @@ impl Run {
         loop {
             if let Some(child) = &mut self.video { child.alive("video recorder")?; }
             if self.app_pid.is_some() && self.running_app()? != self.app_pid {
+                if expected == "primed" && read_rows(&self.receipts(), false).is_ok_and(|rows| !rows.iter().any(|r| r["witness"]["step"] == "primed")) {
+                    // DiagnosticReports arrives asynchronously after launchctl loses the PID.
+                    let deadline = Instant::now() + Duration::from_secs(3);
+                    if let Some(home) = std::env::var_os("HOME") {
+                        let reports = PathBuf::from(home).join("Library/Logs/DiagnosticReports");
+                        loop {
+                            if let Some(crash) = scene_crash(&reports, &self.options.bundle, self.app_pid.unwrap(), &self.udid, self.app_started, deadline) {
+                                self.manifest["sceneCrash"] = crash;
+                                return Err(error("E_WITNESS_SCENE_LIFECYCLE", SCENE_REPAIR));
+                            }
+                            if Instant::now() >= deadline { break; }
+                            tick()?;
+                        }
+                    }
+                }
                 return Err(error("E_WITNESS_APP", "owned app exited or was replaced while awaiting its receipt"));
             }
             if let Some(child) = &mut self.logs { child.alive("log capture")?; }
@@ -278,12 +330,14 @@ impl Run {
         video.args(["simctl", "io", &self.udid, "recordVideo", "--codec=h264"]).arg(self.path("screen.mp4"))
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(output(&self.path("video.log"))?);
         self.video = Some(Owned::spawn(&mut video)?);
+        recovery::child(&self.options, "video", self.video.as_ref().unwrap().0.id())?;
         let mut logs = Command::new("xcrun");
         // Only the app's own process: a whole-simulator debug stream is tens of megabytes per segment.
         let executable = self.manifest["appBuild"]["CFBundleExecutable"].as_str().unwrap_or_default().replace('"', "");
         logs.args(["simctl", "spawn", &self.udid, "log", "stream", "--style", "json", "--level", "debug", "--predicate"]).arg(format!("process == \"{executable}\""))
             .stdin(Stdio::null()).stdout(output(&self.path("device.log"))?).stderr(output(&self.path("log-stderr.log"))?);
         self.logs = Some(Owned::spawn(&mut logs)?);
+        recovery::child(&self.options, "logs", self.logs.as_ref().unwrap().0.id())?;
         let end = Instant::now() + self.options.timeout;
         loop {
             self.video.as_mut().unwrap().alive("video recorder")?;
@@ -388,6 +442,7 @@ impl Drop for Run {
         let _ = self.finish_capture();
         if self.app_pid.is_some() { let _ = self.terminate(false); }
         if let Some(mut backend) = self.backend.take() { let _ = backend.stop(libc::SIGTERM); }
+        if self.options.export.is_some() { let _ = fs::remove_dir_all(&self.dir); }
     }
 }
 
@@ -397,7 +452,13 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     if options.build.is_some() && std::env::current_dir().ok().and_then(|p| crate::project::Project::locate(&p)).is_none() {
         return Err(error("E_WITNESS_BUILD", "no snapback/schema.q here or above; run snapback4 init before native smoke"));
     }
-    let simulator = simulator::select(&options, preparation)?;
+    // Only this bounded pre-build stage may classify environment unavailability.
+    // App/install/SDK errors after selection always remain failures.
+    let (simulator, selection_lease) = match simulator::select(&options, preparation) {
+        Ok(value) => value,
+        Err(problem) => { if options.export.is_some() && preparation["environmentCondition"].is_string() { preparation["phase"] = json!("environment"); } return Err(problem); }
+    };
+    recovery::simulator(&options, &simulator)?;
     let udid = simulator["udid"].as_str().unwrap().to_owned();
     let runtime = simulator["runtime"].as_str().unwrap().to_owned();
     preparation["simulator"] = simulator.clone();
@@ -420,6 +481,14 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
         if !output.status.success() { return Err(error("E_WITNESS_APP", format!("cannot read {key} from installed Info.plist; check --bundle-id"))); }
         build[key] = json!(String::from_utf8_lossy(&output.stdout).trim());
     }
+    for key in ["DTXcodeBuild", "DTSDKName", "DTSDKBuild"] {
+        let output = Command::new("/usr/bin/plutil").args(["-extract", key, "raw", "-o", "-"]).arg(&plist).output();
+        build[key] = output.ok().filter(|o| o.status.success()).map_or(Value::Null, |o| json!(String::from_utf8_lossy(&o.stdout).trim()));
+    }
+    let toolchain = app_toolchain(&build);
+    for key in ["xcodeBuild", "iosSdkVersion", "toolchainSource"] {
+        preparation[key] = toolchain[key].clone();
+    }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
     let installed = if options.smoke {
         json!({ "executable": artifact(&Path::new(&app).join(build["CFBundleExecutable"].as_str().unwrap()))?,
@@ -434,7 +503,9 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
     let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
-    let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+    let manifest = json!({ "xcodeBuild": toolchain["xcodeBuild"], "iosSdkVersion": toolchain["iosSdkVersion"], "toolchainSource": toolchain["toolchainSource"], "bundleId": options.bundle, "udid": udid, "runtime": runtime, "simulator": simulator, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+        "exported": proof.as_ref().map(|p| p["exported"].clone()),
+        "nativeCache": proof.as_ref().map(|p| json!({ "hit": p["cacheHit"], "fingerprint": p["nativeFingerprint"] })),
         "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
         "queryFacts": Value::Null, "queryGeneration": Value::Null,
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
@@ -442,10 +513,13 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
         "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
         "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, _project_lease: project_lease, proof, reservation: Some(_port) })
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, app_started: 0, manifest, events: Vec::new(), observed: Vec::new(), _lease: vec![selection_lease, lease], _project_lease: project_lease, proof, reservation: Some(_port) })
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|arg| arg == "export-publish") { return publication::command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-lease") { return publication::lease_command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {
         let invoked = now();
@@ -457,10 +531,16 @@ pub fn run(args: &[String]) -> i32 {
         platform(std::env::consts::OS)?;
         reserve_artifacts(&options.artifacts, &artifact_segment(&options))?;
         let failure_path = options.artifacts.join(format!("{}-ios-run.json", artifact_segment(&options)));
-        let mut preparation = json!({ "bundleId": options.bundle, "segment": options.segment,
+        let xcode = command_text("xcodebuild", &["-version"], Duration::from_secs(10)).ok();
+        let sdk = command_text("xcrun", &["--sdk", "iphonesimulator", "--show-sdk-version"], Duration::from_secs(10)).ok();
+        let mut preparation = json!({ "xcodeBuild": xcode.as_deref().and_then(|s| s.lines().find_map(|l| l.strip_prefix("Build version "))),
+            "iosSdkVersion": sdk, "toolchainSource": "selected host; no installed product inspected",
+            "bundleId": options.bundle, "segment": options.segment,
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
             "events": [], "artifacts": {} });
+        let _run_lease = recovery::begin(&options)?;
+        let _temporary = preparation::ExportTemporary::new(&options);
         let mut run = match prepare(options, &mut preparation) {
             Ok(run) => run,
             Err(problem) => {
@@ -482,11 +562,11 @@ pub fn run(args: &[String]) -> i32 {
         let saved = run.save(&result);
         result?; saved?;
         let label = match (run.options.smoke, run.manifest["proofKind"].as_str()) {
-            (true, Some("application-release")) => "Own Release smoke passed",
+            (true, Some("application-release" | "application-export")) => "Own Release smoke passed",
             (true, _) => "Installed-app smoke passed (preparation unknown)",
             _ => "Installed-app scenario complete (preparation unknown)",
         };
-        println!("witness: {label} — command's own receipt path: {}", run.path("run.json").display());
+        if run.options.export.is_none() { println!("witness: {label} — command's own receipt path: {}", run.path("run.json").display()); }
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(problem) => { if problem.starts_with("E_WITNESS_PLATFORM") { eprintln!("{problem}"); } else { eprintln!("{problem}; see snapback4 guide witness"); } 1 } }
@@ -502,7 +582,7 @@ mod lookup_tests {
         const MODE: &str = "SNAPBACK4_TEST_APP_LOOKUP";
         if let Ok(mode) = std::env::var(MODE) {
             // A separate test process owns PATH and the interruption flag.
-            if mode == "interrupted" { INTERRUPTED.store(true, Ordering::Relaxed); }
+            if mode.starts_with("interrupted") { INTERRUPTED.store(true, Ordering::Relaxed); }
             let timeout = if mode == "timeout" { Duration::ZERO } else { Duration::from_secs(30) };
             let result = installed_app("private-udid-value", "private-bundle-value", timeout);
             if mode == "success" {
@@ -512,9 +592,9 @@ mod lookup_tests {
             let problem = result.unwrap_err();
             let expected = match mode.as_str() {
                 "timeout" => "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
-                "interrupted" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+                "interrupted" | "interrupted-spawn" => "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
                 "unavailable" | "missing" => "E_WITNESS_SIMULATOR: xcrun simctl get_app_container failed; check --udid, --bundle-id and the simulator/runtime",
-                "spawn" => "E_WITNESS_PROCESS:",
+                "spawn" => "E_WITNESS_PLATFORM:",
                 _ => panic!("unknown fixture mode"),
             };
             assert!(problem.starts_with(expected), "{mode}: {problem}");
@@ -537,10 +617,10 @@ esac
 "#).unwrap();
         fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
         let mut failures = Vec::new();
-        for mode in ["success", "timeout", "interrupted", "unavailable", "missing", "spawn"] {
+        for mode in ["success", "timeout", "interrupted", "interrupted-spawn", "unavailable", "missing", "spawn"] {
             let output = Command::new(std::env::current_exe().unwrap())
                 .args(["--exact", "verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics", "--nocapture"])
-                .env(MODE, mode).env("PATH", if mode == "spawn" { dir.join("absent") } else { dir.clone() })
+                .env(MODE, mode).env("PATH", if mode.ends_with("spawn") { dir.join("absent") } else { dir.clone() })
                 .output().unwrap();
             if !output.status.success() {
                 failures.push(format!("{mode}: {}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)));

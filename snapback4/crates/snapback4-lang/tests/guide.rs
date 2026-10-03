@@ -494,6 +494,8 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     let bound = compile(source);
     let list = |items: &[snapback4_lang::Diagnostic]| items.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n");
     assert!(bound.diagnostics.is_empty(), "{label} does not compile:\n{}", list(&bound.diagnostics));
+    let notes = if source.contains(&guide::language()) { guide_context::without_grouped_shape_note(&bound, "groupedMessages") }
+        else { bound.notes.iter().collect::<Vec<_>>() };
     // The populated-store feed deliberately teaches its sparse-scan limit.
     // Pin the actual card block and its one note; other examples stay clean.
     if quarry(card("feeds").unwrap()).iter().any(|block| block == source && block.contains("query home(") && !block.contains("view following:")) {
@@ -511,14 +513,15 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     let package_examples = quarry(include_str!("../../../packages/snapback4/README.md"));
     if search_examples.iter().skip(1).chain(package_examples.iter())
         .any(|block| block == source && block.contains("query search(q: text <=100, c: cursor ?):")) {
-        let mut codes = bound.notes.iter().map(|note| note.code.as_str()).collect::<Vec<_>>();
+        let notes = if source.contains("query searchGrouped(") { guide_context::without_grouped_shape_note(&bound, "searchGrouped") } else { notes };
+        let mut codes = notes.iter().map(|note| note.code.as_str()).collect::<Vec<_>>();
         codes.sort_unstable();
         assert_eq!(codes, ["N_NEVER_COMPLETE", "N_SYNC_ORDER"], "{label}: {:?}", bound.notes);
-        assert!(bound.notes.iter().all(|note| note.message.starts_with("query search")), "{label}: {:?}", bound.notes);
+        assert!(notes.iter().all(|note| note.message.starts_with("query search")), "{label}: {:?}", bound.notes);
         return bound;
     }
     // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
-    let unexpected: Vec<_> = bound.notes.iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
+    let unexpected: Vec<_> = notes.into_iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
     assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));
     bound
 }
@@ -1054,7 +1057,7 @@ fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
     assert!(source.contains(": timeline.scheduledSummary\n"));
     let bound = snapback4_lang::compile(&[("timeline.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(guide_context::without_grouped_shape_note(&bound, "groupedMessages").is_empty(), "{:?}", bound.notes);
     assert_eq!(bound.schema.schedules[0].target, "timeline.nightly");
     assert_eq!(bound.schema.schedules[1].target, "timeline.scheduledSummary");
 }

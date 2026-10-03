@@ -1214,3 +1214,173 @@ regression and documentation edits differ from the initial source manifest;
 no Rust or product source changed. Reference and whitespace checks pass.
 This is a local commit with the requested Astra co-author trailer; nothing
 is pushed or published.
+
+## Round 5 — merge with main (2026-10-03)
+
+This round merges fetched `origin/main` **1b879881bee0079c357356685f1a671fe0aed13b**
+into lane parent **4291d06dee**, with a real two-parent merge and no rebase.
+The common base is `850fea9957`. Qualification is bound to this fetched main
+snapshot; later main movement is outside this result. Nothing is pushed or
+published. The lane's independent final dual review runs elsewhere and is not
+claimed as part of these checks.
+
+### Orientation and conflict resolutions
+
+The read-only `llp-orient` scope is the process runner, test scheduling,
+replacement fixtures and merge documentation. Governing documents remain
+LLP 3000 (in `llp/current/`) §publication-suite-under-contention and
+§publication-suite-on-small-hosts, with LLP 2000.000 and the adopted rules.
+The source `@ref`s resolve to those sections. The guard formula, process
+custody, first-error retention and opaque-candidate limitations are unchanged.
+No authoring surface changes; no new design decision or LLP is needed.
+Hand-off: none. Documentation updates are this report, the closed ticket's
+integration note and the append-only JOURNAL entry.
+
+Git reported exactly three conflicts (`round5/merge-conflicts.json` and the
+compressed original conflict diff):
+
+| Conflict | Resolution |
+| --- | --- |
+| `packages/snapback4/test/replacement-fixture.test.mjs` (add/add) | Import `runFile` from `scripts/run-client-tests.mjs`; remove main's temporary local helper and its two imports. Every assertion and the rest of the fixture match main. |
+| `issues/closed/20261002-snapback4-browser-replacement-fixture-lock-cleanup.md` | Keep main's closed ticket and independent-publication history; append the QF runner integration and qualification link. No duplicate open ticket. |
+| `JOURNAL.md` | Preserve main's complete journal as a prefix and append QF's conflicting suffix intact, then append this round's entry. Relative to the lane parent, all changes are additions. |
+
+Main's separately landed replacement-server, worker startup-race and devServer
+PID fixes are byte-identical to the merged files. All Rust source matches main.
+The other lanes' changes merge without textual conflicts; none is replaced
+with an older lane snapshot. `merge-integrity.json` retains these comparisons.
+
+The post-merge source census found one **semantic merge integration gap**:
+main's `live-margin-browser.test.mjs` declares `hangBudget(800)` (1,720,000 ms),
+while its new filename received the runner's 900,000 ms default stall bound.
+The runner now names that existing work count and derives **2,150,000 ms**
+using the unchanged 25% margin. Its bound regression covers normal and serial
+mode. No test timeout, assertion, sample or seed changes. The final census
+covers **303 files with zero undercovered guards**, compared with 286 in
+Round 4. The original failed census is retained; it was not a full-suite
+failure or a baseline defect.
+
+That correction was finalized at **2026-10-03T05:21:07.369495Z**, during the
+suite's Rust phase and before the client phase existed. `guard-finalized.json`
+records this boundary, and source manifests retain both versions. The completed
+fixture wrapper phase uses the same bounds and semantics before and after the
+one-filename correction. Both hosts' focused checks are repeated on final
+source. A census setup attempt used a repository-root-relative path from
+`snapback4/`; it failed before executing the census and is retained separately
+as a preparation error.
+
+### Host checks and baseline control
+
+Only eb1000 (`expose-builder-pixel`) and the Apartment mini (`100.64.36.16`)
+are used. No office M1 or publication M5 is contacted. No unrelated process
+is signalled. Linux uses Node 24.13.1; the mini uses Node 24.18.0 and the same
+published `snapback4-darwin-arm64@0.4.10` binary as Round 4 for replacement
+fixture portability. This is not current-release macOS product qualification.
+
+The two focused files are `test-file-runner.test.mjs` and
+`replacement-fixture.test.mjs`, run through the shared runner with one file
+slot. The pre-correction results are Linux **42 passed / six Darwin-only
+skips** and mini **48/48 passed**; they are retained as `before-guard-*` and
+are not substituted for final-source results.
+
+A separate detached worktree at **1b879881be**, clean before and after the
+check, runs main alone without QF's runner:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=8 \
+  cargo test -p snapback4-lang -p snapback4-sim \
+  --test prefix_reads --test membership_search --no-fail-fast
+```
+
+It exits **101**, with **30 passed and four failed** across the two targets:
+
+- `snapback4-lang::prefix_reads::explicit_caps_stay_silent_and_predicting_short_pages_stay_refused`
+- `snapback4-lang::prefix_reads::prefix_reads_compile_without_notes_and_caps_follow_one_schema_number`
+- `snapback4-sim::membership_search::edges::calendar_repair_executes_the_same_offset_boundary_predicate`
+- `snapback4-sim::membership_search::refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches`
+
+Each reproduces the documented `N_SHAPE_METER` / empty-notes assertion failure.
+These are **baseline**, tracked by the existing
+[UB ticket](../../../issues/20261003-snapback4-shape-meter-note-breaks-prefix-and-membership-search-tests.md).
+`main-rust-baseline.log.gz`, its result and `main-baseline-source.json` retain the
+independent reproduction. The macOS replay startup-banner and publication
+`decorationExpiry` regressions are not exercised by the mini's runner-only
+checks; no fresh reproduction or fix is claimed for them.
+
+Final-source focused results: **Linux 42 passed, six Darwin-only skips; mini
+48/48 passed**, zero assertion failures and zero outer file refusals on both.
+All 13 mini source hashes match the merged tree. The task-created mini scratch
+is removed after evidence collection (`mini-cleanup.log`); its binary hash and
+host metadata remain in the report directory. Commands, from the repository
+root (on the mini, from its task-created scratch):
+
+```sh
+node snapback4/scripts/run-client-tests.mjs 1 files \
+  snapback4/packages/snapback4/test/test-file-runner.test.mjs \
+  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+# mini: same command with these environment values
+LC_ALL=de_DE.UTF-8 SNAPBACK4_BIN="$PWD/package/snapback4" node \
+  snapback4/scripts/run-client-tests.mjs 1 files \
+  snapback4/packages/snapback4/test/test-file-runner.test.mjs \
+  snapback4/packages/snapback4/test/replacement-fixture.test.mjs
+```
+
+### Single eb1000 full suite and final disposition
+
+The sole `scripts/test.sh` invocation ran **2026-10-03T05:16:55.457706Z–
+05:42:55.380372Z**, exit **1**, with this command from `snapback4/`:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Its exact summary line is:
+
+```text
+== 1 failure(s) in 1560 s
+```
+
+The one failed category is **cargo test**, containing exactly the four UB
+baseline failures listed above. All four also fail on the clean main-only
+control. There are **zero QF failures, zero remaining merge failures, zero
+environmental suite failures, and zero runner inspection/cleanup/stall
+refusals**. The runner causes no new failure or refusal. The pre-qualification
+live-margin bound correction is recorded separately as integration work, not
+hidden in the baseline classification. No full-suite retry was run.
+
+| Suite scope | Outcome |
+| --- | --- |
+| Rust | 287 test binaries, 1,000 executions; only `snapback4-lang::prefix_reads` and `snapback4-sim::membership_search` fail, two assertions each. Workspace doctests pass. Linux `snapback4::replay` passes 22/22. |
+| Build, wasm, budgets, release guard, package/app checks | All pass. Wasm is 617,410 B gzip against the unchanged 618,040 B budget. |
+| Ordinary clients | **300/300 files**, **6,036 passed**, **17 skipped**, zero failed/cancelled. |
+| Serial models | **79/79 passed** (52 app-session, 27 online-client). |
+| Fixture wrappers | **9/9 passed**. |
+| All JavaScript | **303 file results**, **6,124 passed**, **17 skipped**, zero failed/cancelled/todo. |
+
+The prior 16 skips remain; main adds the platform-conditional native export
+adapter skip. Every skip and every per-file count is retained, with the
+Round-4 count delta. The suite emits **21 distinct actual unreadable-candidate
+diagnostics**, all EACCES, handled by the unchanged diagnose-and-skip rule.
+No opaque-candidate diagnostic becomes a file refusal or permission to signal.
+The known opaque escaped-process limitation remains; no stronger containment
+claim is made.
+
+`round5/full-suite.log.gz`, its result, summary, per-file TSV, categories,
+skips, diagnostics and `full-suite-failure-classification.json` retain the
+complete outcome. The baseline log is `main-rust-baseline.log.gz`. Source
+manifests bind **2,436 tracked inputs**, with the only qualification amendments
+being the runner's one added bound and its regression assertion. The manifests,
+initial/qualified tree IDs and merged binary hash bind the tested code; the
+subsequent JOURNAL append is documentation only.
+
+The reference audit passes with zero errors. The staged QF diff against the
+merged main parent passes whitespace checks. A whole merge diff against the
+lane parent reports inherited whitespace in **43 historical evidence files**;
+every offending file is byte-identical to main (`inherited-whitespace.json`
+and its compressed original output). They are retained unchanged. All issue
+states are consistent with main: replacement-lock, token-inspection and
+proc-stat tickets closed; the separate worker-refusal timing ticket open.
+
+The local merge commit lists all three conflicts and their resolutions and
+carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Neither the branch
+nor any package is pushed or published.

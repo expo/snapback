@@ -1030,7 +1030,7 @@
   },
   {
     "index": 147,
-    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1",
+    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
@@ -1044,7 +1044,7 @@
   },
   {
     "index": 149,
-    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used })#1",
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false

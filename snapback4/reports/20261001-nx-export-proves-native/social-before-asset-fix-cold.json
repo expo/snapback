@@ -1,0 +1,13 @@
+{
+  "starter": "social",
+  "label": "cold",
+  "startedAt": 1790896618107,
+  "durationMs": 217536,
+  "status": 1,
+  "signal": null,
+  "bundleHash": "3437c59557c045b71bb7c7a744ecb888b4e9615ac849e7aa84da251a8c06d8c6",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790896622845-69864/smoke-ios-run.json",
+  "receiptExit": 1,
+  "phase": "preparation",
+  "error": "E_WITNESS_PROOF: --build inputs or prepared app changed; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790896622845-69864/preparation-stderr.log"
+}

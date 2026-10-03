@@ -1,0 +1,178 @@
+{
+  "gitDiffCachedCheckExit": 2,
+  "allOffendingFilesMatchMain": true,
+  "files": [
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/affected-rust-unit.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/app-storage-before-fix.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/baseline-suite-budget.txt",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/boot-failure-fixed.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/full-suite.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/affected-js.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/full-suite.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/guide-before-docs.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/js-controls.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/js-initial.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/plain-dev-missing-api.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/rust-port-isolated.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/rust-unit-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/rust-unit.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round1/rust-witness.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/boot-controls-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/boot-race-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/boot-race.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/create-controls-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/create-controls.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/full-suite.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/guide-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/guide.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/rust-units-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/rust-units.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/selection-initial.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round2/structural-controls.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/create-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/full-suite.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/guide.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/host-sleep.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/namespace-fixed.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/node-initial.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/rust-units-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round3/rust-units-initial.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/guide-after-budget-fix.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-initial.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-integration.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-witness-final.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-witness-lock-location.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-witness-verified.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/round4/rust-witness.log",
+      "matchesMain": true
+    },
+    {
+      "path": "snapback4/reports/20261001-nx-export-proves-native/whole-guide-corrected.log",
+      "matchesMain": true
+    }
+  ]
+}

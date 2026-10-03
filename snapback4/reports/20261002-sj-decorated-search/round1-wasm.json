@@ -1,0 +1,40 @@
+{
+  "command": "bash scripts/build-wasm.sh",
+  "rust": "1.97.0 (2d8144b78 2026-07-07)",
+  "node": "24.13.1",
+  "wasm_bindgen": "0.2.127",
+  "binaryen": "132.0.0",
+  "host": "Linux x86_64",
+  "builds": [
+    {
+      "tree": "96ae8da9a5 rebuilt control",
+      "raw": 2032879,
+      "gzip": 610147
+    },
+    {
+      "tree": "e15de2e49a rebuilt control",
+      "raw": 2030224,
+      "gzip": 610085
+    },
+    {
+      "tree": "878da80018 merged round 0",
+      "raw": 2047686,
+      "gzip": 616742
+    },
+    {
+      "tree": "878da80018 plus isolated P3",
+      "raw": 2046217,
+      "gzip": 616342
+    },
+    {
+      "tree": "round 1 final source",
+      "raw": 2048753,
+      "gzip": 617410,
+      "sha256": "6d436f5ce09e6c6e86dcb5f33c04fcd7e1e2809f32d9ff1c69d9dbe18ad55bd8"
+    }
+  ],
+  "cap": 618040,
+  "macos_estimate_offset": 130,
+  "macos_estimate": 617540,
+  "headroom_over_estimate": 500
+}

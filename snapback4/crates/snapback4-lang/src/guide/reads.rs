@@ -29,6 +29,7 @@ Repeated `where` clauses combine with `and`, in written order.
 - Add a cursor if the screen pages: N_NO_CURSOR.
 - A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
+- N_SHAPE_METER: maintained totals (guide views), previews, or queries.
 
 ## Details
 

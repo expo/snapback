@@ -1,0 +1,82 @@
+{
+  "tier": "process",
+  "acquireMs": 156.18881899999997,
+  "completeMs": 5463.139068,
+  "snapshotWireBytes": 370059,
+  "initialBytes": {
+    "tables": {
+      "feedEdges": {
+        "bytes": 378,
+        "rows": 2
+      },
+      "feedFeed": {
+        "bytes": 302328,
+        "rows": 1000
+      },
+      "feedPosts": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedRemovedEvents": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedWork": {
+        "bytes": 794,
+        "rows": 1
+      },
+      "follows": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "posts": {
+        "bytes": 15000,
+        "rows": 100
+      },
+      "reposts": {
+        "bytes": 0,
+        "rows": 0
+      }
+    },
+    "totalBytes": 2920448,
+    "totalBytesKind": "sqlite-pages"
+  },
+  "finalBytes": {
+    "tables": {
+      "feedEdges": {
+        "bytes": 378,
+        "rows": 2
+      },
+      "feedFeed": {
+        "bytes": 480981,
+        "rows": 1591
+      },
+      "feedPosts": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedRemovedEvents": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "feedWork": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "follows": {
+        "bytes": 0,
+        "rows": 0
+      },
+      "posts": {
+        "bytes": 15000,
+        "rows": 100
+      },
+      "reposts": {
+        "bytes": 0,
+        "rows": 0
+      }
+    },
+    "totalBytes": 4972544,
+    "totalBytesKind": "sqlite-pages"
+  }
+}

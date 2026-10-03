@@ -1,0 +1,15 @@
+{
+  "scratch": "/tmp/sb4-nx-r9-final.PnMhJn",
+  "sourceArchiveSha256": "5d91a474e9c26c426cc3ecd2325595faa85f5db55336e710cbfa3abb467e04f1",
+  "sourceFilesRehashed": 2435,
+  "allSourceMatches": true,
+  "logs": {
+    "done": "d3be030801b90ea8057d3997d9845c7f850cc7b784450645d5ec2811cc927d7a",
+    "integration.log": "0d103ef20446df3a45d3f8b0704e816a1b0500e2cfaf5a37f8afb9e419485819",
+    "js.log": "461e83316980b217773449dce26f14c361aa535fbcff3efa7882eafc97b14a52",
+    "units.log": "368f83ef8e8c80574122c1f3f5eb4d75d0cdd43d41c7372221b3ba524d8a7cd6",
+    "build.log": "9a6dba751633c5f684bd1117bf168d3ab09711b7cb158ac7782b6c72c22ab90e",
+    "dependencies.log": "378cf27416a47791ac08f82bc1d473252fc78d37678cc146c85229e64ea5683c",
+    "status.txt": "c9e94e4c622c638ca9306a4c636b86bcca3b4f5a55bcef223043e6bdd03631ee"
+  }
+}

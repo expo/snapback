@@ -1,0 +1,38 @@
+[
+  {
+    "path": "linux-logs/rust-integration.log",
+    "originalSha256": "315946cff1c3360f1db185cf762c6036d1a9a144937821c0b3df0eebc197ca3c",
+    "viewSha256": "4e81174b3a5712d448a4de07e6617b7fa61d91c2ab121188d3d03d80c12db190",
+    "change": "strip terminal whitespace only; original archived"
+  },
+  {
+    "path": "linux-logs/rust-witness.log",
+    "originalSha256": "e8dda919a78a251a850f1ade06957d9a98ce4d3d0a1aa32a9fac280acfb27636",
+    "viewSha256": "cbc922f4473d75a68bda4aaeb1e64eadab7f3114db64f06057e9cdf040d7b9cd",
+    "change": "strip terminal whitespace only; original archived"
+  },
+  {
+    "path": "rust-integration-mini.log",
+    "originalSha256": "ac3b7a6b5d800758a47a42f09827808b29ece3047a1ca2efdb8a81c30fe70ff1",
+    "viewSha256": "207e834ba0411a03930116e8cea0419ad45d30c6737e35ffcf6902ca22d48940",
+    "change": "strip terminal whitespace only; original archived"
+  },
+  {
+    "path": "rust-witness-mini-final.log",
+    "originalSha256": "299a9392b6552d6379eebdef280a4b1a71145372e7cff504a92355c48ade9e65",
+    "viewSha256": "5b6d90906232f5ca6e15d3ea1ddf5c0479be1c75b17125510797a789ae9343e6",
+    "change": "strip terminal whitespace only; original archived"
+  },
+  {
+    "path": "rust-witness-mini.log",
+    "originalSha256": "95802f6c3051adedee1ee53b296faa6ab2d143f8361a12ce22c6731d1145eb61",
+    "viewSha256": "114a572b3b150dfb41cc08003b9fed768d1aa627c4b8eb25f1bb087128c95e31",
+    "change": "strip terminal whitespace only; original archived"
+  },
+  {
+    "path": "linux-logs/js-export-shim.log",
+    "originalSha256": "0802f7e4e7b30b87aaca401ead30cd38dc9fab2f6b16f0d4cad1a05cfc0f77d8",
+    "viewSha256": "824e55e8d3f0f598b1d175371e44bd856a2f0dc9b25b8719773cd5448659897a",
+    "change": "strip trailing whitespace, including five whitespace-only indented lines in the Node assertion report; original archived"
+  }
+]

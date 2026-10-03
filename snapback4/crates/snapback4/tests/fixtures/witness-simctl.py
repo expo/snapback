@@ -13,10 +13,19 @@ root = Path(os.environ['WITNESS_TEST_DIR'])
 mode = os.environ['WITNESS_TEST_MODE']
 udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
+if a == ['--sdk', 'iphonesimulator', '--show-sdk-version']:
+    print('26.6' if mode == 'running' else '27.0')  # Contrast host and product in the failure test.
+    sys.exit(0)
 assert a[0] == 'simctl'
 a = a[1:]
 with (root / 'simctl-calls.jsonl').open('a') as f:
     f.write(json.dumps(a) + '\n')
+if mode == 'interrupt-selection' and a[0] == 'list':
+    os.kill(os.getppid(), signal.SIGINT)
+    sys.exit(1)
+if mode == 'invalid-selection' and a[0] == 'list':
+    print('invalid JSON')
+    sys.exit(0)
 if a[0] == 'list':
     if mode == 'timeout-prepare':
         # Withhold readiness until the driver times out and reaps us.
@@ -46,8 +55,15 @@ if a[0] == 'list':
         if mode.startswith('auto-create'):
             devices[0]['state'] = 'Shutdown'
             devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]
+        if mode == 'normal' and (root / 'bootstatus-waiting').exists():
+            record = json.loads((Path(os.environ['XDG_STATE_HOME']) / 'snapback4/witness/simulators' / (udid + '.json')).read_text())
+            devices[0]['name'] = record['name']
         devices += [{'udid': 'someone-else', 'name': 'mini-verify-iphone', 'state': 'Booted', 'isAvailable': True},
                     {'udid': 'near-prefix', 'name': 'other-snapback4-smoke-not-ours', 'state': 'Booted', 'isAvailable': True}]
+        if (root / 'buffered-create-intent.json').exists() and not (root / 'deleted-simulator').exists():
+            created = json.loads((root / 'buffered-create-intent.json').read_text())
+            devices += [dict(created, state='Shutdown', isAvailable=True),
+                        {'udid': 'same-prefix-unrecorded', 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'unrecorded', 'state': 'Shutdown', 'isAvailable': True}]
         groups = {runtime: devices}
         if mode == 'reuse-order':
             # Lexically 18 < 26 < 9, numerically 26 > 18 > 9.
@@ -57,9 +73,36 @@ if a[0] == 'list':
 elif a[0] == 'create':
     assert a[1].startswith(os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-'))
     assert a[3] == 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
-    print(udid)
+    if mode in ['auto-create-owner-fails', 'auto-create-delete-fails']:
+        state = Path(os.environ['XDG_STATE_HOME']) / 'snapback4/witness/simulators'
+        (state / (udid + '.json')).write_text('collision after successful create')
+    if mode == 'auto-create-interrupt':
+        os.kill(os.getppid(), signal.SIGINT)
+    if mode == 'auto-create-buffered-timeout':
+        (root / 'buffered-create-intent.json').write_text(json.dumps({'name': a[1], 'udid': udid}))
+        print(udid)  # fully buffered; SIGKILL loses these bytes
+        while True: signal.pause()
+    print(udid, flush=True)
+    if mode == 'auto-create-printed-fails': sys.exit(1)
+    if mode == 'auto-create-printed-timeout':
+        while True: signal.pause()
+    if mode == 'auto-create-group-interrupt':
+        # Model terminal Ctrl-C sent to the driver's whole group. create has
+        # its own group, and must survive to print its ownership identity.
+        os.killpg(os.getpgid(os.getppid()), signal.SIGINT)
+        time.sleep(0.15)
+        (root / 'create-survived-group-interrupt').write_text(udid)
+elif a[0] == 'delete':
+    assert a[1] == udid
+    if mode == 'auto-create-delete-fails': sys.exit(1)
+    (root / 'deleted-simulator').write_text(udid)
 elif a[0] in ['boot', 'bootstatus']:
     assert a[1] == udid
+    if mode == 'auto-create-race' and a[0] == 'bootstatus':
+        (root / 'bootstatus-waiting').write_text(udid)
+        end = time.time() + 20
+        while not (root / 'release-bootstatus').exists() and time.time() < end: time.sleep(0.02)
+        sys.exit(1)
     if mode == 'auto-create-' + a[0] + '-fails':
         sys.exit(1)
 elif a[0] == 'getenv':
@@ -99,6 +142,17 @@ elif a[0] == 'launch':
     def emit(step):
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
+    if mode in ['scene-exit', 'scene-exit-late', 'scene-exit-after-prime']:
+        if mode == 'scene-exit-after-prime':
+            emit('primed')
+        reports = root / 'Library/Logs/DiagnosticReports'
+        reports.mkdir(parents=True)
+        target = root / 'pending-scene-report' if mode == 'scene-exit-late' else reports / 'App.ips'
+        target.write_text(json.dumps({'bundleID': 'dev.test'}) + '\n' + json.dumps({
+            'pid': pid, 'procPath': '/CoreSimulator/Devices/' + udid + '/data/App', 'faultingThread': 0,
+            'threads': [{'frames': [{'symbol': '___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke'}]}]}))
+        (root / 'app-pid').unlink()
+        sys.exit(0)
     if config.get('smoke'):
         (root / 'smoke-folder').write_text(str(folder))
         segment = config['segment']
@@ -169,6 +223,8 @@ elif a[0] == 'io':
     while True:
         time.sleep(.05)
 elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
+    if mode == 'scene-exit-late' and (root / 'pending-scene-report').exists() and not (root / 'scene-exit-observed').exists():
+        (root / 'scene-exit-observed').write_text(str(os.getpid()))
     if mode == 'smoke-source-race':
         count_file = root / 'stopped-checks'
         count = int(count_file.read_text()) + 1 if count_file.exists() else 1

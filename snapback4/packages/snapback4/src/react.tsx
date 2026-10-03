@@ -1,3 +1,6 @@
+import { pendingItems, pendingState, observeIntents, intentReadSequence, type PendingItemsOptions, type PendingStateOptions, type PendingIntent, type MutationArgs } from "./pending-items.ts";
+import { pendingItemsSource } from "./react-pending-items.ts";
+export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
 // The React arm: one provider and hooks over the client card.
@@ -15,6 +18,10 @@ import { Pages } from "./react-pages.ts";
 import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
 import { readKey } from "./read-key.ts";
+
+import { SeenOwner, type SeenOptions, type SeenSnapshot } from "./seen-progress.ts";
+import type { ReceiptFamily } from "./receipt-family.ts";
+export type { SeenOptions, SeenSnapshot } from "./seen-progress.ts";
 
 const ClientContext = createContext<Client | null>(null);
 
@@ -244,6 +251,47 @@ export function usePendingWrites<A = unknown, R = unknown>(op?: Mutation<A, R>):
   return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getServerSnapshot) as readonly PendingWrite<A>[];
 }
 
+/** Compose rows with scoped intent cards, including success awaiting observation.
+ * Pass explicit row/intent keys; a mutation id is never a row id. A predicted
+ * row suppresses its card only while present. Intents carry no row authority,
+ * ordinal, delivery receipt or asset handle. Rows retain their supplied order;
+ * remaining intents follow in outbox order. See `snapback4 guide client`. */
+export function usePendingItems<Row, M extends Mutation<any, any>>(options: PendingItemsOptions<Row, M>) {
+  const client = useClient(), intents = usePendingIntents(client, write => options.writes.some(op => op.name === write.op) && options.scope(write as PendingWrite<MutationArgs<M>>));
+  // Only confirmed matching rows end the online session's presentation. The
+  // local device ignores these hints and owns retirement through observed writes.
+  const confirmed = new Set(options.rows.filter(row => !(row as { pending?: boolean } | null)?.pending).map(options.rowKey));
+  const observed = intents.filter(item => item.phase === "settling" && options.writes.some(op => op.name === item.write.op)
+    && options.scope(item.write as PendingWrite<MutationArgs<M>>) && confirmed.has(options.intentKey(item.write as PendingWrite<MutationArgs<M>>))).map(item => item.write.id);
+  const key = JSON.stringify(observed);
+  useEffect(() => { observeIntents(client, JSON.parse(key)); }, [client, key]);
+  return pendingItems(intents, options);
+}
+
+/** Select the latest admitted set-state intent without changing the mutation.
+ * Read `.value` to display it and `.intent?.phase` to distinguish custody from
+ * success awaiting observation. Pass the authorized `read` supplying `current`
+ * for online retirement; value equality is not observation evidence.
+ * Saving calls never override admitted intent. */
+export function usePendingState<A, R, Value>(op: Mutation<A, R>, options: PendingStateOptions<A, Value>) {
+  const client = useClient(), intents = usePendingIntents(client, write => write.op === op.name && options.scope(write as PendingWrite<A>));
+  const selected = pendingState(intents, op, options);
+  const matching = intents.filter(item => item.phase === "settling" && item.write.op === op.name && options.scope(item.write as PendingWrite<A>));
+  const sequence = intentReadSequence(client, options.read);
+  const observed = matching.filter(item => sequence !== undefined && item.receipt && item.receipt.seq <= sequence).map(item => item.write.id);
+  const key = JSON.stringify(observed);
+  useEffect(() => { observeIntents(client, JSON.parse(key)); }, [client, key]);
+  return selected;
+}
+
+function usePendingIntents(client: Client, select: (write: PendingWrite) => boolean): readonly PendingIntent[] {
+  const source = useMemo(() => pendingItemsSource(client), [client]);
+  const selection = useRef(select); selection.current = select;
+  const subscribe = useCallback((notify: () => void) => source.subscribe(notify, write => selection.current(write)), [source]);
+  useEffect(() => source.refreshSelection(), [source, select]);
+  return useSyncExternalStore(subscribe, source.getSnapshot, source.getServerSnapshot);
+}
+
 /** Durable acquisition, independent of whether the link is currently online. */
 export function useAcquired(): boolean {
   const client = useClient();
@@ -403,4 +451,23 @@ export function useInspection(enabled = false): ReadInspection | null {
     return () => clearInterval(timer);
   }, [client, enabled]);
   return enabled && sample?.client === client ? sample.value : null;
+}
+
+/** Report only actually visible confirmed message positions. The app supplies
+ * foreground/viewport visibility on web or native. Shares coalesced progress
+ * and in-flight admission per client/family/scope; never pages or reports delivery.
+ * Withdrawal, member replacement and final unmount discard local progress.
+ * Known pre-admission refusals retry with bounded backoff; retry() wakes those
+ * after repair. Other failures discard the rejected target; a different visible
+ * position can start a new attempt. Admitted writes belong to the normal outbox.
+ * @see LLP 3000.032 §4.3; guide receipts
+ */
+export function useSeen<M extends { id: string; pending?: boolean }, S extends string, T extends string>(
+  family: ReceiptFamily<M, S, T>, options: SeenOptions,
+): SeenSnapshot & { retry(): void } {
+  const client = useClient();
+  const owner = useMemo(() => new SeenOwner(client, family as unknown as ConstructorParameters<typeof SeenOwner>[1], options.scope), [client, family, options.scope]);
+  const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getServerSnapshot);
+  useEffect(() => { owner.update(options.through, options.active); });
+  return { state: snapshot.state, through: snapshot.through, ...(snapshot.why ? { why: snapshot.why } : {}), retry: owner.retry };
 }

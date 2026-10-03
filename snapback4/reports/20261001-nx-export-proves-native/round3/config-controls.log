@@ -1,0 +1,24 @@
+{"starter":"plain","label":"ios-context-first","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790945203185,"durationMs":221116,"status":0,"signal":null,"bundleHash":"646b7054839da6ca8d405b317731ca56d2f293f0514cb3636e5977eb567721c1","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790945203370-20393/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"b0dedcc02a35493e8e2ed8bfd39d5435e917743aab5f843511becd3f88fabc30"}},"hit":false},"proofKind":"application-export","receiptExit":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"nativeDurationMs":217405,"loadedHash":"646b7054839da6ca8d405b317731ca56d2f293f0514cb3636e5977eb567721c1","metroResources":0,"nativeMarker":"first","cacheMiss":"native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+{"starter":"plain","label":"ios-context-second","command":["/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm","run","export:ios"],"reusedExactExport":false,"startedAt":1790945425013,"durationMs":1200097,"status":1,"signal":null,"bundleHash":"646b7054839da6ca8d405b317731ca56d2f293f0514cb3636e5977eb567721c1","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790945425188-25450/smoke-ios-run.json","receiptExit":1,"phase":"preparation","error":"E_WITNESS_BUILD: --build preparation failed; see the command's own raw log path: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790945425188-25450/preparation-stderr.log","cacheMiss":"native-cache miss: input changed: src/native-mode.js; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 0
+
+    at run (file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round3/config-controls.mjs:7:125)
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round3/config-controls.mjs:16:89
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

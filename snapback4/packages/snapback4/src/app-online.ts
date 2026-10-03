@@ -1,3 +1,4 @@
+import { pendingIntentAccess, pendingIntent, registerPendingIntents, registerIntentObserver, OnlineIntentPresentation } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
 import type { Client, Mutation, Refusal, Write } from "./contract.ts";
@@ -33,6 +34,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const listeners = new Set<(write: Terminal) => void>();
   const pending = pendingChanges();
   const identification = new IdentityWait(pending.notify);
+  const rawIntents = pendingIntentAccess(raw);
+  const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
+  const presentation = new OnlineIntentPresentation(intentScope, pending.notify);
   const stopPending = raw.onPendingWrites?.(pending.notify);
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -69,15 +73,25 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     if (first) notify(write);
     report(error);
   };
+  const journalEntries = (journal: Journal) => journal.pending.map(intent => {
+    const hold = unsavedHolds.get(intent.id);
+    const reason = (hold?.revision === intent.statusRevision ? hold?.reason : undefined) ?? intent.holdReason;
+    return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
+      ...(reason ? { state: "held" as const, reason } : { state: intent.dispatched ? "sent" as const : "queued" as const }) };
+  });
   const settle = async (write: Terminal) => {
     await change(journal => {
-      if (!journal.pending.some(intent => intent.id === write.id)) return false;
+      const intent = journal.pending.find(intent => intent.id === write.id);
+      if (!intent) return false;
+      presentation.sync(journalEntries(journal), journal.receipts);
+      presentation.settled(write, { id: intent.id, op: intent.op, args: intent.args, predicted: [], state: intent.dispatched ? "sent" : "queued" });
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
       journal.receipts.push(receiptOf(write));
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
+    presentation.release(write.id);
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
     if (unpersisted.delete(write.id)) ids.finish(write.id);
@@ -94,6 +108,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (retiring) void refuseStore(write.why).catch(report);
       else void settle(write).catch(error => retain(write, error));
     }
+  });
+  // Subscribe across the opening read, when pause's journal subscription does
+  // not exist yet. Even a complete viewer round trip retires this lifetime.
+  let viewerChanged = false, initialized = false;
+  const stopViewer = raw.onViewer(next => {
+    if (next !== viewer) { viewerChanged = true; if (initialized) pause(); }
   });
   const initial = await locked(key, read);
   const journalEvents = journalChanges(key, pending.notify);
@@ -269,8 +289,23 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
+  registerPendingIntents(client, { scope: intentScope, revision: () => rawIntents.revision?.(), retain: presentation.retain, async read() {
+    const before = intentScope(), revision = rawIntents.revision?.();
+    if (before == null) return [];
+    const journal = await locked(key, read);
+    if (before !== intentScope() || revision !== rawIntents.revision?.()) return [];
+    const entries = journalEntries(journal);
+    const items = presentation.sync(entries, [...journal.receipts, ...unpersisted.values()]);
+    const listed = new Set([...items.map(item => item.write.id), ...entries.map(entry => entry.id), ...journal.receipts.map(write => write.id)]);
+    return [...items, ...identification.pending().filter(write => !listed.has(write.id)).map(write => pendingIntent(write, true))];
+  } });
+  registerIntentObserver(client, ids => { if (intentScope() != null) presentation.observed(ids); });
   inheritClose(client, raw);
-  function pause() { identification.close(); active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  // @ref LLP 3000.023#3.4 — this custody lifetime cannot reactivate after an
+  // account flip, even if a later response names its original viewer again.
+  function pause() { identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopViewer(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  initialized = true;
+  if (viewerChanged || raw.viewer() !== viewer) pause();
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
@@ -285,6 +320,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   function refuseStore(why: Refusal): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
+    presentation.clear();
     identification.close(identityRefusal(false));
     // Fence admissions synchronously, then retire the entire durable queue
     // before createApp can reopen. These intents must never cross stores.

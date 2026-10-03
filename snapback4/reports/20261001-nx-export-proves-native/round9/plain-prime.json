@@ -1,0 +1,33 @@
+{
+  "starter": "plain",
+  "phase": "prime",
+  "status": 1,
+  "durationSeconds": 51.77026987075806,
+  "startedAt": 1790999650.2705112,
+  "loadBefore": [
+    65.51171875,
+    34.92333984375,
+    19.4765625
+  ],
+  "loadAfter": [
+    272.42431640625,
+    88.966796875,
+    39.93896484375
+  ],
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/round9/plain/artifacts/native-smoke/1790999650693-93563/smoke-ios-run.json",
+  "receiptExit": 1,
+  "proofKind": null,
+  "cache": null,
+  "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A",
+  "simulator": {
+    "name": "sb4-nx-r9-1790999661144-93718",
+    "prefix": "sb4-nx-r9-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "5A05F370-7D40-4251-AE94-E174F5E4C69A"
+  },
+  "nativeDurationMs": null,
+  "error": "E_WITNESS_PROCESS: native preparation watchdog cleanup did not finish; recovery required",
+  "segments": {}
+}

@@ -1,0 +1,74 @@
+   Compiling libsqlite3-sys v0.38.2
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 12.19s
+     Running unittests src/main.rs (target/debug/deps/snapback4-29615953932866b4)
+
+running 29 tests
+test verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names ... ok
+test verbs::witness::preparation::tests::lease_fork_fixture ... ok
+test verbs::witness::publication::tests::witness_publication_process_fixture ... ok
+test verbs::witness::naming_tests::prepared_scenario_scope_is_explicit ... ok
+test verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test verbs::witness::preparation::tests::startup_binds_each_independent_identity ... ok
+test verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid ... ok
+test verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test verbs::witness::recovery::tests::pid_reuse_does_not_keep_an_abandoned_run_alive ... ok
+test verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query ... ok
+test verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime ... ok
+test verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test verbs::witness::recorded_process::tests::witness_stopped_identity_mismatch_at_each_observation_never_authorizes_kill ... ok
+test verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution ... ok
+test verbs::witness::ownership::tests::partial_ownership_write_is_removed ... ok
+test verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop ... ok
+witness: interrupted publication preserved at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-locks-53014-1790985626984/runs/1-123; publication recovery required (see publication-pending.json)
+test verbs::witness::recorded_process::tests::witness_recorded_birth_mismatch_spares_real_process_then_matching_record_stops_it ... ok
+witness: interrupted publication preserved at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-locks-53014-1790985626984/runs/1-123; publication recovery required (see publication-pending.json)
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-abandoned-53014-1790985626985/1-123
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-locks-53014-1790985626984/runs/1-123
+test verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid ... ok
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-locks-53014-1790985626984/runs/1-123
+witness: restored previous export after interrupted publication at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-killed-53014-1790985626984/runs/1-123/export
+test verbs::witness::recovery::tests::witness_group_leader_exit_during_member_snapshot_revokes_custody ... ok
+test verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity ... ok
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-killed-53014-1790985626984/runs/1-123
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-killed-53014-1790985626984/runs/9-123
+test verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit ... ok
+test verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export ... ok
+test verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock ... ok
+test verbs::witness::publication::tests::witness_publication_detects_tampering_before_and_after_exchange ... ok
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-commit-false-53014-1790985626984/runs/1-123
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-commit-false-53014-1790985626984/runs/1-123
+orphan SIGKILL control passed: commit, destination initially absent=false
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... ok
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-commit-true-53014-1790985627441/runs/1-123
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-group-recover-53014-1790985626986/1-123
+orphan SIGKILL control passed: commit, destination initially absent=true
+test verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper ... ok
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-rollback-false-53014-1790985627845/runs/1-123
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-rollback-false-53014-1790985627845/runs/1-123
+orphan SIGKILL control passed: rollback, destination initially absent=false
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-rollback-true-53014-1790985628223/runs/1-123
+orphan SIGKILL control passed: rollback, destination initially absent=true
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-intent-false-53014-1790985628600/runs/1-123
+witness: recovered abandoned export /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-intent-false-53014-1790985628600/runs/1-123
+orphan SIGKILL control passed: intent, destination initially absent=false
+witness: reconciled orphan publication marker at /var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-publish-orphan-intent-true-53014-1790985628956/runs/1-123
+orphan SIGKILL control passed: intent, destination initially absent=true
+test verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune ... ok
+test verbs::witness::publication::tests::witness_pruning_cannot_delete_through_an_export_during_atomic_publication ... ok
+test verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 2.85s

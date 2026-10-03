@@ -1,0 +1,19 @@
+{
+  "command": "scripts/test.sh",
+  "invocations": 1,
+  "exitStatus": 1,
+  "exactSummary": "== 2 failure(s) in 2585 s",
+  "rawSha256": "a92a69c26fbf5d38a923196fc7acb13b6f994e6d9efbcc11ac76bcf767610164",
+  "rawBytes": 974607,
+  "archiveSha256": "c01b5bd79b53cf569d39475527a2c222e0a6d8c6138daddddba23cb06769dbcf",
+  "archiveBytes": 175198,
+  "archivePath": "round9/full-suite.log.gz",
+  "groupsFailed": [
+    "cargo test",
+    "client tests"
+  ],
+  "clientModels": {
+    "passed": 79,
+    "failed": 0
+  }
+}

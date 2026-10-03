@@ -21,15 +21,14 @@ is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
 contains the complete provider example. There is no separate worker launcher.
 
-At every milestone, run `npm run export:ios` for the Hermes export;
-on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-The smoke builds and installs the Release app, chooses its own simulator and free
-port, and writes `artifacts/native-smoke/<timestamp>`. It proves local store
-acquisition, cold offline reopen and reconnect. The starter uses normal guest
-sign-in during smoke if no account is restored. An empty partition proves only
-lifecycle; pending write replay and application assertions need the deeper
-scenario in `snapback4 guide witness`. Xcode/runtime installation is a prerequisite;
-the first build takes longer. Hermes export alone proves no native execution.
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
+`npm run native:smoke` always runs the full Release build. Automatic smoke reuses
+only a matching native app, installs the exact exported bundle, chooses its own
+simulator/free port, and writes `artifacts/native-smoke/<timestamp>`. Unavailable
+hosts print a skip; app/SDK failures fail the command. `SNAPBACK4_NATIVE_SMOKE=off`
+opts out. It proves acquisition, cold offline reopen and reconnect; an empty
+partition proves lifecycle only. Pending write replay and application assertions
+need `snapback4 guide witness`. Guest sign-in is the starter's normal auth flow.
 
 Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses
@@ -64,7 +63,7 @@ never enters the durable outbox and its availability never gates the composer.
 `ConversationScreen` pins ordinary `history` to the route ID. The composer
 and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
-SDK default: plain revalidation retains, change evidence bounds it; no cache holds
+SDK default: plain revalidation retains, possibly revoking change evidence bounds it; no cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
 Membership and receipt decorations withdraw immediately. No-horizon membership
 shares the messages' audience within the conversation's group; after acquisition,
@@ -83,6 +82,15 @@ its ID and complete arguments (including the attachment ID) in an account-
 and backend-scoped intent journal before dispatch. Each saved ID observes its
 own settlement; Edit restores a failed message, and Dismiss removes only the
 UI reference. Unknown outcomes never trigger automatic resubmission.
+
+For sends with application-supplied message IDs, use `usePendingItems` to render
+row/intent arms across text and media, with explicit conversation and key mapping
+(`snapback4 guide client`). The starter's automatically minted message keys must
+not be guessed from mutation IDs: keep its scoped intent journal/receipt lookup
+unless you add an explicit message-ID argument to the backend. The helper's
+`settling` means “Sent; updating view”, not delivered or read. Media intent cards
+never open assets. `usePendingState` selects repeated like/repost set-state intent
+without changing the mutation or treating its pending value as observed data.
 
 ## Direct messages and coverage
 
@@ -122,3 +130,49 @@ This small app deliberately has no push delivery, message deletion, expiry,
 media cache, or background catch-up scan. Those features need their own
 documented contracts; the receipt run recipe here assumes immutable message
 positions with no deletion. `snapback4 guide receipts` explains the binding.
+
+
+### Visible seen progress and independent history
+
+After `check`, a receipts clause emits `api.receiptFamilies.chat`. Import
+`useSeen` from `snapback4/react` on web or native:
+
+```tsx
+import { usePage, useSeen } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+export function useReceiptScreen(id: string, visibleIds: ReadonlySet<string>, foreground: boolean) {
+  const history = usePage(api.history, { conversation: id });
+  const through = Math.max(0, ...history.items.filter(m => visibleIds.has(m.id) && !m.pending).map(m => m.ordinal));
+  const seen = useSeen(api.receiptFamilies.chat, { scope: id, through, active: foreground });
+  const decorations = usePage(api.messageReceipts, { conversation: id });
+  return { history, seen, decorations };
+}
+```
+
+Supply viewport IDs from the platform's actual visibility callbacks; intersect
+with current confirmed rows and combine route focus with foreground. Reset IDs
+on account/backend/scope change. Loaded history and acquisition do not mean seen.
+Match current decorations by ID; their denial or loading never removes retained
+history and grants no media authority. These reads are independent snapshots.
+
+The hook shares monotonic progress and one admission/pending call per mounted
+client/family/scope. Member withdrawals, replacement, session and store/generation
+resets discard local progress; final unmount drops unadmitted progress. Admitted
+writes remain in the SDK outbox through restart. The hook never pages history,
+reads catch-up progress, or reports delivery. The descriptor's typed member/seen
+handles, actual argument names, mapping and fingerprint come from the compiler.
+
+`seen.state` is idle/admitting/pending/retrying/failed; `seen.through` is local
+progress, never a confirmed receipt. `seen.why` exposes refusals. Known
+E_ADMISSION/E_ADMISSION_STORE/E_ADMISSION_TIMEOUT failures retry with 1–60-second
+backoff, at most eight retries while active. Reconnect or `seen.retry()` after
+repair wakes those refusals. Other failures/unknown outcomes are not resubmitted.
+See `snapback4 guide receipts` for the full rules and two-read recipe.
+
+Search renders `readPresentation(page.read)` from `snapback4/contract`: incomplete
+notices include nonempty pages with incomplete coverage, cuts or continuations.
+`pending` means read loading, not a queued write. Freshness and revalidation have
+separate labels. Keep the search input and conversation draft above results;
+key screen state by backend/account/resource. `guide client` links a complete
+React/Expo screen with this shell and a reusable read notice.

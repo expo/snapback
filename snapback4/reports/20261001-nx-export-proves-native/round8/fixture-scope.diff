@@ -1,0 +1,11 @@
+--- canonical/snapback4/crates/snapback4/src/verbs/witness/preparation.rs
++++ final/snapback4/crates/snapback4/src/verbs/witness/preparation.rs
+@@ -388,7 +388,7 @@
+     }
+     fn stalled_resolver(signal: Option<i32>) {
+         use std::os::unix::fs::PermissionsExt;
+-        let dir = std::env::temp_dir().join(format!("sb4-stalled-resolver-{}-{signal:?}", std::process::id()));
++        let dir = std::env::temp_dir().join(format!("sb4-stalled-resolver-{}", std::process::id())).join(format!("{signal:?}"));
+         fs::create_dir_all(&dir).unwrap();
+         fs::write(dir.join("node"), "#!/bin/sh\nprintf '%s' \"$$\" > \"$SB4_RESOLVER_FIXTURE/launcher.pid\"\nsleep 60 &\nprintf '%s' \"$!\" > \"$SB4_RESOLVER_FIXTURE/descendant.pid.tmp\"\nmv \"$SB4_RESOLVER_FIXTURE/descendant.pid.tmp\" \"$SB4_RESOLVER_FIXTURE/descendant.pid\"\nwait\n").unwrap();
+         fs::set_permissions(dir.join("node"), fs::Permissions::from_mode(0o755)).unwrap();

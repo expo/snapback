@@ -1,0 +1,54 @@
+✔ installed CLI shim preserves each forwarded child termination signal (145.704231ms)
+✔ real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim (3770.614927ms)
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (34.491949ms)
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (30.372323ms)
+native smoke evidence cleanup deferred: spawnSync /tmp/sb4-prune-r2-F2oBN6/missing-cli ENOENT
+✔ concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success (39.065294ms)
+✔ native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS (1414.392575ms)
+✔ only opt-out and unavailable environments skip; product failures remain failures (0.305058ms)
+✔ npm bin symlink really exports, preserves export failure and honors opt-out (102.0053ms)
+✔ export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports (12.72716ms)
+✔ cache rechecks consumed producer/toolchain bytes and generated native additions (202.192616ms)
+✔ negative header topology follows SDK root aliases (1.928941ms)
+✔ config file references bind excluded source bytes and refuse external paths (65.493344ms)
+✔ retention keeps five completed runs, compresses older receipts and leaves active runs alone (27.988889ms)
+✔ wrapper forwards both signals and waits for child cleanup before returning signal status (417.378089ms)
+﹣ react-native.config.mjs refuses through the real static preparation adapter (0.199519ms) # SKIP
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (86.688288ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (78.353183ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (50.039787ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (74.281528ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 3974.514581
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-native-round2.test.mjs:15:1
+✖ effective prebuild fingerprints project-relative shadows and automatically applied plugins reading source (34.491949ms)
+  Error: E_WITNESS_NATIVE_COMPAT: cannot evaluate effective Expo prebuild config; use installed-app mode
+      at fail (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/crates/snapback4/src/verbs/witness/payload.mjs:8:48)
+      at nativeFingerprint (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs:21:49)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/packages/snapback4/test/export-native-round2.test.mjs:24:13)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+
+test at packages/snapback4/test/export-native-round2.test.mjs:60:1
+✖ local plugin resolution, preparation-context reads, late mods, URI resources and stdout spoof controls (30.372323ms)
+  Error: E_WITNESS_NATIVE_COMPAT: cannot evaluate effective Expo prebuild config; use installed-app mode
+      at fail (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/crates/snapback4/src/verbs/witness/payload.mjs:8:48)
+      at nativeFingerprint (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs:21:49)
+      at TestContext.<anonymous> (file:///tmp/sb4-nx-r6.yhcFoC/snapback4/packages/snapback4/test/export-native-round2.test.mjs:71:58)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

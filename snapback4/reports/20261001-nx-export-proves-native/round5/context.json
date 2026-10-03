@@ -1,0 +1,46 @@
+{
+  "scope": [
+    "packaged CLI signal propagation",
+    "verified publication receipts, rollback and interrupted swap retention",
+    "recorded process signaling on Darwin and Linux"
+  ],
+  "governingLLPs": [
+    {
+      "ref": "LLP 3000#4",
+      "overlay": "current",
+      "gloss": "Snapback 4 fence and independent workspace"
+    },
+    {
+      "ref": "LLP 3000.030#15",
+      "overlay": "current",
+      "gloss": "Export-integrated native proof, honest-project cache and cleanup custody"
+    },
+    {
+      "ref": "LLP 2000.000#12",
+      "overlay": "current",
+      "gloss": "Periphery lane ownership and unchanged budgets"
+    }
+  ],
+  "activeConstraints": [
+    "LLP 3000.030#15: keep honest-project boundary, exact export proof and explicit skip classification",
+    "LLP 3000#4: Snapback 1/2 gates do not apply",
+    "User round-5 directive: slim branch only; no main merge, push/publication, or mini-verify-iphone; archive *.gz, *.mp4 and files over 256 KB; under 15 MB added blobs"
+  ],
+  "rationale": [
+    "LLP 3000.030#15: a cache hit is only reuse; native proof still executes the exact export",
+    "Astra P1 reproduction: atomic rename does not protect a tree while a pruner holds it open"
+  ],
+  "risks": [
+    "Kernel custody must span wrapper and publication child lifetimes",
+    "Atomic namespace replacement is not a multi-open reader snapshot",
+    "Darwin numeric signaling retains explicitly documented external-intervention windows",
+    "A single social warm sample exceeded 25 seconds; the full five-sample cohort retains it when computing medians."
+  ],
+  "likelyDocUpdates": [
+    "LLP 3000.030#15",
+    "Snapback 4 witness guide",
+    "NX report round 5",
+    "append-only JOURNAL entry"
+  ],
+  "handOff": "none"
+}

@@ -1,0 +1,33 @@
+{
+  "sourceBase": "ac15813e7fbb89dc3d6fb8959150d0e96fe8e0d5",
+  "scratch": "/tmp/sb4-nx-r6.yhcFoC",
+  "localSource": "/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-nx-r6-source-dd8wp5dc/source.tar.gz",
+  "archiveSha256": "e2cddf0bdf8cb79a9229f790e0eede6a6c6c8a93d24b11ab92f074971aedf149",
+  "files": 2366,
+  "affected": {
+    "snapback4/crates/snapback4/src/verbs/witness/acquire.rs": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+    "snapback4/crates/snapback4/src/verbs/witness/effective-config.mjs": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+    "snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+    "snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+    "snapback4/crates/snapback4/src/verbs/witness/native-inputs.mjs": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+    "snapback4/crates/snapback4/src/verbs/witness/native-mods.json": "f918f557db79ee66e8fbb4a5013e411f00f31b13bd2a55c2435787b60ce2de31",
+    "snapback4/crates/snapback4/src/verbs/witness/native-scripts.mjs": "ee8a91dc4d05fc34a16d9c7a9f3108089551765ce2282367c42a39f1b01a4474",
+    "snapback4/crates/snapback4/src/verbs/witness/ownership.rs": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+    "snapback4/crates/snapback4/src/verbs/witness/payload.mjs": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation-runner.mjs": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "9825d43253a40c0c4496995e0c802baa59f9c99390d77777d32a6537078ca618",
+    "snapback4/crates/snapback4/src/verbs/witness/prepare.mjs": "03a2ddb9bb0df0a76276dfe10309b872ebabc54a0aebfb5707f8756143610898",
+    "snapback4/crates/snapback4/src/verbs/witness/protocol.rs": "9c89618088f9c5d1ef13fe6cfdcdafa654775efa1d3c9433403ce7256c92ddc4",
+    "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "d75ebdfc8be443598589d390479374566012007e9e8134afb49cf38298e29bf6",
+    "snapback4/crates/snapback4/src/verbs/witness/recorded_process.rs": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "74b9a17601e6d845be46dc3f32bf64a52af9d1f9686f71b957feb645bbc8b1be",
+    "snapback4/crates/snapback4/src/verbs/witness/simulator.rs": "fa6c31eb87fb530af12216e651b814a286a05271d1bcb4aa9dcf69fc99095136",
+    "snapback4/crates/snapback4/src/verbs/witness/smoke.rs": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+    "snapback4/crates/snapback4/tests/witness.rs": "c4862e6f51a607e604daa09a7f8330cf90cec934afbba4e0989ec34be11546a5",
+    "snapback4/packages/snapback4/bin/snapback4.js": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075",
+    "snapback4/packages/snapback4/test/export-failure.test.mjs": "eddfa26ab2c6ae08f446ffdd4ecfea2013c624ed5f1a9e4c342c90327d400825",
+    "snapback4/packages/snapback4/test/export-native-round2.test.mjs": "c920df76d700181b9e8cb3ddb149ebdc1efd50249fcbda43037c0536f6566d42",
+    "snapback4/packages/snapback4/test/export-native.test.mjs": "10f7e530cc35539075d252b20ea3ac9fafae756c0f6dfccc234f7bf5c3d5fa13",
+    "snapback4/packages/snapback4/test/export-publication.test.mjs": "223419b4dc674808fe506cf692efbea88214a83e7dd854e83f3e9e5e4e91baa9"
+  }
+}

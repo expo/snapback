@@ -1,0 +1,1 @@
+import {inventory,fail} from './payload.mjs'; if(inventory(process.argv[2]).sha256!==process.argv[3]) fail('E_WITNESS_PROOF','app inventory differs from preparation');

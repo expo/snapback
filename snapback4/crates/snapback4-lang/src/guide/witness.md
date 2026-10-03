@@ -12,14 +12,14 @@ npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --
 ```
 
 For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
-At every milestone, run `npm run export:ios` for the Hermes export; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-Both Expo starters provide these scripts; export alone proves no native execution.
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (six warm runs each on an M5 Pro mini under shared load: 18.335/26.716 s medians; 25 s social target unmet on this host, quiet-host qualification pending; last cold 174.512/229.510 s).
+Both starters provide these scripts. Unavailable hosts skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
 
 The build route chooses a free backend port and writes fresh artifacts under
 `artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
 in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`). Records and their directory must be user-owned, not symlinks or writable by others.
 Otherwise it creates a current iPhone; unsafe records are ignored with one warning.
-Newest iOS runtime wins. Device identity is recorded before boot; names alone prove no ownership. `--udid` chooses an explicit booted
+Newest iOS runtime wins. Creation holds a device lease through boot; only boot-complete records permit reuse. Names alone prove no ownership. `--udid` chooses an explicit booted
 device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
 `SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.
 The socket stays owned through backend startup. Devices remain for warm runs; delete their recorded UDIDs when finished.
@@ -30,12 +30,10 @@ Use matching `snapback4` and `snapback4-expo` packages, with `createApp` and
 Release embeds JavaScript; no Metro server is needed. The starters call normal
 `auth.guest()` during smoke prime only if no account was restored. Other apps
 must sign in normally first if authentication requires interaction. The driver
-supplies no credentials. Installed-app mode builds nothing and defaults to port
-4400; configure the app for that origin or pass its matching `--port`.
+supplies no credentials. Installed-app mode builds nothing and defaults to port 4400; configure the app for that origin or pass its matching `--port`.
 The driver owns its backend and refuses existing listeners and simulator owners.
 
-Read `artifacts/native-smoke/<timestamp>/smoke-ios-run.json`: `exitStatus: 0` and all
-three `segments` marked `passed` mean:
+Read `artifacts/native-smoke/<timestamp>/smoke-ios-run.json`: `exitStatus: 0` and all three `segments` marked `passed` mean:
 - `prime`: the own client is online and acquisition is complete. The receipt
   records the device's held counts per synced table, backend store identity,
   generation, watermark and link, with no uncaught JS errors.
@@ -59,20 +57,14 @@ three `segments` marked `passed` mean:
   application data. Eligible server-only queries must return data in both
   prime and restart; their online loading or refusal fails.
 
-Each segment has timings, a receipt and a screenshot (`smoke-ios-prime.png`,
-`smoke-ios-offline.png`, `smoke-ios-restart.png`). The same driver also keeps
-video, receipts JSONL and logs with hashes. Counts and identity are reread
-after the render pause; the owned process must remain alive until deliberate
-termination, even after a success receipt. The runner follows the published
-client when session restoration replaces a constructor candidate.
-A failed or unrun segment is never
-reported as passed; exit is nonzero. Preserve failed artifacts and choose a
-fresh directory when retrying. Receipts contain counts, not query row contents;
-video and screenshots show the actual app and may contain its visible data.
+Each segment has timings, a receipt and a screenshot (`smoke-ios-prime.png`, `smoke-ios-offline.png`, `smoke-ios-restart.png`). The same driver also keeps
+video, receipts JSONL and logs with hashes. Counts and identity are reread after the render pause; the owned process must remain alive until deliberate
+termination, even after a success receipt. The runner follows the published client when session restoration replaces a constructor candidate.
+A failed or unrun segment is never reported as passed; exit is nonzero. Preserve failed artifacts and choose a
+fresh directory when retrying. Receipts contain counts, not query row contents; video and screenshots show the actual app and may contain its visible data.
 An empty partition proves opening and lifecycle only; seed/sign in with the
 history you want to qualify before running. Pending write replay, required-argument queries, writes,
-media and application-specific correctness need the deeper runner below.
-Optional-argument native queries require an application witness: generic smoke
+media and application-specific correctness need the deeper runner below. Optional-argument native queries require an application witness: generic smoke
 refuses their conditional module availability rather than calling them server-only.
 Ordinary launches do not load the smoke runner or install its error handler.
 
@@ -80,13 +72,10 @@ Ordinary launches do not load the smoke runner or install its error handler.
 
 `--build <project>` requires `--smoke`; each invocation gets fresh artifacts. It
 prepares that project's own Release simulator application with a private stable
-snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl`
-and launches its bundle ID directly. It never opens Simulator.app, invokes
-AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
-separate 900-second deadline; smoke keeps its 120-second step default.
+snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl` and launches its bundle ID directly. It never opens Simulator.app, invokes AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
+separate 900-second deadline; Node launcher resolution gets at most 30 seconds (or a shorter --timeout), with cancellation. Finish any pinned-Node download in the project before retrying; smoke keeps its 120-second step default.
 
-This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0,
-Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
+This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0, Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
 `app.json`. An existing iOS project keeps its native customizations; generated projects
 use the starter's UIScene lifecycle for iOS 27. Products, intermediates and module caches
@@ -99,21 +88,18 @@ lists and Info.plist/dSYM outputs. Links resolve even with missing targets; esca
 Nonempty `SKIP_BUNDLING` and `SOURCEMAP_FILE` settings are refused. Every build
 removes the old product bundle and requires Xcode to produce a new one before
 sealing its receipt. Resolved Swift and module-verifier flags, including forwarded
-compiler arguments, must keep outputs inside the private cache. Unsupported
-bundler command, output-name, config and argument overrides also refuse.
+compiler arguments, must keep outputs inside the private cache. Unsupported bundler command, output-name, config and argument overrides also refuse.
 The adapter audits supported Xcode references and resolved output destinations;
-uncovered references, custom build scripts/Podfile/environment hooks, and scheme
-actions are refused. Its native inventories are provenance, not a complete
-compatibility key: Xcode is invoked for every build. The adapter accepts only its pinned generated build phases.
+uncovered references, custom build scripts/Podfile/environment hooks, and scheme actions are refused; only pinned generated build phases are accepted. Its native inventories are provenance, not a complete compatibility key for arbitrary projects. `native:smoke` always invokes Xcode; automatic export smoke uses the separate conservative key below.
 Dynamic config, fingerprint overrides,
-local workspaces/modules/plugins and linked `expo-updates` are refused; prepare
+unsupported local workspace/module/plugin forms and linked `expo-updates` are refused; prepare
 those projects yourself and use installed-app mode. The witness makes no
 compatibility claim for them. It never migrates your native lifecycle for you.
 
-Set the app's client to `process.env.EXPO_PUBLIC_SNAPBACK_URL`; preparation
-bundles it as `http://127.0.0.1:<port>`. An app that ignores that variable must
-already use this origin. Smoke checks the actual client origin against the owned
-backend. Install matching current `snapback4` and `snapback4-expo` packages and rebuild
+Keep the starters' `smokeOrigin(fallbackURL)` from `snapback4-expo/witness`: it
+selects the owned loopback origin only during simulator smoke. Ordinary launches
+keep the app URL. Explicit full preparation still bundles `EXPO_PUBLIC_SNAPBACK_URL`.
+Smoke checks the actual client origin against the owned backend. Install matching current `snapback4` and `snapback4-expo` packages and rebuild
 the native app; an older installed app does not gain the helper from a JS reload.
 The helper observes React Native SourceCode.scriptURL and requires its resolved
 local file to equal the verified installed main.jsbundle before hashing that
@@ -131,16 +117,16 @@ passing smoke receipt. `proof.json` binds installation and that receipt before
 launch; native startup, exact installed inventory and artifact hashes are
 rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
-Project/simulator leases preserve concurrent owners through bounded process cleanup.
+SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Project/simulator leases remain held until cleanup finishes.
 
-After a JS or asset edit, run `npm run native:smoke` again. The stable private Xcode cache supplies warm intermediates, while
-Xcode builds the current application and each run gets a new `build.json`.
-Repack is withdrawn; credentials, signing settings and native identity are unchanged.
+After a JS edit, repeat `npm run export:ios`: matching native inputs reuse a private
+Release app, replacing its bundle/assets with the exact export. Dependencies and
+lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
+bound with per-export evaluated Expo prebuild config; all project-local plugins and unknown mods retain JS. Remote/URI resources and out-of-tree config files refuse; the image toolchain is pinned. This cache optimizes correctness for honest projects; a plugin already runs arbitrary code during prebuild, so it is not a sandbox. The app reports the selected file's SHA-256 on
+all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
+`export:ios` leases its private export through atomic `dist/` publication and verification against the smoke inventory; a missing/mismatched publication receipt fails. Failed verification restores the previous export; interrupted swaps preserve it for the next exporter to recover. Cleanup never prunes leased or pending exports. Publishers serialize through verification. Each path lookup sees a complete old or new directory; separate file opens can cross generations. Five full plus twenty compressed runs remain, with temporary apps removed and asset removals matching fresh builds. `native:smoke` always builds.
+A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
 
-Warm build-plus-smoke runs on the shared M5 Pro mini have measured about three
-minutes. Cold preparation is longer; Xcode/runtime and dependency installation
-are separate costs. The private cache reuses generated iOS/Pods and Xcode
-intermediates, but every run invokes Xcode and produces new embedded JavaScript.
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;
 custom native lifecycle projects should keep their own configuration.
 These pinned-toolchain observations are not a general SDK guarantee. A build
@@ -264,22 +250,25 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
   --segment restart --artifacts artifacts/restart --port 4400 --prime --relaunch
 ```
 
-Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` artifact prefixes.
-Preparation is unknown; no smoke proves M6/M8 assertions or benchmark admission.
+Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` prefixes. Preparation
+is unknown; no smoke proves M6/M8 assertions or benchmark admission.
 
 Each ordinary scenario writes `<segment>-ios-screen.mp4` (uninterrupted native screen
 recording), `<segment>-ios-receipts.jsonl` (the app's assertions and completed
 steps), and `<segment>-ios-run.json` (simulator/runtime, installed Info.plist
-build identifiers, backend command/origin/port, millisecond timestamps,
+build identifiers, `xcodeBuild` and `iosSdkVersion` from that installed product,
+backend command/origin/port, millisecond timestamps,
 termination/relaunch events, byte counts, SHA-256 digests and exit status).
-The device log and backend/capture logs accompany them. Missing or empty
-artifacts, malformed receipts, failed steps, timeouts and backend failures
+Missing producing-toolchain metadata stays null; it is never inferred from the
+selected host. A failure before product inspection labels selected-host information;
+a failure after toolchain inspection keeps the product fields, including nulls.
+Device and backend/capture logs accompany them. Missing/empty artifacts,
+malformed receipts, failed steps, timeouts and backend failures
 exit nonzero with an `E_WITNESS_*` diagnostic. Existing artifacts are never
 overwritten; choose a fresh directory for a retry. Keep the manifest with
 the exact video and receipt files it hashes.
 A persistent `<segment>-ios-reserved` marker exclusively reserves all output
-names; concurrent runs cannot share them, and backend/launch logs append
-across restart and relaunch.
+names; concurrent runs cannot share them. Backend/launch logs append across restart and relaunch.
 Every complete receipt is validated, including rows after a milestone and
 again at collection; after `done`, only app receipts with the unchanged
 `between-steps` state are accepted.
@@ -312,6 +301,17 @@ For example, `--udid` cannot select a shutdown device.
 Use `xcrun simctl list devices available --json`, boot the intended dedicated
 device, and pass its exact `--udid`. If simctl itself fails, repair that
 simulator/runtime first; do not let the witness choose someone else's device.
+
+E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming
+receipt. The detector filters reports by bundle, launch PID, simulator and mtime
+since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread.
+For the pinned Expo 57.0.22 starter, include `snapback4-expo/plugin` in
+app.json's plugins, regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release.
+Keep native customizations when regenerating an existing iOS project; custom
+projects must adopt UIScene in their own lifecycle. The three-second retry checks its
+deadline during scanning; reports are limited to 16 MiB and only one best candidate is retained.
+The manifest retains the selected report's digest and faulting frames. Other exits,
+including an app that already wrote its priming receipt, keep the ordinary exit diagnostic.
 
 E_WITNESS_PORT means the requested backend port is occupied. For example,
 a manual `snapback4 dev` already listening on 4400 prevents the witness
@@ -394,6 +394,6 @@ application, bundle, native executable or resource.
 
 E_WITNESS_ORIGIN means the smoke client used a different backend origin.
 For example, an app bundled for port 4400 cannot attest the witness on 49371.
-Use the app's matching --port or rebundle the app to consume the preparation
-EXPO_PUBLIC_SNAPBACK_URL value. The witness will not stop someone else's backend
+Use the app's matching --port or rebundle the app for EXPO_PUBLIC_SNAPBACK_URL.
+Starters retain `smokeOrigin(fallbackURL)`. The witness will not stop someone else's backend
 or accept an unrelated server's session and store as its own proof.

@@ -1,0 +1,35 @@
+{
+  "starter": "plain",
+  "stage": "selection",
+  "status": 130,
+  "signal": null,
+  "durationMs": 4524,
+  "deleted": {
+    "udid": "D821842C-3C0A-44E6-B3EE-ECD534F9A64C",
+    "name": "sb4-nx-r1-cancel-plain-1790910426074-9801",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+  },
+  "receipt": {
+    "artifacts": {},
+    "bundleId": "",
+    "cliVersion": "0.4.10",
+    "error": "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+    "events": [],
+    "exitStatus": 1,
+    "finishedAt": 1790910426526,
+    "phase": "preparation",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "segment": "smoke",
+    "simulator": {
+      "deleted": true,
+      "name": "sb4-nx-r1-cancel-plain-1790910426074-9801",
+      "prefix": "sb4-nx-r1-cancel-plain-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "created",
+      "udid": "D821842C-3C0A-44E6-B3EE-ECD534F9A64C"
+    },
+    "startedAt": 1790910425367,
+    "timestampUnit": "unix-ms",
+    "udid": "D821842C-3C0A-44E6-B3EE-ECD534F9A64C"
+  }
+}

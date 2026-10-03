@@ -1,0 +1,47 @@
+{
+  "file": "window-cold",
+  "tier": "wasm",
+  "pages": 37,
+  "streamBytes": 4967806,
+  "applyMs": 699.2821280000001,
+  "wallMs": 1009.358865,
+  "residency": {
+    "tables": {
+      "feedEdges": {
+        "rows": 16386,
+        "bytes": 3146108
+      },
+      "feedFeed": {
+        "rows": 1000,
+        "bytes": 308000
+      },
+      "feedPosts": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedRemovedEvents": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedWork": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "follows": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "posts": {
+        "rows": 1000,
+        "bytes": 153000
+      },
+      "reposts": {
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "totalBytes": 5059093,
+    "totalBytesKind": "logical",
+    "wasmHeapBytes": 32899072
+  }
+}

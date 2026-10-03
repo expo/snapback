@@ -138,6 +138,7 @@ test('stall bounds cover single guards with margin, including serial mode and se
     'acquisition': [1320000,1650000], 'sync-overflow': [2168000,2710000],
     'per-row-work': [2120000,2650000], 'per-row-react': [2120000,2650000],
     'social-browser': [726000,907500], 'retained-history': [372000,900000],
+    'live-margin-browser': [1720000,2150000],
   };
   for (const [file, [guard, bound]] of Object.entries(derived)) {
     assert.equal(largestGuard(file+'.test.mjs', {}), guard, file);

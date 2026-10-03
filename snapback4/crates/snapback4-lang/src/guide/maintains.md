@@ -46,8 +46,7 @@ A maintained view has rows `{ id, <group columns>, value }`. A full group key re
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
-During adoption, query and sync snapshot reads keep reading the previous backend. A newly
-added query answers pending until the views are complete. Writes wait for
+During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait for
 adoption, then execute once. Dev and serve report rebuilt view names, source
 row counts and milliseconds. A failed or interrupted adoption keeps the previous
 backend; restart retries the complete build.
@@ -291,7 +290,6 @@ Adding or changing a filter, key, duration, offset, dependent literal default or
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.
 Attribution capture runs inside the same atomic activation, before that rebuild, preserving existing paths.
-
 
 ## Originals, replies and engagement credit
 
@@ -634,8 +632,10 @@ census, so its presence makes the all-writers proof unknown and silent. The note
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
 
-
 ## A value per member: Clique unread
+
+N_SHAPE_METER warns about raw counts per inbox row, including inside `unreadIn`: a busy chat can starve the shape.
+Use maintained `unreadCounts[.id]`, a bounded preview or a separate query.
 
 For receipt gaps in expiring messages, `guide sequences` pairs `sequence by`
 with bounded unique ordinal probes. The count below answers what remains

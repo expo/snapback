@@ -48,8 +48,19 @@ The injected-lock regression starts a real replacement and holds its writer
 past a short test-selected copy deadline. Its nested node:test process reports
 `TEST_REPLACEMENT_COPY`, exits with failure, and leaves neither its child server
 nor its temporary project. A released-lock case proves successful retry; a
-failed probe proves cleanup after the copy. The full suite has an independent
-file watchdog for blocked JavaScript and leaked processes.
+failed probe proves cleanup after the copy.
 
-Qualification and limits:
+Landed on its own, ahead of lane QF, so the 0.4.12 publication could be re-cut:
+the first 0.4.12 Linux qualification and its first Darwin dry run both hit this
+flake under host load, and the dry run hung on the leaked replacement server.
+This landing carries the fixture fix, its regressions and the worker fixture's
+startup-race fix, taken unchanged from lane QF (both of QF's round-0 reviews
+confirmed them). The suite-level progress watchdog and process containment land
+later with lane QF, whose report, `snapback4/reports/20261002-qf-qualification-flakes/`,
+records the qualification evidence.
+
+QF Round 5 merges this independent landing with the suite-level progress
+watchdog and process containment. The replacement regression now imports
+`runFile` from that shared runner; all independently landed fixture assertions
+remain. The ticket stays closed. Qualification and limits:
 [QF report](../../snapback4/reports/20261002-qf-qualification-flakes/REPORT.md).

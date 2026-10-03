@@ -490,6 +490,16 @@ test('Pods graph audit refuses external search paths, config includes, phase lis
     const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
     const audit = (g = graph, extra = {}) => auditNativeProject(g, dir, [{ target: 'Pod', buildSettings: { ...settings, ...extra } }], root, cache, [], 'App');
     assert.equal(audit().sources.length, 0);
+    for (const name of ['assets', '_expo', 'ASSETS', 'images']) {
+      const resource = structuredClone(graph);
+      resource.objects.target.buildPhases = ['resources'];
+      resource.objects.resources = { isa: 'PBXResourcesBuildPhase', files: ['buildFile'] };
+      resource.objects.buildFile = { isa: 'PBXBuildFile', fileRef: 'resource' };
+      resource.objects.resource = { isa: 'PBXFileReference', path: name, sourceTree: 'SOURCE_ROOT' };
+      if (name === 'images') assert.doesNotThrow(() => audit(resource));
+      else assert.throws(() => audit(resource), /native resource collides with Metro resource namespace/);
+    }
+
     assert.throws(() => audit(graph, { HERMES_CLI_PATH: root + '/node_modules/other-compiler' }), /unsupported HERMES_CLI_PATH/);
     assert.ok(audit(graph, { HERMES_CLI_PATH: root + '/node_modules/hermes-compiler/hermesc/osx-bin/hermesc' }));
     fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');
@@ -552,6 +562,31 @@ test('linker records require products and refuse external frameworks including m
     for (const tag of ['\x10', '\x11']) {
       fs.writeFileSync(file, Buffer.from(baseline + tag + root + '/External.framework\x00'));
       assert.throws(() => compilerClosure(root, cache, [], [source], [product]), /outside covered roots/);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+// @ref LLP 3000.030#13 — the reference chat's npm layout must prepare the same pinned scene app.
+test('Expo dSYM phases admit hoisted and nested npm layouts but reject custom scripts', async () => {
+  const { auditNativeProject } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'scene-dsym-')));
+  const dir = path.join(root, 'ios/Pods'), cache = path.join(root, 'private');
+  try {
+    fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(cache);
+    const fixture = fs.readFileSync(new URL('./fixtures/expo-font-dsym-script.txt', import.meta.url), 'utf8');
+    const graph = { rootObject: 'project', objects: { project: { isa: 'PBXProject' },
+      target: { isa: 'PBXNativeTarget', name: 'Pod', buildPhases: ['phase'] },
+      phase: { isa: 'PBXShellScriptBuildPhase', shellPath: '/bin/sh', name: 'Resolve dSYM' } } };
+    const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
+    const audit = () => auditNativeProject(graph, dir, [{ target: 'Pod', buildSettings: settings }], root, cache, [], 'App');
+    for (const [module, pkg] of [['ExpoFont', 'expo-font'], ['ExpoFileSystem', 'expo-file-system']]) {
+      const script = fixture.replaceAll('ExpoFont', module).replaceAll('expo-font', pkg);
+      for (const source of [script, script.replaceAll('expo/node_modules/', '')]) {
+        graph.objects.phase.shellScript = source;
+        assert.equal(audit().phases.length, 1);
+        graph.objects.phase.shellScript += '\ncat /external/file\n';
+        assert.throws(audit, /unsupported native script/);
+      }
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

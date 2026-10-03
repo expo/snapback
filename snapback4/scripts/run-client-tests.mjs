@@ -41,6 +41,7 @@ export function largestGuard(file, env = process.env) {
     'per-row-work.test.mjs': hang(1000),
     'per-row-react.test.mjs': hang(1000),
     'social-browser.test.mjs': hang(303),
+    'live-margin-browser.test.mjs': hang(800),
     'retained-history.test.mjs': hang(126),
   })[basename(file)] ?? 0;
 }

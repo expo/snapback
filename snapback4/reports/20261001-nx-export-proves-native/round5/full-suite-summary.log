@@ -1,0 +1,40 @@
+== cargo build
+-- ok: cargo build (3 s)
+== wasm build
+-- ok: wasm build (20 s)
+== docs budget
+-- ok: docs budget (2 s)
+== release guard
+-- ok: release guard (3 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+-- ok: cargo test (858 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (16 s)
+== client tests
+-- FAIL: client tests (1161 s)
+== client models
+-- ok: client models (190 s)
+== 1 failure(s) in 2240 s
+   client tests
+
+Client tests: 5772 total; 5764 pass; 3 fail; 5 skipped; 0 cancelled.
+Client models: 79 total; 79 pass; 0 fail.
+
+Failed assertions (delivery-fault-matrix.test.mjs:264):
+47 transient: local.ts:850 follow
+47 persistent: local.ts:850 follow
+48 transient: local.ts:855 follow
+Each: the classified await must actually experience an injected fault (failures > 0 was false).
+
+Invocations: 1; exit status: 1. Raw complete log is archived as round5/full-suite.log.gz.
+Canonical Rust phase predates the late group-leader snapshot guard; final affected checks cover that delta.

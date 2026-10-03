@@ -1,7 +1,7 @@
 import { existence, isReady } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
-import { useClient, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
+import { useClient, useSeen, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
 import { mintId } from "snapback4/client";
 import { IntentJournal, intentOutcome, type Intent, type Proposal } from "./intents";
 import { intentStorage } from "./intent-store";
@@ -66,15 +66,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
   const currentMember = isReady(member) && member.existence === "present" && !member.revalidating;
   // Custody is not authority: only a confirmed absence/refusal blocks a send.
   const canSend = !(existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating));
-  const seen = useRef(0);
-  useEffect(() => { seen.current = 0; setSelected(undefined); }, [conversation]);
-  const reportSeen = useCallback((through: number) => {
-    if (!visible || !currentMember || through <= seen.current) return;
-    seen.current = through;
-    void client.mutate(api.seen, { conversation, through }).then(write => {
-      if (write.state === "failed" && seen.current === through) seen.current = 0;
-    });
-  }, [client, conversation, visible, currentMember]);
+  useEffect(() => { setSelected(undefined); }, [conversation]);
   useEffect(() => { if (!visible) typing.stop(); }, [visible]);
   async function send() {
     const owner = lifetime.current;
@@ -112,7 +104,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
     {canSend && (!currentMember || ("data" in member && !member.fresh)) && <Text>Membership is being checked. You can queue a message.</Text>}
     <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
     {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
-    <History key={conversation} conversation={conversation} reportSeen={reportSeen} select={setSelected} />
+    <History key={conversation} conversation={conversation} visible={visible} select={setSelected} />
   </View>;
 }
 
@@ -144,7 +136,7 @@ function SendSettlement({ intent, outcome, submitting, dismiss, edit, attachment
   </View>;
 }
 
-type HistoryProps = { conversation: string; reportSeen(through: number): void; select(value: { message: string; asset: string }): void };
+type HistoryProps = { conversation: string; visible: boolean; select(value: { message: string; asset: string }): void };
 function History(props: HistoryProps) {
   const [depth, setDepth] = useState(1);
   return <HistoryPage {...props} c={null} depth={depth} older={() => setDepth(n => n + 1)} prior={[]} />;
@@ -160,7 +152,7 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
   }, []);
   const rows = useMemo(() => "data" in history ? history.data.filter(row => !prior.includes(row.id)) : [], [history, JSON.stringify(prior)]);
   const newest = Math.max(0, ...rows.filter(row => !row.pending && viewed.has(row.id)).map(row => row.ordinal));
-  useEffect(() => { if ("data" in history && !history.revalidating) props.reportSeen(newest); }, [newest, history, props.reportSeen]);
+  useSeen(api.receiptFamilies.chat, { scope: props.conversation, through: newest, active: props.visible });
   const byId = new Map("data" in receipts ? receipts.data.map(row => [row.id, row.receipt]) : []);
   const next = "data" in history ? history.next : null;
   return <View>

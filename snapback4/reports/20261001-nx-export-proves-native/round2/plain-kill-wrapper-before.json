@@ -1,0 +1,70 @@
+{
+  "wrapperPid": 78536,
+  "status": null,
+  "signal": "SIGKILL",
+  "dir": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790919811759-78536",
+  "live": {
+    "app": {
+      "pid": 80335,
+      "start": [
+        1790919823,
+        282008
+      ]
+    },
+    "bundle": "dev.snapback4.chat",
+    "children": {
+      "backend": {
+        "pid": 80036,
+        "start": [
+          1790919821,
+          373090
+        ]
+      },
+      "logs": {
+        "pid": 80119,
+        "start": [
+          1790919821,
+          497393
+        ]
+      },
+      "preparation": {
+        "pid": 80251,
+        "start": [
+          1790919822,
+          602134
+        ]
+      },
+      "video": {
+        "pid": 80104,
+        "start": [
+          1790919821,
+          490768
+        ]
+      }
+    },
+    "owner": {
+      "pid": 78601,
+      "start": [
+        1790919811,
+        791507
+      ]
+    },
+    "simulator": {
+      "name": "sb4-nx-recovery-r2-1790919585331-67103",
+      "prefix": "sb4-nx-recovery-r2-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "7E3061B1-EFFE-46D2-AC76-3EF886A94EC5"
+    },
+    "staging": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/7E3061B1-EFFE-46D2-AC76-3EF886A94EC5/data/Containers/Data/Application/5C9C2977-DE11-43A1-8D66-382A3034BE45/Documents/.snapback4-witness/1790919820930-78601",
+    "startedAt": 1790919811795,
+    "udid": "7E3061B1-EFFE-46D2-AC76-3EF886A94EC5",
+    "wrapper": {
+      "pid": 78536,
+      "start": [
+        1790919808,
+        262594
+      ]
+    }
+  }
+}

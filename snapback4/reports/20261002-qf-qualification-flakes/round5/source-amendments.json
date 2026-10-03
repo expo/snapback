@@ -1,0 +1,9 @@
+{
+  "changes": [
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "snapback4/scripts/run-client-tests.mjs"
+  ],
+  "reason": "Merge integration: main added live-margin-browser hangBudget(800), which needs the standard derived stall bound and an exact-bound assertion.",
+  "initialTree": "a1f00d249947d9afea954ee10cbcb540722ad3bf",
+  "qualifiedTree": "9bf25518546aa3b7233bbb51731e491d0e615b8f"
+}

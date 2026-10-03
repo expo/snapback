@@ -89,10 +89,11 @@ A schedule may also target an action: `schedule renewal every 1m as service:bill
 
 ## A digest is a job that reads
 
-Seek the period, filter the ordinal. The UI and job call the same paged
-`unreadPreview(periodStart, periodEnd, c)` query. Inside `as`, a call returns
-`{ data, next }`; `for row in all(unreadPreview(..., null)):` follows every
-cursor and releases each page. Follow every cursor; one page is a preview.
+Seek the period, filter the ordinal. The UI and job share `inbox(c)` and
+the separate `unreadTotal(conversationId, readOrdinal, periodStart, periodEnd)`
+query. A raw total in each returned inbox shape gets N_SHAPE_METER: one busy
+conversation can starve that shape. Inside `as`, a call returns `{ data, next }`;
+`for row in all(inbox(null)):` follows every cursor and releases each page. Follow every cursor; one page is a preview.
 `all` belongs directly in a `for` domain and needs a list query with one cursor
 argument. Start with null for the whole result. It refuses an unavailable read
 or any direct/helper/query read that cannot certify exhaustion; no partial total commits.
@@ -166,26 +167,27 @@ fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, 
   return count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd and not .tombstone and .senderId != reader and .ordinal > readOrdinal)
 
 query inbox(c: cursor ?):
-  return members where .principal = viewer first 20 by .conversationId after c { conversationId }
-query unreadPreview(periodStart: time, periodEnd: time, c: cursor ?):
-  return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
+  return members where .principal = viewer first 20 by .conversationId after c { conversationId, readOrdinal }
+query unreadTotal(conversationId: conversations, readOrdinal: int, periodStart: time, periodEnd: time):
+  return unreadIn(conversationId, viewer, readOrdinal, periodStart, periodEnd)
 
 job digest(periodStart: time, periodEnd: time):
   for p in profiles:
     unread = 0
     chats = 0
     as p.principal:
-      for chat in all(unreadPreview(periodStart, periodEnd, null)):
-        if chat.unread > 0:
+      for chat in all(inbox(null)):
+        total = unreadTotal(chat.conversationId, chat.readOrdinal, periodStart, periodEnd).data
+        if total > 0:
           chats = chats + 1
-          unread = unread + chat.unread
+          unread = unread + total
     if unread > 0:
       emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats } once [p.principal, periodEnd]
 schedule daily every 1d at 08:00: digest
 ```
 
-The viewer query owns authorization and the period predicate. The job has no
-membership walk. `all` retains one page, while the helper's streaming count
+The viewer queries own authorization and the period predicate. The job pages
+the same inbox and reads each total separately. `all` retains one page, while the helper's streaming count
 releases each decoded message. All examinations, steps and retained values count
 against the job's meters. Meter and authorization-budget refusals roll back before retrying fewer recipients.
 One that cannot fit parks with E_BOUND or E_RULE; inspect `snapback4 doctor`.

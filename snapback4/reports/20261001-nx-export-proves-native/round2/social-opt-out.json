@@ -1,0 +1,15 @@
+{
+  "starter": "social",
+  "label": "opt-out",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790922484637,
+  "durationMs": 3681,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "2f188ef998975131a9353611644f5419b6f4c64958335029be03c0bff9d40a0e"
+}

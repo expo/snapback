@@ -1,0 +1,14 @@
+{
+  "additionalQuietCohortStarted": false,
+  "termination": "Bounded 30-minute wait expired before first sample",
+  "snapshots": 60,
+  "firstAtMs": 1790982591656,
+  "lastAtMs": 1790984368840,
+  "load1Min": 6.71728515625,
+  "load1Max": 143.77197265625,
+  "thresholdPlanned": 4,
+  "originalThreshold": 6,
+  "anyAtOrBelowOriginalThreshold": false,
+  "totalWaitSnapshots": 118,
+  "allWaitLoad1Max": 258.041015625
+}

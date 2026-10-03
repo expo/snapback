@@ -1,0 +1,205 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.11 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: `snapback4` (test "witness") generated 3 warnings
+warning: `snapback4` (bin "snapback4") generated 6 warnings
+    Finished `test` profile [optimized] target(s) in 6.76s
+     Running tests/witness.rs (target/debug/deps/witness-42e1d723b802532c)
+
+running 76 tests
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=10240 hard=unlimited; descriptor_exhaustions=0; startup soft=256 target=10240
+test bound_port_is_refused_without_stopping_its_owner ... ok
+test artifacts_require_bytes_and_bind_the_digest ... ok
+test artifact_reservation_has_one_winner_before_any_output_exists ... ok
+test dev_accepts_the_still_owned_listener_without_a_rebind_gap ... ok
+test driver::cli_preserves_every_existing_output ... ok
+test driver::cli_missing_app_never_starts_a_backend ... ok
+test driver::early_scene_exit_has_a_named_diagnostic_and_product_toolchain ... ok
+test driver::boot_failure_keeps_created_identity_in_receipt ... ok
+test driver::a_scene_report_after_the_priming_receipt_keeps_the_ordinary_exit_diagnostic ... ok
+test driver::boot_rollback_holds_the_simulator_lease_against_a_second_process ... ok
+test driver::cli_rejects_malformed_envelope ... ok
+test driver::cli_rejects_failure_in_the_milestone_batch ... ok
+json: witness: using simulator snapback4-smoke-prior (00000000-0000-4000-8000-078177000002), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: recording-stopped
+E_WITNESS_RECEIPT: receipt line 2 is not JSON; see snapback4 guide witness
+
+test driver::cli_rejects_step_change_appended_after_done ... ok
+test driver::cli_concurrent_runs_into_one_namespace_have_one_owner ... ok
+test driver::cli_rejects_milestone_appended_after_done ... ok
+test driver::cli_rejects_failure_appended_after_done ... ok
+test driver::missing_xcode_or_runtime_fails_once_before_build_or_backend ... ok
+test driver::cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids ... ok
+test driver::interrupted_startup_does_not_leak_listener_to_checker ... ok
+test driver::project_lease_precedes_check_generation ... ok
+test driver::missing_schema_uses_one_message_and_witness_exit_one ... ok
+test driver::real_cli_stalled_resolver_sigterm_drains_before_finished ... ok
+test driver::export_classifies_only_native_environment_setup_as_skippable ... ok
+test driver::export_selection_interrupt_and_ownership_failures_are_not_skips ... ok
+test driver::cli_refuses_an_existing_app_and_never_terminates_a_replacement ... ok
+test driver::group_writable_simulator_record_is_ignored ... ok
+empty-video: witness: using simulator snapback4-smoke-prior (00000000-0000-4000-8000-078177000043), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: offline-done
+witness: backend-ready
+witness: reconnect-signaled
+witness: waiting-done
+witness: done
+witness: recording-stopped
+witness: backend-refuses-connections
+E_WITNESS_ARTIFACT: missing artifact or unreadable file; check --artifacts and the recorded app outputs; see snapback4 guide witness
+
+test driver::scene_report_written_after_simctl_exits_is_found_during_retry ... ok
+test driver::owned_devices_use_numeric_runtime_order ... ok
+test driver::preparation_keeps_origin_port_owned_until_backend_startup ... ok
+test driver::real_cli_stalled_resolver_timeout_drains_before_finished ... ok
+test driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts ... ok
+test driver::prefix_without_creation_record_is_ignored ... ok
+test driver::export_create_partial_output_rolls_back_on_failure_timeout_and_group_interrupt ... ok
+test host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits ... ok
+test host_limits::tests::doctor_uses_the_live_servers_effective_limit ... ok
+test host_limits::tests::hard_capped_1024_warns_without_attempting_a_setter ... ok
+test host_limits::tests::inherited_hard_cap_requires_operator_remediation ... ok
+test host_limits::tests::inherited_linux_default_needs_no_operator_remediation ... ok
+test host_limits::tests::inherited_macos_limit_accounts_for_open_max_and_lower_host_ceilings ... ok
+test host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause ... ok
+test driver::symlinked_simulator_directory_is_ignored ... ok
+test newer_owned_report_without_scene_symbol_does_not_mask_scene_crash ... ok
+test newer_report_from_another_simulator_does_not_mask_owned_scene_crash ... ok
+test preparation_selectors_are_exclusive_and_repack_is_withdrawn ... ok
+test protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test receipts_refuse_malformed_and_truncated_lines_and_preserve_app_objects ... ok
+test scene_report_requires_owned_launch_and_selects_newest_matching_report ... ok
+test scene_symbol_must_be_on_the_selected_nonzero_faulting_thread ... ok
+test simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control ... ok
+test thread_priority::tests::background_priority_is_lower_without_changing_its_parent ... ok
+snapback4: thread QoS failed (thread class http, requested 25, errno 22, at unix ms 1790999149502); inspect doctor host.scheduling: Invalid argument (os error 22)
+snapback4: thread QoS failed (thread class http, requested 25, errno 22, at unix ms 1790999149502); inspect doctor host.scheduling: Invalid argument (os error 22)
+test thread_priority::tests::failed_raise_is_reported_and_cannot_admit_utility_inheritance ... ok
+test thread_priority::tests::intake_and_request_inheritance_are_user_initiated ... ok
+test thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class ... ok
+test thread_priority::tests::maintenance_keeps_ordinary_priority ... ok
+scene scan peak: one=5111808 bytes, 64=9650176 bytes
+test many_large_scene_reports_keep_constant_peak_memory ... ok
+test witness_cli_refuses_missing_bundle_with_a_recipe ... ok
+test witness_toolchain_comes_from_the_product_and_keeps_unknowns_explicit ... ok
+test witness_card_is_published_under_builder_words ... ok
+test driver::writable_simulator_directory_is_ignored ... ok
+test driver::smoke_rejects_native_crash_after_prime ... ok
+test driver::smoke_rejects_native_crash_after_offline ... ok
+test driver::smoke_collection_revalidates_query_generation ... ok
+test driver::smoke_facts_come_from_the_generation_served_after_a_source_edit ... ok
+test driver::smoke_wrong_origin_marks_the_segment_failed ... ok
+test driver::symlinked_simulator_record_is_ignored ... ok
+test driver::world_writable_simulator_record_is_ignored ... ok
+test driver::automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime ... ok
+test driver::smoke_wrong_generation_marks_the_segment_failed ... ok
+test driver::smoke_runs_three_cold_launches_and_a_broken_offline_run_fails ... ok
+test driver::smoke_rejects_unconsumed_barrier_and_native_crash_after_done ... ok
+test driver::created_device_type_is_current_not_last_listed ... ok
+test driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend has been running for over 60 seconds
+test driver::cli_preparation_timeout_still_records_failure_manifest has been running for over 60 seconds
+test driver::timed_out_startup_does_not_leak_listener_to_checker has been running for over 60 seconds
+test driver::cli_preparation_timeout_still_records_failure_manifest ... ok
+test driver::timed_out_startup_does_not_leak_listener_to_checker ... ok
+timeout: witness: using simulator snapback4-smoke-prior (00000000-0000-4000-8000-078177000068), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: recording-stopped
+E_WITNESS_TIMEOUT: app did not reach offline-done within --timeout; see snapback4 guide witness
+
+out-of-order: witness: using simulator snapback4-smoke-prior (00000000-0000-4000-8000-078177000084), runtime com.apple.CoreSimulator.SimRuntime.iOS-26-5
+witness: backend-ready
+witness: waiting-primed
+witness: primed
+witness: backend-refuses-connections
+witness: recording-started
+witness: waiting-offline-done
+witness: recording-stopped
+E_WITNESS_STEP: app emitted a later milestone before the driver advanced; see snapback4 guide witness
+
+test driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend ... ok
+
+test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 133.61s

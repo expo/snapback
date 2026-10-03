@@ -1,0 +1,17 @@
+Starting Metro Bundler
+
+iOS Bundled 2127ms index.js (725 modules)
+Creating asset map
+
+› ios bundles (2):
+_expo/static/js/ios/index-a022886e16e3960bc055accb84842ada.hbc (2.6MB)
+_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc (211KB)
+
+› Files (2):
+assetmap.json (2B)
+metadata.json (142B)
+
+Exported: dist
+witness: created simulator sb4-nx-r1-cancel-plain-1790910426074-9801 (D821842C-3C0A-44E6-B3EE-ECD534F9A64C), runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0
+E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes; see snapback4 guide witness
+native smoke interrupted; receipt: /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910425072-9768/smoke-ios-run.json

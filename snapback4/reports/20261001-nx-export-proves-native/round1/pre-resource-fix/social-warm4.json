@@ -1,0 +1,240 @@
+{
+  "starter": "social",
+  "label": "warm4",
+  "startedAt": 1790907980963,
+  "durationMs": 22856,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "6b63b4847c3b5fdeb94d3a575a31a97dcbe6db6118c83f1a50869b0aff3f5ac2",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/social/artifacts/native-smoke/1790907984438-21397/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "bc94d712e624415336c08d46805f6d1c9363f22bb130664b99499cd5a8260c70"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 19337,
+  "loadedHash": "6b63b4847c3b5fdeb94d3a575a31a97dcbe6db6118c83f1a50869b0aff3f5ac2",
+  "metroResources": [
+    {
+      "path": "_expo",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "_expo/static/js/ios/web-worker-entry-d8f31e91f69e7f4b4ba004087857f586.hbc",
+      "mode": 420,
+      "type": "file",
+      "bytes": 211213,
+      "sha256": "bc6eed8a6b4d86aae36f55adc66656e78f330dee16e5a5899efafa60f51f874e"
+    },
+    {
+      "path": "assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/arrow_down.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 9456,
+      "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/error.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 469,
+      "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/file.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 138,
+      "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/forward.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 188,
+      "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/pkg.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 364,
+      "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 653,
+      "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 290,
+      "sha256": "2cdfeb8e5ccde7976f7012fb8cce73af2229029ee21d4f1509fed114871c6cd8"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 405,
+      "sha256": "2b7443a9a58e92ca11a575bdc11598615a57dde305cd8ce70d602606b302cd98"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 761,
+      "sha256": "3ddd0773ed27e23d25789f301731b3ac455ad8be5aa27a0a1b838f89c6d27225"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 220,
+      "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 334,
+      "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 502,
+      "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 141,
+      "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 201,
+      "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 266,
+      "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 317,
+      "sha256": "dc56b976bd45638e1125f6689743525e6886ae0bef2c8f4651994833685a831f"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon@2x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 589,
+      "sha256": "ef13fc0dfc52ec23817585fd7e109fbdf593a3b2549c40ce71ac9b0eda12cc2c"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon@3x.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 839,
+      "sha256": "b434a7cf18c2d4ce747c70942ea2fee2d4412d93967ed92b372f810bb9261ea5"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/sitemap.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 465,
+      "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5"
+    },
+    {
+      "path": "assets/node_modules/expo-router/assets/unmatched.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 4752,
+      "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447"
+    },
+    {
+      "path": "assets/src",
+      "mode": 493,
+      "type": "directory"
+    },
+    {
+      "path": "assets/src/retired.png",
+      "mode": 420,
+      "type": "file",
+      "bytes": 68,
+      "sha256": "c054eec0ca71070d8406b12c9e0b1745c861d337f4818c5fe8334e1b4c0dc425"
+    }
+  ],
+  "warmReceiptBytes": 61132
+}

@@ -335,6 +335,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_PORT", "E_WITNESS_PORT means the requested backend port is occupied."),
     ("E_WITNESS_PROCESS", "E_WITNESS_PROCESS means a child command could not start, exited early or could not be stopped."),
     ("E_WITNESS_RECEIPT", "E_WITNESS_RECEIPT means a receipt is not a complete valid JSON object with the expected witness envelope, changed after observation, or could not be written."),
+    ("E_WITNESS_SCENE_LIFECYCLE", "E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming receipt. The detector filters reports by bundle, launch PID, simulator and mtime since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread."),
     ("E_WITNESS_SIMULATOR", "E_WITNESS_SIMULATOR means the explicit device is unavailable or simctl failed."),
     ("E_WITNESS_STEP", "E_WITNESS_STEP means an application assertion failed, milestones arrived out of order, or steps overlapped."),
     ("E_WITNESS_TIMEOUT", "E_WITNESS_TIMEOUT means a step, child command or signal did not arrive within its timeout, 120 seconds by default per driver step."),
@@ -366,6 +367,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NEVER_COMPLETE", "A page's read rule is checked once when the prefix decides it, else per row, and a page whose rule still depends on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names the missing equality columns and an existing compatible index when one is available)."),
     ("N_NOT_PREDICTABLE", "N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one note per mutation for lost eligibility or an added horizon risk, explicitly distinguishing a call that may queue from an operation that never predicts."),
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),
+    ("N_SHAPE_METER", "candidate population can outgrow the default 8,192-row examined meter"),
     ("N_NO_CURSOR", "N_NO_CURSOR: a returned page cannot continue"),
     ("N_SYNC_ORDER", "Ascending reads and other indexes have unknown coverage."),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),
@@ -386,8 +388,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
 #[test]
 fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
     let text = normalize(&card("receipts").unwrap());
-    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "client.mutate(api.seen"] {
-        assert!(text.contains(fact), "missing {fact}");
+    for fact in ["SDK reports debt collected from publications and accepted answer manifests", "`progress` remains a catch-up read", "retires them on committed success", "local client persists debt", "online client keeps its queue in memory", "RUNS_FULL", "at least 30 seconds", "useSeen(api.receiptFamilies.chat"] {
+        assert!(text.contains(fact), "missing {fact}: {text}");
     }
     for obsolete in ["the pages it has walked", "client.mutate(api.delivered", "server's own rows cover it", "A reload forgets what is owed"] {
         assert!(!text.contains(obsolete), "obsolete: {obsolete}");
@@ -403,8 +405,8 @@ fn receipts_migrates_the_history_walking_hook_that_does_not_scale() {
         assert!(text.contains(migration), "missing migration step: {migration}");
     }
     let hook = text.split("function useReceipts(").nth(1).expect("worked migrated hook");
-    assert!(hook.contains("useQuery(api.receiptMember"));
-    assert!(hook.contains("client.mutate(api.seen"));
+    assert!(hook.contains("visibleIds.has(m.id) && !m.pending"), "{hook}");
+    assert!(hook.contains("useSeen(api.receiptFamilies.chat"));
     for history_writer in ["loadMore(", "api.progress", "api.delivered"] {
         assert!(!hook.contains(history_writer), "migrated hook still uses {history_writer}");
     }

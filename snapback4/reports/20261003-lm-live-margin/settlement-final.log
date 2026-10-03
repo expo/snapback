@@ -1,0 +1,12 @@
+✔ process: two offline sends settle with certified preservation (1465.723902ms)
+✔ process: two offline sends settle with unknown once authority (1409.126108ms)
+✔ wasm: two offline sends settle with certified preservation (694.934417ms)
+✔ wasm: two offline sends settle with unknown once authority (264.967617ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3969.942969

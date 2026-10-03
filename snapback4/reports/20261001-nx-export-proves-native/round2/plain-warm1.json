@@ -1,0 +1,36 @@
+{
+  "starter": "plain",
+  "label": "warm1",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/npm",
+    "run",
+    "export:ios"
+  ],
+  "reusedExactExport": false,
+  "startedAt": 1790921911530,
+  "durationMs": 18416,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "48e0d98e67d4a96e6bbf667f3b21243e085451b37895f9a163a963ed3d45e3df",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790921914421-39666/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "5702296a1635dfe740dfff543d8784de40ae3228886c7de13ae039a41b13f57d"
+      }
+    },
+    "hit": true
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 15429,
+  "loadedHash": "48e0d98e67d4a96e6bbf667f3b21243e085451b37895f9a163a963ed3d45e3df",
+  "metroResources": [],
+  "warmReceiptBytes": 37127
+}

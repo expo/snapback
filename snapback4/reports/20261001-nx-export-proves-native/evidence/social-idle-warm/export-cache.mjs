@@ -1,0 +1,156 @@
+// @ref LLP 3000.030#15 — exact exported bytes, conservative native cache identity.
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { hash, inventory, readJSON, hbc, nativeFiles, differences, fail, seal } from './payload.mjs';
+
+const excluded = new Set(['.git', '.expo', '.snapback4', '.snapback4-witness', 'artifacts', 'evidence', 'dist', 'choreography']);
+export function nativeFingerprint(project, toolchain, adapter) {
+  // Config/plugins may evaluate arbitrary source. Only static, generated projects
+  // can exclude application JS. Existing native projects/codegen are conservative.
+  const manifest = readJSON(path.join(project, 'package.json'));
+  const config = fs.existsSync(path.join(project, 'app.json')) ? readJSON(path.join(project, 'app.json')) : {};
+  const knownPlugins = new Set(['expo-router', 'expo-sqlite', 'expo-secure-store', 'expo-status-bar', 'expo-image-picker', 'snapback4-expo/plugin']);
+  const customPlugin = config.expo?.plugins?.some(p => !knownPlugins.has(Array.isArray(p) ? p[0] : p));
+  const dynamic = customPlugin || fs.readdirSync(project).some(n => /^app\.config\./.test(n))
+    || fs.existsSync(path.join(project, 'ios')) || manifest.codegenConfig
+    || fs.existsSync(path.join(project, 'modules'))
+    || fs.readdirSync(project).some(n => /^react-native\.config\./.test(n));
+  const inputs = inventory(project, p => {
+    const parts = p.split('/');
+    if (excluded.has(parts[0])) return true;
+    if (parts[0] === 'ios' && (parts[1] === 'build' || parts.includes('xcuserdata'))) return true;
+    // All dependency bytes, including plugin implementations and package versions.
+    if (parts[0] === 'node_modules') return false;
+    if (!dynamic && /\.[cm]?[jt]sx?$/.test(p) && (['app', 'src'].includes(parts[0]) || /^(App|index)\.[jt]sx?$/.test(p))) return true;
+    return false;
+  });
+  return { format: 1, hash: hash(JSON.stringify({ inputs: inputs.sha256, toolchain, adapter })), inputs, toolchain, adapter };
+}
+export function toolIdentity(command, project) {
+  const req = createRequire(path.join(project, 'package.json'));
+  const compiler = req.resolve('hermes-compiler/hermesc/osx-bin/hermesc');
+  const xcode = command('export-xcode-version', 'xcodebuild', ['-version'], project);
+  const sdk = command('export-sdk-version', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-version'], project);
+  const sdkBuild = command('export-sdk-build', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-build-version'], project);
+  const developer = command('export-developer', 'xcrun', ['--find', 'clang'], project);
+  const clang = hash(fs.readFileSync(developer));
+  const tools = {};
+  for (const name of ['swiftc', 'swift-frontend', 'ld']) {
+    const file = command(`export-tool-${name}`, 'xcrun', ['--find', name], project);
+    tools[name] = { path: file, sha256: hash(fs.readFileSync(file)) };
+  }
+  const sdkPath = command('export-sdk-path', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-path'], project);
+  return { xcode, sdk, sdkBuild, sdkPath, developer, clang, tools, node: process.version,
+    hermes: hash(fs.readFileSync(compiler)), architecture: process.arch,
+    versions: Object.fromEntries(['snapback4', 'snapback4-expo', 'expo', 'react-native'].map(n => [n, readJSON(path.join(project, 'node_modules', n, 'package.json')).version])),
+    pod: command('export-pod-version', 'pod', ['--version'], project),
+    ruby: command('export-ruby-version', 'ruby', ['--version'], project),
+    environment: Object.fromEntries(['PATH', 'USER', 'LOGNAME', 'LANG', 'DEVELOPER_DIR'].map(k => [k, process.env[k] ?? null])),
+    sdkSettings: hash(fs.readFileSync(path.join(sdkPath, 'SDKSettings.json'))) };
+}
+export function overlayExport(project, exported, base, destination, command) {
+  const exportedInventory = inventory(exported);
+  const metadata = readJSON(path.join(exported, 'metadata.json'));
+  const ios = metadata.fileMetadata?.ios;
+  if (!ios || typeof ios.bundle !== 'string' || !Array.isArray(ios.assets)) fail('E_WITNESS_HERMES', 'export has no unique iOS payload');
+  const within = (root, relative) => {
+    if (typeof relative !== 'string' || path.isAbsolute(relative)) fail('E_WITNESS_PROOF', 'export path is not relative');
+    const result = path.resolve(root, relative);
+    if (!result.startsWith(path.resolve(root) + path.sep)) fail('E_WITNESS_PROOF', 'export path escapes its root');
+    return result;
+  };
+  const javascript = hbc(within(exported, ios.bundle));
+  if (javascript.version !== base.executedApp.javascript.version) fail('E_WITNESS_HERMES', 'export HBC version differs from the native base');
+  if (inventory(base.executedApp.path).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'cached native base changed');
+  command('export-copy-base', '/bin/cp', ['-cR', base.executedApp.path, destination], project);
+  fs.copyFileSync(within(exported, ios.bundle), path.join(destination, 'main.jsbundle'));
+  const map = readJSON(path.join(exported, 'assetmap.json'));
+  const req = createRequire(path.join(project, 'package.json'));
+  const expoReq = createRequire(req.resolve('expo/package.json'));
+  const { getAssetLocalPath } = expoReq('@expo/cli/build/src/export/metroAssetLocalPath.js');
+  const { filterPlatformAssetScales } = expoReq('@expo/cli/build/src/export/persistMetroAssets.js');
+  const copied = new Map([['main.jsbundle', javascript.sha256]]);
+  const chunks = path.join(exported, '_expo/static/js/ios');
+  for (const row of inventory(chunks).files.filter(r => r.type === 'file')) {
+    const relative = path.posix.join('_expo/static/js/ios', row.path);
+    const target = within(destination, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(within(exported, relative), target); copied.set(relative, row.sha256);
+  }
+  // RN resolves embedded Image/font assets by Metro's native path, not EAS's hash
+  // filenames. Copy bytes FROM the export, with names from that export's asset map.
+  for (const asset of Object.values(map)) {
+    const validScales = new Set(filterPlatformAssetScales('ios', asset.scales));
+    for (let i = 0; i < asset.fileHashes.length; i++) {
+      // Expo's native persister uses the last entry for duplicate scales (for
+      // example clear-icon.png and clear-icon@1x.png), and filters iOS scales.
+      if (!validScales.has(asset.scales[i]) || asset.scales.lastIndexOf(asset.scales[i]) !== i) continue;
+      const digest = asset.fileHashes[i];
+      const row = ios.assets.find(a => path.basename(a.path) === digest || path.basename(a.path) === `${digest}.${asset.type}`);
+      if (!row) fail('E_WITNESS_PROOF', 'export omitted an embedded asset; remove assetPatternsToBeBundled');
+      const relative = getAssetLocalPath(asset, { platform: 'ios', scale: asset.scales[i] });
+      if (!relative.startsWith('assets/')) fail('E_WITNESS_PROOF', 'unsupported native asset destination');
+      const source = within(exported, row.path), target = within(destination, relative);
+      const bytes = fs.readFileSync(source), sha256 = hash(bytes);
+      if (copied.has(relative) && copied.get(relative) !== sha256) fail('E_WITNESS_PROOF', 'conflicting exported assets');
+      fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, bytes); copied.set(relative, sha256);
+    }
+  }
+  // Preserve all native/configuration bytes. Asset removals may leave unused base
+  // resources, but a newly referenced asset must always come from this export.
+  const inv = inventory(destination);
+  for (const diff of differences(base.executedApp.inventory.files, inv.files)) {
+    if (diff.actual?.type === 'directory' && (diff.path === 'assets' || diff.path.startsWith('assets/') || diff.path === '_expo' || diff.path.startsWith('_expo/'))) continue;
+    if (diff.actual?.sha256 !== copied.get(diff.path)) fail('E_WITNESS_PROOF', 'unexpected native change while replacing export');
+  }
+  const native = nativeFiles(destination, inv);
+  if (JSON.stringify(native) !== JSON.stringify(base.executedApp.native)) fail('E_WITNESS_PROOF', 'native executable changed while replacing export');
+  if (inventory(exported).sha256 !== exportedInventory.sha256) fail('E_WITNESS_PROOF', 'export changed while copying');
+  return { nativeBase: { app: base.executedApp.inventory.sha256, build: base.buildResult?.sha256,
+      fingerprint: base.exportFingerprint?.hash },
+    executedApp: { ...base.executedApp, path: destination, inventory: inv, javascript, native },
+    exported: { path: exported, inventory: exportedInventory, javascript, assets: [...copied].map(([path, sha256]) => ({ path, sha256 })) } };
+}
+// Positive compiler records cannot observe __has_include / missing header lookups.
+// Bind directory topology too, including newly appearing generated/SDK headers.
+export function lookupTopology(roots) {
+  const rows = [];
+  const walk = file => {
+    if (!fs.existsSync(file)) { rows.push([file, 'missing']); return; }
+    const stat = fs.lstatSync(file);
+    if (stat.isSymbolicLink()) { rows.push([file, 'link', fs.readlinkSync(file)]); return; }
+    rows.push([file, stat.isDirectory() ? 'directory' : 'file']);
+    if (stat.isDirectory()) for (const name of fs.readdirSync(file).sort()) walk(path.join(file, name));
+  };
+  for (const root of roots) walk(fs.existsSync(root) ? fs.realpathSync(root) : root);
+  return { roots, sha256: hash(JSON.stringify(rows)) };
+}
+export function readBase(cache, fingerprint) {
+  const file = path.join(cache, 'export-base.json');
+  if (!fs.existsSync(file)) return null;
+  try {
+    const base = readJSON(file);
+    if (base.exportFingerprint.hash !== fingerprint.hash) return null;
+    if (inventory(base.executedApp.path).sha256 !== base.executedApp.inventory.sha256) return null;
+    if (inventory(path.join(cache, 'snapshot/node_modules')).sha256 !== base.preparedInputs.dependencies.sha256) return null;
+    if (base.lookupTopology && lookupTopology(base.lookupTopology.roots).sha256 !== base.lookupTopology.sha256) return null;
+    for (const input of base.nativeClosure.compiler.inputs) {
+      if (input.missing ? fs.existsSync(input.path) : hash(fs.readFileSync(input.path)) !== input.sha256) return null;
+    }
+    // Seal the producer's generated native inputs as well. No Xcode intermediates
+    // are consumed on reuse; the base app is separately inventoried before copying.
+    if (inventory(path.join(cache, 'snapshot'), p => (p !== 'ios' && !p.startsWith('ios/')) || (p.startsWith('ios/build/') && p !== 'ios/build/generated' && !p.startsWith('ios/build/generated/'))).sha256 !== base.generatedNative.sha256) return null;
+    return base;
+  } catch { return null; }
+}
+export function saveBase(cache, base, fingerprint) {
+  const destination = path.join(cache, 'export-base.app');
+  fs.rmSync(destination, { recursive: true, force: true });
+  fs.cpSync(base.executedApp.path, destination, { recursive: true, verbatimSymlinks: true });
+  const record = { ...base, executedApp: { ...base.executedApp, path: destination }, exportFingerprint: fingerprint,
+    lookupTopology: lookupTopology([path.join(cache, 'DerivedData'), fingerprint.toolchain.sdkPath, path.resolve(path.dirname(fingerprint.toolchain.developer), '../lib/clang')]),
+    generatedNative: inventory(path.join(cache, 'snapshot'), p => (p !== 'ios' && !p.startsWith('ios/')) || (p.startsWith('ios/build/') && p !== 'ios/build/generated' && !p.startsWith('ios/build/generated/'))) };
+  const file = path.join(cache, 'export-base.json'); fs.rmSync(file, { force: true }); seal(file, record);
+  return record;
+}

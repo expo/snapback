@@ -1,0 +1,66 @@
+{
+  "method": "UTF-8 bytes excluding final newline; physical lines of selected whole line/fragment as LLP 3000.032 \u00a72.3; no prettification",
+  "specimens": [
+    {
+      "specimen": "B1",
+      "before": {
+        "lines": 1,
+        "bytes": 42,
+        "text": " const pending=usePendingWrites(api.send);"
+      },
+      "after": {
+        "lines": 1,
+        "bytes": 152,
+        "text": " const items=usePendingItems({writes:[api.send,api.sendMedia],scope:w=>w.args.conversation===id,rows:page.items,rowKey:m=>m.id,intentKey:w=>w.args.id});"
+      }
+    },
+    {
+      "specimen": "B2",
+      "before": {
+        "lines": 1,
+        "bytes": 238,
+        "text": "{pending.filter(w=>w.args.conversation===id&&!page.items.some(m=>m.id===w.args.id)).map(w=><View key={w.id} testID=\"sm-convo-bubble\"><MessageBubble testID=\"sm-bubble-body\" isMine text={w.args.text} receiptPending receipt=\"sent\"/></View>)}"
+      },
+      "after": {
+        "lines": 1,
+        "bytes": 318,
+        "text": "{items.map(i=>i.kind===\"intent\"?<View key={i.key} testID=\"sm-convo-bubble\"><MessageBubble testID=\"sm-bubble-body\" isMine text={i.write.args.text||(i.write.op===api.sendMedia.name?\"Media message\":\"\")} receiptPending={i.phase!==\"settling\"}/><Text>{i.phase===\"settling\"?\"Sent; updating view\":i.phase}</Text></View>:null)}"
+      }
+    },
+    {
+      "specimen": "B3",
+      "before": {
+        "lines": 1,
+        "bytes": 281,
+        "text": " const pendingLikes=usePendingWrites(api.setLike).filter(w=>w.args.postId===card?.id),pendingReposts=usePendingWrites(api.setRepost).filter(w=>w.args.postId===card?.id);const liked=pendingLikes.at(-1)?.args.set??card?.liked,reposted=pendingReposts.at(-1)?.args.set??card?.reposted;"
+      },
+      "after": {
+        "lines": 1,
+        "bytes": 283,
+        "text": " const {value:liked,intent:pendingLike}=usePendingState(api.setLike,{scope:w=>w.args.postId===card?.id,current:card?.liked,value:a=>a.set}),{value:reposted,intent:pendingRepost}=usePendingState(api.setRepost,{scope:w=>w.args.postId===card?.id,current:card?.reposted,value:a=>a.set});"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "chat.tsx",
+      "before_sha256": "c859b8c1f6e747231c93b40c4c0cb3f25c03da75fd3edfa9a311d220c21ebaac",
+      "after_sha256": "7cbaeec02c1ad89dddbd8cf331fe97f6975173e6502cdb1843f6a0f5361a429d",
+      "before_bytes": 16755,
+      "after_bytes": 16961,
+      "before_lines": 46,
+      "after_lines": 46
+    },
+    {
+      "path": "social.tsx",
+      "before_sha256": "91c4ad09f472225a1b766c1733f5d010d81c6d6825762031147b4ccaf5709183",
+      "after_sha256": "7589a931b28bd3923b358cab8cb65cd1b43df6a9e3dd2b34ac257a942e08ebde",
+      "before_bytes": 6178,
+      "after_bytes": 6176,
+      "before_lines": 34,
+      "after_lines": 34
+    }
+  ],
+  "round": 2,
+  "scope": "Actual Cal29 local-device pilot rerun against round-2 package; unchanged specimens; no online read-evidence claim."
+}

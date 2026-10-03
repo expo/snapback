@@ -1,6 +1,6 @@
 //! A server-only alternative for one bare word page. Neither the serialized
 //! program nor the device evaluator acquires a current-membership predicate.
-use crate::{ir::*, schema::{Audience, IndexComponent, RuleExpr, RuleTerm, Schema}, Value};
+use crate::{ir::*, schema::{Audience, IndexComponent, RuleExpr, RuleTerm, Schema}};
 
 pub struct Plan {
     pub program: Program,
@@ -9,8 +9,11 @@ pub struct Plan {
 }
 
 // @ref LLP 3000.028#3.3 — infer only the exact invertible membership class;
-// retain explicit guards, joins, native programs and all other evaluators.
+// lift proved point projections; retain explicit guards, other joins and native evaluators.
 pub fn plan(schema: &Schema, program: &Program) -> Option<Plan> {
+    if let Ok(parts) = crate::search_decoration::admit(schema, program) {
+        return plan(schema, &parts.bare(program));
+    }
     if program.kind != ProgramKind::Query || program.native || !program.returned_shapes.is_empty()
         || schema.operations.get(&program.name).is_some_and(|f| f.held) { return None; }
     let [Stmt::Return(value)] = program.body.as_slice() else { return None };
@@ -77,30 +80,7 @@ pub fn plan(schema: &Schema, program: &Program) -> Option<Plan> {
         cursor_indexes: (index.clone(), scan.index.clone()) })
 }
 
-// Recognize the compiler's single matching/browse alternative. Refuse every
-// extra statement, including an authored require; never erase a user guard.
-fn page(value: &Expr) -> Option<&Scan> {
-    if let Expr::Scan(scan) = value { return Some(scan); }
-    let Expr::Block { body, value } = value else { return None };
-    let [Stmt::Let { name: needle, value: input }, Stmt::Let { name: result, value: Expr::Literal(Value::Null) },
-        Stmt::If { condition: Expr::Builtin { builtin: Builtin::SearchPresent, args }, then_body, else_body }] = body.as_slice() else { return None };
-    if !needle.starts_with("$intentNeedle") || !result.starts_with("$if")
-        || !matches!(input, Expr::Variable(_) | Expr::Literal(_))
-        || args != &[Expr::Variable(needle.clone())] || value.as_ref() != &Expr::Variable(result.clone()) { return None; }
-    let [Stmt::Assign { name: yes, value: Expr::Scan(scan) }] = then_body.as_slice() else { return None };
-    let [Stmt::Assign { name: no, value: Expr::Scan(browse) }] = else_body.as_slice() else { return None };
-    (yes == result && no == result && browse.table == scan.table && browse.site == scan.site).then_some(scan)
-}
-
-fn scalar(value: &Expr) -> bool {
-    match value {
-        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(Input::Viewer) => true,
-        Expr::Field { base, .. } => matches!(base.as_ref(), Expr::Variable(v) if v == "$filter"),
-        Expr::Unary { value, .. } => scalar(value),
-        Expr::Binary { left, right, .. } => scalar(left) && scalar(right),
-        _ => false,
-    }
-}
+use crate::search_decoration::{page, scalar};
 
 /// Narrow SDK merge descriptor for the builder's time/id ordered page.
 fn composition_shape(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
@@ -132,5 +112,8 @@ fn composition_shape(schema: &Schema, program: &Program) -> Option<crate::schema
 // @ref LLP 3000.028#3.3 — per-page authorized point overlap covers both
 // mutable scope updates and deletion/reinsertion of an immutable scope's ID.
 pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
+    if let Ok(parts) = crate::search_decoration::admit(schema, program) {
+        return composition_shape(schema, &parts.bare(program));
+    }
     composition_shape(schema, program)
 }

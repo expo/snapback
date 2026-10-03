@@ -1,0 +1,47 @@
+[
+  {
+    "name": "check-status.json",
+    "sha256": "2ec609998ce235304f1ad6349751ff172d6b042da39e0da338fa78eeabe57004",
+    "bytes": 26
+  },
+  {
+    "name": "check-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "check-stdout.log",
+    "sha256": "6a93241fcd661366a7f605bfddc09eba06bc29a0d1e1604e25afaf818066345c",
+    "bytes": 2513
+  },
+  {
+    "name": "finished.json",
+    "sha256": "da7d88801c267341903cb08dd4a6841b887cc989491b36dd70cff37b4f08b252",
+    "bytes": 62
+  },
+  {
+    "name": "live.json",
+    "sha256": "bb1a967afbb1af40503fac50bd5022f755b358537342919ba0eb61f197ee697b",
+    "bytes": 421
+  },
+  {
+    "name": "native-mods.json",
+    "sha256": "479b2a82a31895acb277cd6facf83a3ed19d7ad3b4450a354aa7436e12d7de1c",
+    "bytes": 1470
+  },
+  {
+    "name": "preparation-status.json",
+    "sha256": "13aa063a8b0422a033eef404d4b6b950f5c46ca9eed29052902e67ac7c2a23d9",
+    "bytes": 31
+  },
+  {
+    "name": "preparation-stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "name": "preparation-stdout.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+]

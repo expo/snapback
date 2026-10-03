@@ -1,0 +1,10 @@
+✔ React/IndexedDB live margin and two-device offline settlement (132785.127983ms)
+ℹ {"n":20,"pressure":120,"trials":120,"decorationCommits":263790,"emptyDuringSettlement":0,"loadingDuringSettlement":0,"partialDuringSettlement":0,"clockUncertaintyMs":0.22194790840148926,"liveInspections":[{"persona":"alice","version":1,"supported":true,"totals":{"observations":122,"subscribers":244,"queued":74,"inFlight":8,"revalidating":82,"withdrawn":0,"loading":0},"queries":[{"name":"decoration","observations":120,"subscribers":240,"queued":72,"inFlight":8,"revalidating":80,"withdrawn":0,"loading":0},{"name":"history","observations":1,"subscribers":2,"queued":1,"inFlight":0,"revalidating":1,"withdrawn":0,"loading":0},{"name":"reactions","observations":1,"subscribers":2,"queued":1,"inFlight":0,"revalidating":1,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":256,"queueMs":{"p50":313.09999990463257,"p95":534,"max":614.5},"attemptMs":{"p50":12.399999618530273,"p95":64.90000009536743,"max":87.5}}},{"persona":"bob","version":1,"supported":true,"totals":{"observations":122,"subscribers":244,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},"queries":[{"name":"decoration","observations":120,"subscribers":240,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},{"name":"history","observations":1,"subscribers":2,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0},{"name":"reactions","observations":1,"subscribers":2,"queued":0,"inFlight":0,"revalidating":0,"withdrawn":0,"loading":0}],"recentWithdrawals":[],"latency":{"samples":256,"queueMs":{"p50":157.09999990463257,"p95":339.2999997138977,"max":375.09999990463257},"attemptMs":{"p50":1.6999998092651367,"p95":28.5,"max":41.10000038146973}}}]}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 133755.624458

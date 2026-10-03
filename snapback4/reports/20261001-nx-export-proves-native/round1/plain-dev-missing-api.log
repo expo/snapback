@@ -1,0 +1,37 @@
+
+> snapback4-expo-starter@0.0.1 export:ios
+> snapback4-export-ios
+
+Starting Metro Bundler
+
+| (node:44190) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundling failed 481ms index.js (580 modules)
+
+Error: Unable to resolve module ../snapback/generated/api from /Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/src/Inbox.tsx: 
+
+None of these files exist:
+  * snapback/generated/api(.ios.ts|.native.ts|.ts|.ios.tsx|.native.tsx|.tsx|.ios.mjs|.native.mjs|.mjs|.ios.js|.native.js|.js|.ios.jsx|.native.jsx|.jsx|.ios.json|.native.json|.json|.ios.cjs|.native.cjs|.cjs|.ios.scss|.native.scss|.scss|.ios.sass|.native.sass|.sass|.ios.css|.native.css|.css)
+  * snapback/generated/api
+[0m [90m 4 |[39m [36mimport[39m { isReady } [36mfrom[39m [32m"snapback4/contract"[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { useQuery } [36mfrom[39m [32m"snapback4/react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 6 |[39m [36mimport[39m { api } [36mfrom[39m [32m"../snapback/generated/api"[39m[33m;[39m
+ [90m   |[39m                      [31m[1m^[22m[39m
+ [90m 7 |[39m
+ [90m 8 |[39m [36mexport[39m [36mfunction[39m [33mInbox[39m({ onSelect }[33m:[39m { onSelect(id[33m:[39m string)[33m:[39m [36mvoid[39m }) {
+ [90m 9 |[39m   [36mconst[39m inbox [33m=[39m useQuery(api[33m.[39minbox[33m,[39m {})[33m;[39m[0m
+
+Import stack:
+
+ src/Inbox.tsx
+ | import "../snapback/generated/api"
+
+ App.tsx
+ | import "./src/Inbox"
+
+ index.js
+ | import "./App"
+
+ 
+ | import "./index"
+

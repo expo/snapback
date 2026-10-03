@@ -1,0 +1,38 @@
+[
+  {
+    "r": "r4",
+    "s": "plain",
+    "project": "/Users/ccheever/sb4-np/nx-r5b/r4-plain",
+    "dependencyDigest": "a6b16c6dd9e8cb4130f2f48627bc5992d7d2097a59c799f10ecd006faa75cf63",
+    "audited": true,
+    "expoTree": "e084ea56e7d1fd99b9fd93f8f7327432fc4631824328b9772cd3ae9e97deb6ac",
+    "expoAudited": true
+  },
+  {
+    "r": "r4",
+    "s": "social",
+    "project": "/Users/ccheever/sb4-np/nx-r5b/r4-social",
+    "dependencyDigest": "5e284a7e5559ab940f8723a733e148f920d47408106f7060e057d8b7681f2a52",
+    "audited": true,
+    "expoTree": "e084ea56e7d1fd99b9fd93f8f7327432fc4631824328b9772cd3ae9e97deb6ac",
+    "expoAudited": true
+  },
+  {
+    "r": "r5",
+    "s": "plain",
+    "project": "/Users/ccheever/sb4-np/nx-r5b/r5-plain",
+    "dependencyDigest": "17665670b5be78050c1a161a014a1f3f2f9f5eb873b70a72615088484885f859",
+    "audited": true,
+    "expoTree": "e13b089809580b2ae0ab4b1b73a84b8cbfd54607e7a2f2bae04f95acb92f9202",
+    "expoAudited": true
+  },
+  {
+    "r": "r5",
+    "s": "social",
+    "project": "/Users/ccheever/sb4-np/nx-r5b/r5-social",
+    "dependencyDigest": "158df3df0212e391f88c6b1d1951c485074de296921cbf020fb0d9fbca43008a",
+    "audited": true,
+    "expoTree": "e13b089809580b2ae0ab4b1b73a84b8cbfd54607e7a2f2bae04f95acb92f9202",
+    "expoAudited": true
+  }
+]

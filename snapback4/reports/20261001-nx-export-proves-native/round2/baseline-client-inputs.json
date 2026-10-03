@@ -1,0 +1,58 @@
+[
+  {
+    "path": "snapback4/packages/snapback4/src/local.ts",
+    "base": "5d5604a7f5",
+    "baseSha256": "91d7d65a553ab4093aef268cb101e25fcd82443c29e71d553e2016a2a69a6346",
+    "currentSha256": "91d7d65a553ab4093aef268cb101e25fcd82443c29e71d553e2016a2a69a6346",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+    "currentSha256": "125b414769b885b173dcffa421e03a0e852632b8784bb35aebf4ce50df7f5441",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/answers-stay.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "224987ece73778d259eaad1f4a8d060369d6eac98b5b40bf803440cf1828b166",
+    "currentSha256": "224987ece73778d259eaad1f4a8d060369d6eac98b5b40bf803440cf1828b166",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/ephemeral-server.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "e5c63dfdf3135d5ec0b907a8633df8cb3b083499833e6da1bcf5933b534bd20b",
+    "currentSha256": "e5c63dfdf3135d5ec0b907a8633df8cb3b083499833e6da1bcf5933b534bd20b",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/generation-evidence-schedule.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "a720f0d9148f149a0931f4a149ba88a3f7b62695f0ef79ea3003dbf873b10628",
+    "currentSha256": "a720f0d9148f149a0931f4a149ba88a3f7b62695f0ef79ea3003dbf873b10628",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/mixed-evidence-oracle.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "7c943d43a23a7ecb6ede2b6ecd30ba0a657968b10d48a10eee2a80a9e4e4851f",
+    "currentSha256": "7c943d43a23a7ecb6ede2b6ecd30ba0a657968b10d48a10eee2a80a9e4e4851f",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/notification-evidence-schedule.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "cd2d8e55e37641ae617f9f2e9e4e53b1c00313168046cb09bd71b905e3b1eb2e",
+    "currentSha256": "cd2d8e55e37641ae617f9f2e9e4e53b1c00313168046cb09bd71b905e3b1eb2e",
+    "unchanged": true
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "base": "5d5604a7f5",
+    "baseSha256": "d252fe70c4757e90f48f741476b7d0a18b94c8a49387736d0ae6d03388fc4c35",
+    "currentSha256": "d252fe70c4757e90f48f741476b7d0a18b94c8a49387736d0ae6d03388fc4c35",
+    "unchanged": true
+  }
+]

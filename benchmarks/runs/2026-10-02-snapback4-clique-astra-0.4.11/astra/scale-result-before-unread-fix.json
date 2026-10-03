@@ -1,0 +1,7 @@
+{
+  "pass": false,
+  "startEpoch": 1790967870,
+  "endEpoch": 1790972036,
+  "excludedMs": 16904,
+  "error": "AssertionError [ERR_ASSERTION]: {\"denied\":{\"code\":\"E_SHAPE_EXCEEDS_METER\",\"family\":\"schema\",\"guide\":\"reads\",\"message\":\"E_SHAPE_EXCEEDS_METER: the returned shape at programs.inbox.2 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape\"}}"
+}

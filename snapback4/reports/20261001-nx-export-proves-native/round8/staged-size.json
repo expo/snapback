@@ -1,0 +1,23 @@
+{
+  "stagedFilesExcludingThisAudit": 56,
+  "totalBlobBytesExcludingThisAudit": 7224025,
+  "largestBlob": {
+    "path": "snapback4/JOURNAL.md",
+    "bytes": 5116846,
+    "sha256": "6e3915c72f296bc418f104ed6f1f44d34ca9f990e9e8b4ae28cf287c318a120d"
+  },
+  "allBlobsUnder15MB": true,
+  "totalBlobsUnder15MB": true,
+  "newRound8FilesUnder256KiB": true,
+  "rawBinaryOrGzipPathsInNewStage": [],
+  "newExternalPathsVerified": 30,
+  "newExternalDistinctBlobsVerified": 30,
+  "testedSourceMatchesStage": true,
+  "canonicalProductSourceMatchesFinal": true,
+  "canonicalTestOnlyDelta": "round8/fixture-scope.diff",
+  "linuxScratchDirectoriesDeleted": true,
+  "localSourceScratchDeleted": true,
+  "wasmUnchanged": true,
+  "canonicalSummary": "== 0 failure(s) in 2426 s",
+  "canonicalInvocations": 1
+}

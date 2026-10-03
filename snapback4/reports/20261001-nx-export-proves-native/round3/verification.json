@@ -1,0 +1,20 @@
+{
+  "sourceManifestUnchanged": true,
+  "cohorts": [
+    {
+      "starter": "plain",
+      "medianMs": 15820,
+      "targetMet": true,
+      "distinctBundles": 6
+    },
+    {
+      "starter": "social",
+      "medianMs": 21073,
+      "targetMet": true,
+      "distinctBundles": 6
+    }
+  ],
+  "archivedControlFilesVerified": 1777,
+  "canonicalSuiteInvocations": 1,
+  "allRunDevicesAbsent": true
+}

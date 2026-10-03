@@ -1,0 +1,14 @@
+{
+  "deleted": {
+    "name": "sb4-nx-r4-1790958041713-80250",
+    "prefix": "sb4-nx-r4-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "905940BD-8BAE-4C0B-87CB-57D36AA37845"
+  },
+  "ownershipVerified": true,
+  "heldStateAndHomeLeases": true,
+  "confirmedAbsent": true,
+  "unownedDevicesTouched": false
+}

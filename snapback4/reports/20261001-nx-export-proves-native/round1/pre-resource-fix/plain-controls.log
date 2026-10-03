@@ -1,0 +1,64 @@
+{"starter":"plain","label":"asset-fresh","startedAt":1790908098615,"durationMs":321915,"status":0,"signal":null,"bundleHash":"f89cf2d121b87a6f58011db17b0d3b119f94e1edefc6ceab2242786cfa9d7415","receiptPath":"/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790908101649-27074/smoke-ios-run.json","cache":{"fingerprint":{"fingerprint":{"hash":"c27cc4b5665e6bf1d87db791a975234feabeac34b7df20218228dab02ac1a4cb"}},"hit":false},"proofKind":"application-export","receiptExit":0,"error":null,"segments":{"offline":"passed","prime":"passed","restart":"passed"},"nativeDurationMs":318418,"loadedHash":"f89cf2d121b87a6f58011db17b0d3b119f94e1edefc6ceab2242786cfa9d7415","metroResources":5,"cacheMiss":"native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ []
+- [
+-   {
+-     mode: 493,
+-     path: '_expo',
+-     type: 'directory'
+-   },
+-   {
+-     mode: 493,
+-     path: '_expo/static',
+-     type: 'directory'
+-   },
+-   {
+-     mode: 493,
+-     path: '_expo/static/js',
+-     type: 'directory'
+-   },
+-   {
+-     mode: 493,
+-     path: '_expo/static/js/ios',
+-     type: 'directory'
+-   },
+-   {
+-     bytes: 211212,
+-     mode: 420,
+-     path: '_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc',
+-     sha256: 'af08b55e18add2e469e13c65cf31d969483f44e09e0e53c8875cf9b9c401a643',
+-     type: 'file'
+-   }
+- ]
+
+    at file:///Users/ccheever/sb4-np/lane-nx/snapback4/reports/20261001-nx-export-proves-native/round1/controls.mjs:14:8
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [],
+  expected: [
+    { path: '_expo', mode: 493, type: 'directory' },
+    { path: '_expo/static', mode: 493, type: 'directory' },
+    { path: '_expo/static/js', mode: 493, type: 'directory' },
+    { path: '_expo/static/js/ios', mode: 493, type: 'directory' },
+    {
+      path: '_expo/static/js/ios/web-worker-entry-8eaf9c4e3c5ba5bb3867b7d9293c2ef8.hbc',
+      mode: 420,
+      type: 'file',
+      bytes: 211212,
+      sha256: 'af08b55e18add2e469e13c65cf31d969483f44e09e0e53c8875cf9b9c401a643'
+    }
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

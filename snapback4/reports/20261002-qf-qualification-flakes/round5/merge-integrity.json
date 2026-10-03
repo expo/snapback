@@ -1,0 +1,12 @@
+{
+  "mainJournalIsPrefix": true,
+  "qfJournalSuffixPreserved": true,
+  "replacementIsLaneVersion": true,
+  "snapback4/packages/snapback4/test/helpers/replacement-server.mjsMatchesMain": true,
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjsMatchesMain": true,
+  "snapback4/witness/lib.mjsMatchesMain": true,
+  "rustDiffFromMain": "",
+  "journalChangesRelativeToLaneAreAdditionsOnly": true,
+  "runnerDiffFromRound4BeforeGuardIntegration": "",
+  "mainFixtureAssertionsMatch": true
+}

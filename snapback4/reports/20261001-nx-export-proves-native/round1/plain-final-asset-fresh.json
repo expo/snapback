@@ -1,0 +1,43 @@
+{
+  "starter": "plain",
+  "label": "final-asset-fresh",
+  "command": [
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/timing-cli",
+    "witness",
+    "ios",
+    "--build",
+    ".",
+    "--smoke",
+    "--export",
+    "dist",
+    "--artifacts",
+    "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910978987-28296"
+  ],
+  "reusedExactExport": true,
+  "startedAt": 1790910978987,
+  "durationMs": 160350,
+  "status": 0,
+  "signal": null,
+  "bundleHash": "b670e2196174a12a4a3e893ba52475e550889f990c317927371c86b390db6b9f",
+  "receiptPath": "/Users/ccheever/sb4-np/lane-nx/snapback4/target/nx/plain/artifacts/native-smoke/1790910978987-28296/smoke-ios-run.json",
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "7b85985264d0a3743ac5bdd929578bf9d3c637d952e6f3ab2629ad198b9b6598"
+      }
+    },
+    "hit": false
+  },
+  "proofKind": "application-export",
+  "receiptExit": 0,
+  "error": null,
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "nativeDurationMs": 160264,
+  "loadedHash": "b670e2196174a12a4a3e893ba52475e550889f990c317927371c86b390db6b9f",
+  "metroResources": [],
+  "cacheMiss": "native-cache miss: no cached Release app; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off."
+}

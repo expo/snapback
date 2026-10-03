@@ -1,0 +1,84 @@
+{
+  "tier": "wasm",
+  "acquireMs": 80.62049100000002,
+  "completeMs": 1512.256253,
+  "snapshotWireBytes": 370059,
+  "initialBytes": {
+    "tables": {
+      "feedEdges": {
+        "rows": 2,
+        "bytes": 378
+      },
+      "feedFeed": {
+        "rows": 1000,
+        "bytes": 302328
+      },
+      "feedPosts": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedRemovedEvents": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedWork": {
+        "rows": 1,
+        "bytes": 794
+      },
+      "follows": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "posts": {
+        "rows": 100,
+        "bytes": 15000
+      },
+      "reposts": {
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "totalBytes": 419074,
+    "totalBytesKind": "logical",
+    "wasmHeapBytes": 3932160
+  },
+  "finalBytes": {
+    "tables": {
+      "feedEdges": {
+        "rows": 2,
+        "bytes": 378
+      },
+      "feedFeed": {
+        "rows": 1591,
+        "bytes": 480981
+      },
+      "feedPosts": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedRemovedEvents": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "feedWork": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "follows": {
+        "rows": 0,
+        "bytes": 0
+      },
+      "posts": {
+        "rows": 100,
+        "bytes": 15000
+      },
+      "reposts": {
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "totalBytes": 644133,
+    "totalBytesKind": "logical",
+    "wasmHeapBytes": 12189696
+  }
+}

@@ -1,3 +1,4 @@
+import { registerPendingIntents, pendingIntent } from "./pending-items.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 import { routeMutations } from "./ephemeral.ts";
@@ -238,5 +239,7 @@ export function createMockClient(options: MockOptions): MockClient {
       bump();
     },
   };
+  registerPendingIntents(client, { scope: () => unavailable() ? undefined : viewer,
+    read: () => client.pendingWrites().then(writes => unavailable() ? [] : writes.map(write => pendingIntent(write))) });
   return client;
 }

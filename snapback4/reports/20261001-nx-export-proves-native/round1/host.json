@@ -1,0 +1,7 @@
+{
+  "hostname": "MacMini-Apt101-M5-A",
+  "hardware": "hw.model: Mac17,16\nhw.ncpu: 18\nhw.memsize: 68719476736",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "freeBytes": 181978763264
+}

@@ -1,0 +1,171 @@
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling cfg-if v1.0.4
+   Compiling foldhash v0.2.0
+   Compiling generic-array v0.14.7
+   Compiling libc v0.2.189
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling wasmi_ir v2.0.0
+   Compiling zmij v1.0.23
+   Compiling wasmparser v0.228.0
+   Compiling base64ct v1.8.3
+   Compiling rand_core v0.6.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling serde_json v1.0.151
+   Compiling wasmi v2.0.0
+   Compiling thiserror v2.0.20
+   Compiling tinyvec v1.13.2
+   Compiling hashbrown v0.17.1
+   Compiling serde v1.0.229
+   Compiling getrandom v0.3.4
+   Compiling password-hash v0.5.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fallible-iterator v0.3.0
+   Compiling itoa v1.0.18
+   Compiling spin v0.9.9
+   Compiling hashlink v0.12.2
+   Compiling wasmi_collections v2.0.0
+   Compiling smallvec v1.16.1
+   Compiling memchr v2.8.3
+   Compiling unicode-normalization v0.1.25
+   Compiling zeroize v1.9.0
+   Compiling opaque-debug v0.3.1
+   Compiling httpdate v1.0.3
+   Compiling ascii v1.1.0
+   Compiling chunked_transfer v1.5.0
+   Compiling log v0.4.34
+   Compiling tiny_http v0.12.0 (/Users/ccheever/sb4-np/lane-nx/snapback4/vendor/tiny_http)
+   Compiling cpufeatures v0.2.17
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling wasmi_core v2.0.0
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling cipher v0.4.4
+   Compiling digest v0.10.7
+   Compiling poly1305 v0.8.0
+   Compiling chacha20 v0.9.1
+   Compiling blake2 v0.10.6
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+   Compiling chacha20poly1305 v0.10.1
+   Compiling argon2 v0.5.3
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.10 (/Users/ccheever/sb4-np/lane-nx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 37.47s
+     Running tests/init.rs (snapback4/target/debug/deps/init-7d67a3e454fe9187)
+
+running 22 tests
+test w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge ... ok
+test w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge ... ok
+test w13e_removed_search_recipe_is_an_ordinary_unknown_recipe ... ok
+test usage_stderr_never_recommends_the_retired_installer ... ok
+test failed_package_write_preserves_original ... ok
+test init_reports_all_conflicts_before_writing ... ok
+test web_starter_refuses_conflicts_before_writing ... ok
+test init_refuses_owned_symlinks_but_allows_an_unwritten_package_link ... ok
+test expo_metro_blocks_store_files_and_preserves_expo_exclusions ... ok
+test init_conflicts_name_the_key_and_leave_every_destination_untouched ... ok
+test web_starter_embeds_reference_and_keeps_default_schema_only ... ok
+test init_merges_packages_and_preserves_unrelated_metadata ... ok
+test calibration_commonjs_expo_imports_generated_api_from_node_esm ... ok
+test expo_starters_pave_native_smoke_and_export_at_every_milestone ... ok
+test init_preserves_unrelated_symlinks_and_readmes_in_every_starter ... ok
+test orphan_and_invalid_recipe_options_keep_the_clear_retirement_refusal ... ok
+test ordinary_starters_still_check_and_preserve_their_server_opt_in ... ok
+test init_preserves_inherited_module_type_when_creating_root_package ... ok
+test init_preserves_existing_commonjs_scripts_and_imports_generated_api ... ok
+test w7a_residency_measures_the_wired_500_follow_reader ... ok
+test retired_feed_installer_and_all_its_options_refuse_without_writes ... ok
+test w8b_residency_measures_the_wired_calibration_shape ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.75s
+
+     Running tests/witness.rs (snapback4/target/debug/deps/witness-769310ab071b6ab4)
+
+running 50 tests
+test bound_port_is_refused_without_stopping_its_owner ... ok
+test artifacts_require_bytes_and_bind_the_digest ... ok
+test artifact_reservation_has_one_winner_before_any_output_exists ... ok
+test dev_accepts_the_still_owned_listener_without_a_rebind_gap ... ok
+test driver::cli_preserves_every_existing_output ... ok
+test driver::cli_missing_app_never_starts_a_backend ... ok
+test driver::boot_failure_keeps_created_identity_in_receipt ... FAILED
+test driver::missing_xcode_or_runtime_fails_once_before_build_or_backend ... ok
+test driver::missing_schema_uses_one_message_and_witness_exit_one ... ok
+test driver::interrupted_startup_does_not_leak_listener_to_checker ... ok
+test driver::export_classifies_only_native_environment_setup_as_skippable ... ok
+test driver::cli_rejects_malformed_envelope ... ok
+test driver::project_lease_precedes_check_generation ... ok
+test driver::cli_rejects_failure_in_the_milestone_batch ... ok
+test driver::cli_rejects_step_change_appended_after_done ... ok
+test driver::cli_rejects_failure_appended_after_done ... ok
+test driver::cli_rejects_milestone_appended_after_done ... ok
+test driver::cli_concurrent_runs_into_one_namespace_have_one_owner ... ok
+test driver::cli_refuses_an_existing_app_and_never_terminates_a_replacement ... ok
+test driver::group_writable_simulator_record_is_ignored ... ok
+test driver::cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids ... ok
+test driver::owned_devices_use_numeric_runtime_order ... ok
+test driver::symlinked_simulator_directory_is_ignored ... ok
+test driver::preparation_keeps_origin_port_owned_until_backend_startup ... ok
+test driver::prefix_without_creation_record_is_ignored ... ok
+test preparation_selectors_are_exclusive_and_repack_is_withdrawn ... ok
+test protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test receipts_refuse_malformed_and_truncated_lines_and_preserve_app_objects ... ok
+test simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control ... ok
+test witness_card_is_published_under_builder_words ... ok
+test witness_cli_refuses_missing_bundle_with_a_recipe ... ok
+test driver::writable_simulator_directory_is_ignored ... ok
+test driver::smoke_rejects_native_crash_after_prime ... ok
+test driver::smoke_rejects_native_crash_after_offline ... ok
+test driver::smoke_wrong_origin_marks_the_segment_failed ... ok
+test driver::smoke_collection_revalidates_query_generation ... ok
+test driver::smoke_facts_come_from_the_generation_served_after_a_source_edit ... ok
+test driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts ... ok
+test driver::world_writable_simulator_record_is_ignored ... ok
+test driver::smoke_wrong_generation_marks_the_segment_failed ... ok
+test driver::symlinked_simulator_record_is_ignored ... ok
+test driver::smoke_runs_three_cold_launches_and_a_broken_offline_run_fails ... ok
+test driver::automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime ... ok
+test driver::smoke_rejects_unconsumed_barrier_and_native_crash_after_done ... ok
+test driver::created_device_type_is_current_not_last_listed ... ok
+test driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend has been running for over 60 seconds
+test driver::cli_preparation_timeout_still_records_failure_manifest has been running for over 60 seconds
+test driver::timed_out_startup_does_not_leak_listener_to_checker has been running for over 60 seconds
+test driver::cli_preparation_timeout_still_records_failure_manifest ... ok
+test driver::timed_out_startup_does_not_leak_listener_to_checker ... ok
+test driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend ... ok
+
+failures:
+
+---- driver::boot_failure_keeps_created_identity_in_receipt stdout ----
+
+thread 'driver::boot_failure_keeps_created_identity_in_receipt' (78626322) panicked at crates/snapback4/tests/witness.rs:340:13:
+assertion failed: receipt["error"].as_str().unwrap().contains("simctl boot")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    driver::boot_failure_keeps_created_identity_in_receipt
+
+test result: FAILED. 49 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 131.38s
+
+error: test failed, to rerun pass `-p snapback4 --test witness`

@@ -1,0 +1,10 @@
+{
+  "births": 512,
+  "drain_ms": 544095,
+  "examined": 1694873,
+  "half_ms": 367170,
+  "stream_bytes": 42647361,
+  "stream_pages": 167,
+  "turns": 32815,
+  "writes": 366412
+}

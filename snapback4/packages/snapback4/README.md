@@ -77,16 +77,13 @@ Availability and handle saves use the server; your private profile is held local
 ### 3. Create the app
 
 Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
-Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage.
-Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
+Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-At every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
-Smoke installs the Release app and proves local-store acquisition, offline reopen and reconnect; pending write replay needs an application scenario.
-Read `npx snapback4 guide witness` for exact pins, helper/session requirements, immutable proofs, output restrictions, installed-app mode and deeper scenarios.
-After edits, repeat `npm run native:smoke`; artifacts are fresh and the private Xcode cache stays warm. Repack is withdrawn.
-NS round 0 cohort (2026-09-30), fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**. Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27.
-One-minute host load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52; tools/dependencies installed first. Guidance, not a promise.
-Compiler-declared server-only reads must answer online and record expected offline unavailability. A build receipt alone proves neither smoke nor M6/M8 application behavior.
+At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
+Both Expo starters include the wrapper. Matching native inputs reuse a Release app; native changes rebuild. `npm run native:smoke` always runs the full build.
+Unavailable environments skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
+Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Empty starters prove lifecycle; write replay needs an app scenario.
+Measured on the Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27, with tools/dependencies installed first; warm medians use five JS-only runs.
 
 ```ts
 // src/client.ts
@@ -95,6 +92,7 @@ import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { smokeOrigin } from "snapback4-expo/witness";
 import { webDevice } from "snapback4/web";
 const sessionStore = {
   get: (key: string) => SecureStore.getItemAsync(key),
@@ -102,7 +100,7 @@ const sessionStore = {
   delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
 export const app = createApp({
-  url: process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400",
+  url: smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400"),
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
   assets: { keep: "viewed", maxBytes: 67108864 },
@@ -117,6 +115,7 @@ picker's Blob to `upload`. Uploads require a connection; placement is a mutation
 
 ```tsx
 // App.tsx
+import { useNativeSmokeGuest } from "./src/native-smoke";
 import { useState } from "react";
 import { Button, Image, Text, TextInput, View } from "react-native";
 import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
@@ -124,6 +123,7 @@ import { app } from "./src/client";
 import { api } from "./snapback/generated/api";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
 function Account() {
+  useNativeSmokeGuest();
   const auth = useAuth();
   const [email, setEmail] = useState(""), [password, setPassword] = useState("");
   const [problem, setProblem] = useState("");
@@ -180,8 +180,8 @@ const intent = { id: mintId(), args: { handle: "alice" } };
 await client.mutate(api.saveProfile, intent.args, { id: intent.id }); // a fixture: { id: idFrom("seed:alice") }
 ```
 
-A fresh ID on every retry does not identify that same intent. For a local send that queues without
-predicting a message, render its arguments from `await client.pendingWrites()` until it settles.
+A fresh ID on every retry does not identify that same intent. `usePendingItems` renders scoped text/media intents beside explicitly keyed rows, including “Sent; updating view”.
+`usePendingState` selects the last admitted toggle intent. Both preserve custody and scope fences; see the intent-card recipe in CLIENT-AND-OPERATIONS.md.
 
 ### 5. Export an offline shell, then verify
 
@@ -244,7 +244,7 @@ query search(q: text <=100, c: cursor ?):
 ```
 
 Render receipts, profiles, quotes and reactions separately so loading or refusal preserves history. Run `npx snapback4 guide receipts` for the complete model,
-SDK delivery reporting and screen-owned visible `seen` reporting. Ordinary search combines current server hits
+SDK delivery and `useSeen(api.receiptFamilies.chat, { scope, through, active })` for actually visible confirmed positions on web/native (never pending or merely loaded rows). Ordinary search combines current server hits
 with retained device hits online; `usePage` accumulates by ID. Show “Partial results” only for `complete: false`.
 This windowed search emits `N_SYNC_ORDER` for device coverage and `N_NEVER_COMPLETE` for empty-needle browsing (`guide search`).
 
@@ -268,7 +268,7 @@ Streaming aggregates count a domain under the meter; maintained views read store
 Jobs run as the system: select the recipient's authorized data before emitting. `once` prevents repeated emission;
 declare `snapback/workers/push.mjs` and opt into `runWorker({ ledger: true, ... })` for durable completion deduplication; pass `meta.idempotencyKey` to the provider. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
 
-`await client.query(op, args)` returns ready data or a refusal; show partial results and refusals explicitly. See `snapback4 guide client` for the bounded one-shot contract. Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
+`await client.query(op, args)` returns ready data or a refusal; show partial results and refusals explicitly. Use `readPresentation(read)` from `snapback4/contract` for notices; [the complete screen](./CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen) keeps an account/resource shell mounted. See `guide client` for the one-shot contract. Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
 items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks keep the same-key answer marked `revalidating` through refetch, reconnect, slow reads, offline transport and retry exhaustion, with no timeout. Local commits replace it directly after the replica re-read. Answers stay visible and `revalidating` until replaced unless change evidence may revoke a row; then the existing one-second withdrawal bound applies. Inserts and updates to non-policy columns retain the answer through slow or failed retries. Deletes, changes to authorization inputs, and unknown or older evidence retain the bound. This classification is automatic across local commits, online mutation acknowledgements, `/changes` and `/sync`. Successful immediate replica replacements never show `loading`. An older replica read cannot clear a pending notification; sync must apply its cut or a current server answer must replace the display. Offline ephemeral answers keep their original row expiry. Applied local membership removal withdraws the affected audience groups immediately, even before a staged page publishes. Older replica rows cannot return before publication. Local budgets exclude capacity queue wait; online revocation evidence includes it. `keep: false` withdraws immediately; `keep: true` adds a 30-second linger after the last subscriber. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Offline retention uses `fresh: false` and `since`; no profile identity latch is needed. `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in declared Node entries `snapback/workers/<service>.mjs`: dev and serve start, restart and stop them, with service tokens injected and logs redacted. `guide effects` shows `ledger: true` and the stable `meta.idempotencyKey`; a crash after the provider call but before the ledger commit still needs provider idempotency.

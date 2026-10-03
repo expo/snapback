@@ -1,0 +1,72 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.11 (/tmp/sb4-nx-r9.O0cNyk/merged/snapback4/crates/snapback4)
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: `snapback4` (test "witness") generated 3 warnings
+    Finished `test` profile [optimized + debuginfo] target(s) in 18.64s
+     Running tests/witness.rs (/tmp/sb4-nx-r9.O0cNyk/target/debug/deps/witness-d32997ee39165f67)
+
+running 31 tests
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4: setpriority nice 5 failed (thread class background-nice, errno 22, at unix ms 1790999526405); inspect doctor host.scheduling: Invalid argument (os error 22)
+test artifacts_require_bytes_and_bind_the_digest ... ok
+test host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits ... ok
+test host_limits::tests::hard_capped_1024_warns_without_attempting_a_setter ... ok
+test host_limits::tests::inherited_hard_cap_requires_operator_remediation ... ok
+test host_limits::tests::inherited_linux_default_needs_no_operator_remediation ... ok
+test host_limits::tests::inherited_macos_limit_accounts_for_open_max_and_lower_host_ceilings ... ok
+test host_limits::tests::doctor_uses_the_live_servers_effective_limit ... ok
+test host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause ... ok
+test bound_port_is_refused_without_stopping_its_owner ... ok
+test protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test artifact_reservation_has_one_winner_before_any_output_exists ... ok
+test protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test newer_owned_report_without_scene_symbol_does_not_mask_scene_crash ... ok
+test newer_report_from_another_simulator_does_not_mask_owned_scene_crash ... ok
+snapback4: setpriority nice 5 failed (thread class worker-nice, errno 1, at unix ms 1790999526406); inspect doctor host.scheduling: Operation not permitted (os error 1)
+test simulator_selection_is_explicit_and_platform_refusal_has_a_positive_control ... ok
+test thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class ... ok
+test protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test receipts_refuse_malformed_and_truncated_lines_and_preserve_app_objects ... ok
+test thread_priority::tests::linux_setpriority_failure_is_counted_without_replacing_startup_readback ... ok
+test scene_report_requires_owned_launch_and_selects_newest_matching_report ... ok
+test thread_priority::tests::maintenance_keeps_ordinary_priority ... ok
+test thread_priority::tests::background_priority_is_lower_without_changing_its_parent ... ok
+test build_refuses_linux_before_any_native_helper_runs ... ok
+test scene_symbol_must_be_on_the_selected_nonzero_faulting_thread ... ok
+test witness_toolchain_comes_from_the_product_and_keeps_unknowns_explicit ... ok
+test thread_priority::tests::watchdog_nice_failure_reaches_the_owning_host ... ok
+test witness_cli_refuses_missing_bundle_with_a_recipe ... ok
+test witness_card_is_published_under_builder_words ... ok
+test preparation_selectors_are_exclusive_and_repack_is_withdrawn ... ok
+scene scan peak: one=5505024 bytes, 64=5505024 bytes
+test many_large_scene_reports_keep_constant_peak_memory ... ok
+test dev_accepts_the_still_owned_listener_without_a_rebind_gap ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s

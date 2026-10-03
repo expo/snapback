@@ -1,0 +1,10 @@
+{
+  "path": "round6/full-suite.log.gz",
+  "archiveBlob": "/Users/ccheever/sb4-np/evidence-archive/20261001-nx-export-proves-native/blobs/a863bb092a3cfde42e0786948c1f97e2e38da97a4a00e8a894f2a0ac0d36cda9",
+  "gzipSha256": "a863bb092a3cfde42e0786948c1f97e2e38da97a4a00e8a894f2a0ac0d36cda9",
+  "gzipBytes": 167786,
+  "rawSha256": "1f0fd0f579cfadd2e54a527f65aef1bc57dfb40c92a32a96035ac7317f003631",
+  "rawBytes": 924162,
+  "readBackVerified": true,
+  "summary": "== 0 failure(s) in 2253 s"
+}
