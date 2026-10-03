@@ -367,6 +367,8 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     }
     if dev { snapback4_core::diagnostic!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
     let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
+    // @ref LLP 3000#contended-read-serving — dev and serve drain startup banners before accepting work, bounded for stalled output.
+    let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
     serve_requests(server, shared, worker, background, crate::lifecycle::stopping)
 }
 

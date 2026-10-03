@@ -285,13 +285,16 @@ fn serve_emits_with_replay_metadata_left_in_the_release_store() {
     let token = f.command(&["token", "--release", dir.to_str().unwrap(), "--service", "worker"]);
     assert!(token.status.success(), "{token:?}");
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
+    let log = f.0.join("serve-startup.log");
     let mut child = Command::new(BIN).current_dir(&f.0).args(["serve", dir.to_str().unwrap(), "--port", "0"])
-        .stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+        .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
     let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
     let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
     assert!(!host.address.is_empty(), "serve did not start");
     assert_eq!(store.meta("dev:replay").unwrap().as_deref(), Some("true"), "release startup must not rewrite dev policy");
     assert_eq!(host.post("/m/send", json!({"id":"release-send", "args":{}}), &auth)["state"], "sent");
+    let startup = fs::read_to_string(log).unwrap();
+    assert!(startup.contains(&format!("snapback4 serve: http://{}", host.address)), "{startup}");
     assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"].as_array().unwrap().len(), 1);
 }
 

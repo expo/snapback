@@ -1,7 +1,7 @@
 # Snapback 4 replay tests read startup logs before the expected banners appear
 
 **Opened:** 2026-10-02, lane X27R on the Apartment M5 Pro mini
-**Status:** Open; failed in the complete suite, passed in the isolated follow-up
+**Status:** Closed (lane DR, 2026-10-03)
 **Severity:** Test reliability; no failed replay-policy or HTTP response observed
 **Area:** `snapback4/crates/snapback4/tests/replay.rs`
 
@@ -50,3 +50,11 @@ attribution or a fix. The complete suite remains red:
 `== 2 failure(s) in 2601 s` (`cargo test`, `client tests`; the second category
 is the separately tracked browser replacement fixture). Follow-up output is
 `~/x27r-evidence/replay-followup.log`.
+
+Resolution (2026-10-03, lane DR): the cause was ordering, not the test. Lane
+CT's background-QoS diagnostics writer could be starved on a loaded Mac, so a
+request was served before the queued startup banners reached stderr. The
+server now drains the diagnostics queue, bounded at three seconds, before
+`serve_requests` accepts work. The test's existing barrier, an HTTP reply,
+therefore holds. No assertion was relaxed and no timeout was raised. The
+replay target passed 220/220 across ten loaded runs on the Apartment mini.

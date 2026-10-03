@@ -84296,3 +84296,24 @@ rerun; preserve round 0's canonical red and its classifications. Evidence and
 development-failure record: `reports/20261003-on2-once-preserve/REPORT.md`,
 Round 1 and `round1/`. Local commit with the requested Astra co-author trailer;
 no push or publication.
+
+## 2026-10-03 — DR: startup banners reach the log before serving
+
+The fourth 0.4.12 cut's Darwin dry run failed `snapback4::replay` (two tests),
+as lane X27R's run had on the Apartment mini. Each test reads the stdout
+readiness URL, makes one request, and then expects every startup banner on
+stderr. Lane CT (b0e606306e) starts the async diagnostics writer at background
+QoS, so on a loaded Mac the user-initiated request workers answered before the
+starved writer had written the banners. `diagnostics::drain` now sends a
+barrier through the writer's FIFO and waits, bounded at three seconds across
+queue-full retries, for both destinations to be written and flushed. `serve`
+calls it once, after the last startup banner and before `serve_requests`
+accepts work, for both `dev` and `serve`. A timeout continues best-effort.
+Request and engine threads still never wait on output, and the writer keeps
+CT's QoS. LLP 3000 §7 records the rule. Unit tests cover ordering and both
+bounds, and `replay` now also asserts `serve`'s startup ordering.
+
+Lane DR measured on the Apartment mini: the replay target passed 22/22 on each
+of ten consecutive runs under CPU burners (220/220), and 22/22 on eb1000. On
+main 22ebfac22a, the diagnostics unit tests pass 3/3, replay 22/22, and the
+reference audit passes. DR's own fence change is superseded by main 4c70334fff.
