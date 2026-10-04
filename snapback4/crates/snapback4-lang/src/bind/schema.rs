@@ -610,7 +610,11 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         if declared.len() != 1 {
             // @ref LLP 3000.013#2.2 — rule repairs must select an index and
             // pass the same admission checks in the original rule context.
-            let changes = declared.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+            // Retry declared alternatives when the explicit name is unknown.
+            let alternatives = if declared.is_empty() && read.index.is_some() {
+                target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone()))).collect::<Vec<_>>()
+            } else { declared };
+            let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
             return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", "")
                 .guide("reads").repair_read(&read.site, changes));
         }

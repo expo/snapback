@@ -528,7 +528,11 @@ impl<'a> Binder<'a> {
             if candidates.len() != 1 {
                 // @ref LLP 3000.013#2.2 — naming columns cannot distinguish
                 // opposite index orders; verify explicit choices in context.
-                let changes = candidates.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+                // An unknown explicit name must not empty the repair search.
+                let alternatives = if candidates.is_empty() && read.index.is_some() {
+                    info.indexes.iter().filter(declared).collect::<Vec<_>>()
+                } else { candidates.clone() };
+                let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
                 return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; choose a compatible unique index explicitly", read.table, candidates.len(), read.keys.len()), "")
                     .guide("reads").repair_read(&read.site, changes));
             }

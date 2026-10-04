@@ -85076,3 +85076,39 @@ below the unchanged 618,040 B budget; SHA-256
 Reference validation and whitespace checks pass. No other machine was used,
 no unrelated process was signaled, and nothing was pushed or published.
 Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 7: unknown positional index repairs
+
+Restored the valid repairs round 6 withheld for an unknown explicit index
+name. Program reads and rule probes now try declared alternatives when the
+initial name has no match; synthesized indexes stay out of that search. Each
+candidate uses the caller's original positional expressions and passes the
+existing in-context verifier before any source is printed. A typo can offer
+an explicit compatible index, with no unchecked named-key fallback. The
+original program still refuses and the suggestion remains non-mechanical.
+No runtime or point-admission code changed.
+
+Three new regressions failed before the fix and pass after it. Verbatim paste
+coverage includes reads, exists/created rules, required/optional keys and
+arguments, guards, two unknown names, an incompatible first candidate and a
+valid inverse, and grouped/commented operands. Invalid types, unproved nulls
+and nonunique-only point probes still get no source. Earlier repair and
+admission tests remain green. All 263 affected language, 28 server/memory/SQLite
+lookup-admission and 27 CLI repair tests pass, no ignores. LLP 3000.013 §2.2
+records the fallback. Details:
+[Round 7 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,498 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (541 s), as did 6,034 client tests
+with 11 existing skips (598 s) and all 79 serial model tests (310 s).
+Log: `/tmp/sb4-nl-r7-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 6: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

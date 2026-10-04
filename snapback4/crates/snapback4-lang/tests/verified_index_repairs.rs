@@ -101,6 +101,65 @@ fn positional_ambiguity_tries_the_next_index_and_preserves_operands() {
 }
 
 #[test]
+fn unknown_positional_index_repairs_program_reads_and_exists() {
+    let required = PAIR.replace(" ?", "").replace("  unique inverse: high, low\n", "");
+    for (model, args, guard, offered) in [
+        (required.as_str(), "principal", "", true),
+        (PAIR, "principal", "", true),
+        (PAIR, "principal ?", "", false),
+        (PAIR, "principal ?", "  require x != null and y != null else MISSING\n", true),
+        (required.as_str(), "bool", "", false),
+    ] {
+        for index in ["typo", "missingPair"] {
+            for probe in ["", "exists "] {
+                let read = format!("t[x, y] by {index}");
+                let source = format!("{model}query q(x: {args}, y: {args}):\n{guard}  return {probe}{read}\n");
+                let d = repair(&source, &read, "E_QUARRY_POSITIONAL_SCAN", offered);
+                assert!(!d.mechanical);
+                if offered { assert_eq!(d.rewrite, "t[x, y] by pair"); }
+            }
+        }
+    }
+}
+
+#[test]
+fn unknown_positional_index_repairs_rule_probes_in_context() {
+    let required = PAIR.replace(" ?", "").replace("  unique inverse: high, low\n", "");
+    for (model, args, guard, offered) in [
+        (required.as_str(), "principal", "", true),
+        (PAIR, "principal ?", "", false),
+        (PAIR, "principal ?", ".low != null and .high != null and ", true),
+        (required.as_str(), "bool", "", false),
+    ] {
+        for (effect, probe) in [("read", "exists"), ("insert", "created")] {
+            let read = "t[.low, .high] by typo";
+            let source = format!("{model}table m:\n  low: {args}\n  high: {args}\n  {effect} <- {guard}{probe} {read}\n");
+            let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", offered);
+            assert!(!d.mechanical);
+            if offered { assert_eq!(d.rewrite, "t[.low, .high] by pair"); }
+        }
+    }
+}
+
+#[test]
+fn unknown_positional_index_tries_compatible_alternatives_with_original_operands() {
+    let model = PAIR.replace("low: principal ?", "low: principal").replace("high: principal ?", "high: int");
+    let read = "t[(x -- preserve operand\n  ), y] by typo";
+    let source = format!("{model}query q(x: int, y: principal):\n  return exists {read}\n");
+    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
+    assert_eq!(d.rewrite, read.replace("by typo", "by inverse"));
+    let read = "t[.high, .low] by typo";
+    let source = format!("{model}table m:\n  low: principal\n  high: int\n  read <- exists {read}\n");
+    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
+    assert_eq!(d.rewrite, "t[.high, .low] by inverse");
+    let model = model.replace("unique", "by");
+    let read = "t[x, y] by typo";
+    repair(&format!("{model}query q(x: principal, y: int):\n  return exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
+    let read = "t[.low, .high] by typo";
+    repair(&format!("{model}table m:\n  low: principal\n  high: int\n  read <- exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
+}
+
+#[test]
 fn range_mismatch_never_turns_column_names_into_expressions() {
     let model = "table t:\n  low: principal\n  high: principal\n  by inverse: high, low\n  public\n";
     for keys in ["123", "123, 456", "low = x, high = 123"] {

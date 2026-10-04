@@ -7,7 +7,7 @@ and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
 Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
-Round 4: `1bed2b74d4`; Round 5: `c25aa1b2dc`;
+Round 4: `1bed2b74d4`; Round 5: `c25aa1b2dc`; Round 6: `dc3484fabb`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -301,6 +301,36 @@ round are superseded by the operator's Round 1 decision below.
   **642 B** below the unchanged **618,040 B** budget; SHA-256
   `09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
   Measurement: `/tmp/sb4-nl-r6-verification/wasm.json`.
+- Reference validation and whitespace checks pass. Work stayed on eb1000;
+  no unrelated process was signaled, and nothing was pushed.
+
+## Round 7 (2026-10-04)
+
+- Restored verified positional repairs for unknown explicit index names in
+  program reads and rule probes. When that name matches no declared index,
+  the repair search now tries declared alternatives, excluding synthesized
+  indexes. The shared verifier checks the original expressions and caller
+  context, so `t[x, y] by typo` can offer `t[x, y] by pair` without restoring
+  unchecked named-key text. The source still refuses until the author chooses;
+  `E_QUARRY_POSITIONAL_SCAN` and its non-mechanical status are unchanged.
+- Three new regression tests failed before the fix and pass after it. They
+  paste offered edits verbatim for reads, `exists` and rule `created`, required
+  and optional keys/arguments, presence guards, two unknown names, a rejected
+  first index followed by a compatible `inverse`, and grouped/commented
+  operands. Wrong types, unproved nullable arguments and nonunique-only points
+  withhold source. All earlier repair and admission regressions remain green.
+- **263 affected language, 28 lookup/admission and 27 CLI repair tests pass**,
+  no ignores. Logs: `/tmp/sb4-nl-r7-verification/affected-{lang,device,cli}.log`.
+  LLP §2.2 records the fallback search. No runtime or admission code changed.
+- **Full suite: zero failures in 1,498 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **290 binaries, 1,003 executions and workspace doctests** (541 s);
+  clients: **6,034 passed, 11 existing skips** (598 s); serial models:
+  **79 passed** (310 s). Log: `/tmp/sb4-nl-r7-verification/full-suite.log`.
+- Wasm is byte-identical to Round 6: **2,048,676 B raw / 617,398 B gzip**,
+  **642 B** below the unchanged **618,040 B** budget; SHA-256
+  `09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+  Measurement: `/tmp/sb4-nl-r7-verification/wasm.json`.
 - Reference validation and whitespace checks pass. Work stayed on eb1000;
   no unrelated process was signaled, and nothing was pushed.
 
