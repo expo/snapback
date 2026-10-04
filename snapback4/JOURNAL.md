@@ -85000,3 +85000,42 @@ Reference validation passes (527 LLPs, 10,291 refs, zero errors or unchecked
 references), as do whitespace checks. No other machine was used, no unrelated
 process was signaled, and nothing was pushed or published. Commit trailer:
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 5: repairs through retained callers
+
+Restored the valid shape and mutation-helper index repairs lost in round 4.
+An index diagnostic arises while binding an actual caller; its verifier now
+uses those retained callers for the shape's focal type and the helper's
+execution mode and placement. It no longer rejects instantiated shapes
+before binding them or adds a query that incorrectly forbids a helper's
+mutation writes. Nested and cross-file callers remain part of the proof.
+The declaration-local parser-repair path still checks an otherwise uncalled
+helper through a typed synthetic query; its `$repair:` compiler-only name
+cannot be authored as an operation. A user query named `repairProbe` no longer
+suppresses a valid repair. Uninstantiated local shapes still lack a focal proof.
+
+Three new regressions failed on the round-4 implementation, then passed with
+the fix. Paste-and-compile coverage includes both equality orders, point reads
+and `exists`, direct/nested shape spreads, mutation helpers, cross-file use,
+name collisions and multiple callers. A bad second caller still withholds a
+repair; the fallback still rejects an invalid uncalled helper. All round-4
+bad-rewrite regressions remain passing. All 224 affected language tests and
+28 server/memory/SQLite lookup-admission tests pass, with no ignores. No
+admission or runtime code changed. LLP 3000.013 §2.2 records the distinction
+between retained callers and the local fallback. Details and evidence:
+[Round 5 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,442 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (495 s), as did 6,034 client tests
+with 11 existing skips (597 s) and all 79 serial model tests (305 s).
+Log: `/tmp/sb4-nl-r5-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 4: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

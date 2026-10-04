@@ -7,6 +7,7 @@ and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
 Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
+Round 4: `1bed2b74d4`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -236,6 +237,39 @@ round are superseded by the operator's Round 1 decision below.
   clients: **6,034 passed, 11 existing skips** (594 s); serial models:
   **79 passed** (304 s). Final log: `/tmp/sb4-nl-r4-verification/full-suite.log`.
   Work stayed on eb1000; nothing pushed.
+
+## Round 5 (2026-10-04)
+
+- Restored verified index repairs inside instantiated named shapes and writing
+  helpers. Index diagnostics originate while binding an actual caller; the
+  verifier retains those callers, including their focal types, mutation mode,
+  nested expansions and uses in other files. It no longer rejects a shape
+  before checking callers or adds a synthetic query to a mutation helper.
+- Declaration-local parser repairs still probe otherwise unchecked helpers.
+  The fallback query uses the compiler-only `$repair:` namespace, which cannot
+  collide with authored operation names such as `repairProbe` or module names.
+  Uninstantiated shapes on that local path still have no focal proof.
+- All three reported suppression cases failed as new regressions before the
+  fix. Paste-and-compile tests now cover shape reads and `exists` in either
+  equality order, direct and nested spreads, writing helpers through direct,
+  nested and cross-file calls, and the user operation name collision. Mixed
+  callers with a nullable focal type or an illegal query write still withhold
+  repairs. Tests also exercise the no-caller fallback and its reserved name.
+  All Round-4 invalid-rewrite regressions remain passing; point admission and
+  runtime behavior are unchanged.
+- **224 affected language tests and 28 lookup/admission tests pass**, no ignores.
+  Logs: `/tmp/sb4-nl-r5-verification/affected-{lang,device}.log`.
+- **Full suite: zero failures in 1,442 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **290 binaries, 1,003 executions and workspace doctests** (495 s);
+  clients: **6,034 passed, 11 existing skips** (597 s); serial models:
+  **79 passed** (305 s). Log: `/tmp/sb4-nl-r5-verification/full-suite.log`.
+- Wasm is byte-identical to Round 4: **2,048,676 B raw / 617,398 B gzip**,
+  **642 B** below the unchanged **618,040 B** budget; SHA-256
+  `09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+  Measurement: `/tmp/sb4-nl-r5-verification/wasm.json`.
+- Reference validation and whitespace checks pass. Work stayed on eb1000;
+  no unrelated process was signaled, and nothing was pushed.
 
 ## Governing context
 

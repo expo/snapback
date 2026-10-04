@@ -160,3 +160,61 @@ fn other_context_errors_withhold_unproved_index_edits_without_recursion() {
     assert_eq!(bound.diagnostics.len(), 2, "{:?}", bound.diagnostics);
     assert!(bound.diagnostics.iter().all(|d| d.rewrite.is_empty()));
 }
+
+#[test]
+fn named_shape_repairs_use_every_retained_focal_context() {
+    for optional in [false, true] {
+        let model = if optional { PAIR.into() } else { PAIR.replace(" ?", "") };
+        for read in ["t[low = .low, high = .high]", "t[high = .high, low = .low]"] {
+            for probe in ["", "exists "] {
+                for caller in ["card", "{ ...card }", "wrapper"] {
+                    let source = format!("{model}shape card = {{ found: {probe}{read} }}\nshape wrapper = {{ ...card }}\nquery q():\n  return t first 5 {caller}\n");
+                    repair(&source, read, "E_QUARRY_AMBIGUOUS", !optional);
+                }
+            }
+        }
+    }
+    // One valid instantiation cannot hide another whose nullable focal fields
+    // would make the suggested point inadmissible.
+    let read = "t[low = .low, high = .high]";
+    let source = format!("{PAIR}table required:\n  low: principal\n  high: principal\n  public\nshape card = {{ found: exists {read} }}\nquery good():\n  return required first 5 card\nquery bad():\n  return t first 5 card\n");
+    repair(&source, read, "E_QUARRY_AMBIGUOUS", false);
+}
+
+#[test]
+fn writing_helper_repairs_use_the_mutation_caller() {
+    let model = PAIR.replace(" ?", "");
+    let read = "t[low = x, high = y]";
+    let helper = format!("{model}fn f(x: principal, y: principal):\n  insert t {{low: x, high: y}}\n  return exists {read}\n");
+    for call in ["f(x, y)", "outer(x, y)"] {
+        let source = format!("{helper}fn outer(x: principal, y: principal): f(x, y)\nmutation q(x: principal, y: principal):\n  return {call}\n");
+        repair(&source, read, "E_QUARRY_AMBIGUOUS", true);
+    }
+    let source = format!("{helper}mutation good(x: principal, y: principal):\n  return f(x, y)\nquery bad(x: principal, y: principal):\n  return f(x, y)\n");
+    repair(&source, read, "E_QUARRY_AMBIGUOUS", false);
+}
+
+#[test]
+fn user_repair_probe_operation_does_not_suppress_helper_repairs() {
+    let model = PAIR.replace(" ?", "");
+    let read = "t[low = x, high = y]";
+    let source = format!("{model}fn f(x: principal, y: principal): exists {read}\nquery repairProbe():\n  return 1\nquery q(x: principal, y: principal):\n  return f(x, y)\n");
+    repair(&source, read, "E_QUARRY_AMBIGUOUS", true);
+}
+
+#[test]
+fn shape_and_writing_helper_repairs_retain_cross_file_callers() {
+    let model = PAIR.replace(" ?", "");
+    for (read, declaration, caller) in [
+        ("t[low = .low, high = .high]", "shape card = { found: exists t[low = .low, high = .high] }\n", "query q():\n  return t first 5 card\n"),
+        ("t[low = x, high = y]", "fn f(x: principal, y: principal):\n  insert t {low: x, high: y}\n  return exists t[low = x, high = y]\n", "mutation q(x: principal, y: principal):\n  return helpers.f(x, y)\n"),
+    ] {
+        let mut sources = vec![("schema.q".into(), model.clone()), ("helpers.q".into(), declaration.into()), ("callers.q".into(), caller.into())];
+        let bound = compile(&sources);
+        let d = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_AMBIGUOUS").unwrap();
+        assert!(!d.rewrite.is_empty(), "{:?}", bound.diagnostics);
+        sources[1].1 = declaration.replace(read, &d.rewrite);
+        let pasted = compile(&sources);
+        assert!(pasted.diagnostics.is_empty(), "{:?}", pasted.diagnostics);
+    }
+}

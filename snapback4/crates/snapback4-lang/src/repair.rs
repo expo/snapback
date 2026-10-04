@@ -152,25 +152,24 @@ fn check_context(documents: &[Document], candidate: &Candidate, keep_operations:
     let tables = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
     let (replacement, diagnostics) = parser::parse_with_types(&candidate.site.file, &source, tables, Default::default());
     if !diagnostics.is_empty() { return Check::Rejected; }
-    // A standalone shape has no focal type until instantiated. A helper
-    // signature edit would require checking callers outside this declaration.
-    // Neither has a complete local proof: keep the refusal without a repair.
-    if !replacement.shapes.is_empty() { return Check::Rejected; }
+    // Index diagnostics arise while binding a rule or an actual helper/shape
+    // expansion. Retaining all operations retains those callers and their
+    // focal types. Declaration-local parser repairs have no such proof for
+    // a standalone shape, or for a changed helper signature.
+    if !keep_operations && !replacement.shapes.is_empty() { return Check::Rejected; }
     for function in &replacement.functions {
         if documents.iter().flat_map(|doc| &doc.functions).any(|old|
             affected(candidate, &old.site) && old.args.len() != function.args.len()) { return Check::Rejected; }
     }
     let mut context = context(documents, candidate, replacement, keep_operations);
-    // Helpers are normally checked at their call sites. Check this helper with
-    // its own typed arguments; do not bind unrelated operations to exercise it.
-    for doc in &mut context {
+    // With callers retained, their real mode and placement are the proof; an
+    // extra query would incorrectly reject helpers that write in a mutation.
+    // The declaration-local path has no retained caller, so probe that helper
+    // with its typed arguments instead of silently leaving its body unchecked.
+    for doc in context.iter_mut().filter(|_| !keep_operations) {
         if let Some(function) = doc.functions.iter().find(|decl| affected(candidate, &decl.site)) {
-            let args = function.args.iter().map(|arg| format!("{}: {}", arg.name, crate::print::scalar_type(&arg.type_))).collect::<Vec<_>>().join(", ");
-            let values = function.args.iter().map(|arg| arg.name.as_str()).collect::<Vec<_>>().join(", ");
-            let probe = format!("query repairProbe({args}):\n  return {}({values})\n", function.name);
-            let (mut parsed, errors) = parser::parse_document(&doc.file, &probe);
-            if !errors.is_empty() { return Check::Rejected; }
-            doc.programs.append(&mut parsed.programs);
+            let Some(probe) = helper_probe(&doc.file, function) else { return Check::Rejected; };
+            doc.programs.push(probe);
         }
     }
     let actual = bind::bind_unverified(context.clone());
@@ -197,6 +196,19 @@ fn check_context(documents: &[Document], candidate: &Candidate, keep_operations:
     }).collect::<std::collections::BTreeSet<_>>();
     let actual_class = class(&actual);
     if expected.diagnostics.is_empty() && !actual_class.is_empty() && actual_class == class(&expected) { Check::Accepted } else { Check::Rejected }
+}
+
+fn helper_probe(file: &str, function: &FunctionDecl) -> Option<ProgramDecl> {
+    let args = function.args.iter().map(|arg| format!("{}: {}", arg.name, crate::print::scalar_type(&arg.type_))).collect::<Vec<_>>().join(", ");
+    let values = function.args.iter().map(|arg| arg.name.as_str()).collect::<Vec<_>>().join(", ");
+    let source = format!("query repairProbe({args}):\n  return {}({values})\n", function.name);
+    let (mut parsed, errors) = parser::parse_document(file, &source);
+    if !errors.is_empty() { return None; }
+    let mut probe = parsed.programs.pop()?;
+    // Like $view: declarations, this compiler-only namespace cannot be
+    // authored in Quarry. Neither an operation nor a module can collide.
+    probe.name = format!("$repair:{}", function.name);
+    Some(probe)
 }
 
 fn affected(candidate: &Candidate, site: &Site) -> bool {
@@ -287,6 +299,32 @@ mod tests {
         diagnostics[0].rewrite = prose.into();
         verify(&[document], &mut diagnostics);
         assert!(diagnostics[0].rewrite.is_empty());
+    }
+
+    #[test]
+    fn uncalled_helpers_still_need_a_checked_probe() {
+        for (tail, offered) in [("", true), (" + true", false)] {
+            let source = format!("{MODEL}fn f(active: bool): count(members where .active = .active){tail}\n");
+            let (document, mut diagnostics) = parser::parse_document("schema.q", &source);
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            verify(&[document], &mut diagnostics);
+            assert_eq!(!diagnostics[0].rewrite.is_empty(), offered, "{diagnostics:?}");
+        }
+    }
+
+    #[test]
+    fn fallback_probe_cannot_collide_with_authored_operations_or_modules() {
+        for file in ["schema.q", "repairProbe.q"] {
+            let source = "fn f(): true\nquery repairProbe():\n  return 1\nquery repairProbe2():\n  return 2\n";
+            let (mut document, diagnostics) = parser::parse_document(file, source);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let probe = helper_probe(file, &document.functions[0]).unwrap();
+            assert_eq!(probe.name, "$repair:f");
+            document.programs.push(probe);
+            let bound = bind::bind_unverified(vec![document]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            assert_eq!(bound.programs.len(), 3);
+        }
     }
 
     #[test]
