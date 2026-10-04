@@ -76,9 +76,9 @@ const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: co
 const fixtures=[
   {name:'timeline-v2',capabilities:['timeline-event-slots','timeline-v2'],source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
-  {name:'recorded-attribution',source:recorded,plain:ordinary,
+  {name:'recorded-attribution',capabilities:['recorded-attribution','source-write-reservations-v1','source-write-reservations-v2'],source:recorded,plain:ordinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},
-  {name:'maintained-column',source:maintained,plain:ordinary,freshStore:true,
+  {name:'maintained-column',capabilities:['maintained-column','source-write-reservations-v1','source-write-reservations-v2'],source:maintained,plain:ordinary,freshStore:true,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:1},
 ];
 function storedSchema(path) {

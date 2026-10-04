@@ -14,8 +14,8 @@ const oldBackend=JSON.parse(readFileSync(new URL('backend.json',fixture),'utf8')
 const traces=JSON.parse(readFileSync(join(root,'target/event-slots-traces.json'),'utf8'));
 const candidate=structuredClone(traces.find(t=>t.name.startsWith('ordinary event reads with sync public last')).backend);
 candidate.generation=oldBackend.generation+1;
-// Isolate the event-slot fence even though current backends also carry newer
-// reservation capabilities. The full candidate must independently be refused.
+// Isolate the event-slot fence if the backend carries reservation capabilities.
+// The full candidate must independently be refused.
 const slotCandidate=structuredClone(candidate);
 delete slotCandidate.schema.source_reservations;
 for(const table of Object.values(slotCandidate.schema.tables))for(const c of table.constraints??[])
@@ -53,5 +53,6 @@ test('pre-slot wasm still accepts and adopts the genuine timeline-v2 backend',as
  ok(old.call(JSON.stringify({op:'adopt',backend:next})));
  assert.equal(ok(old.call('{"op":"state"}')).generation,next.generation);
  const declarations=Object.values(candidate.schema.tables).flatMap(t=>t.constraints).filter(c=>c.Capabilities).flatMap(c=>c.Capabilities);
- assert.deepEqual(declarations,['source-write-reservations-v1','source-write-reservations-v2','timeline-event-slots','timeline-v2']);
+ assert.deepEqual(declarations,['timeline-event-slots','timeline-v2']);
+ assert.equal(candidate.schema.source_reservations,undefined,'all-zero timeline plans retain only their feature capabilities');
 });
