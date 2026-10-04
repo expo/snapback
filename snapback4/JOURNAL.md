@@ -86350,3 +86350,13 @@ Activation is unchanged. All 23 core adoption and 87 CLI check tests pass,
 including plain/JSON advice and live/stopped-store database/WAL byte checks;
 the reference audit and diff check pass. See the
 [Round 3 note](./reports/20261004-ap-adoption-pause/REPORT.md#round-3--distinguish-deadline-rewrites-from-retirement).
+
+## 2026-10-04 — AP round 3 documentation follow-up
+
+Aligned `guide maintains`, `N_ADOPTION_PAUSE`, LLP 3000.019 §3.6 and LLP
+3000.000 with the reviewed implementation: unaffected read-through tables
+rewrite every stored row to recompute deadlines, counted exactly and separately
+from affected tables' time-dependent deletion subsets. Both pauses remain
+unestimated. Guide card line counts and activation behavior are unchanged.
+All 112 guide tests pass, including card budgets; `ref-check --verbose` reports
+zero errors and unchecked references, and `git diff --check` passes.
