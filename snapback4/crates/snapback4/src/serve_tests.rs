@@ -82,10 +82,40 @@ impl Drop for Host {
 fn exchange(address: SocketAddr, wire: &str) -> String {
     exchange_bytes(address, wire.as_bytes())
 }
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(3);
+const WAIT_TIMEOUT: Duration = Duration::from_secs(2);
+
+// @ref LLP 3000#publication-suite-under-contention — a parked client's guard
+// includes the driver's bounded waits/probes plus time to finish after release.
+// Only deliberately held exchanges use this; progress probes keep their guard.
+fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
+    let timeout = hold_budget + Duration::from_secs(15);
+    assert!(timeout <= Duration::from_secs(60), "held exchange budget exceeds one minute");
+    let deadline = Instant::now() + timeout;
+    let remaining = || deadline.checked_duration_since(Instant::now())
+        .filter(|left| !left.is_zero()).expect("held exchange deadline expired");
+    let mut stream = TcpStream::connect_timeout(&address, remaining()).unwrap();
+    let mut wire = wire.as_ref();
+    while !wire.is_empty() {
+        stream.set_write_timeout(Some(remaining())).unwrap();
+        let written = stream.write(wire).unwrap();
+        assert!(written > 0, "held exchange write made no progress");
+        wire = &wire[written..];
+    }
+    let mut response = Vec::new();
+    let mut bytes = [0; 4096];
+    loop {
+        stream.set_read_timeout(Some(remaining())).unwrap();
+        let read = stream.read(&mut bytes).unwrap();
+        if read == 0 { break; }
+        response.extend_from_slice(&bytes[..read]);
+    }
+    String::from_utf8_lossy(&response).into_owned()
+}
 fn exchange_bytes(address: SocketAddr, wire: &[u8]) -> String {
     let mut stream = TcpStream::connect(address).unwrap();
     stream
-        .set_read_timeout(Some(Duration::from_secs(3)))
+        .set_read_timeout(Some(CLIENT_TIMEOUT))
         .unwrap();
     stream.write_all(wire).unwrap();
     let mut response = Vec::new();
@@ -107,7 +137,7 @@ fn effect_snapshot(host: &Host, id: &str) -> (Vec<rusqlite::types::Value>, i64) 
     (row, steps)
 }
 fn wait_until(mut predicate: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + WAIT_TIMEOUT;
     while !predicate() {
         assert!(Instant::now() < deadline, "condition did not become true");
         thread::sleep(Duration::from_millis(5));
@@ -578,8 +608,8 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
     let headers = bearer.clone();
     let address = host.address;
     let poll = thread::spawn(move || {
-        exchange(
-            address,
+        exchange_held(
+            address, WAIT_TIMEOUT + CLIENT_TIMEOUT,
             &format!(
                 "GET /changes?since=0&wait=25 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}\r\n"
             ),
@@ -715,22 +745,19 @@ fn an_effect_claim_rechecks_service_session_after_waiting() {
         .token
     };
     let (woke_tx, woke_rx) = mpsc::channel();
-    let release = Arc::new((Mutex::new(false), Condvar::new()));
+    let release = Arc::new(WorkGate::default());
+    let _release_on_panic = ReleaseGate(release.clone());
     let release_at_wait = release.clone();
     *host.shared.effect_wait.lock().unwrap() = Some(Arc::new(move || {
         woke_tx.send(()).unwrap();
-        let (lock, ready) = &*release_at_wait;
-        let mut released = lock.lock().unwrap();
-        while !*released {
-            released = ready.wait(released).unwrap();
-        }
+        release_at_wait.park();
     }));
 
     let address = host.address;
     let bearer = format!("Authorization: Bearer {token}\r\n");
     let worker = thread::spawn(move || {
-        exchange(
-            address,
+        exchange_held(
+            address, CLIENT_TIMEOUT,
             &format!(
                 "POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 10\r\n{bearer}\r\n{{\"wait\":1}}"
             ),
@@ -741,9 +768,7 @@ fn an_effect_claim_rechecks_service_session_after_waiting() {
         let engine = host.shared.engine.lock().unwrap();
         snapback4_core::identity::close_session(engine.store(), &token).unwrap();
     }
-    let (lock, ready) = &*release;
-    *lock.lock().unwrap() = true;
-    ready.notify_all();
+    release.release();
 
     let response = worker.join().unwrap();
     assert_eq!(status(&response), 401, "{response}");
@@ -1018,7 +1043,7 @@ fn password_work_is_bounded_and_does_not_hold_the_query_engine() {
             let address = host.address;
             jobs.push(thread::spawn(move || {
                 let body = format!(r#"{{"email":"user{n}@example.com","password":"correct horse battery staple"}}"#);
-                exchange(address, &format!("POST {route} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()))
+                exchange_held(address, WAIT_TIMEOUT + 2 * CLIENT_TIMEOUT, &format!("POST {route} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()))
             }));
         }
         wait_until(|| gate.entered.load(Ordering::Acquire) == 2);
@@ -1064,7 +1089,7 @@ fn dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity() {
     let concurrent = thread::available_parallelism().map(|n| n.get().clamp(2, 8)).unwrap_or(2);
     let jobs: Vec<_> = (0..concurrent).map(|_| {
         let address = host.address;
-        thread::spawn(move || exchange(address, &format!("POST /auth/login HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len())))
+        thread::spawn(move || exchange_held(address, WAIT_TIMEOUT + CLIENT_TIMEOUT, &format!("POST /auth/login HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len())))
     }).collect();
     wait_until(|| gate.entered.load(Ordering::Acquire) == concurrent);
     let query = host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}");
@@ -1095,7 +1120,7 @@ fn upload_disk_work_is_bounded_and_does_not_hold_the_query_engine() {
         .map(|_| {
             let address = host.address;
             let wire = wire.clone();
-            thread::spawn(move || exchange_bytes(address, &wire))
+            thread::spawn(move || exchange_held(address, WAIT_TIMEOUT + 2 * CLIENT_TIMEOUT, &wire))
         })
         .collect();
     wait_until(|| gate.entered.load(Ordering::Acquire) == 2);

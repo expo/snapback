@@ -78,7 +78,9 @@ impl Drop for Serving {
 const SETUP_TIMEOUT: Duration = Duration::from_secs(60);
 #[track_caller]
 fn wait_setup(stage: &str, mut predicate: impl FnMut() -> bool) {
-    let deadline = Instant::now() + SETUP_TIMEOUT;
+    wait_setup_before(stage, Instant::now() + SETUP_TIMEOUT, &mut predicate);
+}
+fn wait_setup_before(stage: &str, deadline: Instant, mut predicate: impl FnMut() -> bool) {
     while !predicate() {
         assert!(Instant::now() < deadline, "worker/adoption setup did not reach {stage}");
         thread::sleep(Duration::from_millis(5));
@@ -175,8 +177,12 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     wait_setup("exited worker queued for the writer", || host.shared.engine.waiting() == 1);
     // Queue the dead child's claim immediately behind supervision. A refused
     // adoption cannot fence it through worker_revision as a success would.
-    let claim = thread::spawn(move || exchange(address, &format!("POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {token}\r\nContent-Length: 2\r\n\r\n{{}}")));
-    wait_setup("dead worker claim queued", || host.shared.engine.waiting() == 2);
+    // Share one setup budget after starting the held client, then allow both
+    // read probes and their metric waits before release. Client: 40 + 15 s.
+    let claim_setup = Duration::from_secs(30);
+    let claim_deadline = Instant::now() + claim_setup;
+    let claim = thread::spawn(move || exchange_held(address, claim_setup + 2 * (CLIENT_TIMEOUT + WAIT_TIMEOUT), &format!("POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {token}\r\nContent-Length: 2\r\n\r\n{{}}")));
+    wait_setup_before("dead worker claim queued", claim_deadline, || host.shared.engine.waiting() == 2);
     // This third writer turn holds supervision before it can finish status
     // persistence or start a replacement. Inspect the family and effect there.
     let inspect = Arc::new(WorkGate::default());
@@ -191,7 +197,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
         observed.send((remaining, status, engine.effects(None, 10).unwrap())).unwrap();
         held.park();
     });
-    wait_setup("inspection queued", || host.shared.engine.waiting() == 3);
+    wait_setup_before("inspection queued", claim_deadline, || host.shared.engine.waiting() == 3);
     for path in ["/q/who", "/sync"] {
         let start = Instant::now();
         let response = exchange(address, &format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{{}}"));

@@ -31,7 +31,7 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
     let request = |path: &'static str, payload: String| {
         let address=host.address; let (sent,received)=mpsc::channel();
         let handle=thread::spawn(move || {
-            let response=exchange(address,&format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\nx-snapback-persona: alice\r\n\r\n{payload}",payload.len()));
+            let response=exchange_held(address, Duration::from_secs(10), &format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\nx-snapback-persona: alice\r\n\r\n{payload}",payload.len()));
             sent.send(response).unwrap();
         }); (received,handle)
     };
@@ -87,7 +87,7 @@ fn atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it() {
             assert_eq!(host.shared.engine.waiting(), 0);
         }
         let address = host.address;
-        let sync = thread::spawn(move || exchange(address, &format!("POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {}\r\nContent-Length: 2\r\n\r\n{{}}", session.token)));
+        let sync = thread::spawn(move || exchange_held(address, WAIT_TIMEOUT, &format!("POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {}\r\nContent-Length: 2\r\n\r\n{{}}", session.token)));
         wait_until(|| host.shared.engine.waiting() == 1);
         engine.store().conn().execute(if revoke { "DELETE FROM _sessions" } else { "UPDATE _sessions SET expires_at = 0" }, []).unwrap();
         lock(&host.shared.readers).finish_adoption();

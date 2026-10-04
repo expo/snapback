@@ -115,8 +115,8 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
         let writer_headers = headers.clone();
         let writer = thread::spawn(move || {
             let payload = r#"{"id":"during","args":{"id":"during"}}"#;
-            exchange(
-                address,
+            exchange_held(
+                address, Duration::from_secs(10),
                 &format!(
                     "POST /m/add HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{writer_headers}\r\n{payload}",
                     payload.len()
@@ -266,8 +266,8 @@ fn a_write_queued_behind_adoption_does_not_keep_expired_authority() {
     let address = host.address;
     let writer = thread::spawn(move || {
         let payload = r#"{"id":"expired","args":{"id":"expired"}}"#;
-        exchange(
-            address,
+        exchange_held(
+            address, Duration::from_secs(10),
             &format!(
                 "POST /m/add HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{payload}",
                 payload.len()

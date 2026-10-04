@@ -86199,3 +86199,39 @@ calculator/export. A supplemental serde-family census rejects the same i64
 serializer on unchanged base and RPF; recorded separately without broadening
 the allowlist. No other host, NZ worktree/process or simulator was used.
 Local commit only; nothing pushed or published.
+
+
+## 2026-10-04 — SU: held serve clients include their fixture's work budget
+
+On eb1000 only, reproduced the upload client's three-second read timeout on
+unchanged `2154dc163d`: **50/50 failures** at the original read/join sites.
+Eight CPU hogs and the test shared CPUs 0–1; an external shim stalled only
+the driver for four seconds after both uploads parked. The fixed test
+passed **50/50** with the same confinement, hogs and stall. A 25-second stall
+still fails, witnessing the finite bound.
+
+Held clients now share one absolute connect/write/read deadline: the driver's
+bounded setup/probes plus 15 seconds. Uploads get 23 seconds; the longest
+worker-adoption case gets 55. Its two post-claim setup waits share 30 seconds;
+earlier child startup/exit guards remain 60 seconds. The audit corrected
+20 test cases across auth, adoption, delivery, detached sync, latency and
+spawn-failure dispatch. Delivery and effect gates also release on panic.
+All existing assertions, variants, seeds and short progress probes remain;
+no product timeout or production source changed.
+
+The serve target passes 189 tests with four existing ignores. The full suite
+ran on CPUs 8–31 and finished in **2,382 seconds, exit 1**: Rust has 4,968
+passes, 33 existing ignores and 17 passing doctests; all 79 serial models
+pass. The 311-file client pool has 6,185 passes, two failures and 11 skips.
+The two failures are unchanged fixtures: scheduled-job crash recovery saw
+`done` after a queued snapshot, and the watchdog SIGTERM helper liveness
+assertion saw `true` after waiting for `false`. Both pass isolated reruns;
+the full result remains red. Follow-ups are
+[scheduled-job crash cut](../issues/20261004-snapback4-scheduled-job-crash-cut-race.md)
+and [watchdog helper liveness](../issues/20261004-snapback4-watchdog-helper-liveness-fixture.md).
+
+The [SU report](./reports/20261004-su-serve-upload-timeout/REPORT.md) lists
+all 20 cases, budgets, reproduction code and retained logs. Reference checking
+passes; the affected LLP decisions remain applicable. Sampled worktree plus
+scratch use stayed below 24.1 GB; scratch was removed. Lane FX's worktree
+was untouched. Local commit only; nothing pushed or published.
