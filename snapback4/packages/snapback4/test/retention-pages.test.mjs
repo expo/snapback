@@ -21,6 +21,19 @@ function fixture(t, op = q) {
   const notify = c => { for (const listener of source(c).subscribers) listener(); };
   return { pages, source, notify };
 }
+
+test("usePage follows ordered snapshots when an earlier event arrives after a later event", t => {
+  const { pages, source, notify } = fixture(t, { kind: "query", name: "following", rowKey: "id" });
+  const later = { id: "later", at: 2 }, earlier = { id: "earlier", at: 1 };
+  source(null).publish(ready([later], null)); notify(null);
+  assert.deepEqual(pages.getSnapshot().items, [later]);
+  source(null).publish(ready([later, earlier], "second")); notify(null);
+  pages.loadMore();
+  source("second").publish(ready([earlier, { id: "old", at: 0 }], null)); notify("second");
+  assert.deepEqual(pages.getSnapshot().items, [later, earlier, { id: "old", at: 0 }]);
+  source(null).publish(ready([later, earlier], null)); notify(null);
+  assert.deepEqual(pages.getSnapshot().items, [later, earlier]);
+});
 for (const page of [null, "second"]) test(`usePage checks ${page ?? "first"} page deadline before cached return without timer delivery`, t => {
   let now = 1000; t.mock.method(Date, "now", () => now);
   const { pages, source, notify } = fixture(t);

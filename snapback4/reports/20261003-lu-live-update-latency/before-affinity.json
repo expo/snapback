@@ -1,0 +1,933 @@
+[
+  {
+    "pid": 1819517,
+    "parent": 1819515,
+    "name": "MainThread",
+    "cpus": "80-89",
+    "group": 1819515
+  },
+  {
+    "pid": 1819525,
+    "parent": 1819517,
+    "name": "lu-before",
+    "cpus": "80-89",
+    "group": 1819515
+  },
+  {
+    "pid": 1819662,
+    "parent": 1819517,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819683,
+    "parent": 1819662,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819684,
+    "parent": 1819662,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819704,
+    "parent": 1819683,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819705,
+    "parent": 1819662,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819726,
+    "parent": 1819684,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1819766,
+    "parent": 1819684,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1820067,
+    "parent": 1819684,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1820354,
+    "parent": 1819684,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 1820363,
+    "parent": 1819684,
+    "name": "chrome",
+    "cpus": "80-89",
+    "group": 1819662
+  },
+  {
+    "pid": 2437371,
+    "parent": 1819517,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437377,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437378,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437379,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437381,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437382,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437384,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437385,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437388,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437393,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437394,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437396,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437397,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437398,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437402,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437403,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437405,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437408,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437409,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437414,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437415,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437420,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437426,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437432,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437433,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437437,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437440,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437441,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437448,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437451,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437457,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437509,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437518,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437521,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437536,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437537,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437538,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437544,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437545,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437548,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437552,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437553,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437554,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437555,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437556,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437557,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437558,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437564,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437574,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437576,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437577,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437578,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437580,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437603,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437616,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437628,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437645,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437663,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437668,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437676,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437680,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437681,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437684,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437688,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437690,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437697,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437703,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437704,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437711,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437714,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437715,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437716,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437719,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437727,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437731,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437735,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437739,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437740,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437741,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437749,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437758,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437773,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437784,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437785,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437786,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437788,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437795,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437796,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437801,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437805,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437813,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437814,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437889,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437895,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437900,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437904,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437922,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437926,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437927,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2437928,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438041,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438051,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438082,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438086,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438087,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438088,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438090,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438091,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438110,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438111,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438112,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438118,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438126,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438127,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438131,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438136,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438155,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438162,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438163,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438164,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  },
+  {
+    "pid": 2438165,
+    "parent": 2437371,
+    "name": "python3",
+    "cpus": "80-89",
+    "group": 2437371
+  }
+]

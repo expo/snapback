@@ -1,0 +1,124 @@
+{
+  "baseline_revision": "7c9c0c0dabb0528cdee438222bb7eec46e828f16",
+  "candidate_parent": "60963ffa8546fce795f2f36654f5197efd5fd32b",
+  "affinity": {
+    "formal": "80-89",
+    "suite_contention": "90-91",
+    "suite_builds": "0-31,48-79"
+  },
+  "trials_per_shape_per_load": 30,
+  "burners": [
+    0,
+    20,
+    120
+  ],
+  "files": {
+    "target/lu-r1-before": {
+      "bytes": 19817816,
+      "sha256": "4e060980a54ef98a5a6cbce0344e4714d415669d2f198f10ee036501fc562f13"
+    },
+    "target/lu-r1-after": {
+      "bytes": 19823544,
+      "sha256": "3e4c2567ed942c9b0f656f6b310ca61b19679c9dc465515a75c34401f8defc1c"
+    },
+    "reports/20261003-lu-live-update-latency/tools/instrument.py": {
+      "bytes": 2917,
+      "sha256": "ba1be8f21f437d3b900b8fa697c736de1b4e44995d529478bfdc36efc7e0e06a"
+    },
+    "reports/20261003-lu-live-update-latency/tools/measure.mjs": {
+      "bytes": 11193,
+      "sha256": "edcfa32549e294da1a18945a4a70cfe200a33e09caba3d788cf316d3bb54e128"
+    },
+    "reports/20261003-lu-live-update-latency/tools/page.jsx": {
+      "bytes": 4865,
+      "sha256": "2f60e5be5cfdf8dc250cd22b6e3592710341758e455eb5e044c00a993573e141"
+    },
+    "reports/20261003-lu-live-update-latency/tools/schema.q": {
+      "bytes": 2905,
+      "sha256": "0e468e531e1c0844756b4a17e6bbdfddb40a79326e33f6f28251106bb0e39642"
+    },
+    "crates/snapback4-core/src/engine/timeline.rs": {
+      "bytes": 18167,
+      "sha256": "045a839f11cea83fe5b14e05a6fbe6ae14905c2facd38fd1cc14deb600d096bb"
+    },
+    "crates/snapback4-core/src/engine/timeline/work.rs": {
+      "bytes": 14710,
+      "sha256": "9654d1d9a80fb7a87dacc909d93851c67a7b926594afa8a9a60b4e84b8cf6f79"
+    },
+    "reports/20261003-lu-live-update-latency/tools/confine.py": {
+      "bytes": 2029,
+      "sha256": "a8ae10e1bcd0b66309d470dad0867700220f4ab0a2a0cfffb12380bb1ec44d49"
+    },
+    "reports/20261003-lu-live-update-latency/tools/audit-affinity.py": {
+      "bytes": 1021,
+      "sha256": "bc324514900a5e9f31ab96ebe4e41855142e42f1b32ca4f4722a6bf8286a79e7"
+    }
+  },
+  "frozen_client": {
+    "package.json": {
+      "bytes": 2802,
+      "sha256": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+    },
+    "dist/local.js": {
+      "bytes": 113774,
+      "sha256": "2a60b14c7714069efa07f5d6ec1f0a5045e21774ef82b699ec19c0352cedd6bd"
+    },
+    "dist/web.js": {
+      "bytes": 37917,
+      "sha256": "21d7d2c77e04b19751ed34fbe8084a80541d98344128fa09b29026136db3ee9f"
+    },
+    "dist/react.js": {
+      "bytes": 23849,
+      "sha256": "213d31ca814e43ecb72b8e2bd00532b884324e099a17c23233a4120dafce38ea"
+    },
+    "dist/wasm/snapback4_device_bg.wasm": {
+      "bytes": 2048676,
+      "sha256": "1fece8f47a8e60dafa38a60068f9f2982785736ac188787ef1e3e8915c4b26d9"
+    }
+  },
+  "toolchain": {
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "wasm": {
+    "raw": 2048676,
+    "gzip_measured_by_build": 617398,
+    "sha256": "77aeb5d1d2ed677a4b12cbcaa3541a57b54808cbe600506fb83aa65d777ee198",
+    "gzip_budget": 618040,
+    "retained_macos_allowance": 130,
+    "path": "packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "note": "Fresh full-suite build; frozen round-0 client was held identical across both latency runs. Sizes match; digests differ."
+  },
+  "confinement": "taskset mask frozen by inherited seccomp refusal of sched_setaffinity; startup self-check and thread-level audits",
+  "full_suite": {
+    "exit": 0,
+    "seconds": 1899,
+    "client_pass": 6036,
+    "client_skipped": 11,
+    "model_pass": 79,
+    "raw_log": "target/lu-r1-full-suite.log",
+    "bytes": 990001,
+    "sha256": "644f03afbe0d09b0ecb1cfb51f2a1443c0d44a7232243f875156eacae2be0ffc",
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=16 LU_TEST_CPUS=90-91 taskset -c 0-31,48-79 bash snapback4/scripts/test.sh"
+  },
+  "raw_evidence": {
+    "target/lu-r1-before.json": {
+      "bytes": 25865384,
+      "sha256": "55c30c2d18a570bfc38163607e90e6e83bcc5fc183be9d9de705c731a4dc095d"
+    },
+    "target/lu-r1-before.json.jsonl": {
+      "bytes": 1278798972,
+      "sha256": "3eac231bf1f7c7fdac384c3bf8d06253826d5b51829221423bfb166900c80ab3"
+    },
+    "target/lu-r1-after.json": {
+      "bytes": 4306479,
+      "sha256": "3e27ce00efb3032c1515d64c0643b3d3c5736639f294a1333b077917b44f5f41"
+    },
+    "target/lu-r1-after.json.jsonl": {
+      "bytes": 106940452,
+      "sha256": "5ca895bebde78b0fe8959a06461bd1907dc6bd4dda7809465831e5ff2417d9e4"
+    }
+  },
+  "measurement_command": "SNAPBACK4_BIN=target/lu-r1-{before,after} LU_SDK=target/lu-r1-sdk/dist LU_LABEL=r1-{before,after} LU_RUNS=30 LU_HISTORY=1000 LU_REFOLLOW=1 LU_LEVELS=0,20,120 LU_OUT=target/lu-r1-{before,after}.json taskset -c 80-89 python3 reports/20261003-lu-live-update-latency/tools/confine.py node reports/20261003-lu-live-update-latency/tools/measure.mjs"
+}
