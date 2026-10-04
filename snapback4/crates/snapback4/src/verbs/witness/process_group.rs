@@ -132,16 +132,19 @@ fn supervisor(args: &[String]) -> Result<()> {
     })();
     // This parent owns an unreaped leader even after exit: no numeric reuse
     // window in the normal/watchdog path. KILL is group-wide on every pass.
-    let end = Instant::now() + Duration::from_secs(4);
+    let mut deadline = cleanup::Deadline::new(Instant::now());
+    deadline.observe(Instant::now(), recovery::members(group)?.len());
     let mut empty = 0;
     loop {
         unsafe { libc::kill(-(group as i32), libc::SIGKILL); }
-        if recovery::members(group)?.is_empty() { empty += 1; } else { empty = 0; }
+        let live = recovery::members(group)?;
+        deadline.observe(Instant::now(), live.len());
+        if live.is_empty() { empty += 1; } else { empty = 0; }
         if empty == 2 { break; }
-        if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "watchdog group survived SIGKILL; recovery required")); }
+        deadline.check(Instant::now(), "watchdog group cleanup")?;
         sleep(Duration::from_millis(20));
     }
-    reap_lock.lock().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+    deadline.lock(&reap_lock)?;
     child.wait().map_err(|e| error("E_WITNESS_PROCESS", e))?;
     result
 }

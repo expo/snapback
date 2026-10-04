@@ -1,0 +1,1124 @@
+{
+  "rows": [
+    {
+      "sample": 0,
+      "baseline-load": {
+        "members": 1,
+        "ms": 72.878333
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.93175
+      }
+    },
+    {
+      "sample": 1,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.509084
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 62.95225
+      }
+    },
+    {
+      "sample": 2,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.65008399999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.621458
+      }
+    },
+    {
+      "sample": 3,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.3865
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.60208300000001
+      }
+    },
+    {
+      "sample": 4,
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.976375000000004
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.431292
+      }
+    },
+    {
+      "sample": 5,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.412583
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.222083
+      }
+    },
+    {
+      "sample": 6,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.52199999999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.644459
+      }
+    },
+    {
+      "sample": 7,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.41716600000000004
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.905042
+      }
+    },
+    {
+      "sample": 8,
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.022417
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.5995
+      }
+    },
+    {
+      "sample": 9,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.387625
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.82616700000001
+      }
+    },
+    {
+      "sample": 10,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.13683400000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.616333
+      }
+    },
+    {
+      "sample": 11,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.432417
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.75925
+      }
+    },
+    {
+      "sample": 12,
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.195583
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.619625
+      }
+    },
+    {
+      "sample": 13,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.3935
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 76.146542
+      }
+    },
+    {
+      "sample": 14,
+      "baseline-load": {
+        "members": 1,
+        "ms": 72.327792
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.571583
+      }
+    },
+    {
+      "sample": 15,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.47775
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.491834
+      }
+    },
+    {
+      "sample": 16,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.879541
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.618
+      }
+    },
+    {
+      "sample": 17,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.342417
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.90383299999999
+      }
+    },
+    {
+      "sample": 18,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.253292
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6547919999999999
+      }
+    },
+    {
+      "sample": 19,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.55275
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 61.331625
+      }
+    },
+    {
+      "sample": 20,
+      "baseline-load": {
+        "members": 1,
+        "ms": 61.486208
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.531
+      }
+    },
+    {
+      "sample": 21,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.468208
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.493083000000006
+      }
+    },
+    {
+      "sample": 22,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.638292
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.694291
+      }
+    },
+    {
+      "sample": 23,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.459459
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.241542
+      }
+    },
+    {
+      "sample": 24,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.445583
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.49341599999999997
+      }
+    },
+    {
+      "sample": 25,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.383833
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.30291600000001
+      }
+    },
+    {
+      "sample": 26,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.643792
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.65025
+      }
+    },
+    {
+      "sample": 27,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.42874999999999996
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.94779200000001
+      }
+    },
+    {
+      "sample": 28,
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.27066699999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.68625
+      }
+    },
+    {
+      "sample": 29,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.441417
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.93620899999999
+      }
+    },
+    {
+      "sample": 30,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.846375
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.651
+      }
+    },
+    {
+      "sample": 31,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.44025
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.5005
+      }
+    },
+    {
+      "sample": 32,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.971959
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6448750000000001
+      }
+    },
+    {
+      "sample": 33,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.49362500000000004
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.884125
+      }
+    },
+    {
+      "sample": 34,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.43029200000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6177090000000001
+      }
+    },
+    {
+      "sample": 35,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.382125
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.653667
+      }
+    },
+    {
+      "sample": 36,
+      "baseline-load": {
+        "members": 1,
+        "ms": 60.867083
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.628333
+      }
+    },
+    {
+      "sample": 37,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.442375
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.547833
+      }
+    },
+    {
+      "sample": 38,
+      "baseline-load": {
+        "members": 1,
+        "ms": 62.197625
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.632459
+      }
+    },
+    {
+      "sample": 39,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.41925
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.335958999999995
+      }
+    },
+    {
+      "sample": 40,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.473958
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6686249999999999
+      }
+    },
+    {
+      "sample": 41,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.659875
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.706208
+      }
+    },
+    {
+      "sample": 42,
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.515041
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.396875
+      }
+    },
+    {
+      "sample": 43,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.43825
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.319709
+      }
+    },
+    {
+      "sample": 44,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.7885
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.347125
+      }
+    },
+    {
+      "sample": 45,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.5916250000000001
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.593208
+      }
+    },
+    {
+      "sample": 46,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.22758300000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.424541
+      }
+    },
+    {
+      "sample": 47,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.423459
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.71079200000001
+      }
+    },
+    {
+      "sample": 48,
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.340666
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6445
+      }
+    },
+    {
+      "sample": 49,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.435291
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.056417
+      }
+    },
+    {
+      "sample": 50,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.166791
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.668083
+      }
+    },
+    {
+      "sample": 51,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.5135
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.15891599999999
+      }
+    },
+    {
+      "sample": 52,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.762958
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.637083
+      }
+    },
+    {
+      "sample": 53,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.4235
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.723
+      }
+    },
+    {
+      "sample": 54,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.310292
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.631584
+      }
+    },
+    {
+      "sample": 55,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.453417
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.602792
+      }
+    },
+    {
+      "sample": 56,
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.920333
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6589999999999999
+      }
+    },
+    {
+      "sample": 57,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.42658399999999996
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.169709
+      }
+    },
+    {
+      "sample": 58,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.37566699999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.5705
+      }
+    },
+    {
+      "sample": 59,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.43066699999999997
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 62.1965
+      }
+    },
+    {
+      "sample": 60,
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.556625
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6565
+      }
+    },
+    {
+      "sample": 61,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.472958
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 69.254958
+      }
+    },
+    {
+      "sample": 62,
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.429083
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.631542
+      }
+    },
+    {
+      "sample": 63,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.522583
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.784833
+      }
+    },
+    {
+      "sample": 64,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.19333400000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.410209
+      }
+    },
+    {
+      "sample": 65,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.481583
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.0155
+      }
+    },
+    {
+      "sample": 66,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.73662499999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6589999999999999
+      }
+    },
+    {
+      "sample": 67,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.49308399999999997
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.015709
+      }
+    },
+    {
+      "sample": 68,
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.60566700000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.623667
+      }
+    },
+    {
+      "sample": 69,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.4205
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 64.215542
+      }
+    },
+    {
+      "sample": 70,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.113708
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.629625
+      }
+    },
+    {
+      "sample": 71,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.43833300000000003
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.995625000000004
+      }
+    },
+    {
+      "sample": 72,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.503291
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6945830000000001
+      }
+    },
+    {
+      "sample": 73,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.478958
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.913291
+      }
+    },
+    {
+      "sample": 74,
+      "baseline-load": {
+        "members": 1,
+        "ms": 70.86325000000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.636333
+      }
+    },
+    {
+      "sample": 75,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.41575
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 61.943458
+      }
+    },
+    {
+      "sample": 76,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.804166
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.469833
+      }
+    },
+    {
+      "sample": 77,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.35329099999999997
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 92.639334
+      }
+    },
+    {
+      "sample": 78,
+      "baseline-load": {
+        "members": 1,
+        "ms": 105.700417
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.9474159999999999
+      }
+    },
+    {
+      "sample": 79,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.611
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 84.08904100000001
+      }
+    },
+    {
+      "sample": 80,
+      "baseline-load": {
+        "members": 1,
+        "ms": 84.816375
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.35333400000000004
+      }
+    },
+    {
+      "sample": 81,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.7085
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 84.571084
+      }
+    },
+    {
+      "sample": 82,
+      "baseline-load": {
+        "members": 1,
+        "ms": 83.16437499999999
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.694917
+      }
+    },
+    {
+      "sample": 83,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.5460419999999999
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 86.452708
+      }
+    },
+    {
+      "sample": 84,
+      "baseline-load": {
+        "members": 1,
+        "ms": 72.218875
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.569917
+      }
+    },
+    {
+      "sample": 85,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.301583
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 78.369834
+      }
+    },
+    {
+      "sample": 86,
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.078125
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.677959
+      }
+    },
+    {
+      "sample": 87,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.520459
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.632625
+      }
+    },
+    {
+      "sample": 88,
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.654458
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.6142920000000001
+      }
+    },
+    {
+      "sample": 89,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.423458
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 70.454666
+      }
+    },
+    {
+      "sample": 90,
+      "baseline-load": {
+        "members": 1,
+        "ms": 63.808792000000004
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.525084
+      }
+    },
+    {
+      "sample": 91,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.372042
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 68.508875
+      }
+    },
+    {
+      "sample": 92,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.06862500000001
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 1.723041
+      }
+    },
+    {
+      "sample": 93,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.59525
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.052291
+      }
+    },
+    {
+      "sample": 94,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.397916
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.625042
+      }
+    },
+    {
+      "sample": 95,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.401583
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 65.850708
+      }
+    },
+    {
+      "sample": 96,
+      "baseline-load": {
+        "members": 1,
+        "ms": 66.328833
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.630542
+      }
+    },
+    {
+      "sample": 97,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.4815
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 62.617540999999996
+      }
+    },
+    {
+      "sample": 98,
+      "baseline-load": {
+        "members": 1,
+        "ms": 62.593709
+      },
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.642
+      }
+    },
+    {
+      "sample": 99,
+      "candidate-load": {
+        "members": 1,
+        "ms": 0.398042
+      },
+      "baseline-load": {
+        "members": 1,
+        "ms": 67.63454200000001
+      }
+    }
+  ],
+  "summary": {
+    "baseline-load": {
+      "min": 60.867083,
+      "median": 65.827437,
+      "p95": 84.571084,
+      "max": 105.700417
+    },
+    "candidate-load": {
+      "min": 0.301583,
+      "median": 0.521521,
+      "p95": 0.694917,
+      "max": 1.723041
+    }
+  },
+  "processCount": 5796,
+  "load": [
+    133.6953125,
+    136.0,
+    107.7392578125
+  ]
+}

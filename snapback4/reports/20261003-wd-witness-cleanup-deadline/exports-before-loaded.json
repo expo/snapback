@@ -1,0 +1,76 @@
+[
+  {
+    "phase": "before",
+    "starter": "plain",
+    "sample": 0,
+    "warm": false,
+    "seconds": 264.300256,
+    "status": 0,
+    "hostLoadBefore": [
+      93.7158203125,
+      110.58251953125,
+      83.91455078125
+    ],
+    "hostLoadAfter": [
+      197.966796875,
+      133.9462890625,
+      99.9189453125
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/plain/artifacts/native-smoke/1791069179412-40992/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "49545a3d3c770b924298eb2428ef0a9b93cf75bbecd4ca945c653d736c3ef8ac"
+        }
+      },
+      "hit": false
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 255314,
+    "loadedHash": "38b32e33fad2a539d9325985a04839030a80bd749f6a70e74b973accc8eb0e26",
+    "exportHash": "38b32e33fad2a539d9325985a04839030a80bd749f6a70e74b973accc8eb0e26"
+  },
+  {
+    "phase": "before",
+    "starter": "social",
+    "sample": 0,
+    "warm": false,
+    "seconds": 913.771889958,
+    "status": 1,
+    "hostLoadBefore": [
+      197.966796875,
+      133.9462890625,
+      99.9189453125
+    ],
+    "hostLoadAfter": [
+      213.9306640625,
+      175.39892578125,
+      134.04248046875
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/social/artifacts/native-smoke/1791069443934-54225/smoke-ios-run.json",
+    "nativeCache": null,
+    "error": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+    "segments": {},
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": null,
+    "loadedHash": null
+  }
+]

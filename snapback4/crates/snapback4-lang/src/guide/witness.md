@@ -117,7 +117,7 @@ passing smoke receipt. `proof.json` binds installation and that receipt before
 launch; native startup, exact installed inventory and artifact hashes are
 rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
-SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Project/simulator leases remain held until cleanup finishes.
+SIGINT/SIGTERM wait for bounded cleanup and return 130/143. Each process-group drain allows five seconds without shrinkage, up to sixty seconds total; a stall still requires recovery. Project/simulator leases remain held until cleanup finishes.
 
 After a JS edit, repeat `npm run export:ios`: matching native inputs reuse a private
 Release app, replacing its bundle/assets with the exact export. Dependencies and

@@ -1,0 +1,74 @@
+{
+  "before": {
+    "plain": {
+      "totalSeconds": {
+        "n": 3,
+        "min": 23.596995042000003,
+        "median": 24.967691708000018,
+        "max": 25.242303292000003
+      },
+      "nativeSeconds": {
+        "n": 3,
+        "min": 19.297,
+        "median": 20.5,
+        "max": 20.791
+      }
+    },
+    "social": {
+      "totalSeconds": {
+        "n": 3,
+        "min": 29.090861875,
+        "median": 29.406283833000003,
+        "max": 32.15844629200001
+      },
+      "nativeSeconds": {
+        "n": 3,
+        "min": 24.117,
+        "median": 24.476,
+        "max": 27.025
+      }
+    }
+  },
+  "after": {
+    "plain": {
+      "totalSeconds": {
+        "n": 3,
+        "min": 21.318211333000022,
+        "median": 21.695032084000005,
+        "max": 22.939602208000004
+      },
+      "nativeSeconds": {
+        "n": 3,
+        "min": 17.979,
+        "median": 18.348,
+        "max": 19.571
+      }
+    },
+    "social": {
+      "totalSeconds": {
+        "n": 3,
+        "min": 27.555783750000003,
+        "median": 27.87726433399999,
+        "max": 29.203539583999998
+      },
+      "nativeSeconds": {
+        "n": 3,
+        "min": 23.264,
+        "median": 23.694,
+        "max": 24.998
+      }
+    }
+  },
+  "qualification": {
+    "exports": 16,
+    "nativeCacheHits": 16,
+    "matchingDistinctBundles": 16,
+    "passingLifecycleSegments": 48,
+    "excludedWarmupSamples": 4,
+    "inputs": "NX round-9 audited 0.4.11 starters; baseline and patched 0.4.12 CLIs"
+  },
+  "binaries": {
+    "baseline-production": "528e1345d6775149ee7e4ffc90455802eb5131d3f41b9feb04bd73a1df458206",
+    "candidate-production": "91e3c821deb1ed63d0142c68834f63c6ad3304419d457c2a0caeb1b7ae028cfb"
+  }
+}

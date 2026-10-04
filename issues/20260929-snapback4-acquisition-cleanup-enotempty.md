@@ -1,4 +1,4 @@
-# Snapback 4 acquisition fixture cleanup can fail ENOTEMPTY and leave the suite waiting
+# Snapback 4 acquisition/retained-history fixture cleanup can fail ENOTEMPTY and leave the suite waiting
 
 Status: Open. Scope: test fixture lifecycle, inherited at `4fd338de5`.
 Found during lane BP round 0's required single `scripts/test.sh` run on Linux.
@@ -42,3 +42,48 @@ Evidence and final suite/isolated-case outcomes:
 Process identities and intervention times are retained in the report's
 validation evidence. Fixing this inherited fixture is outside BP's explicit
 stop-after-non-reproduction scope.
+
+
+## WD recurrence in retained-history — 2026-10-03
+
+The Apartment mini canonical suite on Node 24.18.0 reproduced this fixture
+lifecycle failure in `packages/snapback4/test/retained-history.test.mjs`.
+
+The full suite reported `ENOTEMPTY` in `MQ authoritative bound wasm: retained
+history and independent held coverage`, at the `rmSync(directory, ...)`
+after-hook on line 196. All 68 cases ran (67 passed, one teardown failure),
+but a server from the failed case remained alive and kept the Node test child
+alive. Native Node buffered this file's output until the child exited, leaving
+the suite apparently stalled for more than sixteen minutes. Its per-test
+372-second guard did not bound this remaining process lifetime.
+
+The fixture registers directory removal before client/server cleanup (line
+202). The failed directory retained `.snapback4/`; the server was still waiting
+for HTTP requests. This ordering permits a writer/removal race and a failed
+hook can leave later cleanup unfinished. The exact filesystem interleaving was
+not instrumented, so that mechanism remains a code-reading lead.
+
+WD sampled only its own Node child/server, then sent TERM to the owned server.
+That did not release the Node child; TERM to that child let the full suite run
+its remaining stages. The full run must retain its failed/intervened status.
+The unchanged retained-history file separately passed 68/68 with WD's candidate
+CLI in 56.248 s; an isolated first-case baseline control also passed. These
+controls do not erase the suite failure or prove the rare interleaving repaired.
+
+This case starts `snapback4 dev` and uses the client/device API; it does not
+invoke witness preparation. WD does not edit this test or the client runtime.
+This is distinct from the existing R5 transient-empty-answer ticket.
+
+Follow-up: ensure client/server cleanup runs even when an earlier cleanup step
+fails, stop/reap writers before removing their fixture directory, and regress
+the leftover-handle/file-process exit behavior under contention. Preserve all
+retained-history assertions and case counts.
+
+Evidence: [WD report](../snapback4/reports/20261003-wd-witness-cleanup-deadline/REPORT.md),
+[intervention and diagnosis](../snapback4/reports/20261003-wd-witness-cleanup-deadline/retained-suite-stall.json).
+The report's external evidence index retains the complete suite output,
+pre-intervention log, native stack samples and isolated controls.
+
+The complete WD command ended `== 1 failure(s) in 2724 s`: 6,039 ordinary
+client passes, one failure, five existing skips, zero cancellations; the final
+79 models passed. All 68 retained-history cases were attempted.

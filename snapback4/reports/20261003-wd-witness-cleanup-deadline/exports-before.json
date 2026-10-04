@@ -1,0 +1,818 @@
+[
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain",
+    "starter": "plain",
+    "sample": 0,
+    "warm": false,
+    "seconds": 25.993332249999998,
+    "status": 0,
+    "hostLoadBefore": [
+      4.6171875,
+      4.69580078125,
+      8.53955078125
+    ],
+    "hostLoadAfter": [
+      4.70263671875,
+      4.716796875,
+      8.435546875
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "470f48285f10b58614bd4bb42ae430e1ebfeb4a8a0eee7b98e3e4bde23206a7e"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 21290,
+    "loadedHash": "a6913a5ddd9f0c72998002dca02d2ed78ca9352d7f381bc3b21ee3aaedaa96ab",
+    "exportHash": "a6913a5ddd9f0c72998002dca02d2ed78ca9352d7f381bc3b21ee3aaedaa96ab",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-plain-0.log",
+        "sha256": "5a10e7fb7f2af829aad4b43e23ee13d18121b93cf557c90737b5eb0f5361412a",
+        "bytes": 1317
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/live.json",
+        "sha256": "67c54dde96af7acae80a69dd7b22c2dbd3b5d3348cd117c4865f3ceed8b5f2fe",
+        "bytes": 3431
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-prime.png",
+        "sha256": "7299a4d0efb1ac1c6788e49731b44bd94a7ffb837518e880b35875aade0ea5c5",
+        "bytes": 49132
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-restart.png",
+        "sha256": "7299a4d0efb1ac1c6788e49731b44bd94a7ffb837518e880b35875aade0ea5c5",
+        "bytes": 49132
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-offline.png",
+        "sha256": "18a5576ce33d33a9777d92bc7a28ebbcd6c556f0304cd8465dbf04f6e53e4fbe",
+        "bytes": 49403
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/publication.json",
+        "sha256": "6e1cfec2c0d48d7593064c9a99ea48d984e4a2a1a27977f7886e136b2f4f5cf7",
+        "bytes": 1488
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/build.json",
+        "sha256": "37fe04a99bd5b7a76dbc9bf0281668812ad5e73d7da10e1beb23e92001b328f8",
+        "bytes": 37300
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-receipts.jsonl",
+        "sha256": "ed453b9e2582fa5e8746dbf42bd9ec796391900e6fc43aef9ef3d7b979996b35",
+        "bytes": 6164
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/proof.json",
+        "sha256": "cb07a7381160f8faa5e7bb8b76165f88176d299fcb821e6bad49b44ee049ffd0",
+        "bytes": 55088
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-run.json",
+        "sha256": "92d14831a0703634aa67174b92def339da84b8a57845b2a069e5b62ee33653a3",
+        "bytes": 18037
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074113118-92243/smoke-ios-screen.mp4",
+        "sha256": "3a8a44964de5d0e355394bcda22910b574d3897a064344619e602febc3373fa3",
+        "bytes": 3937379
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social",
+    "starter": "social",
+    "sample": 0,
+    "warm": false,
+    "seconds": 32.308499583,
+    "status": 0,
+    "hostLoadBefore": [
+      4.70263671875,
+      4.716796875,
+      8.435546875
+    ],
+    "hostLoadAfter": [
+      4.85400390625,
+      4.74365234375,
+      8.31494140625
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "403b80977838b82d13f0e3eaf44e174a6e6cf6363ebf75aada11d6530f5824d0"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 26971,
+    "loadedHash": "de37e39b4621673bd2cd8345093bb8e89cc56fcd14d42773e735aefbf75ed8b4",
+    "exportHash": "de37e39b4621673bd2cd8345093bb8e89cc56fcd14d42773e735aefbf75ed8b4",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-social-0.log",
+        "sha256": "b93f75eac9e3506980f67133ef9dd2322d9de0d2b802f040a578c14c2119006d",
+        "bytes": 2188
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/live.json",
+        "sha256": "248103dc1939e000e97493390f2370417c59a9382d174dc1679a355c97c16156",
+        "bytes": 3445
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-prime.png",
+        "sha256": "51abf1e0bc66682dec119f3c7e0718a35f2cb560560d3683f2f382da95c7fb33",
+        "bytes": 48605
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-restart.png",
+        "sha256": "6c339a1359edc4e997e9bae8b3e9bbc7140aac9a0c818a217c607cd5a6bb6644",
+        "bytes": 48896
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-offline.png",
+        "sha256": "6c339a1359edc4e997e9bae8b3e9bbc7140aac9a0c818a217c607cd5a6bb6644",
+        "bytes": 48896
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/publication.json",
+        "sha256": "abb09b9d3f998634561ff774115af8da03789e524c526156a4bd157f9430cdff",
+        "bytes": 5318
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/build.json",
+        "sha256": "64f259ca01baa11129088d55bbb6305109dfa4e19abcb70aa4e4dc6d86c803cd",
+        "bytes": 58774
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-receipts.jsonl",
+        "sha256": "52b7eb94098679178e2ca777dc586bae904d8f4bf1b0bf4c0226c637498749f1",
+        "bytes": 6869
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/proof.json",
+        "sha256": "798cebdfa024ffcfcc304d33c1fc2022d6478b2d667a0865840b7f3ae84abdc3",
+        "bytes": 76888
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-run.json",
+        "sha256": "3aaf62e665d8cb5b8e2be8a5627810fc96be82520d00e1b9d01bb1c62147ce5b",
+        "bytes": 30412
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074139064-95078/smoke-ios-screen.mp4",
+        "sha256": "85dfe452158258b2adf38b86f13195387d8fc12b595587e94c5abeb1fe67f1a2",
+        "bytes": 5146127
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain",
+    "starter": "plain",
+    "sample": 1,
+    "warm": true,
+    "seconds": 25.242303292000003,
+    "status": 0,
+    "hostLoadBefore": [
+      4.85400390625,
+      4.74365234375,
+      8.31494140625
+    ],
+    "hostLoadAfter": [
+      4.79541015625,
+      4.7451171875,
+      8.2119140625
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "470f48285f10b58614bd4bb42ae430e1ebfeb4a8a0eee7b98e3e4bde23206a7e"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 20791,
+    "loadedHash": "752a6c1588757bc23c3a68ba1034b904e8dd9bec224110f832c78de8f94f013e",
+    "exportHash": "752a6c1588757bc23c3a68ba1034b904e8dd9bec224110f832c78de8f94f013e",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-plain-1.log",
+        "sha256": "2bea9913afca758d122d24a2bacc77dc20ad3c37052db27e9459892dd03c9983",
+        "bytes": 1317
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/live.json",
+        "sha256": "d79204f596eeb9d1a3646ff1fed4b05b59f520dd7416df1f7583cc35671b01bc",
+        "bytes": 3417
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-prime.png",
+        "sha256": "77151740e986fcf516cf00e22e53785eb037f0a77fad4e5406c80bc23f8f0c47",
+        "bytes": 48304
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-restart.png",
+        "sha256": "77151740e986fcf516cf00e22e53785eb037f0a77fad4e5406c80bc23f8f0c47",
+        "bytes": 48304
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-offline.png",
+        "sha256": "13ac663d033b36f96454f03a358c6267d705b9d32a7b8a691f1433588277658c",
+        "bytes": 48563
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/publication.json",
+        "sha256": "4ff48f5c0e8b581f99cad03db3fa1a5de293096146fa94227d9f1ff4d58ff6cb",
+        "bytes": 1488
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/build.json",
+        "sha256": "fb24051cccf96f3fd3072d76e8bb2de368604a73b5706e946a4e1b1e1877fbbe",
+        "bytes": 37300
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-receipts.jsonl",
+        "sha256": "066a3fe4d7e7a22ad2e32e0c24f3a626b9d467b38ec72da855045910c672db32",
+        "bytes": 6164
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/proof.json",
+        "sha256": "2a664bbb4a9253aec69b69d478fa08c7bad865fa0ef82b55c38fa7953ebc2845",
+        "bytes": 55088
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-run.json",
+        "sha256": "c31df32599858a4b4937ab8d0e3c4647d22d72aaecd993fd7dba56760bdfc6a8",
+        "bytes": 18029
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074171385-98186/smoke-ios-screen.mp4",
+        "sha256": "41698737553191068498577a302a6f1037e9b47ec620bfb4bd9d7a27a905a89d",
+        "bytes": 4263023
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social",
+    "starter": "social",
+    "sample": 1,
+    "warm": true,
+    "seconds": 32.15844629200001,
+    "status": 0,
+    "hostLoadBefore": [
+      4.79541015625,
+      4.7451171875,
+      8.2119140625
+    ],
+    "hostLoadAfter": [
+      4.66943359375,
+      4.7353515625,
+      8.068359375
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "403b80977838b82d13f0e3eaf44e174a6e6cf6363ebf75aada11d6530f5824d0"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 27025,
+    "loadedHash": "2041f98795b4379d6d7bdf465c6b0a8b17831e9bd8ae405e95af2cb91f47692d",
+    "exportHash": "2041f98795b4379d6d7bdf465c6b0a8b17831e9bd8ae405e95af2cb91f47692d",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-social-1.log",
+        "sha256": "bbad70c65f68ac3a4fcb279b04564a8108459aac8748f6d5aeaf90426a4cfe59",
+        "bytes": 2185
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/live.json",
+        "sha256": "aad3a74c565e12f41eab914de05f2c43b3a397e5e90b70b83cbf8d80c619a3e0",
+        "bytes": 3404
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-prime.png",
+        "sha256": "6c339a1359edc4e997e9bae8b3e9bbc7140aac9a0c818a217c607cd5a6bb6644",
+        "bytes": 48896
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-restart.png",
+        "sha256": "ba41a1a7fde21e5d81d4d9437b15ab2fb548724b5a05f5f43e8fb954f85f8b55",
+        "bytes": 48769
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-offline.png",
+        "sha256": "ba41a1a7fde21e5d81d4d9437b15ab2fb548724b5a05f5f43e8fb954f85f8b55",
+        "bytes": 48769
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/publication.json",
+        "sha256": "d4ca34e48055caced4a27c62c7ecf902d9ce0c7dbabfa4b894022060d3e2d42d",
+        "bytes": 5316
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/build.json",
+        "sha256": "de8678696ea223a0dceaac2185907363bfd1a3c67df92745b8882347b66b299a",
+        "bytes": 58771
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-receipts.jsonl",
+        "sha256": "e3de5b4ae3fbc3b763a528742b17de4abb873f65abfb8dece2e73029764c5098",
+        "bytes": 6866
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/proof.json",
+        "sha256": "2188561e89f537f33d16f45bc3a28875d3e063677996fefc25005725eec8ff9e",
+        "bytes": 76884
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-run.json",
+        "sha256": "72cbfb8b587c336eb54c79dea1797a2889e202ed16a4a9b7645544aaef743e05",
+        "bytes": 30379
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074196613-2021/smoke-ios-screen.mp4",
+        "sha256": "cfc063ff4b978fca6318a510d68218561f01fc3de26150dd2097bce995aaa966",
+        "bytes": 5013721
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain",
+    "starter": "plain",
+    "sample": 2,
+    "warm": true,
+    "seconds": 24.967691708000018,
+    "status": 0,
+    "hostLoadBefore": [
+      4.66943359375,
+      4.7353515625,
+      8.068359375
+    ],
+    "hostLoadAfter": [
+      4.46435546875,
+      4.67578125,
+      7.94970703125
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "470f48285f10b58614bd4bb42ae430e1ebfeb4a8a0eee7b98e3e4bde23206a7e"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 20500,
+    "loadedHash": "03ba250a2d12557bd72c7c582ccca52aec3949968ba8b7c135ca229d55098808",
+    "exportHash": "03ba250a2d12557bd72c7c582ccca52aec3949968ba8b7c135ca229d55098808",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-plain-2.log",
+        "sha256": "ac7882ebd78ffa70ccd30fd3c1639c3b566cce204ee96737bb608c8d4172a51b",
+        "bytes": 1314
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/live.json",
+        "sha256": "e8406087d333f4343f90eff6d11bc5e5c318878bd69db19d98909b41d8b4448e",
+        "bytes": 3394
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-prime.png",
+        "sha256": "df947787823196c4b37950c43ed912cdaa398dbafe484a96122867902f8d40ef",
+        "bytes": 50240
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-restart.png",
+        "sha256": "df947787823196c4b37950c43ed912cdaa398dbafe484a96122867902f8d40ef",
+        "bytes": 50240
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-offline.png",
+        "sha256": "7c89df0be9ea4db1aac7f3f655265cc486d656131f200db0fe467cb6f3d30964",
+        "bytes": 50496
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/publication.json",
+        "sha256": "59c09c79351a2337fa76b42174baa05180f80799e23ec743f6a46d193cf66da5",
+        "bytes": 1486
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/build.json",
+        "sha256": "7864eedc20b7df70c06dc3c0de05dba53d617e3ec46ef4319ca447522ace3612",
+        "bytes": 37297
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-receipts.jsonl",
+        "sha256": "f98237e3c75b5eaf1d7a4df04f28c857e4fe040da8b6ac111656bb2f4dff4e3f",
+        "bytes": 6161
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/proof.json",
+        "sha256": "d8775142c26e8a12d821c0f40630846f57ba666d0deada547a2500aa2e41abfc",
+        "bytes": 55084
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-run.json",
+        "sha256": "1abbf636ff29fd2f22b51a73dbe53dbea094b6234c35f51358b829fa8c9737c8",
+        "bytes": 18004
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074228800-5276/smoke-ios-screen.mp4",
+        "sha256": "94e98614f49af5a329821b2c311ed3cb37628e5567a97db41f12e980f6cdd55e",
+        "bytes": 4576147
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social",
+    "starter": "social",
+    "sample": 2,
+    "warm": true,
+    "seconds": 29.090861875,
+    "status": 0,
+    "hostLoadBefore": [
+      4.46435546875,
+      4.67578125,
+      7.94970703125
+    ],
+    "hostLoadAfter": [
+      5.02294921875,
+      4.7861328125,
+      7.87548828125
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "403b80977838b82d13f0e3eaf44e174a6e6cf6363ebf75aada11d6530f5824d0"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 24117,
+    "loadedHash": "8a576f5a3bd51ed55b844a6d27d4ab240e04d5e868476fff123583b9187f68d3",
+    "exportHash": "8a576f5a3bd51ed55b844a6d27d4ab240e04d5e868476fff123583b9187f68d3",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-social-2.log",
+        "sha256": "8c365f19f414c26d4fc1ebb2deedd7e30efb2e67ddebe4660e55c3f06d5d013f",
+        "bytes": 2185
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/live.json",
+        "sha256": "ec8483a7184ed0d3b7106295b715cbaa08e4abd688da66d4c4f31681cf7a7f6f",
+        "bytes": 3412
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-prime.png",
+        "sha256": "ba41a1a7fde21e5d81d4d9437b15ab2fb548724b5a05f5f43e8fb954f85f8b55",
+        "bytes": 48769
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-restart.png",
+        "sha256": "ba41a1a7fde21e5d81d4d9437b15ab2fb548724b5a05f5f43e8fb954f85f8b55",
+        "bytes": 48769
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-offline.png",
+        "sha256": "ba41a1a7fde21e5d81d4d9437b15ab2fb548724b5a05f5f43e8fb954f85f8b55",
+        "bytes": 48769
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/publication.json",
+        "sha256": "64f16779575470397475d6b6cc150fe68904126ad1b3e791c708d664649e0ad5",
+        "bytes": 5316
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/build.json",
+        "sha256": "561bc8c8641322f34652c78cfee1857192385fd799a2f9e5bd20f12630784f80",
+        "bytes": 58770
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-receipts.jsonl",
+        "sha256": "315d48e2384f134bcf920ce042dcc9fee8eca89ce374f158ddb5131bf35c40a5",
+        "bytes": 6866
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/proof.json",
+        "sha256": "2eae5a94fc5576adb46b5087b3081563d3ebced0ae5ed2ed7c898306c1587e68",
+        "bytes": 76884
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-run.json",
+        "sha256": "1b9b15eee8fe2313cffa2976c8dc656accf91cd2596cdece80f908fd1092bdcc",
+        "bytes": 30381
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074253745-8074/smoke-ios-screen.mp4",
+        "sha256": "be8b0c63a5a13487fb2beda0b0f99791324a7d35daccecab03381f8724c5a7b4",
+        "bytes": 5345298
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain",
+    "starter": "plain",
+    "sample": 3,
+    "warm": true,
+    "seconds": 23.596995042000003,
+    "status": 0,
+    "hostLoadBefore": [
+      5.02294921875,
+      4.7861328125,
+      7.87548828125
+    ],
+    "hostLoadAfter": [
+      5.9326171875,
+      5.03515625,
+      7.8935546875
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "470f48285f10b58614bd4bb42ae430e1ebfeb4a8a0eee7b98e3e4bde23206a7e"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 19297,
+    "loadedHash": "d2acae0e1efde2651cb7e16855342cec52536420317e71e32ab52b22d526cf2d",
+    "exportHash": "d2acae0e1efde2651cb7e16855342cec52536420317e71e32ab52b22d526cf2d",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-plain-3.log",
+        "sha256": "250be5420c2dcd9b1a373d8ac49374800b49a2e29e15420fbf56c5d7741ff4a5",
+        "bytes": 1317
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/live.json",
+        "sha256": "4d4e92834d4db1a8ef3c15568359b504230e34b1331cba413fe87c4db85932c1",
+        "bytes": 3438
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-prime.png",
+        "sha256": "d1daa0b7b3574f43052c268a0fa359f2d659d0d8b425ed1d3951cb1ccce17790",
+        "bytes": 48624
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-restart.png",
+        "sha256": "d1daa0b7b3574f43052c268a0fa359f2d659d0d8b425ed1d3951cb1ccce17790",
+        "bytes": 48624
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-offline.png",
+        "sha256": "162da02f42ba118d0d510e6b95c871348d80208e36fa8a81e923d361084bc606",
+        "bytes": 48885
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/publication.json",
+        "sha256": "d9db4206775a940e81fb2a7679561c9ac2f8b924a577ed558e7e9188ff512252",
+        "bytes": 1488
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/build.json",
+        "sha256": "7bf75e2cf6b23e646bc45579bf0120e38c91dfcb17ba2c5dd9ebba96ff0be401",
+        "bytes": 37299
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-receipts.jsonl",
+        "sha256": "f085c78698df9721ebdc8f6ad8b3862a571d44c81ffb2dd8e1deeeab75885d7c",
+        "bytes": 6164
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/proof.json",
+        "sha256": "a0032dd7d8549d947db05e233d5c743031c8e2b66d6917126c19cb165fbf0faa",
+        "bytes": 55088
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-run.json",
+        "sha256": "f2ab9ce631c7809ee4a0f7acb0e5fb1b0759c859e3d53dd61ec113db873fcba6",
+        "bytes": 18037
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/plain/artifacts/native-smoke/1791074282878-11178/smoke-ios-screen.mp4",
+        "sha256": "ee6c66b1b3be4737f6a895a4aab7636e671db9f0a516d4b6e0ba304b8a843bee",
+        "bytes": 4602417
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "cohort": "before",
+    "project": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social",
+    "starter": "social",
+    "sample": 3,
+    "warm": true,
+    "seconds": 29.406283833000003,
+    "status": 0,
+    "hostLoadBefore": [
+      5.9326171875,
+      5.03515625,
+      7.8935546875
+    ],
+    "hostLoadAfter": [
+      5.14794921875,
+      4.93310546875,
+      7.7568359375
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-run.json",
+    "nativeCache": {
+      "fingerprint": {
+        "fingerprint": {
+          "hash": "403b80977838b82d13f0e3eaf44e174a6e6cf6363ebf75aada11d6530f5824d0"
+        }
+      },
+      "hit": true
+    },
+    "error": null,
+    "segments": {
+      "offline": "passed",
+      "prime": "passed",
+      "restart": "passed"
+    },
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "reused",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": 24476,
+    "loadedHash": "759a8a40dbd67442e05ac31b13ccb34971fee94cf3abd0eeb88e5d711c4302fc",
+    "exportHash": "759a8a40dbd67442e05ac31b13ccb34971fee94cf3abd0eeb88e5d711c4302fc",
+    "evidence": [
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/before-social-3.log",
+        "sha256": "66dcae425276fb8d96182dc247a001bb9a4b33a75c9911ca7bb013bfbc6d2aa7",
+        "bytes": 2188
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/live.json",
+        "sha256": "d8b8229d0dfa5ede86586263c60aa509264c10dd10484249cce05c4e1d622d98",
+        "bytes": 3447
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-prime.png",
+        "sha256": "29ea9b7d0c8d3523c5cf1118f3e2db58d330248a3062898cd3f8fc0474178099",
+        "bytes": 48898
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-restart.png",
+        "sha256": "29ea9b7d0c8d3523c5cf1118f3e2db58d330248a3062898cd3f8fc0474178099",
+        "bytes": 48898
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-offline.png",
+        "sha256": "29ea9b7d0c8d3523c5cf1118f3e2db58d330248a3062898cd3f8fc0474178099",
+        "bytes": 48898
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/publication.json",
+        "sha256": "2633c93692d6ce8892c3ceaadb8c0ce69f0d85517f59fb9228b9d6ac98dc51f1",
+        "bytes": 5318
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/build.json",
+        "sha256": "df43aa876bc23f781da51d124a19603bcdde2734e55cf5f54aef81a355e821ce",
+        "bytes": 58773
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-receipts.jsonl",
+        "sha256": "4e6395cba3c4c68421cca6346a5b3d70807c4d4c2766f1155beeb6fa14fdc21c",
+        "bytes": 6869
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/proof.json",
+        "sha256": "e73881ce3e93abbcbfb2f6de01dcd2be0a37536f7d48d0e704fa72321de73e6b",
+        "bytes": 76888
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-run.json",
+        "sha256": "86cd5330befd32957531d3159fff2b2a7b429bc7a4afe05a76e16a6e9c4215b9",
+        "bytes": 30412
+      },
+      {
+        "path": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/audited/social/artifacts/native-smoke/1791074306449-13971/smoke-ios-screen.mp4",
+        "sha256": "65cc237cf19b7ffeb0c46f69ef330b279e07dbf7beac515374ab234b82b8ca52",
+        "bytes": 5393718
+      }
+    ]
+  }
+]

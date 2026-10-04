@@ -1,0 +1,128 @@
+{
+  "base": "38d9bfe0de9072ec71138cf0fd987ba666254d96",
+  "host": {
+    "lane": "eb1000",
+    "hostname": "expose-builder-pixel",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "node": "v24.13.1",
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "bun": "1.3.14"
+  },
+  "source": {
+    "crates/snapback4/src/verbs/witness/recovery.rs": "10569f86f34f7a56f851fa9b0ae7d2a97f92c6aafa2276255b49300f2e5a7981",
+    "crates/snapback4/src/verbs/witness/preparation.rs": "5b1af4a55900cfa3f2d64e4fbdc0035fa226fe55689e063a6bb9ea0674fc5098",
+    "crates/snapback4/src/verbs/witness/cleanup.rs": "16dcae2cdae277fb9e407c2c3d86de663bfd32b2af7eccadd897cbad81761fbb",
+    "crates/snapback4/src/verbs/witness/process_group.rs": "918e1f0d859dc26275b9af988b39eaee7d4ad5ec03925be086dd39832ed3ef77"
+  },
+  "build": {
+    "command": "cargo build -p snapback4 --bin snapback4",
+    "status": 0,
+    "seconds": 29.0
+  },
+  "witness": {
+    "command": "cargo test -p snapback4 --bin snapback4 witness -- --test-threads=1",
+    "status": 0,
+    "passed": 53,
+    "failed": 0,
+    "ignored": 0,
+    "seconds": 27.17
+  },
+  "developmentFailure": {
+    "command": "cargo test -p snapback4 --bin snapback4 witness -- --test-threads=1",
+    "status": 101,
+    "cause": "missing CommandExt import in new Linux test module; fixed before successful run",
+    "testsRun": 0
+  },
+  "darwin": {
+    "identityAndEnumeration": "byte-for-byte unchanged from base",
+    "execution": "not run; all execution local to eb1000",
+    "pendingMiniVerification": [
+      "cleanup.rs: Deadline::check / lock",
+      "preparation.rs: PreparationProcess::cleanup",
+      "process_group.rs: supervisor drain",
+      "recovery.rs: stop_group_with"
+    ]
+  },
+  "fullSuite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "status": 0,
+    "seconds": 1635.389151841402,
+    "footer": "== 0 failure(s) in 1635 s",
+    "stages": [
+      "-- ok: cargo build (9 s)",
+      "-- ok: wasm build (68 s)",
+      "-- ok: docs budget (53 s)",
+      "-- ok: release guard (13 s)",
+      "-- ok: package typecheck (2 s)",
+      "-- ok: package build (3 s)",
+      "-- ok: chat app check (0 s)",
+      "-- ok: cargo test (583 s)",
+      "-- ok: chat app typecheck (2 s)",
+      "-- ok: expo app typecheck (1 s)",
+      "-- ok: fixture wrapper tests (20 s)",
+      "-- ok: client tests (592 s)",
+      "-- ok: client models (311 s)"
+    ],
+    "cliUnits": {
+      "passed": 282,
+      "failed": 0,
+      "ignored": 4
+    },
+    "witnessIntegration": {
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0,
+      "platform": "Linux"
+    },
+    "fixtureWrappers": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "clients": {
+      "passed": 6034,
+      "failed": 0,
+      "skipped": 11,
+      "cancelled": 0
+    },
+    "clientModels": {
+      "passed": 79,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "interventions": []
+  },
+  "refCheck": {
+    "command": "./ref-check --verbose",
+    "status": 0,
+    "summary": "ref-check: ok \u2014 527 LLP docs, 10285 refs in 34183 files, 0 errors, 0 unchecked"
+  },
+  "logs": [
+    {
+      "path": "target/wd/round1/build.log",
+      "bytes": 2945,
+      "sha256": "c2be7fadc2682ec002e58349e164601b6845dd43a53f71cdf915c2900fbf40ef"
+    },
+    {
+      "path": "target/wd/round1/full-suite.log",
+      "bytes": 988580,
+      "sha256": "d3bf7dbee8409f6d52cda896b476d42c248b193c7bfac92d2ddf05b565182f8b"
+    },
+    {
+      "path": "target/wd/round1/ref-check.log",
+      "bytes": 81,
+      "sha256": "88448727568a116c184e26018f65d58b96fd7e107de40faf52f4751d0cf7b461"
+    },
+    {
+      "path": "target/wd/round1/witness-initial-compile.log",
+      "bytes": 4204,
+      "sha256": "9558fe973a7c419adebf365446e60127a8b7393597d02037e2513e7d53f50e17"
+    },
+    {
+      "path": "target/wd/round1/witness.log",
+      "bytes": 6276,
+      "sha256": "0e14719402ad67db2a79bce767bdc255902c286bb3f6cb8fee0d64a790fb18b3"
+    }
+  ]
+}

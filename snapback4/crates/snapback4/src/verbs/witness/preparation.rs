@@ -61,7 +61,7 @@ pub(super) fn node_runtime(options: &Options, node: &std::ffi::OsStr) -> Result<
 
 // The native supervisor owns the unreaped anchor. Its owner-exit watcher drains
 // the group even if this driver is SIGKILLed before the journal/start handshake.
-struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf, group: Value }
+struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf, group: Value, cleanup_deadline: Option<cleanup::Deadline> }
 impl PreparationProcess {
     fn spawn(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
         Self::spawn_with_node(options, std::ffi::OsStr::new("node"), command, args, label)
@@ -83,7 +83,7 @@ impl PreparationProcess {
             .stdout(File::create(options.artifacts.join(format!("{label}-stdout.log"))).map_err(|e| error("E_WITNESS_ARTIFACT", e))?)
             .stderr(output(&options.artifacts.join(format!("{label}-stderr.log")))?)
             .spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-        let mut owned = Self { child, cleaned: false, result, group: Value::Null };
+        let mut owned = Self { child, cleaned: false, result, group: Value::Null, cleanup_deadline: None };
         let end = Instant::now() + Duration::from_secs(5);
         loop {
             if let Ok(bytes) = fs::read(&ready) {
@@ -121,19 +121,114 @@ impl PreparationProcess {
         // EOF requests cleanup. A kernel owner watcher also covers inherited
         // control pipes and SIGKILL; this pipe is only the normal-path request.
         self.child.stdin.take();
-        let end = Instant::now() + Duration::from_secs(5);
+        // Keep the same budget across a failed call and Drop: a real stall
+        // must not gain a fresh deadline merely because cleanup was retried.
+        self.cleanup_deadline.get_or_insert_with(|| cleanup::Deadline::new(Instant::now()));
         loop {
             if self.child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))?.is_some() {
                 if self.live_group()? { recovery::stop_group_with(&self.group, || {})?; }
                 self.cleaned = true;
                 return Ok(());
             }
-            if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "native preparation watchdog cleanup did not finish; recovery required")); }
+            let deadline = self.cleanup_deadline.as_mut().unwrap();
+            if let Some(group) = self.group["group"].as_u64() {
+                deadline.observe(Instant::now(), recovery::members(group as u32)?.len());
+            }
+            deadline.check(Instant::now(), "native preparation watchdog cleanup")?;
             sleep(Duration::from_millis(20));
         }
     }
 }
 impl Drop for PreparationProcess { fn drop(&mut self) { let _ = self.cleanup(); } }
+
+#[cfg(test)]
+mod cleanup_tests {
+    use super::*;
+    fn keeper(label: &str) -> (PathBuf, PreparationProcess) {
+        let dir = std::env::temp_dir().join(format!("sb4-wd-{label}-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+        let options = Options::parse(&args).unwrap();
+        let keeper = PreparationProcess::launch(&options, std::ffi::OsStr::new("sleep"), &[std::ffi::OsStr::new("60")], "preparation").unwrap();
+        (dir, keeper)
+    }
+    struct Resume(u32);
+    impl Drop for Resume { fn drop(&mut self) { unsafe { libc::kill(self.0 as i32, libc::SIGCONT); } } }
+
+    #[test]
+    fn shrinking_group_extends_cleanup_until_supervisor_exits() {
+        let (dir, mut keeper) = keeper("progress");
+        // Pause our still-unreaped supervisor; live members leave in stages.
+        // Use the actual product's 5 s idle/60 s hard caps, including under load.
+        let step = Duration::from_secs(2);
+        let idle = Duration::from_secs(5);
+        unsafe { libc::kill(keeper.child.id() as i32, libc::SIGSTOP); }
+        let resume = Resume(keeper.child.id());
+        let group = keeper.group["group"].as_u64().unwrap() as i32;
+        let mut departing: Vec<_> = (0..3).map(|_| Owned::spawn(Command::new("sleep").arg("60").process_group(group)).unwrap()).collect();
+        keeper.cleanup_deadline = Some(cleanup::Deadline::with_limits(Instant::now(), idle, Duration::from_secs(60)));
+        let start = Instant::now();
+        let result = std::thread::scope(|scope| {
+            scope.spawn(move || {
+                for child in &mut departing {
+                    sleep(step);
+                    child.0.kill().unwrap(); child.0.wait().unwrap();
+                }
+                sleep(step);
+                drop(resume);
+            });
+            keeper.cleanup()
+        });
+        result.unwrap();
+        assert!(start.elapsed() > idle, "cleanup must survive its original idle deadline");
+        assert!(!keeper.live_group().unwrap());
+        eprintln!("WD shrinking cleanup completed in {:?} (idle {:?})", start.elapsed(), idle);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn stopped_supervisor_without_exits_requires_recovery_and_keeps_its_deadline() {
+        let (dir, mut keeper) = keeper("stalled");
+        unsafe { libc::kill(keeper.child.id() as i32, libc::SIGSTOP); }
+        let resume = Resume(keeper.child.id());
+        keeper.cleanup_deadline = Some(cleanup::Deadline::with_limits(Instant::now(), Duration::from_millis(200), Duration::from_secs(2)));
+        let start = Instant::now();
+        let first = keeper.cleanup().unwrap_err();
+        assert!(first.contains("recovery required"), "{first}");
+        assert!(first.contains("idle cleanup deadline expired"), "{first}");
+        assert!(start.elapsed() >= Duration::from_millis(200));
+        assert!(start.elapsed() < Duration::from_secs(2), "a stopped supervisor must refuse at the idle deadline");
+        let deadline = keeper.cleanup_deadline.as_ref().unwrap();
+        assert!(deadline.expired(Instant::now()));
+        assert!(keeper.cleanup().unwrap_err().contains("recovery required"));
+        drop(resume);
+        // Reap only our supervisor after allowing its real watchdog to finish.
+        assert!(keeper.child.wait().unwrap().success());
+        keeper.cleanup().unwrap();
+        assert!(!keeper.live_group().unwrap());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn direct_enumeration_resizes_and_keeps_births_in_the_selected_group() {
+        let (dir, mut keeper) = keeper("members");
+        let group = keeper.group["group"].as_u64().unwrap() as u32;
+        // More than the initial Darwin PID buffer; no host-wide scan needed.
+        let mut children: Vec<_> = (0..40).map(|_| Owned::spawn(Command::new("sleep").arg("60").process_group(group as i32)).unwrap()).collect();
+        let mut outside = Owned::spawn(Command::new("sleep").arg("60").process_group(0)).unwrap();
+        let members = recovery::members(group).unwrap();
+        for child in &children { assert!(members.contains(&recovery::identity(child.0.id()).unwrap())); }
+        assert!(!members.contains(&recovery::identity(outside.0.id()).unwrap()));
+        assert!(recovery::members(0).is_err());
+        assert!(recovery::members(u32::MAX).is_err());
+        keeper.cleanup().unwrap();
+        for child in &mut children { child.0.wait().unwrap(); }
+        assert!(outside.status().unwrap().is_none());
+        outside.0.kill().unwrap(); outside.0.wait().unwrap();
+        assert!(recovery::members(group).unwrap().is_empty());
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
 
 fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
     let args: Vec<_> = args.iter().map(std::ffi::OsStr::new).collect();

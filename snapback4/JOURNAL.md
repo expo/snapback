@@ -85994,3 +85994,79 @@ Reference, documentation-budget and whitespace checks pass. No other host,
 push or publication. Report:
 [NL Round 10](./reports/20261003-nl-named-key-lookup/REPORT.md#round-10-2026-10-04).
 Evidence: `/tmp/sb4-nl-r10-verification/`.
+## 2026-10-03 — WD: progress-based witness cleanup on a busy Mac
+
+Darwin witness group inspection now uses `proc_listpgrppids` plus per-member
+group/live/birth checks; Linux filters `/proc` with boot/start identities.
+Caller, native supervisor and recovery drains renew five seconds of idle
+budget on observed group shrinkage, capped at sixty seconds. Growth, unchanged
+counts and a merely live supervisor do not renew it. Reaping-lock waits are
+bounded and caller retries retain their original deadline. The unreaped
+anchor, guardian/birth checks, group-wide signals and two empty snapshots
+remain; real stalls still require recovery. LLP 3000.030 §15 and `guide witness`
+record the policy. Original NX test bodies are unchanged.
+
+Before product edits, WD measured the original code on the Apartment mini
+under an owned 3,000-idle/36-CPU process group. The exact historical five-second
+watchdog failure did not reproduce (worst observed margin 4.803 s), but the
+process-table/load cost did. Paired loaded membership medians fell from
+65.827 ms to 0.522 ms. Final qualification passed 50/50 complete witness-module
+runs, 2,400/2,400 tests, including real eight-second progressive cleanup and
+a stopped-supervisor refusal. All 3,036 load children were reaped.
+
+The requested full Mac suite ended `== 1 failure(s) in 2724 s`: all Rust,
+build/typecheck, nine fixture wrappers and 79 models passed; ordinary clients
+reported 6,039 passes, one failure and five existing skips. Retained-history's
+unchanged directory-removal hook failed ENOTEMPTY and left a server alive;
+WD terminated only its recorded own server/test child to let the remaining
+stages finish. All 68 cases had run (67 pass, one teardown failure); an isolated
+repeat passed 68/68. The failed/intervened run stays failed, with evidence added
+to the existing acquisition/retained-history cleanup ticket.
+
+Sixteen actual plain/social exports passed, all native-cache hits with distinct
+matching exported/loaded bundles and all 48 lifecycle segments passing. Three
+measured warm samples per starter/CLI gave total medians of 24.968 → 21.695 s
+(plain), 29.406 → 27.877 s (social). Both baseline and candidate 0.4.12 CLIs used
+the same audited NX 0.4.11 starter packages; fresh 0.4.12 audit pins are stale,
+recorded in a separate open ticket. No audit was bypassed. These small sequential
+cohorts are timing observations, not a causal total-export speedup claim.
+
+The [WD report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md) retains
+distributions, development failures, source/binary hashes and the raw-evidence
+index. The original deadline ticket is closed. Only this mini and the lane's
+own simulator were used; that device and its private ownership records were
+removed after timing. No office M1, M5, other worktree or other session's device
+was touched. Nothing pushed or published.
+
+## 2026-10-04 — WD round 1: Linux inspection and deadline diagnostics
+
+Addressed the round-0 Astra P2 and Grok follow-ups locally on eb1000, from
+`38d9bfe0de`. Linux `/proc` inspection reads bytes and locates the final `)`
+before decoding fields, so arbitrary process names cannot break cleanup.
+Identity reads share the parsing. Readable outside-group rows are excluded
+before validating state/birth; on stat read errors, `getpgid` may prove an
+outside group or disappearance. In-group errors and undetermined/malformed
+group membership still fail closed. New tests cover a real outside-group
+non-UTF-8 `comm`, malformed rows and injected inspection failures.
+
+Shared drain/reaping-lock diagnostics distinguish the idle deadline from
+the hard cap and preserve `recovery required`. Progress, custody, retries,
+signaling and the five/sixty-second bounds are unchanged. The unreplayable
+slow-`ps` claim is withdrawn from the report and its `psCalls` field removed;
+the historical duration/status record remains without that claim.
+
+The required binary build passed, then all 53 witness tests passed in 27.17 s.
+An initial test-only compile failure (missing `CommandExt` import) was fixed
+before that run; no tests ran in that attempt. The canonical full Linux suite
+passed with `== 0 failure(s) in 1635 s`: every build/typecheck, Rust target and
+doctest; CLI units 282 passed/four ignores; witness integration 31/31; fixture
+wrappers 9/9; clients 6,034 passed/11 skips; models 79/79. No failures,
+cancellations or interventions. Reference and diff-whitespace checks passed.
+This does not replace the failed round-0 Mac suite result.
+
+Darwin enumeration and identity code are byte-for-byte unchanged. Shared
+diagnostic paths in `cleanup.rs`, `preparation.rs`, `process_group.rs` and
+`recovery.rs` changed and await mini verification. No Mac was contacted and
+no native-export measurement was repeated. The [round-1 report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md#round-1--linux-inspection-and-review-cleanup-2026-10-04)
+and its validation record retain results and limits. Local commit only;
+nothing pushed or published.

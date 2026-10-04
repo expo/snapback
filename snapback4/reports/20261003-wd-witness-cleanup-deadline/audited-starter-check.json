@@ -1,0 +1,16 @@
+[
+  {
+    "starter": "plain",
+    "digest": "bbc47944fe65bc071b1af1ae81c6ab85bf7044e0ef7362ae7022b7d258247040",
+    "audited": true,
+    "plugin": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+    "pluginAudited": true
+  },
+  {
+    "starter": "social",
+    "digest": "433329043c48175e2c0003a7ea354b18eab15afaf31a162211e6e41bb5e38a50",
+    "audited": true,
+    "plugin": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+    "pluginAudited": true
+  }
+]

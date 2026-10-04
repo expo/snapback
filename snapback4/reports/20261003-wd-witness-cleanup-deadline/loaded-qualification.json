@@ -1,0 +1,55 @@
+{
+  "modules": 50,
+  "testsPerModule": 48,
+  "totalPassed": 2400,
+  "failed": 0,
+  "progressSeconds": {
+    "min": 8.073856083,
+    "median": 8.100559687499999,
+    "max": 8.305993042
+  },
+  "source": {
+    "crates/snapback4/src/verbs/witness/cleanup.rs": "4966487e2222f2080a8b3fa0dd04789df3cbcca7195954efd559bfe78b015061",
+    "crates/snapback4/src/verbs/witness/protocol.rs": "3d74fb3e195c5b31d01b3f33978806ed75c2b5fcb776f5613e73aa42d17072c8",
+    "crates/snapback4/src/verbs/witness/recovery.rs": "2dd3db9439320d90f676d7790c22ee306e7fb395db6cb8f3e42eed5dc35c8cb0",
+    "crates/snapback4/src/verbs/witness/acquire.rs": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+    "crates/snapback4/src/verbs/witness/ownership.rs": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+    "crates/snapback4/src/verbs/witness/process_group.rs": "f2fee0a1dd5d9fb01d15bab77a4bca71aed1ca83ead20fea576ad8878cd58cd6",
+    "crates/snapback4/src/verbs/witness/smoke.rs": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+    "crates/snapback4/src/verbs/witness/preparation.rs": "c27cfd4d1718c089a8b1858a25a72e5d490ab0ab6532f6a1cf29fc7dc50e55ce",
+    "crates/snapback4/src/verbs/witness/publication.rs": "cc7ac8864f884036a2d928d0799251e8a2828534222c7eb4c179c831d0ac42ca",
+    "crates/snapback4/src/verbs/witness/recorded_process.rs": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3",
+    "crates/snapback4/src/verbs/witness/simulator.rs": "fa6c31eb87fb530af12216e651b814a286a05271d1bcb4aa9dcf69fc99095136"
+  },
+  "testBinarySha256": "39f7967f80e6e22c7ddd47b3ffbec5fd0d42b32e149c518cf39398b6ad3b2960",
+  "load": {
+    "group": 69422,
+    "idle": 3000,
+    "cpu": 36,
+    "started": 3036
+  },
+  "summary": {
+    "membersMs": {
+      "n": 100,
+      "min": 0.26845800000000003,
+      "median": 0.33247950000000004,
+      "p95": 0.34091699999999997,
+      "max": 0.9877499999999999
+    },
+    "supervisorMs": {
+      "n": 50,
+      "min": 51.90945900000088,
+      "median": 76.24758350000072,
+      "p95": 90.16012500000059,
+      "max": 1240.2490000000005
+    },
+    "unitMs": {
+      "n": 50,
+      "min": 28335.571292000055,
+      "median": 33107.150833999985,
+      "p95": 35731.31899999999,
+      "max": 36154.616916000035
+    },
+    "failures": 0
+  }
+}

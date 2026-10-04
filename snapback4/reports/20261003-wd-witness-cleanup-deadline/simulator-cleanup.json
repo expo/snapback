@@ -1,0 +1,30 @@
+{
+  "time": 1791074579.113888,
+  "owner": {
+    "name": "sb4-wd-20261003-1791068684117-21819",
+    "prefix": "sb4-wd-20261003-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+  },
+  "commands": [
+    {
+      "action": "shutdown",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "action": "delete",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4",
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "deleted": true,
+  "privateRecordsRemoved": true,
+  "otherDevicesTouched": false
+}

@@ -26,8 +26,10 @@ Remaining limits:
   an honest-project lifecycle mechanism, not containment of hostile code.
   An unrelated external actor joining after both final empty observations also
   lies outside this ownership guarantee.
-- Group inspection currently invokes `ps`. The drain budgets cannot preempt a
-  stalled inspection, a stopped watchdog, or uninterruptible kernel I/O. Missing
+- WD (2026-10-03) removes `ps` from group inspection and adds progress-based
+  deadlines: Darwin uses libproc, Linux reads `/proc`. The drain budgets still
+  cannot preempt a stalled kernel inspection or uninterruptible kernel I/O;
+  a stopped watchdog with no group exits times out with recovery required. Missing
   custody or a nonempty group leaves recovery deferred, not a verified finish.
   Simultaneous destruction of the watchdog and its anchor is not guaranteed to
   clean all descendants autonomously.
