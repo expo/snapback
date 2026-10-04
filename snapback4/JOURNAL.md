@@ -86070,3 +86070,36 @@ diagnostic paths in `cleanup.rs`, `preparation.rs`, `process_group.rs` and
 no native-export measurement was repeated. The [round-1 report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md#round-1--linux-inspection-and-review-cleanup-2026-10-04)
 and its validation record retain results and limits. Local commit only;
 nothing pushed or published.
+
+## 2026-10-04 — DG: calibration #30 worker paths and quoted-message recipes
+
+Published the worker copy/import/cwd/environment rules in `guide effects`, the
+worker reference, starter READMEs and worker comments. `SNAPBACK_PROJECT_DIR`
+now gives every supervised worker the canonical project root (active release
+root on serve), stable across child chdir. The executable recipe writes under
+its `data/`; cross-release output still needs a durable explicit location.
+Named workers now exclude nested `node_modules` from source validation/deploy
+packaging and link host dependencies at launch. Before the fix, project/schema
+links passed but worker/helper-local links reproduced ELOOP. The supplied replay
+record lacks its link targets, so this is not a claim to reproduce that exact
+root-level layout. Source and manifest symlink protections remain intact.
+
+The social starter ships `QuotedMessage`, embedded in `guide social` and linked
+from `guide client`. The existing whole-message point read and `readPresentation`
+distinguish loading, present, absent, denied and partial. Loading keeps the box;
+only proven absence says unavailable; withdrawal retains no protected text.
+The browser holds the point read explicitly and checks each transition; all
+eight social guide blocks typecheck against generated operations. Guide caps
+are unchanged (client 110 lines/1,198 words). Existing LLP 3000.009 §5.3 and
+LLP 3000.031 §7 record the changes.
+
+On eb1000 only: guide 112/112; canonical full suite completed in 1,656 s with
+one failed stage (clients: 6,202 pass, two stale environment-allowlist assertions,
+11 skips). All Rust/doctests, builds/typechecks, nine fixture wrappers and
+79/79 serial models passed. The worker regression file passed 77/77. Both
+allowlists were corrected and both complete files passed 44/44; final path
+cases passed 18/18. Runtime code was unchanged after the full-suite build.
+An earlier affected run overlapped a CLI rebuild and failed two restart tests
+with ENOENT; both passed on stable bytes and in the canonical run. Those failed
+runs remain failed in the [report and logs](./reports/20261004-dg-cal30-doc-gaps/REPORT.md).
+No Mac contacted, push or publication; no native-UI-layout claim.

@@ -58,23 +58,45 @@ the refusal leaves it live. Manually minted service seats can still refresh.
 all workers and their last reported states, starts, restarts and crashes,
 including `ledger-unavailable` while retrying a stopped child. Startup clears
 prior reports when retiring the previous host's credentials.
-`deploy` copies the workers source subtree; put helpers in subdirectories and
-install package dependencies on the deployment host. Symlinks at any level and
-non-regular source files are refused on every launch and restart, even after
-a source change was rejected. Named workers execute private copies of validated
-entry/helper bytes under private `.snapback4` directories; replacing original paths
-cannot change an in-flight launch. Package manifests also refuse symlinks.
-Package dependencies stay installed on the host, preserving schema-local
-`snapback/node_modules` lookup before project-root packages. For numbered releases,
-serve uses the nearest ancestor containing `snapback/node_modules`; install there.
-This is ordinary Node 24.
-Automatic dev `snapback/server.*` and `snapback/worker.*` entries also execute
-validated private copies of the schema tree, including generated modules.
-Server imports tracked by the TypeScript checker elsewhere inside the project
-also use validated copies. Other relative helpers stay inside `snapback/`; source
-symlinks are refused at startup and restart. The working directory remains the
-original project. Use it or an explicit durable path for runtime files; module
-URLs refer to the private source copy.
+
+## Worker files and imports
+
+`SNAPBACK_PROJECT_DIR` is the absolute project root in dev, the active release
+root in serve, and the initial `process.cwd()`. Relative filesystem paths use
+that cwd; `import.meta.url` and relative imports use the private source copy.
+Write application files under the project's `data/` directory, never beside
+`import.meta.url`: private copies disappear when the worker stops. For files
+shared across releases, use an explicit durable path supplied as a declared secret.
+
+```js
+import { mkdir, appendFile } from "node:fs/promises";
+import { join } from "node:path";
+const dataDir = join(process.env.SNAPBACK_PROJECT_DIR, "data");
+await mkdir(dataDir, { recursive: true });
+export async function recordPush(payload, meta) {
+  await appendFile(join(dataDir, "push-log.jsonl"), JSON.stringify({ id: meta.idempotencyKey, payload }) + "\n");
+  return { logged: true };
+}
+```
+
+Use `recordPush` as a local acceptance handler; it is not provider delivery.
+Named launches copy **all regular files under `snapback/workers/`**, not just
+the entry or its import graph. Put project helpers in subdirectories there and
+use relative imports with extensions. Sibling `src/` or generated modules are
+not copied for named workers; do not import originals via cwd to bypass the copy.
+Automatic dev `snapback/server.*` / `snapback/worker.*` copy all of `snapback/`,
+including generated files, plus present project imports tracked by the server
+TypeScript checker. Untracked helpers must stay within that copied subtree.
+`serve --worker <path>` runs the explicit external entry in place; no copy.
+`deploy` packages the named-worker subtree only. Install packages on the host.
+Copies preserve Node 24 package lookup: helper/worker-local `node_modules`,
+then `snapback/node_modules`, project packages and ancestor packages. Numbered
+releases find the nearest ancestor's `snapback/node_modules`. Dependencies,
+including symlinked installations, remain host-owned and are never copied.
+Source files/directories and package manifests must be regular, not symlinks.
+This isolates launch bytes and process lifetime, **not filesystem or network
+access**: workers are trusted Node code, not a sandbox. Do not persist snapshot
+paths or assume arbitrary project files or parent environment variables follow.
 
 ```js
 // snapback/workers/push.mjs
@@ -183,16 +205,6 @@ handler receives frozen `ctx.effect` metadata (`id`, `idempotencyKey`, `effect`,
 mutation, write-id, raw lease, service token or administrative surface.
 When a claim reply has no richer principal, `ctx.effect.worker` can carry the
 generic legacy label `service`; this is descriptive metadata, not authority.
-
-The data plane never calls out. `emit name { payload }` in a mutation or
-a job writes the payload durably in the same commit as the rows (a
-refused mutation emits nothing), and a worker with a service token
-(`snapback4 token --service pusher`; guide services) performs it:
-
-```ts
-import { runWorker } from "snapback4/worker";
-runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
-```
 
 ## A conversation notification
 

@@ -13,9 +13,7 @@ npx snapback4 dev
 # In another terminal: npm start
 ```
 
-The installed README explains native, Expo Go and web setup. Its Quarry file
-keeps profiles, follows, Following, likes, retained conversations/messages,
-DMs, SDK delivery reporting, typing, ordinary images and once images together.
+The installed README covers native, Expo Go and web. Quarry keeps profiles, follows, Following, likes, retained chats, DMs, receipts, typing and ordinary/once images together.
 History uses `where .conversation = conversation` on its explicit horizon
 index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
@@ -24,10 +22,7 @@ one ordinary query per scope, combining current server and retained device
 hits online. `usePage` accumulates by message ID; `readPresentation(page.read).incomplete` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
-For an explicit-ID send, `guide client` shows `usePendingItems` over text and
-media custody, including success awaiting observation. Supply the conversation
-predicate and both keys; the starter's auto-minted message key cannot be guessed
-from a mutation ID. Keep saved references for failures/unknown outcomes.
+Explicit-ID sends: `guide client` shows `usePendingItems`, including success awaiting observation. Supply conversation and both keys; never guess auto-minted message keys from mutation IDs. Keep references for failures/unknown outcomes.
 `usePendingState` selects a pending like/repost value without changing its mutation.
 
 ## Background notifications
@@ -41,21 +36,14 @@ the provider call and `doctor` shows the worker's state.
 
 ## Typing on the online arm
 
-`createApp` owns the session and replica. This arm borrows its current bearer
-without taking over rotation. Mount it for the signed-in screen, close it on
-session change, and use it only for the generated ephemeral operations.
+`createApp` owns session, replica and rotation. Mount this bearer-borrowing arm only for the signed-in screen; close on session change. Use only generated ephemeral operations.
 
 ```ts
 // src/useOnlineArm.ts
 "##, include_str!("../../../snapback4/src/verbs/init/social/useOnlineArm.ts"), r##"```
 
-The hook owns the observation and renewals. Call change on keystrokes and
-stop on send, blur or backgrounding. Unmount and identity change dispose it.
-Disconnect cancels renewal; reconnect needs a new keystroke. The four-second
-server expiry covers failed cleanup, suspension and revoked membership.
-Keep the membership check in both insert and update rules. Signals fail
-offline, never enter the durable outbox and never replay after reconnect.
-An unavailable hint never gates history or the composer.
+The hook owns observations/renewals. Call change on keystrokes; stop on send, blur or backgrounding. Unmount/identity change dispose it. Disconnect cancels renewal; reconnect needs a new keystroke.
+Four-second expiry covers failed cleanup, suspension and revoked membership. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
 
 ```ts
 // src/useTyping.ts
@@ -93,6 +81,19 @@ positions. The starter passes foreground and navigation visibility explicitly.
 ```tsx
 // src/Conversation.tsx
 "##, include_str!("../../../snapback4/src/verbs/init/social/Conversation.tsx"), r##"```
+
+## Quoted messages beyond the history page
+
+Mount `QuotedMessage` with the referenced message ID, even when it is outside the
+loaded history page. The starter's `messagePhoto` point query returns the whole
+message. Loading keeps a stable placeholder; only `absent` says unavailable.
+`partial` is uncertain coverage, never absence; `denied` hides the quote.
+Table rules may hide rows as absence: neither state proves deletion. No old
+quote is cached across withdrawal. Test by holding the point read before settling it.
+
+```tsx
+// src/QuotedMessage.tsx
+"##, include_str!("../../../snapback4/src/verbs/init/social/QuotedMessage.tsx"), r##"```
 
 ## Bounded route-owned alternative
 
