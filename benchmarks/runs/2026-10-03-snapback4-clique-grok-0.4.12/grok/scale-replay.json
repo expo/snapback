@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:49362",
+  "startEpoch": 1791054952,
+  "endEpoch": 1791055215,
+  "wallSeconds": 263,
+  "actions": 167157,
+  "checkpoints": [
+    {
+      "marker": "# checkpoint 10%",
+      "atAction": 24777,
+      "ms": 44668
+    },
+    {
+      "marker": "# checkpoint 50%",
+      "atAction": 88057,
+      "ms": 139762
+    }
+  ],
+  "users": 1008
+}

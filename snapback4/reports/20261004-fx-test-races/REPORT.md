@@ -313,3 +313,25 @@ through 8 transient `du` errors as live files disappeared; their stderr is
 retained. Completed stress/control scratch was removed promptly. The final
 local target and remaining owned scratch were deleted after archive verification. No remote machine,
 push or publication.
+
+FY integration: merged `origin/main` at `6594e93d40` (including
+`c738607178`) into `665df05f6e`. Kept FY's pre-maintenance scheduled-job crash
+gate and cleanup that preserves body failures, alongside FX's stdout-only,
+complete-line readiness. The worker auto-merge retains FY's identity-based
+watchdog checks and all FX atomic-file, log-observation and lock-setup fixes.
+No new HTTP readiness reader was added by FY. Both JOURNAL histories are
+preserved; the merge preserves all 318 FY assertion calls and every test name
+and timeout expression in the three files.
+
+The requested release-activation, worker-regressions and cleanup files each
+passed **10/10** complete runs under a four-CPU `taskset` with a live hog
+(18, 77 and six tests/run respectively). The merged full suite
+(`bash snapback4/scripts/test.sh`) **passed, exit 0, zero failed stages in
+2,045 seconds**, retaining the full 5,000/3,000 model histories. The
+[merge manifest](./round2-integration.json), [30-run CSV](./round2-integration.csv)
+and [raw archive](./round2-integration.tar.gz) retain both parent hashes, the
+resolution audit, native exits, affinity, source/log hashes and suite output.
+Observed build/dependency/scratch use peaked at 11.68 GB; the archive retains
+the four transient disk-sampling errors as live files disappeared. Every hog
+was reaped; owned target and scratch were deleted after archive verification. Earlier Round 2 stress
+failures remain recorded separately. No push.

@@ -1,0 +1,50 @@
+{
+  "exit": 0,
+  "seconds": 1957,
+  "client_summaries": [
+    {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 6198,
+      "pass": 6187,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 11,
+      "todo": 0
+    },
+    {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "steps": [
+    "-- ok: cargo build (0 s)",
+    "-- ok: wasm build (32 s)",
+    "-- ok: docs budget (46 s)",
+    "-- ok: release guard (10 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (836 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- ok: client tests (716 s)",
+    "-- ok: client models (312 s)"
+  ],
+  "affinity": "0-47",
+  "CARGO_INCREMENTAL": "0",
+  "CARGO_BUILD_JOBS": "12",
+  "CARGO_PROFILE_DEV_DEBUG": "0",
+  "CARGO_PROFILE_TEST_DEBUG": "0"
+}

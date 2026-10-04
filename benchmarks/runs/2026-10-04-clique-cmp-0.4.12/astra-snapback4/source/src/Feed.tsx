@@ -1,0 +1,34 @@
+import React,{useState,useEffect,useRef} from 'react';
+import {View,Text,Pressable,Linking,Image,Platform} from 'react-native';
+import Video from './Video';
+import {router} from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import {Asset} from 'expo-asset';
+import {usePage,useQuery,useMutation,useAsset,useClient,usePendingState} from 'snapback4/react';
+import {mintId} from 'snapback4/client';
+import {FeedCard,FeedTabs,Composer,TrendingRow,TrendingEmpty} from '../ui';
+import {api} from '../snapback/generated/api';
+import type {Rows} from '../snapback/generated/api';
+export const poster=Asset.fromModule(require('../assets/video-poster.png')).uri;
+export function Feed({tab}:{tab:string}){return <>{tab==='trending'?<Trending/>:<><PostComposer/><FeedPage key={tab} tab={tab}/></>}</>}
+function FeedPage({tab}:{tab:string}){const page=usePage(tab==='global'?api.global:api.home,{});return <><Text>{'denied'in page.read?page.read.denied.message:''}</Text>{page.items.map((e:any)=><Post key={e.id+':'+e.repost} post={e.card} repostActor={e.repost?e.actor:undefined}/>)}{page.hasMore&&<Pressable testID="load-more" onPress={()=>page.loadMore()} style={{padding:20}}><Text>Load more</Text></Pressable>}<AutoMore page={page}/></>}
+function AutoMore({page}:{page:any}){const ref=useRef<any>(null);useEffect(()=>{if(Platform.OS!=='web'||!ref.current||!page.hasMore)return;const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting))page.loadMore()},{rootMargin:'150px'});observer.observe(ref.current);return()=>observer.disconnect()},[page.hasMore,page.items.length]);return <View ref={ref} style={{height:4}}/>}
+export function AuthorPosts({principal}:{principal:string}){const page=usePage(api.authorPosts,{author:principal});return <>{page.items.map(p=><Post key={p.id} post={p}/>)}{page.hasMore&&<Pressable onPress={()=>page.loadMore()}><Text>Load more</Text></Pressable>}</>}
+export function Thread({id}:{id:string}){const p=useQuery(api.postById,{postId:id}),replies=usePage(api.replies,{postId:id});return <><Text style={{fontSize:24}}>Thread</Text>{'data'in p&&p.data&&<Post post={p.data}/>}<PostComposer parentId={id}/>{replies.items.map(p=><Post key={p.id} post={p}/>)}{replies.hasMore&&<Pressable onPress={()=>replies.loadMore()}><Text>Load more replies</Text></Pressable>}</>}
+export function Post({post:p,repostActor,rank}:{post:Rows['posts']|null,repostActor?:string,rank?:number}){if(!p)return null;return <PostContent p={p} repostActor={repostActor} rank={rank}/>}
+function PostContent({p,repostActor,rank}:{p:Rows['posts'],repostActor?:string,rank?:number}){
+ const profile=useQuery(api.profileById,{principal:p.authorId}),rp=useQuery(api.profileById,{principal:repostActor??p.authorId}),state=useQuery(api.postState,{postId:p.id});const author='data'in profile?profile.data:null,reposter='data'in rp?rp.data:null,s='data'in state?state.data:null;
+ const avatar=useAsset(author?.avatar?.id??null),a=useAsset(p.images?.[0]?.id??null),b=useAsset(p.images?.[1]?.id??null),c=useAsset(p.images?.[2]?.id??null),d=useAsset(p.images?.[3]?.id??null),v=useAsset(p.video?.id??null);
+ const selection=usePendingState(api.setLike,{scope:w=>w.args.postId===p.id,current:s?.liked,read:state,value:a=>a.active});
+ const like=useMutation(api.setLike),repost=useMutation(api.setRepost);const [media,setMedia]=useState(false);
+ const Card=(props:any)=>rank?<TrendingRow rank={rank} post={props}/>:<FeedCard {...props}/>;
+ return <View>{selection.intent&&<Text>Like {selection.intent.phase}</Text>}<Card authorName={author?.displayName??'…'} authorIdentity={author?.handle} authorHandle={author?.handle} authorAvatarUri={avatar.status==='ready'?avatar.url:undefined} timestamp={new Date(p.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} text={p.body} imageUris={[a,b,c,d].flatMap(x=>x.status==='ready'?[x.url]:[])} videoUri={v.status==='ready'?v.url:undefined} videoPosterUri={poster} repostedByName={repostActor?(reposter?.displayName??'…'):undefined} repostedByIdentity={repostActor?reposter?.handle:undefined} likeCount={p.likeCount} liked={selection.value??false} repostCount={p.repostCount} reposted={s?.reposted??false} replyCount={s?.replies??0} onPressAuthor={()=>router.push('/profile/'+author?.handle)} onPress={()=>router.push('/post/'+p.id)} onPressReply={()=>router.push('/post/'+p.id)} onPressLink={(url:string)=>Linking.openURL(url)} onPressLike={()=>{if(s)void like.run({postId:p.id,active:!selection.value},{waitSeconds:0})}} onPressRepost={()=>{if(s)void repost.run({postId:p.id,active:!s.reposted})}} onPressMedia={()=>setMedia(true)}/>{media&&v.status==='ready'&&<Video uri={v.url}/>}{media&&<Pressable onPress={()=>setMedia(false)}><Text>Close media</Text></Pressable>}</View>
+}
+export function PostComposer({parentId}:{parentId?:string}){
+ const [text,setText]=useState(''),[attachments,setAttachments]=useState<any[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);const client=useClient(),publish=useMutation(api.publish);
+ async function pick(){const r=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images','videos'],allowsMultipleSelection:true,selectionLimit:4});if(!r.canceled)setAttachments(r.assets.map(a=>({uri:a.uri,kind:a.type==='video'?'video':'image',posterUri:poster})));}
+ async function send(){setBusy(true);setError('');try{const refs=[];for(const a of attachments){const r=await client.upload(await(await fetch(a.uri)).blob());if(!r.ok)throw Error(r.why.message);refs.push({id:r.asset.id})}const video=attachments[0]?.kind==='video';if(video&&attachments.length!==1)throw Error('Select one video.');if(attachments.some(a=>a.kind!==attachments[0].kind))throw Error('Images and video cannot be mixed.');const r=await publish.run({id:mintId(),body:text,parentId:parentId??null,images:refs.length&&!video?refs:null,video:video?refs[0]:null});if(r.state==='failed')throw Error(r.why.message);setText('');setAttachments([]);}catch(e){setError(String(e))}finally{setBusy(false)}}
+ return <View><Composer variant="post" value={text} onChangeText={setText} onSend={()=>void send()} onPressAttach={()=>void pick()} attachments={attachments} onRemoveAttachment={i=>setAttachments(attachments.filter((_,j)=>i!==j))} maxLength={500} sending={busy} placeholder={parentId?'Write a reply…':undefined}/>{error&&<Text>{error}</Text>}</View>
+}
+
+function Trending(){const client=useClient(),[rows,setRows]=useState<any[]>([]),[loaded,setLoaded]=useState(false),[error,setError]=useState('');async function refresh(){const r=await client.query(api.trending,{});if('data'in r){setRows(r.data);setLoaded(true);setError(r.complete?'':'Ranking may be incomplete.')}else setError(r.denied.message)}useEffect(()=>{void refresh()},[client]);return <><Pressable onPress={()=>void refresh()}><Text>Refresh trending</Text></Pressable><Text>{error}</Text>{loaded&&!rows.length?<TrendingEmpty/>:rows.map((p,i)=><Post key={p.id} post={p} rank={i+1}/>)}</>}

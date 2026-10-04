@@ -1,0 +1,271 @@
+{
+  "ok": true,
+  "store": "scale-run/.snapback4/store.sqlite",
+  "url": "http://127.0.0.1:49362",
+  "method": "npx snapback4 sql (read-only, not rule-filtered)",
+  "actionLogSha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "replay": {
+    "startEpoch": 1791054952,
+    "endEpoch": 1791055215,
+    "wallSeconds": 263,
+    "actions": 167157,
+    "checkpoints": [
+      {
+        "marker": "# checkpoint 10%",
+        "atAction": 24777,
+        "ms": 44668
+      },
+      {
+        "marker": "# checkpoint 50%",
+        "atAction": 88057,
+        "ms": 139762
+      }
+    ]
+  },
+  "perEntityCounts": {
+    "users": {
+      "expected": 1008,
+      "actual": 1008
+    },
+    "profiles": {
+      "expected": 1008,
+      "actual": 1008
+    },
+    "followEdges": {
+      "expected": 5921,
+      "actual": 5921
+    },
+    "posts": {
+      "expected": 50228,
+      "actual": 50228
+    },
+    "topLevelPosts": {
+      "expected": 48224,
+      "actual": 48224
+    },
+    "replies": {
+      "expected": 2004,
+      "actual": 2004
+    },
+    "activeLikes": {
+      "expected": 5008,
+      "actual": 5008
+    },
+    "activeReposts": {
+      "expected": 1004,
+      "actual": 1004
+    },
+    "conversations": {
+      "expected": 1002,
+      "actual": 1002
+    },
+    "dms": {
+      "expected": 901,
+      "actual": 901
+    },
+    "groups": {
+      "expected": 101,
+      "actual": 101
+    },
+    "memberships": {
+      "expected": 2053,
+      "actual": 2053
+    },
+    "messages": {
+      "expected": 100015,
+      "actual": 100015
+    },
+    "textMessages": {
+      "expected": 99105,
+      "actual": 99105
+    },
+    "mediaMessages": {
+      "expected": 910,
+      "actual": 910
+    },
+    "quotedReplies": {
+      "expected": 2736,
+      "actual": 2736
+    },
+    "activeReactions": {
+      "expected": 2000,
+      "actual": 2000
+    },
+    "disappearingSettingsEnabled": {
+      "expected": 0,
+      "actual": 0
+    }
+  },
+  "namedO5Fixtures": {
+    "u0500": {
+      "followingCount": {
+        "expected": 500,
+        "actual": 500
+      },
+      "conversationMembershipCount": {
+        "expected": 100,
+        "actual": 100
+      }
+    },
+    "u0005": {
+      "followingCount": {
+        "expected": 5,
+        "actual": 5
+      }
+    },
+    "u0900": {
+      "followerCount": {
+        "expected": 900,
+        "actual": 900
+      },
+      "postCount": {
+        "expected": 200,
+        "actual": 200
+      }
+    },
+    "u0901": {
+      "followingCount": {
+        "expected": 5,
+        "actual": 5
+      },
+      "following": {
+        "expected": [
+          "u0001",
+          "u0002",
+          "u0003",
+          "u0004",
+          "u0900"
+        ],
+        "actual": [
+          "u0001",
+          "u0002",
+          "u0003",
+          "u0004",
+          "u0900"
+        ]
+      }
+    },
+    "g0001": {
+      "memberCount": {
+        "expected": 50,
+        "actual": 50
+      },
+      "messageCount": {
+        "expected": 10000,
+        "actual": 10000
+      },
+      "title": {
+        "expected": "Busy Group 0001",
+        "actual": "Busy Group 0001"
+      },
+      "members": {
+        "expected": [
+          "u0001",
+          "u0002",
+          "u0003",
+          "u0004",
+          "u0005",
+          "u0006",
+          "u0007",
+          "u0008",
+          "u0009",
+          "u0010",
+          "u0011",
+          "u0012",
+          "u0013",
+          "u0014",
+          "u0015",
+          "u0016",
+          "u0017",
+          "u0018",
+          "u0019",
+          "u0020",
+          "u0021",
+          "u0022",
+          "u0023",
+          "u0024",
+          "u0025",
+          "u0026",
+          "u0027",
+          "u0028",
+          "u0029",
+          "u0030",
+          "u0031",
+          "u0032",
+          "u0033",
+          "u0034",
+          "u0035",
+          "u0036",
+          "u0037",
+          "u0038",
+          "u0039",
+          "u0040",
+          "u0041",
+          "u0042",
+          "u0043",
+          "u0044",
+          "u0045",
+          "u0046",
+          "u0047",
+          "u0048",
+          "u0049",
+          "u0500"
+        ],
+        "actual": [
+          "u0001",
+          "u0002",
+          "u0003",
+          "u0004",
+          "u0005",
+          "u0006",
+          "u0007",
+          "u0008",
+          "u0009",
+          "u0010",
+          "u0011",
+          "u0012",
+          "u0013",
+          "u0014",
+          "u0015",
+          "u0016",
+          "u0017",
+          "u0018",
+          "u0019",
+          "u0020",
+          "u0021",
+          "u0022",
+          "u0023",
+          "u0024",
+          "u0025",
+          "u0026",
+          "u0027",
+          "u0028",
+          "u0029",
+          "u0030",
+          "u0031",
+          "u0032",
+          "u0033",
+          "u0034",
+          "u0035",
+          "u0036",
+          "u0037",
+          "u0038",
+          "u0039",
+          "u0040",
+          "u0041",
+          "u0042",
+          "u0043",
+          "u0044",
+          "u0045",
+          "u0046",
+          "u0047",
+          "u0048",
+          "u0049",
+          "u0500"
+        ]
+      }
+    }
+  },
+  "mismatches": [],
+  "pass": true
+}

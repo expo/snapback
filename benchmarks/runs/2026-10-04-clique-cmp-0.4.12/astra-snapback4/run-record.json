@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API agent; harness version not exposed",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "snapback4": "0.4.12",
+      "snapback4-expo": "0.4.12",
+      "snapback4-darwin-arm64": "0.4.12",
+      "node": "24.18.0",
+      "os": "macOS arm64 Apple M5 Max",
+      "deployment": "local-dev-server"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-10-03T15:59:49.000Z",
+    "finishedAt": "2026-10-03T18:12:26.000Z"
+  },
+  "firstGreenProofAt": "2026-10-03T16:12:00.250Z",
+  "wallClock": {
+    "totalSeconds": 7957,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 2235.456
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "environment",
+      "summary": "1791043299 error attribution=environment evidence=PATH node resolved v22.23.2 despite ENVIRONMENT; workaround use /Users/ccheever/.volta/tools/image/node/24.18.0/bin explicitly",
+      "evidence": "PATH"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1791043594 error/retry attribution=environment source=diagnostic evidence=evidence/choreography-install.log copied read-only mode; chmod lane copies only",
+      "evidence": "evidence/choreography-install.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791043695 error attribution=agent-error evidence=evidence/m1-types.txt FeedTabs prop corrected value to active before completion claim",
+      "evidence": "evidence/m1-types.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791043777 correction-loop attribution=agent-error evidence=evidence/m1-acceptance.log,evidence/m1-screen.png root route unmatched; replace unsupported optional catchall with index and catchall",
+      "evidence": "evidence/m1-acceptance.log,evidence/m1-screen.png"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1791043845 error/retry attribution=environment source=diagnostic evidence=evidence/m1-choreo.log copied choreography has adjacent module dependencies; copy instrument modules into lane",
+      "evidence": "evidence/m1-choreo.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791043905 correction-loop attribution=agent-error evidence=evidence/m1-choreo-2.log export replaced web directory during choreography setup; serialize exports and browser runs",
+      "evidence": "evidence/m1-choreo-2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791044350 correction-loop attribution=agent-error evidence=evidence/m2-acceptance.log pagination test assumed Alice Following had 20+ items; establish 20+ visible fixture posts through follows before checking pages",
+      "evidence": "evidence/m2-acceptance.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791044381 correction-loop attribution=agent-error source=package README/guide evidence=evidence/m2-acceptance-2.log,evidence/guide-feeds.txt suite assumed synchronous follower fan-out; await documented eventual feed delivery",
+      "evidence": "evidence/m2-acceptance-2.log,evidence/guide-feeds.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791044559 correction-loop attribution=agent-error evidence=evidence/m2-choreo.log harness switches feed tabs directly from profiles; keep feed navigation tabs in persistent shell",
+      "evidence": "evidence/m2-choreo.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791044607 correction-loop attribution=agent-error evidence=evidence/m2-choreo.log repost briefly lacked attribution while actor loaded; render attribution shell immediately",
+      "evidence": "evidence/m2-choreo.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791044843 correction-loop attribution=agent-error evidence=evidence/m2-navigation.png,evidence/m2-choreo-2.log feed selection state reset on route remount; encode selected tab in route URL",
+      "evidence": "evidence/m2-navigation.png,evidence/m2-choreo-2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791045163 bookkeeping correction attribution=agent-error evidence=milestones.json use retained green summary timestamp for terminal wall, preserve later reportedAt separately",
+      "evidence": "milestones.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791045434 error/rewrite attribution=agent-error source=diagnostic evidence=evidence/m3-check.txt,evidence/why-self-equality.txt compiler caught inner-row self-equality; applied its named-key rewrite",
+      "evidence": "evidence/m3-check.txt,evidence/why-self-equality.txt"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1791045992 error/retry attribution=ambiguous evidence=evidence/m3-choreo.log,evidence/m3-group-probe.log group read missed 10s once; focused three-client reproduction immediately read; retry without concurrent export",
+      "evidence": "evidence/m3-choreo.log,evidence/m3-group-probe.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791046388 error/rewrite attribution=agent-error source=diagnostic evidence=evidence/m4-check.txt,evidence/m4-check-2.txt write rules cannot traverse reference; mutation pins membership, read-through pins reads",
+      "evidence": "evidence/m4-check.txt,evidence/m4-check-2.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791046660 correction-loop attribution=agent-error evidence=evidence/m4-acceptance.log composer held busy until write settlement and could clear newer draft; capture/clear draft at dispatch, release on durable admission",
+      "evidence": "evidence/m4-acceptance.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791046660 correction-loop attribution=agent-error evidence=evidence/m4-choreo.log media viewer selector appeared only after bytes; mount stable viewer wrapper through loading",
+      "evidence": "evidence/m4-choreo.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791047142 milestone=M5 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m5-check.txt E_QUARRY_TYPE optional chat setting; coalesce after membership guard",
+      "evidence": "evidence/m5-check.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791047242 milestone=M5 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m5-acceptance.log global search legitimately finds same seeded text in two chats; test selects first and checks group headers",
+      "evidence": "evidence/m5-acceptance.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791048238 milestone=M6 correction-loop attribution=agent-error source=diagnostic evidence=evidence/sample-replay.log,evidence/m6-types.txt notification used unset optional fields of inserted row (E_FIELD missing field photo); derive preview from operation args; nullable reaction picker normalized",
+      "evidence": "evidence/sample-replay.log,evidence/m6-types.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791048333 milestone=M6 correction-loop attribution=agent-error source=diagnostic evidence=evidence/sample-replay-2.log,evidence/replay-write-aliases.json original terminal E_FIELD receipt is durable; new explicit repair intent for failed sample action after schema fix, preserving entity ID and previous successful action IDs",
+      "evidence": "evidence/sample-replay-2.log,evidence/replay-write-aliases.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791048438 milestone=M6 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m6-acceptance.log push test assumed pre-choreography display name; compare live sender profile. Initial scale launch wrong working directory refused before process start; corrected workdir.",
+      "evidence": "evidence/m6-acceptance.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1791049149 milestone=M8 error attribution=ambiguous source=diagnostic evidence=evidence/m8-durable-web.log supplementary restart probe observed queued persistence and ordered arrival but read receipt wait timed out; capturing receiver visibility on repeat",
+      "evidence": "evidence/m8-durable-web.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791049504 timing correction attribution=agent-error source=diagnostic evidence=milestones.json milestone end uses actual boundary epoch (including native export and supplementary verification), acceptanceGreenEpoch preserves earlier suite/choreography first-green instant",
+      "evidence": "milestones.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1791050878 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-sql-verification.log expensive full-corpus inspection-view join canceled by exact recorded PID=33458; replace with grouped counts and join small maps in verification client, preserving complete manifest checks. Added actual binary grandchildren to PID ledger before cleanup.",
+      "evidence": "evidence/scale-sql-verification.log"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1003,
+    "files": 48,
+    "sharedUiLines": 3671
+  },
+  "authParity": {
+    "posture": "sessions",
+    "notes": "Password signup/login, expiring per-principal bearer sessions; no client personas."
+  },
+  "diary": "diary.md",
+  "notes": "Detailed milestone/raw epoch evidence is in run-details.json. Native proof bar is Hermes exports per ENVIRONMENT, no simulator claim. Token usage remains harness-owned; no local native stream or defensible phase split was supplied. This validates the base protocol schema; driver-stamped social extension and grader results are not fabricated. The separate replay overlaps later authoring, so its wall is not additive to total wall."
+}

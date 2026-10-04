@@ -1,0 +1,93 @@
+{
+  "method": "python3 tokens.py <ndjson> <end.json>; exact stdout objects, no reconstructed usage",
+  "records": [
+    {
+      "log": "/Users/ccheever/clique-sb4-20261003-grok-cal30/logs/grok-snapback4.ndjson",
+      "family": "grok",
+      "wall_s": 6617.393,
+      "fresh_input": 654178,
+      "cached_input": 52113920,
+      "output": 162587,
+      "reasoning_in_output": 64299,
+      "total": 52930685,
+      "turns_or_calls": 203
+    },
+    {
+      "log": "/Users/ccheever/clique-sb4-20260930-grok-cal28/logs/grok-snapback4.ndjson",
+      "family": "grok",
+      "wall_s": 9343.86,
+      "fresh_input": 1071478,
+      "cached_input": 77203456,
+      "output": 246095,
+      "reasoning_in_output": 117579,
+      "total": 78521029,
+      "turns_or_calls": 296
+    },
+    {
+      "log": "/Users/ccheever/clique-sb4-20261003-astra-cal30/logs/astra-snapback4.ndjson",
+      "family": "astra",
+      "wall_s": 8025.003,
+      "fresh_input": 639915,
+      "cached_input": 36557440,
+      "output": 149276,
+      "reasoning_in_output": 57164,
+      "total": 37346631,
+      "turns_or_calls": 1
+    },
+    {
+      "log": "/Users/ccheever/clique-sb4-20261001-astra-cal29/logs/astra-snapback4.ndjson",
+      "family": "astra",
+      "wall_s": 11874.262,
+      "fresh_input": 783530,
+      "cached_input": 55025792,
+      "output": 188422,
+      "reasoning_in_output": 85295,
+      "total": 55997744,
+      "turns_or_calls": 1
+    },
+    {
+      "log": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/logs/astra-convex.ndjson",
+      "family": "astra",
+      "wall_s": 9403.007,
+      "fresh_input": 677714,
+      "cached_input": 47933568,
+      "output": 228084,
+      "reasoning_in_output": 101781,
+      "total": 48839366,
+      "turns_or_calls": 1
+    },
+    {
+      "log": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/logs/astra-supabase.ndjson",
+      "family": "astra",
+      "wall_s": 5871.927,
+      "fresh_input": 511639,
+      "cached_input": 33507968,
+      "output": 152870,
+      "reasoning_in_output": 55893,
+      "total": 34172477,
+      "turns_or_calls": 1
+    },
+    {
+      "log": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/logs/grok-convex.ndjson",
+      "family": "grok",
+      "wall_s": 10202.317,
+      "fresh_input": 1195904,
+      "cached_input": 78689024,
+      "output": 271837,
+      "reasoning_in_output": 258211,
+      "total": 80156765,
+      "turns_or_calls": 329
+    },
+    {
+      "log": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/logs/grok-supabase.ndjson",
+      "family": "grok",
+      "wall_s": 8486.527,
+      "fresh_input": 393418,
+      "cached_input": 44684416,
+      "output": 174127,
+      "reasoning_in_output": 164394,
+      "total": 45251961,
+      "turns_or_calls": 165
+    }
+  ]
+}

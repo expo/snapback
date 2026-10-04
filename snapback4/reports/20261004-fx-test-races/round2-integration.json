@@ -1,0 +1,565 @@
+{
+  "started": "2026-10-04T20:19:19.248442+00:00",
+  "fx_parent": "665df05f6e589e46ac48fa95b0b7b92c0d4dcbab",
+  "main_parent": "6594e93d407dc4c9096500ce0eccc2a0ac6225cb",
+  "fy_commit": "c738607178",
+  "build_environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "source_sha256": {
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "4870b84d617558ba4b472b235e2a405762c37a7bd0130962aa821d2c24e17a77",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "2c093bfeec9940657cd528701c685399c937a0a9a09143627ddc99fa7e623798",
+    "snapback4/packages/snapback4/test/cleanup.test.mjs": "04843b729207fcf8861f3b9f143c08dea5d6bb8e436a47877feca19dc3bb6882",
+    "snapback4/packages/snapback4/test/helpers/cleanup.mjs": "f66edc75bd935af6b8211316f817d700fc5c87f157ff4b8e73370cff838df64e",
+    "snapback4/packages/snapback4/test/helpers/server-output.mjs": "4ad80813ba1bbd9a271f2495153375353704e208170d5926496d0c9fbbab8c3a",
+    "snapback4/packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+    "snapback4/scripts/run-client-tests.mjs": "307b31dd1496bd06c5638f11c827929a61d401cdf35a591f6b534577cfba8cdc",
+    "snapback4/scripts/test-processes.mjs": "24df7f72a2a56eff4ee674250bb151baf2269035c2efa471b8455bfbde026e38",
+    "snapback4/scripts/test.sh": "92723cf1955d95deb7fc1bb37038aebcaa1f495e1290a9625dbda7584c383958",
+    "snapback4/scripts/run-rust-tests.mjs": "3117d375ff35aa30d26220ed919f1937ed5ff8ff42bd4655f03f8063a255f68c"
+  },
+  "audit": {
+    "journals": "both histories preserved line-for-line and in order",
+    "release": "FY byte-for-byte plus FX stdout capture and newline requirement in serve(); startup-probe gate unchanged",
+    "worker": "both parent diffs reviewed: FY identity/live watchdogs and cleanup, FX atomic result/value files, busy-only lock setup, complete refusal and independent refresh log barriers retained",
+    "new_readers": "FY adds no HTTP readiness reader; its helper stdout data event witnesses handler installation and does not parse a numeric/prefix value",
+    "governing": [
+      "LLP 3000#publication-suite-under-contention",
+      "LLP 3000#publication-suite-on-small-hosts",
+      "LLP 3000.008.004#4-operational-completeness-on-the-supported-target",
+      "LLP 3000.011.005.000#4"
+    ],
+    "prior_round2_sources": {
+      "unchanged": 66,
+      "intentional_change": [
+        "snapback4/packages/snapback4/test/release-activation.test.mjs"
+      ]
+    }
+  },
+  "toolchain": {
+    "node": "v24.13.1",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "bun": "1.3.14"
+  },
+  "qualified_tree_before_report": "c6d1ff8a7898693610174843e38e83b772c7c685",
+  "repetitions": {
+    "verified_at": "2026-10-04T21:14:50.461708+00:00",
+    "runs": 30,
+    "passed": 30,
+    "failed": 0,
+    "files": [
+      {
+        "file": "packages/snapback4/test/cleanup.test.mjs",
+        "runs": 10,
+        "passed": 10,
+        "failed": 0,
+        "native_counts": [
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 6,
+            "pass": 6,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        ]
+      },
+      {
+        "file": "packages/snapback4/test/release-activation.test.mjs",
+        "runs": 10,
+        "passed": 10,
+        "failed": 0,
+        "native_counts": [
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        ]
+      },
+      {
+        "file": "packages/snapback4/test/worker-regressions.test.mjs",
+        "runs": 10,
+        "passed": 10,
+        "failed": 0,
+        "native_counts": [
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 77,
+            "pass": 77,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        ]
+      }
+    ],
+    "log_hashes_match": true,
+    "source_hashes_unchanged": true,
+    "native_exits_and_affinity_checked": true,
+    "keeper_cleanup_acknowledged": true,
+    "all_hogs_reaped_and_stress_scratch_removed": true
+  },
+  "assertion_audit": {
+    "compared_to": "MERGE_HEAD",
+    "files": [
+      {
+        "path": "snapback4/packages/snapback4/test/release-activation.test.mjs",
+        "assertions": 151,
+        "names": 14,
+        "timeouts": 16
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+        "assertions": 131,
+        "names": 37,
+        "timeouts": 15
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/cleanup.test.mjs",
+        "assertions": 36,
+        "names": 6,
+        "timeouts": 1
+      }
+    ],
+    "release_is_main_plus_stdout_capture_and_line_terminator": true
+  },
+  "build": [
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--workspace",
+        "--quiet"
+      ],
+      "started": "2026-10-04T20:20:21.887994+00:00",
+      "exit_code": 0,
+      "seconds": 23.929970206227154,
+      "finished": "2026-10-04T20:20:45.817962+00:00",
+      "log_sha256": "b1773aa8008f3e73a0dcd70800ade8a1e786b84bd8d34d2acd724ea8a75c4810"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--no-run",
+        "--message-format=json-render-diagnostics"
+      ],
+      "started": "2026-10-04T20:20:45.818356+00:00",
+      "exit_code": 0,
+      "seconds": 605.0257773068734,
+      "finished": "2026-10-04T20:30:50.844136+00:00",
+      "log_sha256": "2659811c3c28571ad1ba8c224598ecdbed174d565914a994121694bb30a0a1f0"
+    }
+  ],
+  "full_suite": {
+    "command": [
+      "bash",
+      "snapback4/scripts/test.sh"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-fx",
+    "environment": {
+      "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_BUILD_JOBS": "8",
+      "TMPDIR": "/tmp/fx-integration/full-scratch"
+    },
+    "started": "2026-10-04T20:39:54.148296+00:00",
+    "cli_sha256_before": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "pid": 3496071,
+    "exit_code": 0,
+    "finished": "2026-10-04T21:13:59.193847+00:00",
+    "seconds": 2044.9901788919233,
+    "log_sha256": "ceae1cdce9c41ed96dc90e3bc1e3318d7857e5ce1aaf70d4a99f9a74c1fc0699",
+    "cli_sha256_after": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "reported_failed_stages": 0,
+    "reported_seconds": 2045,
+    "stages": [
+      {
+        "result": "ok",
+        "name": "cargo build",
+        "seconds": 8
+      },
+      {
+        "result": "ok",
+        "name": "wasm build",
+        "seconds": 73
+      },
+      {
+        "result": "ok",
+        "name": "docs budget",
+        "seconds": 41
+      },
+      {
+        "result": "ok",
+        "name": "release guard",
+        "seconds": 10
+      },
+      {
+        "result": "ok",
+        "name": "package typecheck",
+        "seconds": 2
+      },
+      {
+        "result": "ok",
+        "name": "package build",
+        "seconds": 3
+      },
+      {
+        "result": "ok",
+        "name": "chat app check",
+        "seconds": 0
+      },
+      {
+        "result": "ok",
+        "name": "cargo test",
+        "seconds": 989
+      },
+      {
+        "result": "ok",
+        "name": "chat app typecheck",
+        "seconds": 1
+      },
+      {
+        "result": "ok",
+        "name": "expo app typecheck",
+        "seconds": 1
+      },
+      {
+        "result": "ok",
+        "name": "fixture wrapper tests",
+        "seconds": 12
+      },
+      {
+        "result": "ok",
+        "name": "client tests",
+        "seconds": 611
+      },
+      {
+        "result": "ok",
+        "name": "client models",
+        "seconds": 308
+      }
+    ],
+    "rust_executions": 1012,
+    "rust_counts": {
+      "passed": 4975,
+      "failed": 0,
+      "ignored": 33
+    },
+    "client_summaries": [
+      {
+        "completed": 1,
+        "total": 1,
+        "failed_files": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "completed": 313,
+        "total": 313,
+        "failed_files": 0,
+        "counts": {
+          "tests": 6223,
+          "pass": 6212,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 11,
+          "todo": 0
+        }
+      },
+      {
+        "completed": 2,
+        "total": 2,
+        "failed_files": 0,
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      }
+    ],
+    "cli_matches_repetitions": true,
+    "model_sequence_counts": [
+      "3000",
+      "32",
+      "5000"
+    ]
+  },
+  "disk": {
+    "samples": 215,
+    "peak_sampled_owned_bytes": 11676169203,
+    "samples_with_errors": 4,
+    "all_samples_under_40GB": true,
+    "minimum_free_bytes": 117584236544
+  },
+  "archive": {
+    "path": "round2-integration.tar.gz",
+    "sha256": "598ceb256463ff3711dac408fe96692e076c7dbaa37403fa6cf0cb007ba3c2c6",
+    "bytes": 399425,
+    "files": 87,
+    "all_archived_bytes_verified": true
+  },
+  "cleanup": {
+    "stress_scratch_removed": true,
+    "hogs_reaped": true,
+    "remaining_scratch_and_target": {
+      "finished": "2026-10-04T21:15:07.820899+00:00",
+      "removed_bytes_before_deletion": {
+        "/home/ccheever/sb4-intent/lane-fx/snapback4/target": 9991371369,
+        "/tmp/fx-integration": 26763453
+      },
+      "removed_paths_absent": true,
+      "existing_node_modules_retained": true
+    }
+  },
+  "whitespace_check": {
+    "whole_merge_exit_code": 2,
+    "incoming_main_formatting_findings": 21,
+    "paths_identical_to_incoming_main": [
+      "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-final-report.md",
+      "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-convex/run-log.md",
+      "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/diary.md",
+      "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/final-report.md",
+      "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/run-log.md"
+    ],
+    "scope": "snapback4 test sources, JOURNAL, and FX report artifacts",
+    "scoped_exit_code": 0
+  }
+}
