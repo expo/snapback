@@ -141,7 +141,7 @@ fn supervisor(args: &[String]) -> Result<()> {
         deadline.observe(Instant::now(), live.len());
         if live.is_empty() { empty += 1; } else { empty = 0; }
         if empty == 2 { break; }
-        if deadline.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "watchdog group cleanup stopped making progress; recovery required")); }
+        deadline.check(Instant::now(), "watchdog group cleanup")?;
         sleep(Duration::from_millis(20));
     }
     deadline.lock(&reap_lock)?;

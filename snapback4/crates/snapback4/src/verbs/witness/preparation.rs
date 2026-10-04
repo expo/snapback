@@ -134,7 +134,7 @@ impl PreparationProcess {
             if let Some(group) = self.group["group"].as_u64() {
                 deadline.observe(Instant::now(), recovery::members(group as u32)?.len());
             }
-            if deadline.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "native preparation watchdog cleanup stopped making progress; recovery required")); }
+            deadline.check(Instant::now(), "native preparation watchdog cleanup")?;
             sleep(Duration::from_millis(20));
         }
     }
@@ -195,6 +195,7 @@ mod cleanup_tests {
         let start = Instant::now();
         let first = keeper.cleanup().unwrap_err();
         assert!(first.contains("recovery required"), "{first}");
+        assert!(first.contains("idle cleanup deadline expired"), "{first}");
         assert!(start.elapsed() >= Duration::from_millis(200));
         assert!(start.elapsed() < Duration::from_secs(2), "a stopped supervisor must refuse at the idle deadline");
         let deadline = keeper.cleanup_deadline.as_ref().unwrap();

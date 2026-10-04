@@ -26,3 +26,22 @@ paragraph and `guide witness`; retain all existing custody residuals except
 the removed external `ps` inspection dependency. No new LLP is warranted.
 Hand-off: none. `@ref` destinations remain applicable; no broken or superseded
 reference in scope was found.
+
+## Round 1 context pack (2026-10-04)
+
+- Scope: Linux process identity and membership parsing in `recovery.rs`;
+  shared deadline diagnostics in `cleanup.rs`, `preparation.rs`,
+  `process_group.rs` and `recovery.rs`; review evidence corrections.
+- Governing LLPs: LLP 3000#4 (fence), LLP 2000.000#12 (bounded process),
+  LLP 3000.030#15 (custody and deadlines). All three are in `current/`,
+  none in `foundation/` in this checkout. `guide witness` remains consistent.
+- Active constraints and rationale: LLP 3000.030#15 requires birth-bound group
+  custody, group signaling, an unreaped anchor, two empty snapshots, bounded
+  drains, and a refusal when inspection cannot establish safety.
+- Risk: a `/proc` row may hide or corrupt facts; only a determined outside
+  group or disappearance permits skipping it. Shared diagnostic call sites
+  execute on Darwin as well, so their changed text awaits mini verification.
+- Likely documentation: update LLP 3000.030#15, append the report and journal;
+  withdraw the unreplayable slow-`ps` evidence. No new LLP or guide form.
+- Authorization: the round-1 commission limits execution to eb1000, requires
+  local commit only, and prohibits the three Macs. Hand-off: none.

@@ -84844,3 +84844,36 @@ index. The original deadline ticket is closed. Only this mini and the lane's
 own simulator were used; that device and its private ownership records were
 removed after timing. No office M1, M5, other worktree or other session's device
 was touched. Nothing pushed or published.
+
+## 2026-10-04 — WD round 1: Linux inspection and deadline diagnostics
+
+Addressed the round-0 Astra P2 and Grok follow-ups locally on eb1000, from
+`38d9bfe0de`. Linux `/proc` inspection reads bytes and locates the final `)`
+before decoding fields, so arbitrary process names cannot break cleanup.
+Identity reads share the parsing. Readable outside-group rows are excluded
+before validating state/birth; on stat read errors, `getpgid` may prove an
+outside group or disappearance. In-group errors and undetermined/malformed
+group membership still fail closed. New tests cover a real outside-group
+non-UTF-8 `comm`, malformed rows and injected inspection failures.
+
+Shared drain/reaping-lock diagnostics distinguish the idle deadline from
+the hard cap and preserve `recovery required`. Progress, custody, retries,
+signaling and the five/sixty-second bounds are unchanged. The unreplayable
+slow-`ps` claim is withdrawn from the report and its `psCalls` field removed;
+the historical duration/status record remains without that claim.
+
+The required binary build passed, then all 53 witness tests passed in 27.17 s.
+An initial test-only compile failure (missing `CommandExt` import) was fixed
+before that run; no tests ran in that attempt. The canonical full Linux suite
+passed with `== 0 failure(s) in 1635 s`: every build/typecheck, Rust target and
+doctest; CLI units 282 passed/four ignores; witness integration 31/31; fixture
+wrappers 9/9; clients 6,034 passed/11 skips; models 79/79. No failures,
+cancellations or interventions. Reference and diff-whitespace checks passed.
+This does not replace the failed round-0 Mac suite result.
+
+Darwin enumeration and identity code are byte-for-byte unchanged. Shared
+diagnostic paths in `cleanup.rs`, `preparation.rs`, `process_group.rs` and
+`recovery.rs` changed and await mini verification. No Mac was contacted and
+no native-export measurement was repeated. The [round-1 report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md#round-1--linux-inspection-and-review-cleanup-2026-10-04)
+and its validation record retain results and limits. Local commit only;
+nothing pushed or published.

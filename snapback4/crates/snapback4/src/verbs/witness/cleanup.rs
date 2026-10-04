@@ -23,6 +23,12 @@ impl Deadline {
         self.previous = Some(members);
     }
     pub(super) fn expired(&self, now: Instant) -> bool { now >= self.stalled_at || now >= self.hard_at }
+    pub(super) fn check(&self, now: Instant, operation: &str) -> Result<()> {
+        if !self.expired(now) { return Ok(()); }
+        let reason = if now >= self.hard_at { "reached the hard cleanup deadline" }
+            else { "stopped making progress (idle cleanup deadline expired)" };
+        Err(error("E_WITNESS_PROCESS", format!("{operation} {reason}; recovery required")))
+    }
     pub(super) fn lock(&self, file: &File) -> Result<()> {
         loop {
             match file.try_lock() {
@@ -30,7 +36,7 @@ impl Deadline {
                 Err(std::fs::TryLockError::WouldBlock) => {},
                 Err(e) => return Err(error("E_WITNESS_PROCESS", e)),
             }
-            if self.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "process group reaping lock stalled; recovery required")); }
+            self.check(Instant::now(), "process group reaping lock")?;
             sleep(Duration::from_millis(20));
         }
     }
@@ -73,12 +79,19 @@ mod tests {
             deadline.observe(start + Duration::from_secs(seconds), 100 - seconds as usize);
             assert_eq!(deadline.expired(start + Duration::from_secs(seconds)), seconds == 60);
         }
+        let failure = deadline.check(start + Duration::from_secs(60), "test drain").unwrap_err();
+        assert!(failure.contains("hard cleanup deadline"), "{failure}");
+        assert!(failure.contains("recovery required"), "{failure}");
+        assert!(!failure.contains("stopped making progress"), "{failure}");
     }
     #[test]
     fn absent_or_first_observation_does_not_renew_a_stall() {
         let start = Instant::now();
         let mut deadline = Deadline::new(start);
         assert!(deadline.expired(start + Duration::from_secs(5)));
+        let failure = deadline.check(start + Duration::from_secs(5), "test drain").unwrap_err();
+        assert!(failure.contains("idle cleanup deadline expired"), "{failure}");
+        assert!(failure.contains("recovery required"), "{failure}");
         deadline.observe(start + Duration::from_secs(6), 0);
         assert!(deadline.expired(start + Duration::from_secs(6)));
     }
