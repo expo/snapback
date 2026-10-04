@@ -1,0 +1,10 @@
+{
+  "at": 1791108282.722571,
+  "pid": 8305,
+  "identity": "41286 SN   /Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/deps/witness-f9f0359e6cd1a276 --quiet --test-threads=1",
+  "children": [
+    "12362 8305 ZN <defunct>"
+  ],
+  "signal": "SIGTERM",
+  "reason": "Mock prefix mismatch caused early driver exit; scene-report helper waited for its absent marker. Stop this owned stalled test only; no living child remains. Full suite continues and is retained as failed."
+}

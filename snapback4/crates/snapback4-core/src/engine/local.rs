@@ -107,6 +107,9 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     if !schema.receipts.is_empty() && !schema.operations.get(&program.name).is_some_and(|fact| matches!(fact.predicts.as_deref(), Some("eligible" | "never"))) {
         return Err(RuntimeError::Prediction("receipt mutation has no compiler classification".into()));
     }
+    if let Some(reason) = schema.prediction_reservation_refusal(program) {
+        return Err(RuntimeError::Prediction(reason.into()));
+    }
     // Runtime custody is independent of advisory prediction classification.
     if schema.receipts.iter().any(|f| program.name == f.delivered || program.name == f.seen || program.name == f.compact) {
         return Err(RuntimeError::Prediction("receipt reports need server settlement".into()));
@@ -138,6 +141,9 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     // Receipt dependencies are classified before evaluation (LLP 3000.022 §14.3).
     if runner.receipt_allocation && result.is_err() {
         return Err(RuntimeError::Prediction("receipt allocation preceded a refusal; queue the write for server settlement (guide writes)".into()));
+    }
+    if runner.reservation_deferred && matches!(result, Err(RuntimeError::Bound { .. })) {
+        return Err(RuntimeError::Prediction("deferred maintenance reservation exhausted; queue for server settlement".into()));
     }
     if runner.provisional_sequence_read && result.is_err() {
         return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));

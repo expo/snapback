@@ -1,0 +1,61 @@
+{
+  "summary": "== 0 failure(s) in 1419 s",
+  "status": 0,
+  "started": "2026-10-03T13:55:32Z",
+  "finished": "2026-10-03T14:19:11Z",
+  "phases": [
+    {
+      "name": "fixture wrapper tests",
+      "files": 1,
+      "expectedFiles": 1,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "client tests",
+      "files": 304,
+      "expectedFiles": 304,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 6111,
+        "pass": 6100,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0
+      }
+    },
+    {
+      "name": "client models",
+      "files": 2,
+      "expectedFiles": 2,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "totalJavaScript": {
+    "tests": 6199,
+    "pass": 6188,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "fileResults": 307,
+  "failedCategories": [],
+  "failedFiles": []
+}

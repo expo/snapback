@@ -35,11 +35,27 @@ mod store_identity;
 pub use store_identity::StoreObservation;
 
 /// The compiled backend, as `GET /schema` sends it.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Backend {
     pub generation: u64,
     pub schema: Schema,
     pub programs: Vec<Program>,
+}
+
+impl<'de> Deserialize<'de> for Backend {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Wire { generation: u64, schema: Schema, programs: Vec<Program> }
+        let Wire { generation, mut schema, programs } = Wire::deserialize(deserializer)?;
+        for program in &programs {
+            if program.kind == snapback4_core::ir::ProgramKind::Mutation
+                && schema.prediction_reservation_refusal(program).is_some()
+                && let Some(fact) = schema.operations.get_mut(&program.name) {
+                fact.predicts = Some("never".into());
+            }
+        }
+        Ok(Self { generation, schema, programs })
+    }
 }
 
 /// One transaction's stream request inputs. A response may apply only while
@@ -251,6 +267,10 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn has_provisional(&self, table: &str) -> Result<bool, RuntimeError> { self.tx.base_has_table(table) }
+    fn provisional_groups(&self, table: &str, fields: &[String]) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+        predictions::provisional_groups(self.tx, table, fields)
+    }
     fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
         self.tx.base_id_after(table, after)
     }
@@ -325,6 +345,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
             self.tx.set_meta(&key, &floor.to_string())?;
         }
         predictions::remember(self.tx, table_name, old.field("id")?.as_str()?)?;
+        predictions::remember_deleted(self.tx, self.schema, table_name, old)?;
         self.written.borrow_mut().push(format!("{table_name}/{}", old.field("id")?.as_str()?));
         self.tx.delete(table_name, table, old)
     }

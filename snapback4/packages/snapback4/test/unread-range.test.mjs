@@ -191,8 +191,8 @@ test('the guide Clique program certifies and expires on wasm after reopen', { ti
   const program = guide.split('## A value per member: Clique unread')[1].split('```quarry\n')[1].split('```')[0];
   const s = await serverFor(t, { program, n: 0, rows: [
     { table: 'conversations', row: { id: 'c', title: 'Chat', timer: 1000000 } },
-    { table: 'members', row: { id: 'b', conversationId: 'c', principal: viewer, readUpTo: 501 } },
-    { table: 'members', row: { id: 'a', conversationId: 'c', principal: 'dev:alice', readUpTo: 0 } },
+    { table: 'members', row: { id: 'b', conversationId: 'c', principal: viewer, seenOrdinal: 501, joinedOrdinal: 0 } },
+    { table: 'members', row: { id: 'a', conversationId: 'c', principal: 'dev:alice', seenOrdinal: 0, joinedOrdinal: 0 } },
   ] });
   for (let i = 0; i < 503; i++) assert.equal((await s.post('/m/send', { args: { conversationId: 'c' } }, 'alice')).state, 'sent');
   let d = new WebDevice(JSON.stringify(s.backend), '[]'); t.after(() => d.free());

@@ -1,0 +1,1844 @@
+[
+  {
+    "phase": "fixture wrapper tests",
+    "verdict": "ok",
+    "file": "fixtures/",
+    "elapsedMs": 11491
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+    "elapsedMs": 1326
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-outcomes.test.mjs",
+    "elapsedMs": 2796
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-receipts.test.mjs",
+    "elapsedMs": 2900
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-storage.test.mjs",
+    "elapsedMs": 4706
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-retirement.test.mjs",
+    "elapsedMs": 4818
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+    "elapsedMs": 4919
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-handles.test.mjs",
+    "elapsedMs": 5038
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-global.test.mjs",
+    "elapsedMs": 5142
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+    "elapsedMs": 6300
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+    "elapsedMs": 6410
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-state.test.mjs",
+    "elapsedMs": 6492
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+    "elapsedMs": 6629
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-session.test.mjs",
+    "elapsedMs": 6717
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-notifications.test.mjs",
+    "elapsedMs": 4039
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-review.test.mjs",
+    "elapsedMs": 4310
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+    "elapsedMs": 7540
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "elapsedMs": 2818
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-projection.test.mjs",
+    "elapsedMs": 1566
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-arguments.test.mjs",
+    "elapsedMs": 1892
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/codec.test.mjs",
+    "elapsedMs": 1414
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-online.test.mjs",
+    "elapsedMs": 9693
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "elapsedMs": 3644
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+    "elapsedMs": 10370
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+    "elapsedMs": 3763
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+    "elapsedMs": 2663
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "elapsedMs": 7327
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+    "elapsedMs": 12996
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/composed-authority.test.mjs",
+    "elapsedMs": 3500
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-activation.test.mjs",
+    "elapsedMs": 3146
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "elapsedMs": 8802
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-cas.test.mjs",
+    "elapsedMs": 1483
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-crash.test.mjs",
+    "elapsedMs": 1657
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/close-boundary.test.mjs",
+    "elapsedMs": 8494
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-clients.test.mjs",
+    "elapsedMs": 4443
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+    "elapsedMs": 3614
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+    "elapsedMs": 2601
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery.test.mjs",
+    "elapsedMs": 1609
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/device-diet.test.mjs",
+    "elapsedMs": 1494
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "elapsedMs": 12543
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-web.test.mjs",
+    "elapsedMs": 2802
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "elapsedMs": 1330
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+    "elapsedMs": 6546
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/device-residency.test.mjs",
+    "elapsedMs": 3898
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+    "elapsedMs": 21480
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-publication.test.mjs",
+    "elapsedMs": 7727
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+    "elapsedMs": 13713
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "elapsedMs": 974
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "elapsedMs": 2856
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "elapsedMs": 970
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "elapsedMs": 2542
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+    "elapsedMs": 756
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "elapsedMs": 6865
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+    "elapsedMs": 3109
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "elapsedMs": 5457
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/event-slots.test.mjs",
+    "elapsedMs": 2702
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "elapsedMs": 5676
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+    "elapsedMs": 760
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expo-scenes.test.mjs",
+    "elapsedMs": 1981
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+    "elapsedMs": 4136
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+    "elapsedMs": 11441
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "elapsedMs": 970
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "elapsedMs": 3257
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "elapsedMs": 4816
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "elapsedMs": 5426
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/familiar-forms.test.mjs",
+    "elapsedMs": 3417
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app.test.mjs",
+    "elapsedMs": 36340
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+    "elapsedMs": 37357
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+    "elapsedMs": 1215
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/following-routing.test.mjs",
+    "elapsedMs": 5190
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/approval-model.test.mjs",
+    "elapsedMs": 37320
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/id-from.test.mjs",
+    "elapsedMs": 1405
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-approval.test.mjs",
+    "elapsedMs": 29036
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "elapsedMs": 19870
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+    "elapsedMs": 2027
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+    "elapsedMs": 40809
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-organizations.test.mjs",
+    "elapsedMs": 2130
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-profile.test.mjs",
+    "elapsedMs": 2127
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/first-account.test.mjs",
+    "elapsedMs": 11346
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/http-bounds.test.mjs",
+    "elapsedMs": 5220
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/intent-views.test.mjs",
+    "elapsedMs": 1679
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/following-unfollow.test.mjs",
+    "elapsedMs": 9897
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/init-recipe.test.mjs",
+    "elapsedMs": 2426
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+    "elapsedMs": 1716
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity-review.test.mjs",
+    "elapsedMs": 5086
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/identity.test.mjs",
+    "elapsedMs": 4821
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-authority.test.mjs",
+    "elapsedMs": 4273
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+    "elapsedMs": 24971
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "elapsedMs": 41266
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "elapsedMs": 44034
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+    "elapsedMs": 3884
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-observation.test.mjs",
+    "elapsedMs": 2822
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-adoption.test.mjs",
+    "elapsedMs": 9214
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-reset.test.mjs",
+    "elapsedMs": 3007
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-expiry.test.mjs",
+    "elapsedMs": 6681
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+    "elapsedMs": 26982
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/linux-package.test.mjs",
+    "elapsedMs": 1411
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+    "elapsedMs": 21164
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+    "elapsedMs": 5423
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+    "elapsedMs": 56075
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+    "elapsedMs": 3490
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+    "elapsedMs": 7329
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+    "elapsedMs": 13937
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+    "elapsedMs": 5893
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-reads.test.mjs",
+    "elapsedMs": 2390
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-signout.test.mjs",
+    "elapsedMs": 2385
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+    "elapsedMs": 1940
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/loopbar.test.mjs",
+    "elapsedMs": 2277
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "elapsedMs": 52022
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-device.test.mjs",
+    "elapsedMs": 15800
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/measure-launch.test.mjs",
+    "elapsedMs": 1444
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintains.test.mjs",
+    "elapsedMs": 2208
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/media-dependencies.test.mjs",
+    "elapsedMs": 2201
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-opening.test.mjs",
+    "elapsedMs": 1311
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-smoke.test.mjs",
+    "elapsedMs": 1643
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+    "elapsedMs": 10355
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/node-transport.test.mjs",
+    "elapsedMs": 1830
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+    "elapsedMs": 15047
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "elapsedMs": 63949
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+    "elapsedMs": 6327
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/decorated-search.test.mjs",
+    "elapsedMs": 54108
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-read-order.test.mjs",
+    "elapsedMs": 1240
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-intent-store.test.mjs",
+    "elapsedMs": 1463
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+    "elapsedMs": 18757
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/native-e2e.test.mjs",
+    "elapsedMs": 7562
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/once-preservation.test.mjs",
+    "elapsedMs": 5043
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-store-order.test.mjs",
+    "elapsedMs": 3301
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "elapsedMs": 1668
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+    "elapsedMs": 31890
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-session.test.mjs",
+    "elapsedMs": 4281
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/local-e2e.test.mjs",
+    "elapsedMs": 14466
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "elapsedMs": 1301
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+    "elapsedMs": 8572
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/live-propagation.test.mjs",
+    "elapsedMs": 18185
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/follow-window.test.mjs",
+    "elapsedMs": 41623
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-model.test.mjs",
+    "elapsedMs": 10853
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot.test.mjs",
+    "elapsedMs": 10931
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/overload-browser.test.mjs",
+    "elapsedMs": 5509
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/package-typecheck.test.mjs",
+    "elapsedMs": 3773
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+    "elapsedMs": 8364
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+    "elapsedMs": 1340
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+    "elapsedMs": 2302
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/own-keys.test.mjs",
+    "elapsedMs": 8144
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+    "elapsedMs": 3715
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/one-shot-review.test.mjs",
+    "elapsedMs": 14886
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-ready.test.mjs",
+    "elapsedMs": 7550
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "elapsedMs": 62830
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-items.test.mjs",
+    "elapsedMs": 7356
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+    "elapsedMs": 5146
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+    "elapsedMs": 7602
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-progress.test.mjs",
+    "elapsedMs": 7602
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search.test.mjs",
+    "elapsedMs": 17923
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-authority.test.mjs",
+    "elapsedMs": 14748
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-retry.test.mjs",
+    "elapsedMs": 4189
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+    "elapsedMs": 10008
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-publication.test.mjs",
+    "elapsedMs": 6260
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-retention.test.mjs",
+    "elapsedMs": 5535
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/pending-writes.test.mjs",
+    "elapsedMs": 13215
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/page-observation.test.mjs",
+    "elapsedMs": 16477
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+    "elapsedMs": 2542
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-history.test.mjs",
+    "elapsedMs": 23689
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/maintained-columns.test.mjs",
+    "elapsedMs": 32906
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-work.test.mjs",
+    "elapsedMs": 5510
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/periphery.test.mjs",
+    "elapsedMs": 5832
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/prediction-routing.test.mjs",
+    "elapsedMs": 5504
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publish-signing.test.mjs",
+    "elapsedMs": 2288
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+    "elapsedMs": 2531
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-existence.test.mjs",
+    "elapsedMs": 1229
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+    "elapsedMs": 1997
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-observation.test.mjs",
+    "elapsedMs": 2226
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+    "elapsedMs": 2443
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/publish-linux.test.mjs",
+    "elapsedMs": 6601
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/qualify-linux.test.mjs",
+    "elapsedMs": 6475
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-refresh.test.mjs",
+    "elapsedMs": 9701
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/react.test.mjs",
+    "elapsedMs": 6048
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+    "elapsedMs": 47305
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+    "elapsedMs": 4159
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "elapsedMs": 5724
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-presentation.test.mjs",
+    "elapsedMs": 2267
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+    "elapsedMs": 965
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-composed.test.mjs",
+    "elapsedMs": 11768
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/remembered-answers.test.mjs",
+    "elapsedMs": 1109
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+    "elapsedMs": 4331
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/per-row-react.test.mjs",
+    "elapsedMs": 19220
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+    "elapsedMs": 5178
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-live.test.mjs",
+    "elapsedMs": 14762
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "elapsedMs": 5127
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/release-activation.test.mjs",
+    "elapsedMs": 4904
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+    "elapsedMs": 2516
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/query-publication-session.test.mjs",
+    "elapsedMs": 12687
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-through.test.mjs",
+    "elapsedMs": 6427
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "elapsedMs": 6425
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+    "elapsedMs": 6428
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+    "elapsedMs": 4150
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-pages.test.mjs",
+    "elapsedMs": 1370
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-episode.test.mjs",
+    "elapsedMs": 2455
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+    "elapsedMs": 3828
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+    "elapsedMs": 3706
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "elapsedMs": 2937
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+    "elapsedMs": 6457
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b.test.mjs",
+    "elapsedMs": 5730
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+    "elapsedMs": 9556
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/revocation-retention.test.mjs",
+    "elapsedMs": 3262
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+    "elapsedMs": 1794
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+    "elapsedMs": 2348
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/schema-session.test.mjs",
+    "elapsedMs": 2882
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+    "elapsedMs": 10825
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+    "elapsedMs": 3745
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/residency.test.mjs",
+    "elapsedMs": 8452
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/seen.test.mjs",
+    "elapsedMs": 1642
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/review-probes.test.mjs",
+    "elapsedMs": 6042
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "elapsedMs": 1149
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/seen-devices.test.mjs",
+    "elapsedMs": 4480
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock.test.mjs",
+    "elapsedMs": 1481
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "elapsedMs": 2957
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-live.test.mjs",
+    "elapsedMs": 3427
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-routes.test.mjs",
+    "elapsedMs": 1103
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-runtime.test.mjs",
+    "elapsedMs": 1449
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/session-security.test.mjs",
+    "elapsedMs": 1668
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-check.test.mjs",
+    "elapsedMs": 5811
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+    "elapsedMs": 1198
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/screen-lifetimes.test.mjs",
+    "elapsedMs": 9378
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+    "elapsedMs": 9451
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "elapsedMs": 705
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+    "elapsedMs": 714
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "elapsedMs": 118357
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+    "elapsedMs": 4921
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/screen-lifetimes-react.test.mjs",
+    "elapsedMs": 18492
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+    "elapsedMs": 23676
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset.test.mjs",
+    "elapsedMs": 9028
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+    "elapsedMs": 1258
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "elapsedMs": 12528
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+    "elapsedMs": 931
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+    "elapsedMs": 2935
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+    "elapsedMs": 949
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/routes.test.mjs",
+    "elapsedMs": 24855
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+    "elapsedMs": 2583
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+    "elapsedMs": 5021
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/social-browser.test.mjs",
+    "elapsedMs": 18088
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+    "elapsedMs": 10729
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+    "elapsedMs": 1165
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+    "elapsedMs": 6343
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+    "elapsedMs": 2706
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+    "elapsedMs": 10374
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+    "elapsedMs": 4734
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "elapsedMs": 21753
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+    "elapsedMs": 2151
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/readauth.test.mjs",
+    "elapsedMs": 41544
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-after-call.test.mjs",
+    "elapsedMs": 1939
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/store-reset-review.test.mjs",
+    "elapsedMs": 22137
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "elapsedMs": 2919
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+    "elapsedMs": 7883
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/navigation-model.test.mjs",
+    "elapsedMs": 82787
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-generation.test.mjs",
+    "elapsedMs": 10749
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/test-processes.test.mjs",
+    "elapsedMs": 9666
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-scale.test.mjs",
+    "elapsedMs": 10752
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/typing-expiry.test.mjs",
+    "elapsedMs": 5927
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/presence-local.test.mjs",
+    "elapsedMs": 62430
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/unicode.test.mjs",
+    "elapsedMs": 1085
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+    "elapsedMs": 19156
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-absent.test.mjs",
+    "elapsedMs": 886
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/acquisition.test.mjs",
+    "elapsedMs": 151805
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-families.test.mjs",
+    "elapsedMs": 807
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+    "elapsedMs": 40615
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-durability.test.mjs",
+    "elapsedMs": 1412
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-budget.test.mjs",
+    "elapsedMs": 3239
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+    "elapsedMs": 21157
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "elapsedMs": 142304
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "elapsedMs": 57320
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-pages.test.mjs",
+    "elapsedMs": 7599
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/upload-retry.test.mjs",
+    "elapsedMs": 12064
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-shell.test.mjs",
+    "elapsedMs": 865
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-worker-control.test.mjs",
+    "elapsedMs": 688
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-review.test.mjs",
+    "elapsedMs": 12415
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+    "elapsedMs": 17129
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "elapsedMs": 947
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "elapsedMs": 56985
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "elapsedMs": 3765
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/word-expansion.test.mjs",
+    "elapsedMs": 3486
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-start.test.mjs",
+    "elapsedMs": 10829
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/overload.test.mjs",
+    "elapsedMs": 102949
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+    "elapsedMs": 32141
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+    "elapsedMs": 24740
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-session-authority.test.mjs",
+    "elapsedMs": 14103
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "elapsedMs": 22464
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+    "elapsedMs": 6738
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+    "elapsedMs": 29166
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/write-authority.test.mjs",
+    "elapsedMs": 7874
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-navigation.test.mjs",
+    "elapsedMs": 27573
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+    "elapsedMs": 42011
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/transport-http.test.mjs",
+    "elapsedMs": 43285
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/unread-range.test.mjs",
+    "elapsedMs": 35690
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+    "elapsedMs": 57219
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "elapsedMs": 47368
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/write-ids.test.mjs",
+    "elapsedMs": 19986
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "elapsedMs": 56759
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/bounded-following.test.mjs",
+    "elapsedMs": 204983
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker.test.mjs",
+    "elapsedMs": 40179
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-clock.test.mjs",
+    "elapsedMs": 193580
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "elapsedMs": 83392
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/web-admission-review.test.mjs",
+    "elapsedMs": 126912
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/keep-app-model.test.mjs",
+    "elapsedMs": 380849
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+    "elapsedMs": 388711
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+    "elapsedMs": 491916
+  },
+  {
+    "phase": "client tests",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "elapsedMs": 441268
+  },
+  {
+    "phase": "client models",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/app-session-model.test.mjs",
+    "elapsedMs": 242015
+  },
+  {
+    "phase": "client models",
+    "verdict": "ok",
+    "file": "packages/snapback4/test/online-client-model.test.mjs",
+    "elapsedMs": 60958
+  }
+]

@@ -134,7 +134,7 @@ impl PreparationProcess {
             if let Some(group) = self.group["group"].as_u64() {
                 deadline.observe(Instant::now(), recovery::members(group as u32)?.len());
             }
-            if deadline.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "native preparation watchdog cleanup stopped making progress; recovery required")); }
+            deadline.check(Instant::now(), "native preparation watchdog cleanup")?;
             sleep(Duration::from_millis(20));
         }
     }
@@ -195,6 +195,7 @@ mod cleanup_tests {
         let start = Instant::now();
         let first = keeper.cleanup().unwrap_err();
         assert!(first.contains("recovery required"), "{first}");
+        assert!(first.contains("idle cleanup deadline expired"), "{first}");
         assert!(start.elapsed() >= Duration::from_millis(200));
         assert!(start.elapsed() < Duration::from_secs(2), "a stopped supervisor must refuse at the idle deadline");
         let deadline = keeper.cleanup_deadline.as_ref().unwrap();
@@ -579,11 +580,15 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let helper = dir.join("parent.js");
         let heartbeat = dir.join("heartbeat");
+        let release = dir.join("release");
         fs::write(&helper, r#"const {spawn}=require('node:child_process');
 const fs=require('node:fs');
-const code="process.on('SIGTERM',()=>{}); const fs=require('node:fs'); setInterval(()=>fs.appendFileSync(process.argv[1],'x'),30); console.log('ready')";
+const code="process.on('SIGTERM',()=>{}); const fs=require('node:fs'); fs.appendFileSync(process.argv[1],'x'); setInterval(()=>fs.appendFileSync(process.argv[1],'x'),30); console.log('ready')";
 const child=spawn(process.execPath,['-e',code,process.argv[2]],{stdio:['ignore','pipe','ignore']});
-child.stdout.once('data',()=>process.exit(0));
+// Let the test observe the live child and held lease before parent exit
+// starts cleanup. Bound the gate so an assertion failure cannot hang it.
+setTimeout(()=>process.exit(1),10000);
+child.stdout.once('data',()=>setInterval(()=>{if(fs.existsSync(process.argv[3]))process.exit(0)},10));
 "#).unwrap();
         let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
         let options = Options::parse(&args).unwrap();
@@ -591,13 +596,16 @@ child.stdout.once('data',()=>process.exit(0));
         let held = lease(&lock).unwrap();
         std::thread::scope(|scope| {
             let worker = scope.spawn(|| {
-                let result = node(&options, &[helper.to_str().unwrap(), heartbeat.to_str().unwrap()], "descendant");
+                let result = node(&options, &[helper.to_str().unwrap(), heartbeat.to_str().unwrap(), release.to_str().unwrap()], "descendant");
                 drop(held); result
             });
             let end = Instant::now() + Duration::from_secs(5);
             while !heartbeat.exists() && Instant::now() < end { sleep(Duration::from_millis(20)); }
-            assert!(heartbeat.exists(), "child reached its SIGTERM-resistant write loop");
-            assert!(lease(&lock).is_err(), "lease remains held during group cleanup");
+            let ready = heartbeat.exists();
+            let held = lease(&lock).is_err();
+            fs::write(&release, "continue").unwrap();
+            assert!(ready, "child reached its SIGTERM-resistant write loop");
+            assert!(held, "lease remains held until group cleanup");
             worker.join().unwrap().unwrap();
         });
         let size = fs::metadata(&heartbeat).unwrap().len();

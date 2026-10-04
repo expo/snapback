@@ -54,10 +54,11 @@ fn write_output(receiver: mpsc::Receiver<Output>, mut stdout: impl std::io::Writ
     }
 }
 
-/// Startup only: attempt all previously queued output before serving requests.
+/// Lifecycle boundary only: attempt queued output before serving requests or
+/// returning from a release command, after engine/lease custody has ended.
 /// Queue admission and acknowledgement share one deadline. Full/stalled/broken
 /// destinations remain best-effort; request and engine threads must never drain.
-// @ref LLP 3000#contended-read-serving — bounded startup ordering, without changing writer QoS.
+// @ref LLP 3000#contended-read-serving — bounded lifecycle ordering, without changing writer QoS.
 pub fn drain(timeout: Duration) -> bool {
     SENDER.get().is_none_or(|sender| drain_sender(sender, timeout))
 }

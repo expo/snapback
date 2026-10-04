@@ -183,7 +183,7 @@ fn bulk_slice(shared: &Shared, aged_only: bool) -> bool {
         };
         let started = SliceClock::start();
         let result = match kind {
-            BulkKind::Delivery => engine.run_timeline_chunk_for(shared.now(), budget).map(|r| r.is_some()),
+            BulkKind::Delivery => engine.run_timeline_turn_for(shared.now(), budget).map(|r| r.is_some()),
             BulkKind::Recount => engine.run_view_chunk_for(shared.now(), budget).map(|r| r.is_some()),
             BulkKind::Job => {
                 let run = engine.run_job_chunk_for(shared.now(), budget);

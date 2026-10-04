@@ -77,9 +77,10 @@ births and exclusion of an outside group, invalid group IDs, observed progress
 past the old fixed deadline, a stopped supervisor, deadline retention on retry,
 late-group growth/shrinkage, and the hard cap despite continuous progress.
 The completed real-deadline control took **8.123 s** with a five-second idle
-budget under 5,793 processes/load 107; all 48 witness tests passed. A `PATH`
-shim delayed every `ps` call by ten seconds and recorded calls: **zero calls**.
-That is an additional absence control; no enumeration command remains to slow.
+budget under 5,793 processes/load 107; all 48 witness tests passed. The original
+slow-`ps` absence-control claim is withdrawn in round 1: its `PATH` shim
+procedure was not committed. The historical file name remains, but the
+unsupported `psCalls` field has been removed; it supplies no absence evidence.
 
 **Final loaded qualification: 50/50 module invocations, 2,400/2,400 tests pass,
 zero failures/skips.** Each invocation uses `--test-threads=1`, as the
@@ -246,3 +247,71 @@ the export JSON indexes proof/recording blobs copied immediately after each run,
 before normal artifact retention could replace them. `archive-evidence.py`
 verifies existing blobs before reusing them. No newly added file over 256 KB,
 `*.gz` or `*.mp4` is committed.
+
+## Round 1 — Linux inspection and review cleanup (2026-10-04)
+
+Base: `38d9bfe0de9072ec71138cf0fd987ba666254d96`. All execution is local to
+the eb1000 lane environment (Linux, hostname `expose-builder-pixel`). No Mac
+was contacted. The round-0 measurements and source hashes above describe
+round 0, not this revision.
+
+- **Astra P2:** `/proc/<pid>/stat` is read as bytes, with the final `)` located
+  before decoding fields. Linux identity reads use the same parsing so an
+  in-group non-UTF-8 name retains a birth identity too. The real-process
+  regression starts an owned shell in another group, sets its `comm` to
+  bytes containing `0xff`, spaces and parentheses, then proves the selected
+  group is enumerated correctly. It also checks the shell's own group and
+  matching identity; both children are killed and reaped by the test.
+- **Grok group scope:** readable rows are filtered by pgid before state/birth
+  validation. Truncated or invalid details on an outside-group row cannot
+  fail enumeration. A failed stat read uses `getpgid` only to establish that
+  the process is outside the selected group or has disappeared. In-group
+  read errors, unresolved group membership and malformed pgid fields refuse
+  with `E_WITNESS_PROCESS`. Tests inject EACCES, EPERM, EIO, ENOENT and ESRCH;
+  pair malformed outside/in-group rows; and check valid live/zombie rows.
+  This is fault-injection coverage, not an actual `hidepid` mount experiment.
+- **Grok evidence:** the slow-`ps` claim is withdrawn above and `psCalls` is
+  removed from `real-deadline-slow-ps.json`. Its original status/duration/load
+  observations remain historical; no replayable shim experiment is claimed.
+- **Grok diagnostic:** caller, supervisor, recovery and reaping-lock errors
+  now identify idle expiry or the hard cleanup deadline. Both retain
+  `E_WITNESS_PROCESS` and `recovery required`. Synthetic-clock tests check
+  both messages, including hard expiry with continuous progress; the real
+  stopped-supervisor test checks the idle message. No deadline, progress,
+  retry, custody or signal policy changed.
+
+The Darwin enumeration and birth-inspection implementations are unchanged.
+**Pending mini verification:** shared diagnostic paths in
+`cleanup.rs` (`Deadline::check` and reaping-lock wait), `preparation.rs`
+(`PreparationProcess::cleanup`), `process_group.rs` (supervisor drain) and
+`recovery.rs` (`stop_group_with`) execute on Darwin and changed their error
+text. They were exercised on Linux only, as instructed.
+
+Validation used Rust 1.97.0, Node 24.13.1 and Bun 1.3.14; frozen workspace
+installation succeeded. From `snapback4/`:
+
+```sh
+cargo build -p snapback4 --bin snapback4
+cargo test -p snapback4 --bin snapback4 witness -- --test-threads=1
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+The binary build passed (29.00 s). Witness tests passed **53/53**, zero
+failures/ignores, in **27.17 s**. The first test compilation failed because
+the new Linux test module omitted the `CommandExt` import; it ran no tests.
+The import was fixed before the successful run. Reference validation passed
+(527 LLP documents, 10,285 refs, zero errors/unchecked refs).
+
+The canonical full suite **passed**, exit 0, with the exact footer
+`== 0 failure(s) in 1635 s` (1635.389 s wrapper wall time). Every build,
+typecheck, Rust target and doctest passed. CLI units passed **282 tests with
+four ignores**; Linux witness integration passed **31/31**; fixture wrappers
+passed **9/9**. Ordinary clients passed **6,034 tests**, zero failures or
+cancellations, with **11 skips**. Client models passed **79/79**, zero
+failures/skips/cancellations. No intervention or rerun of the full suite was
+needed. This Linux pass does not replace the round-0 Mac suite's failed result.
+
+[Round-1 validation](round1-validation.json) records the commands, source hashes,
+stage results and log hashes. Raw logs are retained under
+`snapback4/target/wd/round1/`; the round-0 archive is unchanged. `git diff --check`
+passed. No push or publication.

@@ -41,3 +41,30 @@ background preparation to earn time from progress, capped near 60 minutes.
 Foreground preparation remains 900 seconds; custody/step/cleanup policies stay.
 The user also replaces quiet-only admission with recorded-load ABBA on this
 host as it is. No host, simulator, process-signalling or push restriction changes.
+
+Round 2 (2026-10-04): merge origin/main at abafa9af9c into NZ as a merge
+commit. LLP 3000.030 §15 now includes landed WD round 1 byte-based Linux
+inspection, scoped member validation and idle/hard cleanup diagnostics alongside
+NZ background preparation. Preserve both policies and both journal histories.
+Starter READMEs/scripts and guide witness retain the background default and status
+commands. This integration requests Mac build/witness/JavaScript tests, plain and
+social warm round trips, and the complete Mac suite. No push; same host/ownership
+constraints. Hand-off: none.
+
+Round 2 suite follow-up: LLP 3000#http-overload-diagnostics keeps engine/request
+producers nonblocking; #contended-read-serving governs the existing bounded
+startup drain. LLP 3000.026#4-atomic-launch-adoption and guide feeds require
+the adoption estimate to be visible. Apply the same bounded drain only after
+release-command custody ends, with a delayed-writer process regression.
+
+Round 2 Mac capability tests: LLP 3000.022 §14.3 and RP's selective legacy
+decoding require every new source price (including zero) to carry v1/v2. Keep
+the authentic pre-RP capability-free fixture unchanged, create old adoption
+stores with the published old compiler, and test current-output refusal on old
+native/WASM engines. No runtime fence or schema normalization changes.
+
+Round 2 local-network fixture follow-up: LLP 3000.019's per-response
+development evidence and guide bounds require the actual loopback listener/peer
+fence. Keep HTTP assertions on a real non-loopback interface, but enumerate
+local up IPv4 addresses instead of depending on a route to 192.0.2.1. Test-only;
+no network configuration, disclosure boundary or runtime change.

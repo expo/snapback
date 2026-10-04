@@ -19,6 +19,12 @@ impl Binder<'_> {
             && merge.lanes[0].project.is_some() && merge.lanes[0].loop_.is_none();
         for lane in &merge.lanes {
             let mut read = *lane.planned.clone().expect("planned lane");
+            // @ref LLP 3000.013#2.2 — planning cannot erase point-key admission.
+            // Validate the authored predicate in the caller's lexical scope,
+            // before binding the proposed lane and its generated selectors.
+            if let Some(predicate) = &lane.admission {
+                self.clone().row_predicate(&read.table, predicate)?;
+            }
             if let Some(range) = &mut read.range { range.cursor = None; }
             self.push_scope();
             let (source, binding) = if let Some((name, domain)) = &lane.loop_ {

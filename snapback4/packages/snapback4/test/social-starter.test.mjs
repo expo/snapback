@@ -499,3 +499,85 @@ test("social starter wasm: offline history predicts in compose order and settles
   assert.equal((await remote.mutate(api.seen, { conversation, through: 3 })).state, "sent");
   await until(async () => { await local.sync(); const read = await local.query(api.messageReceipts, { conversation }); return read.data?.filter(row => row.id !== other.result).every(row => row.receipt === "read"); }, "offline sends read");
 });
+
+// @ref LLP 3000.022#14.3 — wasm shares the receipt-derived maintenance boundary.
+test("social starter wasm: receipt-derived unread badges leave sends pending in history", { timeout: hangBudget(30) }, async t => {
+  const generated = starter(t);
+  const schemaPath = join(generated, "snapback/schema.q");
+  const source = readFileSync(schemaPath, "utf8").replace("  insert <- .sender = viewer", "  delete <- .sender = viewer\n  insert <- .sender = viewer") + `
+view unreadCounts: count messages by members m
+  where .conversation = m.conversation and .ordinal > m.seenOrdinal and .ordinal > m.joinedOrdinal
+mutation sendNamed(conversation: conversations, text: text <=2000, id: id):
+  insert messages { id, conversation, sender: viewer, text, photo: null, at: now }
+mutation cancelNamed(conversation: conversations, id: id):
+  insert messages { id, conversation, sender: viewer, text: 'cancel', photo: null, at: now }
+  delete messages[id]
+query badges(conversation: conversations):
+  return unreadCounts where .conversation = conversation first 50 by .id { member, value, recountPending }
+`;
+  writeFileSync(schemaPath, source);
+  const checked = spawnSync(binary, ["check"], { cwd: generated, encoding: "utf8" });
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+  const api = await generatedApi(generated);
+  const { url } = await server(t, undefined, source);
+  const signup = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({ email: "rp@example.com", password: "receipt-prediction-test" }) }).then(r => r.json());
+  assert.ok(signup.session, JSON.stringify(signup));
+  const session = signup.session;
+  let offline = false;
+  const local = await createLocalClient({ url, session,
+    device: webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) }),
+    fetch: (input, init) => {
+      if (offline) throw new TypeError("offline");
+      return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
+    } });
+  t.after(() => local.close());
+  const remote = createClient({ url, token: session.token });
+  t.after(() => remote.close());
+  const created = await local.mutate(api.createConversation, { title: "receipt badge" });
+  assert.equal(created.state, "sent", JSON.stringify(created));
+  const conversation = created.result;
+  const clean = await local.mutate(api.createConversation, { title: "unrelated badge" });
+  assert.equal(clean.state, "sent");
+  await local.sync(); offline = true; await local.sync();
+  const writes = [];
+  for (const text of ["one", "two", "three"]) {
+    const write = text === "one"
+      ? await local.mutate(api.sendNamed, { conversation, text, id: "" }, { waitSeconds: 0 })
+      : await local.mutate(api.send, { conversation, text, photo: null }, { waitSeconds: 0 });
+    assert.equal(write.state, "pending", JSON.stringify(write)); writes.push(write.id);
+    const history = await local.query(api.history, { conversation });
+    assert.equal(history.data.length, writes.length);
+    assert.ok(history.data.every(row => row.pending === true));
+    assert.ok(history.data.some(row => row.id === ""), "the empty-id prediction must also freeze the count");
+    const badges = await local.query(api.badges, { conversation });
+    assert.equal(badges.complete, false, JSON.stringify(badges));
+    assert.deepEqual(badges.data.map(row => [row.value, row.recountPending]), [[0, true]]);
+    const unrelated = await local.query(api.badges, { conversation: clean.result });
+    assert.equal(unrelated.complete, true, JSON.stringify(unrelated));
+    assert.deepEqual(unrelated.data.map(row => [row.value, row.recountPending]), [[0, false]]);
+  }
+  // Another device of this user allocates first, shifting all three positions.
+  assert.equal((await remote.mutate(api.send, { conversation, text: "other device", photo: null })).state, "sent");
+  offline = false; await local.sync();
+  await until(async () => !(await local.pendingWrites()).some(w => writes.includes(w.id)), "receipt count queue settles");
+  await local.sync();
+  const history = await local.query(api.history, { conversation });
+  assert.deepEqual([...history.data].sort((a,b) => a.ordinal-b.ordinal).map(row => [row.text, row.ordinal, !!row.pending]),
+    [["other device", 1, false], ["one", 2, false], ["two", 3, false], ["three", 4, false]]);
+  const badges = await local.query(api.badges, { conversation });
+  assert.equal(badges.complete, true, JSON.stringify(badges));
+  assert.deepEqual(badges.data.map(row => [row.value, row.recountPending]), [[4, false]]);
+  offline = true; await local.sync();
+  const cancel = await local.mutate(api.cancelNamed, { conversation, id: "canceled" }, { waitSeconds: 0 });
+  assert.equal(cancel.state, "pending", JSON.stringify(cancel));
+  const dirty = await local.query(api.badges, { conversation });
+  assert.equal(dirty.complete, false);
+  assert.deepEqual(dirty.data.map(row => [row.value, row.recountPending]), [[4, true]]);
+  const unrelated = await local.query(api.badges, { conversation: clean.result });
+  assert.equal(unrelated.complete, true, JSON.stringify(unrelated));
+  assert.deepEqual(unrelated.data.map(row => [row.value, row.recountPending]), [[0, false]]);
+  assert.equal((await local.query(api.history, { conversation })).data.length, 4);
+  offline = false; await local.sync();
+  await until(async () => !(await local.pendingWrites()).some(w => w.id === cancel.id), "canceled source settles");
+  assert.deepEqual((await local.query(api.badges, { conversation })).data.map(row => row.value), [4]);
+});

@@ -19,6 +19,7 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
 mod helper_names;
@@ -65,7 +66,15 @@ pub struct Bound {
     pub notes: Vec<Diagnostic>,
 }
 
-pub fn bind(mut documents: Vec<Document>) -> Bound {
+pub fn bind(documents: Vec<Document>) -> Bound {
+    let mut bound = bind_unverified(documents.clone());
+    crate::repair::verify_bound(&documents, &mut bound.diagnostics);
+    bound
+}
+
+// Repair checks run the same planner and admission, without recursively
+// verifying the diagnostics from a rejected candidate.
+pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     receipts::expand(&mut documents, &mut diagnostics);
     ephemeral::declarations(&documents, &mut diagnostics);
@@ -142,6 +151,8 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     actions::bind(&catalog, &mut schema, &mut programs, &mut diagnostics);
     routes::bind(&catalog, &mut schema, &mut diagnostics);
     if diagnostics.is_empty() { intent_search::provision(&mut catalog, &mut schema, &programs); }
+    // Planner-added indexes participate in the same final source prices.
+    schema.export_write_reservations();
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
     let mut receipt_notes = Vec::new();
     schema.operations = programs.iter().map(|bound| {

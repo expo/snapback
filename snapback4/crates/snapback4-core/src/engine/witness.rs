@@ -12,6 +12,7 @@ impl Runner<'_> {
     /// Existence witnesses are raw data, never recursively authorized rows.
     pub(in crate::engine) fn probe_witness(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
         self.witness_changes = None;
+        if self.null_unique_point(table, index, key) { return Ok((false, true)); }
         if equalities.iter().any(|(field, _)| field == "value")
             && self.schema.maintain_for(table).is_some_and(|m| m.row_key.is_some()) {
             return self.count_witness_timeline(allowance, table, index, key, equalities, current);

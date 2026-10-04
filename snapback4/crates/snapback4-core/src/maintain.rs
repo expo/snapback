@@ -179,6 +179,7 @@ impl crate::schema::Schema {
                 });
             }
         }
+        self.prepare_write_reservations();
     }
 
     // @ref LLP 3000.007#20.9 — subset delivery is not proof that a public aggregate read is complete.

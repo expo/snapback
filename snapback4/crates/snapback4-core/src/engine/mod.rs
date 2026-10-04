@@ -7,6 +7,7 @@
 pub mod effects;
 #[cfg(feature = "sqlite")]
 mod asset_columns;
+mod write_reservations;
 #[cfg(feature = "sqlite")]
 pub mod ephemeral;
 #[cfg(feature = "sqlite")]
@@ -53,6 +54,11 @@ mod provenance;
 pub mod delivery;
 mod expiry;
 pub mod rules;
+mod rule_reference;
+#[cfg(test)]
+mod qe2_allocation_tests;
+#[cfg(all(test, feature = "sqlite"))]
+mod null_point_tests;
 pub mod runner;
 pub mod validate;
 pub mod write;
@@ -341,6 +347,7 @@ pub struct AssetGrant {
 
 #[cfg(feature = "sqlite")]
 pub struct Engine {
+    timeline_schedule: timeline::Schedule,
     ephemeral: std::sync::Arc<ephemeral::Hub>,
     store: Store,
     schema: Schema,
@@ -381,13 +388,13 @@ impl Engine {
         let generation = Self::activate(&mut store, &schema, &programs, None, now, true)?;
         let dev_effects = store.meta("release")?.is_none();
         store.exclude_ephemeral(&schema);
-        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
-        Ok(Self { ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
@@ -415,7 +422,7 @@ impl Engine {
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption)?;
         store.exclude_ephemeral(&schema);
-        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
@@ -451,7 +458,7 @@ impl Engine {
             && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
             else { Self::activate(&mut store, &schema, &programs, None, now, true)? };
         store.exclude_ephemeral(&schema);
-        Ok(Self { ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -566,6 +573,7 @@ impl Engine {
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut self.store, &schema, &programs, None, now, true)?;
+        self.timeline_schedule = timeline::Schedule::default();
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;

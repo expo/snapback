@@ -1,0 +1,105 @@
+[
+  {
+    "at": "2026-10-03T22:42:59.496712+00:00",
+    "label": "confinement-pilot",
+    "root": 646593,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 284
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r1-after": 1
+    }
+  },
+  {
+    "at": "2026-10-03T22:44:48.785397+00:00",
+    "label": "before-0",
+    "root": 671486,
+    "processes": 12,
+    "thread_masks": {
+      "80-89": 260
+    },
+    "names": {
+      "MainThread": 1,
+      "chrome": 10,
+      "lu-r1-before": 1
+    }
+  },
+  {
+    "at": "2026-10-03T22:59:04.550571+00:00",
+    "label": "before-20",
+    "root": 671486,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 292
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r1-before": 1
+    }
+  },
+  {
+    "at": "2026-10-03T23:13:23.017118+00:00",
+    "label": "before-120",
+    "root": 671486,
+    "processes": 133,
+    "thread_masks": {
+      "80-89": 394
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 121,
+      "chrome": 10,
+      "lu-r1-before": 1
+    }
+  },
+  {
+    "at": "2026-10-03T23:42:20.317925+00:00",
+    "label": "after-0",
+    "root": 1948105,
+    "processes": 12,
+    "thread_masks": {
+      "80-89": 270
+    },
+    "names": {
+      "MainThread": 1,
+      "chrome": 10,
+      "lu-r1-after": 1
+    }
+  },
+  {
+    "at": "2026-10-03T23:43:10.422397+00:00",
+    "label": "after-20",
+    "root": 1948105,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 292
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r1-after": 1
+    }
+  },
+  {
+    "at": "2026-10-03T23:44:36.027836+00:00",
+    "label": "after-120",
+    "root": 1948105,
+    "processes": 133,
+    "thread_masks": {
+      "80-89": 394
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 121,
+      "chrome": 10,
+      "lu-r1-after": 1
+    }
+  }
+]

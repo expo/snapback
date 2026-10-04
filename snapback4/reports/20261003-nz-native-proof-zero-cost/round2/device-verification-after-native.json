@@ -1,0 +1,61 @@
+{
+  "at": 1791106876.0296519,
+  "checks": [
+    {
+      "simulator": {
+        "name": "sb4-nz-1791105660249-8952",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "20D749A2-980B-4042-ADF6-0F9200407A4A"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791106682775-34038",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "3428F7DA-1C15-4037-AF3A-3B1CC1AAC068"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791105786898-13544",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "38BAE24F-38CB-44FC-A024-2644824A6D52"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791103872690-56530",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "544A0D36-FAF1-4418-9923-FAD14697C3A0"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791105102443-92169",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "8E1E7037-3074-42AB-A9D5-DF274ED6EAF9"
+      },
+      "absent": true
+    }
+  ],
+  "allAbsent": true
+}

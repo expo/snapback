@@ -15,9 +15,10 @@ table messages:
 view unread: count messages by members m where .room = m.room
 table permits:
   member: members
+  slot: int default 0
   until: time ?
   expire at .until
-  by byMember: member
+  unique byMember: member, slot
   public
 table gates:
   member: members

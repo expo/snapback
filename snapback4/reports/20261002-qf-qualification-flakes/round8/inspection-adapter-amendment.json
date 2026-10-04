@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T12:43:22.184615+00:00",
+  "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+  "sha256": "2c9fca01fd7067364b0105b6ef941b8a3d09e561968db17b6cd93369ea9ee434",
+  "change": "Pass inspection selectors through real-table test adapters and use PID/group-scoped lookups for fixture metadata. Stale-parent fixture explicitly fetches and injects its separately launched sibling and asserts it is present. All previous assertions retained.",
+  "verification": "final-adapters-plain.log and final-adapters-malformed-shim.log run all 64 focused tests; complete suite and UID shim phases executed the earlier fixture adapters, and the runner implementation is unchanged."
+}

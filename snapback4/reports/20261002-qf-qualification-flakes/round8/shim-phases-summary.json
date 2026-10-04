@@ -1,0 +1,72 @@
+{
+  "summary": "== 0 client phase failure(s) (shim)",
+  "status": 0,
+  "phases": [
+    {
+      "name": "fixture wrapper tests",
+      "files": 1,
+      "expectedFiles": 1,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "status": 0,
+      "started": "2026-10-03T12:35:41Z",
+      "finished": "2026-10-03T12:35:52Z",
+      "logSha256": "eac7f01641d7c2a5f3a3763dc21616a0a3a2e0f392cf00650a0caebe2d6c4227"
+    },
+    {
+      "name": "client tests",
+      "files": 304,
+      "expectedFiles": 304,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 6106,
+        "pass": 6095,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0
+      },
+      "status": 0,
+      "started": "2026-10-03T12:35:53Z",
+      "finished": "2026-10-03T12:46:05Z",
+      "logSha256": "6393c9b3d4393cb2932255970945c8deb64fc39a61c9c0d1b714b0950996a1d9"
+    },
+    {
+      "name": "client models",
+      "files": 2,
+      "expectedFiles": 2,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "status": 0,
+      "started": "2026-10-03T12:46:05Z",
+      "finished": "2026-10-03T12:51:08Z",
+      "logSha256": "5488d95c05dcb8c5e9b4e5cbde957afad24571c52370295386cc9900b24202bf"
+    }
+  ],
+  "totalJavaScript": {
+    "tests": 6194,
+    "pass": 6183,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "fileResults": 307,
+  "matchesBaselineCounts": true,
+  "failedFiles": [],
+  "sourceNotes": "Runner implementation matches the full suite. This run includes test-29 finally cleanup. Subsequent adapter/live-malformed test strengthening is verified by final-live-plain and final-live-live-malformed-shim, both 64/64."
+}

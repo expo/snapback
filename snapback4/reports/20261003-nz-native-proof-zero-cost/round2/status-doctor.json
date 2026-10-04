@@ -1,0 +1,42 @@
+[
+  {
+    "starter": "plain",
+    "args": [
+      "witness",
+      "status",
+      "--wait"
+    ],
+    "status": 0,
+    "stdout": "native smoke passed for export 89212648911b584279dae1de3f5d51c0e7003a0698be428453a65efd037b0ecc at 2026-10-04T09:22:54Z: prime/offline/restart; receipt: /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791105654319-8788/smoke-ios-run.json\n",
+    "stderr": ""
+  },
+  {
+    "starter": "plain",
+    "args": [
+      "doctor"
+    ],
+    "status": 0,
+    "stdout": "snapback4 0.4.12\n  project   /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B\n  native smoke passed for export 89212648911b584279dae1de3f5d51c0e7003a0698be428453a65efd037b0ecc at 2026-10-04T09:22:54Z: prime/offline/restart; receipt: /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791105654319-8788/smoke-ios-run.json\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\n  schema    ok: 6 tables, 5 synced, 11 operations\n  host      HTTP connections=128; uploads=2; file descriptors (inherited by doctor): soft=256 hard=unlimited; server raises its soft limit at startup when possible (target=10240)\n  latency   no running persisted dev server; pass --url with the address snapback4 dev printed at startup (for example, snapback4 doctor --latency --url http://127.0.0.1:4400)\n  store     /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/.snapback4/store.sqlite at seq 6, generation 2\n  replay    off \u2014 new effects enabled; schedules enabled (persisted dev policy)\n  storage   rows 0 B (0 rows, including engine-internal storage) \u00b7 indexes 0 B \u00b7 log 0 B (0 events, 0.0\u00d7 rows) \u00b7 ops 0 B \u00b7 file 384.0 KB\n  requests  0 queued, 0 running, 0 done, 0 failed\n  types     generated\n  personas  alice, bob, charlie\n  ok in 11.0 ms\n",
+    "stderr": ""
+  },
+  {
+    "starter": "social",
+    "args": [
+      "witness",
+      "status",
+      "--wait"
+    ],
+    "status": 0,
+    "stdout": "native smoke passed for export 325c12007f3e26835749c9deafacc41d72d614f4d5b62461e25aea1ab6e5df59 at 2026-10-04T09:40:19Z: prime/offline/restart; receipt: /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791106676173-33968/smoke-ios-run.json\n",
+    "stderr": ""
+  },
+  {
+    "starter": "social",
+    "args": [
+      "doctor"
+    ],
+    "status": 0,
+    "stdout": "snapback4 0.4.12\n  project   /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B\n  native smoke passed for export 325c12007f3e26835749c9deafacc41d72d614f4d5b62461e25aea1ab6e5df59 at 2026-10-04T09:40:19Z: prime/offline/restart; receipt: /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791106676173-33968/smoke-ios-run.json\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\n  worker    notifications: /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/snapback/workers/notifications.mjs (dev and serve)\n  schema    ok: 17 tables, 15 synced, 31 operations\n  host      HTTP connections=128; uploads=2; file descriptors (inherited by doctor): soft=256 hard=unlimited; server raises its soft limit at startup when possible (target=10240)\n  latency   no running persisted dev server; pass --url with the address snapback4 dev printed at startup (for example, snapback4 doctor --latency --url http://127.0.0.1:4400)\n  worker    last report: {\"crashes\":0,\"mode\":\"dev\",\"name\":\"notifications\",\"pid\":null,\"restarts\":0,\"source\":\"/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/snapback/workers/notifications.mjs\",\"starts\":1,\"state\":\"stopped\"}\n  store     /Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4/store.sqlite at seq 15, generation 2\n  replay    off \u2014 new effects enabled; schedules enabled (persisted dev policy)\n  storage   rows 0 B (0 rows, including engine-internal storage) \u00b7 indexes 0 B \u00b7 log 0 B (0 events, 0.0\u00d7 rows) \u00b7 ops 0 B \u00b7 file 404.0 KB\n  requests  0 queued, 0 running, 0 done, 0 failed\n  timeline  following: 0 pending delivery work, 0 parked\n  types     generated\n  personas  alice, bob, carol\n  ok in 39.3 ms\n",
+    "stderr": ""
+  }
+]

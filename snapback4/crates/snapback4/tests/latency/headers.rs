@@ -1,4 +1,5 @@
 use super::*;
+#[path = "../support/local_interface.rs"] mod local_interface;
 
 pub(super) fn timing(reply: &str) -> Option<BTreeMap<String, f64>> {
     let header = reply.split("\r\n\r\n").next().unwrap().lines()
@@ -93,9 +94,7 @@ fn thread_cpu_excludes_another_busy_thread_and_records_own_work() {
 fn wildcard_listener_omits_timing_for_loopback_and_external_peers() {
     let host = Host::with_store_on(true, snapback4_core::Store::memory().unwrap(), SOURCE, "0.0.0.0");
     assert!(host.address.ip().is_unspecified());
-    let route = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
-    route.connect("192.0.2.1:9").unwrap(); // Select an interface without sending a packet.
-    let external = route.local_addr().unwrap().ip();
+    let external = local_interface::address();
     assert!(!external.is_loopback());
     for (ip, expected) in [("127.0.0.1".parse().unwrap(), 200), (external, 403)] {
         let reply = exchange(SocketAddr::new(ip, host.address.port()),

@@ -1,0 +1,62 @@
+{
+  "base": "73041ae848b64c933caeadb4586d214eac6a7ccf",
+  "host": "eb1000 (expose-builder-pixel)",
+  "baseline_cases": {
+    "empty_owned_default": {
+      "code": "E_BOUND",
+      "heap_bytes": 20001239
+    },
+    "discarded_quarry_insert": {
+      "code": "E_BOUND",
+      "heap_bytes": 18000929
+    }
+  },
+  "after_server_heap": {
+    "empty_owned_default": 1834,
+    "discarded_quarry_insert": 12000421,
+    "discarded_if_absent": 16000421
+  },
+  "unchanged_heap_ceiling": 16777216,
+  "wasm": {
+    "round0_raw": 2058160,
+    "round0_gzip": 620784,
+    "round1_raw": 2065629,
+    "round1_gzip": 623029,
+    "delta_gzip": 2245,
+    "budget": 623659,
+    "estimated_macos_offset": 130,
+    "headroom": 500,
+    "sha256": "f86782ade520135b13183fa5bd228f5ad223e84c5acc86e37d058f794654020e"
+  },
+  "commands": [
+    "cargo test -p snapback4-lang --test qe2_ergonomics --test guide --test lowering -- --nocapture",
+    "cargo test -p snapback4-core --lib qe2_allocation_tests -- --nocapture --test-threads=1",
+    "cargo test -p snapback4-device --test qe2_allocations --test qe2_ergonomics -- --nocapture --test-threads=1",
+    "node --test --test-concurrency=1 packages/snapback4/test/qe2-allocations.test.mjs packages/snapback4/test/qe2-ergonomics.test.mjs",
+    "node --test packages/snapback4/test/wasm-codec-census.test.mjs"
+  ],
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "focused_rust_passed": 152,
+  "focused_wire_passed": 8,
+  "sha256": {
+    "affected-device.log": "34e0123c5157a62310329ab57d73da5ce0838956f977f8e2c73e76c75da4a7f3",
+    "affected-language-final.log": "32f3c7c7eb39ff2cd47a4195742fdc2c7aa6a7db201dfb17e0afdc60c6fde59a",
+    "allocations-before.log": "73c67625b665fd1066058572af2e7078cd3f79112617933cd2963663b23accb9",
+    "codec-census-after.log": "825cfd5a448b7e1e779074c1eac6e999fa84e17bafd7f223f61ee1f3d96cc286",
+    "codec-census-before.log": "97b856ae5a8575ad582da79cfe0976062f9dd88852c4b1daa7329f0f8c1d7f83",
+    "if-absent-before.log": "30bde865119ee3c774fcde5423d16f7d716d47b8647d2b1d55ad06b17009b89d",
+    "meter-tests-final.log": "3e9b04ebb93528c03c1fb1713abf3c8e92aaa0c52fb7e89fb100c9e8ae62d2c0",
+    "ref-check.log": "5540c61ad1e88c4beee0107d7c1cdda64dead4758fa92db583e7103a72d55911",
+    "source-sha256.json": "8ac45e42e59be6b82715c797cf9df79adeeeedf7f344c171ab81cc8ba04c8b49",
+    "wire-after.log": "121822cb31530a760d41e158a08fa57bd8f23b68152e9f91ea465e06c23ad2be",
+    "wire-before.log": "10291680f00b1e37921e6b491c2d9093712eb02b515508cbe20cc284c292dbf1"
+  },
+  "codec_census_passed": 26,
+  "log_normalization": "Text logs trim trailing whitespace and blank EOF lines; full-suite.log.gz retains the verbatim full output."
+}

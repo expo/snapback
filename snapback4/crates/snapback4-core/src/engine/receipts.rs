@@ -20,6 +20,11 @@ impl Runner<'_> {
         if !self.schema.receipt_insert(table) {
             return Ok(row);
         }
+        if self.device || !self.context.is_system() || !self.receipt_operation.is_empty() {
+            let price = self.source_price(table, crate::schema::reservations::ALLOCATION)?;
+            self.receipt_allocation |= self.device && price[0] != 0;
+            self.charge_price(price)?;
+        }
         if self.device {
             return self.predict_receipt_fields(table, row);
         }
@@ -136,7 +141,7 @@ impl Runner<'_> {
         table: &str,
         mut row: Value,
     ) -> Result<Value, RuntimeError> {
-        use crate::{error::MeterKind, schema::Effect};
+        use crate::schema::Effect;
         // Supplied fields were checked before defaults. New scope counters are
         // always zero; trusted seed/import images retain their explicit values.
         if self.context.is_system() && self.receipt_operation.is_empty() {
@@ -203,9 +208,7 @@ impl Runner<'_> {
                     )?;
                     Ok((total, sender))
                 })?;
-                self.meter.step(total + 1)?;
-                self.meter.charge(MeterKind::Examined, total + 1)?;
-                self.meter.charge(MeterKind::IndexEntries, total + 1)?;
+                // Key-count work is covered by the shared fixed allocation price.
                 let count = (total - sender) as i64;
                 set(&mut row, &f.position, high + 1)?;
                 set(&mut row, &f.count, count)?;
@@ -260,32 +263,38 @@ impl Runner<'_> {
         table: &str,
         row: &Value,
     ) -> Result<(), RuntimeError> {
-        #[cfg(feature = "sqlite")]
-        if !self.device && (!self.context.is_system() || !self.receipt_operation.is_empty()) {
-            for f in &self.schema.receipts {
-                if table != f.messages {
-                    continue;
+        if self.context.is_system() && self.receipt_operation.is_empty() { return Ok(()); }
+        for f in self.schema.receipts.iter().filter(|f| table == f.messages) {
+            let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+            let copy = super::write_target::row_copy_ceiling(&self.schema.tables[&f.scope]);
+            self.meter.heap(copy)?;
+            if crate::schema::reservations::simple_counter(self.schema, f) {
+                // No guessed ordinal is consumed here on a device. The source
+                // price reserves the counter replacement and its partition event.
+                // The existing restoring scope executes bounded server work only.
+                let price = crate::schema::reservations::counter_price(&self.schema.tables[&f.scope]);
+                self.authorized_scratch(price[4], &[(crate::error::MeterKind::Steps, price[0]),
+                    (crate::error::MeterKind::RowsWritten, price[3]),
+                    (crate::error::MeterKind::IndexEntries, price[1]), (crate::error::MeterKind::Examined, price[2])], |runner, _| {
+                    #[cfg(feature = "sqlite")]
+                    if !runner.device {
+                        let mut new = old.clone();
+                        set(&mut new, &f.counter, row.field(&f.position)?.as_int()?)?;
+                        runner.replace_authorized(&f.scope, old.clone(), new, true, &Value::Row(Default::default()), copy)?;
+                    }
+                    Ok(())
+                })?;
+            } else {
+                if self.device { return Err(RuntimeError::Prediction("receipt counter has data-dependent maintenance".into())); }
+                #[cfg(feature = "sqlite")]
+                {
+                    let mut new = old.clone();
+                    set(&mut new, &f.counter, row.field(&f.position)?.as_int()?)?;
+                    self.reserve_maintains(&f.scope, &self.schema.tables[&f.scope])?;
+                    self.replace_authorized(&f.scope, old, new, true, &Value::Row(Default::default()), copy)?;
                 }
-                let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
-                let copy = super::write_target::row_copy_ceiling(&self.schema.tables[&f.scope]);
-                self.meter.heap(copy)?;
-                let mut new = old.clone();
-                set(&mut new, &f.counter, row.field(&f.position)?.as_int()?)?;
-                // The clause owns precisely this derived field; ordinary scope
-                // update authority is neither required nor lent to the caller.
-                self.reserve_maintains(&f.scope, &self.schema.tables[&f.scope])?;
-                self.replace_authorized(
-                    &f.scope,
-                    old,
-                    new,
-                    true,
-                    &Value::Row(Default::default()),
-                    copy,
-                )?;
             }
         }
-        #[cfg(not(feature = "sqlite"))]
-        let _ = (table, row);
         Ok(())
     }
 
@@ -309,7 +318,9 @@ impl Runner<'_> {
                     code: "NOT_FOUND".into(),
                     site: None,
                 })?;
-            let mut row = row;
+            // @ref LLP 3000.007#5.4 — total ordinary fields and assigned
+            // receipt ints share this already-reserved full result map copy.
+            let mut row = self.complete_insert_result(table, row, true)?;
             for family in &self.schema.receipts {
                 for field in family.assigned(table) {
                     set(&mut row, field, stored.field(field)?.as_int()?)?;

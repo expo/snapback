@@ -158,15 +158,16 @@ fn round7_disk_sqlite_reopen() {
 
 #[test]
 fn two_finite_alternatives_keep_the_later_deadline() {
-    for same_probe in [false,true] {
     let mut pair = witness("alice", "exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", false);
-    if same_probe {
-        pair.source=pair.source.replace("exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", "exists access[tag = 0, approved = true]")
-            .replace("unique tag", "by byTag: tag, approved");
-    }
+    // The old single nonunique probe could choose different witnesses on
+    // replicas. It is now a source refusal, not an expiry contract.
+    let tied = pair.source.replace("exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", "exists access[tag = 0, approved = true]")
+        .replace("unique tag", "by byTag: tag, approved");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), tied)]);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"), "{:?}", bound.diagnostics);
     for seed in &mut pair.seeds {
         let mut later = seed.iter().find(|(table,_)|table == "access").unwrap().clone();
-        later.1["id"] = json!("later"); later.1["tag"] = json!(if same_probe {0} else {1}); later.1["expires"] = json!(20000);
+        later.1["id"] = json!("later"); later.1["tag"] = json!(1); later.1["expires"] = json!(20000);
         seed.iter_mut().find(|(table,_)|table == "access").unwrap().1["expires"] = json!(10000);
         seed.push(later);
     }
@@ -176,7 +177,6 @@ fn two_finite_alternatives_keep_the_later_deadline() {
         let out=e.query("one",Context::new("alice",inputs(&e,"one",&json!({"id":"note"}))).at(pair.now)).unwrap();
         assert_eq!(out.next_expiry,Some(20000));
     }
-}
 }
 
 #[test]

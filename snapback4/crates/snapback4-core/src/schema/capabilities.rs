@@ -13,6 +13,10 @@ struct Wire {
     receipts: Vec<ReceiptFamily>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    source_reservations: BTreeMap<String, reservations::WriteReservation>,
+    #[serde(skip)]
+    legacy_receipt_prediction: bool,
     tables: BTreeMap<String, Table>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
@@ -44,6 +48,13 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
+    ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),
+    // @ref LLP 3000.022#14.3 — older devices must not execute newly eligible
+    // writes using their receipt-derived maintenance path.
+    ("receipt-derived-prediction-v1", |s| s.maintains.iter().any(|m| s.receipt_dependencies.contains_key(&m.target))
+        || s.has_receipt_columns()),
+    ("rule-reference", |s| s.tables.values().any(|t| [&t.rules.insert, &t.rules.update, &t.rules.delete].iter().any(|r| r.has_reference()))),
     ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
@@ -61,6 +72,10 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
 ];
 
 impl Schema {
+    fn has_receipt_columns(&self) -> bool {
+        self.tables.iter().any(|(name, table)| table.maintained.keys().any(|field|
+            self.receipt_dependencies.get(name).is_some_and(|fields| fields.contains(field))))
+    }
     pub fn required_capabilities(&self) -> BTreeSet<String> {
         CAPABILITIES.iter().filter(|(_, needs)| needs(self)).map(|(name, _)| (*name).into()).collect()
     }
@@ -113,7 +128,19 @@ impl<'de> Deserialize<'de> for Schema {
                 return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: unsupported engine capability {name}; upgrade the engine/device")));
             }
         }
-        let required = schema.required_capabilities();
+        let mut required = schema.required_capabilities();
+        // @ref LLP 3000.022#14.3 — RY already serialized the dependency closure.
+        // RP stamps every emitted schema so old devices refuse its new prediction
+        // facts, but an RP reader must still open RY's kept backend/database.
+        // All other capabilities and the carrier shape remain exact.
+        let legacy_receipt_prediction = !declared.contains("receipt-derived-prediction-v1")
+            && required.remove("receipt-derived-prediction-v1");
+        // The price carrier can be absent in an old projection. Missing prices
+        // are fenced per program, rather than bricking a kept store.
+        for cap in ["source-write-reservations-v1", "source-write-reservations-v2"] {
+            if declared.contains(cap) { required.insert(cap.into()); }
+            else { required.remove(cap); }
+        }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain
@@ -127,7 +154,13 @@ impl<'de> Deserialize<'de> for Schema {
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }
+        let had_prices = !schema.source_reservations.is_empty();
         schema.prepare_receipt_dependencies();
+        // Opening an old blob preserves its wire shape. Complete visible
+        // declarations can still price a write on demand; hidden ones cannot.
+        if !had_prices { schema.source_reservations.clear(); }
+        schema.legacy_receipt_prediction = legacy_receipt_prediction
+            || (!declared.contains("source-write-reservations-v1") && !schema.receipts.is_empty());
         Ok(schema)
     }
 }

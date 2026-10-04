@@ -1,0 +1,72 @@
+[
+  {
+    "path": "audit-sources.json",
+    "bytes": 937,
+    "sha256": "45ebc0b15d06cf1324442e845cd2ba025eeb230259e65ef9c5bcf9f33d28e7da"
+  },
+  {
+    "path": "base.txt",
+    "bytes": 103,
+    "sha256": "336b0ffcbc0b470cbffb30f806999548345af91f9782893d320bcee3bee9cd95"
+  },
+  {
+    "path": "darwin-format-probe.txt",
+    "bytes": 52,
+    "sha256": "8fbaa0a4628e0051aa09b8cceb939b0828aa43a24a8b189583f4c8bacd2c9ad4"
+  },
+  {
+    "path": "focused.log.gz",
+    "bytes": 3772,
+    "sha256": "8cd3c8abf0d103a5550740531ef8e779a213d8906477259ef4d85d737bf11d90"
+  },
+  {
+    "path": "focused.status",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "full-suite-summary.json",
+    "bytes": 1066,
+    "sha256": "7fe4aeb43dbbf30aa9ae10c4b1417e3994055d111a09b9fd55219326d98aaa51"
+  },
+  {
+    "path": "full-suite.finished",
+    "bytes": 21,
+    "sha256": "3744f6e49289b1a65525d781ba73d4dc9517772c4842258a533c74dbdd2ffa02"
+  },
+  {
+    "path": "full-suite.log.gz",
+    "bytes": 249240,
+    "sha256": "534d13ea3368914e4acd39c73d904391fb286472205f3f6b76b9130f4ebf0f98"
+  },
+  {
+    "path": "full-suite.started",
+    "bytes": 21,
+    "sha256": "c68d89d8357f54089090ba7e678ee1406c9e3ae5ec3279313d983b71ad781619"
+  },
+  {
+    "path": "full-suite.status",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "pre-fix.log.gz",
+    "bytes": 1596,
+    "sha256": "c28530e212a52a1eea6d9b6395fa65d2ac3f2a5cc4fd97521a37c7935dcd5bab"
+  },
+  {
+    "path": "pre-fix.status",
+    "bytes": 2,
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  {
+    "path": "source-after.sha256",
+    "bytes": 802,
+    "sha256": "7f17b40c329bc180f2e81acbb6c095f77796144153a178d93faadf6eada6cd08"
+  },
+  {
+    "path": "source-before.sha256",
+    "bytes": 802,
+    "sha256": "7f17b40c329bc180f2e81acbb6c095f77796144153a178d93faadf6eada6cd08"
+  }
+]

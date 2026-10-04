@@ -1,0 +1,12 @@
+{
+  "at": 1791109167.895243,
+  "reason": "Test-only reconciliation with RP source-write capabilities: strict marker union, actual published compiler adoption baselines, unchanged historical capability-free bytes, and explicit current-backend old-device/engine refusal. No capability removal or runtime change.",
+  "changes": [
+    {
+      "path": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+      "beforeSha256": "59b6a36a36834bf02097aeeab973c270e1946b5a383abdd4d3f7d8b916fc402e",
+      "afterSha256": "73555885afe03651394b4b2be92ff76b7db01551b8fd00b57fc478cf4ab5ce43",
+      "bytes": 29773
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+✔ usePage follows ordered snapshots when an earlier event arrives after a later event (4.311733ms)
+✔ usePage checks first page deadline before cached return without timer delivery (1.795141ms)
+✔ usePage checks second page deadline before cached return without timer delivery (2.051104ms)
+✔ usePage clears a later page's revalidating mark on replacement and replaces loaded cursors (0.691427ms)
+✔ usePage search repeats keep one newest image by ID through page refresh (0.77368ms)
+✔ usePage history repeats keep one newest image by ID through page refresh (0.438998ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 106.665136

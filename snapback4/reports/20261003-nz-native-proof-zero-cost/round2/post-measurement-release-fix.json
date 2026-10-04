@@ -1,0 +1,25 @@
+{
+  "at": 1791107870.8318431,
+  "reason": "Initial full suite lost a queued adoption estimate at deploy process exit. Add the existing bounded three-second diagnostic drain only at release-command completion, after custody ends; delayed-writer child tests cover success and failure. diagnostics.rs changes documentation only.",
+  "measurementScope": "Native measurement candidate remains archived and unchanged. All frozen witness/guide/starter inputs match source-manifest-final.json. Later CLI builds differ by release-command completion code and test-only fixtures; export/witness paths and native engine semantics are unchanged. No claim that the complete measured executable equals the final rebuilt executable.",
+  "changes": [
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/releases.rs",
+      "beforeSha256": "fa389bb68f43dd72d721a911c66c8fcbd54a53c87d03ec324755b86fdb2126f3",
+      "afterSha256": "6fb871966afa5e4095de159539a3083742436318d700109410e13b2815a834c4",
+      "bytes": 14325
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/diagnostics.rs",
+      "beforeSha256": "ff3fd0d2dde7330f57d3d63dac62c3d06c6d9caf53ea5ba2be9b4353941f99d3",
+      "afterSha256": "b78ebb0cd0e3ead09c094d961895616e6d3202afa01cbd72f0cb635ce7593bfa",
+      "bytes": 5833
+    },
+    {
+      "path": "llp/3000-snapback4.explainer.md",
+      "beforeSha256": "871f9f561625e8b86e6dd614c9a81bb019c76661f03da44565c9c9f4c503f85e",
+      "afterSha256": "e937bacdaf7135b3213f223c2d16493f8f05b4e2a81e663c4569341bb6b9fc9a",
+      "bytes": 189618
+    }
+  ]
+}

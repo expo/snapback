@@ -30,6 +30,21 @@ needs no `by` declaration for these reads.
 exactly one declared unique key of that arity, in its declared order.
 Name columns when several keys have that arity: `tasks[ownerId = viewer,
 projectId = projectId]`. Synthesized indexes never choose positional meaning.
+In either key spelling (also `exists`), arguments for nullable columns of the
+selected unique key must be provably non-null: use required types or `if x != null` guards
+(`x != null and exists ...` in rules). Otherwise `E_QUARRY_NULL_KEY` refuses
+the ambiguous null ties across replicas. Guard nullable arguments before
+`require exists`: it proves row presence, not optional field presence.
+To read null matches, use a bounded
+`where` population ordered `by .id`, or address a row by id. Null for a
+unique key argument returns no row at runtime, without scanning ties; the
+guard is still required at compile time; maintained aggregate null groups are unchanged.
+A fully pinned maintained group is unique even
+with null, including rule probes that also test its value.
+E_QUARRY_POINT_KEY refuses a point probe whose key can match several rows.
+A fully pinned superset of a required unique key counts as unique too.
+Use a unique key or a bounded `where` population; its scalar probe reports unavailable
+when a scan is cut. Rule probes require a unique key.
 A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
@@ -40,6 +55,8 @@ Run `snapback4 check --cost` for chosen and synthesized indexes and the reads
 that need them. `snapback4 why <operation>` shows each source site, selected
 index, key bindings and result form. These are structural facts; use the dev
 read meter to measure actual work (`guide reads`).
+Index mismatch and ambiguity repairs print source only after the edit compiles
+in your project; otherwise the diagnostic gives prose guidance.
 The default output names planner indexes by their columns. `--verbose` and
 `--json` retain their canonical names; authored index names stay as written.
 Two-column labels keep a trailing `id`, as in `index (org, id)`; wider labels
@@ -108,10 +125,11 @@ to its definition or apply the diagnostic's mechanical `check --fix`.
 Keep nullable unique constraints unchanged; use the column-ordered read
 above to obtain a separate page index without weakening uniqueness.
 
-E_QUARRY_AMBIGUOUS means an older positional read matches several keys.
-Name the key columns for a point, or write `tasks where .ownerId = viewer
-first 20 by .at after c` for a page. Types validate a selected key; they do
-not choose between keys.
+E_QUARRY_POSITIONAL_SCAN refuses a positional key that cannot identify one
+declared unique key by arity. E_QUARRY_AMBIGUOUS refuses several matching
+indexes. Name columns to state the key; if indexes share those columns in
+different orders, choose an explicit index. Offered index repairs compile in
+context. Types validate a selected key; they do not choose positional meaning.
 
 E_SCHEMA_CONSTRAINT means the named declaration violates a schema constraint.
 Keep a product cap such as `cap 50 by conversationId` when it is a real rule;

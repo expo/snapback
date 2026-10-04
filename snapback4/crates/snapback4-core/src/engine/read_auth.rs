@@ -155,11 +155,13 @@ mod tests {
         let a = "exists grants[parent = .parent, who = viewer]";
         for rule in [a.to_string(), format!("{a} or not {a}"), format!("not ({a} and not {a})"), format!("({a} and not {a}) or .owner = viewer")] {
             for permanent in [false, true] {
-                let source = format!("table grants:\n  parent: text <=10\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  public\n  sync public\ntable notes:\n  parent: text <=10\n  owner: principal\n  read <- {rule}\n  online only\n");
+                let source = format!("table grants:\n  parent: text <=10\n  who: principal\n  until: time ?\n  expire at .until\n  unique byParentWho: parent, who\n  public\n  sync public\ntable notes:\n  parent: text <=10\n  owner: principal\n  read <- {rule}\n  online only\n");
                 let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
                 assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
                 let schema: crate::schema::Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
                 for early in [2000, 3000] {
+                    // Inject legacy physical ties directly to retain the
+                    // low-level expiry defense; unique Quarry writes cannot.
                     let rows = MemoryRows::default();
                     for (id, until) in [("early", Value::Int(early)), ("later", if permanent { Value::Null } else { Value::Int(8000) })] {
                         rows.put("grants", &schema.tables["grants"], &object([("id", Value::Id(id.into())), ("parent", Value::String("p".into())), ("who", Value::Id("alice".into())), ("until", until)]), None).unwrap();

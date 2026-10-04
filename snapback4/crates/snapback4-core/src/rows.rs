@@ -226,6 +226,15 @@ pub trait Rows {
     /// Next overlay metadata id, including deleted rows; no confirmed-history scan.
     fn provisional_id_after(&self, _table: &str, _after: &str) -> Result<Option<String>, RuntimeError> { Ok(None) }
 
+    /// Any touched row, including an empty identity or a provisional deletion.
+    fn has_provisional(&self, _table: &str) -> Result<bool, RuntimeError> { Ok(false) }
+
+    /// Ordinary group keys of both base and current overlay images. None means
+    /// a touched image has no recoverable group; callers must freeze all groups.
+    fn provisional_groups(&self, table: &str, _fields: &[String]) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+        Ok(if self.has_provisional(table)? { None } else { Some(Vec::new()) })
+    }
+
     /// Whether the current image comes from the device prediction overlay.
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// A predicted attribution may use only a currently covered target image.

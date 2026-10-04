@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SourceMap {
-    expressions: BTreeMap<String, (Expr, String, bool)>,
+    expressions: BTreeMap<String, (Expr, String, bool, crate::Site)>,
     pub(crate) declarations: BTreeMap<String, String>,
     pub(crate) repairs: Vec<crate::repair::Candidate>,
 }
@@ -50,13 +50,18 @@ impl SourceMap {
             }
             depth > 0 || i + 1 == tokens.len()
         }) && depth == 0;
-        self.expressions.insert(expr.site().to_string(), (expr.clone(), text, grouped));
+        self.expressions.insert(expr.site().to_string(), (expr.clone(), text, grouped, first.site.clone()));
     }
 
     pub(crate) fn get(&self, expr: &Expr) -> Option<(String, bool)> {
-        let (syntax, text, grouped) = self.expressions.get(&expr.site().to_string())?;
+        let (syntax, text, grouped, _) = self.expressions.get(&expr.site().to_string())?;
         // A planner may reuse a site while changing the expression.
         (syntax == expr).then(|| (text.clone(), *grouped))
+    }
+
+    pub(crate) fn read(&self, site: &crate::Site) -> Option<(&crate::ast::ReadExpr, &str, bool, &crate::Site)> {
+        let (Expr::Read(read), text, grouped, start) = self.expressions.get(&site.to_string())? else { return None; };
+        Some((read, text, *grouped, start))
     }
 
     pub(crate) fn expression(&self, expr: &Expr) -> String {

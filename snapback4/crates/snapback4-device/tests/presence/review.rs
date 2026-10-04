@@ -23,7 +23,7 @@ fn composition<S: DeviceStore>(mut store: S, label: &str, op: &str) {
     let ctx = || Context::new("alice", [("p".into(), id("bob"))].into()).at(11_000).with_ids(["note".into()]);
     let program = backend.programs.iter().find(|p| p.name == op).unwrap();
     let predicted = w15a_prediction_meter(&mut store, &backend.schema, program, ctx());
-    let expected = if op == "complementary" { [0, 1, 0, 25, 2737, 9, 1] } else { [0, 1, 0, 28, 3857, 9, 1] };
+    let expected = if op == "complementary" { [0, 1, 0, 25, 2737, 9, 1] } else { [0, 1, 0, 28, 3863, 9, 1] };
     assert_eq!(predicted.iter().map(|(_, n)| *n).collect::<Vec<_>>(), expected, "R1 {op}/{label}");
     let tx = store.transaction().unwrap();
     let prediction = local::predict(&tx, &backend.schema, program, ctx(), Ceilings::default()).unwrap();

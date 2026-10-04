@@ -129,22 +129,35 @@ fn search_expired_word_pairs_on_both_stores() {
 
 #[test]
 fn search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots() {
+    // New compilers explicitly export zero prices. Verify that addition while
+    // preserving every byte of the genuine pre-price wasm backend fixtures.
+    fn legacy_bytes(mut backend: snapback4_device::device::Backend) -> snapback4_device::device::Backend {
+        for name in backend.schema.tables.keys() {
+            let price=snapback4_core::schema::reservations::reservation(&backend.schema,name).unwrap();
+            assert_eq!(backend.schema.source_reservations.get(name),Some(&price));
+            assert_eq!(price.prices,[[0;7];8]);
+            assert_eq!(price.birth,Some([0;7]));
+            assert!(!price.server_only);
+        }
+        backend.schema.source_reservations.clear();
+        backend
+    }
     let mut fixtures = serde_json::Map::new();
     for (n, hidden) in COUNTS.into_iter().map(|n| (n, 0)).chain([(45, 9000)]) {
         let (mut engine, backend) = compile(SOURCE);
         engine.seed(seed(n, hidden)).unwrap();
-        fixtures.insert(format!("{n}-{hidden}"), serde_json::json!({"backend":backend,"pages":snapshot_at_zero(&mut engine)}));
+        fixtures.insert(format!("{n}-{hidden}"), serde_json::json!({"backend":legacy_bytes(backend),"pages":snapshot_at_zero(&mut engine)}));
     }
     for extra in [false, true] {
         let (mut engine, backend) = compile(&expired_source());
         engine.seed(expired_seed(extra)).unwrap();
-        fixtures.insert(format!("expired-{extra}"), serde_json::json!({"backend":backend,"pages":snapshot_at_zero(&mut engine)}));
+        fixtures.insert(format!("expired-{extra}"), serde_json::json!({"backend":legacy_bytes(backend),"pages":snapshot_at_zero(&mut engine)}));
     }
     for population in [0, 33] {
         let (mut engine, backend) = compile(ROUND3);
         engine.seed(round3_seed(population)).unwrap();
         let rows = round3_seed(population).into_iter().map(|(table, row)| serde_json::json!({"table":table,"id":row.field("id").unwrap().as_str().unwrap(),"data":row})).collect::<Vec<_>>();
-        fixtures.insert(format!("round3-{population}"), serde_json::json!({"backend":backend,"rows":rows,"pages":snapshot_at_zero(&mut engine)}));
+        fixtures.insert(format!("round3-{population}"), serde_json::json!({"backend":legacy_bytes(backend),"rows":rows,"pages":snapshot_at_zero(&mut engine)}));
     }
     let fixtures = serde_json::Value::Object(fixtures);
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4/test/fixtures/word-expansion.json");

@@ -405,9 +405,15 @@ fn transitions(source: &str, send: &mut impl FnMut(String, Pair, bool)) {
             } else {
                 String::new()
             };
+            // Nullable unique probes need an explicit presence guard. Text
+            // probes use the total tag key plus a residual and keep nulls.
+            let guarded = if predicate.starts_with("exists") && matches!(kind, ColumnType::Optional(_))
+                && !matches!(kind.required(), ColumnType::Text { .. }) {
+                format!("old.{field} != null and {predicate}")
+            } else { predicate.clone() };
             let rule_source = source.replace(
                 "update <- allow",
-                &format!("update (old, next) <- {predicate}"),
+                &format!("update (old, next) <- {guarded}"),
             ) + &extra;
             let compiled = compile(&rule_source);
             // Walk actual rule references to select hidden inputs. This catches
@@ -429,7 +435,7 @@ fn transitions(source: &str, send: &mut impl FnMut(String, Pair, bool)) {
                     }
                 }
                 send(
-                    format!("transition/{kind}/{field}/{predicate}"),
+                    format!("transition/{kind}/{field}/{guarded}"),
                     pair(&rule_source, seeds, "refresh", "target"),
                     false,
                 );

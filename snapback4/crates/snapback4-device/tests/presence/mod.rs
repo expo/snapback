@@ -395,7 +395,6 @@ fn w13b_unknown_presence_crosses_both_device_wires() {
 }
 
 #[test]
-#[ignore = "pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md"]
 fn w15a_necessary_absence_server_fits_prediction_reservation_on_both_stores() {
     use snapback4_device::store::{DeviceStore, DeviceTx};
     use snapback4_core::{Ceilings, engine::local};

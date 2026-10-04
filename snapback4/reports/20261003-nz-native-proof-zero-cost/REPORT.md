@@ -1,6 +1,14 @@
 # Lane NZ — publish first, prove native execution in the background
 
-Round 1 completes the requested as-is measurements: all 16 export samples,
+Round 2 merges main **abafa9af9c**, preserving WD cleanup and NZ background
+preparation. Warm plain/social exports returned in **3.75 / 4.91 s**, and their
+background proofs passed at **120.82 / 143.81 s** from command start. The final
+complete Mac suite passed with **0 failures in 2,706 s**. Native qualification
+uses the audited NX 0.4.11 dependency fixtures with the merged native engine;
+the separate published-0.4.12 audit-pin issue remains open. Nothing pushed.
+See [Round 2 — integration](#round-2--integration) for all attempts and fixes.
+
+Round 1 completed the requested as-is measurements: all 16 export samples,
 24 client-pool runs and 25 native proofs passed. Five cold social background
 preparations finished beyond the former 900-second limit. Background exports
 returned in 3.07–4.64 seconds in the plain/social cold/warm cohort. Interference
@@ -349,3 +357,195 @@ The round-0 qualification ticket is closed by these as-is results and the dated
 background deadline decision. The separate 0.4.12 native-cache audit-pin issue
 remains open; this report qualifies the declared audited NX 0.4.11 dependency
 fixtures and does not bypass that audit. Nothing pushed or published.
+
+## Round 2 — integration
+
+Fetched origin and merged **`abafa9af9cd58e30a3b0dc6461cd4ab339c3cb83`** into
+NZ's `1c589336fa6563a8c2efd578013fc735cd851133`, preserving both histories with
+a merge commit. Main includes WD round 1 `fc4e323031` and QF, LU, QE2, RP, QF2
+and NL. The only textual conflicts were the LLP 3000.030 revision header and
+JOURNAL append tails. Both histories are retained; neither parent's JOURNAL
+loses a line. The witness implementation, starters and guide merged without
+textual conflicts. [Integration record](round2/integration.json).
+
+WD's `cleanup.rs` and `process_group.rs` remain byte-identical to merged main.
+Linux `/proc` inspection still parses bytes, excludes outside-group rows before
+member validation, and fails closed for indeterminate membership. Cleanup still
+uses five seconds without shrinking the group and a sixty-second cap, with
+separate idle/hard-cap diagnostics. NZ's preparation clock remains independent:
+automatic background preparation gets 900 seconds without observable output
+progress and a 3,600-second cap; explicit foreground preparation stays at 900
+seconds. Supersession, kernel custody, lease release after cleanup, status/doctor
+lines and the background-first starter/guide instructions remain intact. These
+Mac checks exercise the shared and Darwin code, not Linux-specific runtime paths.
+
+The first two complete witness unit runs each passed 54 tests and failed the
+same readiness assertion. The fixture printed “ready” before its first delayed
+heartbeat, allowing prompt group cleanup to remove the child before the test
+observed a write; its isolated rerun passed. A test-only readiness/release
+handshake makes the child write first and holds its parent until the test checks
+the held lease. The handshake has its own ten-second escape. It changes no
+runtime cleanup or deadline. Both failed logs are retained. The final requested
+build passed, followed by **55/55 witness tests** and **41/41 focused JavaScript
+tests**, including detached publication, supersession, status, owner death,
+failed-proof reporting and background preparation limits. They were repeated
+successfully after the native audit update below.
+
+The first integrated plain priming attempt returned export success in **4.42 s**,
+then reported **`E_WITNESS_TIMEOUT`** after **640.13 s** because the app never
+reached prime. Its screenshot shows account restoration; its simulator and
+process groups were cleaned. A small reproduction identified the dependency
+mismatch: the archived NX engine rejects main's new
+`source-write-reservations-v1` schema capability with `E_SCHEMA_CAPABILITY`.
+The same JavaScript client signs in with the merged process-device engine.
+This failure is retained as [the initial sample](round2/r2-plain-prime.json),
+not silently discarded or counted as a pass.
+
+Rebuilt both iOS engine slices from the merged source using
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/build-xcframework.sh`.
+At framework build time, core, device and the build script matched merged main.
+The native fixtures remain
+the declared NX 0.4.11 dependency trees with Expo 57.0.22, with only their engine
+framework replaced. A complete inventory comparison for **each** fixture first
+requires the original audited dependency/plugin hashes, then proves exactly
+three changed files: the two static libraries and the framework plist. All
+other dependency bytes and modes, including plugin and JavaScript code, are
+unchanged. Added only those exact plugin-tree and dependency-snapshot pins;
+no audit predicate was relaxed. [Audit and complete-inventory digests](round2/framework-audit.json),
+[reproducible audit script](round2-native-audit.mjs), and
+[framework evidence](round2/framework-evidence.json) bind this qualification.
+The distinct published-0.4.12 audit-pin issue remains open.
+
+Both starters were primed with the rebuilt engine before their JavaScript-only
+warm sample. Measurements use the requested **dev/unoptimized CLI build**,
+copied to a stable fresh inode, physical Node 24.18.0, a private ownership store,
+and the `sb4-nz-` device prefix. They are integrated functional timings, not a
+repeat of Round 1's production-binary ABBA experiment. No native build cache or
+host cache was flushed. Every sample creates and deletes its own simulator.
+
+| Starter / run | Export returns (s) | Background result, from command start (s) | Native cache hit | Result |
+| --- | ---: | ---: | --- | --- |
+| Plain / merged-engine prime | 4.25 | 551.38 | no | prime/offline/restart passed |
+| Plain / warm | **3.75** | **120.82** | **yes** | prime/offline/restart passed |
+| Social / merged-engine prime | 4.79 | 891.42 | no | prime/offline/restart passed |
+| Social / warm | **4.91** | **143.81** | **yes** | prime/offline/restart passed |
+
+The warm results arrived **117.07 s** and **138.90 s** after command return.
+Both exported Hermes hashes exactly equal the loaded hashes. Plain preparation
+was 473.646 s for priming and 37.214 s warm; social was 802.230 s and 44.501 s.
+Each deadline receipt records the 900 s idle / 3,600 s hard limits without expiry.
+Post-result guardian maintenance drained before the next sample and before the
+full suite. [Plan](round2/measurement-plan.json), [harness](round2.py),
+[all five attempts and ambient summaries](round2/summary.json).
+
+Host observations cover every attempt: before/after load, idle percentage and
+top processes, plus full process/load samples every two seconds. Warm plain
+load1 ranged **13.31–79.34**, median **59.05**; warm social **13.82–120.77**,
+median **66.06**. Their median `PerfPowerServices` use was **63.6%** and
+**119.3%** CPU. Unrelated cargo/rustc processes also appeared during both warm
+windows; no lane build or test was running then. These as-is samples were not
+rejected or repeated for load, and unrelated processes were not signalled.
+The new main inputs, dev profile and ambient load prevent treating this pair as
+a controlled performance comparison with Round 1. Round 1's interference and
+CPU-placement findings remain unchanged; no zero-contention claim is added.
+
+Real `witness status --wait` and `doctor` exited zero for both starters and
+reported their latest passing export, time, prime/offline/restart and receipt.
+[Command outputs](round2/status-doctor.json) preserve the one-line evidence.
+The next exports also printed the prior result, including the initial failure.
+
+The first full-suite attempt exposed four additional integration/fixture issues:
+
+- A short `deploy` could exit before the asynchronous diagnostic writer emitted
+  its adoption estimate. `deploy` and `rollback` now use the existing bounded
+  three-second drain **after** their operation and engine/deployment custody
+  finish, on success or failure. A delayed-writer subprocess regression passes
+  for both outcomes; all 15 timeline-adoption tests pass. Request/engine logging
+  stays nonblocking. No drain was added to export or witness.
+- The real-device `sb4-nz-` environment leaked into the fake simulator fixture,
+  whose ownership records use `snapback4-smoke-`. The fixture now pins its mock
+  prefix internally; explicit per-case overrides still work. The second full
+  run exposed a separate build-command constructor with the same leak; both
+  constructors now pin it. All five affected build cases and the late-scene
+  receipt case pass under the real-device environment. The first run's
+  blocked mock test was stopped by its exact owned PID and remains a failure,
+  with [intervention](round2/interrupted-fixture.json) and
+  [mock-directory cleanup](round2/stopped-fixture-cleanup.json) recorded.
+- Four macOS published-0.2.33 capability controls expected pre-RP compiler
+  output. Exact capability expectations now include source-reservation v1/v2;
+  adoption baselines are built with the actual published old compiler. The
+  historical capability-free fixture stays unchanged and is exercised by old
+  native/WASM and current WASM devices. Current priced output must be rejected
+  by old devices/engines. All **6/6** tests pass, with no skipped published
+  witness, runtime change or weakened capability fence.
+- A retained-history after-hook deleted its project before closing its watched
+  server. The watcher recreated a file, producing `ENOTEMPTY`; the failed hook
+  left the server/client alive after all 68 results. Cleanup now closes the
+  client, stops/awaits the server, then removes its directory, preserving that
+  order even on close errors. All **68/68** cases pass and the file exits.
+  Only the identified leftover server and completed failed file process were
+  stopped in the first attempt; the pool keeper retained group custody and
+  the failed result is preserved. [Intervention](round2/retained-fixture-intervention.json).
+
+The retained first full run finished in **2,940 s** with two failed stages
+(Cargo tests and client tests), **6,200 client passes / 5 failures / 6 skips**, and
+**79/79 models**. Its recorded interventions mean it is not a qualification pass.
+The [first result](round2/full-suite.json) and separate
+[second result](round2/full-suite-final.json) preserve their status and times.
+
+The second full run found a separate local-network fixture dependency: its
+wildcard-listener test selected an interface by connecting UDP to `192.0.2.1`,
+which this Mac refused with `NetworkUnreachable`. The shared test
+helper now enumerates up, non-loopback local IPv4 interfaces, preferring LAN
+over point-to-point interfaces. Actual HTTP loopback/non-loopback refusal and
+header assertions remain; no test is skipped, no outbound packet is needed,
+and no network configuration or runtime code changed. The unit case and all
+**19 latency / 20 token-live** integration cases pass with that helper.
+[Source binding](round2/post-measurement-interface-fix.json).
+
+The second attempt finished in **2,706 s**, with one failed stage (Cargo):
+286 CLI-unit passes / one route-dependent failure / four ignores, and
+71 witness-integration passes / five build-prefix failures. Its client pool
+passed **6,205 tests with six existing skips**, and models passed **79/79**.
+No process intervention was made in that attempt. All six failing cases passed
+with the corresponding test-only corrections before the next complete run.
+
+The final complete invocation of
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+passed: **0 failures in 2,706 s**, with **287 CLI units / four existing
+ignores**, **76/76 witness integration cases**, all other Rust targets and
+workspace doctests, **9/9 fixture wrappers**, **6,205 client passes / six existing
+skips**, and **79/79 models**. Builds, wasm/docs budgets, release guard and
+package/app typechecks passed. This run used physical Node 24.18.0 and the same
+SQLite flag and real-device prefix, with no process interventions or reduced
+counts. [Final result](round2/full-suite-verified.json),
+[parsed verification summary and skip reasons](round2/verification-summary.json).
+The standalone requested witness and focused JavaScript checks also passed
+55/55 and 41/41 respectively. Reference validation and diff-whitespace checks
+passed.
+
+All **five recorded Round 2 simulators are absent**, all **43 recorded process
+groups are empty**, and no candidate witness worker remains. These audits use
+only recorded ownership identities; no other session's simulator, process or
+X27R worktree was changed. No other fleet machine was used. See
+[device audit](round2/device-verification.json),
+[group audit](round2/group-verification.json), and
+[process audit](round2/process-verification.json).
+
+The [final source manifest](round2/source-manifest-final.json) binds the tested
+integrated witness implementation, guide, starters and LLP section; earlier
+manifests preserve the fixture-handshake and framework-audit amendments.
+Post-measurement bindings separately record the [release diagnostic fix](round2/post-measurement-release-fix.json),
+[mock-prefix fix](round2/post-measurement-fixture-fix.json),
+[capability-test reconciliation](round2/post-measurement-capability-fix.json),
+[retained-history cleanup](round2/post-measurement-retained-cleanup-fix.json), and
+[local-interface fixture](round2/post-measurement-interface-fix.json).
+The measured stable binary predates these amendments. Only release-command
+completion changed at runtime; witness/export and native engine semantics did
+not change. The complete final suite qualifies the amended tree; no claim is
+made that its whole CLI binary is byte-identical to the measured executable.
+[Verification evidence](round2/verification-evidence.json) binds the logs and
+binaries to the same external content-addressed archive as prior rounds. New NZ
+report artifacts stay below 256 KB; raw logs, libraries, videos and inventories
+remain outside git. Existing upstream artifacts imported by the merge are
+preserved. Nothing pushed or published.

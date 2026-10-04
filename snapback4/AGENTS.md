@@ -76,7 +76,33 @@ Gotchas you cannot derive from the code:
   browser renderers and workers. Acquisition and server-e2e share that pool;
   there are no extra shard processes outside it. The two full-count model
   files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
-  still forces one client file at a time; publication needs no override.
+  still forces one client file at a time. The external file watchdog measures
+  time since a subtest started or finished: max(900 seconds, largest single
+  declared guard + max(60 seconds, 25%)). There is no absolute duration cap.
+  Console output does not count as progress. Serial mode uses the same bounds.
+  See `scripts/run-client-tests.mjs` and the QF round-2 guard census; update
+  named work counts and recheck the census when declarations change. Every
+  file runs as native `node --test` with default isolation, in a process group
+  whose first member is a tiny Node keeper. The runner closes the keeper's stdin
+  on completion, stall or abort; only the keeper calls `kill(0, SIGKILL)`.
+  Runner death also closes that pipe. An unexpectedly exited keeper fails the
+  file and never authorizes a runner signal. Cleanup requires two consecutive
+  inspections (50 ms apart) with no living group member. Observed leftovers
+  fail as TEST_FILE_LEAK. Failed listings and unclassifiable PID/PPID/PGID
+  prefixes remain fail-closed. Precisely recognized exit-time routing anomalies
+  discard the whole snapshot and retry at most twice, 50 ms apart; persistent
+  anomalies refuse and never confer ownership (LLP 3000 §7, QF2).
+  Metadata is validated for group members and
+  their visible descendants; unrelated rows only increment diagnostics.
+  Signed Darwin UIDs, variable lstart spacing and comm spaces are accepted.
+  Vanished members count as exited. Processes leaving the group (setsid,
+  setpgid or detached spawns) are outside cleanup custody; visible descendants
+  receive metadata validation but are never signalled by the runner. Native Node's exit
+  status alone decides test success; reporter counts are diagnostic only.
+  The reporter observes progress as Node delivers it: synchronous work that
+  does not yield may buffer events in Node's child until that work finishes.
+  Such an unreported interval is subject to the same stall bound. See QF Round 7.
+  The M5 MacBook is the publication host; the office M1 is calibration-only.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.
@@ -95,11 +121,12 @@ Gotchas you cannot derive from the code:
   cannot run is skipped with a named reason, never counted as a pass.
 - `snapback/generated/api.ts` is built by `check` and `dev`, never committed;
   the app's typecheck needs a `check` first (the suite does one).
-- Positional rule probes and `exists` need an index over exactly the probed columns
-  (`by byConversationPrincipalRole: conversationId, principal, role` for
-  `exists memberships[.conversationId, viewer, 'admin']`); the diagnostic
-  names the indexes that exist. Named equalities covering a total unique key
-  check any extra columns on that one row without an additional index.
+- Point rule probes and `exists` require a unique key. A fully pinned superset
+  of a required unique key is unique too (for example an explicit role index
+  containing the unique conversation/principal pair). Nullable unique key
+  arguments need non-null proof. Other existence checks use bounded populations
+  in code. Named equalities covering a total unique key check extra columns on
+  that one row without an additional index.
 - The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
 - When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json`,
   `packages/snapback4-linux-x64/package.json` and `Cargo.toml` together; a test refuses a mismatch.

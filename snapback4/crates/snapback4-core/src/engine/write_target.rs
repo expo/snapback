@@ -361,26 +361,14 @@ pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
 impl Runner<'_> {
     // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
     pub(in crate::engine) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
-        if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
         let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none() && m.row_key.is_none()).collect();
-        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring()) { return Ok(()); }
-        let mut steps = 0_u64;
-        let mut entries = 0_u64;
-        // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.
-        let mut heap = row_copy_ceiling(table).saturating_mul(4);
-        for m in &maintains {
-            let target = &self.schema.tables[&m.target];
-            let evaluations = if table.indexes.contains_key(&m.contribution_index()) { 6 } else { 2 };
-            steps = steps.saturating_add(m.evaluation_steps().saturating_mul(evaluations) + 4);
-            entries = entries.saturating_add(target.indexes.len() as u64 * 4 + 2);
-            // Two transient target images and canonical escaped tuple ids.
-            heap = heap.saturating_add(row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64));
-        }
-        for (kind, amount) in [(MeterKind::Steps, steps), (MeterKind::Examined, maintains.len() as u64 * 4),
-            (MeterKind::RowsWritten, maintains.len() as u64 * 2), (MeterKind::IndexEntries, entries), (MeterKind::HeapBytes, heap)] {
-            self.meter.charge(kind, amount)?;
-        }
-        self.maintain_heap = heap;
+        let deferred = self.device && maintains.iter().any(|m| self.schema.receipt_dependencies.contains_key(&m.target) || self.schema.tables[&m.target].sync.is_none());
+        self.reservation_deferred |= self.device && deferred;
+        if !deferred && (table.rules.read.is_uniformly_readable() || self.context.is_system()
+            || !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.is_expiring())) { return Ok(()); }
+        let price = self.source_price(table_name, crate::schema::reservations::AGGREGATES)?;
+        self.charge_price(price)?;
+        self.maintain_heap = price[4];
         self.maintain_prepaid = true;
         Ok(())
     }

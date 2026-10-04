@@ -1,0 +1,32 @@
+== cargo build
+-- ok: cargo build (7 s)
+== wasm build
+wasm 2065629 B raw, 623029 B gzip (budget 623659: ok)
+-- ok: wasm build (31 s)
+== docs budget
+docs budget: README 300/300 physical lines
+-- ok: docs budget (16 s)
+== release guard
+-- ok: release guard (4 s)
+== package typecheck
+-- ok: package typecheck (2 s)
+== package build
+-- ok: package build (3 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust inventory: 290 test binaries, 1003 executions; at most 24 concurrent processes
+-- ok: cargo test (967 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- ok: fixture wrapper tests (10 s)
+-- available CPUs: 96; client file concurrency: 24
+== client tests
+-- client test files: 304; concurrency: 24
+-- ok: client tests (591 s)
+== client models
+-- ok: client models (300 s)
+== 0 failure(s) in 1921 s

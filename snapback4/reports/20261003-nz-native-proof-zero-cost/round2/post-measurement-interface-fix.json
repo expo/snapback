@@ -1,0 +1,30 @@
+{
+  "at": 1791110791.022969,
+  "reason": "Test-only local interface selection. Keep real HTTP loopback/non-loopback status and timing assertions; getifaddrs selects a local up IPv4 interface without requiring an outbound documentation-network route. No skip or network configuration change.",
+  "changes": [
+    {
+      "path": "snapback4/crates/snapback4/tests/latency/headers.rs",
+      "beforeSha256": "bdfedb679ce14b0fbd6f2167c9a16579e8ab80a0bed514386b5028c8dd0b9530",
+      "afterSha256": "9ccf40483deeb126d8866555bcee562975ed98a06a96f0b976dccbeac7a27129",
+      "bytes": 14936
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/latency.rs",
+      "beforeSha256": "4db05f800fdd0dba1ae4cd2088ec94d4e8bde1a18a90d055518a7faba66fa6a4",
+      "afterSha256": "ec97a59300e1de22c9eccd1c82450a95868c4816ab3013e117cf77c5bfe7c2fb",
+      "bytes": 20648
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/token_live.rs",
+      "beforeSha256": "c2e2081cb3ed1d5b35db9e865e3a92f53cc7c43373122fae098f9be34f82f2cb",
+      "afterSha256": "edc51cb504e3996f0ce7fa6dbe0b84e5e6d9e4b86084e9b9b3f71c60bcb46780",
+      "bytes": 25529
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/support/local_interface.rs",
+      "beforeSha256": null,
+      "afterSha256": "0bd677664a2d13a770300ce1503cc033441066e0a67982df4b8d4f4115fded4c",
+      "bytes": 1745
+    }
+  ]
+}

@@ -436,7 +436,7 @@ fn existential_alternatives_and_correlations_use_the_complete_timeline() {
     for rule in [a.to_string(), format!("{a} or not {a}"), format!("not ({a} and not {a})"), format!("not not {a}")] {
         for permanent in [false, true] {
             let mut pair = round7::expiry_pair(&rule, false, "admin", [Some(2000), Some(3000)], "bob");
-            pair.source = pair.source.replacen("unique parent, who", "by byParentWho: parent, who", 1);
+            pair.source = pair.source.replacen("unique parent, who", "unique byParentWho: parent, who", 1);
             for seed in &mut pair.seeds {
                 seed.push(("grants".into(), serde_json::json!({"id":"later","parent":"p","who":"alice","kind":"admin","until":if permanent { None } else { Some(8000) }})));
             }

@@ -98,7 +98,9 @@ fn s12_profiles_range_pins_the_whole_unique_key() {
     let job = "-- CLI-only, system job for the acceptance clock boundary. Never exposed as a client mutation.\njob ancientPost(author: principal, postId: id, timestamp: time):\n  chunk p in profiles[author] first 1 by byPrincipal:\n    return\n";
     let bound = compile(&[("schema.q".into(), schema.into()), ("test-fixtures.q".into(), job.into())]);
     println!("{}", texts(&bound).join("\n\n"));
-    assert_eq!(texts(&bound), ["test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal takes (principal: principal); supplied (author: principal) pins every key, leaving no column to range over\n  rewrite: use profiles[author] by byPrincipal for one row; in a chunk, use `chunk row in profiles first 1 by byId:` then `if row.principal != author: continue`\n  guide: indexes"]);
+    assert_eq!(bound.diagnostics.len(), 1);
+    assert!(bound.diagnostics[0].message.contains("filter inside the chunk body"));
+    assert!(bound.diagnostics[0].rewrite.is_empty());
     let fixed = compile(&[("schema.q".into(), schema.into()), ("test-fixtures.q".into(), job.replace("profiles[author] first 1 by byPrincipal:", "profiles first 1 by byId:\n    if p.principal != author:\n      continue"))]);
     assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
     clean("schema.q", &format!("{schema}query one(author: principal):\n  return profiles[author] by byPrincipal\n"));
@@ -112,10 +114,76 @@ fn s12_text_handle_is_not_a_conversation_id() {
     let bound = bind("chat.q", &source);
     println!("{}", texts(&bound).join("\n\n"));
     assert_eq!(bound.diagnostics.len(), 1);
-    assert_eq!(bound.diagnostics[0].message, "conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type");
-    assert_eq!(bound.diagnostics[0].rewrite, "conversations[handle] by bySlug — this index accepts the supplied key; for byId, pass a conversations reference instead of text <=100");
+    assert_eq!(bound.diagnostics[0].message, "conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type; supply compatible arguments or select a matching index");
+    assert_eq!(bound.diagnostics[0].rewrite, "conversations[handle] by bySlug");
     clean("chat.q", &source.replace("by byId", "by bySlug"));
     clean("chat.q", &source.replace("handle: text <=100", "handle: conversations"));
+}
+
+#[test]
+fn alternative_point_indexes_must_pass_admission() {
+    for keys in ["x, y", "low = x, high = y", "high = y, low = x"] {
+        for (optional, indexes, guarded, offered) in [
+            (false, "  by pair: low, high\n", false, false),
+            (false, "  unique pair: low, high\n", false, true),
+            (false, "  unique single: low\n  by pair: low, high\n", false, true),
+            (true, "  unique pair: low, high\n", false, false),
+            (true, "  unique pair: low, high\n", true, true),
+            (true, "  by unsafe: high, low\n  unique pair: low, high\n", true, true),
+        ] {
+            let opt = if optional { " ?" } else { "" };
+            let guard = if guarded { "x != null and y != null and " } else { "" };
+            let read = format!("t[{keys}] by byId");
+            let source = format!("table t:\n  low: principal{opt}\n  high: principal{opt}\n{indexes}  public\nquery q(x: principal{opt}, y: principal{opt}):\n  return {guard}exists {read}\n");
+            let bound = bind("schema.q", &source);
+            let diagnostic = &bound.diagnostics[0];
+            assert_eq!(diagnostic.code, "E_QUARRY_TYPE", "{source}\n{diagnostic:?}");
+            assert_eq!(!diagnostic.rewrite.is_empty(), offered, "{source}\n{diagnostic:?}");
+            if offered {
+                let replacement = &diagnostic.rewrite;
+                assert!(replacement.ends_with(" by pair"), "{diagnostic:?}");
+                clean("schema.q", &source.replace(&read, replacement));
+            } else { assert!(diagnostic.rewrite.is_empty(), "{diagnostic:?}"); }
+            if optional && !guarded {
+                let literal = source.replace("= x", "= null").replace("= y", "= null").replace("t[x, y]", "t[null, null]");
+                let bound = bind("schema.q", &literal);
+                assert!(bound.diagnostics[0].rewrite.is_empty(), "{:?}", bound.diagnostics);
+            }
+        }
+    }
+}
+
+#[test]
+fn index_repair_does_not_offer_an_unspellable_planner_token() {
+    let source = "table t:\n  low: principal\n  high: principal\n  unique single: low\n  public\nquery page():\n  return t where .low = viewer first 10 by .high\nquery q():\n  return exists t[viewer, viewer, 'row'] by byId\n";
+    let bound = bind("schema.q", source);
+    assert!(bound.schema.tables["t"].indexes.keys().any(|name| name.starts_with("$intent:")));
+    assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+    assert_eq!(bound.diagnostics[0].code, "E_QUARRY_TYPE");
+    assert!(bound.diagnostics[0].rewrite.is_empty(), "{:?}", bound.diagnostics);
+}
+
+#[test]
+fn fully_pinned_range_only_offers_an_admitted_point() {
+    for (optional, guarded) in [(false, false), (true, false), (true, true)] {
+        let opt = if optional { " ?" } else { "" };
+        let guard = if guarded { "  require x != null and y != null else MISSING\n" } else { "" };
+        for keys in ["x, y", "low = x, high = y", "high = y, low = x"] {
+            let read = format!("t[{keys}] first 10 by pair");
+            let source = format!("table t:\n  low: principal{opt}\n  high: principal{opt}\n  unique pair: low, high\n  public\nquery q(x: principal{opt}, y: principal{opt}):\n{guard}  return {read}\n");
+            let bound = bind("schema.q", &source);
+            assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+            let diagnostic = &bound.diagnostics[0];
+            assert!(diagnostic.message.contains("pins every key"), "{diagnostic:?}");
+            if optional && !guarded {
+                assert!(diagnostic.rewrite.is_empty(), "{diagnostic:?}");
+            } else {
+                assert!(!diagnostic.rewrite.is_empty(), "{diagnostic:?}");
+                let replacement = &diagnostic.rewrite;
+                clean("schema.q", &source.replace(&read, replacement));
+            }
+        }
+    }
 }
 
 #[test]

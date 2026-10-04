@@ -1,0 +1,9 @@
+{
+  "reason": "Two complete witness runs failed because the fixture emitted ready before its first heartbeat; isolated rerun passed. Explicit readiness/release handshake replaces the scheduling race; runtime cleanup remains unchanged.",
+  "initialLogs": [
+    "/tmp/sb4-nz-r2-witness.log",
+    "/tmp/sb4-nz-r2-witness-repeat.log"
+  ],
+  "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+  "validation": "55 witness tests passed; 41 focused JavaScript tests passed"
+}

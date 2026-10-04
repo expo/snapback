@@ -153,7 +153,7 @@ fn cap_group_updates_share_the_declared_physical_limit() {
 
 #[test]
 fn nested_expired_witnesses_share_the_cap_allowance() {
-    let source = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  by byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  fresh: bool\n  until: time ?\n  expire at .until\n  cap 2 by parent\n  read <- .fresh = true or exists grants[parent = .parent, who = viewer] or .owner = viewer\n  insert <- allow\n  online only\nmutation send(parent: parents):\n  return insert messages { parent, fresh: true }\n";
+    let source = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  who: principal\n  until: time ?\n  expire at .until\n  unique byParentWho: parent, who\n  read <- deny\n  online only\ntable messages:\n  parent: parents\n  owner: principal default viewer\n  ordinal: sequence by parent\n  fresh: bool\n  until: time ?\n  expire at .until\n  cap 2 by parent\n  read <- .fresh = true or exists grants[parent = .parent, who = viewer] or .owner = viewer\n  insert <- allow\n  online only\nmutation send(parent: parents):\n  return insert messages { parent, fresh: true }\n";
     for (aggregate, deadline) in [(false, 500), (true, 500), (true, 2000)] {
         let source = if aggregate {
             source.replace(
@@ -293,7 +293,7 @@ fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
         let source = if unique {
             "table records:\n  tag: int\n  until: time ?\n  expire at .until\n  unique tag\n  public\n  online only\nquery one():\n  return records[tag = 0]\n"
         } else {
-            "table records:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\ntable gates:\n  read <- exists records[tag = 0] or viewer = 'alice'\n  online only\nquery one():\n  return gates['g']\n"
+            "table records:\n  tag: int\n  until: time ?\n  expire at .until\n  unique byTag: tag\n  read <- deny\n  online only\ntable gates:\n  read <- exists records[tag = 0] or viewer = 'alice'\n  online only\nquery one():\n  return gates['g']\n"
         };
         let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
         assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
@@ -315,7 +315,7 @@ fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
 
 #[test]
 fn an_odd_point_prefix_cannot_turn_a_short_physical_batch_into_exhaustion_of_data() {
-    let source="table held:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable grants:\n  tag: int\n  until: time ?\n  expire at .until\n  by byTag: tag\n  read <- deny\n  online only\ntable gates:\n  owner: principal\n  read <- exists grants[tag = 0] or .owner = viewer\n  online only\nquery a():\n  return held['a']\nquery b():\n  return held['b']\nquery one():\n  return gates['g']\n";
+    let source="table held:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable grants:\n  tag: int\n  until: time ?\n  expire at .until\n  unique byTag: tag\n  read <- deny\n  online only\ntable gates:\n  owner: principal\n  read <- exists grants[tag = 0] or .owner = viewer\n  online only\nquery a():\n  return held['a']\nquery b():\n  return held['b']\nquery one():\n  return gates['g']\n";
     let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     let observations=[11,43].map(|population| {
         let rows=Counted {inner:MemoryRows::default(),fetched:Cell::new(0)};
@@ -385,14 +385,14 @@ table early:
   parent: parents
   until: time ?
   expire at .until
-  by byParent: parent
+  unique byParent: parent
   read <- deny
   online only
 table stable:
   parent: parents
   until: time ?
   expire at .until
-  by byParent: parent
+  unique byParent: parent
   read <- deny
   online only
 table messages:

@@ -99,3 +99,32 @@ fn predicting_cap_counts_follow_sqlite_changes_restore_and_reset() {
         reset(&mut store);
     });
 }
+
+fn overlay_groups<S: DeviceStore>(store: &mut S) {
+    let schema = schema();
+    store.install(&schema, &BTreeMap::new(), false).unwrap();
+    let tx = store.transaction().unwrap();
+    let table = &schema.tables["items"];
+    let fields = ["group".into()];
+    let old = row("", "a");
+    tx.put("items", table, &old, None).unwrap();
+    let rows = through_prediction(&tx, &schema);
+    assert_eq!(rows.provisional_groups("items", &fields).unwrap(), Some(vec![]));
+    // A moved source or member names BOTH groups, even with the empty id.
+    let moved = row("", "b");
+    rows.put("items", table, &moved, Some(&old)).unwrap();
+    assert_eq!(rows.provisional_groups("items", &fields).unwrap(), Some(vec![vec![Value::String("a".into())], vec![Value::String("b".into())]]));
+    rows.delete("items", table, &moved).unwrap();
+    assert_eq!(rows.provisional_groups("items", &fields).unwrap(), Some(vec![vec![Value::String("a".into())]]));
+    let inserted = row("insert", "c");
+    rows.put("items", table, &inserted, None).unwrap();
+    assert!(rows.provisional_groups("items", &fields).unwrap().unwrap().contains(&vec![Value::String("c".into())]));
+    // A canceled new row has neither image: conservative fallback, never a
+    // fabricated ordinary group or a receipt-state lookup.
+    rows.delete("items", table, &inserted).unwrap();
+    assert_eq!(rows.provisional_groups("items", &fields).unwrap(), None);
+    tx.rollback().unwrap();
+}
+#[test] fn receipt_overlay_groups_include_empty_ids_deletes_and_moves_memory() { overlay_groups(&mut crate::memory::MemoryStore::new()); }
+#[cfg(feature = "native")]
+#[test] fn receipt_overlay_groups_include_empty_ids_deletes_and_moves_sqlite() { publication_tests::with_sqlite(|mut store| overlay_groups(&mut store)); }

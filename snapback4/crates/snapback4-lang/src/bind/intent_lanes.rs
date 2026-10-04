@@ -51,6 +51,7 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
             }
             _ => continue,
         };
+        let admission = matches!(predicate, Expr::Exists { .. }).then(|| read.filter.clone().unwrap());
         let distinct = value.clone();
         let mut lane_read = read.clone();
         let nullable_in = matches!(predicate, Expr::Binary { op, .. } if op == "in")
@@ -67,7 +68,7 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
         lane_read.filter = intent::conjunction(predicates);
         let range = read.range.clone().unwrap_or(RangeSpec { order: Order::Asc, take: 8192, cursor: None, site: read.site.clone() });
         return Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
-            cursor: range.cursor, lanes: vec![MergeLane { nulls, distinct: Some(distinct), branch: None, table: None, planned: Some(Box::new(lane_read)), project: None, prefix: Vec::new(), columns: None,
+            cursor: range.cursor, lanes: vec![MergeLane { admission, nulls, distinct: Some(distinct), branch: None, table: None, planned: Some(Box::new(lane_read)), project: None, prefix: Vec::new(), columns: None,
                 loop_: Some((name.into(), source)), site: read.site.clone() }], site: read.site.clone() });
     }
     None

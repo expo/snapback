@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-03T12:25:37.656211+00:00",
+  "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+  "beforeSha256": "20b6968f657ceae46fca30996f68de771ee6820d97ad1ed4ecdcbcc3d5ca4eeb",
+  "afterSha256": "3fcb155c1c7276fb437094e206d191caf47d01d1c94d8b6f88cbca6af02797cd",
+  "change": "Test 29 closes and awaits its helper in finally when processTable or snapshot persistence throws. No assertion or guard changes. Full suite already executed this file; final affected regression run and subsequent complete shim phases cover this source."
+}

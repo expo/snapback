@@ -1,0 +1,12 @@
+{
+  "at": 1791103532.7984571,
+  "firstParent": "1c589336fa6563a8c2efd578013fc735cd851133",
+  "mergedMain": "abafa9af9cd58e30a3b0dc6461cd4ab339c3cb83",
+  "wdRound1": "fc4e32303148bb566a46a26021aebf2c7adb367e",
+  "conflicts": [
+    "llp/3000.030-native-proof-in-minutes.rfc.md",
+    "snapback4/JOURNAL.md"
+  ],
+  "resolution": "Union revision entries and preserve both journal append histories; witness implementation auto-merge reviewed against WD round 1. Cleanup and process_group match main exactly; recovery retains only NZ custody deltas on top of main.",
+  "binaryProfile": "dev (the requested cargo build), copied to a stable fresh inode before native proof"
+}

@@ -1,0 +1,152 @@
+{
+  "source": "/home/ccheever/sb4-intent/qf-r8-evidence/attempt-7-publication-dry-run.log",
+  "sourceSha256": "49df25af4dad11f5a72d28a11459a0ef0d6c55b5de4ee01d0bf9dbeb1b7d59c2",
+  "runnerFailures": [
+    {
+      "number": 1,
+      "name": "file watchdog diagnoses event loop and reaps group descendants",
+      "line": 76938,
+      "directMalformedRow": true,
+      "cause": "Darwin identity(pid) after cleanup rereads the host table; that liveness assertion throws on uid -2."
+    },
+    {
+      "number": 2,
+      "name": "file watchdog diagnoses leaked handle and reaps group descendants",
+      "line": 76959,
+      "directMalformedRow": true,
+      "cause": "Same Darwin post-cleanup identity failure; intentional assertion failure is already present in the captured subtest."
+    },
+    {
+      "number": 3,
+      "name": "file runner preserves test failures and continues to a following healthy file",
+      "line": 76979,
+      "directMalformedRow": false,
+      "cause": "Healthy second file has passed=false at the assertion; its result was not printed by this old assertion. The retained pre-fix attribution control adds only assertion diagnostics and proves inspectionFailure drives this exact false result."
+    },
+    {
+      "number": 5,
+      "name": "Node failure semantics survive an expected TODO failure",
+      "line": 77008,
+      "directMalformedRow": true,
+      "cause": "TODO native test passes, but completed-file cleanup records TEST_PROCESS_INSPECTION and passed=false."
+    },
+    {
+      "number": 6,
+      "name": "a stale parent link cannot claim or signal a process outside the file group",
+      "line": 77131,
+      "directMalformedRow": false,
+      "cause": "The inspection seam calls processTable before it can add the stale parent link; the exact distnoted error is retained in the result."
+    },
+    {
+      "number": 8,
+      "name": "file exit cannot orphan an unreferenced group child and report success",
+      "line": 77160,
+      "directMalformedRow": false,
+      "cause": "Expected TEST_FILE_LEAK but got TEST_PROCESS_INSPECTION. The retained pre-fix attribution control exposes the same underlying malformed row in inspectionFailure."
+    },
+    {
+      "number": 9,
+      "name": "double-forked shell helper is killed after a passing file",
+      "line": 77186,
+      "directMalformedRow": true,
+      "cause": "The passing double-fork body prints ORPHAN_READY; inspection replaces expected TEST_FILE_LEAK."
+    },
+    {
+      "number": 10,
+      "name": "double-forked shell helper is killed after a stalled file",
+      "line": 77294,
+      "directMalformedRow": true,
+      "cause": "After the intended hang, Darwin identity(pid) checking that the orphan exited throws on the unrelated row."
+    },
+    {
+      "number": 11,
+      "name": "process inspection exit cannot establish a passing cleanup",
+      "line": 77315,
+      "directMalformedRow": true,
+      "cause": "Injected listing exit correctly refuses; the subsequent Darwin identity assertion throws on uid -2."
+    },
+    {
+      "number": 12,
+      "name": "process inspection timeout cannot establish a passing cleanup",
+      "line": 77336,
+      "directMalformedRow": true,
+      "cause": "Injected listing timeout correctly refuses; the subsequent Darwin identity assertion throws on uid -2."
+    },
+    {
+      "number": 13,
+      "name": "process inspection malformed cannot establish a passing cleanup",
+      "line": 77357,
+      "directMalformedRow": true,
+      "cause": "Injected malformed listing correctly refuses; the subsequent Darwin identity assertion throws on uid -2."
+    },
+    {
+      "number": 14,
+      "name": "process inspection forces C locale and refuses empty output",
+      "line": 77378,
+      "directMalformedRow": true,
+      "cause": "Empty-output refusal passes; final identity(process.pid) rereads the whole host table and throws."
+    },
+    {
+      "number": 16,
+      "name": "persistent inspection failure stays a failure and kills the owned group",
+      "line": 77405,
+      "directMalformedRow": true,
+      "cause": "Persistent injected refusal is retained as intended; the subsequent Darwin identity assertion throws on uid -2."
+    },
+    {
+      "number": 17,
+      "name": "group cleanup reaps an unsampled orphan after its sampled parent exits",
+      "line": 77426,
+      "directMalformedRow": true,
+      "cause": "The snapshot seam calls processTable before releasing the forking parent; inspection replaces expected leak. Keeper EOF still releases the group."
+    },
+    {
+      "number": 18,
+      "name": "sequential and nested subtests keep progressing beyond the file stall interval",
+      "line": 77532,
+      "directMalformedRow": true,
+      "cause": "Async/nested tests deliver progress and pass; final inspection makes passed=false."
+    },
+    {
+      "number": 19,
+      "name": "console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup",
+      "line": 77721,
+      "directMalformedRow": true,
+      "cause": "The chatter watchdog fires as intended, but preliminary inspection throws before the expected owned-process diagnostic is emitted."
+    },
+    {
+      "number": 20,
+      "name": "stale exited members do not reset empty snapshots; observed live leaks remain failures",
+      "line": 78077,
+      "directMalformedRow": true,
+      "cause": "The stale-row seam calls processTable first; inspection replaces the expected live-leak verdict."
+    },
+    {
+      "number": 22,
+      "name": "name and skip filters preserve the selected assertion-bearing cases",
+      "line": 78189,
+      "directMalformedRow": true,
+      "cause": "The wanted test passes with the intended counts; cleanup inspection makes passed=false."
+    },
+    {
+      "number": 23,
+      "name": "a process exiting after enumeration is absent at identity inspection",
+      "line": 78292,
+      "directMalformedRow": true,
+      "cause": "The initial processTable enumeration throws before the disappearing-process interleaving is tested."
+    }
+  ],
+  "runnerStall": {
+    "number": 29,
+    "name": "a completed file passes when its enumerated group member has exited",
+    "line": 76653,
+    "cause": "The last delivered dequeue is test 29. Its nested snapshot producer calls processTable before ending its helper stdin. The malformed row rejects that subtest and leaves the pipe held, so neither native Node nor its nested runner completes before the outer 900-second watchdog. This source-based attribution is corroborated by pre-fix-snapshot-hang controls.",
+    "fix": "The snapshot producer now closes and awaits its helper in finally. A control with the old parser and real live-row shim now reports a native failure in 809 ms instead of stalling; snapshot-cleanup-control.json retains the result."
+  },
+  "replacementFailure": {
+    "name": "held replacement writer fails its test, closes its server and exits without hanging",
+    "line": 62124,
+    "cause": "Nested test emits the expected TEST_REPLACEMENT_COPY writer-lock failure; cleanup inspection adds TEST_PROCESS_INSPECTION where the outer assertion expects reason=undefined. Other assertions in this test are exercised by final-source runs."
+  },
+  "note": "The log repeats the runner output as timeout tail and final output; these are one execution. Tests 4, 7, 15, 21 and 24\u201328 passed before the test-29 stall; tests 30\u201339 never completed. No claim that all tests 1\u201323 failed."
+}

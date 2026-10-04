@@ -94,7 +94,7 @@ fn read_view(view: &ViewDecl, read: &ReadExpr) -> Fallible<MergeExpr> {
         if !fields.iter().any(|field| matches!(field, ShapeField::Bare { name, .. } if name == "id")) {
             fields.push(ShapeField::Field { name: "id".into(), value: focal("id", &branch.site), site: branch.site.clone() });
         }
-        lanes.push(MergeLane { nulls: None, distinct: None, branch: Some(format!("{}:{branch_number}", view.name)), planned: Some(Box::new(planned)), project: Some(fields), table: Some(branch.source.clone()), prefix: Vec::new(), columns: None, loop_: None, site: branch.site.clone() });
+        lanes.push(MergeLane { admission: None, nulls: None, distinct: None, branch: Some(format!("{}:{branch_number}", view.name)), planned: Some(Box::new(planned)), project: Some(fields), table: Some(branch.source.clone()), prefix: Vec::new(), columns: None, loop_: None, site: branch.site.clone() });
     }
     Ok(MergeExpr { view_order: order, table: view.name.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take, cursor: range.cursor, lanes, site: read.site.clone() })
 }

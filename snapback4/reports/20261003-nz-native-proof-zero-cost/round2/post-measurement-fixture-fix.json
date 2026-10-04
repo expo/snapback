@@ -1,0 +1,15 @@
+{
+  "at": 1791108309.511297,
+  "reason": "The suite inherited sb4-nz- but its fake simulator ownership records use snapback4-smoke-. Pin that known mock prefix inside Fixture::command; later per-test overrides still work. Real native measurements continue to use sb4-nz-. Test-only environment isolation, no runtime changes.",
+  "changes": [
+    {
+      "path": "snapback4/crates/snapback4/tests/witness.rs",
+      "beforeSha256": "7ab06c55ff68dace09cd61c319446c51b7e85665a3a7444ada3e7fa986a87234",
+      "afterSha256": "f364a8b273666eb7634c5b9e3efc49a26e31c1b490d866bb215120d0d13600bd",
+      "bytes": 68994,
+      "initialAfterSha256": "a9961be268a6ba3ae86a829a124f4f773576f4d77fea3b54b06c61b782a2843f"
+    }
+  ],
+  "followUpAt": 1791111111.80807,
+  "followUp": "The second full run exposed the separate build_command constructor: five build-path fixtures still inherited the real prefix. Pin the same fake prefix in both constructors."
+}

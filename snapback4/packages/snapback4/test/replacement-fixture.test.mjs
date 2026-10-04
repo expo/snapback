@@ -6,24 +6,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { devServer } from '../../../witness/lib.mjs';
 import { replacementServer } from './helpers/replacement-server.mjs';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-
-// Run one nested test file with a hard timeout. A timeout is reported as
-// `reason: 'timeout'`, which fails the caller's assertions: setup itself must
-// reap the replacement host, never this fallback.
-async function runFile(file, { timeout, onOutput }) {
-  // A nested node:test run must not inherit this file's test context, or it skips.
-  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
-  const child = spawn(process.execPath, ['--test', '--test-reporter=tap', file], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-  child.stdout.on('data', data => onOutput(String(data)));
-  child.stderr.on('data', data => onOutput(String(data)));
-  let reason;
-  const timer = setTimeout(() => { reason = 'timeout'; child.kill('SIGKILL'); }, timeout);
-  const [code, signal] = await once(child, 'exit');
-  clearTimeout(timer);
-  return { code, signal, reason };
-}
+import { runFile } from '../../../scripts/run-client-tests.mjs';
 
 async function original(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-replacement-regression-'));

@@ -15,13 +15,27 @@ fn process_identity(pid: u32, include_zombie: bool) -> Option<Value> {
     }
     #[cfg(target_os = "linux")]
     {
-        let text = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-        let fields: Vec<_> = text.rsplit_once(')')?.1.split_whitespace().collect();
-        if !include_zombie && fields.first() == Some(&"Z") { return None; }
-        Some(json!({ "pid": pid, "start": [fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?, fields.get(19)?] }))
+        let bytes = fs::read(format!("/proc/{pid}/stat")).ok()?;
+        let fields = linux_stat_fields(&bytes)?;
+        if !include_zombie && fields.first() == Some(&b"Z".as_slice()) { return None; }
+        Some(json!({ "pid": pid, "start": [fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?, linux_start(&fields)?] }))
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     { None }
+}
+#[cfg(target_os = "linux")]
+fn linux_stat_fields(bytes: &[u8]) -> Option<Vec<&[u8]>> {
+    // comm is arbitrary bytes, including spaces, newlines and parentheses.
+    // Only the fields after its LAST ')' have an ASCII numeric contract.
+    let end = bytes.iter().rposition(|b| *b == b')')?;
+    Some(bytes[end + 1..].split(u8::is_ascii_whitespace).filter(|s| !s.is_empty()).collect())
+}
+#[cfg(target_os = "linux")]
+fn linux_start<'a>(fields: &[&'a [u8]]) -> Option<&'a str> {
+    let start = std::str::from_utf8(fields.get(19)?).ok()?;
+    if start.is_empty() || !start.bytes().all(|b| b.is_ascii_digit()) { return None; }
+    start.parse::<u64>().ok()?;
+    Some(start)
 }
 // PROC_PIDTBSDINFO excludes zombies on Darwin. KERN_PROC_PID includes the
 // unreaped leader. This is the stable prefix of SDK sys/proc.h's extern_proc,
@@ -138,24 +152,120 @@ pub(super) fn members(group: u32) -> Result<Vec<Value>> {
         for entry in fs::read_dir("/proc").map_err(|e| error("E_WITNESS_PROCESS", e))? {
             let entry = entry.map_err(|e| error("E_WITNESS_PROCESS", e))?;
             let Some(pid) = entry.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue; };
-            let text = match fs::read_to_string(entry.path().join("stat")) {
-                Ok(text) => text,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound || e.raw_os_error() == Some(libc::ESRCH) => continue,
-                Err(e) => return Err(error("E_WITNESS_PROCESS", e)),
-            };
-            // comm may contain spaces and parentheses. Parse after its LAST ).
-            let fields: Vec<_> = text.rsplit_once(')').map(|(_, s)| s.split_whitespace().collect()).unwrap_or_default();
-            let pgid = fields.get(2).and_then(|s| s.parse::<u32>().ok())
-                .ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process group"))?;
-            if pgid == group && fields[0] != "Z" {
-                let start = fields.get(19).ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process birth"))?;
-                live.push(json!({ "pid": pid, "start": [boot, start] }));
-            }
+            let member = linux_member(pid, group, &boot, fs::read(entry.path().join("stat")), || {
+                let pgid = unsafe { libc::getpgid(pid as i32) };
+                if pgid < 0 { Err(std::io::Error::last_os_error()) } else { Ok(pgid as u32) }
+            })?;
+            if let Some(member) = member { live.push(member); }
         }
         Ok(live)
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     { Err(error("E_WITNESS_PROCESS", "process group inspection is unsupported")) }
+}
+#[cfg(target_os = "linux")]
+fn linux_member(pid: u32, group: u32, boot: &str, stat: std::io::Result<Vec<u8>>, get_group: impl FnOnce() -> std::io::Result<u32>) -> Result<Option<Value>> {
+    let bytes = match stat {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound || e.raw_os_error() == Some(libc::ESRCH) => return Ok(None),
+        Err(e) => {
+            // hidepid may deny stat even though getpgid can identify an
+            // unrelated group. Unknown or in-group processes still fail closed.
+            match get_group() {
+                Ok(pgid) if pgid > 0 && pgid != group => return Ok(None),
+                Err(gone) if gone.raw_os_error() == Some(libc::ESRCH) => return Ok(None),
+                _ => return Err(error("E_WITNESS_PROCESS", e)),
+            }
+        }
+    };
+    let fields = linux_stat_fields(&bytes).unwrap_or_default();
+    let pgid = fields.get(2).and_then(|s| std::str::from_utf8(s).ok())
+        .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+        .and_then(|s| s.parse::<u32>().ok()).filter(|pgid| *pgid <= i32::MAX as u32)
+        .ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process group"))?;
+    // Once the row unambiguously names another group, none of its other
+    // fields can fail this inspection. Decode/validate member details below.
+    if pgid != group { return Ok(None); }
+    let state = fields[0];
+    if state.len() != 1 || !state[0].is_ascii_alphabetic() {
+        return Err(error("E_WITNESS_PROCESS", "invalid /proc process state"));
+    }
+    let start = linux_start(&fields).ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process birth"))?;
+    if state == b"Z" { return Ok(None); }
+    Ok(Some(json!({ "pid": pid, "start": [boot, start] })))
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_tests {
+    use super::*;
+    use std::io::{BufRead, BufReader};
+    use std::os::unix::process::CommandExt;
+
+    fn row(group: u32, state: &[u8], start: &[u8]) -> Vec<u8> {
+        let mut bytes = b"42 (odd \xff ) (name) ".to_vec();
+        bytes.extend_from_slice(state);
+        bytes.extend_from_slice(format!(" 1 {group} {} ", vec!["0"; 16].join(" ")).as_bytes());
+        bytes.extend_from_slice(start);
+        bytes
+    }
+    fn inspect(bytes: Vec<u8>) -> Result<Option<Value>> {
+        linux_member(42, 123, "boot", Ok(bytes), || panic!("a readable stat must supply its own group"))
+    }
+
+    #[test]
+    fn outside_group_non_utf8_comm_does_not_break_enumeration() {
+        let mut selected = Owned::spawn(Command::new("sleep").arg("60").process_group(0)).unwrap();
+        // The shell changes its own comm, then blocks in a builtin without an
+        // exec that would reset it. The ready pipe proves the bytes are installed.
+        let mut outside = Owned::spawn(Command::new("sh").args(["-c", "printf '\\377 bad) (x)' > /proc/self/comm; printf 'ready\\n'; read line"])
+            .process_group(0).stdin(Stdio::piped()).stdout(Stdio::piped())).unwrap();
+        let mut ready = String::new();
+        BufReader::new(outside.0.stdout.take().unwrap()).read_line(&mut ready).unwrap();
+        assert_eq!(ready, "ready\n");
+        let raw = fs::read(format!("/proc/{}/stat", outside.0.id())).unwrap();
+        assert!(std::str::from_utf8(&raw).is_err());
+        assert_eq!(members(selected.0.id()).unwrap(), vec![identity(selected.0.id()).unwrap()]);
+        // The same arbitrary comm is valid inside the selected group too,
+        // and enumeration must retain the ordinary birth identity shape.
+        assert_eq!(members(outside.0.id()).unwrap(), vec![identity(outside.0.id()).unwrap()]);
+        assert!(outside.status().unwrap().is_none());
+        outside.0.kill().unwrap(); outside.0.wait().unwrap();
+        selected.0.kill().unwrap(); selected.0.wait().unwrap();
+    }
+
+    #[test]
+    fn outside_group_details_cannot_fail_a_readable_row() {
+        for (state, start) in [(b"S".as_slice(), b"".as_slice()), (b"\xff", b"bad"), (b"bad-state", b"\xff"), (b"Z", b"18446744073709551616")] {
+            assert!(inspect(row(456, state, start)).unwrap().is_none());
+            assert!(inspect(row(123, state, start)).unwrap_err().contains("E_WITNESS_PROCESS"));
+        }
+        assert!(inspect(b"42 (name) S 1 456".to_vec()).unwrap().is_none());
+        assert!(inspect(b"42 (name) S 1 123".to_vec()).is_err());
+        assert_eq!(inspect(row(123, b"S", b"987")).unwrap(), Some(json!({"pid": 42, "start": ["boot", "987"]})));
+        assert!(inspect(row(123, b"Z", b"987")).unwrap().is_none());
+    }
+
+    #[test]
+    fn unknown_group_fails_closed() {
+        for bytes in [b"42 no closing comm".as_slice(), b"42 (name) S 1", b"42 (name) S 1 \xff", b"42 (name) S 1 -1", b"42 (name) S 1 2147483648"] {
+            assert!(inspect(bytes.to_vec()).unwrap_err().contains("invalid /proc process group"));
+        }
+    }
+
+    #[test]
+    fn stat_read_errors_only_skip_known_outside_groups_or_disappearance() {
+        for errno in [libc::EACCES, libc::EPERM, libc::EIO] {
+            let inspect_error = |pgid| linux_member(42, 123, "boot", Err(std::io::Error::from_raw_os_error(errno)), || pgid);
+            assert!(inspect_error(Ok(456)).unwrap().is_none());
+            assert!(inspect_error(Ok(123)).unwrap_err().contains("E_WITNESS_PROCESS"));
+            assert!(inspect_error(Ok(0)).is_err());
+            assert!(inspect_error(Err(std::io::Error::from_raw_os_error(libc::EPERM))).is_err());
+            assert!(inspect_error(Err(std::io::Error::from_raw_os_error(libc::ESRCH))).unwrap().is_none());
+        }
+        for errno in [libc::ENOENT, libc::ESRCH] {
+            assert!(linux_member(42, 123, "boot", Err(std::io::Error::from_raw_os_error(errno)), || panic!("already gone")).unwrap().is_none());
+        }
+    }
 }
 fn stop_group(record: &Value) -> Result<()> { stop_group_with(record, || {}) }
 pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
@@ -201,7 +311,7 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
                 }
             }
         }
-        if deadline.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "abandoned process group cleanup stopped making progress; recovery required")); }
+        deadline.check(Instant::now(), "abandoned process group cleanup")?;
         sleep(Duration::from_millis(20));
     }
 }

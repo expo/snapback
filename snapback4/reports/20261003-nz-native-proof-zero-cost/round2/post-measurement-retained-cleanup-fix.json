@@ -1,0 +1,12 @@
+{
+  "at": 1791109350.2872581,
+  "reason": "Test-only shutdown order: close client, stop and await the fixture server, then remove its watched directory. Preserve cleanup even when client close or child exit rejects.",
+  "changes": [
+    {
+      "path": "snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "beforeSha256": "8c8986ccaa4d6005bc82dd9d27726e017fddc1bed29b2805c02ee876ec5feb8a",
+      "afterSha256": "683b13354566de4ca61d1f2229b8457af391b44f94fe481ad4a64f30caa1a1e7",
+      "bytes": 51803
+    }
+  ]
+}

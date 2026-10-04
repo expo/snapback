@@ -15,12 +15,16 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 ```
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
-`update` patches one row; its `if` condition tests the old row.
-`upsert` inserts or patches, and `delete` removes the named row.
-Any refusal rolls back the entire mutation.
-Keep one minted write id with each intent when retrying.
+`update` patches; `if` tests the old row.
+`upsert` inserts/patches; `delete` removes the row.
+Write results contain omitted optional columns as null and defaults as values;
+updates retain unchanged fields. These fields add no prediction dependency.
+Owned/sequence/receipt fields keep their projection and settlement rules.
+E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
+Refusals roll back the mutation.
+Retry an intent with its original minted write id.
 
-Receipt gaps over expiring messages: `guide sequences`.
+Receipt gaps: `guide sequences`.
 
 ## Limits
 
@@ -33,6 +37,10 @@ Receipt gaps over expiring messages: `guide sequences`.
 
 Mutations insert, update and delete rows in one transaction.
 Rules and constraints apply before that transaction commits.
+
+Bound results charge heap, steps, output and rule probes: the `result-cost`
+regression measures 1 probe, 2,316 heap bytes, 20 steps, 70 output bytes
+in both interpreters. Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the
 writer has left, the call still predicts. Reads hide the updated message
@@ -359,15 +367,10 @@ an unrelated later refusal provisional. A short-circuited rule arm does not
 read its ordinal. Provisional ordinals in
 write results, point rereads and pages carry `pending: true`.
 
-### The application-counter spelling, which still compiles
+### The older application-counter spelling
 
-Before `sequence by`, the ordinal was an application counter. This older
-spelling still compiles; for server-arrival order prefer the engine sequence
-above, which refuses a client-supplied position. For timestamp order use
-the existing columns as shown above. The legacy recipe keeps a
-per-conversation ordinal in the same mutation as the message insert.
-Transactions serialize the increment, so committed ordinals
-order accepted writes within that conversation; they do not order groups.
+Prefer engine sequences for server-arrival order or timestamps for timestamp order.
+This counter increments atomically with insertion.
 
 ```quarry
 table conversations:
@@ -429,12 +432,9 @@ backwards mark. See `guide rules` for the complete Clique membership recipe.
 Other fields in the same patch require the row's update rule. Inserts by
 another principal omit readUpTo, including when its intended value is 0.
 
-The default projection is private. Append `readable by audience` for Clique's
-shared receipts. Ownership is unchanged by that visibility choice. The owner
-sees the settled mark on every device; a held-row mark write predicts offline,
-then settles through the ordinary write receipt and partition stream.
-E_FIELD_AUTHORITY names the owner column: omit the supplied field or write as
-that principal. It also refuses malformed owner declarations and private fields
-used in indexes or aggregate inputs; see the rewrite on `guide rules`.
+The projection is private; append `readable by audience` for shared receipts.
+Owners receive settled marks on every device, and held-row patches predict
+offline. E_FIELD_AUTHORITY names the owner: omit the field or write as that
+principal. See `guide rules` for declaration and private-field restrictions.
 
 "##;

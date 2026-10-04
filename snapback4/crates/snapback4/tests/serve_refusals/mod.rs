@@ -1,7 +1,7 @@
 use super::*;
 use std::{fs, path::Path};
 
-const SOURCE: &str = "use personas alice\ntable rows:\n  owner: principal\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: rows\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\nquery point(id: rows):\n  return rows[id]\n";
+const SOURCE: &str = "use personas alice\ntable rows:\n  owner: principal\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: rows\n  until: time\n  expire at .until\n  unique byParent: parent\n  read <- deny\n  online only\nquery point(id: rows):\n  return rows[id]\n";
 fn exhaust_read_authority(host: &Host) {
     let mut engine = lock(&host.shared.engine);
     let bound = lock(&host.shared.bound);

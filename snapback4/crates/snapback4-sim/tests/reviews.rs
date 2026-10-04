@@ -100,7 +100,7 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
     let audience = "table memberships:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[conversationId = .conversationId, principal = viewer]\n  sync to memberships[.conversationId]\n";
     let valid = snapback4_lang::compile(&[("schema.q".into(), audience.into())]);
     assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
-    refused(audience.replace("unique byConversationPrincipal:", "by byConversationPrincipal:"), "must be unique");
+    refused(audience.replace("unique byConversationPrincipal:", "by byConversationPrincipal:"), "is not unique");
     // 2: the recipient column is the probe's, not any principal column of the target.
     refused(
         CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")

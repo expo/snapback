@@ -32,6 +32,7 @@ impl Runner<'_> {
     }
 }
 pub(super) fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
+pub(super) fn expression_copy(value: &Value) -> u64 { value.expression_copy(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]
 pub(super) enum Flow {
@@ -95,6 +96,8 @@ pub struct Runner<'a> {
     pub(super) caller_heap_ceiling: Option<(u64, u64)>,
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
+    /// Program-only use counts; None keeps standalone/raw statement callers conservative.
+    pub(super) insert_uses: Option<BTreeMap<String, u8>>,
     /// Rows this transaction inserted, by (table, index, encoded key).
     pub(crate) created: BTreeMap<(String, String, String), usize>,
     /// Current facts owned by each row inserted in this execution. Distinct
@@ -173,6 +176,7 @@ pub struct Runner<'a> {
     pub(crate) page_overflow: bool,
     pub(super) discovering_values: bool,
     pub(super) value_source_incomplete: bool,
+    pub(super) receipt_pending_groups: BTreeMap<String, Option<Vec<Vec<Value>>>>,
     pub(crate) timeline_pending: bool,
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
@@ -181,6 +185,9 @@ pub struct Runner<'a> {
     /// delivered rows are trusted; provisional images need current read
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
+    pub(super) query_program: bool,
+    /// Prediction deduplicates keys within this attempt, never in the server ledger.
+    pub(super) effect_once_keys: BTreeSet<String>,
     pub(crate) event_free: bool,
     #[cfg(feature = "sqlite")]
     pub(super) column_rebuild: bool,
@@ -223,6 +230,7 @@ pub struct Runner<'a> {
     #[cfg(feature = "server-search")]
     pub(super) compact_memberships: usize,
     pub(crate) column_heap: u64,
+    pub(crate) reservation_deferred: bool,
     pub(crate) column_prepaid: bool,
     #[cfg(feature = "sqlite")]
     pub(super) assets_prepaid: bool,
@@ -322,9 +330,12 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,
+            receipt_pending_groups: BTreeMap::new(),
             timeline_pending: false,
             word_cut_at: None,
             device: false,
+            query_program: false,
+            effect_once_keys: BTreeSet::new(),
             event_free: false,
             #[cfg(feature = "sqlite")]
             column_rebuild: false,
@@ -348,6 +359,7 @@ impl<'a> Runner<'a> {
             evaluating_write_condition: false,
             prediction_guards: BTreeSet::new(),
             prediction_skips: BTreeSet::new(),
+            insert_uses: None,
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -355,6 +367,7 @@ impl<'a> Runner<'a> {
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,
+            reservation_deferred: false,
             #[cfg(feature = "server-search")]
             compact_memberships: 0,
             column_prepaid: false,
@@ -365,12 +378,14 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
+        self.insert_uses = (program.kind != ProgramKind::Query).then(|| effects::Effects::variable_uses(&program.body));
         self.receipt_operation = program.name.clone();
         self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
+        self.query_program = program.kind == ProgramKind::Query;
         self.prediction_skips = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && program.kind == ProgramKind::Mutation && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_skips.iter().cloned().collect()).unwrap_or_default();
@@ -424,8 +439,13 @@ impl<'a> Runner<'a> {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
             // @ref LLP 3000.013#12.3 — infallible effect-payload reads and their
-            // exclusive bindings are server work, including in an untaken arm.
-            if self.prediction_skips.contains(&site) { return Ok(Flow::Next); }
+            // exclusive bindings use actual-value server fees. Omitted payloads
+            // can exhaust the server meter after prediction (the documented
+            // exception); once-key charges still run on both hosts.
+            if self.prediction_skips.contains(&site) {
+                if let Stmt::Emit { effect, once, .. } = statement { self.effect_once(effect, once.as_ref())?; }
+                return Ok(Flow::Next);
+            }
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);
@@ -539,16 +559,25 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { self.sequence_result(table, row)? } else { Value::Null };
-                    self.bind(result, value);
+                    let consumed = self.insert_uses.as_ref().is_none_or(|uses| uses.contains_key(result));
+                    if consumed {
+                        let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { self.sequence_result(table, row)? } else { Value::Null };
+                        self.bind(result, value);
+                    } else {
+                        self.insert_if_absent(table, row.expression_input(ExpressionAccess(())))?;
+                    }
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
                     let image = self.expr(row)?;
-                    if self.schema.tables[table].sequences.is_empty() && !self.schema.receipt_insert(table) {
+                    // @ref LLP 3000.007#5.4 — the compiler also creates a
+                    // temporary for discarded inserts; only another use demands its result.
+                    let consumed = matches!(row, Expr::Variable(name) if self.insert_uses.as_ref().is_none_or(|uses| uses.get(name).copied().unwrap_or(0) > 1));
+                    if !consumed || !self.needs_insert_result(table, &image) {
                         self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
-                        self.meter.heap(expression_heap(&image))?;
+                        // @ref LLP 3000.007#5.4 — the Arc clone shares this image;
+                        // result completion prepays the actual field-map copy.
                         self.insert(table, image.clone().expression_input(ExpressionAccess(())))?;
                         // A bound insert keeps its engine-filled image in the result local.
                         if let Expr::Variable(name) = row {
@@ -586,18 +615,7 @@ impl<'a> Runner<'a> {
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
-                    let key = once.as_ref().map(|key| self.expr(key)).transpose()?;
-                    if let Some(key) = &key { key.as_array()?; }
-                    // @ref LLP 3000.013#5.3 — the permanent key is in the same transaction, including replay suppression.
-                    if !self.discard_effects && !self.device && let Some(key) = key {
-                        self.meter.step(1)?;
-                        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.clone()), key]));
-                        self.meter.heap(encoded.len() as u64)?;
-                        if !self.tx.effect_once(effect, &encoded)? { return Ok(Flow::Next); }
-                        self.meter.charge(MeterKind::RowsWritten, 1)?;
-                        self.rows_written += 1;
-                    }
-                    // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
+                    if !self.effect_once(effect, once.as_ref())? { return Ok(Flow::Next); }
                     let presence = self.emission_presence()?;
                     if !self.discard_effects {
                         let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
@@ -646,6 +664,25 @@ impl<'a> Runner<'a> {
         Ok(Flow::Next)
     }
 
+    // @ref LLP 3000.013#5.3 — runtime key charges are identical on both
+    // hosts; only the authoritative host claims durable keys.
+    fn effect_once(&mut self, effect: &str, once: Option<&Expr>) -> Result<bool, RuntimeError> {
+        let Some(expr) = once else { return Ok(true); };
+        let key = self.expr(expr)?;
+        key.as_array()?;
+        self.reservation_deferred |= self.device;
+        self.meter.step(1)?;
+        let encoded = canonical_json(&Value::Array(vec![Value::String(effect.into()), key]));
+        self.meter.heap(encoded.len() as u64)?;
+        let inserted = if self.device || self.discard_effects { self.effect_once_keys.insert(encoded) }
+            else { self.tx.effect_once(effect, &encoded)? };
+        if inserted {
+            self.meter.charge(MeterKind::RowsWritten, 1)?;
+            self.rows_written += 1;
+        }
+        Ok(inserted)
+    }
+
     fn binding_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
         let value = self.expr(expression)?;
         let charged = self.meter.heap(expression_heap(&value));
@@ -655,7 +692,7 @@ impl<'a> Runner<'a> {
         #[cfg(feature = "server-search")]
         if matches!(charged, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }))
             && let Expr::Merge(merge) = expression
-            && !self.device && crate::search_plan::eligible(self.schema, merge) {
+            && !self.device && self.query_program && crate::search_plan::eligible(self.schema, merge) {
             return Err(self.opening_error(merge, self.compact_memberships, true));
         }
         charged?;

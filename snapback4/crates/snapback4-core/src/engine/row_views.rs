@@ -56,13 +56,16 @@ impl Runner<'_> {
             });
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let result = (|| {
+            for phase in [crate::schema::reservations::ROW_SOURCE, crate::schema::reservations::ROW_MEMBER] {
+                let price = self.source_price(table, phase)?;
+                self.charge_price(price)?;
+                self.maintain_heap = self.maintain_heap.saturating_add(price[4]);
+            }
             for m in views {
-                if self.device && self.schema.tables[&m.target].sync.is_none() {
-                    continue;
-                }
+                let online = self.device && self.schema.tables[&m.target].sync.is_none();
+                let deferred = self.defer_receipt_maintain(m);
                 let key = m.row_key.as_ref().unwrap();
                 if key.table == table {
-                    self.reserve_row_view(m, 1)?;
                     // Reserve the same bounded scan even if the private predicate is unchanged.
                     // Execute against its original allowance, then retain only the public charge.
                     let scan = self.meter.clone();
@@ -76,17 +79,24 @@ impl Runner<'_> {
                         .saturating_sub(self.meter.used.heap_bytes);
                     self.meter.heap(heap)?;
                     self.meter.used.heap_bytes -= heap;
+                    if online { continue; }
                     let reserved = std::mem::replace(&mut self.meter, scan);
                     self.maintain_prepaid = true;
-                    let result = self.row_view_member(m, old, new);
+                    let result = if deferred {
+                        // Member writes retain their authority precondition. Source
+                        // writes have no corresponding member-authority check.
+                        new.map_or(Ok(()), |row| self.row_view_member_authority(m, row))
+                    } else { self.row_view_member(m, old, new) };
                     self.meter = reserved;
                     self.maintain_prepaid = false;
                     result?;
                 } else {
                     // Reserve before inspecting any recipient, including its hidden mark or work.
-                    self.reserve_row_view(m, key.fanout.saturating_mul(2))?;
+                    // Online-only recipients are unheld, but their fixed price is public.
+                    if online { continue; }
                     self.maintain_prepaid = true;
-                    self.row_view_source(m, old, new)?;
+                    if deferred { self.row_view_recipient_cap(m, old, new)?; }
+                    else { self.row_view_source(m, old, new)?; }
                     self.maintain_prepaid = false;
                 }
             }
@@ -96,35 +106,31 @@ impl Runner<'_> {
         result
     }
 
-    // @ref LLP 3000.015#3 — two parent groups, each bounded by the declared live cap.
-    fn reserve_row_view(&mut self, m: &Maintain, recipients: u64) -> Result<(), RuntimeError> {
+    // The refusal depends only on ordinary parent/expiry index keys. Preserve it
+    // after the same public reservation, without loading members or receipt fields.
+    fn row_view_recipient_cap(&mut self, m: &Maintain, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
-        let target = &self.schema.tables[&m.target];
-        let image = super::write_target::row_copy_ceiling(target);
-        for (kind, amount) in [
-            (MeterKind::Examined, recipients.saturating_mul(4) + 4),
-            (
-                MeterKind::Steps,
-                recipients.saturating_mul(k.predicate.steps() * 4 + 8),
-            ),
-            (MeterKind::RowsWritten, recipients.saturating_mul(2)),
-            (
-                MeterKind::IndexEntries,
-                recipients.saturating_mul(2 * target.indexes.len() as u64 + 4),
-            ),
-            (
-                MeterKind::OutputBytes,
-                recipients.saturating_mul(image.saturating_mul(2)),
-            ),
-        ] {
-            self.meter.charge(kind, amount)?;
+        let table = &self.schema.tables[&k.table];
+        let index = if table.is_expiring() { k.live_member_index() } else { k.member_index() };
+        let mut previous = None;
+        for row in [old, new].into_iter().flatten() {
+            let parent = row.field(&k.source_key)?;
+            if previous == Some(parent) { continue; }
+            previous = Some(parent);
+            let mut live = 0;
+            let ranges = if table.is_expiring() {
+                vec![Bounds { lte: Some(Value::Null), ..Bounds::default() },
+                    Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(0))), ..Bounds::default() }]
+            } else { vec![Bounds::default()] };
+            for mut bounds in ranges {
+                loop {
+                    let Some(key) = self.metered_scan(|r, scope| r.tx.index_head(scope, &k.table, &index, std::slice::from_ref(parent), &bounds, Dir::Asc))? else { break; };
+                    bounds.after = Some(key.into_iter().skip(1).collect());
+                    live += 1;
+                    if live > k.fanout { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "recipient cap exceeded; repair the member group (guide maintains)".into() }); }
+                }
+            }
         }
-        // Member/target/work images are transient; reserve the schema bound, not their contents.
-        let heap = super::write_target::row_copy_ceiling(&self.schema.tables[&k.table])
-            .saturating_mul(4)
-            .saturating_add(image.saturating_mul(16));
-        self.meter.heap(heap)?;
-        self.maintain_heap = self.maintain_heap.saturating_add(heap);
         Ok(())
     }
 
@@ -394,6 +400,24 @@ impl Runner<'_> {
         self.meter.release_heap(outer);
         result
     }
+    fn row_view_member_authority(&mut self, m: &Maintain, row: &Value) -> Result<(), RuntimeError> {
+        let k = m.row_key.as_ref().unwrap();
+        let readable = if self.device {
+            // Schema admission proves the source rule from the parent key. This
+            // checks authority, not whether the device has the whole count range.
+            let source = crate::value::object([("id", Value::Id(String::new())), (k.source_key.as_str(), row.field(&k.member_key)?.clone())]);
+            self.check_rule(&k.table, crate::schema::Effect::Read, None, row)?
+                && self.check_rule(&m.source, crate::schema::Effect::Read, None, &source)?
+        } else {
+            self.context.is_system() || (self.check_rule(&k.table, crate::schema::Effect::Read, None, row)?
+                && self.row_view_source_readable(m, row)?)
+        };
+        if !readable {
+            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers before marking (guide maintains)".into() });
+        }
+        Ok(())
+    }
+
     fn row_view_member(
         &mut self,
         m: &Maintain,
@@ -426,13 +450,7 @@ impl Runner<'_> {
         // @ref LLP 3000.015#3 — this is the member-write recount decision point:
         // only a readable new image may select work, even over public sources.
         // Check the member first so its hidden parent cannot even select a refusal.
-        #[cfg(feature = "sqlite")]
-        if !self.device && !self.context.is_system()
-            && (!self.check_rule(&k.table, crate::schema::Effect::Read, None, &u)?
-                || !self.row_view_source_readable(m, &u)?)
-        {
-            return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "member recounts require a readable member and destination source group; make the member row readable to its writers before marking (guide maintains)".into() });
-        }
+        if !self.device { self.row_view_member_authority(m, &u)?; }
         // A newly readable image never inherits an unreadable old mark's schedule.
         let old = match old {
             Some(old) if self.check_rule(&k.table, crate::schema::Effect::Read, None, old)? => {
@@ -718,7 +736,7 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         // @ref LLP 3000.020#3.2 — current authority is independent of whole-group acquisition.
-        if self.device && m.row_count_needs_live_basis(self.schema) {
+        if self.device && (m.row_count_needs_live_basis(self.schema) || self.defer_receipt_maintain(m)) {
             if source.sync.is_none()
                 || !(self.tx.current_row(&k.table, member)? || self.is_provisional(&k.table, member)?) {
                 return Ok(false);
@@ -797,7 +815,28 @@ impl Runner<'_> {
             self.pending_view_read()?;
             return Ok(Some(self.view_image(m, &member, 0, true)?));
         }
+        if self.receipt_maintain_pending(m, Some(std::slice::from_ref(member.field(&m.row_key.as_ref().unwrap().member_key)?)))? {
+            self.pending_view_read()?;
+            let mut row = row;
+            if let Value::Row(fields) = &mut row { fields.insert("recountPending".into(), Value::Bool(true)); }
+            return Ok(Some(row));
+        }
         if m.row_count_needs_live_basis(self.schema) {
+            if !self.query_program && self.meter.cut == crate::meter::Cut::Abort {
+                let price = self.source_price(&m.target, crate::schema::reservations::VIEW_READ)?;
+                self.reservation_deferred |= self.device;
+                let (n, complete) = self.disclosed_scratch(price[4], &[(MeterKind::Examined,price[2]),(MeterKind::Steps,price[0])], |runner,_| {
+                    #[cfg(feature = "sqlite")]
+                    if !runner.device {
+                        if let Some(n) = runner.certified_view_count(m, &member)? { return Ok((n,true)); }
+                        let (n, complete, _) = runner.live_basis_scan(m,&member,None,usize::MAX)?;
+                        return Ok((n,complete));
+                    }
+                    runner.device_live_count(m,&member)
+                })?;
+                if !complete { self.pending_view_read()?; }
+                return Ok(Some(self.view_image(m,&member,n,!complete)?));
+            }
             #[cfg(feature = "sqlite")]
             if !self.device {
                 let limit = self.caller_heap_ceiling.map_or(self.meter.ceilings.heap_bytes, |(limit, _)| limit);
@@ -818,6 +857,10 @@ impl Runner<'_> {
             let (total, complete) = self.device_live_count(m, &member)?;
             if !complete { self.pending_view_read()?; }
             return Ok(Some(self.view_image(m, &member, total, !complete)?));
+        }
+        if self.device && !self.query_program && self.meter.cut == crate::meter::Cut::Abort {
+            let price = self.source_price(&m.target, crate::schema::reservations::VIEW_READ)?;
+            self.disclosed_scratch(price[4], &[(MeterKind::Examined,price[2])], |_,_| Ok(()))?;
         }
         #[cfg(feature = "sqlite")]
         if !self.device {

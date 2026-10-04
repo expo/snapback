@@ -16,6 +16,12 @@ table reactions:
 
 ## Reference
 
+Each write-rule term allows one live hop: `.message.conversation`, or `messages[.message].conversation`.
+The target's read rule applies; absent, expired or hidden targets fail closed even under `not` or `= null`.
+Sibling hops are legal; each prepays one probe within bounded authorization work. Devices need current coverage.
+Insert uses the new image, named update either image, and delete its pre-delete image; read-through captures stay unchanged. Null guards narrow the same term and image; guarding `old.ref.key` does not guard `next.ref.key`.
+E_QUARRY_RULE_HOP gives an explicit lookup/read-through rewrite for deeper chains, private/maintained fields or after-insert hops.
+
 ```quarry
 table orgs:
   read <- exists members[.id, viewer]
@@ -112,8 +118,8 @@ table reactions:
   emoji: text <= 20
   immutable principal
   unique message, principal
-  insert <- .principal = viewer
-  delete <- .principal = viewer
+  insert <- .principal = viewer and exists members[.message.conversation, viewer]
+  delete <- .principal = viewer and exists members[.message.conversation, viewer]
 
 view unread: count receipts where .state < 2 by .message.conversation, .principal
   online only
@@ -222,7 +228,6 @@ cannot read must be your own upload, even if it equals the retained id. A rule
 probe costs one unit regardless of expired siblings; a uniform false page is
 decided from its pinned prefix and returns empty and complete at no charge.
 
-
 A filtered count can disclose whether a hidden row matched its predicate;
 computed groups disclose bucket membership and rank discloses relative values.
 The view's filter grants no source-row read. N_MAINTAIN_DELTA names the
@@ -250,7 +255,6 @@ Changing the aggregate view to read <- allow deliberately grants the filtered-de
 channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both
 possible aggregate groups, predicate/key work and indexes before inspecting
 the old source image.
-
 
 A maintained column such as `likeCount: count likes by postId` belongs to the
 engine, while ordinary fields keep their existing writer rules. Source rules
@@ -361,12 +365,10 @@ who cannot supply another owner's private field. Direct inserts and readable tar
 `E_FIELD_AUTHORITY` with the owner-specific repair. The trusted system
 principal retains its existing rule bypass.
 
-
-Read-through limits and repair steps: `why E_READ_THROUGH`,
-`why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
-`why E_READ_THROUGH_SCAN`.
+Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`,
+`why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
 
 Membership paths spelling the whole parent rule lower to `read through`; other
-reference expressions remain unsupported. Parent-key aggregates inherit that rule. A diagnostic never suggests dropping the parent hop. An aggregate
+read reference expressions remain unsupported. Write-rule terms admit depth-one hops as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
 read line proved identical to the parent's rule has a whole-line repair;
 additional conditions remain a modeling choice and are not removed by `--fix`.
