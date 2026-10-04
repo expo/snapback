@@ -5,7 +5,7 @@ import { evaluateLocal } from '../dist/local-query.js';
 import { RememberedAnswers } from '../dist/local-reads.js';
 
 const op = { kind: 'query', name: 'history' };
-const partial = { data: ['held'], unknown: true, complete: false, tables: ['messages'] };
+const partial = { watermark: 4, data: ['held'], unknown: true, complete: false, tables: ['messages'] };
 function fixture() {
   const calls = [], cache = new RememberedAnswers();
   const program = { name: op.name, kind: 'Query', body: [{ table: 'messages' }] };
@@ -186,4 +186,38 @@ test('structured empty siblings cannot replace pending local history', async () 
   const result = await f.run();
   assert.deepEqual(result.read.data, f.first.data);
   assert.equal(result.read.complete, false); assert.equal(result.read.fresh, false);
+});
+
+test('dispatch watermark cannot certify an older evaluation from a shared store', async () => {
+  const f = fixture(); f.captured = f.watermark = 5;
+  f.second = { ...partial, watermark: 5, unknown: false, retained: true };
+  const result = await f.run();
+  assert.deepEqual(result.read.data, ['held']);
+  assert.deepEqual(f.calls, ['query', 'state', 'query']);
+  assert.equal(f.cache.size, 0);
+});
+
+for (const cut of [4, 5]) test(`a whole-server route after composition binds the second evaluation cut ${cut}`, async () => {
+  const f = fixture(); f.watermark = 5;
+  f.first = { watermark: 4, data: { left: ['held'], right: ['partial'] }, unknown: true,
+    components: { left: { retained: true, complete: true }, right: { unknown: true } } };
+  f.second = { ...partial, watermark: cut };
+  const result = await f.run();
+  assert.deepEqual(result.read.data, cut === 5 ? [] : ['held']);
+  assert.equal(result.read.fresh, cut === 5); assert.equal(result.read.complete, cut === 5);
+  assert.deepEqual(f.calls, ['query', 'query', 'state']);
+});
+
+for (const speculative of [false, true]) test(`a retained sibling cannot authorize emptying a pending history field (speculative: ${speculative})`, async () => {
+  const f = fixture();
+  f.first = f.second = { watermark: 4, data: { left: ['retained'], right: ['held'] }, unknown: true,
+    components: { left: { retained: true, complete: true }, right: { unknown: true, speculative } } };
+  f.reply.data = { left: [], right: [] };
+  const result = await f.run();
+  if (speculative) assert.deepEqual(result.read, { loading: true });
+  else {
+    assert.deepEqual(result.read.data, { left: ['retained'], right: ['held'] });
+    assert.equal(result.read.complete, false); assert.equal(result.read.fresh, false);
+  }
+  assert.deepEqual(f.calls, ['query', 'query']); assert.equal(f.cache.size, 0);
 });

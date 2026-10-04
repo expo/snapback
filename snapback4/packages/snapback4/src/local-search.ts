@@ -95,8 +95,8 @@ function decoded(value: string): unknown {
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, c => c.charCodeAt(0))));
 }
 type Row = Record<string, unknown> & { id: string };
-type Page = { decorationExpiry?: number | null | undefined; searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
-type State = { decorations?: Row[]; decorationExpiry?: number | null | undefined; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
+type Page = { unknown?: boolean; speculative?: boolean; watermark?: number; decorationExpiry?: number | null | undefined; searchRows?: Row[]; data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
+type State = { current?: string[]; watermark?: number; decorations?: Row[]; decorationExpiry?: number | null | undefined; metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
 type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; after: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
@@ -365,6 +365,39 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       ledger.charge("output_bytes", next.length);
     }
     const seq = [response.json.seq, response.json.head].find(x => typeof x === "number") as number | undefined;
+    // @ref LLP 3000.028#3.3 — unchanged delivery/epoch proves stability during
+    // this attempt, not that a newer server leave is already applied. Never
+    // advance a continuation over a still-current device routing observation.
+    const table = env.backend.schema.tables[plan.table];
+    let ahead = table?.sync && table.leave === "delivered-history"
+      && (!Number.isSafeInteger(state.watermark) || state.watermark! < 0 || seq === undefined || seq > state.watermark!);
+    if (ahead && Array.isArray(state.current)) {
+      // The authorized server opening can also prove that no acquired current
+      // scope departed. Unrelated writes and current edits keep normal cursors.
+      ledger.charge("heap_bytes", 128 + scopes.length * 64);
+      ledger.charge("steps", scopes.length + state.current.length);
+      const currentScopes = new Set(scopes);
+      ahead = !state.current.every(key => typeof key === "string" && currentScopes.has(key));
+    }
+    if (ahead) {
+      if (data.length) return { read: readyRead({ data, complete: false, fresh: false, cut: remote.cut ?? local.cut ?? null, next: null }),
+        nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
+        valueDevice: valueDeadline(after.decorationExpiry, decorated && retainedPositions.length > 0), valueServer: valueDeadline(remote.decorationExpiry, decorated),
+        credential, seq, served: true, searchAttempt: true };
+      // No current server hits: observe the device's ordinary page, including
+      // its still-current acquired rows. This is the same attempt and ledger,
+      // with the caller's consumed position; it makes no second HTTP request.
+      const fallbackReply = await env.call({ op: "query", name, viewer: env.principal,
+        args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used }); checkpoint();
+      const fallback = fallbackReply.ok as Page | undefined;
+      if (fallbackReply.denied || fallback?.denied) return { ...loading, read: { denied: (fallbackReply.denied ?? fallback?.denied) as Refusal } };
+      if (!fallback?.metered) return { ...loading, credential, seq, served: true };
+      ledger.resume(fallback.metered);
+      if (fallback.loading || fallback.speculative || !fallback.data?.length) return { ...loading, credential, seq, served: true };
+      return { read: readyRead({ data: fallback.data, complete: false, fresh: false, cut: fallback.cut ?? null, next: null }),
+        nextExpiry: fallback.nextExpiry ?? null, valueDevice: valueDeadline(fallback.decorationExpiry, decorated), valueServer: null,
+        credential, seq, served: true, searchAttempt: true };
+    }
     return { read: readyRead({ data, complete: local.complete !== false && remote.complete !== false,
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
       ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),

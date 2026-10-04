@@ -1,0 +1,21 @@
+{
+  "runs": 30,
+  "exit": 0,
+  "cpus": [
+    64,
+    65,
+    66,
+    67
+  ],
+  "hog_pid": 3436636,
+  "hog_exited": true,
+  "elapsed_seconds": 1804.896,
+  "totals": {
+    "tests": 3870,
+    "pass": 3870,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  }
+}

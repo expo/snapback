@@ -1,0 +1,18 @@
+✔ family check sees nested generic names and refuses a restored owned-tree or slice decoder (2.73537ms)
+✔ only Value and ObjectFields may add exactly the counting writer (0.408793ms)
+✔ global family check refuses std containers and a type with only an owned family (0.336965ms)
+✔ visitor symbols retain their concrete Vec element and ignore non-reader helpers (0.268633ms)
+✔ dynamic envelope exceptions cannot admit an owned typed container or decoder (0.350806ms)
+✔ owned Value and Map reexports are readers and writers, never invisible families (0.258628ms)
+✔ content readers and visit_content helpers are named and refused (0.326279ms)
+✔ only the Scan map visitor may replay the lane discriminator (0.214021ms)
+✔ the handwritten LaneSource visitor still exposes its reader (0.259719ms)
+✔ field-only survivors still expose content and replay families (0.338287ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.021783

@@ -181,7 +181,17 @@ for(const tier of ['process','wasm']) test(`review: unsynced audience loss also 
   assert.equal(f.requests.length-before,4);assert.equal(second.denied?.code,'E_QUERY_RETRY');
   const fresh=await f.client.query(q,{q:'coffee'});
   assert.ok(fresh.data.every(row=>row.room==='left'));
-  assert.notEqual(decode(first.next).audience,decode(fresh.next).audience);
+  // The root cannot issue a continuation before the device applies the leave:
+  // its former current source is about to become retained history.
+  assert.equal(fresh.complete,false);
+  assert.equal(fresh.fresh,false);
+  assert.equal(fresh.next,null);
+  await f.client.sync();
+  const caughtUp=await f.client.query(q,{q:'coffee'});
+  assert.deepEqual(ids(caughtUp),ids(first),'the current first page remains stable after apply');
+  assert.equal(caughtUp.complete,false,'windowed retained coverage remains partial');
+  assert.equal(caughtUp.fresh,true,'this page contains only current rows');
+  assert.notEqual(decode(first.next).audience,decode(caughtUp.next).audience);
 });
 
 for(const tier of ['process','wasm']) test(`review: same-count audience swap withdraws the old continuation ${tier}`,async t=>{

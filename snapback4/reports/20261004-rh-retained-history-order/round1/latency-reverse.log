@@ -1,0 +1,32 @@
+{"host":"wasm","mode":"known-local","label":"fixed","n":300,"p50":7.27188000000001,"p95":10.475691999999981,"max":32.73543800000016}
+{"host":"wasm","mode":"known-local","label":"baseline","n":300,"p50":7.266461999999592,"p95":10.23352900000009,"max":31.27134399999977}
+✔ wasm known-local: 300 paired mutations (4881.84389ms)
+{"host":"wasm","mode":"server-only-source","label":"fixed","n":300,"p50":6.665199999999459,"p95":12.736801999999443,"max":72.05767999999989}
+{"host":"wasm","mode":"server-only-source","label":"baseline","n":300,"p50":7.214292999999998,"p95":12.317161999999371,"max":67.79408899999908}
+✔ wasm server-only-source: 300 paired mutations (4714.229024ms)
+{"host":"wasm","mode":"current-history-fallback","label":"fixed","n":300,"p50":10.89080500000091,"p95":27.67475199999899,"max":64.39441299999999}
+{"host":"wasm","mode":"current-history-fallback","label":"baseline","n":300,"p50":10.796933000001445,"p95":31.646244999999908,"max":64.95804800000042}
+✔ wasm current-history-fallback: 300 paired mutations (5240.522836ms)
+{"host":"wasm","mode":"current-search","label":"fixed","n":300,"p50":10.083424000000377,"p95":13.737181000000419,"max":66.6711260000011}
+{"host":"wasm","mode":"current-search","label":"baseline","n":300,"p50":9.708141999999498,"p95":14.421045999999478,"max":67.60066899999947}
+✔ wasm current-search: 300 paired mutations (5337.084772ms)
+{"host":"process","mode":"known-local","label":"baseline","n":300,"p50":14.058433000001969,"p95":23.37889400000131,"max":93.31722599999921}
+{"host":"process","mode":"known-local","label":"fixed","n":300,"p50":10.657726000001276,"p95":18.329875999999786,"max":72.735095}
+✔ process known-local: 300 paired mutations (8090.591738ms)
+{"host":"process","mode":"server-only-source","label":"baseline","n":300,"p50":10.376303000000917,"p95":15.537168999999267,"max":56.30645000000004}
+{"host":"process","mode":"server-only-source","label":"fixed","n":300,"p50":8.128153999998176,"p95":14.195707999999286,"max":54.53874999999971}
+✔ process server-only-source: 300 paired mutations (7986.639336ms)
+{"host":"process","mode":"current-history-fallback","label":"baseline","n":300,"p50":14.891171000002942,"p95":38.43933800000377,"max":77.17596100000083}
+{"host":"process","mode":"current-history-fallback","label":"fixed","n":300,"p50":10.774069999999483,"p95":26.816547000002174,"max":66.57428999999684}
+✔ process current-history-fallback: 300 paired mutations (9690.079058ms)
+{"host":"process","mode":"current-search","label":"baseline","n":300,"p50":13.650309999997262,"p95":27.92115200000262,"max":69.95656099999906}
+{"host":"process","mode":"current-search","label":"fixed","n":300,"p50":10.075983000002452,"p95":23.65214299999934,"max":40.155510999997205}
+✔ process current-search: 300 paired mutations (8345.686309ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54498.484467

@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-04T21:47:54.253935+00:00",
+  "base": "0094fe7fd72cf35790cf9935bbc7047b2cfb5b07",
+  "full_suite": {
+    "exit": 0,
+    "seconds": 2085,
+    "rust": {
+      "passed": 4989,
+      "doctests_included": 17,
+      "ignored": 33,
+      "failed": 0
+    },
+    "fixtures": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "client": {
+      "tests": 6280,
+      "pass": 6269,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 11,
+      "todo": 0
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "contention": {
+    "runs": 30,
+    "exit": 0,
+    "cpus": [
+      64,
+      65,
+      66,
+      67
+    ],
+    "hog_pid": 3436636,
+    "hog_exited": true,
+    "elapsed_seconds": 1804.896,
+    "totals": {
+      "tests": 3870,
+      "pass": 3870,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "focused_routing_query_passed": 395,
+  "continuation_review_passed": 14,
+  "source_and_artifact_drift": [],
+  "worktree_bytes": 21879369286,
+  "largest_sampled_worktree_bytes": 21879369286
+}

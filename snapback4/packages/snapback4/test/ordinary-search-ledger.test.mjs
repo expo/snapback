@@ -10,10 +10,10 @@ const sourceCursor = c=>c?JSON.parse(Buffer.from(c,'base64url'))[5][0].Int:Infin
 const position = c=>JSON.parse(Buffer.from(c.slice(5),'base64url'));
 function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=null,localComplete=false,exhaust=false,race,remainingSteps,limit=20,overlap=false}={}) {
   let calls=0,epoch='a',now=0,scanUsed;
-  const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
+  const env={backend:{generation:1,schema:{tables:{messages:{sync:{},leave:"delivered-history"}}}},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
     async call(r){
-      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,left:['["left"]'],retained:true,ceilings,metered:r.spent??counts()}};
+      if(r.op==='search_state')return {ok:{epoch,delivery:epoch,watermark:1,current:['["live"]'],left:['["left"]'],retained:true,ceilings,metered:r.spent??counts()}};
       assert.equal(r.search,true);assert.ok(r.spent.heap_bytes>0);
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
       if(remainingSteps!==undefined)scanUsed.steps=ceilings.steps-remainingSteps;
@@ -25,7 +25,7 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
       const found=live.filter(x=>x.at<sourceCursor(body.args.c));
       const data=found.slice(0,cut?3:limit);
       const stopped=cut&&found.length>data.length;
-      const json={searchCurrent:overlap?body.searchRetained:[],searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
+      const json={seq:1,searchCurrent:overlap?body.searchRetained:[],searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
       const parsed=await decode(new Response(JSON.stringify(json)));
       if(race==='membership'||race==='reset'||race==='edit'||race==='rejoin')epoch='b';
       if(race==='expiry')now=5;
@@ -62,7 +62,7 @@ for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step 
   // rows before the final fence. One fewer step must refuse. Fixed allowances
   // include all remaining merge/output work;
   // deleting either comparison charge makes the corresponding tight run pass.
-  const steps=tie?1875:1863;
+  const steps=(tie?1875:1863)+8; // decode the added eight-byte `"seq":1,` field
   const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
   const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
   const full=await enough.run(),cut=await tight.run();
@@ -207,10 +207,10 @@ for (const order of ['Asc','Desc']) for (const key of [9007199254740993n,-900719
   const higher={id:'a',at:String(key)},lower={id:'z',at:String(key-1n)};
   const current=order==='Desc'?higher:lower,retained=order==='Desc'?lower:higher;
   let received;
-  const env={backend:{generation:1,schema:{operations:{decorated:{search_decoration:true}}}},principal:'bob',link:'online',lastSyncAt:1,credentialRevision:0,deviceNow:()=>1,serverNow:()=>1,
+  const env={backend:{generation:1,schema:{tables:{messages:{sync:{},leave:"delivered-history"}},operations:{decorated:{search_decoration:true}}}},principal:'bob',link:'online',lastSyncAt:1,credentialRevision:0,deviceNow:()=>1,serverNow:()=>1,
     async call(r){
       if(r.op==='query')return {ok:{data:[retained],complete:true,next:null,metered:r.spent}};
-      return {ok:{epoch:'a',delivery:'a',left:['["left"]'],ceilings,metered:r.spent??counts(),decorations:[]}};
+      return {ok:{epoch:'a',delivery:'a',watermark:1,current:['["live"]'],left:['["left"]'],ceilings,metered:r.spent??counts(),decorations:[]}};
     },
     async searchPost(path,body,decode){received=body;return {ok:true,obsoleteAuth:false,searchIdentity:'store:1',json:await decode(new Response(JSON.stringify({searchScopes:['["live"]'],searchCurrent:[],searchRows:[current],data:[{id:current.id,sender:'Alice'}],complete:true,next:null})))}}};
   const out=await ordinarySearch(env,'decorated',{q:'coffee'},{...plan,kind:'Int',order,limit:1},()=>{},async()=>false);
@@ -220,4 +220,35 @@ for (const order of ['Asc','Desc']) for (const key of [9007199254740993n,-900719
   const text=Buffer.from(cursor,'base64url').toString();
   assert.ok(text.includes(`{"Int":${current.at}}`),text);
   assert.ok(!text.includes(`"Int":"`),'tagged i64 cursor remains numeric and canonical');
+});
+
+for (const pending of [false, true]) test(`search routes an ahead reply with membership proof (pending leave: ${pending})`, async () => {
+  const f = fixture({ retained: [], live: [] });
+  const call = f.env.call, post = f.env.searchPost;
+  let fallbackCalls = 0, spent;
+  f.env.call = async request => {
+    if (request.op === 'query' && !request.search) {
+      fallbackCalls++; spent = request.spent;
+      return { ok: { data: rows(50, 1), unknown: true, complete: false,
+        metered: { ...spent, steps: spent.steps + 10 }, watermark: 1 } };
+    }
+    const reply = await call(request);
+    if (request.op === 'search_state') reply.ok.left = [];
+    return reply;
+  };
+  f.env.searchPost = async (...args) => {
+    const reply = await post(...args); reply.json.seq = 2;
+    if (pending) reply.json.searchScopes = [];
+    return reply;
+  };
+  const result = await f.run();
+  assert.equal(f.calls(), 1, 'one server request for the attempt');
+  assert.equal(fallbackCalls, Number(pending));
+  assert.equal(result.read.complete, !pending); assert.equal(result.read.fresh, !pending);
+  assert.equal(result.read.next, null);
+  if (pending) {
+    assert.equal(result.read.data.length, 1);
+    assert.ok(spent.heap_bytes > 0 && spent.steps > 0);
+    assert.equal(result.served, true);
+  }
 });

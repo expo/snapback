@@ -509,7 +509,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>, signal?: AbortSignal): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; appliedWatermark?: number | undefined; searchIdentity?: string | undefined } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>, signal?: AbortSignal): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }> {
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return { ok: false };
     try {
       const capture = control ?? (path.startsWith("/q/") ? await captureStore() : undefined);
@@ -539,7 +539,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           active.add(work); void work.finally(() => active.delete(work)).catch(() => {});
         }
         if (status !== "match") return { ok: false };
-      } else if (path.startsWith("/q/")) return { ok: true, json, obsoleteAuth, appliedWatermark: capture?.watermark, searchIdentity: await searchReplyIdentity(capture, json, generation, witnessRestore) };
+      } else if (path.startsWith("/q/")) return { ok: true, json, obsoleteAuth, searchIdentity: await searchReplyIdentity(capture, json, generation, witnessRestore) };
       return { ok: true, json, obsoleteAuth };
     } catch (error) {
       if (signal?.aborted) return { ok: false };

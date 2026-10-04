@@ -1,0 +1,32 @@
+{"host":"wasm","mode":"known-local","label":"baseline","n":300,"p50":8.936103999999432,"p95":13.721467000000075,"max":71.30603900000006}
+{"host":"wasm","mode":"known-local","label":"fixed","n":300,"p50":9.212649000000056,"p95":13.84726499999988,"max":72.80583699999988}
+✔ wasm known-local: 300 paired mutations (6270.504572ms)
+{"host":"wasm","mode":"server-only-source","label":"baseline","n":300,"p50":7.818578999999772,"p95":17.554903000000195,"max":60.338520000001154}
+{"host":"wasm","mode":"server-only-source","label":"fixed","n":300,"p50":8.516445000001113,"p95":28.10692899999958,"max":69.36698299999989}
+✔ wasm server-only-source: 300 paired mutations (6075.520759ms)
+{"host":"wasm","mode":"current-history-fallback","label":"baseline","n":300,"p50":12.350271000002977,"p95":17.88752100000056,"max":79.58459699999912}
+{"host":"wasm","mode":"current-history-fallback","label":"fixed","n":300,"p50":12.665274000000863,"p95":17.399530000000595,"max":78.86074200000076}
+✔ wasm current-history-fallback: 300 paired mutations (6108.374887ms)
+{"host":"wasm","mode":"current-search","label":"baseline","n":300,"p50":12.563350999997056,"p95":34.01080799999909,"max":62.1605410000011}
+{"host":"wasm","mode":"current-search","label":"fixed","n":300,"p50":12.217583000001468,"p95":23.307895999998436,"max":64.44853000000148}
+✔ wasm current-search: 300 paired mutations (5955.772887ms)
+{"host":"process","mode":"known-local","label":"fixed","n":300,"p50":11.673266999998305,"p95":18.80858100000114,"max":174.64899800000057}
+{"host":"process","mode":"known-local","label":"baseline","n":300,"p50":11.697764000000461,"p95":20.254899999999907,"max":173.0190849999999}
+✔ process known-local: 300 paired mutations (7931.53089ms)
+{"host":"process","mode":"server-only-source","label":"fixed","n":300,"p50":12.09405799999513,"p95":31.344561999998405,"max":73.28338300000178}
+{"host":"process","mode":"server-only-source","label":"baseline","n":300,"p50":11.942791000001307,"p95":38.02565699999832,"max":77.24548199999845}
+✔ process server-only-source: 300 paired mutations (8882.68948ms)
+{"host":"process","mode":"current-history-fallback","label":"fixed","n":300,"p50":14.020305999998527,"p95":17.89649500000087,"max":74.18179000000237}
+{"host":"process","mode":"current-history-fallback","label":"baseline","n":300,"p50":14.09817099999782,"p95":18.214760999995633,"max":73.12975400000141}
+✔ process current-history-fallback: 300 paired mutations (8003.492626ms)
+{"host":"process","mode":"current-search","label":"fixed","n":300,"p50":14.353845000005094,"p95":19.91976799999975,"max":82.69563100000232}
+{"host":"process","mode":"current-search","label":"baseline","n":300,"p50":14.533723999993526,"p95":33.77618700000312,"max":82.77299700000003}
+✔ process current-search: 300 paired mutations (8191.083776ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57648.798013

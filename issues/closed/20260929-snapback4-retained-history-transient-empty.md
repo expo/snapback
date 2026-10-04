@@ -154,3 +154,27 @@ Deterministic held, stalled, and empty-catch-up cases cover wasm and process;
 the original `assert.ok(!deliveries.includes(0))` is unchanged. Qualification,
 latency comparisons, wasm budget, stress results and initial diagnostic failures
 are recorded in the [RH report](../../snapback4/reports/20261004-rh-retained-history-order/REPORT.md).
+
+## Round 1 resolution — 2026-10-04
+
+Astra rejected the initial resolution because another process owner could
+advance the store between evaluation and transport capture, and non-blank
+ordinary search bypassed the guard. The router now binds its shortcut to the
+watermark read in the evaluation transaction, including a second observation
+that changes a composition's route. A still-retained sibling cannot validate
+emptying another history field while that field's leave is pending.
+
+Search uses its opening transaction cut or the authorized server membership
+opening to prove current routing unchanged. Otherwise matching device history
+remains provisional on the same meter, with no extra server request or cursor
+advance. One-shots, new watches, page roots, plain cursors and combined-cursor
+withdrawal are covered. The rebuilt round-0 SDK and devices fail all **50**
+causal controls; both hosts pass the deterministic regressions after the fix.
+Same-owner and ordinary latency controls remain. The original R5 assertion
+has not been weakened. Final stress, full-suite, latency and budget evidence
+is in the [Round 1 report](../../snapback4/reports/20261004-rh-retained-history-order/REPORT.md#round-1--evaluation-cuts-and-ordinary-search).
+
+Round 1 qualification completed: **30/30** four-CPU hog runs (**3,870 passes**),
+**395/395** focused routing/query cases, and the full suite with zero failures.
+The measured wasm is **639,810 B gzip** under the **639,940 B** ratchet, including
+the preserved **130 B macOS allowance**. Nothing was pushed.

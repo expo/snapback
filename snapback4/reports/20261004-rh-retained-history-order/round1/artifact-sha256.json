@@ -1,0 +1,18 @@
+{
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2117335,
+    "sha256": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c"
+  },
+  "snapback4/target/debug/snapback4": {
+    "bytes": 36996592,
+    "sha256": "968ebde9c3f3af8794660bfaa31228152138a96a1f4b003694edb2c92b4eedb2"
+  },
+  "snapback4/target/rh-round0-src/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2116457,
+    "sha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1"
+  },
+  "snapback4/target/rh-round0-src/snapback4/target/debug/snapback4": {
+    "bytes": 75951008,
+    "sha256": "b324acc1b02e91a9f5ba73844ac69782987ea997dda7e3fa25c931d54d02fad5"
+  }
+}

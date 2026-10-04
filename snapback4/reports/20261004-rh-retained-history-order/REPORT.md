@@ -1,5 +1,9 @@
 # RH: retained-history publication order
 
+The initial sections record round 0 (`0094fe7fd7`), which Astra rejected.
+The **Round 1** section below supersedes its transport-cut shortcut and
+adds the search publication rule. Round-0 verification remains historical.
+
 Date: 2026-10-04. Host: eb1000 (`expose-builder-pixel`). Worktree:
 `/home/ccheever/sb4-intent/lane-rh`, branch
 `sb4-intent/rh-retained-history-order`, base
@@ -47,8 +51,9 @@ the application contract and wire format do not change.
 `local-query.ts::routeLocal` uses that cut for fallbacks whose possible read
 dependencies include a synced `delivered-history` table. Unknown branches
 retain static dependencies, and native programs conservatively cover every
-table. Device commits between local evaluation and dispatch invalidate the
-attempt through the existing authority fence.
+table. Round 0 assumed that device commits between local evaluation and dispatch
+invalidate the attempt through the authority fence. Astra disproved this for
+other process owners of the same store; Round 1 replaces that assumption.
 
 - A known complete local result, a query without a possible retained dependency,
   or a server reply at/below the captured applied cut adds no device call.
@@ -241,3 +246,208 @@ contract vocabulary, delivery authority or runtime meter ceiling.
 The ticket is closed under `issues/closed/`; its resolution and the journal entry
 land with this change. Final runtime and
 regression source hashes are recorded in [source-sha256.json](./source-sha256.json).
+
+## Round 1 — evaluation cuts and ordinary search
+
+This round starts at `0094fe7fd72cf35790cf9935bbc7047b2cfb5b07`, following the
+operator's NOT READY Astra review. The received [review](./round1/astra-round0-review.md)
+is preserved verbatim; its original location was
+`/home/ccheever/sb4-intent/reviews/rh-r0.astra.evidence/REVIEW.md`.
+All execution remains in this worktree on eb1000. No other lane's worktree or
+process was modified. The baseline is a source export inside this worktree's
+ignored `snapback4/target/`, not another lane or checkout.
+
+### Changes and routing audit
+
+The engine now reads `watermark` **inside the query's read transaction** and
+returns it with the coverage decision. `routeLocal` compares the server cut
+with that evaluation cut. The transport's later identity capture remains in
+place but no longer supplies the routing shortcut. Other owners can commit
+without changing this SDK owner's authority revision. A same-owner checkpoint
+therefore cannot substitute for transaction evidence. Missing/invalid metadata
+uses the conservative path. No extra device call was added to equal/older cuts,
+complete local answers, or queries without possible retained dependencies.
+
+The same distinction applies to the second observation of a known composition.
+If it switches to a whole-server route, a state read after that observation
+cannot validate an older evaluation. If another retained field remains, an
+empty server field cannot erase the permitted device rows of a still-unknown
+sibling whose retention route is pending. Those rows remain provisional;
+speculative rows withhold the atomic answer. Positive current fields retain
+normal composition, original refusals win, and no extra HTTP request is made.
+
+For ordinary non-blank search, `search_state` now returns its watermark and
+acquired current scope keys from the membership transaction. Stable closing
+`delivery`/`epoch` values only prove stability during the attempt. For a newer
+server cut, the complete authorized `searchScopes` opening can additionally
+prove that every acquired current scope remains current. This preserves normal
+search pagination after current edits and unrelated writes without another
+host call. Both the proof and any fallback use the existing shared meter.
+
+If that proof is unavailable, positive merged rows are provisional with no
+continuation. With no server/retained hits, one ordinary device query includes
+its still-current acquired matches at the consumed position. It resumes the
+same ledger; its receipt is returned whenever `spent` was supplied. Permitted
+matches remain visible, partial and stale. Missing usable values stay loading;
+normal bounds and one-shot settlement limits remain in force. No second server
+request, cache entry, delivery manifest, cursor advance or meter reset is added.
+The final publication procedure still checks authority, session, incarnation,
+credentials, predictions, expiry and cancellation.
+
+| Route / caller | Ordering coverage |
+| --- | --- |
+| Ordinary query, blank search, plain cursor | `routeLocal`, with transaction evidence from the relevant evaluation. |
+| Known components / retained row masks | Existing second observation and provenance merge; whole-server transitions use the second cut. Empty pending sibling arrays preserve permitted rows. |
+| Non-blank ordinary/decorated search | Opening cut or complete membership proof; closing delivery/epoch and all existing identity/audience fences. |
+| One-shot, mounted/new watch, page chain | The same evaluator; Pages obtains its constituent reads through `observe`. |
+| Combined search cursor | Changed audience/identity withdraws the suffix and refreshes its root; a stalled one-shot uses the existing bounded refusal. |
+| No executable current partition / unavailable guest | Existing Rule 3 plus store/adoption identity fences. This is not a locally certified current/retained decision. |
+| Cold acquisition bypass | Only an already server-answered, unacquired watch. Provisional retained-sensitive answers are ineligible. |
+| Ephemeral query | Explicit whole-server law of LLP 3000.017 §2.3; durable retained history is a separate query. Ephemeral incarnation/expiry gates are unchanged. |
+
+LLP 3000.028 §§3.2–3.3 now record both paths and remove the incorrect
+unconditional same-owner fence assumption. LLP 3000.013 §13.2 points to both publication
+rules. The root R5 no-empty assertion remains unchanged.
+
+### Deterministic evidence
+
+`retained-history-cut.test.mjs` uses real device calls and real server mutations.
+Another SDK owner commits between evaluation and dispatch; process uses two
+actual processes over one SQLite directory. Wasm's persistence is exclusive,
+so two SDK callers share its actual core rather than pretending that two tabs
+own one IndexedDB store. The read reply is held outside the core's transaction;
+no query rows, cuts or server responses are fabricated. Same-owner controls,
+plain cursor reads, and both whole-server and still-composed second-observation
+races are included.
+
+`retained-search-order.test.mjs` holds the real scope page before apply, proves
+that the server's empty reply is ahead of the device, then exercises one-shots,
+new watches and a new Pages root. Retained matches remain nonempty and carry
+`complete: false, fresh: false`. Existing combined cursors exercise the separate
+binding withdrawal. Releasing the page restores ordinary retained routing.
+
+The [baseline builder](./round1/build-baseline.sh) reconstructs the full
+round-0 SDK, native binary and wasm. All six original gap cases fail in each of
+five runs: **30/30 expected failures**, with no load dependency
+(`round0-devices-negative-{1..5}.log`). Both additional shared-composition variants also fail five times on each
+host: **20/20 expected failures**, in `round0-composition-negative-{1..5}.log`
+and `round0-sibling-negative-{1..5}.log`. Together these are **50/50 causal
+negative controls**.
+The initial source-only loader controls are diagnostic; the rebuilt-device
+controls are the stronger evidence. The [artifact hashes](./round1/artifact-sha256.json)
+and [source hashes](./round1/source-sha256.json) identify the measured inputs.
+
+### Round 1 verification
+
+The four-CPU contention batch passed **30/30**, **129 cases per run / 3,870
+passes**, with zero failures, cancellations or skips. Each run included
+`retained-history.test.mjs`, both new host regression files, and the evaluator
+ordering tests, under `taskset -c 64-67` with one owned CPU hog on the same mask.
+The driver verifies the hog's affinity and liveness for each run and reaps it
+in `finally`. Elapsed time: **1,804.896 seconds**. See the
+[run summary](./round1/stress-summary.json), [driver](./round1/stress.py),
+and `stress-{01..30}.log`.
+
+Focused client routing/query verification passes **395/395**
+([log](./round1/routing-query-verified.log)); the evaluator/shared-cut batch
+passes [**51/51**](./round1/evaluator-shared-final.log); search ledger
+[**45/45**](./round1/search-ledger-only-final.log); the added await-site census
+and transient/persistent faults [**3/3**](./round1/await-new-site-final.log).
+The updated continuation review probes pass
+[**14/14**](./round1/review-probes-final.log). The reference check reports **527 LLP documents, 10,362
+references, zero errors and zero unchecked references**.
+
+The final **`bash snapback4/scripts/test.sh` passed**, exit 0, **2085 seconds**
+([full log](./round1/full-suite.log), [qualification summary](./round1/qualification.json)):
+
+- Rust: **4,972 tests + 17 doctests passed**, 33 ignored, zero failures.
+- Client pool: **314/314 files**, **6,269 passes**, 11 skips, zero failures or
+  cancellations. The original R5 assertion and all new regressions pass here.
+- Fixture wrappers: **9/9**. Final model files: **79/79**.
+- Build, wasm budget, release guard, package/app typechecks and docs budget pass.
+
+The command used `taskset -c 32-63`, `CARGO_BUILD_JOBS=12`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`, and
+`CARGO_INCREMENTAL=0`. Focused routing/query tests used CPUs 68–71 and
+`--test-concurrency=3`; contention used its separate four-CPU mask. No counts,
+iteration bounds or timeouts were reduced. Source and artifact hashes still
+match the measured inputs after the final suite. The owned CPU hog was reaped,
+and the suite cleaned up its process groups and scratch directory.
+
+Final worktree usage: **21,879,369,286 bytes**; largest recorded sample:
+**21,879,369,286 bytes (21.88 GB)**, below the 40 GB limit.
+[Disk samples](./round1/disk-samples.jsonl) include both qualification runs.
+No other host or lane was used for execution; nothing is pushed.
+
+Diagnostic runs are retained rather than counted as final qualification.
+Captured logs normalize only trailing whitespace and blank lines at EOF;
+all subtest results and diagnostic output are preserved.
+The first search guard discarded valid cursors on unrelated edits; the
+membership proof corrected it. An overbroad no-executor guard broke store
+replacement reads and was removed; the replacement controls pass unchanged.
+One early stress overlapped the full suite's temporary wasm-output replacement
+and saw ENOENT. Subsequent stress starts only after the build phase. The
+pre-second-cut and pre-codec batches were interrupted when the audit found
+more work. Their logs live in their explicitly named subdirectories.
+
+The first full-suite run also exposed two old continuation assertions that
+expected a fresh root cursor while the leave remained unapplied. The review
+probe now requires partial/stale/no-cursor before apply, then checks identical
+current first-page rows and the changed audience cursor after apply. Windowed
+retained coverage remains partial. Its original stale-suffix refusal assertions
+are unchanged. The updated file passes 14/14 independently; the initial suite
+log is preserved separately from final qualification.
+
+### Round 1 latency and wasm
+
+The [latency driver](./round1/latency.mjs) compares separate complete old/new
+SDK and device runtimes against the same real server, including different wasm
+module instances and native device binaries. It measures mutation invocation
+to the first matching complete, non-revalidating live answer, with ten warmups,
+300 paired mutations per creation order, and both orders. Controls cover a
+complete retained-table point, an online-only point, an ordinary history
+fallback, and ordinary non-blank search. This is local host evidence, not a
+production/UI latency claim.
+
+The [final samples](./round1/latency-summary.json) contain 600 paired mutations
+per host/mode (4,800 pairs total). Values below are milliseconds, round 0 →
+round 1. Commands use CPUs 72–75, `RH_RUNS=300`,
+`RH_MODES=known-local,server-only-source,current-history-fallback,current-search`,
+then the same command with `RH_REVERSE=1`.
+
+| Host / query | Pooled p50 | Pooled p95 |
+| --- | ---: | ---: |
+| wasm / complete local | 8.112 → 8.229 | 12.751 → 12.781 |
+| wasm / online-only source | 7.613 → 7.621 | 15.950 → 18.964 |
+| wasm / current history fallback | 11.364 → 11.552 | 28.646 → 18.371 |
+| wasm / ordinary search | 11.186 → 10.881 | 23.936 → 20.784 |
+| process / complete local | 12.268 → 11.289 | 21.459 → 18.589 |
+| process / online-only source | 10.979 → 8.959 | 19.526 → 19.033 |
+| process / current history fallback | 14.378 → 13.338 | 35.104 → 26.080 |
+| process / ordinary search | 14.267 → 13.068 | 33.776 → 23.652 |
+
+There is no new round trip or awaited host call on the ordinary safe paths;
+the evaluator tests pin those call counts, and the search ledger tests pin one
+HTTP invocation and no fallback device query when membership is proved current.
+The ordinary point controls' largest pooled median increase is **0.117 ms**.
+The whole artifacts include the new transaction metadata work. These shared-host
+samples do not establish zero overhead or a speedup: tails vary, including a
+**3.014 ms** higher wasm online-only p95, and individual paired delivery order
+also varies. Raw creation-order results and paired differences are retained;
+no outliers were removed. Pre-codec measurements are historical and excluded.
+
+Final measured wasm: **2,117,335 B raw / 639,810 B gzip**, versus rebuilt round
+0's **2,116,457 / 639,750**: **+878 raw / +60 gzip**. The budget rises **53 B**
+to **639,940 B**, retaining exactly the recorded **130 B macOS allowance**.
+No macOS machine was used. The runtime ceilings are unchanged.
+
+The first search scope encoding introduced an extra borrowed-string serializer;
+it now reuses the existing owned-string envelope serializer. The attribution
+check also exposed an **inherited** `i64` dynamic-envelope serializer omission,
+reproduced on the unmodified round-0 artifact (`baseline-attribution.log`).
+The exact scalar is now admitted alongside the existing string scalars;
+regressions still reject owned typed containers, borrowed-string duplication
+and non-text decoders. This tooling correction changes no runtime bytes.
+Eb1000 lacks the standalone Brotli executable, so the final measurement uses
+the checked-in [local CLI equivalent](./round1/brotli.mjs), Node's built-in
+Brotli at quality 11. The earlier missing-command log is not a Brotli result.

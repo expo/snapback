@@ -1,0 +1,357 @@
+✔ ordinary mixed search process: retained first page, consumed prefixes and every ID exactly once (444.630838ms)
+✔ ordinary mixed search wasm: retained first page, consumed prefixes and every ID exactly once (762.221048ms)
+✔ ordinary mixed search process: complete empty server cannot replace departed hits (296.948339ms)
+✔ ordinary mixed search wasm: complete empty server cannot replace departed hits (250.381908ms)
+✔ ordinary mixed search process: device words cut keeps the server page and its consumed continuation (328.421452ms)
+✔ ordinary mixed search process: device meter cut keeps the server page and its consumed continuation (3698.388712ms)
+✔ ordinary mixed search wasm: device words cut keeps the server page and its consumed continuation (311.016163ms)
+✔ ordinary mixed search wasm: device meter cut keeps the server page and its consumed continuation (2879.38407ms)
+✔ ordinary mixed search process: newer current rows never enter the retained device scan (266.255768ms)
+✔ ordinary mixed search wasm: newer current rows never enter the retained device scan (208.778466ms)
+✖ ordinary mixed search process: an at-changing current edit cannot reappear as a stale later device body (307.071759ms)
+✖ ordinary mixed search wasm: an at-changing current edit cannot reappear as a stale later device body (231.405634ms)
+✔ ordinary mixed search process: current-only pages are fresh; windowed retained coverage stays unknown (291.978198ms)
+✔ ordinary mixed search process: current-only pages are fresh; horizon-free absence is complete (300.411383ms)
+✔ ordinary mixed search wasm: current-only pages are fresh; windowed retained coverage stays unknown (238.547362ms)
+✔ ordinary mixed search wasm: current-only pages are fresh; horizon-free absence is complete (238.795614ms)
+✔ ordinary mixed search process: server cursor seeks the exact offline suffix (278.671465ms)
+✔ ordinary mixed search wasm: server cursor seeks the exact offline suffix (223.748824ms)
+✔ ordinary mixed search: link change and state reset restart, rejoin excludes stale retained lane (328.72773ms)
+✔ ordinary mixed search: departure during delivery rereads against the current authority (375.088414ms)
+✖ ordinary mixed search: a real server drain cut is never automatically drained (3166.925294ms)
+✔ ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it (2199.122513ms)
+✔ ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data (633.823336ms)
+✔ ordinary mixed search process: reopen recomputes unconsumed server hits without a buffer (383.009351ms)
+✔ ordinary mixed search wasm: reopen recomputes unconsumed server hits without a buffer (313.4551ms)
+✔ mounted React ordinary search follows departure, offline and rejoin without switching queries (2060.129073ms)
+✔ ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor (420.088708ms)
+✔ ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor (309.00008ms)
+✔ ordinary ascending Unicode ties cross retained/current sources process (371.63801ms)
+✔ ordinary ascending Unicode ties cross retained/current sources wasm (262.846726ms)
+✖ ordinary mixed search process: combined keyset boundary excludes new heads last (323.076366ms)
+✖ ordinary mixed search process: combined keyset boundary excludes new heads first (351.682529ms)
+✖ ordinary mixed search wasm: combined keyset boundary excludes new heads last (271.097218ms)
+✖ ordinary mixed search wasm: combined keyset boundary excludes new heads first (261.98855ms)
+✖ ordinary mixed search: real word-dense drain pages follow the combined keyset once (2784.666555ms)
+{"host":"wasm","owner":"same","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"930da58dd3cc7b7005ad8e3c23460163","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"930da58dd3cc7b7005ad8e3c23460163","transfer_store_id":"930da58dd3cc7b7005ad8e3c23460163","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm commit between evaluation and capture: same owner (633.102936ms)
+{"host":"wasm","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"fc6fda6af2191d7c3d72eb65b003c41e","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"fc6fda6af2191d7c3d72eb65b003c41e","transfer_store_id":"fc6fda6af2191d7c3d72eb65b003c41e","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm commit between evaluation and capture: other owner (226.745146ms)
+{"host":"process","owner":"same","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"02091c5c6236858e5be98b57054b5b9e","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"02091c5c6236858e5be98b57054b5b9e","transfer_store_id":"02091c5c6236858e5be98b57054b5b9e","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process commit between evaluation and capture: same owner (293.842142ms)
+{"host":"process","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"8f3c74734f7a7343f0650196e56cba7a","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"8f3c74734f7a7343f0650196e56cba7a","transfer_store_id":"8f3c74734f7a7343f0650196e56cba7a","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process commit between evaluation and capture: other owner (288.633212ms)
+✔ ahead server empty is replaced by permitted partial history, never remembered as absence (3.226738ms)
+✔ stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true} (0.266048ms)
+✔ stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true} (0.262744ms)
+✔ unchanged fast path has no added device call: until-revoked (0.335182ms)
+✔ unchanged fast path has no added device call: online only (0.243075ms)
+✔ unchanged fast path has no added device call: disjoint (0.219409ms)
+✔ unchanged fast path has no added device call: equal cut (0.180241ms)
+✔ unchanged fast path has no added device call: older cut (0.177056ms)
+✔ unchanged fast path has no added device call: complete local (0.15362ms)
+✔ uncertain routing remains provisional: static unexecuted branch (0.411707ms)
+✔ uncertain routing remains provisional: native (0.271397ms)
+✔ uncertain routing remains provisional: missing watermark (0.19372ms)
+✔ uncertain routing remains provisional: invalid watermark (0.216745ms)
+✔ uncertain routing remains provisional: missing sequence (0.250425ms)
+✔ caught-up device reroutes the original fallback: retained partial (0.292158ms)
+✔ caught-up device reroutes the original fallback: retained complete (0.1666ms)
+✔ caught-up device reroutes the original fallback: still current (0.207481ms)
+✔ caught-up device reroutes the original fallback: new composition (0.450215ms)
+✔ caught-up device reroutes the original fallback: new row mask (0.15316ms)
+✔ caught-up device reroutes the original fallback: local refusal (0.185638ms)
+✔ an explicit original-query refusal wins without waiting for the replica (0.162894ms)
+✔ the watermark await preserves the authority publication fence (0.261663ms)
+✔ the watermark await preserves the incarnation publication fence (0.13965ms)
+✔ the watermark await preserves the credentials publication fence (0.756184ms)
+✔ the watermark await preserves the prediction publication fence (0.139289ms)
+✔ the watermark await preserves the abort publication fence (0.39399ms)
+✔ the watermark await preserves the closed publication fence (0.134441ms)
+✔ known retained composition at an ahead cut: rows (0.491777ms)
+✔ known retained composition at an ahead cut: components (0.170946ms)
+✔ known retained composition at an ahead cut: lost retention (0.104637ms)
+✔ known retained composition at an ahead cut: withheld (0.104156ms)
+✔ a rejected watermark read withholds publication (authority changed: false) (0.207641ms)
+✔ a rejected watermark read withholds publication (authority changed: true) (0.104016ms)
+✔ ahead positive server page stays useful and provisional (local rows: 0) (0.184947ms)
+✔ ahead positive server page stays useful and provisional (local rows: 1) (0.085548ms)
+✔ structured empty siblings cannot replace pending local history (0.148032ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"4f5419b16726947ff3f6d4081fc629aa","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"wasm","deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":null,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"since":1791144564893,"existence":"present"}}
+✔ wasm: nonblank search while leave is held (683.117359ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"3362b27dfb97c0d3e1b0d26dcbdf8a0d","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"process","deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":null,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"since":1791144565216,"existence":"present"}}
+✔ process: nonblank search while leave is held (332.029291ms)
+ℹ tests 77
+ℹ suites 0
+ℹ pass 69
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26549.327919
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:175:40
+✖ ordinary mixed search process: an at-changing current edit cannot reappear as a stale later device body (307.071759ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  20 !== 65
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:189:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 20,
+    expected: 65,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:175:40
+✖ ordinary mixed search wasm: an at-changing current edit cannot reappear as a stale later device body (231.405634ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  20 !== 65
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:189:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 20,
+    expected: 65,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:243:1
+✖ ordinary mixed search: a real server drain cut is never automatically drained (3166.925294ms)
+  TypeError: Cannot read properties of null (reading 'slice')
+      at decode (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:54:46)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:264:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:411:1
+✖ ordinary mixed search process: combined keyset boundary excludes new heads last (323.076366ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'newHead',
+  +   'r44',
+  +   'r00',
+  +   'r01',
+  +   'r02',
+  +   'r03',
+  +   'r04',
+  +   'r05',
+  +   'r06',
+  +   'r07',
+  +   'r08',
+  +   'r09',
+  +   'r10',
+  +   'r11',
+  +   'r12',
+  +   'r13',
+  +   'r14',
+  +   'r15',
+  +   'r16',
+  +   'r17'
+  -   'r40',
+  -   'r41',
+  -   'r42',
+  -   'r43'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:425:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'newHead', 'r44', 'r00',
+      'r01',     'r02', 'r03',
+      'r04',     'r05', 'r06',
+      'r07',     'r08', 'r09',
+      'r10',     'r11', 'r12',
+      'r13',     'r14', 'r15',
+      'r16',     'r17'
+    ],
+    expected: [ 'r40', 'r41', 'r42', 'r43' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:411:1
+✖ ordinary mixed search process: combined keyset boundary excludes new heads first (351.682529ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'newHead',
+  +   'r44',
+  +   'r00',
+  +   'r01',
+  +   'r02',
+  +   'r03',
+  +   'r04',
+  +   'r05',
+  +   'r06',
+  +   'r07',
+  +   'r08',
+  +   'r09',
+  +   'r10',
+  +   'r11',
+  +   'r12',
+  +   'r13',
+  +   'r14',
+  +   'r15',
+  +   'r16',
+  +   'r17'
+  -   'r40',
+  -   'r41',
+  -   'r42',
+  -   'r43'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:425:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'newHead', 'r44', 'r00',
+      'r01',     'r02', 'r03',
+      'r04',     'r05', 'r06',
+      'r07',     'r08', 'r09',
+      'r10',     'r11', 'r12',
+      'r13',     'r14', 'r15',
+      'r16',     'r17'
+    ],
+    expected: [ 'r40', 'r41', 'r42', 'r43' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:411:1
+✖ ordinary mixed search wasm: combined keyset boundary excludes new heads last (271.097218ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'newHead',
+  +   'r44',
+  +   'r00',
+  +   'r01',
+  +   'r02',
+  +   'r03',
+  +   'r04',
+  +   'r05',
+  +   'r06',
+  +   'r07',
+  +   'r08',
+  +   'r09',
+  +   'r10',
+  +   'r11',
+  +   'r12',
+  +   'r13',
+  +   'r14',
+  +   'r15',
+  +   'r16',
+  +   'r17'
+  -   'r40',
+  -   'r41',
+  -   'r42',
+  -   'r43'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:425:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'newHead', 'r44', 'r00',
+      'r01',     'r02', 'r03',
+      'r04',     'r05', 'r06',
+      'r07',     'r08', 'r09',
+      'r10',     'r11', 'r12',
+      'r13',     'r14', 'r15',
+      'r16',     'r17'
+    ],
+    expected: [ 'r40', 'r41', 'r42', 'r43' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:411:1
+✖ ordinary mixed search wasm: combined keyset boundary excludes new heads first (261.98855ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'newHead',
+  +   'r44',
+  +   'r00',
+  +   'r01',
+  +   'r02',
+  +   'r03',
+  +   'r04',
+  +   'r05',
+  +   'r06',
+  +   'r07',
+  +   'r08',
+  +   'r09',
+  +   'r10',
+  +   'r11',
+  +   'r12',
+  +   'r13',
+  +   'r14',
+  +   'r15',
+  +   'r16',
+  +   'r17'
+  -   'r40',
+  -   'r41',
+  -   'r42',
+  -   'r43'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:425:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'newHead', 'r44', 'r00',
+      'r01',     'r02', 'r03',
+      'r04',     'r05', 'r06',
+      'r07',     'r08', 'r09',
+      'r10',     'r11', 'r12',
+      'r13',     'r14', 'r15',
+      'r16',     'r17'
+    ],
+    expected: [ 'r40', 'r41', 'r42', 'r43' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/ordinary-search.test.mjs:430:1
+✖ ordinary mixed search: real word-dense drain pages follow the combined keyset once (2784.666555ms)
+  TypeError: Cannot read properties of null (reading 'slice')
+      at decode (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:54:46)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search.test.mjs:451:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
