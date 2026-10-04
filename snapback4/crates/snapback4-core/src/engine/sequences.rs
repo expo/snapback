@@ -273,9 +273,44 @@ impl Runner<'_> {
         Ok(())
     }
 
-    /// Fill the insert expression's result with its assigned fields. The
-    /// original insert payload never becomes a caller-supplied ordinal.
-    pub(super) fn sequence_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
+    /// Whether insertion must complete the bound result image.
+    pub(super) fn needs_insert_result(&self, name: &str, row: &Value) -> bool {
+        let table = &self.schema.tables[name];
+        !table.sequences.is_empty() || self.schema.receipt_insert(name)
+            || table.columns.iter().any(|(field, ty)| row.field(field).is_err()
+                && !table.engine_field(field) && !crate::schema::timeline::is_slot(field)
+                && !table.maintained.contains_key(field) && (ty.is_optional() || table.defaults.contains_key(field)))
+    }
+
+    // @ref LLP 3000.007#5.4 — complete the result only after supplied-field
+    // authority and defaults have run; omission is never an explicit null input.
+    fn complete_insert_result(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
+        let table = &self.schema.tables[name];
+        let missing = |field: &String, ty: &ColumnType| row.field(field).is_err()
+            && !table.engine_field(field) && !crate::schema::timeline::is_slot(field)
+                && !table.maintained.contains_key(field) && (ty.is_optional() || table.defaults.contains_key(field));
+        let bytes = table.columns.iter().filter(|(f,t)| missing(f,t)).fold(0u64, |bytes, (f,_)|
+            bytes.saturating_add(80 + f.len() as u64).saturating_add(
+                match table.defaults.get(f) {
+                    Some(crate::schema::ColumnDefault::Literal(value)) => super::runner::expression_copy(value),
+                    Some(crate::schema::ColumnDefault::Viewer) => self.context.viewer.len() as u64,
+                    Some(crate::schema::ColumnDefault::Now) | None => 0,
+                }));
+        if bytes == 0 { return Ok(row); }
+        self.meter.heap(super::runner::expression_heap(&row).saturating_add(bytes))?;
+        let now = self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?;
+        let mut fields = row.as_object()?.clone();
+        for (field, ty) in &table.columns {
+            if missing(field, ty) {
+                fields.insert(field.clone(), table.defaults.get(field).map_or(Value::Null, |d| d.value(now, &self.context.viewer)));
+            }
+        }
+        Ok(Value::Row(fields.into()))
+    }
+
+    /// Fill the result without making engine values caller-supplied fields.
+    pub(super) fn sequence_result(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
+        let mut row = self.complete_insert_result(name, row)?;
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         if table.sequences.is_empty() {
             return self.receipt_result(name, row);
@@ -305,6 +340,7 @@ struct SequenceProbe<'a, 'b> {
     next: bool,
 }
 impl super::rules::Probe for SequenceProbe<'_, '_> {
+    fn reference(&mut self, table: &str, id: &Value, field: &str) -> Result<Option<Value>, RuntimeError> { self.runner.rule_reference(table, id, field) }
     fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn field(&mut self, field: &str, old: bool) {

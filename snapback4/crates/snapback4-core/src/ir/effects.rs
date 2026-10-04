@@ -10,8 +10,29 @@ pub struct Effects {
     pub writes: BTreeSet<String>,
     pub renews: bool,
     pub emit: bool,
+    uses: Option<BTreeMap<String, u8>>,
 }
 impl Effects {
+    // @ref LLP 3000.007#5.4 — a receiver read only by its own insert is discarded.
+    // Count syntax, including untaken arms and loop bodies: extra uses may keep
+    // an unnecessary result, but no dynamic consumer can be missed. Counts cap
+    // at two; static program analysis never traverses caller/stored values.
+    pub(crate) fn variable_uses(body: &[Stmt]) -> BTreeMap<String, u8> {
+        let mut effects = Self { uses: Some(BTreeMap::new()), ..Self::default() };
+        effects.statements(body);
+        effects.uses.unwrap()
+    }
+    fn variable(&mut self, name: &str) {
+        if let Some(uses) = &mut self.uses {
+            let count = uses.entry(name.into()).or_default();
+            *count = count.saturating_add(1).min(2);
+        }
+    }
+    pub fn writes_in(body: &[Stmt]) -> bool {
+        let mut effects = Self::default();
+        effects.statements(body);
+        !effects.writes.is_empty()
+    }
     pub fn of(program: &Program, schema: &crate::schema::Schema) -> Self {
         let mut effects = Self::default();
         effects.statements(&program.body);
@@ -33,7 +54,7 @@ impl Effects {
                 | Stmt::Assign { value, .. } => {
                     self.expression(value);
                 }
-                Stmt::Push { value, .. } => self.expression(value),
+                Stmt::Push { target, value } => { self.variable(target); self.expression(value); }
                 Stmt::Return(value)
                 | Stmt::Require {
                     condition: value, ..
@@ -113,7 +134,8 @@ impl Effects {
                 self.reads.insert(r.table.clone());
                 self.expression(&r.seed);
             }
-            LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
+            LoopDomain::ArgList { name, .. } => self.variable(name),
+            LoopDomain::LiteralRange { .. } => {}
         }
     }
     fn read(&mut self, read: &Read) {
@@ -124,6 +146,7 @@ impl Effects {
     }
     fn scan(&mut self, scan: &Scan) {
         self.reads.insert(scan.table.clone());
+        if let Bound::Arg { name, .. } = &scan.take { self.variable(name); }
         for key in &scan.prefix {
             match key {
                 IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => self.expression(e),
@@ -203,7 +226,8 @@ impl Effects {
                     }
                 }
             }
-            Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
+            Expr::Variable(name) => self.variable(name),
+            Expr::Literal(_) | Expr::Input(_) => {}
         }
     }
 }

@@ -1,0 +1,59 @@
+{
+  "base": "a1e278d32ce6580bb6451da92dbdd604bce2f346",
+  "host": "eb1000 (expose-builder-pixel)",
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "focused_rust_passed": 155,
+  "focused_wire_passed": 10,
+  "codec_census_passed": 26,
+  "baseline_cases": {
+    "empty_owned_default_heap": 1834,
+    "bound_insert_refusal_heap": 16801227
+  },
+  "after_exact_heap": {
+    "empty_owned_default": 1621,
+    "bound_insert_2400000": 14401017,
+    "discarded_insert_3000000": 12000421,
+    "discarded_if_absent_4000000": 16000421
+  },
+  "device_exactness": "For memory, SQLite, wasm and process: unchanged mutation body with an unused text argument pads each expected heap total exactly to 16777216 and succeeds; one byte more refuses E_BOUND. Original mutations also predict with the expected result.",
+  "wasm": {
+    "raw": 2065586,
+    "gzip": 623025,
+    "round1_raw": 2065629,
+    "round1_gzip": 623029,
+    "delta_raw": -43,
+    "delta_gzip": -4,
+    "cap": 623655,
+    "estimated_macos_allowance": 130,
+    "headroom": 500,
+    "sha256": "77fd5bb308b93e9c8a094cb7ab68c94fbc78df145c60c821999a7ea632d80b98"
+  },
+  "commands": [
+    "cargo test -p snapback4-lang --test qe2_ergonomics --test guide --test lowering -- --nocapture",
+    "cargo test -p snapback4-core --lib qe2_allocation_tests -- --nocapture --test-threads=1",
+    "cargo test -p snapback4-device --test qe2_allocations --test qe2_ergonomics -- --nocapture --test-threads=1",
+    "node --test --test-concurrency=1 packages/snapback4/test/qe2-allocations.test.mjs packages/snapback4/test/qe2-ergonomics.test.mjs",
+    "node --test packages/snapback4/test/wasm-codec-census.test.mjs",
+    "bash scripts/build-wasm.sh",
+    "./ref-check --verbose"
+  ],
+  "log_normalization": "Text logs trim trailing whitespace and blank EOF lines; full-suite.log.gz retains the verbatim full output.",
+  "sha256": {
+    "affected-device.log": "4631abc8332af8e9d8a4e27592ec24ccdacc3507c04ed04fc73ba6590ea3d3ec",
+    "affected-language-final.log": "a2cd52a675172412e02f82713583382742503f8dc6c6af78b71a87e090bafedc",
+    "codec-census.log": "69b1ce8f7a56cf902bc01f727f4653564156340e71ea95f352fd0848f8027dc8",
+    "device-before.log": "dcb53b46b7930960bbc26dfb25155a7f9470dbbac57e6f90ac8c7a138ae349a4",
+    "meter-tests-final.log": "eaf414a21ed17a662332c08aeb001c84ea3e2498163e5a7e57c7cd7ea7bc21c1",
+    "ref-check.log": "20fc184b4e9ff3aa9b69ca26ea07f9add7ed35dde6e87d82f24b6484422438c8",
+    "source-sha256.json": "588251e8e9559bf79d0a1f117fd545dc0640b6f20c2892cc34c421d15e2af175",
+    "wasm-build.log": "0680c65771478c2e27da3d07b6361ed41659a8320acc0260f2ad3b439ebd0fdb",
+    "wire-after.log": "75f58cf930d4f0018ed792d93f115f38921a3f8387ef0729539382e22b7c06da",
+    "wire-before.log": "a05302a346fc0846e3a7f6b9f9ae5b0421d2f3599623034168b4bb93c7d21adb"
+  }
+}

@@ -619,7 +619,7 @@ impl Runner<'_> {
                         },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
                         crate::schema::RuleTerm::Literal(value) => value.clone(),
-                        crate::schema::RuleTerm::OldField(_) => Value::Null,
+                        crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } => Value::Null,
                     })
                     .collect();
                 self.read_tables.insert(target.clone());

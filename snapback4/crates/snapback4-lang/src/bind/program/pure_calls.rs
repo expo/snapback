@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 pub(super) const CONSTANTS: &str = "$pureCallConstants";
 
 #[derive(Debug)]
-enum Stable {
+pub(super) enum Stable {
     Literal(String),
     Snapshot(String, Vec<String>),
     Viewer,
@@ -24,7 +24,7 @@ impl Binder<'_> {
         Some((vec!["$pureCall".into(), stable.key()], roots))
     }
 
-    fn stable_value(&self, value: &A, roots: &mut BTreeSet<String>) -> Option<Stable> {
+    pub(super) fn stable_value(&self, value: &A, roots: &mut BTreeSet<String>) -> Option<Stable> {
         match value {
             A::Literal { .. } => Some(Stable::Literal(print::expression(value))),
             A::Name { name, .. } if name == "viewer" => Some(Stable::Viewer),
@@ -81,7 +81,7 @@ impl Binder<'_> {
 impl Stable {
     // Escaped serialization of the structured identity, never source
     // sites or helper temporaries. Argument order and snapshot identity matter.
-    fn key(&self) -> String {
+    pub(super) fn key(&self) -> String {
         match self {
             Self::Literal(value) => format!("literal:{value:?}"),
             Self::Snapshot(root, path) => format!("snapshot:{root:?}:{path:?}"),

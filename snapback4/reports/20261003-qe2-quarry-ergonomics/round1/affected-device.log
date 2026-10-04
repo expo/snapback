@@ -1,0 +1,29 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 53.04s
+     Running tests/qe2_allocations.rs (snapback4/target/debug/deps/qe2_allocations-a8e0d5627d20040c)
+
+running 6 tests
+test memory_discarded_if_absent ... memory seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 16000421, output_bytes: 13, rows_written: 1 }
+ok
+test memory_discarded_quarry_insert ... memory seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 12000421, output_bytes: 13, rows_written: 1 }
+ok
+test memory_empty_default ... memory add: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 14, heap_bytes: 1834, output_bytes: 10, rows_written: 1 }
+ok
+test sqlite_discarded_if_absent ... sqlite seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 16000421, output_bytes: 13, rows_written: 1 }
+ok
+test sqlite_discarded_quarry_insert ... sqlite seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 12000421, output_bytes: 13, rows_written: 1 }
+ok
+test sqlite_empty_default ... sqlite add: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 14, heap_bytes: 1834, output_bytes: 10, rows_written: 1 }
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/qe2_ergonomics.rs (snapback4/target/debug/deps/qe2_ergonomics-669fec27571c99a6)
+
+running 2 tests
+test memory_total_results_guards_and_rule_hops ... ok
+test sqlite_total_results_guards_and_rule_hops ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
