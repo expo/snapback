@@ -553,7 +553,9 @@ test("release serving repairs dangling legacy links and refuses an unexpected re
 for (const authority of ["owner", "failed branch", "second witness", "multiple witnesses", "correlated branches"]) {
   test(`release nextExpiry excludes irrelevant hidden grants: ${authority}`, { timeout: hangBudget(6) }, async t => {
     const { deployment, schema, run } = fixture(t);
-    const witness = "exists grants[parent = .parent, who = viewer, kind = 'admin']";
+    const witness = authority === "multiple witnesses"
+      ? "(exists grants[parent = .parent, who = viewer, slot = 0, kind = 'admin'] or exists grants[parent = .parent, who = viewer, slot = 1, kind = 'admin'])"
+      : "exists grants[parent = .parent, who = viewer, kind = 'admin']";
     const rule = authority === "owner" ? `${witness} or .owner = viewer`
       : authority === "failed branch" ? `(${witness} and .owner != viewer) or .owner = viewer`
       : authority === "multiple witnesses" ? witness
@@ -569,7 +571,7 @@ table grants:
   kind: text <=20
   until: time ?
   expire at .until
-  ${authority === "multiple witnesses" ? "by byParentWho: parent, who" : "unique parent, who"}
+  ${authority === "multiple witnesses" ? "slot: int default 0\n  unique parent, who, slot" : "unique parent, who"}
   read <- deny
   insert <- allow
   update <- allow
@@ -593,7 +595,7 @@ table messages:
 mutation prepare(until: time, stable: time):
   insert grants { id: 'hidden', parent: 'p', who: viewer, kind: 'guest', until }
   insert otherGrants { id: 'stable', parent: 'p', who: viewer, until: stable }
-  ${authority === "multiple witnesses" ? "insert grants { id: 'later', parent: 'p', who: viewer, kind: 'admin', until: stable }" : ""}
+  ${authority === "multiple witnesses" ? "insert grants { id: 'later', parent: 'p', who: viewer, slot: 1, kind: 'admin', until: stable }" : ""}
   insert messages { id: 'own', parent: 'p' }
 mutation change(until: time, kind: text <=20):
   update grants['hidden'] { until, kind }

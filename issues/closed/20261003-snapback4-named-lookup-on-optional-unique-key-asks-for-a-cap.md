@@ -44,3 +44,37 @@ Add a guide sentence under `guide indexes` or `guide reads` saying how null argu
 ## Reproduction
 
 Copy the calibration #29 source (`.../astra/source/snapback/{schema.q,windows.q,workers/push.mjs}`), change line 206 to the named form, and run `snapback4 check`.
+
+## Resolved — 2026-10-03, Lane NL
+
+Exact named equalities over a plain unique key now select a point in either
+order, including nullable columns. Round 1 supersedes the initial null rule:
+every argument on a nullable column of the selected key must be provably
+non-null (required type or guard). Otherwise both spellings and `exists`
+refuse with `E_QUARRY_NULL_KEY`, explaining replica-ambiguous null ties and
+offering a guard, an explicitly bounded population, or an id lookup. No cap
+is suggested as a repair of the point itself. Partial keys still need bounds.
+Required-key null arguments address nothing. Storage null-bearing uniqueness,
+population equality and maintained aggregate null groups are unchanged.
+
+Point plans match when both spellings select the same index without residual
+equalities. A shorter total unique key can instead serve a named lookup with
+extra equality checks. Competing nonunique indexes no longer make exact
+unique rule probes ambiguous. A nullable unique population repair keeps an
+existing valid page bound; an otherwise bare key gets `by .id` only when
+verified in context, or no rewrite.
+
+Regressions cover server, memory and SQLite, all required/optional and null
+combinations of two- and three-column keys, every named order, duplicate
+writes, qualified plan identity, and the real calibration #29 source. Its copied app
+passes `check` with the named form. The indexes guide and LLP 3000.013 §2.2
+document the semantics. A verified diagnostic repair for an aggregate now
+adds `by .id` so its population keeps every tied null row.
+
+Round 2 also refuses ambiguous nonunique point probes (`E_QUARRY_POINT_KEY`),
+including explicit indexes, and preserves probe admission through lane planning.
+Scan and planned-view guards now narrow focal columns. Point diagnostics give
+recovery guidance without unverified executable edits. Population equality
+and maintained null groups remain unchanged.
+
+See the [verification report](../../snapback4/reports/20261003-nl-named-key-lookup/REPORT.md).

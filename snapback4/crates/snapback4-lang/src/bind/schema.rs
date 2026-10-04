@@ -378,18 +378,52 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
 
 /// Bind a rule expression over a table's focal row.
 pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
-    let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read };
+    let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error)
     })
 }
 
+#[derive(Clone)]
 struct RuleBindings {
     old: Option<String>,
     next: Option<String>,
     update: bool,
     insert: bool,
     hops: bool,
+    present: Vec<RuleTerm>,
+}
+
+// @ref LLP 3000.013#2.2 — presence facts retain a reference term's old/next image.
+// Facts hold on the logical edge where the next operand can affect truth.
+// Expiry accounting may evaluate other edges too: the shared runtime returns
+// no witness for an ordinary unique null key, without accessing tied rows.
+// Thus admission does not require physical short-circuiting. Facts still
+// cannot leak from one OR alternative into an unrelated alternative.
+fn present_terms(rule: &RuleExpr, truth: bool) -> Vec<RuleTerm> {
+    match rule {
+        RuleExpr::Ne(left, right) if truth => non_null_term(left, right),
+        RuleExpr::Eq(left, right) if !truth => non_null_term(left, right),
+        RuleExpr::Not(inner) => present_terms(inner, !truth),
+        RuleExpr::And(parts) | RuleExpr::Or(parts) => {
+            let union = matches!(rule, RuleExpr::And(_)) == truth;
+            let mut facts = parts.iter().map(|part| present_terms(part, truth));
+            let mut result = facts.next().unwrap_or_default();
+            for facts in facts {
+                if union { for term in facts { if !result.contains(&term) { result.push(term); } } }
+                else { result.retain(|term| facts.contains(term)); }
+            }
+            result
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn non_null_term(left: &RuleTerm, right: &RuleTerm) -> Vec<RuleTerm> {
+    match (left, right) {
+        (RuleTerm::Literal(Value::Null), term) | (term, RuleTerm::Literal(Value::Null)) => vec![term.clone()],
+        _ => Vec::new(),
+    }
 }
 
 fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBindings) -> Fallible<RuleExpr> {
@@ -411,8 +445,13 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             Ok(RuleExpr::Public { reason })
         }
         Expr::Binary { op, left, right, .. } => match op.as_str() {
-            "and" => Ok(RuleExpr::And(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
-            "or" => Ok(RuleExpr::Or(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
+            "and" | "or" => {
+                let left = rule_expr(catalog, info, left, bindings)?;
+                let mut guarded = bindings.clone();
+                guarded.present.extend(present_terms(&left, op == "and"));
+                let right = rule_expr(catalog, info, right, &guarded)?;
+                Ok(if op == "and" { RuleExpr::And(vec![left, right]) } else { RuleExpr::Or(vec![left, right]) })
+            }
             "=" | "!=" | ">=" | ">" | "<=" | "<" => {
                 let ordered = !matches!(op.as_str(), "=" | "!=");
                 if ordered && (!bindings.update || bindings.old.is_none()) { return Err(unknown(site, "ordered comparisons belong to update (old, next) transitions", "update (old, next) <- next.readUpTo >= old.readUpTo")); }
@@ -533,7 +572,7 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
 /// Final-insert obligations retain their exact-index write-path contract.
 /// Ordinary effect rules use `probe` with residual equalities enabled.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
-    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: false };
+    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: false, present: Vec::new() };
     let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false)?;
     Ok((table, index, key))
 }
@@ -580,9 +619,15 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         let declared = target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
             .filter(|index| match &read.index { Some(name) => &index.name == name, None => index.unique && index.columns.len() == terms.len() }).collect::<Vec<_>>();
         if declared.len() != 1 {
-            let columns = declared.first().map(|index| index.columns.as_slice()).unwrap_or(&[]);
-            let keys = read.keys.iter().enumerate().map(|(at, key)| format!("{} = {}", columns.get(at).map(String::as_str).unwrap_or("column"), crate::print::expression(&key.value))).collect::<Vec<_>>().join(", ");
-            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity", format!("{}[{keys}]", read.table)).guide("reads"));
+            // @ref LLP 3000.013#2.2 — rule repairs must select an index and
+            // pass the same admission checks in the original rule context.
+            // Retry declared alternatives when the explicit name is unknown.
+            let alternatives = if declared.is_empty() && read.index.is_some() {
+                target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone()))).collect::<Vec<_>>()
+            } else { declared };
+            let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", "")
+                .guide("reads").repair_read(&read.site, changes));
         }
     }
     let mut candidates: Vec<&IndexDecl> = target
@@ -611,6 +656,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         .collect();
     if extras && named.is_some() {
         if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() { candidates.retain(|i| target.total_unique(i) && i.columns.len() == width); }
+        else if candidates.iter().any(|i| i.unique) { candidates.retain(|i| i.unique); }
     }
     if named.is_none() {
         let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == terms.len()).collect();
@@ -630,9 +676,14 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         }
         many => {
             let names: Vec<&str> = many.iter().map(|i| i.name.as_str()).collect();
-            return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}", read.table, many.len(), names.join(", ")), format!("{} by {}", crate::print::read_expr(read), names[0])));
+            let changes = many.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
+                .map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+            return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}; choose a unique key with admitted arguments", read.table, many.len(), names.join(", ")), "")
+                .repair_read(&read.site, changes));
         }
     };
+    super::point_key::check(target, &index, read, &terms.iter().zip(&types).map(|((column, term), ty)|
+        (column.as_deref(), (!ty.is_optional() && *ty != Ty::Unknown) || bindings.present.contains(term))).collect::<Vec<_>>())?;
     let equalities = terms.iter().filter_map(|(column, term)| column.as_ref().filter(|col| !index.columns.contains(col)).map(|col| (col.clone(), term.clone()))).collect();
     let mut ordered: Vec<RuleTerm> = match &named {
         Some(names) => index.columns.iter().map(|column| {
@@ -741,7 +792,7 @@ table memberships:
   by byPrincipalRoom: principal, room, id
   read <- .principal = viewer
 table messages:
-  room: id ?
+  room: id
   body: text <=100
   by byRoom: room, id
   read <- exists memberships[.room, viewer]

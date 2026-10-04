@@ -57,6 +57,11 @@ fn durable_schema_and_types_keep_base_bytes() {
         schema["tables"]["$recount:unread"]["columns"]["version"] = serde_json::json!({"Optional": {"Text": {"max": 64}}});
         *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap();
     }
+    // NL refuses this formerly accepted nonunique rule probe. Pin that
+    // intentional admission change; every still-admitted byte stays frozen.
+    let refused = snapback4_lang::compile(&[("schema.q".into(), include_str!("fixtures/repair-probe.q").into())]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"));
+    assert!(expected.remove("repair-probe.q").is_some());
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");

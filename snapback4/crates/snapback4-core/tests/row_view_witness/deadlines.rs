@@ -3,7 +3,7 @@ use serde_json::json;
 
 pub const SOURCE: &str = include_str!("schema.q");
 pub fn source(rule: &str, member_expiry: bool) -> String {
-    SOURCE.replace("PREDICATE", rule).replace("MEMBER_EXPIRY", if member_expiry { "expire at .until" } else { "" })
+    SOURCE.replace("PREDICATE", &rule.replace("exists permits[member = .member]", "(exists permits[member = .member, slot = 0] or exists permits[member = .member, slot = 1])")).replace("MEMBER_EXPIRY", if member_expiry { "expire at .until" } else { "" })
 }
 fn engine(rule: &str, member_expiry: bool) -> Engine {
     let b = snapback4_lang::compile(&[("schema.q".into(), source(rule, member_expiry))]);
@@ -14,7 +14,7 @@ fn seed(e: &mut Engine, messages: &[Option<i64>], member: Option<i64>, permits: 
     let mut rows=vec![("rooms",json!({"id":"r"})), ("members",json!({"id":"u","room":"r","until":member})),
         ("gates",json!({"id":"g","member":"u"})), ("links",json!({"id":"l","gate":"g"})), ("leaves",json!({"id":"z","link":"l"}))];
     for (n,until) in messages.iter().enumerate() { rows.push(("messages",json!({"id":format!("m{n}"),"room":"r","until":until}))); }
-    for (n,until) in permits.iter().enumerate() { rows.push(("permits",json!({"id":format!("p{n}"),"member":"u","until":until}))); }
+    for (n,until) in permits.iter().enumerate() { rows.push(("permits",json!({"id":format!("p{n}"),"member":"u","slot":n,"until":until}))); }
     let rows=rows.into_iter().map(|(table,row)| (table.to_string(),wire::row_from_json(&e.schema().tables[table],&row).unwrap())).collect::<Vec<_>>();
     e.seed_at(rows,1).unwrap();
 }

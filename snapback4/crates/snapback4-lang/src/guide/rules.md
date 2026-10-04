@@ -19,7 +19,7 @@ table reactions:
 Each write-rule term allows one live hop: `.message.conversation`, or `messages[.message].conversation`.
 The target's read rule applies; absent, expired or hidden targets fail closed even under `not` or `= null`.
 Sibling hops are legal; each prepays one probe within bounded authorization work. Devices need current coverage.
-Insert uses the new image, named update either image, and delete its pre-delete image; read-through captures stay unchanged.
+Insert uses the new image, named update either image, and delete its pre-delete image; read-through captures stay unchanged. Null guards narrow the same term and image; guarding `old.ref.key` does not guard `next.ref.key`.
 E_QUARRY_RULE_HOP gives an explicit lookup/read-through rewrite for deeper chains, private/maintained fields or after-insert hops.
 
 ```quarry

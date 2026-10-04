@@ -64,7 +64,7 @@ fn parent_denials_hide_other_groups_and_unpinned_scan_still_refuses() {
     assert!(d.rewrite.contains("reactionTotals[message = .id]"),"{d:?}");
 }
 
-const CAUSES: &str = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\ntable members:\n  parent: parents\n  key: text <=20\n  owner: principal\n  author: principal\n  ordinal: sequence by parent\n  unique key\n  cap 1 by parent\n  read <- .owner = viewer\n  insert <- .author = viewer and (.key != 'budget' or exists grants[parent = .parent])\n  online only\nmutation add(parent: parents, key: text <=20, owner: principal, author: principal):\n  return insert members {parent, key, owner, author}\n";
+const CAUSES: &str = "table parents:\n  public\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  unique byParent: parent\n  read <- deny\n  online only\ntable members:\n  parent: parents\n  key: text <=20\n  owner: principal\n  author: principal\n  ordinal: sequence by parent\n  unique key\n  cap 1 by parent\n  read <- .owner = viewer\n  insert <- .author = viewer and (.key != 'budget' or exists grants[parent = .parent])\n  online only\nmutation add(parent: parents, key: text <=20, owner: principal, author: principal):\n  return insert members {parent, key, owner, author}\n";
 fn cause_args(parent: &str, key: &str, owner: &str, author: &str) -> std::collections::BTreeMap<String,snapback4_core::Value> {
     use snapback4_core::Value;
     [("parent".into(),Value::Id(parent.into())),("key".into(),Value::String(key.into())),("owner".into(),Value::Id(owner.into())),("author".into(),Value::Id(author.into()))].into()
@@ -73,7 +73,7 @@ fn cause_args(parent: &str, key: &str, owner: &str, author: &str) -> std::collec
 #[test]
 fn query_and_capture_evidence_preserves_bytes_meters_and_the_authorizing_phase() {
     use snapback4_core::{engine::{runner::Runner, refusal_trace::RefusalTrace}, meter::{Meter, Ceilings, Cut}, Value};
-    let source = "table parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\n";
+    let source = "table parents:\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: parents\n  until: time\n  expire at .until\n  unique byParent: parent\n  read <- deny\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nquery point(id: parents):\n  return parents[id]\nmutation child(parent: parents):\n  return insert children {parent}\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut e = engine(source);
@@ -210,7 +210,7 @@ fn raw_ir_cannot_enumerate_unpinned_parent_groups() {
 
 #[test]
 fn cross_group_sequence_witness_does_not_promise_first_insert_refusal() {
-    let source = "table parents:\n  public\n  online only\ntable members:\n  parent: parents\n  access: parents\n  principal: principal\n  ordinal: sequence by parent\n  by byAccess: access, principal\n  read <- exists members[access = .parent, principal = viewer]\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert members {parent, access: parent, principal: viewer}\n";
+    let source = "table parents:\n  public\n  online only\ntable members:\n  parent: parents\n  access: parents\n  principal: principal\n  ordinal: sequence by parent\n  unique byAccess: access, principal\n  read <- exists members[access = .parent, principal = viewer]\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert members {parent, access: 'fresh', principal: viewer}\n";
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|d| d.code == "N_SEQUENCE_READ"), "{:?}", b.notes);
@@ -300,7 +300,7 @@ fn hidden_write_rule_denials_record_causes_without_changing_not_found() {
 
 #[test]
 fn sequence_note_uses_declared_column_and_never_marks_a_different_witness_table() {
-    let source="table rooms:\n  public\n  online only\ntable members:\n  room: rooms\n  principal: principal\n  joinedAt: sequence by room\n  by byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\ntable messages:\n  room: rooms\n  principal: principal\n  ordinal: sequence by room\n  by byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\n";
+    let source="table rooms:\n  public\n  online only\ntable members:\n  room: rooms\n  principal: principal\n  joinedAt: sequence by room\n  unique byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\ntable messages:\n  room: rooms\n  principal: principal\n  ordinal: sequence by room\n  unique byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\n";
     let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     let notes=b.notes.iter().filter(|d|d.code=="N_SEQUENCE_READ").collect::<Vec<_>>();

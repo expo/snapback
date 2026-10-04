@@ -84800,6 +84800,319 @@ QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
 
+
+## 2026-10-03 — NL: named nullable unique keys share positional point semantics
+
+Reproduced calibration #29's `schema.q:206` refusal from its actual schema,
+windows and push worker: the named `(low, high)` lookup asked for a cap, while
+the positional key compiled. Exact named equalities over a plain unique key
+now take the same point plan, in any order. The runtime is unchanged: any null
+component exempts a key from uniqueness collisions; a nullable point chooses
+the first live candidate by id, subject to its read rule; a null argument for
+a required key column addresses nothing. Bounded equality populations still
+include every null match. The indexes guide and LLP 3000.013 §2.2 record this.
+
+Seven new regressions cover server, memory and SQLite, reopen, all key orders
+and required/optional/null combinations for arities two and three, absence,
+exists, duplicate writes, point-plan equality, partial-key bounds and the
+calibration source. Its copied app now checks with the named form. The first
+full run found one dependent diagnostic repair: its nullable-key aggregate
+rewrite had relied on the old page meaning. It now adds `by .id` and keeps
+every tied null row; its compile-and-execute regression passes.
+
+All 203 affected tests pass. Both full eb1000 runs used
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+The first reported one failed category in 1,494 seconds (that repair); the
+final run reports `== 0 failure(s) in 1391 s`. Final ordinary clients: 6,034
+passed, 11 existing skips; serial models: 79 passed. Both locked wasm builds
+are identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the unchanged
+618,040 B budget. Reference validation and whitespace checks pass.
+
+The [report](./reports/20261003-nl-named-key-lookup/REPORT.md) cites the engine
+and store code and retains the verification record. The ticket is closed
+under `issues/closed/`. Local commit includes
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published;
+no remote machine or unrelated process was touched.
+
+## 2026-10-03 — NL round 1: nullable unique points require non-null proof
+
+This supersedes the preceding NL entry's first-candidate interpretation.
+A server chooses from its live rows and then authorizes that candidate; a
+replica chooses from the rows it holds. Null ties can therefore produce
+different complete point answers. The operator chose compile-time refusal:
+`E_QUARRY_NULL_KEY` requires every argument on a nullable column of the
+selected unique key to be provably non-null, through its static type or a
+null guard. Both spellings, program/rule `exists`, `created` and keyed writes
+share the check. Rule short circuits and focal shape-field guards retain
+presence facts. Diagnostics offer guards, a bounded population, or row id;
+literal null needs replacement. Storage uniqueness, total population equality,
+required-key null misses and maintained null groups remain unchanged.
+
+Exact unique keys now outrank competing nonunique indexes in point probes,
+including rules. Named reads still prefer a shorter total unique key when
+available and check remaining equalities; plan identity is conditional on
+selecting the same index without residual predicates. Nullable population
+repairs retain `by .id` when verified, including guarded shape fields where
+a bare point would compile; otherwise no rewrite. Existing page bounds are
+preserved. The guide, LLP 3000.013 §2.2 and closed ticket now state this rule.
+Calibration #29's sorted, non-null principal keys remain legal.
+
+All 318 affected tests pass across language, core, memory and SQLite. The
+complete eb1000 suite with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`
+passed with zero failures in 1,397 s: 6,034 client tests passed with 11 existing
+skips, and 79 model tests passed. Legacy disclosure fixtures now guard nullable
+unique probes; timeline privacy probes address the same foreign row by its
+engine-defined id. Their privacy assertions remain intact. After the final
+repair-only adjustment, the entire Rust inventory was repeated on the final
+code: 288 test binaries, 1,001 executions and doctests, all passing.
+
+Wasm is byte-identical to Round 0: 2,048,676 B raw / 617,398 B gzip, 642 B below
+the unchanged 618,040 B budget. Reference and whitespace checks pass. The
+[Round 1 report](./reports/20261003-nl-named-key-lookup/REPORT.md) records code,
+review dispositions and logs, including the superseded in-progress runs.
+Only this session's test processes were signaled. No other machine was used;
+nothing pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-03 — NL round 2: point probes require uniqueness before planning
+
+The nonunique point-exists split predates NL and also affects non-null ties:
+a hidden first server candidate can produce complete false while a device
+holding a later visible candidate produces complete true. Choose compiler
+refusal (`E_QUARRY_POINT_KEY`), keeping the point contract and using existing
+bounded population reads for searches. A fully pinned superset of a required
+unique key is unique too; nullable unique arguments still need non-null proof.
+Rule, created and final-insert probes share admission. Storage equality,
+null-bearing uniqueness, maintained null groups and runtime meters are unchanged.
+
+Membership lane planning retains the original predicate as compiler-only
+admission evidence and binds it before accepting a rewritten lane. Literal-null
+probes cannot disappear during this optimization, including in planned views.
+Scan predicates now bind their focal row in a fresh scope, allowing presence
+guards to narrow its fields without leaking facts across scans. Point diagnostics
+explain the recovery choices without offering unverified source edits. Population
+planning avoids fully pinned nonunique range indexes and adds the needed id
+component. Existing valid page repairs remain valid; nullable populations never
+receive a bare-point repair.
+
+Regressions cover server, memory and SQLite, hidden first null/non-null ties,
+explicit competing indexes, code and rule probes, planning erasure, guarded
+scans and views, and population alternatives. Legacy source fixtures declare
+unique witnesses or use two unique witness slots. Physical-store tests retain
+injected historical ties and their privacy, deadline and meter assertions;
+frozen compatibility tests explicitly pin newly refused historical programs.
+The guide, LLP 3000.013 §2.2, closed ticket and
+[Round 2 report](./reports/20261003-nl-named-key-lookup/REPORT.md) record the change.
+
+Affected compiler suites (303 tests), the lookup/admission matrix (25 tests),
+and the affected legacy fixtures pass. The final complete eb1000 run of
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+passed with zero failures in 1,466 s: 289 Rust test binaries, 1,002 executions
+and doctests; 6,034 client tests passed with 11 existing skips; 79 model tests
+passed. Earlier full runs exposed legacy fixture probes; all were corrected
+and included in the clean final run. Logs: `/tmp/sb4-nl-r2-verification/`, with
+`full-suite-complete.log` recording the final result.
+
+Wasm remains byte-identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the
+unchanged 618,040 B budget. Reference validation and whitespace checks pass.
+Only this session's test processes were signaled. No other machine was used;
+nothing pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-04 — NL round 3: maintained group proof and valid index advice
+
+Restored the maintained null-group exemption before ordinary point uniqueness
+admission. A selected access index that pins every generated `byGroup` column
+identifies one group even with null, including rule probes with an extra value
+predicate. Partial-group and value-only probes spanning groups remain refused.
+This corrects Round 2's unintended compatibility regression without weakening
+ordinary-table uniqueness or changing runtime execution.
+
+Alternative point-index advice now uses the lookup's own uniqueness and
+presence checks, including narrowed argument types. Valid required-unique
+supersets remain available. Unspellable planner tokens are not offered as
+source edits. Tests paste offered reads into the original source and compile
+both positional and reordered named forms. Maintained-group tests exercise
+server rules and equivalent server/memory/SQLite code probes over fully held
+inputs, with null and non-null groups, literal-null arguments and extra value
+predicates; partial-group controls still refuse. The guide and LLP 3000.013
+§2.2 record the precise exemption. Details and logs are in the
+[Round 3 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+The same diagnostic's fully pinned range-to-point advice now checks admission,
+and a point mismatch without a verified alternative emits no source template.
+The regression pastes required and guarded nullable point repairs back into
+context, and verifies that an unguarded nullable range gets no bare point.
+
+Verification on eb1000: 282 affected language tests and 28 lookup/admission
+tests pass, with four existing aggregate-suite ignores. Both exact review
+sources were checked with the rebuilt CLI: the maintained null-group rule
+compiles, and the rejected index mismatch offers no forbidden point rewrite.
+The full `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,533 seconds: 289 Rust binaries / 1,002
+executions plus workspace doctests (569 s), 6,034 client tests with 11 existing
+skips (600 s), and all 79 serial model tests (320 s). Final log:
+`/tmp/sb4-nl-r3-verification/full-suite-complete.log`.
+
+Wasm is byte-identical to Round 2: 2,048,676 B raw / 617,398 B gzip, 642 B below
+the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation passes (527 LLPs, 10,290 refs, zero errors or unchecked
+references), as do whitespace checks. Only this session's superseded test run
+was stopped. No other machine was used; nothing pushed or published. Commit
+trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-04 — NL round 4: compile index repairs in caller context
+
+Closed the unchecked source-rewrite paths in point/range index mismatch and
+program/rule ambiguity diagnostics. They now submit compiler-only candidates
+to the shared repair verifier. It retains the caller's actual read operands,
+reparses the edited declaration and binds it with the original project,
+including helper callers and job chunk contracts. Candidate diagnostics do not
+recursively invoke verification. Only a clean compilation exposes a replacement
+read; independent context errors can conservatively withhold it.
+
+Removed the range template that used index columns as argument expressions and
+the non-Quarry job chunk sketches. Recovery guidance remains prose in the
+message. Required and guarded nullable alternatives still produce verified
+repairs. The point-admission diagnostics and runtime/storage behavior are
+unchanged. Job chunk headers now retain their source spans for verification.
+
+Paste-and-compile tests cover point/range mismatches, program/rule/job ambiguity,
+required and optional arguments, guards and equality order, cursors, filters,
+Unicode/grouped/commented operands, collection consumers, cross-file helper
+callers and other context errors. All 218 affected language tests and 28
+lookup/admission tests pass, with no ignores. The guide and LLP 3000.013 §2.2
+record the contract. Details: [Round 4 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,491 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (542 s), as did 6,034 client tests
+with 11 existing skips (594 s) and all 79 serial model tests (304 s). The rebuilt
+CLI confirms empty rewrites for the three reported forms. Final log:
+`/tmp/sb4-nl-r4-verification/full-suite.log`.
+
+Wasm remains byte-identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the
+unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation passes (527 LLPs, 10,291 refs, zero errors or unchecked
+references), as do whitespace checks. No other machine was used, no unrelated
+process was signaled, and nothing was pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 5: repairs through retained callers
+
+Restored the valid shape and mutation-helper index repairs lost in round 4.
+An index diagnostic arises while binding an actual caller; its verifier now
+uses those retained callers for the shape's focal type and the helper's
+execution mode and placement. It no longer rejects instantiated shapes
+before binding them or adds a query that incorrectly forbids a helper's
+mutation writes. Nested and cross-file callers remain part of the proof.
+The declaration-local parser-repair path still checks an otherwise uncalled
+helper through a typed synthetic query; its `$repair:` compiler-only name
+cannot be authored as an operation. A user query named `repairProbe` no longer
+suppresses a valid repair. Uninstantiated local shapes still lack a focal proof.
+
+Three new regressions failed on the round-4 implementation, then passed with
+the fix. Paste-and-compile coverage includes both equality orders, point reads
+and `exists`, direct/nested shape spreads, mutation helpers, cross-file use,
+name collisions and multiple callers. A bad second caller still withholds a
+repair; the fallback still rejects an invalid uncalled helper. All round-4
+bad-rewrite regressions remain passing. All 224 affected language tests and
+28 server/memory/SQLite lookup-admission tests pass, with no ignores. No
+admission or runtime code changed. LLP 3000.013 §2.2 records the distinction
+between retained callers and the local fallback. Details and evidence:
+[Round 5 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,442 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (495 s), as did 6,034 client tests
+with 11 existing skips (597 s) and all 79 serial model tests (305 s).
+Log: `/tmp/sb4-nl-r5-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 4: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 6: verified positional index choices
+
+Grok's remaining round-4 finding predates that round: an ambiguous positional
+unique key offered a named-key rewrite, which stayed ambiguous when indexes
+had the same columns in opposite orders. Both program and rule diagnostics
+now submit explicit index candidates to the shared in-context repair verifier.
+It preserves the caller's positional expressions, checks each candidate and
+prints source only for a compiling choice. No valid choice means no rewrite.
+The diagnostic stays E_QUARRY_POSITIONAL_SCAN and non-mechanical, since choosing
+an index can change the meaning of positional arguments. Admission and runtime
+behavior are unchanged.
+
+Three new regressions failed before the fix and pass after it. Verbatim paste
+coverage includes point reads, exists/created probes, both orders, required and
+optional arguments, guards and literal nulls, an invalid first candidate and a
+valid inverse, operand comments/grouping, type mismatches and absent arities.
+The older bad-rewrite tests remain green. Grok's repairProbe collision finding
+was already fixed in round 5, and its tests pass again. All 260 affected language,
+28 server/memory/SQLite lookup-admission and 27 CLI repair tests pass, no ignores.
+The guide and LLP 3000.013 §2.2 state the corrected advice. Details:
+[Round 6 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,413 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (469 s), as did 6,034 client tests
+with 11 existing skips (591 s) and all 79 serial model tests (308 s).
+Log: `/tmp/sb4-nl-r6-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 5: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 7: unknown positional index repairs
+
+Restored the valid repairs round 6 withheld for an unknown explicit index
+name. Program reads and rule probes now try declared alternatives when the
+initial name has no match; synthesized indexes stay out of that search. Each
+candidate uses the caller's original positional expressions and passes the
+existing in-context verifier before any source is printed. A typo can offer
+an explicit compatible index, with no unchecked named-key fallback. The
+original program still refuses and the suggestion remains non-mechanical.
+No runtime or point-admission code changed.
+
+Three new regressions failed before the fix and pass after it. Verbatim paste
+coverage includes reads, exists/created rules, required/optional keys and
+arguments, guards, two unknown names, an incompatible first candidate and a
+valid inverse, and grouped/commented operands. Invalid types, unproved nulls
+and nonunique-only point probes still get no source. Earlier repair and
+admission tests remain green. All 263 affected language, 28 server/memory/SQLite
+lookup-admission and 27 CLI repair tests pass, no ignores. LLP 3000.013 §2.2
+records the fallback. Details:
+[Round 7 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,498 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (541 s), as did 6,034 client tests
+with 11 existing skips (598 s) and all 79 serial model tests (310 s).
+Log: `/tmp/sb4-nl-r7-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 6: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
 ## 2026-10-03 — RP: receipt-derived unread counts retain send prediction
 
 Calibration #29's receipts plus row-keyed unread view now leaves `send`,
@@ -85497,6 +85810,48 @@ The [Round 2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-2-
 retains failing baselines, exact meter tests, full-suite output and hashes.
 All work ran on eb1000; nothing pushed or published.
 
+
+## 2026-10-04 — NL round 8: integration with main and QE2
+
+Merged `origin/main` 6e4967479f into NL 93acf8675c, preserving a two-parent
+merge and both histories. Resolved the schema binder conflict with both
+`RuleBindings.hops` and `present`: effect rules keep QE2's hop permission;
+final-insert probes keep hops disabled; both start with no presence facts.
+Rule guards retain each reference's old/next selector. An old-image guard
+cannot admit a next-image nullable key. Point guards still bind and pass NL
+admission before QE2 records row presence; `require exists` cannot prove its
+own ambiguous nullable key safe, nor make optional row fields required.
+
+Added four integration tests covering compiler acceptance/refusals and actual
+server/memory/SQLite execution, including guarded nullable keys, one-hop rule
+terms, old/next update images, deletes, null ties and hidden/absent parents.
+The affected NL and QE2 runs pass 365 Rust tests, 10 wasm/process wire tests
+and 26 codec checks. LLP 3000.013 §2.2 and the indexes/types/rules guide cards
+state the composed contract; existing guide budgets remain unchanged.
+
+The first full suite ran in 1,516 seconds with one process-inspection refusal,
+after all 12 Unicode assertions passed: ps returned PGID 4294967295 in an
+unclassifiable routing prefix. The parser is unchanged from incoming main;
+replaying the exact captured row reproduces its deliberate refusal. Ownership
+and origin remain unclassified. Retained the evidence and opened
+`issues/20261004-snapback4-ps-unsigned-pgid-inspection-refusal.md`. The focused
+Unicode wrapper rerun passes 12/12 with cleanup; no runner check was weakened.
+
+The unchanged-source full-suite rerun passes with zero failures in 1,413
+seconds: 296 Rust binaries / 1,009 executions plus workspace doctests,
+307 client files (6,112 passed, 11 existing skips), 79 serial model tests and
+nine fixture wrappers. All 1,257 recorded source inputs stayed unchanged.
+Wasm is 2,065,586 B raw / 623,025 B gzip, matching QE2 round 2's recorded size
+and staying 630 B under the incoming 623,655 B budget. No budget increase.
+SHA-256: `8fca81ca6628c036993d654c6a55c6526e9d4d5051bb97073c0af886e81dbdd3`.
+
+Reference/metadata and whitespace audits pass. Both journal suffixes and LLP
+revision histories are retained. Work and verification stayed on eb1000;
+no unrelated process was signalled and nothing was pushed. Report:
+`snapback4/reports/20261003-nl-named-key-lookup/REPORT.md`, “Round 8 — integration”.
+Logs, captured ps bytes, hashes and structured results:
+`/tmp/sb4-nl-r8-verification/`.
+
 ## 2026-10-04 — RP round 7: integrate QF, LU and QE2
 
 Merge origin/main `6e4967479f` into lane RP without rebasing. Preserve QF's
@@ -85571,3 +85926,71 @@ negative controls and complete logs. This resolves
 `issues/20261004-snapback4-qf-exiting-linux-pgid-inspection.md`, now on main with
 RP's merge; no duplicate ticket is added. Work and execution stayed on eb1000.
 No push or publication.
+
+## 2026-10-04 — NL round 9: null points during whole-rule expiry traversal
+
+Merged `origin/main` 718ac00471 (RP) into NL b475bbf2f5, retaining both
+journal and LLP revision histories. No production-code conflict needed
+resolution. NL admission, QE2 one-hop references/old-next selectors and RP's
+shared reservations remain intact.
+
+A rule's logical non-null guard does not imply physical short-circuiting:
+whole-rule expiry accounting may visit the other operand. Ordinary unique
+points now return null/false for null keys before storage or coverage work,
+on the shared server/device interpreter, including rule witnesses and created
+facts. Keep logical-edge admission facts; the runtime guard makes their use
+safe on extra expiry visits. Reference lifetimes and non-null rule prices
+stay unchanged. Maintained null groups, population equality and null-bearing
+storage uniqueness retain their semantics. LLP 3000.013 §2.2 and the guide
+state the distinction; source admission and its diagnostics are unchanged.
+
+Reproduced exhaustion with 8,193 expired null ties on memory and SQLite before
+the fix. Regressions now cover OR/AND and null/present/missing arguments on
+both stores and the server, zero key-table access for null probes, complete
+raw null points, composite arities 1–3, created facts, and pinned non-null
+meters/deadlines. The first full run caught two frozen SB2 oracles demanding
+the old null-tie row. Stopped only that owned run. Preserve the frozen inputs
+and name their legacy-null-point conformance exclusion; a separate test runs
+both inputs against SB4's null/false points and unchanged maintained count.
+All 19 corpus/adapter tests pass; no harness test was disabled or ignored.
+
+Affected checks: 1,021 Rust tests pass with one existing ignore; 99 client
+tests pass. The full eb1000 rerun exits zero in 1,406 s: 4,943 Rust tests,
+17 doctests, 6,176 pooled client tests, 79 serial models and nine fixtures pass;
+33 Rust ignores and 11 client skips are existing. The initial guide wording
+mismatch was corrected before qualification. All 1,878 pinned inputs remain
+unchanged after the full run. Reference, documentation-budget and whitespace
+checks pass. Wasm is 2,116,457 B raw / 639,750 B gzip, 7 B below RP's recorded
+merged build and 137 B under the unchanged 639,887 B cap; SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`.
+No other machine, unrelated process signal, push or publication. Report:
+[NL Round 9](./reports/20261003-nl-named-key-lookup/REPORT.md#round-9-2026-10-04).
+Evidence: `/tmp/sb4-nl-r9-verification/`.
+
+## 2026-10-04 — NL round 10: hop equality guards across horizons
+
+Round 9 already fixes both forms in Grok's Round 8 review: a unique null
+probe returns absent and known before storage or horizon coverage. Keep
+its logical-edge admission; `ref = null or exists ...` and
+`not (ref = null) and exists ...` remain safe even when expiry accounting
+visits the probe. This round changes tests and records only, with no binder
+or runtime change. Unguarded and logically reversed guards still refuse.
+
+Add the exact composite-key horizon reproduction through server and actual
+memory/SQLite devices: the null OR predicts the allowed insert, both AND
+spellings deny with E_RULE, and a non-null key outside the horizon still
+needs evidence. Extend the zero/8,193 expired-null-tie and meter/lifetime
+matrices to negated-equality AND. Null probes touch no key-table storage;
+the non-null meter and reference/witness deadlines retain their pinned values.
+
+All 1,024 affected Rust tests pass (one existing ignore). The full eb1000
+suite exits zero in 1,398 s: 4,946 Rust tests, 17 doctests, 6,176 pooled client
+tests, 79 serial models and nine fixture tests pass; 33 Rust ignores and
+11 client skips are existing. All 1,879 pinned inputs remain unchanged.
+Wasm is byte-identical to Round 9: 2,116,457 B raw / 639,750 B gzip, 137 B
+under the unchanged 639,887 B cap; SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`.
+Reference, documentation-budget and whitespace checks pass. No other host,
+push or publication. Report:
+[NL Round 10](./reports/20261003-nl-named-key-lookup/REPORT.md#round-10-2026-10-04).
+Evidence: `/tmp/sb4-nl-r10-verification/`.

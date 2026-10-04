@@ -138,6 +138,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_MODIFIER_SCOPE", &["Parenthesize the inner read", "put the outer page's `by .roomId after c` after its predicate"]),
     ("E_QUARRY_PLACEMENT", &["Keep read-only work in a query, put writes in a mutation or job", "put `break` or `continue` inside the loop they control"]),
     ("E_QUARRY_POSITIONAL_SCAN", &["Use `posts where .authorId = owner last 20 by .at`", "`posts[id = postId]` reads one id"]),
+    ("E_QUARRY_POINT_KEY", &["Use a unique key or a bounded `where` population", "reports unavailable"]),
+    ("E_QUARRY_NULL_KEY", &["`if x != null` guards", "bounded `where` population", "address a row by id", "maintained aggregate null groups are unchanged"]),
     ("E_QUARRY_RETAIN", &["choose one `retain delivered-history` line", "one `retain until-revoked` line", "Remove any second retain line"]),
     ("E_QUARRY_SYNTAX", &["Fix the first bad line and rerun `check`", "a later empty-body error may be its consequence"]),
     ("E_QUARRY_TYPE", &["Narrow an optional value with `if x != null:`, `x ! else CODE` or `x ?? default`", "changing a type never converts stored values"]),

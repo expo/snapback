@@ -200,6 +200,7 @@ impl Parser {
                 return Err(syntax(&self.peek().site.clone(), "chunk requires first N by index"));
             }
             domain = self.parse_range(domain, start, false)?;
+            self.document.source.record(&Expr::Read(domain.clone()), &self.source, &self.tokens[start..self.position]);
             if domain.index.is_none() || domain.range.as_ref().is_none_or(|r| r.order != Order::Asc || r.cursor.is_some()) {
                 return Err(syntax(&site, "chunk requires table[prefix] first N by index"));
             }

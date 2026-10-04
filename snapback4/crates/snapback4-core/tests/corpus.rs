@@ -117,6 +117,12 @@ enum Verdict {
 /// Exclusions name a removed mechanism in the input/oracle, never a
 /// failure observed while executing it. New schema/IR errors stay failures.
 fn exclusion(case: &Case) -> Option<&'static str> {
+    // @ref LLP 3000.013#2.2 — these frozen SB2 oracles select a nullable null
+    // tie. The separately asserted SB4 contract is a miss, with the maintained
+    // group unchanged; do not claim conformance to the old point meaning.
+    if matches!(case.name.as_str(), "null-key-explicit" | "null-key-omitted") {
+        return Some("legacy-null-point: SB2 selects a null-key row; SB4 ordinary unique null points return no row");
+    }
     // @ref LLP 3000.007#19.1 — the frozen SB2 oracle reserves a row id for emit; named-emit-independent-ids covers the replacement contract.
     if case.name == "named-emit" {
         return Some("shared-effect-id-supply: this frozen oracle spends a row/result id on an effect; SB4 gives effects independent commit/ordinal ids");
@@ -776,6 +782,25 @@ mod adapter {
     fn corpus_case(name: &str) -> Case {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus").join(format!("{name}.json"));
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn legacy_null_points_have_sb4_misses_and_unchanged_maintained_groups() {
+        for name in ["null-key-explicit", "null-key-omitted"] {
+            let mut c = corpus_case(name);
+            assert!(matches!(run(&c), Verdict::Skip(reason) if reason.starts_with("legacy-null-point:")));
+            c.name = format!("sb4-{name}");
+            // The frozen SB2 result is deliberately not the SB4 contract.
+            assert!(matches!(run(&c), Verdict::Fail(reason) if reason.contains("result differs")));
+            c.expected.canonical_result = Some(snapback4_core::value::canonical_json(&snapback4_core::value::object([
+                ("exists", Value::Bool(false)), ("row", Value::Null),
+                ("group", snapback4_core::value::object([
+                    ("__proto__", Value::Null), ("toString", Value::Null), ("value", Value::Int(1)),
+                    ("id", Value::Id("[\"Null\",\"Null\"]".into())),
+                ])),
+            ])));
+            assert!(matches!(run(&c), Verdict::Pass), "{name}: {:?}", run(&c));
+        }
     }
 
     #[test]

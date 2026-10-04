@@ -98,7 +98,7 @@ fn w13c_undefined_compiler_temporaries_are_internal_with_operation_and_site() {
 
 #[test]
 fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
-    let source = "table permits:\n  room: text <=10\n  until: time ?\n  by byRoom: room\n  by byExpiry: until\n  expire at .until\n  read <- deny\ntable targets:\n  room: text <=10\n  by byRoom: room, id\n  read <- exists permits[room = .room]\nquery check():\n  return targets['g'] first 1 by byRoom\n";
+    let source = "table permits:\n  room: text <=10\n  until: time ?\n  unique byRoom: room\n  by byExpiry: until\n  expire at .until\n  read <- deny\ntable targets:\n  room: text <=10\n  by byRoom: room, id\n  read <- exists permits[room = .room]\nquery check():\n  return targets['g'] first 1 by byRoom\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let bytes = serde_json::to_string(&bound.schema.tables["targets"].rules.read).unwrap();
@@ -111,7 +111,7 @@ fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
             let mut seed = (0..expired).map(|n| ("permits".into(), snapback4_core::value::object([("id", id(&format!("e{n:05}"))), ("room", Value::String("g".into())), ("until", Value::Int(1))]))).collect::<Vec<_>>();
             if live { seed.push(("permits".into(), snapback4_core::value::object([("id", id("live")), ("room", Value::String("g".into())), ("until", Value::Null)]))); }
             seed.push(("targets".into(), snapback4_core::value::object([("id", id("target")), ("room", Value::String("g".into()))])));
-            engine.seed(seed).unwrap();
+            engine.load_trusted(seed).unwrap();
             let result = engine.query("check", Context::new("dev:alice", args(&[])).at(100));
             if expired >= 8192 {
                 assert_eq!(result.unwrap_err().code, "E_RULE", "nested witnesses share the request allowance");

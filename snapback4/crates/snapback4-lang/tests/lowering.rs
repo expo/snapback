@@ -16,6 +16,8 @@ use std::collections::BTreeMap;
 // LLP 3000.015 §3 splits maintained point-read row/count slots. The 96
 // replacement digests preserve the historical records; README gives the exact
 // inverse transformation proving no other IR changed.
+use snapshot::{NL_REFUSED, NL_SOURCE};
+
 const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"), include_str!("lowering/first-paste-admissions.sha256"), include_str!("lowering/maintenance-scope-overrides.sha256"));
 
 fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
@@ -35,7 +37,14 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
     let disabled = snapshot::snapshot(inputs, without_ownership, true);
     // The baseline golden keeps one SHA-256 per executed program's serialized IR
     // (derived from the ce15819ad serialization; see lowering/README.md).
-    let golden: BTreeMap<String, String> = GOLDEN.lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).filter(|(name, _)| selected.iter().any(|prefix| name.starts_with(prefix))).collect();
+    let mut golden: BTreeMap<String, String> = GOLDEN.lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).filter(|(name, _)| selected.iter().any(|prefix| name.starts_with(prefix))).collect();
+    for name in NL_REFUSED {
+        let key = format!("{NL_SOURCE}:{name}");
+        if selected.iter().any(|prefix| key.starts_with(prefix)) {
+            assert!(golden.remove(&key).is_some(), "frozen refusal entry {key}");
+            assert!(!enabled.contains_key(&key) && !disabled.contains_key(&key));
+        }
+    }
     let digest = |ir: &str| { use sha2::{Digest, Sha256}; Sha256::digest(ir.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>() };
     assert_eq!(enabled.keys().collect::<Vec<_>>(), golden.keys().collect::<Vec<_>>(), "the corpus must neither lose nor gain a compiled program");
     assert_eq!(enabled.keys().collect::<Vec<_>>(), disabled.keys().collect::<Vec<_>>());

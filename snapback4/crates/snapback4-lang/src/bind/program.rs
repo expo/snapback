@@ -1,7 +1,7 @@
 //! Lowering one Quarry program to the IR: a scope of typed names, one
 //! statement list that expressions may hoist temporaries into, reads that
 //! choose their index, writes that read their target once, and shapes that
-//! become bounded loops. Every refusal carries the rewrite that would pass.
+//! become bounded loops. Refusals carry verified repairs or prose guidance.
 
 use super::catalog::{Catalog, TableInfo};
 use crate::ast::{self, Expr as A, Literal, ObjectField, ProgramKind, ReadExpr, ShapeField, Stmt as S, WriteOp};
@@ -527,9 +527,15 @@ impl<'a> Binder<'a> {
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
             if candidates.len() != 1 {
-                let columns = candidates.first().map(|index| index.columns.as_slice()).or_else(|| info.indexes.iter().filter(declared).find(|index| index.columns.len() >= read.keys.len()).map(|index| index.columns.as_slice())).unwrap_or(&[]);
-                let named = read.keys.iter().enumerate().map(|(at, key)| format!("{} = {}", columns.get(at).map(String::as_str).unwrap_or("column"), print::expression(&key.value))).collect::<Vec<_>>().join(", ");
-                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; use named columns", read.table, candidates.len(), read.keys.len()), format!("{}[{named}]", read.table)).guide("reads"));
+                // @ref LLP 3000.013#2.2 — naming columns cannot distinguish
+                // opposite index orders; verify explicit choices in context.
+                // An unknown explicit name must not empty the repair search.
+                let alternatives = if candidates.is_empty() && read.index.is_some() {
+                    info.indexes.iter().filter(declared).collect::<Vec<_>>()
+                } else { candidates.clone() };
+                let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; choose a compatible unique index explicitly", read.table, candidates.len(), read.keys.len()), "")
+                    .guide("reads").repair_read(&read.site, changes));
             }
             if read.index.is_none() {
                 let mut explicit = read.clone();
@@ -581,6 +587,10 @@ impl<'a> Binder<'a> {
         if named && matches!(mode, ReadMode::FilteredPoint | ReadMode::Exists) {
             if let Some(width) = candidates.iter().filter(|i| info.total_unique(i)).map(|i| i.columns.len()).min() {
                 candidates.retain(|i| info.total_unique(i) && i.columns.len() == width);
+            } else if candidates.iter().any(|i| i.unique) {
+                // Exact nullable unique keys still select points. A competing
+                // nonunique index must not turn an exists probe into a tie.
+                candidates.retain(|i| i.unique);
             }
         }
         // Positional keys select by type; a text literal may meet an
@@ -654,7 +664,10 @@ impl<'a> Binder<'a> {
             }
             _ => {
                 let names: Vec<&str> = candidates.iter().map(|i| i.name.as_str()).collect();
-                Err(ambiguous(&read.site, format!("{} has {} indexes matching this key: {}; choose one", read.table, names.len(), names.join(", ")), format!("{} by {}", print::read_expr(read), names[0])))
+                let changes = candidates.iter().filter(|index| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
+                    .map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+                Err(ambiguous(&read.site, format!("{} has {} indexes matching this key: {}; choose an index valid for this read and its arguments", read.table, names.len(), names.join(", ")), "")
+                    .repair_read(&read.site, changes))
             }
         }
     }
@@ -857,6 +870,9 @@ impl<'a> Binder<'a> {
         }))?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
+        // @ref LLP 3000.007#10 — the focal row is a lexical snapshot too;
+        // let its field guards carry presence facts into point-key arguments.
+        self.scopes.last_mut().unwrap().insert(row_var.into(), Binding { runtime: row_var.into(), declared: row_ty.clone(), ty: row_ty.clone(), parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         let result = (|| {
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
@@ -1057,6 +1073,8 @@ impl<'a> Binder<'a> {
         }
         let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index, _) = self.select_index(info, &read, ReadMode::Point, out)?;
+        super::point_key::check(info, &index, &read, &bound.iter().map(|(column, _, ty)|
+            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>())?;
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
             let id = self.temp("key");

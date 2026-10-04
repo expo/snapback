@@ -175,7 +175,7 @@ fn w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation
 
 #[test]
 fn w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle() {
-    let source = format!("{}\ntable grants:\n  owner: principal\n  expiresAt: time\n  by byOwner: owner\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- deny\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[owner = .owner]").replace("  sync to .owner last 20 by byOwner\n", ""));
+    let source = format!("{}\ntable grants:\n  owner: principal\n  expiresAt: time\n  unique byOwner: owner\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- deny\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[owner = .owner]").replace("  sync to .owner last 20 by byOwner\n", ""));
     for admitted in [false, true] {
         let mut observations = Vec::new();
         let mut exhausted = Vec::new();
@@ -184,7 +184,9 @@ fn w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle() {
             let rows = (0..expired).map(|n| json!({"id":format!("g{n:05}"),"owner":"alice","expiresAt":1}))
                 .chain([json!({"id":"live-or-decoy","owner":if admitted {"alice"} else {"nobody"},"expiresAt":2000})])
                 .map(|r| ("grants".into(), wire::row_from_json(e.schema().table("grants").unwrap(), &r).unwrap())).collect::<Vec<_>>();
-            e.seed(rows).unwrap();
+            // Restore historical physical versions; re-inserting each dead
+            // unique key would make fixture setup quadratic in the history.
+            e.load_trusted(rows).unwrap();
             let (result, observation) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("page", json!({"owner":"bob"})));
             if expired >= 8192 {
                 assert!(matches!(&result.state, WriteState::Failed { why, .. } if why.code == "E_RULE"));

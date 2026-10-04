@@ -17,11 +17,11 @@ mutation createProfile(name: text 1..80):
 
 Columns are required unless their type ends in `?`; omitted optional values are null.
 A table name means a typed reference id, and `text` means `text <=10000`.
-`default` fills an omitted insert value; an explicit value wins.
-Enums widen to text within its character bounds.
+`default` fills omissions; explicit values win.
+Enums widen within text bounds.
 `require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
-branches narrow identical unique-key reads, including helper arguments.
-Writes, rebindings and viewer changes invalidate it.
+branches narrow identical admitted unique-key reads, including helper arguments.
+Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes invalidate it.
 Membership cannot prove parent existence: use
 `require exists conversations[conversation] else NOT_FOUND`, or bind with
 `! else NOT_FOUND`.

@@ -14,7 +14,6 @@ use crate::rows::{Bounds, Dir};
 use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
-
 use crate::rows::word_heap;
 
 use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
@@ -146,10 +145,6 @@ impl Probe for RuleProbe<'_, '_> {
 }
 
 impl<'r> Runner<'r> {
-    pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
-        self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
-    }
-
     // @ref LLP 3000.007#17 — the dependency envelope is schema-derived too; short-circuit probes cannot disclose a hidden answer through tables.
     pub(super) fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
         let mut sites = Vec::new();

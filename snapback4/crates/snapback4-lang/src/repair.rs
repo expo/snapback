@@ -1,7 +1,62 @@
-//! Verify executable parser repairs in the affected declaration's context.
-//! Never recursively compile diagnostics, or print syntax to create source edits.
+//! Verify executable repairs in the affected declaration's context.
+//! Retain caller operands; never recursively verify a candidate's diagnostics.
 use crate::{ast::*, bind, parser, Bound, Diagnostic, Site};
 use std::ops::Range;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ReadChange { Index(String), Point }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ReadRepair {
+    pub site: Site,
+    pub changes: Vec<ReadChange>,
+}
+
+// @ref LLP 3000.013#2.2 — index advice is source only after the patched
+// declaration passes the real parser, planner and admission in its own scope.
+pub(crate) fn verify_bound(documents: &[Document], diagnostics: &mut [Diagnostic]) {
+    for diagnostic in diagnostics {
+        let Some(repair) = diagnostic.read_repair.take() else { continue; };
+        diagnostic.rewrite = repair.changes.iter().find_map(|change| {
+            let candidate = read_candidate(documents, &repair.site, change)?;
+            (check_context(documents, &candidate, true) == Check::Accepted).then_some(candidate.rewrite)
+        }).unwrap_or_default();
+        if diagnostic.rewrite.is_empty() { diagnostic.mechanical = false; }
+    }
+}
+
+fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> Option<Candidate> {
+    let doc = documents.iter().find(|doc| doc.file == site.file)?;
+    let (read, text, grouped, start) = doc.source.read(site)?;
+    let mut fixed = read.clone();
+    match change {
+        ReadChange::Index(index) => { fixed.index = Some(index.clone()); }
+        ReadChange::Point => {
+            // A point cannot silently discard a population predicate or cursor.
+            if read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty()
+                || !read.order_keys.is_empty() || read.range.as_ref()?.cursor.is_some() { return None; }
+            fixed.range = None;
+        }
+    }
+    // Retain the caller's operands, including grouping, literals and comments.
+    // Never invent expressions from the selected index's column names.
+    let fixed = Expr::Read(fixed);
+    let rewrite = crate::print::with_source_at(&fixed, if grouped { 8 } else { 0 }, &|expr| doc.source.get(expr));
+    let (declaration_site, source, replacement) = doc.source.declarations.iter().find_map(|(key, source)| {
+        let (key, col) = key.rsplit_once(':')?;
+        let (file, line) = key.rsplit_once(':')?;
+        let declaration_site = Site::new(file, line.parse().ok()?, col.parse().ok()?);
+        if file != site.file { return None; }
+        let line = start.line.checked_sub(declaration_site.line)? as usize;
+        let lines = source.split('\n').collect::<Vec<_>>();
+        let column = start.col.checked_sub(1)? as usize;
+        let byte = lines.get(line)?.char_indices().map(|(i, _)| i).chain([lines[line].len()]).nth(column)?;
+        let offset = lines[..line].iter().map(|s| s.len() + 1).sum::<usize>() + byte;
+        let span = offset..offset.checked_add(text.len())?;
+        (source.get(span.clone())? == text).then_some((declaration_site, source.clone(), span))
+    })?;
+    Some(Candidate { site: site.clone(), declaration_site, source, replacement, rewrite, intended: None, message: None })
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Candidate {
@@ -23,13 +78,20 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
         if diagnostic.rewrite.is_empty() { continue; }
         let candidate = documents.iter().flat_map(|doc| &doc.source.repairs).rev()
             .find(|candidate| candidate.site == diagnostic.site && candidate.rewrite == diagnostic.rewrite);
-        let verified = candidate.and_then(|candidate| match check(documents, candidate) {
-            Check::Accepted => Some(candidate.clone()),
-            Check::Unbound => {
-                let page = one_row_page(documents, candidate)?;
-                (check(documents, &page) == Check::Accepted).then_some(page)
+        let verified = candidate.and_then(|candidate| {
+            // A where population cannot become a nullable unique point, even
+            // when the bare point compiles (for example, a required outer key).
+            if nullable_key(documents, candidate) && let Some(page) = key_page(documents, candidate) {
+                return (check(documents, &page) == Check::Accepted).then_some(page);
             }
-            Check::Rejected => None,
+            match check(documents, candidate) {
+                Check::Accepted => Some(candidate.clone()),
+                Check::Unbound => {
+                    let page = key_page(documents, candidate)?;
+                    (check(documents, &page) == Check::Accepted).then_some(page)
+                }
+                Check::Rejected => None,
+            }
         });
         if let Some(candidate) = verified {
             diagnostic.rewrite = candidate.rewrite;
@@ -41,9 +103,18 @@ pub(crate) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
 #[derive(PartialEq, Eq)]
 enum Check { Accepted, Unbound, Rejected }
 
-// A page fallback is a different intended plan, so retry only after a binding
-// failure, never to bypass rejection of an otherwise compiling wrong plan.
-fn one_row_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
+fn nullable_key(documents: &[Document], candidate: &Candidate) -> bool {
+    let Some(read) = &candidate.intended else { return false; };
+    let Some(table) = documents.iter().flat_map(|doc| &doc.tables).find(|table| table.name == read.table) else { return false; };
+    table.indexes.iter().any(|index| index.unique && index.is_plain()
+        && index.columns.len() == read.keys.len()
+        && index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))
+        && index.columns.iter().any(|column| table.columns.iter().any(|c| &c.name == column && c.type_.optional)))
+}
+
+// A nullable key must retain a population. Other page fallbacks retry only
+// after a binding failure, never to bypass a compiling wrong plan.
+fn key_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> {
     let mut page = candidate.clone();
     let read = page.intended.as_mut()?;
     if read.range.is_some() || read.filter.is_some() || read.matching.is_some()
@@ -52,16 +123,28 @@ fn one_row_page(documents: &[Document], candidate: &Candidate) -> Option<Candida
     let pinned = |column: &str| read.keys.iter().any(|key| key.column.as_deref() == Some(column));
     // first 1 must preserve the entire population. Nullable unique indexes
     // can contain tied nulls and do not establish a one-row bound.
-    if !pinned("id") && !table.indexes.iter().any(|index| index.unique && index.is_plain()
+    let total = pinned("id") || table.indexes.iter().any(|index| index.unique && index.is_plain()
         && index.columns.iter().all(|column| pinned(column) && (column == "id"
-            || table.columns.iter().any(|c| &c.name == column && !c.type_.optional)))) { return None; }
-    read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
-    page.rewrite.push_str(" first 1");
-    if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
+            || table.columns.iter().any(|c| &c.name == column && !c.type_.optional))));
+    if nullable_key(documents, candidate) {
+        // @ref LLP 3000.013#2.2 — preserve every nullable unique tie with
+        // an explicit population order; verification still checks its bound.
+        read.order_keys.push("id".into());
+        page.rewrite.push_str(" by .id");
+        if let Some(message) = &mut page.message { message.push_str(" with `by .id` to keep every null match"); }
+    } else if total {
+        read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
+        page.rewrite.push_str(" first 1");
+        if let Some(message) = &mut page.message { message.push_str(" with `first 1` to keep a page"); }
+    } else { return None; }
     Some(page)
 }
 
 fn check(documents: &[Document], candidate: &Candidate) -> Check {
+    check_context(documents, candidate, false)
+}
+
+fn check_context(documents: &[Document], candidate: &Candidate, keep_operations: bool) -> Check {
     let Some(patched) = parser::repairs::splice(&candidate.source,
         vec![(candidate.replacement.clone(), candidate.rewrite.clone())]) else { return Check::Rejected; };
     // Retain original source sites without reparsing any other declaration.
@@ -69,28 +152,27 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
     let tables = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
     let (replacement, diagnostics) = parser::parse_with_types(&candidate.site.file, &source, tables, Default::default());
     if !diagnostics.is_empty() { return Check::Rejected; }
-    // A standalone shape has no focal type until instantiated. A helper
-    // signature edit would require checking callers outside this declaration.
-    // Neither has a complete local proof: keep the refusal without a repair.
-    if !replacement.shapes.is_empty() { return Check::Rejected; }
+    // Index diagnostics arise while binding a rule or an actual helper/shape
+    // expansion. Retaining all operations retains those callers and their
+    // focal types. Declaration-local parser repairs have no such proof for
+    // a standalone shape, or for a changed helper signature.
+    if !keep_operations && !replacement.shapes.is_empty() { return Check::Rejected; }
     for function in &replacement.functions {
         if documents.iter().flat_map(|doc| &doc.functions).any(|old|
             affected(candidate, &old.site) && old.args.len() != function.args.len()) { return Check::Rejected; }
     }
-    let mut context = context(documents, candidate, replacement);
-    // Helpers are normally checked at their call sites. Check this helper with
-    // its own typed arguments; do not bind unrelated operations to exercise it.
-    for doc in &mut context {
+    let mut context = context(documents, candidate, replacement, keep_operations);
+    // With callers retained, their real mode and placement are the proof; an
+    // extra query would incorrectly reject helpers that write in a mutation.
+    // The declaration-local path has no retained caller, so probe that helper
+    // with its typed arguments instead of silently leaving its body unchecked.
+    for doc in context.iter_mut().filter(|_| !keep_operations) {
         if let Some(function) = doc.functions.iter().find(|decl| affected(candidate, &decl.site)) {
-            let args = function.args.iter().map(|arg| format!("{}: {}", arg.name, crate::print::scalar_type(&arg.type_))).collect::<Vec<_>>().join(", ");
-            let values = function.args.iter().map(|arg| arg.name.as_str()).collect::<Vec<_>>().join(", ");
-            let probe = format!("query repairProbe({args}):\n  return {}({values})\n", function.name);
-            let (mut parsed, errors) = parser::parse_document(&doc.file, &probe);
-            if !errors.is_empty() { return Check::Rejected; }
-            doc.programs.append(&mut parsed.programs);
+            let Some(probe) = helper_probe(&doc.file, function) else { return Check::Rejected; };
+            doc.programs.push(probe);
         }
     }
-    let actual = bind(context.clone());
+    let actual = bind::bind_unverified(context.clone());
     if !actual.diagnostics.is_empty() { return Check::Unbound; }
     let Some(intended) = &candidate.intended else { return Check::Accepted; };
     // Compile the intended read as syntax in the *same* scope. This AST is
@@ -106,7 +188,7 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
         });
     }
     if replaced != 1 { return Check::Rejected; }
-    let expected = bind(context);
+    let expected = bind::bind_unverified(context);
     let class = |bound: &Bound| bound.programs.iter().flat_map(|program| {
         let scans = snapback4_core::ir::scans(&program.program);
         program.sources.iter().filter(|(key, (site, _))| *site == intended.site && program.selections.contains_key(*key))
@@ -116,16 +198,31 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
     if expected.diagnostics.is_empty() && !actual_class.is_empty() && actual_class == class(&expected) { Check::Accepted } else { Check::Rejected }
 }
 
+fn helper_probe(file: &str, function: &FunctionDecl) -> Option<ProgramDecl> {
+    let args = function.args.iter().map(|arg| format!("{}: {}", arg.name, crate::print::scalar_type(&arg.type_))).collect::<Vec<_>>().join(", ");
+    let values = function.args.iter().map(|arg| arg.name.as_str()).collect::<Vec<_>>().join(", ");
+    let source = format!("query repairProbe({args}):\n  return {}({values})\n", function.name);
+    let (mut parsed, errors) = parser::parse_document(file, &source);
+    if !errors.is_empty() { return None; }
+    let mut probe = parsed.programs.pop()?;
+    // Like $view: declarations, this compiler-only namespace cannot be
+    // authored in Quarry. Neither an operation nor a module can collide.
+    probe.name = format!("$repair:{}", function.name);
+    Some(probe)
+}
+
 fn affected(candidate: &Candidate, site: &Site) -> bool {
     let last = candidate.declaration_site.line + candidate.source.lines().count() as u32;
     site.file == candidate.site.file && (candidate.declaration_site.line..last).contains(&site.line)
 }
 
-fn context(documents: &[Document], candidate: &Candidate, replacement: Document) -> Vec<Document> {
+fn context(documents: &[Document], candidate: &Candidate, replacement: Document, keep_operations: bool) -> Vec<Document> {
     let mut context = documents.to_vec();
     for doc in &mut context {
-        // Retain declaration dependencies, but never bind another operation.
-        doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear();
+        // Parser repairs need a declaration-local proof. Index repairs retain
+        // every caller as well: switching a range to a point can change a
+        // helper's result type or violate a job's chunk/cursor contract.
+        if !keep_operations { doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear(); }
         if doc.file != candidate.site.file { continue; }
         macro_rules! replace {
             ($($field:ident),*) => { $(
@@ -205,12 +302,39 @@ mod tests {
     }
 
     #[test]
-    fn single_row_fallback_requires_a_total_unique_key() {
-        for (optional, unique, allowed) in [("", "", false), (" ?", "  unique active\n", false), ("", "  unique active\n", true)] {
+    fn uncalled_helpers_still_need_a_checked_probe() {
+        for (tail, offered) in [("", true), (" + true", false)] {
+            let source = format!("{MODEL}fn f(active: bool): count(members where .active = .active){tail}\n");
+            let (document, mut diagnostics) = parser::parse_document("schema.q", &source);
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            verify(&[document], &mut diagnostics);
+            assert_eq!(!diagnostics[0].rewrite.is_empty(), offered, "{diagnostics:?}");
+        }
+    }
+
+    #[test]
+    fn fallback_probe_cannot_collide_with_authored_operations_or_modules() {
+        for file in ["schema.q", "repairProbe.q"] {
+            let source = "fn f(): true\nquery repairProbe():\n  return 1\nquery repairProbe2():\n  return 2\n";
+            let (mut document, diagnostics) = parser::parse_document(file, source);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let probe = helper_probe(file, &document.functions[0]).unwrap();
+            assert_eq!(probe.name, "$repair:f");
+            document.programs.push(probe);
+            let bound = bind::bind_unverified(vec![document]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            assert_eq!(bound.programs.len(), 3);
+        }
+    }
+
+    #[test]
+    fn key_page_fallback_preserves_total_and_nullable_populations() {
+        for (optional, unique, suffix) in [("", "", None), (" ?", "  unique active\n", Some(" by .id")), ("", "  unique active\n", Some(" first 1"))] {
             let source = format!("table members:\n  active: bool{optional}\n{unique}  cap 50\n  public\nquery q(c: cursor ?):\n  return members first 20 after c {{ n: count(members where .active = .active) }}\n");
             let (document, diagnostics) = parser::parse_document("schema.q", &source);
             let candidate = document.source.repairs.iter().find(|r| r.rewrite == diagnostics[0].rewrite).unwrap();
-            assert_eq!(one_row_page(&[document.clone()], candidate).is_some(), allowed);
+            let page = key_page(&[document.clone()], candidate);
+            assert_eq!(page.as_ref().map(|page| page.rewrite.strip_prefix(&candidate.rewrite).unwrap()), suffix);
         }
     }
 

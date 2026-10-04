@@ -99,7 +99,12 @@ fn unresolved_index_choices_keep_the_exact_mechanical_refusal() {
         let b = bound(&source);
         assert_eq!(b.diagnostics.len(), 1);
         assert_eq!(b.diagnostics[0].code, "E_QUARRY_POSITIONAL_SCAN");
-        let mut e = engine(clean(&source.replace("follows[viewer, 'bob']", "follows[follower = viewer, followed = 'bob'] by byPair")));
+        let repaired = source.replace("follows[viewer, 'bob']", "follows[follower = viewer, followed = 'bob'] by byPair");
+        if indexes.contains("  by byPair:") {
+            assert!(bound(&repaired).diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"));
+            continue;
+        }
+        let mut e = engine(clean(&repaired));
         assert_eq!(e.query("followed", context()).unwrap().data, Value::Bool(true));
     }
 }

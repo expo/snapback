@@ -10,6 +10,20 @@ use std::collections::BTreeMap;
 fn unavailable_aggregate() -> Value { crate::value::object([("value", Value::Null)]) }
 
 impl Runner<'_> {
+    // @ref LLP 3000.013#2.2 — logical guard facts do not promise that rule
+    // expiry traversal short-circuits. Null points have no witness on any
+    // replica; reject before occupancy, coverage or lifetime work. Maintained
+    // null groups remain real groups, and population equality is unchanged.
+    pub(super) fn null_unique_point(&self, table: &str, index: &str, key: &[Value]) -> bool {
+        key.contains(&Value::Null) && self.schema.maintain_for(table).is_none()
+            && self.schema.table(table).and_then(|t| t.index(index)).is_some_and(|i| i.unique)
+    }
+
+    pub(super) fn created(&self, table: &str, index: &str, key: &[Value]) -> bool {
+        if self.null_unique_point(table, index, key) { return false; }
+        self.created.contains_key(&(table.to_owned(), index.to_owned(), crate::value::canonical_json(&key)))
+    }
+
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
@@ -32,6 +46,7 @@ impl Runner<'_> {
 
     fn get_inner(&mut self, read: &Read, emitted: &mut bool) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
+        if self.null_unique_point(&read.table, &read.index, &key) { return Ok(Value::Null); }
         self.observe_sequence_selection(&read.table, &read.index, &key)?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         self.read_tables.insert(read.table.clone());
