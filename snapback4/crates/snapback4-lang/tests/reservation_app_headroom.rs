@@ -78,3 +78,6 @@ fn differential<H:Host>(host:&mut H) {
 }
 #[test] fn calibration_headroom_memory(){differential(&mut Memory::new());}
 #[test] fn calibration_headroom_sqlite(){differential(&mut Sqlite::new("rp-r5-apps"));}
+
+#[path = "reservation_app_headroom/profile_upgrade.rs"]
+mod profile_upgrade;

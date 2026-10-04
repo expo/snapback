@@ -120,3 +120,16 @@ an online-only client has no retained history. Keep the message's conversation
 and order column immutable, and render `usePage`'s identity-keyed accumulation.
 “Partial results” follows `readPresentation(page.read).incomplete`, including nonempty `present` answers with incomplete coverage, a cut or a continuation. Freshness is separate. Missing acquisition ranges and
 cuts stay incomplete. See `guide search` for the compiling form and limits.
+
+## Legacy backend upgrades
+
+A runtime upgrade can temporarily change prediction on a kept legacy backend.
+If its public schema has private maintained-column owners but no complete source
+prices, every unpriced table writer queues without provisional rows, even an
+unrelated profile save. Both Clique calibration apps have this shape. The SDK
+opens Kept first, so supplying a new bundled backend offline does not restore
+prediction. The first online adoption of that backend restores current
+classifications; old and new queued writes keep their ids, arguments and custody.
+Without private owners, unrelated provably zero-cost writers still predict;
+missing aggregate, read-through or media-list prices can still make other writers
+queue. Do not clear storage to recover optimistic UI. See `guide receipts`.

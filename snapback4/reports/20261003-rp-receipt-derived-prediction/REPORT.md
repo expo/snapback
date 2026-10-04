@@ -1211,3 +1211,146 @@ Evidence SHA-256:
 JOURNAL receives the specifically requested append. No Apartment mini, office
 M1 or M5 was used. Nothing pushed or published. The commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## Round 6 — 2026-10-04
+
+Addresses Astra's R5 P2/P3 on eb1000 (`expose-builder-pixel`). Runtime admission,
+source prices, payload omission and ceilings are unchanged from `5a464ff2ec`.
+The changes make the accepted compatibility tradeoff and payload exception
+explicit and qualify them with authentic app stores and settlement regressions.
+No other machine, push or publication was used.
+
+### Legacy scope: no safe extra waiver from hidden formulas
+
+Reviewed `schema::reservations::write_reservation` and `public_projection`.
+The public projection omits private formulas but retains `Table.maintained`
+owner markers. When **no table has any private-column owner marker**, that
+app-wide fact already enables the structural zero proof for unrelated sources.
+It also checks each source for public source/member maintains, receipts,
+read-through captures and declared media-list slots. The existing Kept-first
+SDK regression still predicts ordinary posts and title edits under that proof;
+it now explicitly asserts the required absence of private owners.
+
+Both real calibration apps contain private `posts.likeCount`/`repostCount`
+owners and no old complete source-price map. The hidden source footprint cannot
+be recovered from those owner markers. Assuming an unrelated-looking source
+has zero implicit cost would weaken the missing-price fence. We retain the
+conservative fallback, with **whole-app consequences**: every unpriced table
+writer queues, including `saveProfile`, ordinary posts, likes and title edits,
+not merely aggregate writers. Querying and durable write submission remain
+available. Supplying a bundled current backend while offline does not override
+the kept backend. The first online adoption of that backend restores current
+classifications; queued ids/arguments, outbox custody and delivery debt survive.
+This temporary loss of optimistic UI across such apps is the accepted
+one-adoption upgrade tradeoff. No private formula is shipped and no unknown
+price is treated as zero. LLP 3000.022 §14.3, `guide receipts` and the upgrade
+note in `guide offline-interactions` state that exact scope and endpoint.
+
+### Authentic profile coverage
+
+New fixtures in `tests/fixtures/rp-profile-upgrade` preserve the actual
+pre-RP **a8c20c40e9** compiler backends and old wasm acquisition records for both
+complete calibration apps. They originate in Astra's retained R5 reproduction;
+we independently opened them with the verified old wasm and admitted a pending
+`saveProfile`, asserting that it predicts before the upgrade. The reproducible
+`generate.mjs` checks the old wasm digest and the exact pending persistence
+records. The backends and acquired changes match the authentic review images
+without editing a capability, price map or operation fact. The large backend
+value is split at its programs field into two raw parts, each below 134 KB;
+joining bytes restores its exact original metadata value. README records hashes.
+
+`reservation_app_headroom/profile_upgrade.rs` opens those authentic records
+under Kept, queues a new offline profile save, adopts the current backend,
+predicts a new save, commits all three with the server and converges to the
+final settled profile. It runs directly on memory and transplants the same
+exact old persistence records into SQLite through the store adapter. The latter
+is explicitly not claimed as an old SQLite binary fixture; the original
+receipt-upgrade tests still exercise those authentic old SQLite/server files.
+`profile-upgrade.test.mjs` uses the **actual SDK `openLocalDevice` helper** with
+the current bundled backend supplied, closes/reopens offline with both intents,
+checks the missing-price refusal, adopts, and converges with the Rust-reexecuted
+server acknowledgments/pages. Old and offline ids/arguments remain intact.
+
+### Receipt-shaped payload exception and custody
+
+The existing actual-payload omission gap predates RP for ordinary writers.
+**RP widens prediction exposure for pathological payload sizes**: adding a
+receipt-derived unread count used to make the whole send queue; RP now predicts
+that send, including one with an oversized omitted effect loop. The server
+failure boundary is unchanged. The ticket and LLP 3000.013 §12.3 now state both
+facts instead of implying unchanged prediction behavior for all receipt writers.
+
+The new `prediction_round6.rs` regression uses the authentic predecessor receipt
+schema and unread view, one inserted message, and repeated SHA-256 payloads from
+an online-only profile containing 2,000 ASCII characters. Both stores predict.
+At 490 payloads the server commits and settlement produces exact unread one.
+At **495**, the server atomically refuses with `E_BOUND` at **1,000,680 steps**;
+no message or effect commits. Pre-RP queued this same receipt-derived writer;
+Astra's independent pre-RP/R3/R5 measurements in
+`/tmp/rp-r5-astra-evidence/comparison.json` and receipt-gap logs agree on the
+server boundary. This round's exact 495 meters are 952 examined, 1,055 index
+entries, 7 probes, 1,000,680 steps, 6,320,097 heap bytes, 182,200 output bytes and
+202 metered written rows; refusal rolls back all authoritative changes.
+
+The test keeps local custody across close/reopen and server execution, retries
+the same id to verify the recorded terminal refusal, and only then settles it.
+Settlement releases that intent, removes its provisional row, and restores exact
+unread zero; another restart preserves the rollback. Custody means retention
+until a terminal response, not an unfinished outbox entry after acknowledged
+refusal. The Rust test revalidates a small shared wasm fixture; the wasm test
+also verifies restart, terminal settlement, empty history and exact unread zero.
+This explicitly asserted exception is separate from the passing reservation
+differential, never silently counted as resource parity or skipped.
+
+### Headroom comparison scope
+
+Exact seven-meter equality in the R5 report means **R3 `7fc57283b3`**. It must
+not be read as equality to pre-RP `a8c20c40e9`. Astra's expanded 20-case matrix
+(7/8/21/22/50 members, hello/exact 2,000 characters, both apps) confirms restored
+R3 meters and successful memory/SQLite/wasm prediction plus server commits.
+Relative to pre-RP, smaller groups pay the already-shared fixed allocation
+allowance: `50 - member_count` extra examined/index entries/steps, while probes
+change from 11 to 10. Heap/output/writes match pre-RP; at 50 only probes differ.
+R6 changes no runtime charge or headroom.
+
+### Validation
+
+- Affected Rust: **211 receipt/RY**, **9 effect-read**, **112 guide** and
+  **4 calibration/profile** tests pass. Both 320-case reservation differentials
+  remain green. The preliminary guide run caught the sync reference-card length
+  cap; the upgrade note moved to `offline-interactions`, then all guide tests
+  passed. No test or documentation budget was weakened.
+- Affected clients: **63 pass**, including authentic receipt upgrades, both
+  reservation corpora, both profile upgrades, six real-app headroom cases and
+  the new receipt-shaped rollback case.
+- Full eb1000 suite: **`== 0 failure(s) in 1516 s`**, exit 0. Rust inventory:
+  **4,829 pass / 33 existing ignored**; **17 doctests** pass. Client pool:
+  **6,098 pass / 11 existing skipped**; serial client models: **79 pass**;
+  fixture wrappers: **9 pass**. No failure required reproduction on main.
+- `ref-check --verbose`: **527 LLP docs, 10,301 refs, zero errors/unchecked**.
+  Docs budget and whitespace checks pass.
+- Full-suite wasm rebuild: **2,097,970 B raw / 634,330 B gzip**, exactly R5;
+  SHA-256 `17df474c6444a4ebc06bc5757ca5b1ad1ef8f1549d43522a0cdef8454ffd3b20`.
+  The **634,460 B** cap remains unchanged, retaining the recorded **130 B**
+  macOS allowance. Relative to the retained same-host pre-RP artifact:
+  **+17,003 B (2.75%)**. No macOS build is claimed.
+- All **1,932** recorded implementation/test/build inputs match the pre-run
+  manifest after the suite. Only report/journal evidence is completed after
+  qualification. Every new fixture/test artifact is below 256,000 bytes;
+  no gzip, wasm binary, video or large log is added to git.
+
+Retained eb1000 evidence:
+
+| File | SHA-256 |
+| --- | --- |
+| `/tmp/rp-r6-full-qualified.log` | `93e90337262ae481d291ae7fd8ebec5dc299035cfb4e6d07e986440535f9af9a` |
+| `/tmp/rp-r6-source-qualified.sha256` | `97481c65b1c9ebeaaf591c9af519b0e0427ae5605822c7cf8b1c9ec673eb67ba` |
+
+Additional focused logs: `/tmp/rp-r6-profile-native.log`,
+`/tmp/rp-r6-receipt-gap.log`, `/tmp/rp-r6-affected-rust.log`,
+`/tmp/rp-r6-guide-profile-qualified.log`, `/tmp/rp-r6-affected-client.log` and
+`/tmp/rp-r6-ref-check-final.log`. The broad preliminary affected log includes
+the resolved guide-length failure; the qualified guide log and full run are
+both green. The authentic old-wasm fixture generator also passes without its
+update flag. Runtime/price policy and all R0–5 repairs remain unchanged.

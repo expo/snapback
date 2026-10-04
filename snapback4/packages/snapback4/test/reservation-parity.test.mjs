@@ -59,6 +59,7 @@ mutation title(conversation: conversations):
   const current = await backendFor(t, source);
   const legacy = structuredClone(current);
   delete legacy.schema.source_reservations;
+  assert.ok(Object.values(legacy.schema.tables).every(table => Object.keys(table.maintained ?? {}).length === 0), 'the app-wide absence of private owners permits the zero proof for unrelated writers');
   for (const table of Object.values(legacy.schema.tables)) for (const c of table.constraints) {
     if (c.Capabilities) c.Capabilities = c.Capabilities.filter(name => !['receipt-derived-prediction-v1', 'source-write-reservations-v1', 'source-write-reservations-v2'].includes(name));
   }
@@ -142,5 +143,43 @@ test('wasm reproduces the documented pathological payload gap', { timeout: hangB
     const q = ok(call(device, { op: 'admit', entry: entry('burst', c.args) }));
     assert.equal(q.predictable, true);
     assert.equal(q.predicted.length, 1);
+  } finally { device.free(); }
+});
+
+test('receipt payload exception keeps custody until terminal refusal, then rolls back across restart', { timeout: hangBudget(10) }, async t => {
+  const c = JSON.parse(readFileSync(new URL('rp-receipt-payload-gap.json', root), 'utf8'));
+  assert.equal(c.serverCommitted, false);
+  assert.equal(c.predicted, true);
+  assert.match(JSON.stringify(c.state), /E_BOUND/);
+  assert.equal(c.meter.steps, 1_000_680);
+  const backend = await backendFor(t, c.source);
+  let device = new WebDevice(JSON.stringify(backend), '[]');
+  let kept = [];
+  const reopen = () => {
+    kept.push(...JSON.parse(device.drain()));
+    device.free();
+    device = new WebDevice(undefined, JSON.stringify(kept));
+  };
+  const history = () => ok(call(device, { op: 'query', name: 'history', args: { conversation: 'c', c: null }, viewer: 'alice', now })).data;
+  try {
+    c.pages.forEach((page, i) => ok(call(device, { op: 'apply', first: i === 0, page })));
+    const q = ok(call(device, { op: 'admit', entry: entry('sendGap', c.args) }));
+    assert.equal(q.predictable, true);
+    assert.equal(q.predicted.length, 1);
+    assert.equal(history().filter(row => row.pending).length, 1);
+    reopen();
+    assert.equal(ok(call(device, { op: 'queued' }))[0].id, q.id);
+    assert.equal(history().filter(row => row.pending).length, 1);
+    // Rust re-executes this exact source on the server, verifies the durable
+    // terminal refusal (including replay), and exports this refusal oracle.
+    ok(call(device, { op: 'settle', id: q.id }));
+    assert.deepEqual(ok(call(device, { op: 'queued' })), []);
+    assert.deepEqual(history(), []);
+    const count = ok(call(device, { op: 'query', name: 'badge', args: { member: 'b' }, viewer: 'alice', now }));
+    assert.equal(count.data, 0);
+    assert.equal(count.complete, true);
+    reopen();
+    assert.deepEqual(ok(call(device, { op: 'queued' })), []);
+    assert.deepEqual(history(), []);
   } finally { device.free(); }
 });

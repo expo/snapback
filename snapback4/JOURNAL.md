@@ -85155,3 +85155,46 @@ input/log digests. New files remain below 256 KB; gzip, video and wasm stay out
 of git. Work stayed on eb1000, without the Apartment mini, office M1 or M5.
 Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-10-04 — Lane RP round 6: authentic profile upgrades and receipt payload rollback
+
+Kept the existing conservative legacy price proof after checking its scope.
+No private-column owner markers anywhere permits the app-wide absence proof,
+then per-source zero checks preserve unrelated offline writers. Both real
+calibration apps have private post counters, so every unpriced table writer
+(including `saveProfile`, posts, likes and title edits) queues under offline
+Kept until the first online adoption of the bundled current backend. Supplying
+the bundle alone does not replace Kept. LLP 3000.022, receipts and offline guides
+now state this whole-app one-adoption loss of optimistic UI and preserved
+custody. No unknown private price is assumed zero; runtime policy is unchanged.
+
+Preserved the authentic a8c20c40e9 calibration backends/acquired stores from
+Astra's R5 evidence. The verified old wasm predicts and persists a profile save
+in each app; a reproducible generator checks those exact records. Memory,
+SQLite (exact-record transplant) and actual SDK/wasm Kept opening cover old
+pending custody, a new offline save, offline reopen, adoption, restored
+prediction and server-confirmed convergence. Existing actual old SQLite/server
+receipt fixtures and debt checks remain intact. Split backend text keeps each
+new fixture below 134 KB without changing its metadata value.
+
+Added the receipt-shaped actual-payload exception beside the ordinary-note
+case: 490 expensive payloads commit; 495 predict then refuse at 1,000,680 steps.
+RP widens prediction exposure for pathological payload sizes because pre-RP
+queued this receipt-derived writer; the server boundary remains unchanged.
+The ticket and LLP 3000.013 state that distinction. Native tests and the wasm
+fixture prove persisted custody until terminal refusal, safe replay, durable
+provisional-row rollback, exact unread zero and no authoritative message/effect.
+The passing reservation differential does not claim to cover this exception.
+
+Affected receipt/RY (211), effect (9), guide (112), calibration/profile (4),
+and selected client (63) tests pass. Full eb1000 suite:
+`== 0 failure(s) in 1516 s` (Rust 4,829 + 17 doctests; client pool 6,098;
+serial models 79; wrappers 9; existing 33 ignored/11 skipped unchanged).
+Ref-check and docs budget pass. The sync-card length check initially caught
+where the new prose was placed; moving it to the offline guide fixed that
+without weakening any test. Wasm remains 634,330 B gzip under 634,460 B, with
+the existing 130 B macOS allowance; no new runtime bytes or ceiling change.
+All 1,932 qualified implementation/test inputs remained unchanged. Report:
+`reports/20261003-rp-receipt-derived-prediction/REPORT.md`, Round 6, with hashes
+and logs. Work stayed on eb1000; no other machine, push or publication.
