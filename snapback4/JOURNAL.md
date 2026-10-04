@@ -86316,3 +86316,18 @@ all 20 cases, budgets, reproduction code and retained logs. Reference checking
 passes; the affected LLP decisions remain applicable. Sampled worktree plus
 scratch use stayed below 24.1 GB; scratch was removed. Lane FX's worktree
 was untouched. Local commit only; nothing pushed or published.
+
+
+## 2026-10-04 — LU round 3: preserve outstanding maintenance repayment
+
+Fixed Astra's P2: slice completion now appends its charge after any outstanding
+repayment, including an empty-cycle flush that races the aged worker. The new
+deterministic regression fails on round 2 (70 ms retained instead of 130 ms);
+both orderings, the 240 ms debt case, aged/expiry service, fairness, timeline
+and live-latency checks pass. Three paired heavy replay trials per revision on
+CPUs 80–89 retain comparable 900-follower completion: round 3 11.742–13.289 s,
+round 2 12.820–15.974 s; these are sample ranges, not stable tail percentiles.
+Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
+Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
+LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
+record the correction and evidence. Local commit on b0e17cec74; nothing pushed.

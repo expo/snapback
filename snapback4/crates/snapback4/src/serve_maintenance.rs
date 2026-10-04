@@ -174,7 +174,9 @@ impl State {
         // Avoid two extra scheduler wakeups for every single delivery slice.
         let pause = if worked || self.empty_pause >= cap { self.empty_pause.min(cap) } else { Duration::ZERO };
         self.empty_pause -= pause;
-        self.resume_at = now + pause;
+        // An aged slice can finish after bulk flushes empty-cycle debt. Append
+        // this charge without discarding repayment still owed in that ordering.
+        self.resume_at = self.resume_at.max(now) + pause;
     }
 
     fn empty_cycle(&mut self, now: Instant) -> Duration {
@@ -468,25 +470,26 @@ mod tests {
 
     #[test]
     fn pacing_charges_atomic_overruns_but_cannot_suppress_aged_service() {
-        let now = Instant::now();
         for (elapsed, expected) in [(Duration::from_micros(10), Duration::from_micros(70)),
             (Duration::from_micros(250), Duration::from_micros(1750)),
             (Duration::from_millis(50), Duration::from_millis(100))] {
             let mut state = State::default();
+            let now = state.resume_at;
             state.completed(now, elapsed, true, true);
             assert_eq!(state.resume_at - now, expected);
             assert!(!state.eligible(now, false));
             assert!(state.eligible(now + BULK_AGE, true));
         }
         let mut state = State::default();
+        let now = state.resume_at;
         state.completed(now, WORK_TIME, false, true);
         assert!(state.eligible(now, false));
     }
 
     #[test]
     fn empty_kinds_repay_cpu_with_useful_work_or_before_idle_wait() {
-        let now = Instant::now();
         let mut state = State::default();
+        let now = state.resume_at;
         state.completed(now, Duration::from_micros(10), true, false);
         state.completed(now, Duration::from_micros(20), true, false);
         assert!(state.eligible(now, false));
@@ -505,8 +508,8 @@ mod tests {
 
     #[test]
     fn deferred_empty_cpu_keeps_each_capped_charge_without_longer_pauses() {
-        let now = Instant::now();
         let mut state = State::default();
+        let now = state.resume_at;
         state.completed(now, Duration::from_millis(10), true, false);
         assert_eq!(state.empty_pause, Duration::from_millis(70));
         state.completed(now, Duration::from_millis(10), true, false);
@@ -528,6 +531,27 @@ mod tests {
         assert_eq!(state.empty_cycle(now + Duration::from_millis(40)), Duration::from_millis(130));
         assert_eq!(state.empty_cycle(now + Duration::from_millis(140)), Duration::from_millis(30));
         assert_eq!(state.empty_cycle(now + Duration::from_millis(170)), Duration::ZERO);
+    }
+
+    #[test]
+    fn slice_completion_preserves_an_empty_cycles_outstanding_repayment() {
+        for worked in [true, false] {
+            let mut state = State::default();
+            let now = state.resume_at;
+            state.completed(now, Duration::from_millis(10), true, false);
+            // The aged worker starts a slice, then bulk flushes deferred debt.
+            assert_eq!(state.empty_cycle(now), Duration::from_millis(70));
+            let completed = now + Duration::from_millis(10);
+            state.completed(completed, Duration::from_millis(10), true, worked);
+            // Useful work repays immediately; empty work defers its charge.
+            // Neither ordering can discard the 60 ms already outstanding.
+            assert_eq!(state.resume_at - completed,
+                Duration::from_millis(if worked { 130 } else { 60 }));
+            assert_eq!(state.empty_cycle(completed), Duration::from_millis(130));
+            assert!(!state.eligible(now + Duration::from_millis(139), false));
+            assert!(state.eligible(now + Duration::from_millis(140), false));
+            assert!(state.eligible(completed + BULK_AGE, true));
+        }
     }
 
     #[test]

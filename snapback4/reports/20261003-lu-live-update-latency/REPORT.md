@@ -976,3 +976,69 @@ zero errors and zero unchecked references. Source/tool hashes match the
 measured artifacts, original replay/upload tests and the budget are unchanged,
 and no instrumentation remains in shipping sources. Whitespace checks pass.
 Nothing is pushed, and no other machine was used.
+
+
+## Round 3 — preserve repayment in either worker ordering
+
+2026-10-04, eb1000 only, based on `b0e17cec74` (round 2, landed as
+`ce9bef594a`). Astra's P2 is reproduced deterministically: with 70 ms scheduled,
+10 ms elapsed and another 70 ms charge, the old completion path retains only
+70 ms instead of 130 ms. `completed()` now uses
+`resume_at = max(resume_at, now) + pause`, matching `empty_cycle()`. Both worker
+orderings conserve outstanding repayment, including an empty completion that
+adds no immediate pause. Per-kind charges, sleep caps, aged opportunities and
+Following's frozen-P service bound are unchanged. LLP 3000 §7 now states both
+orderings explicitly.
+
+The new regression fails against round 2 with `left: 70ms, right: 130ms` and
+passes with the fix. It checks useful and empty completions and the exact
+repayment deadline without sleeping. The reverse-order regression and the
+240 ms (100 + 100 + 40) case remain. Existing clock fixtures now start at the
+state's own initial instant, avoiding microsecond differences from separately
+sampling the real clock.
+
+### Brief confined replay comparison
+
+The same instrumented 900-follower fixture and unchanged 60 s guard run three
+times per revision, alternating order, with 120 keeper-owned burners on CPUs
+80–89. The inherited affinity guard and [thread audit](./round3/affinity.json)
+confine all 124 observed processes / 134 threads to those ten CPUs. The keeper
+stops and reaps only its own burners. Host one-minute load at trial completion
+ranges from 63.2 to 117.6. Ordinary verification runs outside these CPUs.
+
+| Revision | Commit → 900th copy, trial order (s) | Median (s) | Maximum (s) | Delivery turns through last copy |
+|---|---|---:|---:|---|
+| Round 2 | 15.974, 12.820, 13.128 | 13.128 | 15.974 | 644, 597, 634 |
+| Round 3 | 11.742, 13.267, 13.289 | 13.267 | 13.289 | 603, 610, 611 |
+
+All six trials pass. Each has one fewer nonzero repayment decision than delivery
+turns through the last copy; round 2's combined repayment and bounded scan gains
+remain. This small sample shows comparable completion, not a new latency win or
+a precise tail estimate. The earlier 16.055 s nearest-rank p95 was the maximum
+of that run's five samples, not a reproducible host-independent percentile.
+The earlier message and reaction heavy p95s rose slightly while remaining below
+2 s. The n=30 comparison remains round-2 evidence; browser regression coverage
+in round 3 comes from the full suite.
+[Per-trial stamps, counts and raw-log hashes](./round3/replay.csv) retain this
+comparison. The existing replay builder now accepts both deadline assignments
+and injects the same probes. Raw logs and binaries remain ignored under
+`target/lu-r2/` and `target/lu-r3/`; no large artifacts are added to git.
+
+### Verification
+
+Affected Rust checks pass: nine maintenance tests (including aged and expiry
+cases), 17 timeline background tests, eight fairness tests, six live-latency
+tests and all 22 replay tests. The full `bash snapback4/scripts/test.sh` run
+exits 0 in **1,957 s**: all Rust targets/doctests; CLI 285 passed/four ignored;
+clients 6,187 passed/11 skipped, including the confined Chromium regression;
+models 79/79 and fixtures 9/9; all build/typecheck/budget steps pass.
+[Commands, results, build inputs and hashes](./round3/verification.json) retain
+the evidence. The new regression's round-2 negative control exits 101 as expected.
+
+The suite uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`,
+`CARGO_INCREMENTAL=0`, and `CARGO_PROFILE_DEV_DEBUG=0` /
+`CARGO_PROFILE_TEST_DEBUG=0` after the old build cache was cleared. Optimization
+and debug assertions retain their checked-in settings. Sampled worktree disk
+use stays below **14.1 GB**, within the 40 GB limit. Wasm remains 2,116,457 B raw /
+639,750 B gzip under the unchanged 639,887 B cap, preserving the 130 B macOS
+allowance. `ref-check --verbose` and whitespace checks pass. Nothing pushed.
