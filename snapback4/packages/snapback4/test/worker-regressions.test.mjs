@@ -1,4 +1,5 @@
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
+import { identity, live } from '../../../scripts/test-processes.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -26,7 +27,7 @@ function alive(pid) {
     return true;
   } catch { return false; }
 }
-function fixture(t, source) {
+function fixture(t, source, cleanupChildren) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-worker-regression-'));
   mkdirSync(join(dir, 'snapback/workers'), { recursive: true });
   writeFileSync(join(dir, 'snapback/schema.q'), "use personas alice\neffect notify\nmutation send():\n  emit notify { message: 'hello' }\n  return true\n");
@@ -56,7 +57,8 @@ function fixture(t, source) {
       try { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
       finally { clearTimeout(timer); }
     }
-    for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
+    if (cleanupChildren) await cleanupChildren();
+    else for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
       for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   });
@@ -423,21 +425,30 @@ test('new declarations retry failed admission after Node is repaired without ano
 });
 
 for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} completes group cleanup without a live supervisor`, {timeout:hangBudget(5)}, async t => {
-  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
-const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
-process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
-  const watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
-  const done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
-  t.after(async()=>{watchdog.stdin.end();await done;});
+  let watchdog, done;
+  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';import {once} from 'node:events';
+process.on('SIGTERM',()=>{});
+const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});console.log('ready');setInterval(()=>{},1000)"],{stdio:['ignore','pipe','ignore']});
+await once(helper.stdout,'data');
+appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`, async () => {
+    // The live watchdog owns its group. EOF requests cleanup even on failure;
+    // never signal a descendant by a stale PID from the starts file.
+    watchdog?.stdin.end(); if (done) await done;
+  });
+  watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
+  done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
   await until(()=>rows(join(f.dir,'starts')).length===1);
-  const first=rows(join(f.dir,'starts'))[0];await sleep(150);
+  const first=rows(join(f.dir,'starts'))[0];
+  const worker=identity(first.pid), helper=identity(first.helper);
+  assert.ok(worker?.alive && helper?.alive, 'capture both live process identities before signaling');
   watchdog.kill(signal);await done;
-  assert.equal(alive(first.pid),false);
+  assert.equal(live(worker),false);
   // The watchdog reaps Node, but cannot waitpid Node's child. SIGKILL delivery
   // to that descendant can finish after the watchdog's exit event is observed.
-  // Keep the test's existing timeout and still require the descendant to die.
-  await until(() => !alive(first.helper));
-  assert.equal(alive(first.helper),false);
+  // PID reuse must not resurrect either process. Inspection errors and until's
+  // TEST_HANG guard still throw; zombies count as exited on both platforms.
+  await until(() => !live(helper));
+  assert.equal(live(helper),false);
 });
 
 test('ledger open waits for a busy writer before becoming ready', async t => {

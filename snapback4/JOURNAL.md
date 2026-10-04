@@ -86249,3 +86249,26 @@ LLP 3000.013 §4 describe the policy and its limits. The
 retains distributions, controls, caveats and artifact hashes. All injected
 load and experimental descendants stayed within ten CPUs through the affinity
 guard; the ordinary suite used a separate CPU allocation. Nothing pushed.
+
+
+## 2026-10-04 — FY: witnessed job crash and watchdog process identities
+
+Fixed two SU-reported client fixture races on base ce9bef594a. The scheduled
+job fixture now stops the serving process inside its synchronous Node-version
+probe, after real schedule admission and before maintenance starts. It witnesses
+stopped state and SIGKILL exit, then compares the unchanged queued job before
+restart. Same-ID recovery, exactly-once execution and the queued outbox remain.
+The watchdog signal fixtures capture worker/helper birth identities after a
+readiness handshake and retain watchdog-owned cleanup. The existing `until`
+already throws on timeout; an injected guard confirms it. Delay and PID-reuse
+controls demonstrate the baseline mechanisms. No product change was needed.
+
+Both whole files passed 30/30 runs on eb1000 with two hogs confined to CPUs
+72–79 and 30/30 on the explicitly permitted Apartment mini. The full eb1000
+suite passed in 1,957 seconds: all Rust targets/doctests, 6,187 client passes
+and 11 skips, 79 model passes, nine fixture passes, and every build/typecheck/
+budget step. Reference validation passed. Both SU-origin tickets are closed;
+[the report](./reports/20261004-fy-fixture-races/REPORT.md) retains controls and
+logs. Sampled worktree/scratch use stayed below 15 GB; private scratch was
+removed and owned hogs reaped. No other host/worktree or simulator was used.
+Local commit only; nothing pushed or published.

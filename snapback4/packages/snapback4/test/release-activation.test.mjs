@@ -1,11 +1,11 @@
-import { hangBudget } from './helpers/wait.mjs';
+import { waitFor, hangBudget } from './helpers/wait.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
 // and deployment directories are isolated and removed by their owner.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -484,35 +484,44 @@ schedule resumeDaily every 1d: resume
   const db = new DatabaseSync(database);
   db.prepare("UPDATE _meta SET value = '0' WHERE key = 'schedule:resumeDaily'").run();
   db.close();
-  const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1"], { stdio: ["ignore", "pipe", "pipe"] });
-  const exited = once(child, "exit");
-  let ready = false, log = "";
-  child.stdout.on("data", data => {
-    log += data;
-    if (!ready && /http:\/\/127\.0\.0\.1:\d+/.test(log)) {
-      // Startup admitted the schedule before it announced the listener. Stop
-      // this owned process before its one-second maintenance tick can run it.
-      ready = true;
-      child.kill("SIGSTOP");
-    }
+  // The explicit worker's synchronous Node-version probe follows schedule
+  // admission and precedes maintenance startup. Stop its parent BEFORE the
+  // probe completes, so no chunk can race either the signal or our inspection.
+  // The worker itself must never start; restarts below use ordinary serve.
+  const probe = join(deployment, "stop-before-maintenance");
+  const worker = join(deployment, "unused-worker.mjs");
+  writeFileSync(probe, `#!${process.execPath}\nprocess.kill(process.ppid, 'SIGSTOP');\nconsole.log(process.version);\n`);
+  chmodSync(probe, 0o700);
+  writeFileSync(worker, "throw new Error('crash fixture must stop before worker startup');\n");
+  const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1", "--worker", worker], {
+    env: { ...process.env, SNAPBACK_NODE: probe }, stdio: ["ignore", "pipe", "pipe"],
   });
+  const exited = once(child, "exit");
+  let log = "";
+  child.stdout.on("data", data => { log += data; });
   child.stderr.on("data", data => { log += data; });
   let queued;
   try {
-    const deadline = performance.now() + hangBudget();
-    while (!ready && child.exitCode == null && performance.now() < deadline) await delay(5);
-    assert.ok(ready, log || "release server did not listen");
-    [queued] = jobs();
-    assert.equal(jobs().length, 1);
+    await waitFor(() => {
+      assert.equal(child.exitCode, null, log);
+      assert.equal(child.signalCode, null, log);
+      const status = spawnSync("ps", ["-p", String(child.pid), "-o", "stat="], { encoding: "utf8", timeout: hangBudget() });
+      assert.equal(status.status, 0, status.error?.message ?? status.stderr);
+      return /^T/.test(status.stdout.trim());
+    }, "owned serving process stopped inside startup probe", { diagnostics: () => log });
+    const admitted = jobs();
+    assert.equal(admitted.length, 1);
+    [queued] = admitted;
     assert.equal(queued.state, "queued", "the crash cut must precede the first chunk");
     assert.equal(queued.chunks, 0);
+    assert.equal(queued.rows_written, 0);
     child.kill("SIGKILL");
-    await exited;
+    assert.deepEqual(await exited, [null, "SIGKILL"]);
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
     await exited;
   }
-  assert.equal(jobs()[0].state, "queued");
+  assert.deepEqual(jobs(), [queued], "after witnessed SIGKILL and before any restart, the admitted job is unchanged");
   await serve(deployment, async (url, headers) => {
     const deadline = performance.now() + hangBudget();
     while (jobs()[0]?.state !== "done" && performance.now() < deadline) await delay(20);
