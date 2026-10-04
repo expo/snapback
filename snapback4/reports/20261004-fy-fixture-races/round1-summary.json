@@ -1,0 +1,1510 @@
+{
+  "base": "0982b0d5e25fbd54a24068801a0f6cb9aa3d19b6",
+  "controls": [
+    {
+      "version": "baseline",
+      "result": [
+        1,
+        null
+      ],
+      "ms": 11060.255329,
+      "exitedBeforeRecovery": false,
+      "resumed": true,
+      "descendantsDead": true
+    },
+    {
+      "version": "fixed",
+      "result": [
+        1,
+        null
+      ],
+      "ms": 4099.880372000001,
+      "exitedBeforeRecovery": true,
+      "resumed": true,
+      "descendantsDead": true
+    }
+  ],
+  "sources": {
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "6b72cd4127cb58499191cc5e85217c54f6edeabf73baf4a6780ff100c6bf7898",
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "4e7ac0aa089d2de125b53f5704f106bab54139d3b89982009baf0cf99841266c",
+    "snapback4/packages/snapback4/test/helpers/cleanup.mjs": "a38fa708809d799fd44c1de284d9c0ae5789e274fbb6c2db07777f63c8f749f5",
+    "snapback4/packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+    "base": "0982b0d5e2"
+  },
+  "hosts": {
+    "eb1000": {
+      "configuration": {
+        "root": "/home/ccheever/sb4-intent/lane-fy/snapback4",
+        "node": "/home/ccheever/.local/bin/node",
+        "cpus": "72-79",
+        "parallel": 10,
+        "repeats": 30,
+        "hog_pids": [
+          4018116,
+          4018117
+        ]
+      },
+      "results": [
+        {
+          "file": "release-activation",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 3.981,
+          "log": "release-activation-01.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "d3432b465a2edc9c6216c9876faf747a555f8dc44225535ed180ca8661cd847c"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 4.28,
+          "log": "release-activation-02.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "eb3a1fdda514379f16b8e8554774b999f912f12415fd95706175557f996fb05e"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 4.053,
+          "log": "release-activation-03.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ec029f28bfc2cab4f34be81bf151e617565d10dac61ba03884a5b86f7544abf1"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 4,
+          "exit": 0,
+          "seconds": 4.077,
+          "log": "release-activation-04.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "23387481e1a3567109734ac1d076da64bb038711456a09ecc0f9ecd389f42c7b"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 5,
+          "exit": 0,
+          "seconds": 4.001,
+          "log": "release-activation-05.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "2a1113db87327322b5c492e99b17d43bd3bc2b698ed0290166ff08a81a745654"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 6,
+          "exit": 0,
+          "seconds": 3.44,
+          "log": "release-activation-06.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "45d01a5bf3d91bf3ee41ef30b92667546a93fde2ef9d9dd58cc2e6d41a2dd377"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 7,
+          "exit": 0,
+          "seconds": 3.584,
+          "log": "release-activation-07.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "d33ee8cfe6a3453c9add54a58081d34ef5aa724bd635de3438811bc4a95ec616"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 8,
+          "exit": 0,
+          "seconds": 3.42,
+          "log": "release-activation-08.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "189645d6c2f51eb6a68b4c1876c9da33d5ebeef5e6d845b23667d5eeafda55af"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 9,
+          "exit": 0,
+          "seconds": 2.865,
+          "log": "release-activation-09.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "fd63c5a8f1948ca8a0f39fe75357cc81b07df90f096eb6300bb55c335552e777"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 10,
+          "exit": 0,
+          "seconds": 2.896,
+          "log": "release-activation-10.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "3b8508890af28c12bf63a7d26e3fc30f656c76f42daca6cd5af900d53bb060da"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 11,
+          "exit": 0,
+          "seconds": 3.944,
+          "log": "release-activation-11.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "2db269f6a5c76745fb715c25e8884b93479c6e6390d95ba868b72682beca3e25"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 12,
+          "exit": 0,
+          "seconds": 4.118,
+          "log": "release-activation-12.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "6425a33e682821defc640b34d2bde30aaf88116fe8452f05e1489cadef83b0a8"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 13,
+          "exit": 0,
+          "seconds": 4.113,
+          "log": "release-activation-13.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "633bbccdeaf9b5e76bf1491b6b873c1cd7e780fad1985c1ecd1994d8d060e4d7"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 14,
+          "exit": 0,
+          "seconds": 3.873,
+          "log": "release-activation-14.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "cbfff1c794b03b5f695ff2bc938486b45780ba8ee641a4658d8bbb9a5ce03184"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 15,
+          "exit": 0,
+          "seconds": 4.0,
+          "log": "release-activation-15.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "27be0fc2dbabc70157cd4289e2c8c6e0bb6dac2cad0044cd3f2efb41dffa7417"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 16,
+          "exit": 0,
+          "seconds": 3.641,
+          "log": "release-activation-16.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "bc7767cd0656424f850af32669aa377f60a8b7d8d2315e02815da0d4450e2e61"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 17,
+          "exit": 0,
+          "seconds": 3.242,
+          "log": "release-activation-17.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "0a22e2a9ae74c6211eaa9e877d4ac39aada3ac2bf2616f3a2520e2b36bfd8057"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 18,
+          "exit": 0,
+          "seconds": 3.024,
+          "log": "release-activation-18.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "67d3273bde330f6c862c3d2190ba2077aeb896f6f1953df8ed225ab5e9f73fc3"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 19,
+          "exit": 0,
+          "seconds": 3.127,
+          "log": "release-activation-19.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "32cdc7eb09b1f368f1d63e1d857d58b444dbf4fa6f8d79ce3f3d6b308d9e6432"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 20,
+          "exit": 0,
+          "seconds": 2.799,
+          "log": "release-activation-20.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "3e60bb12348f624885b6fab4bba7ed2dcc937817ed4df5f2f1f74250d0cf4edd"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 21,
+          "exit": 0,
+          "seconds": 4.153,
+          "log": "release-activation-21.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "b8ca9a8fe993e589bcb49a7e047c0c80db599c7f5e90aa30d0e612b84bd7c0e9"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 22,
+          "exit": 0,
+          "seconds": 3.459,
+          "log": "release-activation-22.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "68c8f2d30af2a5f45facc68a1b43a5d3e33791d5b8006d945bdc2d9933c28c5b"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 23,
+          "exit": 0,
+          "seconds": 3.161,
+          "log": "release-activation-23.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "48ea0b38f6936c0cdef5a18cc82d7c1ba6e58ad303d30eb3540775215bde329b"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 24,
+          "exit": 0,
+          "seconds": 3.202,
+          "log": "release-activation-24.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "0ab1ef10b688b67a4e1c2e66487e1aa6c1aec98b7797ad0ab19a0c8cc8647caa"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 25,
+          "exit": 0,
+          "seconds": 3.267,
+          "log": "release-activation-25.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "cfa290b551572909194615491992b7d3b591004198a00ce572aaf69ca078e535"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 26,
+          "exit": 0,
+          "seconds": 3.167,
+          "log": "release-activation-26.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ff19d2f4bc00d5cf1448c2c199d30ef3bb75c0595f47de6f76d34753fa61461b"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 27,
+          "exit": 0,
+          "seconds": 3.012,
+          "log": "release-activation-27.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "1daa542fcbbd21e97c1a42d5752134df2ddfa9358ceeeb720fd1cedc5878edc4"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 28,
+          "exit": 0,
+          "seconds": 2.84,
+          "log": "release-activation-28.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "c13441a73de0825cb8ad86e8ea9350604098e4a9b18db62d462861b8dbad05b7"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 29,
+          "exit": 0,
+          "seconds": 2.705,
+          "log": "release-activation-29.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "25b63622067c006eaf0d71a7792b785a8185ee4c571ed731d98c7b595771ef5f"
+        },
+        {
+          "file": "release-activation",
+          "iteration": 30,
+          "exit": 0,
+          "seconds": 2.98,
+          "log": "release-activation-30.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "cc921e00fe0dfadc57930a78a116ff10fb9442d99a104677d68e7fb8a56c3cbc"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 447.784,
+          "log": "worker-regressions-01.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "4c19de661cbef0d46f026958b6e66b7db511758cbee331a563788be57a2d7158"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 447.572,
+          "log": "worker-regressions-02.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "6badfbfba747b4949b860856461e0d2717cb8cb6be9573497cc645a7738ef06a"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 447.364,
+          "log": "worker-regressions-03.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ca93418df9b7fab3c5d0ace334395ae4577abfd989f5d027f96f638064f02f07"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 4,
+          "exit": 0,
+          "seconds": 447.995,
+          "log": "worker-regressions-04.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "12b01e03def029b807c9354488040c57fe1f2003ab6ba59fbc101db5c82e3eb9"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 5,
+          "exit": 0,
+          "seconds": 447.022,
+          "log": "worker-regressions-05.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "11712104372b0972b29e8d55a945f00bdfee773a0ee9c5c5ddce0ea70d05a876"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 6,
+          "exit": 0,
+          "seconds": 446.426,
+          "log": "worker-regressions-06.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "9ad77edc4ce4329f11767cf337aaa56fe37b356f960b4b0beccfcdfaccc47cab"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 7,
+          "exit": 0,
+          "seconds": 447.017,
+          "log": "worker-regressions-07.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "4e9262563b8a2019cd560aa0beeeffa8c5ca3b0db6086a39552e53fa7a1a1147"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 8,
+          "exit": 0,
+          "seconds": 441.122,
+          "log": "worker-regressions-08.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "c2b4efff1b48c768799c0321f7f7f3989f8b8471a3d8d07b92821535846c8ab1"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 9,
+          "exit": 0,
+          "seconds": 446.69,
+          "log": "worker-regressions-09.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "63acefc72bd30267266b8d41f27d386b32d0bb10ed99968d7342b4e18b20371f"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 10,
+          "exit": 0,
+          "seconds": 446.2,
+          "log": "worker-regressions-10.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "47e7f060a85f12a7c1e2713089b616c36b9cbe124339d76a3c5564d66c0bcd7f"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 11,
+          "exit": 0,
+          "seconds": 446.071,
+          "log": "worker-regressions-11.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "bf810309d30b7577e648914c676cc8e25dd9452dd4c8daa9ca507bec1244a086"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 12,
+          "exit": 0,
+          "seconds": 446.187,
+          "log": "worker-regressions-12.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ae9cf35627ca5e02234fddce82c09efb97e006658bc20dd852e551215c85aab9"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 13,
+          "exit": 0,
+          "seconds": 446.48,
+          "log": "worker-regressions-13.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ce88b3265ee51b407a004c375914fe67576e8e73a792725bd3044aa3edb21571"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 14,
+          "exit": 0,
+          "seconds": 446.582,
+          "log": "worker-regressions-14.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "f6991176bfb1e5409c4d3e80133bec4e4fa8833f064171a570f0761f10d4a526"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 15,
+          "exit": 0,
+          "seconds": 446.032,
+          "log": "worker-regressions-15.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "a5b15d39b856c68c5a0038ab31ed4dfde66561b17b59a14169d7e5b490e31fb1"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 16,
+          "exit": 0,
+          "seconds": 445.75,
+          "log": "worker-regressions-16.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "0cc59012e609792e1746f246ebea91f599ca689b09a49c2fdf1bac7646e4bbed"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 17,
+          "exit": 0,
+          "seconds": 446.602,
+          "log": "worker-regressions-17.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "184d008805bf42714939cb710b83e24f552e709b1bea58b010d416bfabdfdc0e"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 18,
+          "exit": 0,
+          "seconds": 446.542,
+          "log": "worker-regressions-18.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "f124635e392209e5b157dde522979d1e999baa1f775ae4976ae7cd89638f386e"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 19,
+          "exit": 0,
+          "seconds": 446.539,
+          "log": "worker-regressions-19.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ce2583bdd6b6de10283757e365112bec50eab0b29026e73491e08b933d3b274e"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 20,
+          "exit": 0,
+          "seconds": 445.383,
+          "log": "worker-regressions-20.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ca44f7c02eded7ed5495c36ecfe5c52809215987c9f4b0020381499944a09089"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 21,
+          "exit": 0,
+          "seconds": 445.694,
+          "log": "worker-regressions-21.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "04cb3e41417a70baf4b2c522cf0d835c5c4ed2226070f6247acaf2ba2392257a"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 22,
+          "exit": 0,
+          "seconds": 445.615,
+          "log": "worker-regressions-22.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "0ca759decb282923a24f5a54997aab53447f1be10d333c2553fd74376fd475c1"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 23,
+          "exit": 0,
+          "seconds": 446.294,
+          "log": "worker-regressions-23.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "817b8001ed738ad57bbb9f33d3d80251120bbfe6861ad2adbf2a6d485119cd2d"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 24,
+          "exit": 0,
+          "seconds": 446.131,
+          "log": "worker-regressions-24.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "b49a933573d5ed09b260f10cbd82b358f3308601d5305e34afdf0fc89cabbeda"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 25,
+          "exit": 0,
+          "seconds": 445.443,
+          "log": "worker-regressions-25.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "3fbf6ce1e9f2a81056ff7a59094eca4f4d42bd43ca59c9d33c6278484690f0fb"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 26,
+          "exit": 0,
+          "seconds": 445.278,
+          "log": "worker-regressions-26.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "420f25ca9a1f773f220f8fa65bd3bccd9ed70ce9e66540d8c82e47955e4184d8"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 27,
+          "exit": 0,
+          "seconds": 445.457,
+          "log": "worker-regressions-27.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "7dfb20969dc84d217aa3bbb1c411ae5df0f46d0bce8dec7535711e831dc510ea"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 28,
+          "exit": 0,
+          "seconds": 445.803,
+          "log": "worker-regressions-28.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "12e5173314a5ffb72c196e5be01c8139d308ab50f58e267d8c3f46a5dbe66147"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 29,
+          "exit": 0,
+          "seconds": 445.463,
+          "log": "worker-regressions-29.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "36617143a451d013b80ac5cbe50bfbd607a334b3dbd0a81775ca97ed6b4c0ae0"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 30,
+          "exit": 0,
+          "seconds": 445.245,
+          "log": "worker-regressions-30.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "fc92e8c86be1384fabdf6610ae1c5ef60da14b619a661b09472864342982f88f"
+        }
+      ]
+    },
+    "mini": {
+      "configuration": {
+        "root": "/private/tmp/sb4-fy-round1.JXulr3/snapback4",
+        "node": "/tmp/sb4-fy-round1.JXulr3/node-v24.13.1-darwin-arm64/bin/node",
+        "cpus": "none",
+        "parallel": 10,
+        "repeats": 30,
+        "hog_pids": []
+      },
+      "results": [
+        {
+          "file": "worker-regressions",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 456.937,
+          "log": "worker-regressions-01.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "c60062eb4fdd1d5f1ea6b7cb2b1c3dd61258b9c119c755bfaddd44e8f8ac0ee5"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 457.657,
+          "log": "worker-regressions-02.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "3adf0dd4c191a1c9eb31ab2b56929f351f28b024b22581628f9684fa56a996d9"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 457.657,
+          "log": "worker-regressions-03.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "55a15532aeaec5c4790263cbf19ea16e790196874fb6acbef3d3db1a3e67c6a3"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 4,
+          "exit": 0,
+          "seconds": 458.085,
+          "log": "worker-regressions-04.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "1e7cd48081e357f00e9dc0405fb03288c87fb1cedc2c7f06e94ed56f2bafe68c"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 5,
+          "exit": 0,
+          "seconds": 457.681,
+          "log": "worker-regressions-05.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "d8989fab646e3dcfe01fdb02e0c16052f5e017e10589e4f11561dd943a4d0a4b"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 6,
+          "exit": 0,
+          "seconds": 457.596,
+          "log": "worker-regressions-06.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "745aa52c19cc137fcd5254ad29b6ae360932d381caf40184a867a7b3e49b3f59"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 7,
+          "exit": 0,
+          "seconds": 458.044,
+          "log": "worker-regressions-07.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "f4eb7c58431eba207b72e4328c069347d86cd0a80dcc8ae0d5af68dcb9f854e3"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 8,
+          "exit": 0,
+          "seconds": 457.056,
+          "log": "worker-regressions-08.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "94822826c0dab5d9bc6899b58d6193b1ce61e3c9f7907e90a5680185eef228c5"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 9,
+          "exit": 0,
+          "seconds": 457.831,
+          "log": "worker-regressions-09.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "13bba2d250e77a2687705f9351c381077b91770e122186d1c48db0ad4d4bd02a"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 10,
+          "exit": 0,
+          "seconds": 457.276,
+          "log": "worker-regressions-10.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "489998479504bbdeb5e3261b6f6967b503dcc6b2273c9b468f21af57df3b476e"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 11,
+          "exit": 0,
+          "seconds": 473.638,
+          "log": "worker-regressions-11.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "de528d5b525332410c5d3ddd6c7a69058b542f7422fd3aa3a22199db9f677dcd"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 12,
+          "exit": 0,
+          "seconds": 468.688,
+          "log": "worker-regressions-12.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "12c0af195dd096f1b168bcc6707e85e23e4a571e7b3206c9c5e027362df2d38e"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 13,
+          "exit": 0,
+          "seconds": 466.584,
+          "log": "worker-regressions-13.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "0e08e56e21fdeb30856145d1c291a4c62fba5fd4b55d82848cd55388b23fb54a"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 14,
+          "exit": 0,
+          "seconds": 467.627,
+          "log": "worker-regressions-14.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "095ac5bce0d9a1cad0ce7dece1319a7bf33dc8736404fd2750b64039e20e8d21"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 15,
+          "exit": 1,
+          "seconds": 472.419,
+          "log": "worker-regressions-15.log",
+          "failed_tests": [
+            "dev credentialed worker receives only the explicit runtime environment"
+          ],
+          "failure_kinds": [
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 60,
+            "fail": 1,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "5cbbd98ca81beba46e2c5a81c6adbf964cbf065d470f3e642da1ab2447c5bfb9"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 16,
+          "exit": 0,
+          "seconds": 482.222,
+          "log": "worker-regressions-16.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "a9d13fe0fd35426fe1933a946e72d0327652506e1da27a371e2f2b72b3b3af61"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 17,
+          "exit": 1,
+          "seconds": 471.282,
+          "log": "worker-regressions-17.log",
+          "failed_tests": [
+            "dev private worker snapshot resolves schema-local packages before project packages",
+            "dev credentialed worker receives only the explicit runtime environment"
+          ],
+          "failure_kinds": [
+            "partial JSON",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 59,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "748a5edffdb7455b52df290dd1b97b95171b4fd66241a1a2598cbde83f9ff714"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 18,
+          "exit": 0,
+          "seconds": 473.024,
+          "log": "worker-regressions-18.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "517f9d725c26762a341b1a0c56899083baf95338e107c11272d246d18f68812a"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 19,
+          "exit": 1,
+          "seconds": 483.169,
+          "log": "worker-regressions-19.log",
+          "failed_tests": [
+            "dev worker.mjs snapshot does not add the temporary directory to package lookup"
+          ],
+          "failure_kinds": [
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 60,
+            "fail": 1,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "224ea2302537d86769f2fccd4ef14e17e90824cda49555d4fd37fb05f12b3566"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 20,
+          "exit": 0,
+          "seconds": 468.558,
+          "log": "worker-regressions-20.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "d4e23b2de26b17799aba0d7fed276bee0361d81c670115df5aff8243b950d106"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 21,
+          "exit": 1,
+          "seconds": 576.297,
+          "log": "worker-regressions-21.log",
+          "failed_tests": [
+            "dev private worker snapshot resolves schema-local packages before project packages",
+            "serve private worker snapshot resolves schema-local packages"
+          ],
+          "failure_kinds": [
+            "partial JSON",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 59,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "ad81f6c686ddd740b5c347f5b4e23910847758f7547743ba2cf53caf31cce25f"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 22,
+          "exit": 0,
+          "seconds": 588.215,
+          "log": "worker-regressions-22.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "f6fb76fd060f91fee6a60e218cb1768cbc847e051040c729ee748873d33437de"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 23,
+          "exit": 0,
+          "seconds": 588.138,
+          "log": "worker-regressions-23.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "1ab7b33fcab2d4677a78438b4e66bd1283ecd818f1eb8688e518520c5542cbea"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 24,
+          "exit": 0,
+          "seconds": 596.578,
+          "log": "worker-regressions-24.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "74eeae79b177f3d413d37555949d0584ca49e84de16e8f12ed87919e61b5cabb"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 25,
+          "exit": 1,
+          "seconds": 597.804,
+          "log": "worker-regressions-25.log",
+          "failed_tests": [
+            "dev worker.mjs snapshot does not add the temporary directory to package lookup",
+            "dev private worker snapshot resolves schema-local packages before project packages"
+          ],
+          "failure_kinds": [
+            "partial JSON",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 59,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "61a9e67483979db2a22f97c173a227061efef56a588c55b3e78eb2e0092ed72b"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 26,
+          "exit": 1,
+          "seconds": 585.121,
+          "log": "worker-regressions-26.log",
+          "failed_tests": [
+            "supervised workers/push.mjs refuses refresh without logging a bearer across split writes",
+            "dev private worker snapshot resolves schema-local packages",
+            "serve credentialed worker receives only the explicit runtime environment"
+          ],
+          "failure_kinds": [
+            "log readiness",
+            "partial JSON",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 58,
+            "fail": 3,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "8712a03411d15e5fb748908db92da66476209b51ea792388dbcc6ad7159626ec"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 27,
+          "exit": 1,
+          "seconds": 555.653,
+          "log": "worker-regressions-27.log",
+          "failed_tests": [
+            "supervised worker.mjs refuses refresh without logging a bearer across split writes",
+            "removed worker retains query fence while deletion is locked",
+            "serve credentialed worker receives only the explicit runtime environment"
+          ],
+          "failure_kinds": [
+            "log readiness",
+            "fixture writer lock",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 58,
+            "fail": 3,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "4f0c27156e03e930e43ef45f6e11e5189c9224b26bd744ecba479cfa46f456d5"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 28,
+          "exit": 1,
+          "seconds": 591.184,
+          "log": "worker-regressions-28.log",
+          "failed_tests": [
+            "supervised worker.mjs refuses refresh without logging a bearer across split writes",
+            "serve private worker snapshot resolves schema-local packages before project packages"
+          ],
+          "failure_kinds": [
+            "log readiness",
+            "partial JSON"
+          ],
+          "failure_note": "Unchanged sibling fixture failures, documented separately; bodies left untouched.",
+          "counts": {
+            "tests": 61,
+            "pass": 59,
+            "fail": 2,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "771e01f79eb911b90a2ddc9485f4762896c456d6cc8bebd2ebaa97181526ca6d"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 29,
+          "exit": 0,
+          "seconds": 579.852,
+          "log": "worker-regressions-29.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "7576f82fbb411efc4d3092a7d55799bbea0a75486265282eb4f0c2a71b0a20e5"
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 30,
+          "exit": 0,
+          "seconds": 581.693,
+          "log": "worker-regressions-30.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          },
+          "log_sha256": "e8c81d82e2ec4a904a7cc891b53bd8fffb351f1f08114d319ae216f3d22eca54"
+        }
+      ]
+    }
+  },
+  "inherited_fixture": {
+    "base": "0982b0d5e2",
+    "unchanged_fixture_bodies": [
+      {
+        "file": "package-lookup",
+        "body_sha256": "23e0b05913e10ab02a8ffa7e21c4128c793fa7f74c83d35afa3863d94724e1e9"
+      },
+      {
+        "file": "package-result",
+        "body_sha256": "514ff0c208ed1996e7386eec0a7adbe0aeff587015fd464f6f808a61f1781aa7"
+      },
+      {
+        "file": "environment-result",
+        "body_sha256": "f29a19789f6237cd6d5f67b9b85c9cddbbc6ba0d9c213aca2fa3f138d57e2941"
+      },
+      {
+        "fixture": "refresh logging",
+        "body_sha256": "99a780bd9d21cb4b1bbc8243e147368254316edc00e841ac49fe7463dc92c246"
+      },
+      {
+        "fixture": "fixture writer lock",
+        "body_sha256": "fa6f8cbbc5686b8dd1bca432c6937080c60077765172c47066a39005d40d0f2c"
+      }
+    ]
+  }
+}

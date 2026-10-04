@@ -86331,3 +86331,54 @@ Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
 Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+
+## 2026-10-04 — FY: witnessed job crash and watchdog process identities
+
+Fixed two SU-reported client fixture races on base ce9bef594a. The scheduled
+job fixture now stops the serving process inside its synchronous Node-version
+probe, after real schedule admission and before maintenance starts. It witnesses
+stopped state and SIGKILL exit, then compares the unchanged queued job before
+restart. Same-ID recovery, exactly-once execution and the queued outbox remain.
+The watchdog signal fixtures capture worker/helper birth identities after a
+readiness handshake and retain watchdog-owned cleanup. The existing `until`
+already throws on timeout; an injected guard confirms it. Delay and PID-reuse
+controls demonstrate the baseline mechanisms. No product change was needed.
+
+Both whole files passed 30/30 runs on eb1000 with two hogs confined to CPUs
+72–79 and 30/30 on the explicitly permitted Apartment mini. The full eb1000
+suite passed in 1,957 seconds: all Rust targets/doctests, 6,187 client passes
+and 11 skips, 79 model passes, nine fixture passes, and every build/typecheck/
+budget step. Reference validation passed. Both SU-origin tickets are closed;
+[the report](./reports/20261004-fy-fixture-races/REPORT.md) retains controls and
+logs. Sampled worktree/scratch use stayed below 15 GB; private scratch was
+removed and owned hogs reaped. No other host/worktree or simulator was used.
+Local commit only; nothing pushed or published.
+
+Round 1: bounded all asynchronous cleanup joins in the two FY fixtures, with
+visible diagnostics and watchdog-owned custody; the stopped-watchdog control
+now exits at its cleanup deadline. Both files passed 30/30 on confined eb1000;
+the mini ran the worker file 30 times (22 passed, eight retained sibling-fixture
+failures). All 180 watchdog variants passed and no cleanup hook failed. The
+[Round 1 report](./reports/20261004-fy-fixture-races/REPORT.md#round-1--bounded-cleanup-hooks)
+records partial-JSON failures for FX plus open log-readiness/writer-lock
+follow-ups. Only cleanup plumbing changed; full suite not rerun this round.
+
+Round 2 (2026-10-04): FY cleanup now retains body and teardown errors together,
+including when an outer test timeout hides the later rejection. All four
+finally paths use the shared wrapper; native after-hook reporting is covered.
+Both whole files passed 3/3 under confined CPU load, and the new masking tests
+passed 3/3. P3 watchdog-death orphan custody is explicitly deferred in an open
+ticket with the supplied review reproduction. See the
+[Round 2 report](./reports/20261004-fy-fixture-races/REPORT.md#round-2--preserve-body-and-cleanup-failures).
+Test-only change; no full suite or remote tests this round; nothing pushed.
+
+Round 3 (2026-10-04): FY reports the body error before awaiting cleanup and
+rethrows that same error, preserving assertion fields and its existing cause;
+nested cleanup failures attach separately. The exact timeout-with-successful-
+cleanup regression and native assertion-reporting checks fail on the old helper
+and pass with the fix. All three files passed 3/3 under confined CPU load
+(255 tests, zero failures/skips). Reference validation passed. See the
+[Round 3 report](./reports/20261004-fy-fixture-races/REPORT.md#round-3--report-the-body-before-cleanup-and-keep-it-primary).
+The accepted orphan-custody deferral is unchanged; test-only commit, no full
+suite or remote tests, scratch removed and owned hog reaped, nothing pushed.
