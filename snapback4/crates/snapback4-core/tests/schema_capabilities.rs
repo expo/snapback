@@ -22,13 +22,13 @@ fn capabilities_are_derived_independently_and_together() {
         assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     }
     assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
-    assert_eq!(timeline.required_capabilities(), ["source-write-reservations-v1".into(), "source-write-reservations-v2".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
+    assert_eq!(timeline.required_capabilities(), ["timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
-    assert_eq!(both.required_capabilities(), ["source-write-reservations-v1".into(), "source-write-reservations-v2".into(), "recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
+    assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut all = both.clone();
     all.tables.get_mut("posts").unwrap().maintained = columns.tables["posts"].maintained.clone();
-    assert_eq!(all.required_capabilities(), ["source-write-reservations-v1".into(), "source-write-reservations-v2".into(), "maintained-column".into(), "recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
+    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline-event-slots".into(), "timeline-v2".into()].into());
     for schema in [recorded, timeline, both, columns, projection, private_only, all] {
         let bytes = serde_json::to_string(&schema).unwrap();
         assert_eq!(bytes.matches("Capabilities").count(), 1);
@@ -49,9 +49,41 @@ fn no_capabilities_keeps_the_exact_legacy_bytes() {
     let schema = Schema { tables: BTreeMap::from([("t".into(), public_table(BTreeMap::new(), BTreeMap::new()))]), ..empty };
     assert_eq!(serde_json::to_string(&schema).unwrap(), r#"{"tables":{"t":{"columns":{},"indexes":{},"rules":{"read":{"Public":{"reason":"fixture"}},"insert":{"Public":{"reason":"fixture"}},"update":{"Public":{"reason":"fixture"}},"delete":{"Public":{"reason":"fixture"}}},"constraints":[],"leave":"until-revoked"}},"maintains":[]}"#);
     for schema in [Schema::default(), schema] {
-        assert_eq!(serde_json::from_str::<Schema>(&serde_json::to_string(&schema).unwrap()).unwrap(), schema);
+        let bytes = serde_json::to_string(&schema).unwrap();
+        let mut exported = schema.clone();
+        exported.export_write_reservations();
+        assert_eq!(serde_json::to_string(&exported).unwrap(), bytes);
+        exported.prepare_write_reservations();
+        assert_eq!(serde_json::to_string(&exported).unwrap(), bytes);
+        assert_eq!(serde_json::from_str::<Schema>(&bytes).unwrap(), schema);
     }
     assert_eq!(serde_json::from_str::<Schema>(r#"{"tables":{},"future_ignorable":true}"#).unwrap(), Schema::default());
+}
+
+#[test]
+fn nonzero_schema_exports_every_source_including_unrelated_zero_plans() {
+    let source = "table plain:\n  public\n  sync public\ntable media:\n  photos: [image <=1000] <=0 ?\n  public\n  sync public\n";
+    let zero = compile(source);
+    assert!(zero.source_reservations.is_empty());
+    assert!(zero.required_capabilities().is_empty());
+    let priced = compile(&source.replace("<=0 ?", "<=1 ?"));
+    assert_eq!(priced.source_reservations.len(), priced.tables.len());
+    assert_eq!(priced.source_reservations["plain"], zero.write_reservation("plain").unwrap());
+    assert_eq!(priced.source_reservations["media"].prices[snapback4_core::schema::reservations::ASSETS][3], 2);
+    assert_eq!(priced.required_capabilities(), ["source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    for schema in [priced.clone(), priced.public_projection()] {
+        for name in schema.tables.keys() {
+            assert_eq!(schema.source_reservations.get(name), snapback4_core::schema::reservations::reservation(&priced, name).as_ref());
+        }
+        let bytes = serde_json::to_string(&schema).unwrap();
+        assert_eq!(serde_json::to_string(&serde_json::from_str::<Schema>(&bytes).unwrap()).unwrap(), bytes);
+    }
+    // Retained RP all-zero maps remain readable and retain their wire shape.
+    let mut explicit = zero;
+    explicit.source_reservations = explicit.tables.keys().map(|name|
+        (name.clone(), explicit.write_reservation(name).unwrap())).collect();
+    let bytes = serde_json::to_string(&explicit).unwrap();
+    assert_eq!(serde_json::to_string(&serde_json::from_str::<Schema>(&bytes).unwrap()).unwrap(), bytes);
 }
 
 #[test]
@@ -119,7 +151,7 @@ fn event_slots_fence_projection_and_standalone_columns_but_not_legacy_timelines(
     let slots=compile(include_str!("../../snapback4-lang/tests/fixtures/following-view.q"));
     assert!(slots.public_projection().required_capabilities().contains("timeline-event-slots"));
     let mut columns=slots.clone(); columns.timelines.clear();
-    assert_eq!(columns.required_capabilities(),["source-write-reservations-v1".into(), "source-write-reservations-v2".into(), "timeline-event-slots".into()].into());
+    assert_eq!(columns.required_capabilities(),["timeline-event-slots".into()].into());
     let legacy:serde_json::Value=serde_json::from_str(include_str!("../../../packages/snapback4/test/fixtures/event-slots-pre-slot/backend.json")).unwrap();
     let legacy:Schema=serde_json::from_value(legacy["schema"].clone()).unwrap();
     assert_eq!(legacy.required_capabilities(),["timeline-v2".into()].into());

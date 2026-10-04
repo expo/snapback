@@ -86158,3 +86158,44 @@ records exact diagnostics, the compiling rewrite, both root inventory logs,
 verification results and wasm bytes.
 
 2026-10-04 — MS Round 2: qualified search meter parity by the same scanned message set; card 402/405 lines; eb1000 guide (112), compiler (7), offline memory/SQLite (2), and simulator diagnostic (1) tests pass; no full-suite rerun.
+
+## 2026-10-04 — RPF: restore capability-free published-engine compatibility
+
+On the Apartment mini, reproduced all four Darwin 0.2.33 publication-fence
+failures. Fresh compiler output now omits wholly zero source-reservation maps
+and their stamps. The zero check includes owner birth, maintained reads and
+`server_only`; a nonzero plan still exports every source. Existing explicit-zero
+RP maps remain readable. The device's structural zero proof and legacy narrowing
+are unchanged; the price calculator stays native-only. Updated LLP 3000.022
+§14.3 and the receipts guide. No price, runtime ceiling or capability decoder
+rule changes.
+
+The exact fence adds both reservation names for recorded-attribution and
+maintained-column. Timeline's plans are zero, so its original feature markers
+remain exact. All six fence tests pass, including canonical legacy bytes,
+published native/wasm acceptance for the control, feature refusals, published
+keys and store preservation. Focused checks: 365 language/receipt tests
+(211 receipt/RY), 77 clients, seven native capability tests and the search-byte
+fixture pass. Both 320-case differentials retain 114 predicted commits,
+eight conservative queues and 198 server refusals. Both complete calibration
+apps' six 50-member sends predict and commit per native store and on wasm,
+with unchanged headroom bounds. The known omitted-effect-payload exception
+remains separately asserted.
+
+Full Mac suite: **two failed stages in 3,055 seconds**, exit 1. Rust has
+5,007 passes, one failure, 33 existing ignores and 17 passing doctests;
+all 76 witness tests pass. Client pool: 6,189 passes, three failures and six
+existing skips across 311 files. All 79 serial models and nine fixtures pass;
+all build/typecheck/docs/release/wasm stages pass. The Rust adoption-log failure
+reproduces at the same assertion on unmodified base. The worker failures parse
+partially written fixture JSON; the dev-environment case reproduces on base,
+while the two other observed cases share the same premature read pattern.
+The [report](./reports/20261004-rpf-capability-fence/REPORT.md) links bounded
+follow-ups and retains the failed full result separately from isolated reruns.
+
+Wasm: 2,116,732 B raw / 639,616 B gzip, 271 B below the unchanged 639,887 B cap,
+retaining its macOS allowance. Symbol inspection confirms no native price
+calculator/export. A supplemental serde-family census rejects the same i64
+serializer on unchanged base and RPF; recorded separately without broadening
+the allowlist. No other host, NZ worktree/process or simulator was used.
+Local commit only; nothing pushed or published.

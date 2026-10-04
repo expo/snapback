@@ -85,7 +85,7 @@ mutation title(conversation: conversations):
   } finally { await core.close(); }
 });
 
-test('wasm predicts new explicit-zero and old provably-zero source prices', { timeout: hangBudget(10) }, async t => {
+test('wasm predicts unstamped zero schemas and retained RP explicit-zero plans', { timeout: hangBudget(10) }, async t => {
   const backend = await backendFor(t, `table items:
   body: text <=20
   public
@@ -94,14 +94,17 @@ test('wasm predicts new explicit-zero and old provably-zero source prices', { ti
 mutation post():
   insert items { body: 'offline' }
 `);
-  const plan = backend.schema.source_reservations.items;
-  assert.deepEqual(plan.prices, Array.from({ length: 8 }, () => Array(7).fill(0)));
-  assert.deepEqual(plan.birth, Array(7).fill(0));
-  for (const legacy of [false, true]) {
+  assert.equal(backend.schema.source_reservations, undefined);
+  assert.ok(Object.values(backend.schema.tables).every(table => table.constraints.every(c => !c.Capabilities)));
+  for (const explicit of [false, true]) {
     const b = structuredClone(backend);
-    if (legacy) {
-      delete b.schema.source_reservations;
-      for (const table of Object.values(b.schema.tables)) table.constraints = table.constraints.filter(c => !c.Capabilities);
+    if (explicit) {
+      // R4/R5 emitted this zero plan. Those kept backends must still predict.
+      b.schema.source_reservations = { items: {
+        prices: Array.from({ length: 8 }, () => Array(7).fill(0)),
+        birth: Array(7).fill(0), server_only: false,
+      } };
+      b.schema.tables.items.constraints.push({ Capabilities: ['source-write-reservations-v1', 'source-write-reservations-v2'] });
     }
     const device = new WebDevice(JSON.stringify(b), '[]');
     try {

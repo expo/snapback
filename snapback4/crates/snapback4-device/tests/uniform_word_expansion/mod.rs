@@ -129,17 +129,16 @@ fn search_expired_word_pairs_on_both_stores() {
 
 #[test]
 fn search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots() {
-    // New compilers explicitly export zero prices. Verify that addition while
-    // preserving every byte of the genuine pre-price wasm backend fixtures.
-    fn legacy_bytes(mut backend: snapback4_device::device::Backend) -> snapback4_device::device::Backend {
+    // Zero-only schemas keep every byte of the genuine pre-price wasm backends.
+    fn legacy_bytes(backend: snapback4_device::device::Backend) -> snapback4_device::device::Backend {
+        assert!(backend.schema.source_reservations.is_empty());
         for name in backend.schema.tables.keys() {
             let price=snapback4_core::schema::reservations::reservation(&backend.schema,name).unwrap();
-            assert_eq!(backend.schema.source_reservations.get(name),Some(&price));
+            assert_eq!(backend.schema.write_reservation(name),Some(price.clone()));
             assert_eq!(price.prices,[[0;7];8]);
             assert_eq!(price.birth,Some([0;7]));
             assert!(!price.server_only);
         }
-        backend.schema.source_reservations.clear();
         backend
     }
     let mut fixtures = serde_json::Map::new();
