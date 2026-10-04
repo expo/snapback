@@ -1,4 +1,5 @@
 import { waitFor, hangBudget } from './helpers/wait.mjs';
+import { cleanup } from './helpers/cleanup.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
 // and deployment directories are isolated and removed by their owner.
 import test from "node:test";
@@ -76,7 +77,11 @@ async function serve(deployment, inspect) {
     await inspect(url, { authorization: `Bearer ${signedIn.session.token}` }, signedIn.session);
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
-    await exited;
+    try {
+      await cleanup(() => exited, `release server ${child.pid}`, () => log, [child]);
+    } finally {
+      if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
+    }
   }
 }
 
@@ -405,9 +410,13 @@ schedule checkpointDaily every 1d: checkpoint
     // A fresh real process device acquires this recovery point: no old
     // watermarks or pending outbox are attached to the restored endpoint.
     const deviceDir = join(dirname(app), "fresh-restored-device"); mkdirSync(deviceDir);
+    const deviceChildren = [];
     const client = await createLocalClient({ url, session: rotated, waitSeconds: 1,
       device: processDevice({ binary, dir: deviceDir,
-        spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }),
+        spawn: (cmd, args) => {
+          const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] });
+          deviceChildren.push(child); return child;
+        },
         writeFile: async (path, text) => writeFileSync(path, text) }),
     });
     try {
@@ -415,7 +424,15 @@ schedule checkpointDaily every 1d: checkpoint
       const local = await client.query({ kind: "query", name: "q" }, {});
       assert.equal(local.complete, true);
       assert.deepEqual(local.data.map((row) => row.body), ["at backup"]);
-    } finally { await client.close(); }
+    } finally {
+      try {
+        await cleanup(() => client.close(), 'restored client close', () => JSON.stringify(deviceChildren.map(child => ({
+          pid: child.pid, exitCode: child.exitCode, signalCode: child.signalCode,
+        }))), deviceChildren);
+      } finally {
+        for (const child of deviceChildren) if (child.exitCode == null && child.signalCode == null) child.kill('SIGKILL');
+      }
+    }
   });
   assert.deepEqual(recoveryState(deployment), originalAfter, "restored serving and authentication must not touch the original");
   const restoredBeforeActivation = recoveryState(restored);
@@ -519,7 +536,7 @@ schedule resumeDaily every 1d: resume
     assert.deepEqual(await exited, [null, "SIGKILL"]);
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
-    await exited;
+    await cleanup(() => exited, `crashed release server ${child.pid}`, () => log, [child]);
   }
   assert.deepEqual(jobs(), [queued], "after witnessed SIGKILL and before any restart, the admitted job is unchanged");
   await serve(deployment, async (url, headers) => {

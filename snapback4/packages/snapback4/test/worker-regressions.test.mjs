@@ -1,4 +1,5 @@
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
+import { cleanup } from './helpers/cleanup.mjs';
 import { identity, live } from '../../../scripts/test-processes.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,15 +53,25 @@ function fixture(t, source, cleanupChildren) {
   t.signal.addEventListener('abort', onAbort, { once: true });
   t.after(async () => {
     t.signal.removeEventListener('abort', onAbort);
-    for (const s of servers) {
-      const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
-      try { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
-      finally { clearTimeout(timer); }
+    try {
+      for (const s of servers) {
+        const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
+        try {
+          if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM');
+          await cleanup(() => s.done, `worker server ${s.child.pid}`, diagnostics, [s.child]);
+        } finally { clearTimeout(timer); }
+      }
+      if (cleanupChildren) await cleanupChildren();
+      else for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
+        for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    } finally {
+      // A failed join must still release every owned host and its watchdog pipe.
+      for (const { child } of servers) {
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+        child.stdout.destroy(); child.stderr.destroy(); child.unref();
+      }
+      rmSync(dir, { recursive: true, force: true });
     }
-    if (cleanupChildren) await cleanupChildren();
-    else for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
-      for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
-    rmSync(dir, { recursive: true, force: true });
   });
   return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev") {
     const release = join(dir, 'release');
@@ -405,7 +416,10 @@ test('worker fixture waits for initial admission after the listening URL', async
     await until(() => f.listening && existsSync(join(f.dir, 'probe-ready')));
     await sleep(50);
     assert.equal(ready, false, 'a printed URL is not completed worker admission');
-  } finally { writeFileSync(join(f.dir, 'probe-go'), ''); await starting; }
+  } finally {
+    writeFileSync(join(f.dir, 'probe-go'), '');
+    await cleanup(() => starting, 'worker admission release', () => fixtureDiagnostics.getStore()?.());
+  }
   await until(() => rows(join(f.dir, 'starts')).length === 1);
 });
 
@@ -433,7 +447,11 @@ await once(helper.stdout,'data');
 appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`, async () => {
     // The live watchdog owns its group. EOF requests cleanup even on failure;
     // never signal a descendant by a stale PID from the starts file.
-    watchdog?.stdin.end(); if (done) await done;
+    watchdog?.stdin.end();
+    if (done) await cleanup(() => done, `watchdog ${signal}`, () => JSON.stringify({
+      pid: watchdog.pid, exitCode: watchdog.exitCode, signalCode: watchdog.signalCode,
+      starts: rows(join(f.dir, 'starts')),
+    }), [watchdog]);
   });
   watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
   done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();

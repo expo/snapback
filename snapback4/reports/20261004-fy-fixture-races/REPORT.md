@@ -110,3 +110,82 @@ Scope: the two fixtures and their local helpers. Governing context is
 process-crash tests on WAL `synchronous=NORMAL`, with no power-loss or external
 provider claim. No new design decision or LLP is needed; the journal and the
 two SU-origin tickets carry the correction. LLP hand-off: none.
+
+## Round 1 — bounded cleanup hooks
+
+Review base: `0982b0d5e2`. Astra's P2 identified an unbounded watchdog exit
+join in `t.after`; Node's body timeout does not bound that hook. This round
+changes only test cleanup plumbing and its shared helper. The crash gate,
+identity checks, admission/restart assertions, exactly-once/outbox assertions
+and worker descendant-death assertions are unchanged. FX/DG's package-result
+fixtures are untouched.
+
+Every asynchronous cleanup join in these two files now uses the existing
+one-work-unit hang guard (122 seconds, independent of the body timeout): the
+shared worker-server teardown, watchdog teardown, admission-release `finally`,
+shared release-server teardown, restored-client close and crash teardown.
+Remaining `t.after`/`finally` hooks only do synchronous filesystem or SQLite
+cleanup. Semantic exit waits in test bodies retain their existing assertions.
+
+Cleanup failures include fixture state or captured logs and preserve their
+original cause. They print the diagnosis before rejecting because Node can
+report only the earlier body timeout and hide an after-hook rejection. Child
+pipes are released and handles unreferenced so they cannot hold the failed
+file open after its deadline. Owned server/device handles retain their kill
+fallbacks; watchdog cleanup only closes stdin and awaits exit. It never signals
+the watchdog or its descendants, including after a timeout.
+
+The scratch control modifies only the test timeout (3 seconds) and injects a
+stop of the real owned watchdog after both descendant identities are captured.
+Its external controller resumes that same identity at 9 seconds. On the
+unmodified review base, the test process did not exit until **11.06 seconds**.
+With the fixed hook and a scratch-only timer shim accelerating the cleanup
+guard to 1 second, it exited at **4.10 seconds**, before recovery, with
+`TEST_CLEANUP`/`TEST_HANG` and the watchdog PID/state/starts diagnostic visible.
+In both controls the resumed watchdog completed group cleanup, and its original
+worker/helper identities were confirmed dead. No product defect was found.
+Additional helper controls cover successful joins, rejection-cause preservation,
+timeout diagnostics, a failing diagnostic callback and handle release with
+zero child signals.
+
+| Round 1 host / check | Release activation | Worker regressions |
+| --- | --- | --- |
+| eb1000, CPUs 72–79, two confined CPU hogs | 30/30 passed | 30/30 passed |
+| Apartment mini, owned `/tmp` scratch | Not run this round | 22 passed, 8 failed out of 30 |
+
+All **180 watchdog signal test executions passed**, with zero cleanup-hook
+failures. Ten files ran concurrently per host; Node 24.13.1 and Rust 1.97.0
+were unchanged. Mini failures are retained, not replaced by passing reruns:
+
+- Twelve partial-JSON failures in unchanged `package-lookup`, `package-result`
+  and `environment-result` fixture readers. An existence-only wait precedes
+  parsing; a review-base control with a 100 ms delayed write reproduces it.
+  These remain in FX's scope, with no edits to their bodies.
+- Three refresh log-readiness failures: split output and the stderr marker
+  were present, but the whole stdout line was not yet observed. A review-base
+  control delays observation by 500 ms, reproduces the assertion failure,
+  and then records the whole line's arrival. Follow-up:
+  [worker log readiness](../../../issues/20261004-worker-refresh-log-readiness.md).
+- One `database is locked` at the fixture's setup `BEGIN IMMEDIATE`, before
+  its query-fencing assertions. A review-base control with an owned competing
+  writer reproduces it. Follow-up:
+  [fixture writer-lock acquisition](../../../issues/20261004-worker-deletion-fixture-writer-lock.md).
+
+All five implicated fixture bodies match `0982b0d5e2` byte for byte; their
+hashes are archived. Isolated mini controls of the three initial JSON cases,
+both refresh variants and the query-fence case passed. These additional
+failures prevent a whole-file green claim for the mini; no product change or
+assertion weakening was made to absorb them.
+
+[Round 1 controls and injection sources](./round1-controls.log.gz),
+[all repetition logs, driver and isolated reruns](./round1-repetitions.log.gz),
+and [counts, failure signatures and source hashes](./round1-summary.json)
+retain the evidence. The mini's worker file and helper hashes match eb1000.
+`ref-check` and `git diff --check` pass. Per the round-1 instruction, the full
+suite was not rerun: executable changes are confined to test cleanup hooks
+and their helper; round 0's full-suite evidence remains above.
+
+Both owned scratch trees were removed after archiving evidence, and the
+Linux driver stopped and reaped its two hogs. Sampled worktree plus scratch
+use stayed below 15 GB. No other host/worktree/process or simulator was used;
+nothing pushed or published.

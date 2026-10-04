@@ -86272,3 +86272,12 @@ budget step. Reference validation passed. Both SU-origin tickets are closed;
 logs. Sampled worktree/scratch use stayed below 15 GB; private scratch was
 removed and owned hogs reaped. No other host/worktree or simulator was used.
 Local commit only; nothing pushed or published.
+
+Round 1: bounded all asynchronous cleanup joins in the two FY fixtures, with
+visible diagnostics and watchdog-owned custody; the stopped-watchdog control
+now exits at its cleanup deadline. Both files passed 30/30 on confined eb1000;
+the mini ran the worker file 30 times (22 passed, eight retained sibling-fixture
+failures). All 180 watchdog variants passed and no cleanup hook failed. The
+[Round 1 report](./reports/20261004-fy-fixture-races/REPORT.md#round-1--bounded-cleanup-hooks)
+records partial-JSON failures for FX plus open log-readiness/writer-lock
+follow-ups. Only cleanup plumbing changed; full suite not rerun this round.
