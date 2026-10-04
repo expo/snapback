@@ -318,7 +318,7 @@ A post commits a durable delivery record with the source and own inbox copy.
 Delivery and cleanup run in metered chunks of at most 256, yielding between rows
 after a short time slice; each cursor commits with its writes. Waiting requests
 get the engine before the next chunk, and delivery retains a turn under continuous
-request traffic. Background turns rotate pending items and declarations, so small deliveries can pass unfinished backfill or cleanup.
+request traffic. An item among P pending items gets a slice within P visits to its declaration. New arrivals can pass unfinished work; event arrival is not FIFO.
 Disk transactions use WAL `synchronous=FULL`, so a published device watermark needs no later request to make its commit durable.
 A crash resumes the committed cursor without duplicate copies. Transaction sequence
 and write ordinals separate backfill from later delivery; delayed delivery cannot

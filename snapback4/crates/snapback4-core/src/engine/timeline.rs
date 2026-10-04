@@ -189,9 +189,10 @@ impl Runner<'_> {
         let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone(), epoch.clone()];
         let id = Value::Id(crate::schema::timeline::owned_id(&t.name, "Work", &key));
         let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
+        let position = self.timeline_queue_tail(t)?;
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
-            ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
+            ("admitted", self.timeline_admission()), ("at", position), ("status", Value::String("pending".into())), ("error", Value::Null)]);
         self.meter.heap(super::write_target::row_copy_ceiling(&self.schema.tables[&t.table("Work")]))?;
         // Resetting an existing natural-key task is safe and costs the same one
         // write as insertion. No task existence is disclosed to the application.

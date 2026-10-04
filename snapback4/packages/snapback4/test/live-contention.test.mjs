@@ -1,4 +1,4 @@
-// @ref LLP 3000#contended-read-serving — real web updates retain causal order under scoped CPU pressure.
+// @ref LLP 3000#contended-read-serving — commit-to-render stage ordering under scoped CPU pressure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
@@ -19,7 +19,7 @@ test('Chromium: repost, group message and reaction render under confined content
    const [a,b=a]=range.split('-').map(Number);return Array.from({length:b-a+1},(_,i)=>a+i);
   });
   const cpus=process.env.LU_TEST_CPUS??(allowed.includes(90)&&allowed.includes(91)?[90,91]:allowed.slice(0,2)).join(',');
-  const child=spawn('taskset',['-c',cpus,process.execPath,join(root,'reports/20261003-lu-live-update-latency/tools/measure.mjs')],{
+  const child=spawn('taskset',['-c',cpus,'python3',join(root,'reports/20261003-lu-live-update-latency/tools/confine.py'),process.execPath,join(root,'reports/20261003-lu-live-update-latency/tools/measure.mjs')],{
    cwd:root,env:{...process.env,SNAPBACK4_BIN:binary,LU_SUITE:'1',LU_RUNS:'2',LU_HISTORY:'80',LU_REFOLLOW:'1',LU_LEVELS:'0,2',LU_OUT:out},stdio:['ignore','pipe','pipe'],
   });
   let output='';child.stdout.on('data',x=>output+=x);child.stderr.on('data',x=>output+=x);

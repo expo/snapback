@@ -33,3 +33,14 @@ No claim is made that this reduced fixture identifies the exact cause of
 calibration #30's separate frozen-app attempts. The independent
 [replay throughput issue](./20261002-snapback4-following-replay-delivery-backlog.md)
 also remains open.
+
+**2026-10-04 — LU round 1:** the corrected scheduler guarantees a slice within
+P declaration visits despite new arrivals. A fresh 30-trial no-burner run, with
+all experiment threads confined by taskset plus the inherited affinity guard,
+still measures repost p95 757.7 ms and maximum 780.0 ms. (Round 0's taskset-only
+browser confinement was incomplete; see the report's correction.) In round-1
+trial 23, Carol's fresh delivery commits at +39.4 ms, publication at +39.5 ms,
+receipt at +42.7 ms, and matching evaluation at +43.0 ms. Observation publication
+is +779.4 ms and render +780.0 ms: 736.4 ms after matching evaluation. Inspection
+queue p95 is 0.1 ms and attempt p95 15.7 ms. This independently preserves the
+follow-up's scope; no concurrency, authority or retention bound was relaxed.

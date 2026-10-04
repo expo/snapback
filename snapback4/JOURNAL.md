@@ -84836,3 +84836,65 @@ per-stage percentiles, individual timestamps, confined-load evidence, the
 development failures and reproduction tools. Large raw traces remain ignored
 under `target/`. No remote machine, unrelated process signal, push or publication
 was used.
+
+## 2026-10-04 — LU round 1: bounded delivery share during continuing arrivals
+
+Both round-0 reviewers found that the forward-key rotator could starve old work
+indefinitely while a fresh one-recipient delivery arrived before every turn.
+Following now uses a durable round-robin queue: new items append behind every
+pending item, and an unfinished slice atomically moves its cursor and queue
+position to the tail. The existing internal Work.at field holds that position;
+no schema/index migration is needed. An item pending at time t among P items
+gets a slice within P successful visits to its declaration, or D×P successful
+background delivery turns across D fixed declarations. P is frozen at t;
+later arrivals cannot extend that obligation. After service a new obligation
+uses the then-current P. Cancellation/parking ends it; growing overload and
+OS/commit delays do not gain a wall-clock promise. CT pacing, aged opportunities,
+admission and ceilings remain unchanged. LLP 3000 §7 states the proof and the
+restart/declaration-hint scope; LLP 3000.013 and the feeds guide agree.
+
+Eight deterministic regressions cover continuing one-row arrivals before every
+turn with five backfills, cleanup and multi-slice fan-out; the D×P bound, FIFO
+control, atomic failure and reopen/adopt are retained. Six fail against the
+round-0 selector, including all four ongoing service bounds. Later events can
+reach a follower before earlier events; the final page remains sorted and
+duplicate-free. A React page regression checks that ordering with overlapping
+pages. The SDK and included chat surfaces derive their lists and counts from
+query snapshots, not FIFO delivery notifications. The report scopes the audit
+of calibration backend source separately from its unavailable frozen UI.
+
+Correction to the preceding entry's blanket confinement claim: taskset alone
+does not keep Chromium SwiftShader workers in their inherited mask. A live
+thread audit found workers on 0–9 during the first round-1 attempt; that attempt
+was stopped and excluded. Round 0's browser confinement was not fully proved.
+The LU launcher now freezes the mask with an inherited unprivileged seccomp
+filter refusing affinity changes, and the formal run audits all descendant
+threads. Both final runs use CPUs 80–89; the suite witness uses 90–91. Burners
+remain in owned groups and were reaped normally. Other harnesses' corresponding
+audit is tracked in the Chromium-affinity follow-up; no unrelated process was
+signaled and no other machine was used.
+
+The final guarded sweep repeats 0/20/120 burners, 1,000 historical posts and a
+refollow before every update, with 30 writes per shape/load and two remote
+receivers. Heavy-load slower-receiver p95 is 24,645.0→892.1 ms for repost,
+2,160.9→1,485.5 ms for message, and 2,278.6→657.5 ms for reaction. Each meets
+the two-second target in this shared-host run. Message maximum is 1,596.1 ms;
+the report retains all cells and the review's inconsistent message result,
+without claiming a universal speedup. No-burner repost p95 remains 757.7 ms,
+above 500 ms: the slowest trial evaluates at +43.0 ms but publishes its matching
+observation at +779.4 ms. The existing publication follow-up now has this guarded
+reproduction; retention and authority fences remain intact.
+
+The affected tests pass (112 guide, 30 timeline, 6 page-reconciliation). The full
+eb1000 suite exits 0 with zero failures in 1,899 seconds, including 6,036 client
+passes, 11 skips and 79 client models. Its guarded Chromium witness also passes.
+The locked wasm build measures 2,048,676 raw / 617,398 gzip bytes against the
+unchanged 618,040-byte cap, retaining the 130-byte macOS estimate and 512 bytes
+beyond it. The fresh wasm and frozen identical-client comparison have separate
+digests in the manifest; equal sizes are not an artifact-identity claim.
+
+The [Round 1 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-1--bounded-service-during-continuing-arrivals)
+retains the bounds, regressions, stage percentiles, individual timestamps,
+confinement audits, qualification and limitations. Large raw traces stay ignored
+under target. This local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
