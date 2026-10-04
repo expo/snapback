@@ -3,6 +3,42 @@ use snapback4_lang::{compile, guide};
 fn recipe() -> String {
     guide::quarry(guide::card("search").unwrap()).into_iter()
         .find(|source| source.contains("ordinal: sequence by")).unwrap()
+        .replace("last 20 by byConversationOrdinal", "last 20 by .ordinal")
+}
+
+fn plain_recipe() -> String {
+    recipe().replace("unique byConversationOrdinal: conversation, ordinal", "by byConversationOrdinal: conversation, ordinal")
+        .replace(" last 500 by byConversationOrdinal", "")
+}
+
+#[test]
+fn named_unique_search_order_accepts_scopes_directions_and_browse_variants() {
+    for ordinal in ["sequence by conversation", "int"] {
+        for prefix in ["messages[conversation = conversation]", "messages[conversation]", "messages where .conversation = conversation"] {
+            for direction in ["first", "last"] {
+                let schema = recipe().split("query searchChat").next().unwrap().replace("sequence by conversation", ordinal)
+                    .replace(" last 500 by byConversationOrdinal", "");
+                let source = format!("{schema}query searchChat(conversation: conversations, q: text <=100, c: cursor ?):\n  return {prefix} matching q {direction} 20 by byConversationOrdinal after c {{ *, chat: conversations[.conversation].id }}\n");
+                let bound = compile(&[("schema.q".into(), source)]);
+                assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+                assert!(bound.notes.iter().all(|note| note.code == "N_NO_HORIZON"), "{:?}", bound.notes);
+                let indexes = &bound.schema.tables["messages"].indexes;
+                assert!(indexes["byConversationOrdinal"].unique);
+                assert!(indexes.values().any(|index| index.word_component().is_some() && index.columns() == ["conversation", "ordinal", "id"]));
+            }
+        }
+    }
+}
+
+#[test]
+fn unique_order_refuses_keys_outside_its_declared_prefix_with_exact_text() {
+    let source = recipe().replace("conversation = conversation] matching q last 20 by .ordinal", "ordinal = 7] matching q last 20 by byConversationOrdinal");
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+    let refusal = &bound.diagnostics[0];
+    assert_eq!(refusal.code, "E_QUARRY_MATCHING_INDEX");
+    assert_eq!(refusal.message, "messages.byConversationOrdinal is a plain unique index; matching scope keys must name its leading columns. Order by columns to plan a different search scope");
+    assert_eq!(refusal.guide, "search");
 }
 
 #[test]
@@ -13,7 +49,7 @@ fn named_plain_search_index_prints_a_compiling_order_rewrite() {
             "messages[chat] matching needle last 7 by byConversationOrdinal after next",
             "messages where .conversation = chat matching needle last 7 by byConversationOrdinal after next",
         ] {
-            let schema = recipe().split("query searchChat").next().unwrap().replace("sequence by conversation", ordinal);
+            let schema = plain_recipe().split("query searchChat").next().unwrap().replace("sequence by conversation", ordinal);
             let source = format!("{schema}query page(chat: conversations, needle: text <=100, next: cursor ?):\n  return {source_read} {{ id, ordinal }}\n");
             let refused = compile(&[("schema.q".into(), source.clone())]);
             assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
@@ -25,9 +61,9 @@ fn named_plain_search_index_prints_a_compiling_order_rewrite() {
             let repaired = source.replace(source_read, &diagnostic.rewrite);
             let bound = compile(&[("schema.q".into(), repaired)]);
             assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-            assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+            assert!(bound.notes.iter().all(|note| note.code == "N_NO_HORIZON"), "{:?}", bound.notes);
             let indexes = &bound.schema.tables["messages"].indexes;
-            assert!(indexes["byConversationOrdinal"].unique);
+            assert!(!indexes["byConversationOrdinal"].unique);
             assert!(indexes.values().any(|index| index.word_component().is_some() && index.columns() == ["conversation", "ordinal", "id"]));
         }
     }
@@ -35,7 +71,7 @@ fn named_plain_search_index_prints_a_compiling_order_rewrite() {
 
 #[test]
 fn search_order_repair_keeps_nested_operands_filters_and_shape_context() {
-    let schema = recipe().split("query searchChat").next().unwrap().to_owned();
+    let schema = plain_recipe().split("query searchChat").next().unwrap().to_owned();
     let read = "messages[conversation = chat] matching ('cof' if needle = '' else needle) first 3 by byConversationOrdinal after next where .body != 'skip'";
     let source = format!("{schema}fn hits(chat: conversations, needle: text <=100, next: cursor ?):\n  return {read} {{ id, ordinal }}\nquery page(chat: conversations, needle: text <=100, next: cursor ?):\n  return hits(chat, needle, next)\n");
     let refused = compile(&[("schema.q".into(), source.clone())]);
@@ -50,7 +86,7 @@ fn search_order_repair_keeps_nested_operands_filters_and_shape_context() {
 
 #[test]
 fn inadmissible_search_order_repairs_are_not_printed() {
-    let recipe = recipe();
+    let recipe = plain_recipe();
     for source in [
         recipe.replace("  search body\n", ""),
         recipe.replace("query searchChat", "mutation searchChat"),

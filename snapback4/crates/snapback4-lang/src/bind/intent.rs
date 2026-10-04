@@ -18,6 +18,15 @@ pub(super) struct Requests {
 // must retain later keys because different branches can carry the same id.
 pub(super) fn table_order(catalog: &mut Catalog) {
     let mut normalize = |value: &mut Expr| {
+        if let Expr::Read(read) = value && read.matching.is_some() && read.index.is_some()
+            && let Some(table) = catalog.tables.get(&read.table) {
+            let original = read.clone();
+            if super::intent_search::named_order(table, read) {
+                let source = catalog.source.expression(&Expr::Read(original));
+                catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| source.clone());
+                catalog.canonical_read_origins.entry(read.site.to_string()).or_insert(source);
+            }
+        }
         if let Expr::Read(read) | Expr::Exists { read, .. } = value
             && catalog.tables.contains_key(&read.table)
             && let Some(id) = read.order_keys.iter().position(|column| column == "id")

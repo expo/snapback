@@ -13,16 +13,10 @@ fn ids(page: &QueryOutcome) -> Vec<String> {
 }
 
 fn scenario<H: Host>(host: &mut H, sequence: bool, horizon: Option<usize>) {
-    let mut source = recipe().replace("last 20 by .ordinal", "last 2 by byConversationOrdinal");
+    let mut source = recipe().replace("last 20 by byConversationOrdinal", "last 2 by byConversationOrdinal");
     if !sequence { source = source.replace("sequence by conversation", "int"); }
     source = source.replace(" last 500 by byConversationOrdinal", &horizon.map(|n| format!(" last {n} by byConversationOrdinal")).unwrap_or_default());
-    // Execute the actual printed repair, rather than a separately maintained spelling.
-    let refused = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
-    assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
-    let read = "messages[conversation = conversation] matching q last 2 by byConversationOrdinal after c";
-    let rewrite = &refused.diagnostics[0].rewrite;
-    assert!(!rewrite.is_empty());
-    source = source.replace(read, rewrite).replace("  body: text <=2000", "  at: time\n  body: text <=2000");
+    source = source.replace("  body: text <=2000", "  at: time\n  body: text <=2000");
     let (mut server, backend) = compile(&source);
     server.seed(["chat", "hidden"].map(|key| ("conversations".into(), object([("id", id(key))])))).unwrap();
     server.seed([("m1", "chat", "alice"), ("m2", "hidden", "bob")].map(|(key, chat, who)| (
@@ -106,3 +100,66 @@ fn ordered_search_offline_memory() {
 fn ordered_search_offline_sqlite() {
     for sequence in [false, true] { for horizon in [None, Some(500), Some(3)] { scenario(&mut Sqlite::new("matching-order"), sequence, horizon); } }
 }
+
+// @ref LLP 3000.007#18.1 — the named order has exactly the existing search
+// boundary: a cut is never certified exhaustion, even when it returns no hits.
+fn meter_boundary<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str) {
+    use snapback4_core::{Ceilings, engine::local};
+    use snapback4_core::rows::Rows;
+    let source = recipe().replace("sequence by conversation", "int")
+        .replace(" last 500 by byConversationOrdinal", "");
+    let (mut server, backend) = compile(&source);
+    let mut seed = vec![("conversations".into(), object([("id", id("chat"))])),
+        ("members".into(), object([("id", id("member")), ("conversation", id("chat")), ("principal", id("alice"))]))];
+    seed.extend((1..=41).map(|n| ("messages".into(), object([
+        ("id", id(&format!("m{n}"))), ("conversation", id("chat")), ("ordinal", Value::Int(n)),
+        ("body", Value::String("coffee coffers".into()))]))));
+    server.seed(seed.clone()).unwrap();
+    let program = backend.programs.iter().find(|p| p.name == "searchChat").unwrap().clone();
+    store.install(&backend.schema, &Default::default(), false).unwrap();
+    let tx = store.transaction().unwrap();
+    for (table, row) in seed { tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap(); }
+    let ctx = || context("alice", &[("conversation", id("chat")), ("q", Value::String("cof absent".into())), ("c", Value::Null)]);
+    let full_server = server.query("searchChat", ctx()).unwrap();
+    let full_device = local::query(&tx, &backend.schema, &program, ctx(), Ceilings::default()).unwrap();
+    for (authority, full) in [("server", full_server), ("device", full_device)] {
+        assert!(full.complete && full.cut.is_none() && full.next.is_none(), "{authority}: {full:?}");
+        assert!(ids(&full).is_empty());
+        for meter in ["examined", "index_entries", "heap_bytes"] {
+            let mut used = match meter { "examined" => full.metered.examined, "index_entries" => full.metered.index_entries, _ => full.metered.heap_bytes };
+            assert!(used > 0);
+            // Heap admission may reserve more than the observed live peak.
+            // Find that host's admission boundary, rather than treating its
+            // reported use as permission to bypass the reservation.
+            if meter == "heap_bytes" {
+                let (mut low, mut high) = (0, Ceilings::default().heap_bytes);
+                while low < high {
+                    let middle = low + (high - low) / 2;
+                    let ceilings = Ceilings { heap_bytes: middle, ..Default::default() };
+                    server.set_ceilings(ceilings);
+                    let page = if authority == "server" { server.query("searchChat", ctx()).unwrap() }
+                        else { local::query(&tx, &backend.schema, &program, ctx(), ceilings).unwrap() };
+                    if page.complete { high = middle; } else { low = middle + 1; }
+                }
+                used = low;
+            }
+            for limit in [used - 1, used, used + 1] {
+                let mut ceilings = Ceilings::default();
+                match meter { "examined" => ceilings.examined = limit, "index_entries" => ceilings.index_entries = limit, _ => ceilings.heap_bytes = limit }
+                server.set_ceilings(ceilings);
+                let page = if authority == "server" { server.query("searchChat", ctx()).unwrap() }
+                    else { local::query(&tx, &backend.schema, &program, ctx(), ceilings).unwrap() };
+                assert_eq!(page.complete, limit >= used, "{} {authority} {meter}={limit}/{used}: {page:?}", label);
+                assert_eq!(page.cut.is_some(), limit < used, "{authority} {meter}={limit}/{used}: {page:?}");
+                assert!(page.next.is_none(), "no continuation past a cut");
+            }
+            println!("IS {} {authority}: {meter} complete at {used}, incomplete at {}", label, used - 1);
+        }
+    }
+    drop(tx);
+}
+
+#[test]
+fn named_order_meter_boundary_memory() { meter_boundary(snapback4_device::memory::MemoryStore::new(), "memory"); }
+#[test]
+fn named_order_meter_boundary_sqlite() { meter_boundary(snapback4_core::Store::memory().unwrap(), "sqlite"); }

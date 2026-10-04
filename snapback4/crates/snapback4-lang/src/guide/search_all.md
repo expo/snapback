@@ -57,7 +57,7 @@ history and constituent cuts remain incomplete. An incomplete empty answer means
 “Results may be incomplete,” never “No matches.” An online client without a
 device searches only its current authorized domain; offline the same ordinary
 body searches authorized device holdings. Other ordered shapes keep their
-existing evaluator and routing.
+existing evaluator and routing. For one conversation keyed by `conversation, ordinal`, use the conversation recipe above; its named unique order and `.ordinal` form share the same search page.
 
 Each continuation returns the next `(at, id)` rows visible at that request across current server scopes and this device's retained rows; the traversal is not a snapshot.
 Changing an order key or match, or inserting a match before the consumed position, can repeat or skip that row; rows whose order, match, scope and readability stay stable appear exactly once, and `usePage` keeps one newest observed image per source ID when the generated query proves row identity.

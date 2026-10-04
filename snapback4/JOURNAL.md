@@ -86331,3 +86331,48 @@ Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
 Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+## 2026-10-04 — IS: in-chat search in conversation order
+
+Reproduced calibration #30's named conversation/ordinal search on main
+`1c18847b79`: lane MS had already improved the refusal to
+`E_QUARRY_MATCHING_INDEX`, explaining the plain index and printing the
+`.ordinal` rewrite. The full builder schema now compiles with its original
+`matching q last 20 by byConversationOrdinal after c`, including chat-title
+and sender-name decorations.
+
+A declared plain unique index now supplies an ordinary matching page's order
+before search/browse variants expand. Named and positional scope keys must
+cover its leading prefix. Existing planning supplies the scoped words index;
+the unique constraint remains intact. This changes the compiler only: no
+runtime search, cursor codec, coverage, authority or meter ceiling changes.
+LLP 3000.007 §18.1 records the decision and the implementation references it;
+LLP 3000.013 §2.3 and LLP 3000.028 §3.3.1 retain the planning and decoration
+contracts. The search card uses the named conversation/ordinal recipe and
+teaches its equivalent column ordering, live cursors and acquired-history limit.
+
+The affected checks pass: nine compiler regressions, all 112 guide tests,
+four device tests (including the twelve-case reopened memory/SQLite horizon
+matrix), and a 10,000-message chat on process and wasm devices, online and
+offline. The scale oracle traverses all 270 multi-term matches in both
+directions without repeats, checks decorations against bare page facts, and
+preserves cuts under the default meters. Exact examined/index/heap admission
+boundaries remain incomplete one unit below the threshold. Broad residual
+search can still reach the existing heap or examined limit; its HTTP heap-cut
+loading outcome and SDK E_QUERY_RETRY also match the column-order control.
+
+Ran `snapback4/scripts/test.sh` once on eb1000, CPU affinity 48–71, with the
+requested external Cargo target and package SQLite build flag. Verbatim:
+`== 0 failure(s) in 2552 s`. Rust: 4,976 passed, 33 existing ignores, plus
+17 passing doctests. Client pool: all 312 files passed, 6,206 tests passed,
+11 existing skips, no failures/cancellations. Nine fixture-wrapper tests and
+all 79 serial model tests passed. Every build, typecheck, release guard,
+docs budget and wasm budget passed; there are no failures to classify.
+
+Wasm is 2,116,457 B raw / 639,750 B gzip, under the unchanged 639,887 B cap
+(137 B headroom). No budget increase or macOS measurement. Search card:
+403/405 lines. Regular artifact copies satisfy the canonical scripts' hard-coded
+target paths; no target symlink was created. Reference checking and whitespace
+validation pass. The requested report and raw evidence are at
+`/home/ccheever/sb5-lanes/is.report.md` and `is-evidence/`. Work stayed on eb1000;
+local commit only, no push or publication.

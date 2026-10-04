@@ -3,6 +3,30 @@
 use super::catalog::Catalog;
 use crate::ast::*;
 
+// @ref LLP 3000.007#18.1 — a plain unique search order lowers to the same
+// scoped words index as column order, before needle/browse variants diverge.
+pub(super) fn named_order(table: &super::catalog::TableInfo, read: &mut ReadExpr) -> bool {
+    if read.matching.is_none() || read.range.is_none() || !read.order_keys.is_empty()
+        || super::validate_key_names(read).is_err() { return false; }
+    let Some(index) = table.indexes.iter().find(|index| Some(&index.name) == read.index.as_ref()) else { return false; };
+    if !index.unique || !index.is_plain() || read.keys.len() > index.columns.len() { return false; }
+    // Preserve the declared prefix contract, including positional arguments.
+    // A named key outside that prefix must still be refused by the binder.
+    if read.keys.iter().any(|key| key.column.as_ref().is_some_and(|column| !index.columns[..read.keys.len()].contains(column))) { return false; }
+    let mut pinned: std::collections::BTreeSet<_> = read.keys.iter().enumerate()
+        .map(|(n, key)| key.column.clone().unwrap_or_else(|| index.columns[n].clone())).collect();
+    let mut predicates = Vec::new();
+    if let Some(filter) = &read.filter { super::intent::split(*filter.clone(), &mut predicates); }
+    for predicate in predicates {
+        if let Some((column, _)) = super::intent::equality(&predicate, table) { pinned.insert(column); }
+    }
+    read.order_keys = index.columns.iter().filter(|column| !pinned.contains(*column)).cloned().collect();
+    if read.order_keys.is_empty() { read.order_keys.push("id".into()); }
+    for (key, column) in read.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
+    read.index = None;
+    true
+}
+
 // @ref LLP 3000.028#3.3 — only a single bare ordinary search is inferred.
 pub(super) fn capture(catalog: &mut Catalog) {
     for doc in &catalog.documents {
