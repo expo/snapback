@@ -1,0 +1,125 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building -workspace app/ios/Clique.xcworkspace -scheme NP2Driver -configuration Release -destination "platform=iOS Simulator,id=3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B" -derivedDataPath DerivedData -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 "-only-testing:NP2Driver/NativeProbe/test01Prime" -resultBundlePath prime.xcresult
+
+Writing result bundle at path:
+	/private/tmp/np2-native-protocol-20261004/prime.xcresult
+
+2026-10-04 10:34:05.411958-0700 NP2Driver-Runner[7257:26089275] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'Selected tests' started at 2026-10-04 10:34:09.193.
+Test Suite 'NP2Driver.xctest' started at 2026-10-04 10:34:09.194.
+Test Suite 'NativeProbe' started at 2026-10-04 10:34:09.194.
+Test Case '-[NP2Driver.NativeProbe test01Prime]' started.
+    t =     0.00s Start Test at 2026-10-04 10:34:09.198
+    t =     0.03s Set Up
+    t =     0.04s Open dev.snapback.np2.cal30
+    t =     0.04s     Launch dev.snapback.np2.cal30
+2026-10-04 10:34:09.588 xcodebuild[7194:26088517] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-04 10:34:09.588 xcodebuild[7194:26088517] [MT] IDELaunchParametersSnapshot: no debugger version
+objc[7257]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10330c398) and /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x1063a8310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     0.89s         Setting up automation session
+    t =     3.80s         Wait for dev.snapback.np2.cal30 to idle
+    t =     5.08s Get all elements bound by index for: Descendants matching type Any
+    t =     5.14s Find the Any (Element at index 0)
+    t =     5.14s Find the Any (Element at index 1)
+    t =     5.15s Find the Any (Element at index 2)
+    t =     5.15s Find the Any (Element at index 3)
+    t =     5.16s Requesting snapshot of accessibility hierarchy for app with pid 7357
+    t =     5.18s Requesting snapshot of accessibility hierarchy for app with pid 7357
+NP2_EVENT {"at":"2026-10-04T17:34:14Z","event":"launch","nodes":[],"tree":"Attributes: Application, 0x1037bd180, pid: 7357, label: 'Clique'\nElement subtree:\n →Application, 0x1037bd180, pid: 7357, label: 'Clique'\n    Window (Main), 0x1037bd680, {{0.0, 0.0}, {390.0, 844.0}}\n      Other, 0x1037bd900, {{0.0, 0.0}, {390.0, 844.0}}\n        Other, 0x1037bdb80, {{0.0, 0.0}, {390.0, 844.0}}\n          Other, 0x1037bda40, {{0.0, 0.0}, {390.0, 844.0}}\nPath to element:\n →Application, 0x1037bd180, pid: 7357, label: 'Clique'\nQuery chain:\n →Find: Target Application 'dev.snapback.np2.cal30'\n  Output: {\n    Application, 0x1037bdcc0, pid: 7357, label: 'Clique'\n  }\n"}
+    t =     5.19s Find the Target Application 'dev.snapback.np2.cal30'
+    t =     5.29s Added attachment named 'launch'
+    t =     5.29s Waiting 20.0s for "sm-auth-email" Any to exist
+    t =     6.37s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =     6.37s         Checking existence of `"sm-auth-email" Any`
+    t =     6.37s         Capturing element debug description
+    t =     7.34s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =     7.34s         Checking existence of `"sm-auth-email" Any`
+    t =     7.34s         Capturing element debug description
+    t =     8.30s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =     8.30s         Checking existence of `"sm-auth-email" Any`
+    t =     8.30s         Capturing element debug description
+    t =     9.38s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =     9.38s         Checking existence of `"sm-auth-email" Any`
+    t =     9.38s         Capturing element debug description
+    t =    10.35s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    10.35s         Checking existence of `"sm-auth-email" Any`
+    t =    10.35s         Capturing element debug description
+    t =    11.30s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    11.30s         Checking existence of `"sm-auth-email" Any`
+    t =    11.30s         Capturing element debug description
+    t =    12.38s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    12.38s         Checking existence of `"sm-auth-email" Any`
+    t =    12.38s         Capturing element debug description
+    t =    13.35s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    13.35s         Checking existence of `"sm-auth-email" Any`
+    t =    13.35s         Capturing element debug description
+    t =    14.31s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    14.31s         Checking existence of `"sm-auth-email" Any`
+    t =    14.31s         Capturing element debug description
+    t =    15.39s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    15.39s         Checking existence of `"sm-auth-email" Any`
+    t =    15.39s         Capturing element debug description
+    t =    16.35s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    16.35s         Checking existence of `"sm-auth-email" Any`
+    t =    16.35s         Capturing element debug description
+    t =    17.32s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    17.32s         Checking existence of `"sm-auth-email" Any`
+    t =    17.32s         Capturing element debug description
+    t =    18.30s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    18.30s         Checking existence of `"sm-auth-email" Any`
+    t =    18.30s         Capturing element debug description
+    t =    19.37s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    19.37s         Checking existence of `"sm-auth-email" Any`
+    t =    19.37s         Capturing element debug description
+    t =    20.34s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    20.34s         Checking existence of `"sm-auth-email" Any`
+    t =    20.34s         Capturing element debug description
+    t =    21.30s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    21.30s         Checking existence of `"sm-auth-email" Any`
+    t =    21.30s         Capturing element debug description
+    t =    22.38s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    22.38s         Checking existence of `"sm-auth-email" Any`
+    t =    22.38s         Capturing element debug description
+    t =    23.35s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    23.35s         Checking existence of `"sm-auth-email" Any`
+    t =    23.35s         Capturing element debug description
+    t =    24.31s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    24.31s         Checking existence of `"sm-auth-email" Any`
+    t =    24.31s         Capturing element debug description
+    t =    25.30s     Checking `Expect predicate `existsNoRetry == 1` for object "sm-auth-email" Any`
+    t =    25.30s         Checking existence of `"sm-auth-email" Any`
+    t =    25.30s         Capturing element debug description
+    t =    25.30s     Checking existence of `"sm-auth-email" Any`
+    t =    26.30s     Checking existence of `"sm-auth-email" Any` (retry 1)
+    t =    27.31s     Checking existence of `"sm-auth-email" Any` (retry 2)
+    t =    27.31s Collecting debug information to assist test failure triage
+/tmp/np2-native-protocol-20261004/NativeProbe.swift:40: error: -[NP2Driver.NativeProbe test01Prime] : XCTAssertTrue failed
+    t =    27.57s Tear Down
+    t =    27.69s Checking for reports corresponding to termination of 1 app(s).
+Test Case '-[NP2Driver.NativeProbe test01Prime]' failed (27.688 seconds).
+Test Suite 'NativeProbe' failed at 2026-10-04 10:34:36.886.
+	 Executed 1 test, with 1 failure (0 unexpected) in 27.688 (27.692) seconds
+Test Suite 'NP2Driver.xctest' failed at 2026-10-04 10:34:36.886.
+	 Executed 1 test, with 1 failure (0 unexpected) in 27.688 (27.693) seconds
+Test Suite 'Selected tests' failed at 2026-10-04 10:34:36.887.
+	 Executed 1 test, with 1 failure (0 unexpected) in 27.688 (27.694) seconds
+2026-10-04 10:34:37.193 xcodebuild[7194:26092585]  IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Process exited with error 72:
+ xcrun: error: unable to find utility "simctl", not a developer tool or in PATH
+
+2026-10-04 10:34:37.197 xcodebuild[7194:26088517] [MT] IDETestOperationsObserverDebug: 34.265 elapsed -- Testing started completed.
+2026-10-04 10:34:37.197 xcodebuild[7194:26088517] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-04 10:34:37.197 xcodebuild[7194:26088517] [MT] IDETestOperationsObserverDebug: 34.265 sec, +34.265 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/np2-native-protocol-20261004/prime.xcresult
+
+Failing tests:
+	NativeProbe.test01Prime()
+
+** TEST EXECUTE FAILED **
+
+Testing started
+real 36.28
+user 1.62
+sys 1.64

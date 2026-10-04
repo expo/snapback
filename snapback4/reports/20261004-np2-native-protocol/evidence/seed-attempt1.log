@@ -1,0 +1,11 @@
+file:///private/tmp/np2-native-protocol-20261004/app/scripts/replay-engine.mjs:51
+    throw new Error(`${write.why.code}: ${write.why.message}`);
+          ^
+
+Error: E_INPUT: E_INPUT: link must be an http or https URL
+    at settle (file:///private/tmp/np2-native-protocol-20261004/app/scripts/replay-engine.mjs:51:11)
+    at replayLine (file:///private/tmp/np2-native-protocol-20261004/app/scripts/replay-engine.mjs:105:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///private/tmp/np2-native-protocol-20261004/app/scripts/np2-seed.mjs:18:31
+
+Node.js v24.18.0

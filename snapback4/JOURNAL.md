@@ -86331,3 +86331,31 @@ Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
 Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+## 2026-10-04 — NP2: a proposed cross-lane native calibration protocol
+
+[LLP 0201.000](../llp/0201.000-cross-lane-native-app-protocol.rfc.md) is Review:
+reuse the kit's native IDs, add stable row/navigation identity and a passive
+observation stream, and run the frozen eight-step M6 plus separate M8 sequence
+through an instrument-owned driver. It proposes a new prompt/version and an
+explicit series break, for Charlie to rule on. LLP 0201 owns the instrument;
+LLP 3000.013 governs Quarry forms and preserves the current freeze.
+
+The [NP2 report](./reports/20261004-np2-native-protocol/REPORT.md) audits Grok
+cal30's existing source: 16/16 relevant legacy IDs are present; fixture and
+observation hooks are absent. On a scratch copy on the Apartment mini, the
+Release app plus external XCTest runner built in 128.95 s. The installed app
+crashed before sign-in with `Unsupported top level event type
+"topContentSizeChange" dispatched`; direct online and offline launches repeated
+it. Zero of eight steps qualify; only step 1's unprimed process/recording
+mechanics completed. No app TS/TSX or kit was edited to make the probe pass.
+Static blockers also include an ordinary-image viewer placeholder and missing
+message-result navigation. Logs, hashes and a diagnostic video are retained.
+
+The old "16 simulator assertions" count combines seven native M6 and nine
+unrun M7 day-two assertions. M7 has no simulator-tagged assertion; two additional
+native obligations are in M8. The proposed native coverage gain is nine, not
+eighteen. The open ticket now carries that correction without rewriting history.
+No frozen file, prompt, packet or score changed. Only the dedicated mini
+simulator was used, over SSH; its probe apps and scratch files were removed and
+its pre-existing boot state retained. Local commit only; nothing pushed.

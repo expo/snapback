@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-21 (o — D0.6 instrument registration: per LLP 0295
+**Revised:** 2026-10-04 (link the pending NP2 native-protocol proposal; no instrument change); 2026-08-21 (o — D0.6 instrument registration: per LLP 0295
 D0.6, the D2 record schema commissions per-milestone-boundary usage,
 semantic-action, episode, restart/reseed, browser-wait, host-load, and
 orientation fields, harness-native and without cross-harness normalization;
@@ -815,6 +815,15 @@ Reviews:
 **Revised:** 2026-08-08 (a — initial draft)
 
 ## Dated amendments
+
+### 2026-10-04 — native protocol proposal, awaiting owner ruling
+
+[LLP 0201.000](./0201.000-cross-lane-native-app-protocol.rfc.md) proposes a
+cross-lane native accessibility and observation contract, generic M6/M8 driver,
+and explicitly separate instrument version/series. It is **Review**, not an
+amendment to the frozen instrument. Its NP2 feasibility evidence changes no
+calibration result. The manifest has seven M6 and two M8 native assertions;
+the nine unrun M7 assertions are a separate day-two coverage gap.
 
 **2026-08-10 — F1 replay-posture ruling (author).** The pilot's F1
 finding (a hosted lane cannot complete the scale envelope's
