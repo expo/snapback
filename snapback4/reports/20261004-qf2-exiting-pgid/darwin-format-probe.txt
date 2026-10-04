@@ -1,0 +1,2 @@
+Darwin PIDFMT selected: %*d
+PGID rendering: [   -1]

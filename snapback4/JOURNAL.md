@@ -85098,3 +85098,35 @@ inputs remained unchanged; reference/metadata and whitespace audits pass.
 The [Round 2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-2--2026-10-04)
 retains failing baselines, exact meter tests, full-suite output and hashes.
 All work ran on eb1000; nothing pushed or published.
+
+## 2026-10-04 — QF2: retry exiting process routing snapshots
+
+RP's otherwise passing familiar-forms test exposed a Linux ps row with state
+X+, PPID 0 and PGID 4294967295. The routing parser refused before selection,
+even when the PID had disappeared. Choose bounded fresh snapshots: recognize
+that precise exit-time family, discard the whole table, and retry at most twice
+at 50 ms intervals. Persistent anomalies and all other unclassifiable prefixes
+still fail closed with the first rejected bytes. No damaged row supplies scope,
+liveness or signal authority; runner/keeper custody is unchanged.
+
+Audit Darwin's printer and Libc formatter: PGID -1 prints signed; E means
+exiting, X means traced, and ? is unknown. Sentinel PGID with Z, ? or E gets
+only the same bounded retry. Valid-routing ?, E and X remain conservatively
+live. Synthetic tests cover both sentinel presentations without claiming a
+macOS run. LLP 3000 §7 and the runner instructions carry the rule.
+
+All 69 existing focused checks plus 11 new regressions pass (80/80). The exact
+RP row is exercised with both existence values, before release and during
+cleanup; a persistent-row control still fails a healthy file and releases its
+keeper. The original main module fails eight of the final new checks.
+Full eb1000 suite: zero failures in 1,575 seconds; Rust 4,811 plus 18 doctests
+(34 existing ignored), ordinary clients 6,123 passes across 307 files (11
+existing skips), fixture wrappers 9/9, and full-count serial models 79/79.
+All runner and focused-test source hashes stayed unchanged through qualification.
+Reference and whitespace checks pass.
+
+The [QF2 report](./reports/20261004-qf2-exiting-pgid/REPORT.md) retains the audit,
+negative controls and complete logs. This resolves
+`issues/20261004-snapback4-qf-exiting-linux-pgid-inspection.md`, now on main with
+RP's merge; no duplicate ticket is added. Work and execution stayed on eb1000.
+No push or publication.

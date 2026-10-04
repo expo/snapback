@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/adv_cmds/main/ps/print.c",
+    "sha256": "9f3b9e89bd6e58b9db68919189e34136cb903ed60dd6f06650d77e50a47aa40f"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/adv_cmds/main/ps/keyword.c",
+    "sha256": "0af8cc559f9e7e830e5568eb61769df806be8b80a22f3745beeab6431ffa6444"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/adv_cmds/main/ps/tasks.c",
+    "sha256": "56d7b23faa1f6387fa7f53561d4ecd7011ada80af9f39346d58d803b84e9432d"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/apple-oss-distributions/Libc/main/gen/FreeBSD/fmtcheck.c",
+    "sha256": "aebf5e379d7975fa22921623b3df90500ff42a5e68a6d749795cf90094427508"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/torvalds/linux/master/fs/proc/array.c",
+    "sha256": "85a81523ab810f9c66ace0f03669ef9e3f4a27789b6261c17c90a14ea6748ad5"
+  }
+]

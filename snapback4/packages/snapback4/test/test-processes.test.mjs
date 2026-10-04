@@ -13,6 +13,133 @@ const fixtures = new URL('./fixtures/process-tables/', import.meta.url);
 const table = platform => readFileSync(new URL(`${platform}.txt`, fixtures));
 const parse = (stdout, options = {}) => processTable({ run: () => ({ status: 0, stdout }), exists: () => true, ...options });
 const row = (pid, parent, group, metadata = '501 Sat Oct  3 01:02:03 2026 S /tmp/synthetic helper') => `${pid} ${parent} ${group} ${metadata}\n`;
+const exitingLinux = '1301666       0 4294967295 1000 Sun Oct  4 05:45:04 2026 X+ snapback4\n';
+
+// The bad snapshot must be discarded, never used as a source of ownership.
+// A fresh table, not the apparent PID's existence, decides whether we recover.
+for (const phase of ['before release', 'cleanup verification']) for (const present of [false, true])
+test(`recorded Linux exiting PGID cannot fail a healthy file (${phase}, exists ${present})`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-exiting-pgid-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'healthy.test.mjs');
+  writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
+  let snapshots = 0, injected = 0, probes = 0, keeper;
+  const result = await runFile(file, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: options => processTable({ ...options,
+    platform: 'linux', exists: () => { probes++; return present; },
+    run: (...args) => {
+      const result = spawnSync(...args);
+      snapshots++;
+      if (injected < 2 && keeper.stdin.writableEnded === (phase === 'cleanup verification')) {
+        injected++;
+        result.stdout = Buffer.concat([result.stdout, Buffer.from(exitingLinux)]);
+      }
+      return result;
+    },
+  }) });
+  assert.equal(injected, 2, 'exercise both retries before the third, fresh snapshot');
+  assert.ok(snapshots >= 5, 'fresh enumeration plus two cleanup inspections');
+  assert.equal(probes, 0, 'an apparent PID never authorizes ignoring damaged routing');
+  assert.equal(result.code, 0, JSON.stringify(result));
+  assert.equal(result.passed, true, JSON.stringify(result));
+  assert.equal(result.reason, undefined, JSON.stringify(result));
+  assert.equal(result.inspectionFailure, undefined, JSON.stringify(result));
+  assert.equal(result.keeperExit.cleanupAcknowledged, true, JSON.stringify(result));
+});
+
+test('persistent captured routing anomaly fails a healthy file and still releases its keeper', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-persistent-pgid-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'healthy.test.mjs');
+  writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
+  const result = await runFile(file, { onOutput: () => {}, inspect: options => processTable({ ...options,
+    platform: 'linux', exists: () => false,
+    run: (...args) => {
+      const result = spawnSync(...args);
+      result.stdout = Buffer.concat([result.stdout, Buffer.from(exitingLinux)]);
+      return result;
+    },
+  }) });
+  assert.equal(result.code, 0, JSON.stringify(result));
+  assert.equal(result.passed, false);
+  assert.equal(result.reason, 'TEST_PROCESS_INSPECTION');
+  assert.ok(result.inspectionFailure.includes(Buffer.from(exitingLinux.trimEnd()).toString('base64')));
+  assert.equal(result.keeperExit.cleanupAcknowledged, true, JSON.stringify(result));
+});
+
+const transientRows = [
+  ['linux', exitingLinux],
+  ['linux', exitingLinux.replace('4294967295', '-1')],
+  ['linux', exitingLinux.replace('4294967295', '100')],
+  ['linux', exitingLinux.replace('       0 ', '       1 ')],
+  ...['-1', '4294967295'].flatMap(group => ['Z', '?', '?E', 'SE+', 'SXE'].map(state =>
+    ['darwin', row(101, 1, group, `-2 Sun Oct  4 05:45:04 2026 ${state} (exiting helper)`)])),
+];
+test('recognized Linux/Darwin exit shapes retry whole tables and classify only the fresh scope', () => {
+  for (const [platform, bad] of transientRows) {
+    let calls = 0;
+    const rows = processTable({ platform, group: 100, exists: () => { throw Error('no existence shortcut'); },
+      run: () => ({ status: 0, stdout: ++calls === 1 ? bad + row(102, 100, 100) : row(101, 1, 100) }),
+    });
+    assert.equal(calls, 2, bad);
+    assert.deepEqual(rows.map(r => r.pid), [101], 'discarded snapshot contributes no members or ancestry');
+  }
+});
+
+test('persistent exit-shaped malformed routing fails closed after three snapshots even for an absent PID', () => {
+  for (const [platform, bad] of transientRows) for (const present of [false, true]) {
+    let calls = 0;
+    assert.throws(() => processTable({ platform, group: 999, exists: () => present,
+      run: () => { calls++; return { status: 0, stdout: bad }; },
+    }), error => /TEST_PROCESS_INSPECTION/.test(error.message) && error.message.includes(Buffer.from(bad.trimEnd()).toString('base64')));
+    assert.equal(calls, 3, bad);
+  }
+});
+
+test('damaged prefixes outside the precise exit shapes refuse without retry or an existence shortcut', () => {
+  for (const [platform, bad] of [
+    ...['S', '?', 'Z', 'SX', 'XX'].map(state => ['linux', exitingLinux.replace('X+', state)]),
+    ...['S', 'SX', 'X'].map(state => ['darwin', row(101, 1, -1, `501 Sun Oct 4 05:45:04 2026 ${state} helper`)]),
+    ['linux', exitingLinux.replace('1301666', '2147483648')],
+    ['linux', exitingLinux.replace('       0 ', '      -1 ')],
+    ['linux', exitingLinux.replace('4294967295', '4294967294')],
+    ['linux', exitingLinux.replace('1000 Sun', 'bad Sun')],
+    ['linux', exitingLinux.replace('Sun Oct', 'bad Oct')],
+    ['freebsd', exitingLinux],
+  ]) {
+    let calls = 0;
+    assert.throws(() => processTable({ platform, exists: () => false,
+      run: () => { calls++; return { status: 0, stdout: bad }; },
+    }), /TEST_PROCESS_INSPECTION/);
+    assert.equal(calls, 1, bad);
+  }
+});
+
+test('retry never masks a failed listing or persistent related malformed metadata', () => {
+  for (const next of [{ status: 2, stderr: 'failed reread' }, { status: 0, stdout: '' },
+    { status: 0, stdout: row(101, 100, 100, 'bad') }, { status: 0, stdout: '101 bad 100\n' }]) {
+    let calls = 0;
+    assert.throws(() => processTable({ platform: 'linux', group: 100, exists: () => true,
+      run: () => ++calls === 1 ? { status: 0, stdout: exitingLinux } : next,
+    }), /TEST_PROCESS_INSPECTION/);
+    assert.equal(calls, 2);
+  }
+});
+
+test('changing transient PIDs cannot renew the retry budget or replace the first rejected bytes', () => {
+  let calls = 0;
+  const started = performance.now();
+  assert.throws(() => processTable({ platform: 'linux', run: () => ({ status: 0,
+    stdout: exitingLinux.replace('1301666', String(1301666 + calls++)),
+  }) }), error => error.message.includes(Buffer.from(exitingLinux.trimEnd()).toString('base64')));
+  assert.equal(calls, 3);
+  assert.ok(performance.now() - started >= 100, 'two actual 50 ms snapshot intervals');
+});
+
+test('Darwin question-mark, E (exiting) and X (traced) flags with valid routing stay conservatively live', () => {
+  for (const state of ['?', '?E', 'SE+', 'SX', 'SXE']) {
+    assert.equal(parse(row(101, 0, 100, `501 Sun Oct 4 05:45:04 2026 ${state} helper`), { platform: 'darwin' })[0].alive, true);
+  }
+});
 
 for (const platform of ['darwin', 'linux']) test(`${platform} recorded synthetic ps table parses every field and state`, () => {
   const rows = parse(table(platform));
