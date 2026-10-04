@@ -1,0 +1,6 @@
+{
+  "pid": 32472,
+  "startedAt": 1791071385.596127,
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "node": "v24.18.0"
+}

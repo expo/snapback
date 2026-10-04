@@ -1,0 +1,34 @@
+[
+  {
+    "phase": "before",
+    "starter": "plain",
+    "sample": 0,
+    "warm": false,
+    "seconds": 448.07508566700005,
+    "status": 143,
+    "hostLoadBefore": [
+      58.91748046875,
+      35.7021484375,
+      17.6279296875
+    ],
+    "hostLoadAfter": [
+      15.30810546875,
+      104.83984375,
+      80.32080078125
+    ],
+    "receiptPath": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/wd/plain/artifacts/native-smoke/1791068674605-21233/smoke-ios-run.json",
+    "nativeCache": null,
+    "error": "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes",
+    "segments": {},
+    "simulator": {
+      "name": "sb4-wd-20261003-1791068684117-21819",
+      "prefix": "sb4-wd-20261003-",
+      "ready": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "created",
+      "udid": "8D2EFE22-6E90-4ECE-9F7F-D504660838B4"
+    },
+    "nativeDurationMs": null,
+    "loadedHash": null
+  }
+]

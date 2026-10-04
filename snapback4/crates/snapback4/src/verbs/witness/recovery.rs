@@ -94,19 +94,76 @@ fn stop(record: &Value, signal: i32) -> Result<()> {
     recorded_process::stop(record, signal)
 }
 pub(super) fn members(group: u32) -> Result<Vec<Value>> {
-    let output = Command::new("ps").args(["-axo", "pid=,pgid=,stat="]).output().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-    if !output.status.success() { return Err(error("E_WITNESS_PROCESS", "cannot inspect abandoned process group")); }
-    Ok(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| {
-        let mut fields = line.split_whitespace();
-        let pid = fields.next()?.parse::<u32>().ok()?;
-        if fields.next()?.parse::<u32>().ok()? != group || fields.next()?.starts_with('Z') { return None; }
-        identity(pid)
-    }).collect())
+    if group == 0 || group > i32::MAX as u32 { return Err(error("E_WITNESS_PROCESS", "invalid process group")); }
+    // @ref LLP 3000.030#15 — inspect the owned group without launching ps;
+    // each returned member still binds its birth and current group membership.
+    #[cfg(target_os = "macos")]
+    {
+        let mut pids = vec![0i32; 32];
+        loop {
+            // libproc returns a PID COUNT, takes a BYTE capacity, and maps
+            // syscall errors to zero. Clear errno to distinguish empty/error.
+            unsafe { *libc::__error() = 0; }
+            let count = unsafe { libc::proc_listpgrppids(group as i32, pids.as_mut_ptr().cast(), (pids.len() * std::mem::size_of::<i32>()) as i32) };
+            let errno = std::io::Error::last_os_error();
+            if count < 0 || (count == 0 && errno.raw_os_error() != Some(0)) {
+                return Err(error("E_WITNESS_PROCESS", format!("cannot inspect process group: {errno}")));
+            }
+            if (count as usize) < pids.len() { pids.truncate(count as usize); break; }
+            // A full buffer can be truncated, including when the group grows
+            // between calls. Retry with room; never turn truncation into empty.
+            if pids.len() >= 1 << 20 { return Err(error("E_WITNESS_PROCESS", "process group enumeration kept growing")); }
+            pids.resize(pids.len() * 2, 0);
+        }
+        let mut live = Vec::new();
+        for pid in pids.into_iter().filter(|p| *p > 0) {
+            let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+            let size = std::mem::size_of_val(&info) as i32;
+            let read = unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, &mut info as *mut _ as *mut _, size) };
+            if read != size {
+                let errno = std::io::Error::last_os_error();
+                if read == 0 && errno.raw_os_error() == Some(libc::ESRCH) { continue; }
+                return Err(error("E_WITNESS_PROCESS", format!("cannot inspect group member: {errno}")));
+            }
+            if info.pbi_pgid == group && info.pbi_status != 5 {
+                live.push(json!({ "pid": pid, "start": [info.pbi_start_tvsec, info.pbi_start_tvusec] }));
+            }
+        }
+        Ok(live)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let mut live = Vec::new();
+        let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id").map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        for entry in fs::read_dir("/proc").map_err(|e| error("E_WITNESS_PROCESS", e))? {
+            let entry = entry.map_err(|e| error("E_WITNESS_PROCESS", e))?;
+            let Some(pid) = entry.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue; };
+            let text = match fs::read_to_string(entry.path().join("stat")) {
+                Ok(text) => text,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound || e.raw_os_error() == Some(libc::ESRCH) => continue,
+                Err(e) => return Err(error("E_WITNESS_PROCESS", e)),
+            };
+            // comm may contain spaces and parentheses. Parse after its LAST ).
+            let fields: Vec<_> = text.rsplit_once(')').map(|(_, s)| s.split_whitespace().collect()).unwrap_or_default();
+            let pgid = fields.get(2).and_then(|s| s.parse::<u32>().ok())
+                .ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process group"))?;
+            if pgid == group && fields[0] != "Z" {
+                let start = fields.get(19).ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process birth"))?;
+                live.push(json!({ "pid": pid, "start": [boot, start] }));
+            }
+        }
+        Ok(live)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    { Err(error("E_WITNESS_PROCESS", "process group inspection is unsupported")) }
 }
 fn stop_group(record: &Value) -> Result<()> { stop_group_with(record, || {}) }
 pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) -> Result<()> {
     let group = record["group"].as_u64().unwrap() as u32;
-    if members(group)?.is_empty() {
+    let mut deadline = cleanup::Deadline::new(Instant::now());
+    let initial = members(group)?;
+    deadline.observe(Instant::now(), initial.len());
+    if initial.is_empty() {
         sleep(Duration::from_millis(20));
         if members(group)?.is_empty() { return Ok(()); }
     }
@@ -115,7 +172,7 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
     // birth must still match AFTER taking the lock; a number alone grants none.
     let _reap = record["reapLock"].as_str().map(|p| -> Result<File> {
         let file = File::options().read(true).write(true).open(p).map_err(|e| error("E_WITNESS_PROCESS", e))?;
-        file.lock().map_err(|e| error("E_WITNESS_PROCESS", e))?; Ok(file)
+        deadline.lock(&file)?; Ok(file)
     }).transpose()?;
     let ours = || birth(group).as_ref() == Some(&record["leader"]) &&
         (unsafe { libc::getpgid(group as i32) } == group as i32 ||
@@ -123,10 +180,10 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
          // retaining parent and held reaping lock bind the original group.
          (identity(group).is_none() && _reap.is_some() && alive(&record["guardian"])));
     if !ours() { return Err(error("E_WITNESS_PROCESS", "abandoned process group has no matching birth record; workspace cleanup refused")); }
-    let end = Instant::now() + Duration::from_secs(4);
     let mut empty = 0;
     loop {
         let live = members(group)?;
+        deadline.observe(Instant::now(), live.len());
         if live.is_empty() {
             empty += 1;
             if empty == 2 { return Ok(()); }
@@ -144,7 +201,7 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
                 }
             }
         }
-        if Instant::now() >= end { return Err(error("E_WITNESS_PROCESS", "abandoned process group survived cleanup")); }
+        if deadline.expired(Instant::now()) { return Err(error("E_WITNESS_PROCESS", "abandoned process group cleanup stopped making progress; recovery required")); }
         sleep(Duration::from_millis(20));
     }
 }

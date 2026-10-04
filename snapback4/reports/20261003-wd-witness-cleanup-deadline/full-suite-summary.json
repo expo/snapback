@@ -1,0 +1,78 @@
+{
+  "status": 1,
+  "seconds": 2723.57399392128,
+  "summary": "== 1 failure(s) in 2724 s",
+  "stages": [
+    "cargo build (2 s)",
+    "wasm build (20 s)",
+    "docs budget (24 s)",
+    "release guard (5 s)",
+    "package typecheck (1 s)",
+    "package build (1 s)",
+    "chat app check (1 s)",
+    "cargo test (887 s)",
+    "chat app typecheck (1 s)",
+    "expo app typecheck (0 s)",
+    "fixture wrapper tests (10 s)",
+    "client models (172 s)"
+  ],
+  "failedStages": [
+    "client tests (1611 s)"
+  ],
+  "intervention": {
+    "observedAt": 1791073808.4123049,
+    "suitePid": 32472,
+    "testPid": 77096,
+    "serverPid": 77177,
+    "testStartedAt": "2026-10-03T17:14:26-07:00",
+    "serverStartedAt": "2026-10-03T17:14:28-07:00",
+    "testFile": "snapback4/packages/snapback4/test/retained-history.test.mjs",
+    "sha256": "8c8986ccaa4d6005bc82dd9d27726e017fddc1bed29b2805c02ee876ec5feb8a",
+    "perTestGuardSeconds": 372,
+    "baselineFirstCase": "passed in 1.228 s",
+    "witnessInvoked": false,
+    "action": "SIGTERM only to own test server after more than sixteen minutes without file completion, attempting to release the remaining handles. The initial first-case-timeout hypothesis was corrected by the buffered failure output (see diagnosis).",
+    "signalAt": 1791073872.002969,
+    "signalIdentity": "77096 Sat Oct  3 17:14:28 2026     /Users/ccheever/sb4-np/lane-wd/snapback4/target/debug/snapback4 dev --port 0 --fresh --no-watch",
+    "secondAction": "Server exit did not unblock the test; SIGTERM only to verified own retained-history Node child so canonical suite can complete remaining stages",
+    "testSignalAt": 1791073937.04913,
+    "testSignalIdentity": "60598 Sat Oct  3 17:14:26 2026     /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test-concurrency=6 --heap-prof-interval=524288 --test-timeout=0 --stack-trace-limit=10 --report-signal=SIGUSR2 --max-http-header-size=16384 --heapsnapshot-near-heap-limit=0 --tls-cipher-list=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA --watch-kill-signal=SIGTERM --inspect-publish-uid=stderr,http --cpu-prof-interval=1000 --test-coverage-functions=0 --test-coverage-lines=0 --inspect-port=127.0.0.1:9229 --test-coverage-branches=0 --test-isolation=process --use-largepages=off --network-family-autoselection-attempt-timeout=250 --secure-heap-min=2 --v8-pool-size=4 --node-snapshot --trace-event-file-pattern=node_trace.${rotation}.log --secure-heap=0 packages/snapback4/test/retained-history.test.mjs",
+    "candidateIsolatedFile": {
+      "tests": 68,
+      "pass": 68,
+      "fail": 0,
+      "seconds": 56.248221875
+    },
+    "diagnosis": {
+      "case": "MQ authoritative bound wasm: retained history and independent held coverage",
+      "failure": "ENOTEMPTY in rmSync after-hook at retained-history.test.mjs:196",
+      "observed": "All 68 cases reported after child termination: 67 passed, one teardown failure. A server from the failed case remained alive; output was buffered until the child exited. The initial assumption that the first case had stalled was incorrect.",
+      "limits": "Directory cleanup is registered before client/server cleanup; no cleanup order change made in WD. Exact filesystem interleaving was not instrumented.",
+      "isolatedCandidate": "All 68 passed, no failures/skips/cancellations in 56.248 s."
+    },
+    "fixtureCleanup": {
+      "path": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-retained-eIps4c",
+      "removedAfterBothOwnedProcessesExited": true,
+      "at": 1791074979.225378
+    }
+  },
+  "rust": {
+    "passed": 4835,
+    "failed": 0,
+    "ignored": 34
+  },
+  "client tests": {
+    "tests": 6045,
+    "pass": 6039,
+    "fail": 1,
+    "skipped": 5,
+    "cancelled": 0
+  },
+  "client models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  }
+}

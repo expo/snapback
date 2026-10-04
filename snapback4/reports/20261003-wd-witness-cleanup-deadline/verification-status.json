@@ -1,0 +1,36 @@
+{
+  "status": 1,
+  "summary": "== 1 failure(s) in 2724 s",
+  "passingStages": [
+    "cargo build (2 s)",
+    "wasm build (20 s)",
+    "docs budget (24 s)",
+    "release guard (5 s)",
+    "package typecheck (1 s)",
+    "package build (1 s)",
+    "chat app check (1 s)",
+    "cargo test (887 s)",
+    "chat app typecheck (1 s)",
+    "expo app typecheck (0 s)",
+    "fixture wrapper tests (10 s)",
+    "client models (172 s)"
+  ],
+  "failedStages": [
+    "client tests (1611 s)"
+  ],
+  "witnessUnitSourceUnchangedSinceLoadedQualification": true,
+  "controls": {
+    "baselineFirstCase": {
+      "status": 0,
+      "pass": 1,
+      "seconds": 1.227536
+    },
+    "candidateRetainedFile": {
+      "status": 0,
+      "pass": 68,
+      "fail": 0,
+      "skipped": 0,
+      "seconds": 56.248221875
+    }
+  }
+}

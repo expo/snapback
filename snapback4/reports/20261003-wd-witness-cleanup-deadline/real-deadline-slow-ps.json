@@ -1,0 +1,12 @@
+{
+  "status": 0,
+  "seconds": 29.582993959,
+  "psCalls": [],
+  "test": "/Users/ccheever/sb4-np/lane-wd/snapback4/target/debug/deps/snapback4-11092b51f187e43d",
+  "processCount": 5793,
+  "load": [
+    107.00927734375,
+    111.76318359375,
+    89.2841796875
+  ]
+}

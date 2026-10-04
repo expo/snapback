@@ -84799,3 +84799,48 @@ passed lane DR's complete Mac suite with the separately landed fixture fixes.
 QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
+
+
+## 2026-10-03 — WD: progress-based witness cleanup on a busy Mac
+
+Darwin witness group inspection now uses `proc_listpgrppids` plus per-member
+group/live/birth checks; Linux filters `/proc` with boot/start identities.
+Caller, native supervisor and recovery drains renew five seconds of idle
+budget on observed group shrinkage, capped at sixty seconds. Growth, unchanged
+counts and a merely live supervisor do not renew it. Reaping-lock waits are
+bounded and caller retries retain their original deadline. The unreaped
+anchor, guardian/birth checks, group-wide signals and two empty snapshots
+remain; real stalls still require recovery. LLP 3000.030 §15 and `guide witness`
+record the policy. Original NX test bodies are unchanged.
+
+Before product edits, WD measured the original code on the Apartment mini
+under an owned 3,000-idle/36-CPU process group. The exact historical five-second
+watchdog failure did not reproduce (worst observed margin 4.803 s), but the
+process-table/load cost did. Paired loaded membership medians fell from
+65.827 ms to 0.522 ms. Final qualification passed 50/50 complete witness-module
+runs, 2,400/2,400 tests, including real eight-second progressive cleanup and
+a stopped-supervisor refusal. All 3,036 load children were reaped.
+
+The requested full Mac suite ended `== 1 failure(s) in 2724 s`: all Rust,
+build/typecheck, nine fixture wrappers and 79 models passed; ordinary clients
+reported 6,039 passes, one failure and five existing skips. Retained-history's
+unchanged directory-removal hook failed ENOTEMPTY and left a server alive;
+WD terminated only its recorded own server/test child to let the remaining
+stages finish. All 68 cases had run (67 pass, one teardown failure); an isolated
+repeat passed 68/68. The failed/intervened run stays failed, with evidence added
+to the existing acquisition/retained-history cleanup ticket.
+
+Sixteen actual plain/social exports passed, all native-cache hits with distinct
+matching exported/loaded bundles and all 48 lifecycle segments passing. Three
+measured warm samples per starter/CLI gave total medians of 24.968 → 21.695 s
+(plain), 29.406 → 27.877 s (social). Both baseline and candidate 0.4.12 CLIs used
+the same audited NX 0.4.11 starter packages; fresh 0.4.12 audit pins are stale,
+recorded in a separate open ticket. No audit was bypassed. These small sequential
+cohorts are timing observations, not a causal total-export speedup claim.
+
+The [WD report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md) retains
+distributions, development failures, source/binary hashes and the raw-evidence
+index. The original deadline ticket is closed. Only this mini and the lane's
+own simulator were used; that device and its private ownership records were
+removed after timing. No office M1, M5, other worktree or other session's device
+was touched. Nothing pushed or published.

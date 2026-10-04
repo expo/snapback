@@ -7,6 +7,7 @@ mod acquire;
 mod simulator;
 mod ownership;
 mod recovery;
+mod cleanup;
 mod recorded_process;
 pub(crate) mod process_group;
 mod publication;

@@ -1,0 +1,9 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "cpuCount": 18,
+  "node": "v24.18.0",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "base": "7c9c0c0dabb0528cdee438222bb7eec46e828f16",
+  "branch": "sb4-intent/wd-witness-cleanup-deadline",
+  "limits": "kern.maxproc: 16000\nkern.maxprocperuid: 10666"
+}
