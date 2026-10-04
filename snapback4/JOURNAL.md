@@ -86331,3 +86331,49 @@ Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
 Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+
+## 2026-10-04 — FC: settled own Following bursts and the calibration reader
+
+On eb1000 only, traced calibration #30 d-01 to its actual reader:
+`grading/dbg3.mjs` writes as Alice and queries Bob. Published npm 0.4.12 and
+main baseline `1c18847b79` both pass three unpaced 25-write own bursts on online,
+process and wasm clients, plus immediate checks after every individual write.
+Changing only the reader to Bob fails the published control at 3/25. The
+fresh-client check in the grader occurs after 18 seconds, not simultaneously.
+No own-write fixing commit exists in this investigation: `timeline_deliver`
+already commits the actor's copy with the source, before foreign queue service
+(the mechanism predates 0.4.12, including `e3355db795` and `18c402220d`).
+
+Added six client regressions and an engine witness with all background delivery
+held, two-page count/order checks and timestamp ties. Updated LLP 3000.016 and
+referenced it at the existing own-copy path. Closed the
+[own-burst investigation](../issues/closed/20261004-snapback4-following-own-burst.md).
+Runtime behavior, slots, floors, withdrawal and follower scheduling are unchanged.
+The separate follower-throughput ticket remains open. Three-sample main follower
+completion ranges before / final-artifact run were online 87.58–146.09 /
+91.00–138.47 ms, process 58.84–143.67 / 63.29–145.34 ms and wasm 34.85–554.26 /
+30.74–309.42 ms, including preceding queries and polling on a shared host;
+these are not tail percentiles or production-profile comparisons.
+
+Affected client tests: 52/52. Language Following and whole-guide targets:
+171 passes (112 guide), two existing ignores; additional device/CLI Following
+checks and the new engine witness: 94/94. Final-source wasm is **2,116,457 B raw /
+639,751 B gzip**, below 639,887 B; the comment's line shift adds one gzip byte to
+the baseline artifact. All six own-write tests pass again on that artifact.
+Reference audit and whitespace checks pass.
+
+Ran `snapback4/scripts/test.sh` exactly once. Verbatim summary:
+`== 1 failure(s) in 3242 s` (cargo test). Rust: 4,972 passes, one failure,
+33 existing ignores, plus 17 passing doctests. All 312 client files pass
+(6,210 tests, 11 skips), as do all 79 serial model checks. The sole failure,
+`w11_why_every_registered_code_returns_its_dedicated_section`, is confirmed
+[shared-target CLI interference](../issues/20261004-snapback4-shared-target-cli-interference.md):
+the test's linked guide expects FC's card while the mutable external CLI prints
+another lane's revised search card. FC's pinned CLI still prints the expected
+card. This run remains red; no equality assertion was weakened. No other
+failure occurred.
+
+Evidence and package hashes: `~/sb5-lanes/fc-artifacts/`; operator report:
+`~/sb5-lanes/fc.report.md`. Cargo used the prescribed external target; no target
+was symlinked into this tree. Local commit only; nothing pushed or published.

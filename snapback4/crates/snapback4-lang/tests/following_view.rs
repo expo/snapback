@@ -29,6 +29,45 @@ fn drain(e: &mut Engine) { let mut chunks=0; while e.run_timeline_chunk(5000).un
 fn page(e: &mut Engine, op: &str, who: &str, c: Option<String>) -> snapback4_core::QueryOutcome {
     e.query(op, Context::new(who, BTreeMap::from([("c".into(), c.map(Value::String).unwrap_or(Value::Null))]))).unwrap()
 }
+
+// @ref LLP 3000.016#own-event-publication — own bursts do not depend on even
+// one delivery turn; equal event times use event id, never insertion order.
+#[test]
+fn settled_own_burst_is_complete_and_ordered_without_background_delivery() {
+    let source = SOURCE.replacen("sync public", "sync public last 1000 by .at", 1)
+        .replace("sync public\n\nview activity", "online only\n\nview activity");
+    let mut e = engine(&source);
+    write(&mut e, "follow", "bob", &[("actor", id("alice"))], 1);
+    let mut expected = Vec::new();
+    for n in 0..25 {
+        let name = format!("p{:03}", 24 - n);
+        let at = 2 + n / 3;
+        post(&mut e, &name, at);
+        expected.push((at, name));
+    }
+    expected.sort_by(|a, b| b.cmp(a));
+    let mut cursor = None;
+    let mut seen = Vec::new();
+    loop {
+        let answer = page(&mut e, "cards", "alice", cursor);
+        assert!(answer.complete);
+        for row in answer.data.as_array().unwrap() {
+            let post = row.field("post").unwrap();
+            assert_eq!(post.field("id"), row.field("id"));
+            seen.push((row.field("at").unwrap().as_int().unwrap(),
+                row.field("id").unwrap().as_str().unwrap().to_owned()));
+        }
+        cursor = answer.next;
+        if cursor.is_none() { break; }
+    }
+    assert_eq!(seen, expected, "all 25 own copies precede background delivery");
+    let foreign = page(&mut e, "home", "bob", None);
+    assert!(foreign.complete, "new-event delivery alone does not qualify completeness");
+    assert!(foreign.data.as_array().unwrap().is_empty(), "the follower is a different reader");
+    drain(&mut e);
+    assert_eq!(page(&mut e, "home", "bob", None).data.as_array().unwrap().len(), 20);
+}
+
 #[test]
 fn viewer_pages_map_event_fields_then_apply_shapes_and_keep_pending_completeness() {
     let mut e=engine(SOURCE);
