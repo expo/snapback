@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { withHangGuard, hangBudget } from './helpers/wait.mjs';
 // Compiled client and production openers over SQLite and wasm memory; HTTP history is controlled.
@@ -69,6 +70,7 @@ test("round 9-12 client head observations and startup installation", { timeout: 
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit");
   let log = "";
   server.stderr.on("data", chunk => { log += chunk; });
@@ -76,7 +78,7 @@ test("round 9-12 client head observations and startup installation", { timeout: 
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
+    server.stdout.on("data", chunk => { log += chunk; const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
   });
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "alice" } })).json();
   assert.equal(backend.generation, 1);

@@ -5,7 +5,7 @@ fn server(p: &Project, name: &str) -> Running {
     let mut host = Running::start(p, name, &["dev", "--port", "0", "--no-watch"]);
     wait(|| {
         assert!(host.child.try_wait().unwrap().is_none(), "{}", host.logs());
-        host.logs().contains("snapback4 dev: http://")
+        host.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 dev: http://"))
     });
     host
 }

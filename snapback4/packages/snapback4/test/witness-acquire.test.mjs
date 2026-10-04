@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,9 +50,10 @@ async function fixture(t, release = false) {
     assert.equal(deployed.status, 0, deployed.stderr);
   }
   const server = spawn(binary, release ? ['serve', join(dir, 'release'), '--port', '0'] : ['dev', '--port', '0', '--fresh', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(server);
   const exit = once(server, 'exit');
   let log = '', url;
-  server.stdout.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  server.stdout.on('data', bytes => { log += bytes; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on('data', bytes => { log += bytes; });
   t.after(async () => { if (server.exitCode === null) server.kill(); await exit; await rm(dir, { recursive: true, force: true }); });
   const end = performance.now() + hangBudget();

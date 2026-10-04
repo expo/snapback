@@ -19,6 +19,14 @@ const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../targ
 const workerModule = new URL('../dist/worker.js', import.meta.url).href;
 const fixtureDiagnostics = new AsyncLocalStorage();
 async function until(fn) { return awaitState(fn, fn.toString(), { diagnostics: () => fixtureDiagnostics.getStore()?.() ?? 'no worker fixture' }); }
+async function lockWriter(db) {
+  // A worker marker or HTTP reply does not release another SQLite writer.
+  // Establish the fixture's lock before testing the host's refusal/recovery.
+  await until(() => {
+    try { db.exec('BEGIN IMMEDIATE'); return true; }
+    catch (error) { if (error.errcode === 5) return false; throw error; }
+  });
+}
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -137,9 +145,10 @@ for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.
   mkdirSync(packageDir, {recursive:true});
   writeFileSync(join(packageDir, 'package.json'), '{"name":"wk-parent-only","type":"module","exports":"./index.js"}');
   writeFileSync(join(packageDir, 'index.js'), 'export default "from-temporary-parent";');
-  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync} from 'node:fs';
+  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync,renameSync} from 'node:fs';
 const result=await import('wk-parent-only').then(m=>m.default,error=>error.code);
-writeFileSync('package-lookup',JSON.stringify(result));setInterval(()=>{},1000);`);
+// Publish only complete bytes to the parent's existence barrier.
+writeFileSync('package-lookup.tmp',JSON.stringify(result));renameSync('package-lookup.tmp','package-lookup');setInterval(()=>{},1000);`);
   const s = await f.start([], {TMPDIR:temporary}, false, mode);
   await until(() => existsSync(join(s.workdir,'package-lookup')));
   assert.equal(JSON.parse(readFileSync(join(s.workdir,'package-lookup'),'utf8')), 'ERR_MODULE_NOT_FOUND');
@@ -189,6 +198,10 @@ console.error('refresh-logged');setInterval(()=>{},1000);`);
   const s = await f.start();
   await until(() => existsSync(join(f.dir, 'refresh-result')) && s.log.includes('refresh-logged'));
   const {token, status, reply} = JSON.parse(readFileSync(join(f.dir, 'refresh-result'), 'utf8'));
+  // stdout and stderr have independent readers; stderr's marker cannot
+  // acknowledge the earlier stdout record, including its secrecy checks.
+  await until(() => ['refresh-whole:', 'refresh-split:'].every(prefix =>
+    s.log.split('\n').slice(0, -1).some(line => line.includes(prefix))));
   assert.equal(s.log.includes(token), false, 'initial bearer is absent from logs');
   if (reply.session) assert.equal(s.log.includes(reply.session.token), false, 'refresh must not leak a successor bearer');
   assert.equal(status, 403);
@@ -213,9 +226,9 @@ console.error('refresh-logged');setInterval(()=>{},1000);`);
 
 for (const mode of ['dev', 'serve']) for (const shadowed of [false, true]) test(`${mode} private worker snapshot resolves schema-local packages${shadowed ? ' before project packages' : ''}`, async t => {
   const f = fixture(t, `import local from 'schema-package';import {helper} from './helpers/value.mjs';
-import {writeFileSync} from 'node:fs';
+import {writeFileSync,renameSync} from 'node:fs';
 const values={local,helper};
-if(process.env.SNAPBACK_SERVICE_TOKEN){writeFileSync('package-result',JSON.stringify(values));setInterval(()=>{},1000);}
+if(process.env.SNAPBACK_SERVICE_TOKEN){writeFileSync('package-result.tmp',JSON.stringify(values));renameSync('package-result.tmp','package-result');setInterval(()=>{},1000);}
 else console.log(JSON.stringify(values));`);
   mkdirSync(join(f.dir, 'snapback/workers/helpers'));
   writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "import value from 'schema-package';export const helper=value;");
@@ -238,9 +251,10 @@ else console.log(JSON.stringify(values));`);
 for (const [mode, kind] of [['dev','named'], ['serve','named'], ['dev','conventional']]) for (const scope of ['', 'snapback', 'snapback/workers', 'snapback/workers/helpers'])
 test(`${mode} ${kind} snapshot uses symlinked dependencies at ${scope || 'project root'}`, async t => {
   const f = fixture(t, `import value from './helpers/value.mjs';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,renameSync} from 'node:fs';
 mkdirSync('data',{recursive:true});
-writeFileSync('data/package-result',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+writeFileSync('data/package-result.tmp',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+renameSync('data/package-result.tmp','data/package-result');
 setInterval(()=>{},1000);`);
   if (kind === 'conventional') {
     const named = join(f.dir,'snapback/workers/push.mjs');
@@ -288,7 +302,7 @@ test('automatic worker.mjs refuses a symlink before issuing a service token', as
   writeFileSync(join(f.dir, 'outside.mjs'), idle);
   symlinkSync(join(f.dir, 'outside.mjs'), join(f.dir, 'snapback/worker.mjs'));
   const s = await f.start();
-  await until(() => s.log.includes('snapback4 worker:'));
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('snapback4 worker:') && /workers:|source-blocked/.test(line)));
   assert.equal(rows(join(f.dir, 'starts')).length, 0, 'linked entry must never execute');
   assert.match(s.log, /workers:|source-blocked/);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'), {readOnly:true});
@@ -313,7 +327,7 @@ test('automatic worker restart rejects an entry replaced with a symlink', async 
 
 test('automatic worker executes validated entry and relative helper after source replacement', async t => {
   const f = fixture(t);
-  writeFileSync(join(f.dir, 'snapback/worker.mjs'), `import {value} from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  writeFileSync(join(f.dir, 'snapback/worker.mjs'), `import {value} from './helpers/value.mjs';\n${idle}\nimport {copyFileSync,renameSync} from 'node:fs';\nappendFileSync('values-written',value);copyFileSync('values-written','values.tmp');renameSync('values.tmp','values');`);
   mkdirSync(join(f.dir, 'snapback/helpers'));
   writeFileSync(join(f.dir, 'snapback/helpers/value.mjs'), "export const value='validated';");
   const wrapper = join(f.dir, 'node-wrapper');
@@ -342,7 +356,7 @@ for (const check of ['query fence', 'retirement custody']) test(`removed worker 
   t.after(() => db.close());
   rmSync(join(f.dir, 'snapback/workers/push.mjs'));
   await until(() => existsSync(join(f.dir, 'terms')));
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   let fenced;
   try {
     await until(() => s.log.includes("cannot close the child's session"));
@@ -385,7 +399,7 @@ test('restart refuses an entry symlink already rejected by discovery', {timeout:
 });
 
 test('launch executes validated entry and helper bytes after source paths are replaced', {timeout: hangBudget(3)}, async t => {
-  const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nimport {copyFileSync,renameSync} from 'node:fs';\nappendFileSync('values-written',value);copyFileSync('values-written','values.tmp');renameSync('values.tmp','values');`);
   mkdirSync(join(f.dir, 'snapback/workers/helpers'));
   writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "export const value='validated';");
   const wrapper = join(f.dir, 'node-wrapper');
@@ -468,7 +482,7 @@ test('new declarations retry failed admission after Node is repaired without ano
   chmodSync(wrapper, 0o700);
   const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
   writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
-  await until(() => s.log.includes('worker needs Node 24'));
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('worker needs Node 24') && line.includes('declaration will retry')));
   assert.match(s.log, /declaration will retry/, 'the edit must reach pending admission on a serving host');
   const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
   rmSync(join(f.dir, 'bad-node'));
@@ -526,7 +540,7 @@ test('failed revocation blocks restart until the retired bearer is refused', { t
   assert.equal((await claim(s, first.token)).status, 200);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
   t.after(() => db.close());
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   try {
     process.kill(first.pid, 'SIGKILL');
     await until(() => s.log.includes("cannot close the child's session"));
@@ -732,8 +746,8 @@ for (const failure of ['disk-full', 'commit-and-rollback']) test(`ledger ${failu
 });
 
 for (const mode of ['dev', 'serve']) test(`${mode} credentialed worker receives only the explicit runtime environment`, async t => {
-  const f = fixture(t, `import {writeFileSync} from 'node:fs';
-writeFileSync('environment-result',JSON.stringify({keys:Object.keys(process.env).sort(),preloaded:!!globalThis.preloaded}));setInterval(()=>{},1000);`);
+  const f = fixture(t, `import {writeFileSync,renameSync} from 'node:fs';
+writeFileSync('environment-result.tmp',JSON.stringify({keys:Object.keys(process.env).sort(),preloaded:!!globalThis.preloaded}));renameSync('environment-result.tmp','environment-result');setInterval(()=>{},1000);`);
   const preload = join(f.dir, 'preload.cjs');
   writeFileSync(preload, 'globalThis.preloaded=true;');
   const s = await f.start([], {NODE_OPTIONS:`--require=${preload}`, NODE_PATH:f.dir, WK_UNDECLARED:'unused'}, false, mode);
@@ -809,7 +823,7 @@ for (const kind of ['entry-copy', 'linked-helper']) test(`automatic snapshot val
   writeFileSync(helper,"export const value='validated';");
   writeFileSync(join(f.dir,'snapback/generated/server-watch.json'),JSON.stringify([[helper,['0','0']]]));
   writeFileSync(join(f.dir,'snapback/worker.mjs'),`import {value} from '../src/provider.mjs';
-import {writeFileSync} from 'node:fs';writeFileSync('checked-value',value);setInterval(()=>{},1000);`);
+import {writeFileSync,renameSync} from 'node:fs';writeFileSync('checked-value.tmp',value);renameSync('checked-value.tmp','checked-value');setInterval(()=>{},1000);`);
   const wrapper=join(f.dir,'node-wrapper');
   writeFileSync(wrapper,`#!/bin/bash\nif [ "$1" = --version ]; then exec '${process.execPath}' "$@"; fi\ntouch launch-ready\nwhile [ ! -f launch-go ]; do sleep 0.02; done\nexec '${process.execPath}' "$@"\n`);
   chmodSync(wrapper,0o700);

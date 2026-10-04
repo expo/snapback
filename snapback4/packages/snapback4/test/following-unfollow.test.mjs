@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,9 +24,10 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
   const source = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/following-view.q'), 'utf8');
   await writeFile(join(directory, 'snapback/schema.q'), source + '\nquery followsActor(actor: principal):\n  return exists follows[viewer, actor]\n');
   const server = spawn(binary, ['dev', '--port', '0', '--fresh', '--no-watch'], {cwd:directory, stdio:['ignore', 'pipe', 'pipe']});
+  const readStdout = captureStdout(server);
   const exited = once(server, 'exit');
   let log = '', url, client, core, observation, offline = false, holdSync;
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   try {
     await until(() => { assert.equal(server.exitCode, null, log); return url; }, 'server startup');
     const request = async (path, args, persona = 'bob') => {

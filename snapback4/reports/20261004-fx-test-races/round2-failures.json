@@ -1,0 +1,626 @@
+[
+  {
+    "name": "js-sync-overflow.test-02",
+    "file": "packages/snapback4/test/sync-overflow.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/sync-overflow.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5796
+      },
+      "elapsed": 76017,
+      "counts": {
+        "tests": 21,
+        "pass": 20,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 2710000,
+      "progressCount": 44,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/sync-overflow.test.mjs",
+      "affinity": "32-35"
+    },
+    "log": "js-sync-overflow.test-02.log.gz",
+    "log_sha256": "7cebb6427be996299ed691d8ed4c5046ca3bef0492dbcaaa415c7ea9d48df90b",
+    "failure_blocks": [
+      "    1..5\nnot ok 1 - oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption\n  ---\n  duration_ms: 19536.194507\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/sync-overflow.test.mjs:139:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    + actual - expected\n    \n    + undefined\n    - 'E_BOUND'\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 'E_BOUND'\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/sync-overflow.test.mjs:179:12)\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-retained-history.test-11",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "iteration": 11,
+    "native": {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5503
+      },
+      "elapsed": 59092,
+      "counts": {
+        "tests": 68,
+        "pass": 67,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 138,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "affinity": "32-35"
+    },
+    "log": "js-retained-history.test-11.log.gz",
+    "log_sha256": "5ed84c87839d91b39f7935a44294a7b455acb3d74922010cfe37dedac8144935",
+    "failure_blocks": [
+      "# Subtest: R5 history wasm: retained history and independent held coverage\nnot ok 3 - R5 history wasm: retained history and independent held coverage\n  ---\n  duration_ms: 209.278156\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:117:749'\n  failureType: 'testCodeFailure'\n  error: |-\n    The expression evaluated to a falsy value:\n    \n      assert.ok(!deliveries.includes(0))\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:837:46)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "known R5 empty-delivery defect: issues/20260929-snapback4-retained-history-transient-empty.md"
+  },
+  {
+    "name": "js-server-e2e.test-03",
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "iteration": 3,
+    "native": {
+      "file": "packages/snapback4/test/server-e2e.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5695
+      },
+      "elapsed": 72972,
+      "counts": {
+        "tests": 9,
+        "pass": 8,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 20,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs",
+      "affinity": "36-39"
+    },
+    "log": "js-server-e2e.test-03.log.gz",
+    "log_sha256": "1c8ae5fa673a7bce87f0a963919e78aeebd086a184109d702ef145037c8b8f98",
+    "failure_blocks": [
+      "# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes\nnot ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes\n  ---\n  duration_ms: 34625.074784\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs:23:55'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly deep-equal:\n    + actual - expected\n    \n      [\n        1,\n        2,\n    +   3\n      ]\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected:\n    0: 1\n    1: 2\n  actual:\n    0: 1\n    1: 2\n    2: 3\n  operator: 'deepStrictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs:554:12)\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-asset-lists.test-02",
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/asset-lists.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5797
+      },
+      "elapsed": 145415,
+      "counts": {
+        "tests": 42,
+        "pass": 41,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 86,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs",
+      "affinity": "76-79"
+    },
+    "log": "js-asset-lists.test-02.log.gz",
+    "log_sha256": "04c8cde7734607049d411ca0bc6980c90d7df3ca9823e6f94acbf96acdbcb5c4",
+    "failure_blocks": [
+      "# Subtest: native: a download delayed across store replacement cannot retain legacy bytes, even after reopen\nnot ok 19 - native: a download delayed across store replacement cannot retain legacy bytes, even after reopen\n  ---\n  duration_ms: 10641.036709\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:260:120'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async fixture (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:82:18)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:263:13)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-read-existence-integration.test-13",
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "iteration": 13,
+    "native": {
+      "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5414
+      },
+      "elapsed": 127410,
+      "counts": {
+        "tests": 7,
+        "pass": 6,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 16,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/read-existence-integration.test.mjs",
+      "affinity": "56-59"
+    },
+    "log": "js-read-existence-integration.test-13.log.gz",
+    "log_sha256": "d2993e5ddceaa0c195acdaa43728712e691c73710f1e50644b87f0b4af2134b0",
+    "failure_blocks": [
+      "# Subtest: wasm: same-key row arrival and delete replace absent/present existence\nnot ok 5 - wasm: same-key row arrival and delete replace absent/present existence\n  ---\n  duration_ms: 123130.728121\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/read-existence-integration.test.mjs:107:51'\n  failureType: 'testCodeFailure'\n  error: 'TEST_HANG: condition; 1 work unit(s), 122001 ms elapsed, 122000 ms guard'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)\n    listOnTimeout (node:internal/timers:605:17)\n    process.processTimers (node:internal/timers:541:7)\n  ..."
+    ],
+    "classification": "same condition-timeout signature reproduced on parent (1/30 whole-file controls); root cause open"
+  },
+  {
+    "name": "js-social-starter.test-02",
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/social-starter.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5734
+      },
+      "elapsed": 37630,
+      "counts": {
+        "tests": 13,
+        "pass": 12,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 28,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/social-starter.test.mjs",
+      "affinity": "60-63"
+    },
+    "log": "js-social-starter.test-02.log.gz",
+    "log_sha256": "acc038daa073b6562b1145c2c789e1276c0e8923147fef1b79fc42e033e3eda4",
+    "failure_blocks": [
+      "# Subtest: social DM web: concurrent opens converge, held keys resolve offline and an offline race settles\nnot ok 9 - social DM web: concurrent opens converge, held keys resolve offline and an offline race settles\n  ---\n  duration_ms: 17927.589914\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/social-starter.test.mjs:266:39'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async Promise.all (index 2)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/social-starter.test.mjs:269:20)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-read-existence-integration.test-16",
+    "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+    "iteration": 16,
+    "native": {
+      "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5330
+      },
+      "elapsed": 128730,
+      "counts": {
+        "tests": 7,
+        "pass": 6,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 16,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/read-existence-integration.test.mjs",
+      "affinity": "44-47"
+    },
+    "log": "js-read-existence-integration.test-16.log.gz",
+    "log_sha256": "88d5173677b29c85c023b4a85a470fc8daf50ec803f4fdb962ba51f2ffaf9beb",
+    "failure_blocks": [
+      "# Subtest: wasm: same-key row arrival and delete replace absent/present existence\nnot ok 5 - wasm: same-key row arrival and delete replace absent/present existence\n  ---\n  duration_ms: 123192.229288\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/read-existence-integration.test.mjs:107:51'\n  failureType: 'testCodeFailure'\n  error: 'TEST_HANG: condition; 1 work unit(s), 122000 ms elapsed, 122000 ms guard'\n  code: 'ERR_TEST_FAILURE'\n  stack: |-\n    Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)\n    listOnTimeout (node:internal/timers:605:17)\n    process.processTimers (node:internal/timers:541:7)\n  ..."
+    ],
+    "classification": "same condition-timeout signature reproduced on parent (1/30 whole-file controls); root cause open"
+  },
+  {
+    "name": "js-witness-acquire.test-02",
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/witness-acquire.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5698
+      },
+      "elapsed": 109951,
+      "counts": {
+        "tests": 43,
+        "pass": 42,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 88,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/witness-acquire.test.mjs",
+      "affinity": "24-27"
+    },
+    "log": "js-witness-acquire.test-02.log.gz",
+    "log_sha256": "4137b92105a9c892ba45fc9833d7f34469d802fb164be20af450782e59c0780b",
+    "failure_blocks": [
+      "# Subtest: acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs\nnot ok 2 - acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs\n  ---\n  duration_ms: 10544.479735\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/witness-acquire.test.mjs:82:1'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async fixture (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/witness-acquire.test.mjs:62:20)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/witness-acquire.test.mjs:83:13)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-asset-lists.test-03",
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "iteration": 3,
+    "native": {
+      "file": "packages/snapback4/test/asset-lists.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5682
+      },
+      "elapsed": 133254,
+      "counts": {
+        "tests": 42,
+        "pass": 41,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 86,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs",
+      "affinity": "4-7"
+    },
+    "log": "js-asset-lists.test-03.log.gz",
+    "log_sha256": "7ddf32fce7769b51cc8f367a03311e0849f864a9f38c8c25577883f5141a0647",
+    "failure_blocks": [
+      "# Subtest: wasm: list cache retires on expiry and stays retired after offline reopen\nnot ok 27 - wasm: list cache retires on expiry and stays retired after offline reopen\n  ---\n  duration_ms: 11666.842905\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:349:3'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async fixture (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:82:18)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/asset-lists.test.mjs:350:15)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-store-reset-reconnect.test-02",
+    "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5708
+      },
+      "elapsed": 48875,
+      "counts": {
+        "tests": 12,
+        "pass": 11,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 26,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "affinity": "8-11"
+    },
+    "log": "js-store-reset-reconnect.test-02.log.gz",
+    "log_sha256": "39db93c81f66bbfd8884d19d6e18235224fcecc62e8cb4aac4cd83b7c9fd9ddf",
+    "failure_blocks": [
+      "# Subtest: R2 item 4: wasm replacement while a snapshot after request is in flight\nnot ok 4 - R2 item 4: wasm replacement while a snapshot after request is in flight\n  ---\n  duration_ms: 11595.160018\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs:144:41'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async Object.seed (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs:57:51)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs:145:37)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-retained-history.test-21",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "iteration": 21,
+    "native": {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5338
+      },
+      "elapsed": 58828,
+      "counts": {
+        "tests": 68,
+        "pass": 67,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 138,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "affinity": "8-11"
+    },
+    "log": "js-retained-history.test-21.log.gz",
+    "log_sha256": "d6b582c2f987667ac6e4726e18a2da81770fb304c729e1a1666f24793e76041d",
+    "failure_blocks": [
+      "# Subtest: R5 history wasm: retained history and independent held coverage\nnot ok 3 - R5 history wasm: retained history and independent held coverage\n  ---\n  duration_ms: 231.183145\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:117:749'\n  failureType: 'testCodeFailure'\n  error: |-\n    The expression evaluated to a falsy value:\n    \n      assert.ok(!deliveries.includes(0))\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:837:46)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "known R5 empty-delivery defect: issues/20260929-snapback4-retained-history-transient-empty.md"
+  },
+  {
+    "name": "js-retained-history.test-02",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5787
+      },
+      "elapsed": 83108,
+      "counts": {
+        "tests": 68,
+        "pass": 67,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 138,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "affinity": "28-31"
+    },
+    "log": "js-retained-history.test-02.log.gz",
+    "log_sha256": "43e32026b777df2e01c45f7439a29fc32db22e2a4b23131778717baf45c2e407",
+    "failure_blocks": [
+      "# Subtest: MQ expiry local watch left wasm: retained history and independent held coverage\nnot ok 12 - MQ expiry local watch left wasm: retained history and independent held coverage\n  ---\n  duration_ms: 10540.738035\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:117:749'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:232:17)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-retained-history.test-20",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "iteration": 20,
+    "native": {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5373
+      },
+      "elapsed": 55948,
+      "counts": {
+        "tests": 68,
+        "pass": 67,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 138,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "affinity": "28-31"
+    },
+    "log": "js-retained-history.test-20.log.gz",
+    "log_sha256": "0a0b725f593308f3f7c167c45853a0d6824be525fd75a24bd1098a8f3da2528f",
+    "failure_blocks": [
+      "# Subtest: R5 history wasm: retained history and independent held coverage\nnot ok 3 - R5 history wasm: retained history and independent held coverage\n  ---\n  duration_ms: 210.312245\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:117:749'\n  failureType: 'testCodeFailure'\n  error: |-\n    The expression evaluated to a falsy value:\n    \n      assert.ok(!deliveries.includes(0))\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:837:46)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "known R5 empty-delivery defect: issues/20260929-snapback4-retained-history-transient-empty.md"
+  },
+  {
+    "name": "js-server-e2e.test-02",
+    "file": "packages/snapback4/test/server-e2e.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/server-e2e.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5799
+      },
+      "elapsed": 76692,
+      "counts": {
+        "tests": 9,
+        "pass": 8,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 20,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs",
+      "affinity": "72-75"
+    },
+    "log": "js-server-e2e.test-02.log.gz",
+    "log_sha256": "fcf952d4d022d14e690c53b0604a56fc90a8b6a519c9de1f941c88897eab1b18",
+    "failure_blocks": [
+      "# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes\nnot ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes\n  ---\n  duration_ms: 28526.048649\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs:23:55'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    3 !== 2\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 2\n  actual: 3\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/server-e2e.test.mjs:547:14)\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-admit-before-identity.test-02",
+    "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "iteration": 2,
+    "native": {
+      "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5749
+      },
+      "elapsed": 89548,
+      "counts": {
+        "tests": 59,
+        "pass": 58,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 120,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/admit-before-identity.test.mjs",
+      "affinity": "40-43"
+    },
+    "log": "js-admit-before-identity.test-02.log.gz",
+    "log_sha256": "f27ef96679f1d0dcc32c3e156978b1c2b523530d93d14874fa23ed48059af899",
+    "failure_blocks": [
+      "# Subtest: browser transaction checks generation independently of backend (wasm)\nnot ok 43 - browser transaction checks generation independently of backend (wasm)\n  ---\n  duration_ms: 12845.329234\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:579:37'\n  failureType: 'testCodeFailure'\n  error: 'fetch failed'\n  code: 'ERR_TEST_FAILURE'\n  name: 'TypeError'\n  stack: |-\n    node:internal/deps/undici/undici:16416:13\n    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    async devServer (file:///home/ccheever/sb4-intent/lane-fx/snapback4/witness/lib.mjs:84:20)\n    async launch (file:///home/ccheever/sb4-intent/lane-fx/snapback4/witness/lib.mjs:111:15)\n    async browser (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:25:13)\n    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:580:13)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "unclassified stress failure; no exclusions"
+  },
+  {
+    "name": "js-retained-history.test-19",
+    "file": "packages/snapback4/test/retained-history.test.mjs",
+    "iteration": 19,
+    "native": {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 5593
+      },
+      "elapsed": 57223,
+      "counts": {
+        "tests": 68,
+        "pass": 67,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 138,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "affinity": "40-43"
+    },
+    "log": "js-retained-history.test-19.log.gz",
+    "log_sha256": "b9153866cb528f4043412b5a44c380609e3d37959942aa69c1763c33a1ffce57",
+    "failure_blocks": [
+      "# Subtest: R5 history wasm: retained history and independent held coverage\nnot ok 3 - R5 history wasm: retained history and independent held coverage\n  ---\n  duration_ms: 242.790355\n  type: 'test'\n  location: '/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:117:749'\n  failureType: 'testCodeFailure'\n  error: |-\n    The expression evaluated to a falsy value:\n    \n      assert.ok(!deliveries.includes(0))\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: true\n  actual: false\n  operator: '=='\n  stack: |-\n    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/retained-history.test.mjs:837:46)\n    async Test.run (node:internal/test_runner/test:1110:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)\n  ..."
+    ],
+    "classification": "known R5 empty-delivery defect: issues/20260929-snapback4-retained-history-transient-empty.md"
+  }
+]

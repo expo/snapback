@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP projection, both client stores, watch invalidation and cold restoration.
 import test from "node:test";
@@ -28,6 +29,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   mkdirSync(join(directory,"snapback"));
   writeFileSync(join(directory,"snapback/schema.q"),source);
   const server=spawn(binary,["dev","--port","0","--no-watch","--hold-schedules"],{cwd:directory,stdio:["ignore","pipe","pipe"]});
+  const readStdout = captureStdout(server);
   const exited=once(server,"exit");
   let log="",client,watch,core;
   server.stderr.on("data",chunk=>{log+=chunk});
@@ -35,7 +37,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   const url=await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(Error(log)),hangBudget());
     server.once("exit",()=>{clearTimeout(timer);reject(Error(log))});
-    server.stdout.on("data",chunk=>{log+=chunk;const address=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
+    server.stdout.on("data",chunk=>{log+=chunk;const address=readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
   });
   const post=async(path,body)=>{const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice","content-type":"application/json"},body:JSON.stringify(body)});const answer=await response.json();assert.equal(response.status,200,JSON.stringify(answer));publicJson(answer);return answer};
   const mutation=async(name,id,args)=>{const result=await post(`/m/${name}`,{id,args});assert.equal(result.state,"sent",JSON.stringify(result));return result};

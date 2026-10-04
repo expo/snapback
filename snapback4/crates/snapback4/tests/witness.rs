@@ -172,6 +172,28 @@ fn scene_symbol_must_be_on_the_selected_nonzero_faulting_thread() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+fn scene_peak_bytes(stdout: &str) -> Option<u64> {
+    // Libtest can prepend its banner. Keep the first record, as before: a
+    // malformed measurement must not be replaced by a later, smaller value.
+    let value = stdout.lines().find_map(|line| line.split_once("scene-peak-bytes=").map(|(_, value)| value))?;
+    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+    value.parse().ok()
+}
+
+#[test]
+fn scene_peak_parser_requires_the_whole_first_measurement() {
+    for prefix in ["", "test many_large_scene_reports ... "] {
+        for ending in ["\n", "\r\n"] {
+            assert_eq!(scene_peak_bytes(&format!("{prefix}scene-peak-bytes=12345{ending}ok\n")), Some(12345));
+        }
+        for value in ["12x345", "1e9", "12 345", "+12", "", "18446744073709551616", "\n12345", "12 scene-peak-bytes=1"] {
+            assert_eq!(scene_peak_bytes(&format!("{prefix}scene-peak-bytes={value}\n")), None, "{value:?}");
+        }
+    }
+    assert_eq!(scene_peak_bytes("scene-peak-bytes=100000000\nscene-peak-bytes=1\n"), Some(100000000));
+    assert_eq!(scene_peak_bytes("scene-peak-bytes=12x345\nscene-peak-bytes=1\n"), None);
+}
+
 #[cfg(unix)]
 #[test]
 fn many_large_scene_reports_keep_constant_peak_memory() {
@@ -197,8 +219,7 @@ fn many_large_scene_reports_keep_constant_peak_memory() {
             .args(["--exact", "many_large_scene_reports_keep_constant_peak_memory", "--nocapture"])
             .env("SB4_SCENE_MEMORY_DIR", &dir).output().unwrap();
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        String::from_utf8(output.stdout).unwrap().lines().find_map(|line|
-            line.strip_prefix("scene-peak-bytes=").map(|n| n.parse::<u64>().unwrap())).unwrap()
+        scene_peak_bytes(&String::from_utf8(output.stdout).unwrap()).expect("complete scene peak measurement")
     };
     std::fs::write(dir.join("0.ips"), &report).unwrap();
     let one = measure();
@@ -360,7 +381,7 @@ mod driver {
         let node = Command::new("node").args(["-p", "process.execPath"]).output().unwrap();
         assert!(node.status.success());
         let node = String::from_utf8(node.stdout).unwrap();
-        fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid', String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+        fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid.tmp', String(process.pid)); fs.renameSync('checker-pid.tmp', 'checker-pid'); setInterval(() => {}, 1000);\n").unwrap();
         // The real checker has its own 30-second deadline. Keep the Node
         // descendant and diagnostic pipes alive after its wrapper is reaped,
         // so only the witness's 120-second startup guard ends this scenario.

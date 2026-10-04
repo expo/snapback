@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -736,11 +737,12 @@ fn nativeRead(_ctx: &Ctx, _args: &Json) -> Result<Json> { Ok(json!([])) }
   mkdirSync(join(root, 'target/native-fixture'), { recursive: true });
   symlinkSync(join(root, 'target/native-fixture'), join(dir, 'snapback/generated/native-target'), 'dir');
   server = spawn(binary(), ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(server);
   exited = new Promise(resolve => server.once('close', resolve));
   let log = '', api, spawnError;
   server.on('error', error => { spawnError = error; });
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => {
-    log += bytes; api ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+    log += bytes; api ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
   });
   await awaitState(() => {
     if (spawnError) throw spawnError;

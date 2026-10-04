@@ -64,6 +64,7 @@ setInterval(() => {}, 1000);
   assert.deepEqual(db.prepare("SELECT DISTINCT principal FROM _sessions WHERE kind = 'service' ORDER BY principal").all().map(row => row.principal), ["service:digest", "service:push"]);
   const storeIdentity = db.prepare("SELECT value FROM _meta WHERE key = 'store_id'").get().value;
   db.close();
+  await until(() => stdout.includes("\n"));
   assert.match(stdout.trim(), /^http:\/\/127\.0\.0\.1:\d+$/);
   for (const name of ["push", "digest"]) {
     assert.match(stderr, new RegExp(`\\[worker:${name}\\] token:\\[REDACTED\\]`));

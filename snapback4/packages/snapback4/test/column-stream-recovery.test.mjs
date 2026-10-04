@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // A composed mutation at the maintained-column source-attempt ceiling. Its
 // distinct old/new parent images exceed 16 MiB; the real HTTP recovery path
@@ -49,10 +50,11 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   const dir = mkdtempSync(join(tmpdir(),"sb4-column-stream-"));
   mkdirSync(join(dir,"snapback")); writeFileSync(join(dir,"snapback/schema.q"),source);
   const child = spawn(binary,["dev","--port","0","--no-watch","--hold-schedules"],{cwd:dir,stdio:["ignore","pipe","pipe"]});
+  const readStdout = captureStdout(child);
   const exited = once(child,"exit");
   let url, log="";
   const clients=[];
-  for(const stream of [child.stdout,child.stderr]) stream.on("data",bytes=>{log+=bytes;url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]});
+  for(const stream of [child.stdout,child.stderr]) stream.on("data",bytes=>{log+=bytes;url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]});
   t.after(async()=>{for(const d of clients)await d.client.close();if(child.exitCode==null&&child.signalCode==null)child.kill();await exited;rmSync(dir,{recursive:true,force:true})});
   const deadline=performance.now() + hangBudget();
   while(!url){assert.equal(child.exitCode,null,log);assert.ok(performance.now()<deadline,log);await delay(20)}

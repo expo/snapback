@@ -86200,6 +86200,36 @@ serializer on unchanged base and RPF; recorded separately without broadening
 the allowlist. No other host, NZ worktree/process or simulator was used.
 Local commit only; nothing pushed or published.
 
+## 2026-10-04 — FX: complete cross-process test observations
+
+Fixed the adoption recovery-log observation race with the existing bounded
+wait and complete diagnostic lines. Worker fixtures now publish JSON/text by
+atomic rename; append-based fixtures retain duplicate-write detection. The
+Snapback 4 test audit also fixed matching PID/path handoffs and asynchronous
+log observations. Clean stress exposed an adjacent adoption fixture race:
+SIGSTOP could freeze SQLite's writer transaction. A fixture-owned writer lock
+and stopped-child acknowledgement now establish the intended external-adoption
+setup. Every original package, environment, refusal and recovery assertion is
+retained; product code and timeout ceilings are unchanged.
+
+Each affected test file passed 30 repetitions on eb1000. The authorized `check`
+and worker-regression files also passed 30 repetitions on the Apartment mini;
+the final refresh-log delta has 30 additional filtered repetitions per host.
+Delayed-write probes distinguish the old premature JSON reads from the atomic
+fixtures. Full eb1000 suite: **zero failures in 1,616 seconds**; 4,968 Rust passes,
+33 existing ignores, 17 doctests, 6,187 client passes with 11 existing skips,
+79 serial model passes at full counts, and nine fixture passes. All build and
+typecheck stages pass. Darwin witness-driver coverage remains outside the
+mini's authorized two-file scope; its actual fixture handoffs were probed on
+Linux.
+
+The operator's 13:51Z disk-full event interrupted the first stress pass. All
+measurements overlapping 13:45–13:55Z were excluded and replaced, including
+three early mini completions. The [report](./reports/20261004-fx-test-races/REPORT.md)
+lists every audit fix and preserves the clean run records. Both tickets are
+closed. Large owned targets and scratch were removed, and no other worktree or
+simulator was used. Local commit only; nothing pushed.
+
 ## 2026-10-04 — LU round 2: bounded lookahead and preserved CPU repayment
 
 Merged origin/main 2cc55e168c9 (RP, QE2, NL, WD, QF/QF2) before investigating
@@ -86332,6 +86362,50 @@ Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
 
+## 2026-10-04 — FX round 1: complete merged test observations
+
+Merged main at `cee23d5619`, keeping both journal histories. Fixed Astra's
+three P2s and the merged-tree audit's atomic-file, independent-stream and
+complete-line observations, including partial ports and HTTP 100-continue.
+All 4,999 existing JavaScript assertions and test names remain intact.
+Each of 71 Linux file series ran 30 times under confined CPU contention;
+70 passed 30/30, while retained-history reproduced its open product defect
+seven times (also reproduced on the merged baseline). Both worker files
+passed 30/30 final-source runs on the Apartment mini. The full Linux suite
+passed with zero failed stages in 2,072 s and full model counts. Both original
+tickets remain closed; the retained-history ticket remains open. The
+[Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+lists every audit fix, intermediate result, probe, disk-sampling limitation
+and cleanup. Build/scratch allocations stayed below 40 GB and were removed
+after evidence collection. Local commit only; nothing pushed or published.
+
+## 2026-10-04 — FX round 1: Grok marker follow-up
+
+Fixed libtest banner sharing in the witness memory marker and the audit's
+HTTP descriptor and acquisition-crash markers; all existing assertions stay
+unchanged. Witness and HTTP descriptor binaries each pass 30/30 under a
+CPU-0 busy loop; the full 48-kill acquisition model passes there too. FY's
+500 ms refresh control passes both cases with the existing barrier and
+fails both without it. The [Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+records the follow-up; its full-suite evidence stands. Build and scratch
+files were removed. One local follow-up commit on `12b101b76b`; no push.
+
+## 2026-10-04 — FX round 2: independent readiness and whole marker values
+
+Fixed Astra's two P2s on `0edf7c4690`: all 79 combined-stream readiness reads
+now parse stdout alone while retaining complete-line guards; witness, HTTP
+descriptor and acquisition markers consume whole values and select the first
+record. Existing assertions, names and bounds remain unchanged. Interleaving
+and malformed-value controls fail the parent and pass the repairs. All three
+Rust binaries pass 30/30 under a CPU-0 hog. The 63 JavaScript file series
+ran 30 times each under four-CPU contention: 1,874 passes and 16 retained
+failures (four known R5, two parent-reproduced condition timeouts, ten
+unclassified). The full suite passes in 2,082 s at full counts. Astra's
+separate MQ count failure remains unclassified and was not pursued. The
+[Round 2 report](./reports/20261004-fx-test-races/REPORT.md#round-2--keep-readiness-streams-separate-and-parse-whole-measurements)
+records every result, source/receipt checks, controls and cleanup. Observed
+allocations peaked at 12.29 GB; owned target/scratch removed after verified
+archival. One local commit, with no push or remote-host work.
 
 ## 2026-10-04 — FY: witnessed job crash and watchdog process identities
 

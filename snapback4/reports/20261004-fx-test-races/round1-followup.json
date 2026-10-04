@@ -1,0 +1,99 @@
+{
+  "parent": "12b101b76b75ac0495dd4eac5781dabe172c7bb1",
+  "host": "expose-builder-pixel",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "node": "v24.13.1",
+  "source_sha256": {
+    "snapback4/crates/snapback4/tests/witness.rs": "1706616de6cceedd723c0108770e16febffbdbf0ffcceb13bc40e0efbcf1792d",
+    "snapback4/crates/snapback4/tests/http_emfile.rs": "764d1ea3694fc3d0c494dbdd1d9a275d5688400c783a5fc81e402a3f67db601b",
+    "snapback4/crates/snapback4-device/tests/acquisition_crash.rs": "9780e589674cb747c385fcc94ec9699ecb8caa352b91c196b0ec02d8093f4cec",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "8f3d12d36d411fe43aac0f31abf8f5f85d3127045762c6cc2ff4b5da9673b70b"
+  },
+  "build_environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "series": [
+    {
+      "name": "witness",
+      "runs": 30,
+      "passes": 30,
+      "tests_per_run": 31,
+      "cpu": 0,
+      "hog_reaped": true,
+      "binary_sha256": "5e60fc95cad062b8888beddfee834a7b8965f2914d093177553422f50bcb6bf1",
+      "started_at": "2026-10-04T18:22:26.716841+00:00",
+      "finished_at": "2026-10-04T18:22:39.571538+00:00",
+      "details": "evidence/witness.json"
+    },
+    {
+      "name": "http_emfile",
+      "runs": 30,
+      "passes": 30,
+      "tests_per_run": 9,
+      "cpu": 0,
+      "hog_reaped": true,
+      "binary_sha256": "e5182317a3439e00472649cc2cd1c28781d02438ca884d75cd129ca90b4d7353",
+      "started_at": "2026-10-04T18:22:39.614989+00:00",
+      "finished_at": "2026-10-04T18:27:58.388338+00:00",
+      "details": "evidence/http_emfile.json"
+    },
+    {
+      "name": "acquisition_crash",
+      "runs": 1,
+      "passes": 1,
+      "tests_per_run": 2,
+      "cpu": 0,
+      "hog_reaped": true,
+      "binary_sha256": "d7aa51e9c717937ad68cd3d329365d83de9c7275ad0916987a169a3ebf9b55b8",
+      "started_at": "2026-10-04T18:27:58.456013+00:00",
+      "finished_at": "2026-10-04T18:28:08.397341+00:00",
+      "details": "evidence/acquisition_crash.json"
+    }
+  ],
+  "refresh_control": {
+    "milliseconds": 500,
+    "cases_per_mode": 2,
+    "without_barrier": {
+      "exit_code": 1,
+      "passed": 0,
+      "failed": 2
+    },
+    "final_tree": {
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0
+    },
+    "whole_observed_after_stderr_records": true,
+    "details": "evidence/refresh.json",
+    "control": "evidence/refresh-loader.mjs"
+  },
+  "audit": "evidence/audit.json",
+  "unchanged_assertions": "evidence/assertions.json",
+  "initial_witness_series": "30 passed, retained in initial-affinity-sample; first driver sampled hog affinity before taskset had applied it. Repeated all 30 with affinity set before exec and checked for each invocation; only second series qualifies.",
+  "full_suite": "Not rerun, per operator; round-1 full-suite evidence stands.",
+  "remote_hosts": "None used in this follow-up.",
+  "archive": {
+    "file": "round1-followup.tar.gz",
+    "sha256": "01f00b8ef5defef05234ebd58d48899ce0f3bf0a6aa694e8727db8ee2777a18f",
+    "bytes": 78885
+  },
+  "cleanup": {
+    "measured_at": "2026-10-04T18:29:56.569551+00:00",
+    "pre_cleanup_bytes": {
+      "target": 435871633,
+      "scratch": 672877,
+      "existing_dependencies": 602833013
+    },
+    "target_deleted_at": "2026-10-04T18:29:56.867718+00:00",
+    "archive_verified_files": 122,
+    "scratch_paths_removed": [
+      "/tmp/fx-r1-followup",
+      "/tmp/fx-r1-followup-rust-search.txt"
+    ],
+    "scratch_deleted_at": "2026-10-04T18:29:56.920363+00:00"
+  }
+}

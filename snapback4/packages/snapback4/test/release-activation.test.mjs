@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor, hangBudget } from './helpers/wait.mjs';
 import { cleanup, withCleanup } from './helpers/cleanup.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
@@ -61,9 +62,10 @@ function state(path) {
 
 async function serve(deployment, inspect) {
   const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1"], { stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   await withCleanup(async () => {
     const deadline = performance.now() + hangBudget();

@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -24,9 +25,10 @@ query guardedDecorations(conversation: conversations):
 for(const tier of ['process','wasm'])test(`seen lifecycle ${tier}: real generated binding, offline custody/restart, leave/rejoin and independent retained history`,{timeout:hangBudget(90)},async t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-seen-'));mkdirSync(join(dir,'snapback'));mkdirSync(join(dir,'device'));
  writeFileSync(join(dir,'snapback/schema.q'),source);
- const server=spawn(binary,['dev','--port','0','--fresh','--no-watch'],{cwd:dir,stdio:['ignore','pipe','pipe']});const exited=once(server,'exit');
+ const server=spawn(binary,['dev','--port','0','--fresh','--no-watch'],{cwd:dir,stdio:['ignore','pipe','pipe']});
+ const readStdout = captureStdout(server);const exited=once(server,'exit');
  let log='',url,client,offline=false;const owners=[];
- server.stdout.on('data',b=>{log+=b;url??=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];});server.stderr.on('data',b=>log+=b);
+ server.stdout.on('data',b=>{log+=b;url??=readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});server.stderr.on('data',b=>log+=b);
  t.after(async()=>{owners.forEach(o=>o.stop());await client?.close();if(server.exitCode===null&&server.signalCode===null)server.kill('SIGTERM');await exited;rmSync(dir,{recursive:true,force:true});});
  await waitFor(()=>{assert.equal(server.exitCode,null,log);return url;},'server');
  const post=async(path,body,persona='alice')=>fetch(url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':persona},body:JSON.stringify(body)}).then(r=>r.json());

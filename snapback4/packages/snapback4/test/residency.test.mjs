@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real process devices: server-run watches are live, and never read an empty
 // device page as an offline server answer (LLP 3000.007 §6.5).
@@ -80,9 +81,10 @@ function project(t) {
 async function fixture(t, watchSources = false, tier = "native") {
   const directory = project(t);
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", ...(watchSources ? [] : ["--no-watch"])], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exit = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const clients = [];
   t.after(async () => {
