@@ -7,7 +7,7 @@ and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
 Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
-Round 4: `1bed2b74d4`;
+Round 4: `1bed2b74d4`; Round 5: `c25aa1b2dc`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -268,6 +268,39 @@ round are superseded by the operator's Round 1 decision below.
   **642 B** below the unchanged **618,040 B** budget; SHA-256
   `09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
   Measurement: `/tmp/sb4-nl-r5-verification/wasm.json`.
+- Reference validation and whitespace checks pass. Work stayed on eb1000;
+  no unrelated process was signaled, and nothing was pushed.
+
+## Round 6 (2026-10-04)
+
+- Fixed Grok's older positional unique-key diagnostic in both program reads
+  and rule probes. Instead of offering a named key that can remain ambiguous,
+  each declared candidate now submits an explicit index choice to the same
+  in-context verifier as named ambiguity. The caller's positional operands
+  stay intact. Only a compiling candidate becomes source; no admitted choice
+  means an empty rewrite. `E_QUARRY_POSITIONAL_SCAN` remains non-mechanical:
+  index choice can change what each positional argument means.
+- Three new regressions failed before the fix and pass afterwards. Verbatim
+  paste tests cover point reads, `exists` and rule `created`, both argument
+  orders, required/optional arguments and guards, literal nulls, a rejected
+  first candidate followed by a valid `inverse`, comments/grouping, incompatible
+  types and missing arities. Previous withheld-rewrite regressions remain green.
+  Point admission, plans for accepted programs and runtime behavior are unchanged.
+- Grok's Low #2 (`repairProbe` collision) was already fixed in Round 5.
+  Its integration regression and fallback-probe unit tests pass again here.
+- **260 affected language, 28 lookup/admission and 27 CLI repair tests pass**,
+  no ignores. Logs: `/tmp/sb4-nl-r6-verification/affected-{lang,device,cli}.log`.
+  The guide and LLP §2.2 now explain why opposite index orders need an explicit
+  choice and why suggestions must compile in the caller's context.
+- **Full suite: zero failures in 1,413 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **290 binaries, 1,003 executions and workspace doctests** (469 s);
+  clients: **6,034 passed, 11 existing skips** (591 s); serial models:
+  **79 passed** (308 s). Log: `/tmp/sb4-nl-r6-verification/full-suite.log`.
+- Wasm is byte-identical to Round 5: **2,048,676 B raw / 617,398 B gzip**,
+  **642 B** below the unchanged **618,040 B** budget; SHA-256
+  `09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+  Measurement: `/tmp/sb4-nl-r6-verification/wasm.json`.
 - Reference validation and whitespace checks pass. Work stayed on eb1000;
   no unrelated process was signaled, and nothing was pushed.
 

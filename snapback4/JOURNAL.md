@@ -85039,3 +85039,40 @@ below the unchanged 618,040 B budget; SHA-256
 Reference validation and whitespace checks pass. No other machine was used,
 no unrelated process was signaled, and nothing was pushed or published.
 Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+
+## 2026-10-04 — NL round 6: verified positional index choices
+
+Grok's remaining round-4 finding predates that round: an ambiguous positional
+unique key offered a named-key rewrite, which stayed ambiguous when indexes
+had the same columns in opposite orders. Both program and rule diagnostics
+now submit explicit index candidates to the shared in-context repair verifier.
+It preserves the caller's positional expressions, checks each candidate and
+prints source only for a compiling choice. No valid choice means no rewrite.
+The diagnostic stays E_QUARRY_POSITIONAL_SCAN and non-mechanical, since choosing
+an index can change the meaning of positional arguments. Admission and runtime
+behavior are unchanged.
+
+Three new regressions failed before the fix and pass after it. Verbatim paste
+coverage includes point reads, exists/created probes, both orders, required and
+optional arguments, guards and literal nulls, an invalid first candidate and a
+valid inverse, operand comments/grouping, type mismatches and absent arities.
+The older bad-rewrite tests remain green. Grok's repairProbe collision finding
+was already fixed in round 5, and its tests pass again. All 260 affected language,
+28 server/memory/SQLite lookup-admission and 27 CLI repair tests pass, no ignores.
+The guide and LLP 3000.013 §2.2 state the corrected advice. Details:
+[Round 6 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,413 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (469 s), as did 6,034 client tests
+with 11 existing skips (591 s) and all 79 serial model tests (308 s).
+Log: `/tmp/sb4-nl-r6-verification/full-suite.log`.
+
+Wasm is byte-identical to Round 5: 2,048,676 B raw / 617,398 B gzip, 642 B
+below the unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation and whitespace checks pass. No other machine was used,
+no unrelated process was signaled, and nothing was pushed or published.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

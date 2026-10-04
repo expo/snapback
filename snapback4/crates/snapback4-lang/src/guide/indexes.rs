@@ -122,10 +122,11 @@ to its definition or apply the diagnostic's mechanical `check --fix`.
 Keep nullable unique constraints unchanged; use the column-ordered read
 above to obtain a separate page index without weakening uniqueness.
 
-E_QUARRY_AMBIGUOUS means an older positional read matches several keys.
-Name the key columns for a point, or write `tasks where .ownerId = viewer
-first 20 by .at after c` for a page. Types validate a selected key; they do
-not choose between keys.
+E_QUARRY_POSITIONAL_SCAN refuses a positional key that cannot identify one
+declared unique key by arity. E_QUARRY_AMBIGUOUS refuses several matching
+indexes. Name columns to state the key; if indexes share those columns in
+different orders, choose an explicit index. Offered index repairs compile in
+context. Types validate a selected key; they do not choose positional meaning.
 
 E_SCHEMA_CONSTRAINT means the named declaration violates a schema constraint.
 Keep a product cap such as `cap 50 by conversationId` when it is a real rule;

@@ -608,9 +608,11 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         let declared = target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
             .filter(|index| match &read.index { Some(name) => &index.name == name, None => index.unique && index.columns.len() == terms.len() }).collect::<Vec<_>>();
         if declared.len() != 1 {
-            let columns = declared.first().map(|index| index.columns.as_slice()).unwrap_or(&[]);
-            let keys = read.keys.iter().enumerate().map(|(at, key)| format!("{} = {}", columns.get(at).map(String::as_str).unwrap_or("column"), crate::print::expression(&key.value))).collect::<Vec<_>>().join(", ");
-            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity", format!("{}[{keys}]", read.table)).guide("reads"));
+            // @ref LLP 3000.013#2.2 — rule repairs must select an index and
+            // pass the same admission checks in the original rule context.
+            let changes = declared.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", "")
+                .guide("reads").repair_read(&read.site, changes));
         }
     }
     let mut candidates: Vec<&IndexDecl> = target

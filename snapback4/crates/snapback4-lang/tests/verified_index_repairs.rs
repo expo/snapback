@@ -50,6 +50,57 @@ fn rule_ambiguity_uses_its_own_row_and_presence_guards() {
 }
 
 #[test]
+fn positional_program_ambiguity_offers_only_verified_explicit_indexes() {
+    for (optional, guarded) in [(false, false), (true, false), (true, true)] {
+        let opt = if optional { " ?" } else { "" };
+        let guard = if guarded { "  require x != null and y != null else MISSING\n" } else { "" };
+        for read in ["t[x, y]", "t[y, x]"] {
+            for probe in ["", "exists "] {
+                let source = format!("{PAIR}query q(x: principal{opt}, y: principal{opt}):\n{guard}  return {probe}{read}\n");
+                let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", !optional || guarded);
+                assert!(!d.mechanical);
+                if !d.rewrite.is_empty() { assert_eq!(d.rewrite, format!("{read} by pair")); }
+            }
+        }
+    }
+    let read = "t[null, null]";
+    repair(&format!("{PAIR}query q():\n  return exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
+}
+
+#[test]
+fn positional_rule_ambiguity_offers_only_verified_explicit_indexes() {
+    for (optional, guarded) in [(false, false), (true, false), (true, true)] {
+        let opt = if optional { " ?" } else { "" };
+        let guard = if guarded { ".low != null and .high != null and " } else { "" };
+        for read in ["t[.low, .high]", "t[.high, .low]"] {
+            for (effect, probe) in [("read", "exists"), ("insert", "created")] {
+                let source = format!("{PAIR}table m:\n  low: principal{opt}\n  high: principal{opt}\n  {effect} <- {guard}{probe} {read}\n");
+                let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", !optional || guarded);
+                assert!(!d.mechanical);
+                if !d.rewrite.is_empty() { assert_eq!(d.rewrite, format!("{read} by pair")); }
+            }
+        }
+    }
+}
+
+#[test]
+fn positional_ambiguity_tries_the_next_index_and_preserves_operands() {
+    let model = PAIR.replace("low: principal ?", "low: principal").replace("high: principal ?", "high: int");
+    let read = "t[(x -- keep this operand\n  ), y]";
+    let source = format!("{model}query q(x: int, y: principal):\n  return exists {read}\n");
+    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
+    assert_eq!(d.rewrite, format!("{read} by inverse"));
+    let read = "t[.high, .low]";
+    let source = format!("{model}table m:\n  low: principal\n  high: int\n  read <- exists {read}\n");
+    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
+    assert_eq!(d.rewrite, format!("{read} by inverse"));
+    for read in ["t[true, false]", "t[true, false, true]"] {
+        repair(&format!("{model}query q():\n  return exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
+        repair(&format!("{model}table m:\n  read <- exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
+    }
+}
+
+#[test]
 fn range_mismatch_never_turns_column_names_into_expressions() {
     let model = "table t:\n  low: principal\n  high: principal\n  by inverse: high, low\n  public\n";
     for keys in ["123", "123, 456", "low = x, high = 123"] {

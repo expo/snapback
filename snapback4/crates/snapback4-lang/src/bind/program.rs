@@ -526,9 +526,11 @@ impl<'a> Binder<'a> {
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
             if candidates.len() != 1 {
-                let columns = candidates.first().map(|index| index.columns.as_slice()).or_else(|| info.indexes.iter().filter(declared).find(|index| index.columns.len() >= read.keys.len()).map(|index| index.columns.as_slice())).unwrap_or(&[]);
-                let named = read.keys.iter().enumerate().map(|(at, key)| format!("{} = {}", columns.get(at).map(String::as_str).unwrap_or("column"), print::expression(&key.value))).collect::<Vec<_>>().join(", ");
-                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; use named columns", read.table, candidates.len(), read.keys.len()), format!("{}[{named}]", read.table)).guide("reads"));
+                // @ref LLP 3000.013#2.2 — naming columns cannot distinguish
+                // opposite index orders; verify explicit choices in context.
+                let changes = candidates.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; choose a compatible unique index explicitly", read.table, candidates.len(), read.keys.len()), "")
+                    .guide("reads").repair_read(&read.site, changes));
             }
             if read.index.is_none() {
                 let mut explicit = read.clone();
