@@ -10,12 +10,16 @@ import { hash, fail, safeFailure, readJSON, seal, inventory, hbc, nativeFiles, d
 
 // Unexpected setup errors can include paths; never print a Node stack or raw error.
 process.on('uncaughtException', error => { console.error(safeFailure(error)); process.exitCode = 1; });
-const [mode, projectArg, artifactsArg, udid, origin, exported] = process.argv.slice(2);
+const [mode, projectArg, artifactsArg, udid, origin, exported, scheduling] = process.argv.slice(2);
 // Refuse before resolving projects, creating caches, or invoking any tool.
 if (mode !== 'build') fail('E_WITNESS_INPUT', 'repack is withdrawn; use witness ios --build <project> --smoke with fresh artifacts');
 const out = path.resolve(artifactsArg), project = fs.realpathSync(projectArg);
 const adapter = hash(fs.readFileSync(new URL('./effective-config.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-mods.json', import.meta.url))) + hash(fs.readFileSync(new URL('./payload.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./export-cache.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./prepare.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-inputs.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-closure.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-scripts.mjs', import.meta.url)));
-const started = Date.now(), deadline = started + 900_000, phases = [];
+const background = scheduling === '--background';
+if (scheduling && !background) fail('E_WITNESS_INPUT', 'unknown preparation scheduling mode');
+// Rust owns the idle-progress budget and all process custody; this independent
+// helper hard cap must not cut a progressing background build off at 900 s.
+const started = Date.now(), deadline = started + (background ? 3_600_000 : 900_000), phases = [];
 const cache = path.join(project, '.snapback4-witness'), snapshot = path.join(cache, 'snapshot');
 const env = Object.fromEntries(['PATH', 'HOME', 'USER', 'LOGNAME', 'DEVELOPER_DIR', 'LANG'].filter(k => process.env[k]).map(k => [k, process.env[k]]));
 Object.assign(env, { CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1', NODE_ENV: 'production',
@@ -28,12 +32,18 @@ fs.mkdirSync(env.TMPDIR, { recursive: true });
 fs.mkdirSync(env.HOME, { recursive: true });
 function command(label, executable, args, cwd = snapshot) {
   const time = Date.now(), log = path.join(out, `${label}.log`), fd = fs.openSync(log, 'wx');
-  const r = spawnSync(executable, args, { cwd, env, timeout: Math.max(1, deadline - time), maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' });
-  fs.writeSync(fd, (r.stdout ?? '') + (r.stderr ?? '')); fs.closeSync(fd);
+  const progress = event => { if (background) fs.appendFileSync(path.join(out, 'preparation-progress.jsonl'), JSON.stringify({ event, label, at: Date.now() }) + '\n'); };
+  progress('start');
+  // These long phases have no parsed stdout return value. Stream their actual
+  // output so the custodian can distinguish compilation/downloads from a stall.
+  const streaming = background && ['pods', 'xcode-build'].includes(label);
+  const r = spawnSync(executable, args, { cwd, env, timeout: Math.max(1, deadline - time), maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(streaming ? { stdio: ['ignore', fd, fd] } : {}) });
+  if (!streaming) fs.writeSync(fd, (r.stdout ?? '') + (r.stderr ?? ''));
+  fs.closeSync(fd); progress('end');
   phases.push({ label, executable, args, cwd, startedAt: time, durationMs: Date.now() - time, status: r.status, signal: r.signal, log: path.basename(log), sha256: hash(fs.readFileSync(log)) });
   fs.writeFileSync(path.join(out, 'preparation-phases.json'), JSON.stringify(phases, null, 2));
   if (r.error || r.status !== 0) fail('E_WITNESS_BUILD', `${label} failed (${r.status ?? 'could not start'}); see the command's own raw log path: ${log}; use --build in a fresh --artifacts directory`);
-  return r.stdout.trim();
+  return (r.stdout ?? '').trim();
 }
 const excluded = new Set(['.git', '.expo', '.snapback4', '.snapback4-witness', 'artifacts', 'evidence', 'dist', 'choreography', 'node_modules', 'ios']);
 function sourceOmit(p) { return excluded.has(p.split('/')[0]) || p.split('/').some(n => n === 'provider-secrets.env' || n.startsWith('.env')); }

@@ -19,6 +19,7 @@ const traversalSettings = {
   relative: { INFOPLIST_PATH: '../../../traversal/../outside-sentinel' },
 };
 child.spawnSync = (exe, args, options) => {
+  fs.appendFileSync(path.join(root, 'commands.jsonl'), JSON.stringify({ exe, args, timeout: options.timeout, streamed: Number.isInteger(options.stdio?.[1]) }) + '\n');
   let stdout = '', status = 0;
   if (exe === '/usr/bin/plutil') stdout = fs.readFileSync(args.at(-1), 'utf8');
   else if (args[0] === '-e') stdout = JSON.stringify({ hash: 'fingerprint', sources: [] });
@@ -86,6 +87,10 @@ child.spawnSync = (exe, args, options) => {
     if (!fs.existsSync(path.join(options.cwd, 'ios'))) fs.cpSync(path.join(root, 'generated-template'), path.join(options.cwd, 'ios'), { recursive: true, verbatimSymlinks: true });
   }
  else throw Error('unexpected fixture command ' + JSON.stringify([exe, args, options.cwd]));
+  if (Number.isInteger(options.stdio?.[1])) {
+    fs.writeSync(options.stdio[1], stdout);
+    return { status, stdout: null, stderr: null };
+  }
   return { status, stdout, stderr: '' };
 };
 function corrupt(app) {

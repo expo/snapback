@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-2-3-A",
+  "block": 2,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791092897.5422359,
+  "endedAt": 1791092942.0783648,
+  "seconds": 44.53599545899988,
+  "status": 0,
+  "childCpuSeconds": 19.583833999999996,
+  "before": {
+    "at": 1791092897.539059,
+    "load": [
+      23.541015625,
+      41.1025390625,
+      43.34130859375
+    ],
+    "idlePercent": 68.76042245692051,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 149.5 /usr/libexec/PerfPowerServices",
+      "18225     1  83.1 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+      "  661     1  78.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "69915  1160  77.0 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "  417     1  31.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      " 1160     1  23.2 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "    1     0  19.3 /sbin/launchd",
+      "  442     1  15.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1495  1166  12.2 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      " 1164     1   3.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub"
+    ]
+  },
+  "after": {
+    "at": 1791092943.263917,
+    "load": [
+      14.609375,
+      36.2958984375,
+      41.455078125
+    ],
+    "idlePercent": 72.75234418091561,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  661     1 216.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "12969     1 182.3 /usr/libexec/PerfPowerServices",
+      "70974 59730  17.3 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/PairedSync.framework/Support/pairedsyncd",
+      "  489     1   7.0 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      "  442     1   3.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1164     1   2.8 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   2.0 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  485     1   1.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  478     1   1.4 /usr/sbin/bluetoothd",
+      "  417     1   0.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+    ]
+  },
+  "smoke": null,
+  "exportedAt": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0.0,
+  "waitStatus": null,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-2-3-A.log",
+      "sha256": "7849ff819c66830d67619220763920ca6508c49b9d714db475ad01faff5db017",
+      "bytes": 20781
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-2-3-A-host.jsonl",
+      "sha256": "f324dad5c010e15c851af1af29209c6d142958ce91fa25946299cf42543f0b3f",
+      "bytes": 10258741
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "path": "llp/3000.030-native-proof-in-minutes.rfc.md",
+    "bytes": 145609,
+    "sha256": "0e1aa475a0f547f1a1c00e9efbb5b60f42ee195b7e1ebc3f7a62981580ba11d4"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "bytes": 28211,
+    "sha256": "ea4781215ea37af3707dcea362099db82e72d4d5c531d9eb16465718fd0b72a3"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "bytes": 44943,
+    "sha256": "5d63650e137772de8e73fea624a05a1bade023ba11c0a0e986a9c537fd1a61db"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "bytes": 24764,
+    "sha256": "c155004debb0ae40cdca2cf0bd200f4be5c6f2f1f4376dfcc2eda0ee0412eb9f"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+    "bytes": 46018,
+    "sha256": "01c503dfef5c23812f5d5c179c208de15e188911f349e30679c29f3402c2c4ce"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/prepare.mjs",
+    "bytes": 22513,
+    "sha256": "c25cd4fa54feb2bfb72ca1fa8acdc53b706238737dc4cc09360dd610f3565b63"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/witness-preparation-fixture.mjs",
+    "bytes": 8137,
+    "sha256": "40963d176d4bddc9dceeaef68f70d5bdd165669836d7224e69872eac523a1bba"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/witness-preparation.test.mjs",
+    "bytes": 44750,
+    "sha256": "e8d3b2ec81ca2f041c7dcb17a028e8cbf463660199e22d3d85d873b9caac5451"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/preparation_deadline.rs",
+    "bytes": 6360,
+    "sha256": "773e4eb0d255c3a12c994cc8ed0773c4638560d58dabeb79beba0cdd9aec981b"
+  }
+]

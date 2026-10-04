@@ -2,6 +2,7 @@
 //! simulator operations always name a resolved UDID, never `booted`.
 mod protocol;
 mod preparation;
+mod preparation_deadline;
 mod smoke;
 mod acquire;
 mod simulator;

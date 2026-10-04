@@ -35,3 +35,9 @@ and report the scope explicitly without weakening the audit.
 
 Doc updates: dated §15 revision, append-only JOURNAL, starter READMEs,
 `guide witness`, local report. Hand-off: none.
+
+Round 1 (2026-10-03): the user's explicit revision authorizes only automatic
+background preparation to earn time from progress, capped near 60 minutes.
+Foreground preparation remains 900 seconds; custody/step/cleanup policies stay.
+The user also replaces quiet-only admission with recorded-load ABBA on this
+host as it is. No host, simulator, process-signalling or push restriction changes.

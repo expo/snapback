@@ -269,13 +269,15 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     write(path.join(app, 'main.jsbundle'), bytes);
     fs.mkdirSync(path.join(app, 'assets'));
     const prepare = new URL('../../../crates/snapback4/src/verbs/witness/prepare.mjs', import.meta.url);
-    const run = (mode, name, fault = '', receipt = '') => {
+    const run = (mode, name, fault = '', receipt = '', scheduling = '') => {
       const out = path.join(root, name); fs.mkdirSync(out);
+      fs.writeFileSync(path.join(root, 'commands.jsonl'), '');
       const result = spawnSync(process.execPath, ['--import', new URL('./witness-preparation-fixture.mjs', import.meta.url).href,
-        prepare.pathname, mode, project, out, 'udid', 'http://127.0.0.1:4400', receipt], {
+        prepare.pathname, mode, project, out, 'udid', 'http://127.0.0.1:4400', receipt, scheduling], {
         env: { ...process.env, NP_FIXTURE_ROOT: root, NP_FIXTURE_FAULT: fault }, encoding: 'utf8', timeout: hangBudget(),
       });
-      return { ...result, out };
+      const commands = fs.readFileSync(path.join(root, 'commands.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+      return { ...result, out, commands };
     };
     for (const [fault, expected] of [['output-escape', /output path escapes private workspace/],
       ['missing-dependencies', /missing compiler dependency coverage/], ['external-dependency', /native input outside covered roots/]]) {
@@ -331,6 +333,16 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     const base = run('build', 'base');
     assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
     assert.equal(base.status, 0, base.stderr);
+    assert.ok(base.commands.every(c => !c.streamed));
+    assert.ok(base.commands.filter(c => Number.isFinite(c.timeout)).every(c => c.timeout <= 900_000));
+    const background = run('build', 'background', '', '', '--background');
+    assert.equal(background.status, 0, background.stderr);
+    assert.ok(background.commands.find(c => Number.isFinite(c.timeout)).timeout > 3_500_000);
+    assert.ok(background.commands.some(c => c.exe === 'pod' && c.args[0] === 'install' && c.streamed));
+    assert.ok(background.commands.some(c => c.exe === 'xcodebuild' && c.args.includes('-resultBundlePath') && c.streamed));
+    assert.equal(fs.readFileSync(path.join(background.out, 'pods.log'), 'utf8'), '1.17.0');
+    const progress = fs.readFileSync(path.join(background.out, 'preparation-progress.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+    assert.deepEqual(progress.filter(p => p.label === 'pods').map(p => p.event), ['start', 'end']);
     assert.equal(fs.readlinkSync(localEnv), sentinel, 'the source link stays untouched');
     const snapshotEnv = path.join(project, '.snapback4-witness/snapshot/ios/.xcode.env.local');
     assert.equal(fs.lstatSync(snapshotEnv).isFile(), true, 'the snapshot environment must be a regular file');

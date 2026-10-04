@@ -230,9 +230,12 @@ mod cleanup_tests {
 }
 
 fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
+    node_with_deadline(options, args, label, preparation_deadline::Deadline::new(Instant::now(), background::active() && label == "preparation"))
+}
+fn node_with_deadline(options: &Options, args: &[&str], label: &str, mut deadline: preparation_deadline::Deadline) -> Result<()> {
     let args: Vec<_> = args.iter().map(std::ffi::OsStr::new).collect();
     let mut child = PreparationProcess::spawn(options, std::ffi::OsStr::new("node"), &args, label)?;
-    let end = Instant::now() + Duration::from_secs(900);
+    deadline.start(Instant::now());
     let mut announced = false;
     let result = loop {
         let notice = options.artifacts.join("cache-miss.json");
@@ -251,12 +254,14 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
                 else { ("E_WITNESS_BUILD", "--build preparation failed") };
             Err(error(code, format!("{reason}; see the command's own raw log path: {}", options.artifacts.join(format!("{label}-stderr.log")).display())))
         }; }
-        if Instant::now() >= end { break Err(error("E_WITNESS_BUILD", "preparation exceeded its 900-second deadline")); }
+        if let Err(e) = deadline.poll(Instant::now(), &options.artifacts) { break Err(e); }
+        if deadline.expired(Instant::now()) { break Err(deadline.problem()); }
         if let Err(e) = tick() { break Err(e); }
     };
     // Also clean descendants after success. The caller still holds its lease.
     let cleanup = child.cleanup();
     if let Err(problem) = cleanup { return Err(problem); }
+    deadline.finish(&options.artifacts)?;
     result
 }
 
@@ -298,7 +303,7 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     let origin = format!("http://127.0.0.1:{}", options.port);
     let exported = options.export.as_ref().map(|p| fs::canonicalize(p).map_err(|e| error("E_WITNESS_BUILD", e))).transpose()?;
     node(options, &[helper.to_str().unwrap(), "build", project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin,
-        exported.as_ref().map_or("", |p| p.to_str().unwrap())], "preparation")?;
+        exported.as_ref().map_or("", |p| p.to_str().unwrap()), if background::active() { "--background" } else { "" }], "preparation")?;
     let receipt = options.artifacts.join("build.json");
     let prepared: Value = serde_json::from_slice(&fs::read(&receipt).map_err(|e| error("E_WITNESS_PROOF", e))?).map_err(|e| error("E_WITNESS_PROOF", e))?;
     options.bundle = prepared["executedApp"]["info"]["CFBundleIdentifier"].as_str().ok_or_else(|| error("E_WITNESS_BUILD", "prepared app has no bundle identifier"))?.to_owned();
@@ -642,4 +647,23 @@ child.stdout.once('data',()=>process.exit(0));
         assert!(lease(&path).is_ok());
         let _ = fs::remove_file(path);
     }
+}
+
+#[cfg(test)]
+pub(super) fn deadline_fixture(stall: bool) {
+    let dir = std::env::temp_dir().join(format!("sb4-nz-deadline-{}-{stall}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let args: Vec<String> = ["ios", "--build", ".", "--smoke", "--artifacts", dir.to_str().unwrap()].into_iter().map(String::from).collect();
+    let options = Options::parse(&args).unwrap();
+    let code = if stall { "process.stdout.write('started');setInterval(()=>{},100)" }
+        else { "let n=0;const timer=setInterval(()=>{process.stdout.write('progress\\n');if(++n===12)clearInterval(timer)},100)" };
+    let started = Instant::now();
+    let result = node_with_deadline(&options, &["-e", code], "deadline-fixture", preparation_deadline::short(started));
+    if stall { assert!(result.unwrap_err().contains("E_WITNESS_BUILD: preparation exceeded its background deadline")); }
+    else { result.unwrap(); assert!(started.elapsed() > Duration::from_secs(1)); }
+    let group: Value = serde_json::from_slice(&fs::read(dir.join("deadline-fixture-group.json")).unwrap()).unwrap();
+    assert!(recovery::members(group["group"].as_u64().unwrap() as u32).unwrap().is_empty());
+    let record = recovery::read(&dir.join("preparation-deadline.json"));
+    assert_eq!(record["expired"], stall);
+    fs::remove_dir_all(dir).unwrap();
 }

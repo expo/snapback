@@ -1,0 +1,13 @@
+{
+  "command": [
+    "bash",
+    "snapback4/scripts/test.sh"
+  ],
+  "log": "/tmp/sb4-nz-r1-full-suite-final.log",
+  "startedAt": 1791100102.4787042,
+  "state": "complete",
+  "reason": "Guide-only correction after the first full suite; no measurement/runtime implementation changes.",
+  "status": 0,
+  "seconds": 2501.811604916,
+  "finishedAt": 1791102604.298731
+}

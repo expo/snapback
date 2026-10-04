@@ -1,0 +1,281 @@
+{
+  "at": 1791102854.3419678,
+  "checks": [
+    {
+      "simulator": {
+        "name": "sb4-nz-1791088549414-64693",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "0CFC0C58-87FE-4576-8767-B5BFFD3E1E16"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091730767-31698",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "0E90BDB8-17B6-45CF-BE72-B69ABE2DD4C9"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791092056404-40892",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "1215CEDC-37E8-4BC8-BEE3-8C0F13EFE6E9"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091363808-16754",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "1E67F8DF-4462-4BB5-A96E-7EAF8E9D0B57"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091260619-13278",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "2CEA54BD-7870-4221-8C23-FCEBD3CB216E"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791088322984-55643",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "4C2FDFAF-FD95-4BB6-B562-298823E9B32C"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791088161253-49579",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "6659485A-E712-481B-931B-B3CBC91434F6"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791092639495-59527",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "78C14D91-E450-46D5-AE3F-C59C88F5361B"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091150817-9573",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "85F0CF02-D274-494E-AE9F-0107FAB21010"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791095982774-16361",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "96D76FCB-7583-490E-AC5A-13FB2CA66605"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791087071496-29626",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "99026B7E-6972-4B02-A68F-2D39B0F3CAA2"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791090873898-97769",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "9A0AA2B7-329F-4229-AF99-A57BABB476E0"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791092411073-52249",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "9C6B746A-09ED-4F34-8AFF-08A4540F627F"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091098981-6797",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "9C746B6C-EB34-4B56-ACBD-1F364ECFF2E4"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791092769835-65068",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "9DFA45DF-9797-400D-9CC1-DECBA1B40749"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791094350101-92365",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "9F968596-4FB7-4FD3-8D5B-F42840224E0B"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091923635-36451",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "A959108E-A172-4A3E-B3B4-056B15E39A57"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091412831-19528",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "C99577BA-EFB1-4620-8956-090146340650"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791086896375-22867",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "D80034F5-5B98-4E7B-8A51-6E82A0EB3566"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091473988-22710",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "DCC3EF85-94C7-429E-9107-35AAAEF0761C"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791087670234-40417",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "E00BBEB8-67B1-4497-BFE4-EFDB2C6C72B5"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791091604154-27052",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "E625A2AD-655C-4A45-9247-ED868608DFCF"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791089732137-81432",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "F0C022DC-EEA0-40C1-8562-ACAF66765B31"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791092282958-47379",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "F2D2B7AF-BB08-48F9-8D56-4343FDBC4D68"
+      },
+      "absent": true
+    },
+    {
+      "simulator": {
+        "name": "sb4-nz-1791093065317-72622",
+        "prefix": "sb4-nz-",
+        "ready": true,
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "selection": "created",
+        "udid": "FC880B50-B1E4-4E7E-AF0D-A6E762FBF45B"
+      },
+      "absent": true
+    }
+  ],
+  "allAbsent": true
+}

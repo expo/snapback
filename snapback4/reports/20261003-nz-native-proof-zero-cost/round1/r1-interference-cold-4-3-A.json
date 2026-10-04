@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-cold-4-3-A",
+  "condition": "cold-build",
+  "block": 4,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791095879.150265,
+  "endedAt": 1791095923.8566499,
+  "seconds": 44.70563387500033,
+  "status": 0,
+  "childCpuSeconds": 20.06244000000001,
+  "before": {
+    "at": 1791095879.148363,
+    "load": [
+      8.0615234375,
+      14.3330078125,
+      19.53076171875
+    ],
+    "idlePercent": 66.83141131246568,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 145.1 /usr/libexec/PerfPowerServices",
+      "90114     1  83.1 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+      "18225     1  81.7 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+      "  661     1  80.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "14596 99075  29.7 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/FaceTimeMessageStore.framework/facetimemessagestored",
+      "14595 56547  28.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/FaceTimeMessageStore.framework/facetimemessagestored",
+      "  417     1  28.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "  540     1  11.6 /usr/libexec/mobileassetd",
+      "  442     1  10.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "14590     1   3.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared"
+    ]
+  },
+  "after": {
+    "at": 1791095925.020413,
+    "load": [
+      6.58056640625,
+      13.05810546875,
+      18.791015625
+    ],
+    "idlePercent": 80.54323725055433,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 189.8 /usr/libexec/PerfPowerServices",
+      "90114     1 108.4 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+      "98706     1   3.0 /System/Library/Frameworks/CoreSpotlight.framework/spotlightknowledged",
+      "11054     1   2.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      " 1164     1   2.2 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1165     1   2.1 /Applications/cmux.app/Contents/MacOS/cmux",
+      " 1495  1166   2.1 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  661     1   1.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      " 1388  1166   0.9 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "  454     1   0.7 /usr/libexec/opendirectoryd"
+    ]
+  },
+  "smoke": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "waitStatus": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-4-3-A.log",
+      "sha256": "7007c58d2e2a7ede1e72b4e4277f3c2039ff2e311dde41bac67c9ed0ec527987",
+      "bytes": 20788
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-4-3-A-host.jsonl",
+      "sha256": "c667552766ff1bedafc6a8fe7b7dc886f2e66fa4e844fda8324f7771369e101c",
+      "bytes": 9818423
+    }
+  ]
+}

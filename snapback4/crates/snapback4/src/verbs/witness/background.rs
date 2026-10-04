@@ -193,7 +193,7 @@ pub(super) fn worker(args: &[String]) -> i32 {
                 return Err(error("E_WITNESS_PROCESS", "cannot inspect background driver"));
             }
             if unsafe { info.si_pid() } != 0 { break; }
-            if (INTERRUPTED.load(Ordering::Relaxed) || !current(&dir) || slept(awake, sleep_clock()) || started.elapsed() > Duration::from_secs(1800)) && sent.is_none() {
+            if (INTERRUPTED.load(Ordering::Relaxed) || !current(&dir) || slept(awake, sleep_clock()) || started.elapsed() > Duration::from_secs(75 * 60)) && sent.is_none() {
                 // Our still-unreaped child cannot have its PID reused.
                 unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
                 sent = Some(Instant::now());
@@ -281,7 +281,7 @@ pub(super) fn driver(args: &[String]) -> i32 {
                     let reason = if unsafe { libc::getppid() } != parent { Some("background guardian exited") }
                         else if !current(&dir) { Some("superseded by a newer export") }
                         else if slept(before, sleep_clock()) { Some("host slept during native proof; retry export after wake") }
-                        else if start.elapsed() > Duration::from_secs(1800) { Some("background smoke exceeded 30 minutes") }
+                        else if start.elapsed() > Duration::from_secs(75 * 60) { Some("background smoke exceeded 75 minutes") }
                         else { None };
                     if let Some(reason) = reason {
                         *why.lock().unwrap() = Some(reason.to_owned());

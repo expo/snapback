@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-cold-3-3-A",
+  "condition": "cold-build",
+  "block": 3,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791094247.792355,
+  "endedAt": 1791094291.889577,
+  "seconds": 44.09713579200002,
+  "status": 0,
+  "childCpuSeconds": 19.076358999999982,
+  "before": {
+    "at": 1791094247.790012,
+    "load": [
+      6.62255859375,
+      13.36376953125,
+      22.69287109375
+    ],
+    "idlePercent": 75.9801214798454,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 182.1 /usr/libexec/PerfPowerServices",
+      "  661     1  90.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "    1     0   9.3 /sbin/launchd",
+      "99129 99075   9.1 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "18428     1   6.1 /usr/libexec/diagnosticd",
+      "90631     1   4.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "99104 99075   4.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/dasd",
+      "90643     1   4.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "90646 49570   3.6 (fleet)",
+      "90645 49570   3.4 (fleet)"
+    ]
+  },
+  "after": {
+    "at": 1791094293.068288,
+    "load": [
+      4.953125,
+      11.9755859375,
+      21.69970703125
+    ],
+    "idlePercent": 79.10694597574421,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 190.9 /usr/libexec/PerfPowerServices",
+      "91470 49570   6.6 /Users/ccheever/.local/bin/fleet",
+      "91471 49570   3.0 /Users/ccheever/.local/bin/fleet",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   2.5 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  454     1   2.1 /usr/libexec/opendirectoryd",
+      " 1165     1   2.1 /Applications/cmux.app/Contents/MacOS/cmux",
+      "    1     0   1.4 /sbin/launchd",
+      "18428     1   1.4 /usr/libexec/diagnosticd",
+      " 1170     1   1.3 /Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    ]
+  },
+  "smoke": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "waitStatus": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-3-3-A.log",
+      "sha256": "b02e228368e4447db223ed8358e711f270d4af216af0baf535e2814ba6a79bc6",
+      "bytes": 20789
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-3-3-A-host.jsonl",
+      "sha256": "23f1494ae96ab0de9533e32d4edf4371b3dae65df54accacca6ffdb0a4a2cf40",
+      "bytes": 9369208
+    }
+  ]
+}

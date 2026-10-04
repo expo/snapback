@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-1-3-A",
+  "block": 1,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791092540.784991,
+  "endedAt": 1791092585.6078532,
+  "seconds": 44.82269483399989,
+  "status": 0,
+  "childCpuSeconds": 20.057274000000007,
+  "before": {
+    "at": 1791092540.782358,
+    "load": [
+      37.2822265625,
+      47.06005859375,
+      45.0986328125
+    ],
+    "idlePercent": 67.81163434903047,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 131.5 /usr/libexec/PerfPowerServices",
+      "  661     1 104.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "18225     1  79.6 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+      "57378  1160  74.5 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "  417     1  30.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      " 1160     1  24.7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "35517 35516  13.0 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "  442     1   7.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1165     1   7.6 /Applications/cmux.app/Contents/MacOS/cmux",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub"
+    ]
+  },
+  "after": {
+    "at": 1791092586.783287,
+    "load": [
+      23.7734375,
+      42.072265625,
+      43.35791015625
+    ],
+    "idlePercent": 76.59691629955947,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 195.7 /usr/libexec/PerfPowerServices",
+      "58590 49570   3.3 (fleet)",
+      " 1164     1   2.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   1.1 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      " 1388  1166   0.9 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "49570 49493   0.9 sshd-session: ccheever@notty",
+      "  661     1   0.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "    1     0   0.7 /sbin/launchd",
+      "  454     1   0.7 /usr/libexec/opendirectoryd",
+      "  417     1   0.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+    ]
+  },
+  "smoke": null,
+  "exportedAt": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0.0,
+  "waitStatus": null,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-1-3-A.log",
+      "sha256": "e1d3bbc1c4ea298a8f60f751b97a401b5cdec2ba42b2ee7cb3b74cf61f545fc1",
+      "bytes": 20791
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-1-3-A-host.jsonl",
+      "sha256": "3c96b6207ce5b586e046a513cc8cb60b813c1d4afc61777088c7adb14df8824f",
+      "bytes": 10258366
+    }
+  ]
+}

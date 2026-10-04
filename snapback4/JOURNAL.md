@@ -84896,3 +84896,57 @@ exclusive-core or zero-interference claim follows from setting QoS. The
 [NZ report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md) retains
 source/binary hashes, attempts, custody controls and measurement admission.
 Nothing pushed or published.
+
+
+## 2026-10-04 — NZ round 1: progress-based background preparation and as-is ABBA qualification
+
+Automatic background native preparation now receives 900 seconds without
+observable progress, up to a 60-minute hard cap. CocoaPods and Xcode stream raw
+logs; new log bytes and real phase transitions renew the idle budget. Polling,
+mtime changes, truncation and guardian output do not. The helper independently
+caps at 60 minutes and overall guardian/driver custody at 75 minutes. Stalls
+retain E_WITNESS_BUILD and leased process-group cleanup. Explicit native:smoke
+and witness ios --build keep the exact 900-second foreground limit. LLP 3000.030
+§15 and guide witness record the dated change. Detached publication, serialized
+supersession, status/doctor visibility, owner-death custody and sleep handling
+from round 0 remain intact.
+
+On the user's round-1 instruction, measurements ran on the Apartment mini as it
+was, without waiting for quiet or signalling unrelated PerfPowerServices,
+Chrome, indexing or media-analysis processes. All 16 plain/social × cold/warm
+export samples passed in ABBA order. Background exports returned in 3.07–4.64 s;
+foreground returns ranged 42.02–219.59 s across the four conditions. The two
+export-only cold social background proofs completed in 1,135.57–1,177.32 s,
+with preparation beyond the old limit at 1,051.017 and 1,094.782 s. Three further
+cold social proofs with a concurrent foreground workload passed preparation at
+1,096.604, 1,438.464 and 1,485.351 s. Every proof passed prime/offline/restart.
+
+Six ABBA interference blocks produced 24 passing client-pool runs, 176/176 each.
+Relative to interpolated bracketing controls, cached-proof slowdown was
+3.60–6.74%, median 4.47%; cold-compilation slowdown was −0.33–0.63%, median 0.53%.
+The cold observations share three independent builds; the report preserves
+block means and raw samples. A same-host CPU probe placed all background work
+samples on CPU IDs 0–11, the lower Performance tier, versus 5.66% under foreground
+policy. This mini reports Performance/Super levels and no Efficiency tier.
+The probe is not a simulator-thread trace, and measured contention is not zero.
+Host load and process snapshots accompany every timing sample.
+
+Affected checks passed 55 witness unit tests and 41 JavaScript tests. The first
+round-1 full suite failed two guide contracts: an early diagnostic mention hid
+its defining paragraph, and the new generated receipt needed exact app-output
+registration. The documentation/test-only correction passed all 112 guide tests;
+measured runtime implementation bytes and the production candidate stayed frozen.
+The final full Mac suite passed `== 0 failure(s) in 2502 s`, using the required
+SQLite flag and physical Node 24.18.0: all Rust targets, 76 witness integration
+tests, nine fixture wrappers, 6,053 client tests with five existing skips, and
+79 models. Both full runs are retained. Reference validation has zero errors.
+
+Real witness status --wait and doctor printed the latest passing export and
+receipt. All 25 created sb4-nz- simulators are absent, all 225 recorded process
+groups are empty, and no candidate witness job remains. No other session's
+simulator, process or X27R worktree was touched; no other host was used. The
+[NZ report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md) contains the
+Round 1 measurements, source/binary bindings, documentation amendment, cleanup
+audits and external evidence index. The round-0 qualification issue is closed;
+the distinct 0.4.12 audit-pin issue remains open and these measurements use the
+declared audited NX 0.4.11 fixtures. Nothing pushed or published.

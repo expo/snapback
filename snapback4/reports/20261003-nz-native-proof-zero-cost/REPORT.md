@@ -1,8 +1,17 @@
 # Lane NZ — publish first, prove native execution in the background
 
-Implementation and automated verification complete; requested quiet-host performance
-qualification remains **blocked**, and cold social proof is **unqualified**. Base WD commit
-`38d9bfe0de`, branch `sb4-intent/nz-native-proof-zero-cost`. Nothing pushed.
+Round 1 completes the requested as-is measurements: all 16 export samples,
+24 client-pool runs and 25 native proofs passed. Five cold social background
+preparations finished beyond the former 900-second limit. Background exports
+returned in 3.07–4.64 seconds in the plain/social cold/warm cohort. Interference
+was measurable: median 4.47% with cached proof and 0.53% during cold compilation.
+The final full-suite rerun passed: **0 failures in 2,502 seconds**. Base WD commit `38d9bfe0de`,
+branch `sb4-intent/nz-native-proof-zero-cost`. Nothing pushed.
+
+The sections below through “Custody controls and evidence scope” are the retained
+**round-0 record**. Their blocked/unqualified statements describe that round;
+the [Round 1 section](#round-1--background-progress-budget-and-measurements-on-this-host)
+records the subsequent deadline decision and measurements on October 3–4.
 
 ## Implemented behavior
 
@@ -99,7 +108,7 @@ not a trace of every simulator-service thread.
 
 No before/after cold or warm distributions, background completion-time cohort,
 foreground interference result or CPU-placement distribution is claimed.
-The requested measurement step is unfinished. [The open follow-up](../../../issues/20261003-snapback4-nz-quiet-native-proof-qualification.md)
+The requested measurement step is unfinished. [The round-0 follow-up](../../../issues/closed/20261003-snapback4-nz-quiet-native-proof-qualification.md)
 records the exact remaining work; a quiet host is required. Once available, run
 `measure.py before`, then `measure.py after`, then `interference.py` from this
 report directory using Python 3, and update this report with every outcome.
@@ -163,3 +172,180 @@ Large receipts, exported bundles, logs and videos live outside git in
 The report directory contains no files over 256 KiB, gzip archives or videos.
 The full raw log includes expected refusal messages from negative tests; the
 canonical suite footer and test summaries determine its verdict.
+
+
+## Round 1 — background progress budget and measurements on this host
+
+The user replaced round 0's quiet-only timing admission with interleaved ABBA
+measurements on this mini as it is. `PerfPowerServices` and other unrelated
+processes remain untouched. Round 0's attempts and limitations above are retained
+as history; this section records the follow-up qualification.
+
+Automatic background preparation now has a **900-second no-progress budget and
+3,600-second hard cap**. Direct tool-log growth and actual phase transitions renew
+the idle budget. Polling, mtime changes, unchanged/truncated logs, and guardian
+output cannot renew it; an expired budget cannot be revived. CocoaPods and Xcode
+stream their raw output while running. The Node helper independently enforces
+the 60-minute hard cap, and guardian/driver overall custody allows 75 minutes.
+Foreground `native:smoke` and explicit `witness ios --build` still use exactly
+900 seconds. Stalls retain `E_WITNESS_BUILD` and the same leased process-group
+cleanup. No supersession, status, doctor, publication, simulator ownership or
+sleep rule is relaxed.
+
+The [export harness](round1.py) predeclares ABBA for each plain/social × cold/warm
+cell. A is WD's synchronous foreground wrapper/binary; B is the detached NZ
+candidate. Each arm has its own project/native cache, with identical restored
+NX 0.4.11 dependencies and pinned physical Node 24.18.0. Cold clears native
+snapshot, Pods and DerivedData while preserving dependency/download caches;
+warm makes a distinct JS-only edit after that arm's cold priming. Host and Metro
+caches are not flushed. Each sample starts without a live simulator in this
+harness's private ownership store; baseline's retained devices are deleted after
+each sample, and background proofs delete their own. Thus warm means native-cache
+reuse, not a prebooted simulator. Every attempt is retained, including failures.
+
+The [interference harness](round1-interference.py) predeclares three ABBA blocks
+of the same six-file client test pool at concurrency six: A without proof, B
+with a newly exported social background proof. It records actual overlap and
+waits for each proof's cleanup before proceeding. The analysis reports both
+block B-mean/A-mean ratios and each B relative to linearly time-interpolated
+bracketing A controls. Interleaving reduces drift; it does not remove arbitrary
+ambient changes or establish zero contention. The additional
+[cold-build interference harness](round1-cold-interference.py) uses three more
+ABBA blocks. Each block has two consecutive B workload windows during one cold
+social proof, beginning at actual Xcode compilation; its six B observations are
+clustered in three independent native builds. Cold and cached-proof distributions
+are reported separately. Host load, idle observations,
+and top processes are recorded for every sample, with full PID/parent/CPU/command
+name snapshots every two seconds archived by digest.
+
+Round 1 source and production binary bindings are in
+[the source manifest](round1/source-manifest.json) and [experiment plan](round1/plan.json).
+The [analysis script](round1-summary.py) includes every retained sample. Large
+artifacts continue to use the round-0 content-addressed archive outside git.
+
+All **16 export samples passed** with published/loaded Hermes hash agreement.
+Every cold sample missed native cache and every warm sample hit it. Each cell has
+two samples per arm, in ABBA order; these are observed ranges, not population bounds.
+Times include `npm run export:ios` startup and verified publication.
+
+| Starter / cache | Foreground return, s | Background return, s | Background result available, s |
+|---|---:|---:|---:|
+| Plain cold | 154.52–167.63 | 3.07–3.90 | 485.70–595.07 |
+| Plain warm | 42.02–44.39 | 3.10–3.66 | 102.05–108.12 |
+| Social cold | 219.25–219.59 | 3.61–4.64 | 1,135.57–1,177.32 |
+| Social warm | 51.93–53.95 | 3.89–4.36 | 125.60–128.24 |
+
+Both cold social background runs completed preparation beyond the former limit:
+**1,094.782 s** and **1,051.017 s**, with 120 and 121 recorded progress observations.
+Xcode took 775.1 s and 766.5 s. Both passed prime/offline/restart and deleted their
+owned simulator. The complete individual records are
+[first cold social B](round1/r1-export-social-cold-1-B.json) and
+[second cold social B](round1/r1-export-social-cold-2-B.json).
+
+The three additional cold social proofs also passed all three segments, each
+with a native-cache miss. Their preparation durations were **1,096.604 s,
+1,438.464 s and 1,485.351 s**, with 118, 122 and 133 progress observations.
+Exports returned in 3.59–3.83 s; proof plus cleanup/retention completed in
+1,185.22–1,574.84 s. These runs included the foreground interference workload,
+so they supplement rather than replace the export-only cohort above. Records:
+[cold block 3](round1/r1-cold-proof-3.json),
+[cold block 4](round1/r1-cold-proof-4.json),
+[cold block 5](round1/r1-cold-proof-5.json).
+
+All **24 client-pool runs passed 176/176 tests**. Each condition has three ABBA
+blocks and six B workload observations. All nine concurrent native proofs passed;
+the six cached proofs hit cache and the three cold builds missed. Every B workload
+was covered by the background proof for essentially its whole duration (minimum
+recorded overlap 99.9978%; wall-clock and monotonic timestamps differ slightly).
+Each slowdown compares B with linearly time-interpolated bracketing A controls:
+
+| Concurrent background work | Min | p10 | Median | Mean | p90 | Max |
+|---|---:|---:|---:|---:|---:|---:|
+| Cached social proof | +3.60% | +3.73% | **+4.47%** | +4.66% | +5.78% | +6.74% |
+| Cold social compilation | −0.33% | −0.31% | **+0.53%** | +0.28% | +0.61% | +0.63% |
+
+The alternative per-block B-mean/A-mean slowdowns are 4.34%, 4.08%, 5.50%
+(cached) and 0.74%, −0.11%, −0.14% (cold). Six cold observations share three
+builds and are not six independent native-build repetitions. Small negative
+values reflect observed host/workload variation; they do not establish a speedup.
+ABBA reduces drift, but the limited sample count and changing ambient load do not
+establish a general zero-contention guarantee. The fixed pool includes server
+and I/O work as well as CPU work; this is elapsed-time interference, not a pure
+CPU-throughput microbenchmark. The [complete analysis](round1/summary.json)
+retains all values, per-block results and per-sample ambient summaries.
+
+Across export and workload sampling windows, load1 ranged 4.88–206.80; per-sample
+median load1 ranged 5.00–94.65. `PerfPowerServices` CPU samples ranged 0–231.6%,
+with per-sample medians 19.05–197.60%. Chrome, indexing and media analysis were
+also present. No `cargo` or `rustc` process appeared in these timing windows.
+Top processes and before/after idle observations are in each sample JSON; full
+process lists every two seconds are retained by digest outside git. No sample
+was rejected for load, and no unrelated process was signalled.
+
+The first round-1 full suite found two guide-validation failures: the early
+mention of the build diagnostic displaced its defining paragraph, and the new
+generated deadline receipt was absent from the exact application-output list.
+The correction preserves the defining paragraph and registers the real generated
+filename; all 112 guide tests pass. The first run finished `== 1 failure(s) in 2501 s`: its sole failed stage
+was these two guide assertions; 6,053 client tests passed with five existing
+skips, nine fixture wrappers passed, and all 79 models passed. That run is
+retained. The final complete rerun passed **`== 0 failure(s) in 2502 s`**: all
+Rust targets, 76 witness integration tests, 112 guide tests, nine fixture wrappers,
+6,053 client tests with five existing skips, and all 79 models. The invocation was
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`,
+with physical Node 24.18.0 first on PATH. The [final suite record](round1/suite-followup.json)
+binds its command, duration and exit status. The [post-measurement documentation amendment](round1/post-measurement-doc-fix.json)
+binds both changed files. All measured runtime implementation bytes and the
+production candidate remain unchanged; this amendment changes guide prose and
+its publication-reference test only. Completed affected checks passed
+**55 witness unit tests and 41 JavaScript tests**, including the detached custody
+controls. The new controls check the exact foreground boundary, background
+renewal and hard cap, stale/truncated output, live output past a scaled budget,
+and stalled-child process-group cleanup. Helper fixtures check streamed CocoaPods/
+Xcode logs and distinct foreground/background helper limits. Reference validation
+passed: 527 LLP documents, 10,288 references, zero errors or unchecked references.
+
+Before the measurement freeze, an initial Cargo invocation from the repository
+root failed its unrelated Ibex precondition; the correct Snapback 4 workspace
+invocation passed. A helper-fixture assertion initially included internal probes
+without timeouts; it was corrected to check commands with finite timeout values.
+Those setup logs are retained. No timing attempt was silently retried or discarded.
+
+Real `witness status --wait` and `doctor` both exited 0 and printed the same latest
+passing export `2996d982e58b4dbdb6701bffc5c95349d804750972ec05d1d0e5cde98a2190f3`
+at `2026-10-04T07:05:50Z`, with prime/offline/restart and its receipt path.
+[Command records](round1/status-doctor.json) and the final verification evidence
+index retain those outputs. Subsequent-export summaries are also present in the
+measured export logs, and the affected tests recheck supersession/status/failure
+behavior from round 0.
+
+The host-specific CPU probe observed 100% of background work samples on CPU IDs
+0–11 (this mini's Performance tier), versus 5.66% under foreground policy; the
+other foreground samples were on its Super tier, IDs 12–17. This host reports
+no Efficiency tier. The probe follows the current
+[XNU arm64 CPU-number layout](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/os/tsd.h),
+which is a private implementation detail. These are sampled probe-thread
+placements, not residency-time measurements or a trace of every compiler/app/
+simulator-service thread. The measured client-pool slowdown remains real despite
+that placement. [Inputs](round1/placement-plan.json) and
+[raw placement samples](round1/placement.json) bind the observation.
+
+
+Round 1 cleanup is complete: all **25 recorded, tool-created simulators are
+absent**, all **225 recorded process groups are empty**, and no candidate witness
+job remains. These are read-only audits of recorded IDs; no other session's
+simulator or process was mutated. See [device verification](round1/device-verification.json),
+[group verification](round1/group-verification.json), and
+[process verification](round1/process-verification.json). No office host, other
+fleet machine or X27R worktree was used. The host was not deliberately slept;
+round 0's tested sleep-clock/custody coverage and documented residuals remain.
+
+[Verification evidence](round1/verification-evidence.json) binds the complete
+failed and passing suite logs, affected tests, source/build attempts, doctor/status
+outputs and binaries to the external archive. [Workload verification](round1/workload-verification.json)
+checks each retained client-pool log's 176/176 result. All new evidence files stay
+below 256 KB; raw logs, binaries, gzip files and videos remain outside git.
+The round-0 qualification ticket is closed by these as-is results and the dated
+background deadline decision. The separate 0.4.12 native-cache audit-pin issue
+remains open; this report qualifies the declared audited NX 0.4.11 dependency
+fixtures and does not bypass that audit. Nothing pushed or published.

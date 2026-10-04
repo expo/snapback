@@ -73,7 +73,7 @@ Ordinary launches do not load the smoke runner or install its error handler.
 `--build <project>` requires `--smoke`; each invocation gets fresh artifacts. It
 prepares that project's own Release simulator application with a private stable
 snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl` and launches its bundle ID directly. It never opens Simulator.app, invokes AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
-separate 900-second deadline; Node launcher resolution gets at most 30 seconds (or a shorter --timeout), with cancellation. Finish any pinned-Node download in the project before retrying; smoke keeps its 120-second step default.
+separate 900-second deadline for explicit `native:smoke` and `witness ios --build`. Automatic background preparation allows 900 seconds without new phase output or log growth, up to 60 minutes total. Stalls still fail with the build diagnostic; `preparation-deadline.json` records the progress budget. Node launcher resolution gets at most 30 seconds (or a shorter --timeout), with cancellation. Finish any pinned-Node download in the project before retrying; smoke keeps its 120-second step default.
 
 This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0, Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
