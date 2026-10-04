@@ -1,0 +1,38 @@
+[
+  {
+    "label": "main",
+    "trial": 0,
+    "exit": 0,
+    "seconds": 55.62309503555298,
+    "log": "target/lu-r2/unit-control-main-0.log",
+    "raw_bytes": 48547,
+    "raw_sha256": "347919c80fb9efde618a222f08da2a46c06c0ea99776107e45b9ae9ff915ddb7"
+  },
+  {
+    "label": "after",
+    "trial": 0,
+    "exit": 0,
+    "seconds": 55.63723802566528,
+    "log": "target/lu-r2/unit-control-after-0.log",
+    "raw_bytes": 46639,
+    "raw_sha256": "243edc09ae1169c64d446aa18adc706285f70fecb0877dd462a69722c009e93f"
+  },
+  {
+    "label": "main",
+    "trial": 1,
+    "exit": 0,
+    "seconds": 55.64944005012512,
+    "log": "target/lu-r2/unit-control-main-1.log",
+    "raw_bytes": 48540,
+    "raw_sha256": "42f7baffd0fc07ff84d489fd6f916761b4431de8014f39202477a0aff4f50253"
+  },
+  {
+    "label": "after",
+    "trial": 1,
+    "exit": 0,
+    "seconds": 55.35025596618652,
+    "log": "target/lu-r2/unit-control-after-1.log",
+    "raw_bytes": 46643,
+    "raw_sha256": "f4b8750307d845ed1e2df91afac25240123649813d450e85088974350500d17c"
+  }
+]

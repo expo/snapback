@@ -1,0 +1,33 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 13.31s
+     Running unittests src/main.rs (target/debug/deps/snapback4-227f9c5078167f2c)
+
+running 8 tests
+test serve::maintenance::tests::deferred_empty_cpu_keeps_each_capped_charge_without_longer_pauses ... ok
+test serve::maintenance::tests::empty_kinds_repay_cpu_with_useful_work_or_before_idle_wait ... ok
+test serve::maintenance::tests::pacing_charges_atomic_overruns_but_cannot_suppress_aged_service ... ok
+test serve::maintenance::tests::pacing_does_not_charge_time_already_spent_off_cpu ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+
+thread 'serve::maintenance::tests::clock_drain_unwind_releases_background_work' (3655254) panicked at crates/snapback4/src/serve_maintenance.rs:541:13:
+clock drain
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+snapback4: job catchup done: 1 chunks, 0 rows written
+test serve::maintenance::tests::clock_drain_unwind_releases_background_work ... ok
+test serve::maintenance::tests::aged_bulk_progresses_when_the_bulk_thread_never_runs ... ok
+test serve::maintenance::tests::stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice ... ok
+test serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 280 filtered out; finished in 0.07s

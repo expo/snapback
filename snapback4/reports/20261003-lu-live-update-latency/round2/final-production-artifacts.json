@@ -1,0 +1,38 @@
+{
+  "crates/snapback4-core/src/engine/timeline/work.rs": {
+    "bytes": 15037,
+    "sha256": "f0b8768e5ab4caac3b24f0bfb90dc15890d9ffb3078c00aef3c3066e6edc1b23"
+  },
+  "crates/snapback4/src/serve_maintenance.rs": {
+    "bytes": 28153,
+    "sha256": "ac582473165ea19d0e77910b5653c5f918155be9876f5d38b4820958c58dafb6"
+  },
+  "target/lu-r2-main": {
+    "bytes": 20020376,
+    "sha256": "a1b5bce4082d95796a44695f2792da31e2c0f62f0692a7f91691f202e38b110f"
+  },
+  "target/lu-r2-final": {
+    "bytes": 20022200,
+    "sha256": "dfe78e91a016940138ce30bd8231cc34ed5e363ea1490b1d9e0614748605459f"
+  },
+  "target/lu-r2/sdk/package.json": {
+    "bytes": 2802,
+    "sha256": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+  },
+  "target/lu-r2/sdk/dist/local.js": {
+    "bytes": 113774,
+    "sha256": "2a60b14c7714069efa07f5d6ec1f0a5045e21774ef82b699ec19c0352cedd6bd"
+  },
+  "target/lu-r2/sdk/dist/web.js": {
+    "bytes": 37917,
+    "sha256": "21d7d2c77e04b19751ed34fbe8084a80541d98344128fa09b29026136db3ee9f"
+  },
+  "target/lu-r2/sdk/dist/react.js": {
+    "bytes": 23849,
+    "sha256": "213d31ca814e43ecb72b8e2bd00532b884324e099a17c23233a4120dafce38ea"
+  },
+  "target/lu-r2/sdk/dist/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2116457,
+    "sha256": "55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1"
+  }
+}

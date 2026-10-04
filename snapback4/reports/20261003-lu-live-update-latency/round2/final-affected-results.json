@@ -1,0 +1,22 @@
+[
+  {
+    "check": "final-affected-language",
+    "exit": 0,
+    "seconds": 16.6054904460907
+  },
+  {
+    "check": "final-affected-maintenance",
+    "exit": 0,
+    "seconds": 13.427111625671387
+  },
+  {
+    "check": "final-affected-replay",
+    "exit": 0,
+    "seconds": 4.976655960083008
+  },
+  {
+    "check": "final-affected-upload",
+    "exit": 0,
+    "seconds": 0.10450005531311035
+  }
+]

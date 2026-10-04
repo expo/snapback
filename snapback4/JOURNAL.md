@@ -86199,3 +86199,53 @@ calculator/export. A supplemental serde-family census rejects the same i64
 serializer on unchanged base and RPF; recorded separately without broadening
 the allowlist. No other host, NZ worktree/process or simulator was used.
 Local commit only; nothing pushed or published.
+
+## 2026-10-04 — LU round 2: bounded lookahead and preserved CPU repayment
+
+Merged origin/main 2cc55e168c9 (RP, QE2, NL, WD, QF/QF2) before investigating
+the 0.4.13 Darwin replay/upload failures on eb1000. The actual 900-follower
+fixture has no backfills or cleanup: all follows precede the first post.
+Pre-LU 4353aa735c and merged main pass all 30 traced replay trials and all
+60 upload trials at 0/20/120 burners on CPUs 80–89. The reported Darwin
+timeouts are not reproduced, and no Mac is used or qualified.
+
+Following walks now begin with two candidates and grow only while a slice
+can consume them, avoiding repeated decoding of 31 unused followers. Cheap
+empty bulk kinds combine CPU repayment with useful work or the idle cycle.
+Every kind retains its seven-times CPU charge and 100 ms cap; accumulated
+charges are never recapped away, each sleep stays at most 100 ms, and debt
+cannot overlap a timed worker's already scheduled repayment. New deterministic
+regressions cover wide fan-out scan cost, empty-cycle debt and the cap/race
+cases. The durable frozen-P service bound, cursor atomicity, row/rule/meter
+checks, CT admission, deadlines and aged opportunities remain unchanged.
+
+Final paired native trials (five per revision/load) reduce heavy-load p95
+commit-to-900th-copy from 24.920 to 16.055 seconds. These include tracing
+cost, not an uninstrumented production or width-independent wall-time promise.
+The no-burner p95 worsens in a mixture of paced and unpaced runs; the report
+retains all cells. Final web trials use the same frozen SDK, 30 writes per
+shape/load and two remote receivers. Heavy primary p95s are 1,352.9 ms repost,
+1,276.3 ms message and 746.2 ms reaction. Message p95 rises versus main while
+its maximum falls; no universal message win is claimed. No-burner repost p95
+605.3 ms still misses 500 ms and remains in the existing client-publication
+follow-up. One fast receiver has a −9.626 ms raw cross-clock render interval;
+it is retained and does not change the paired primary percentile.
+
+The final CT mixed control passes with 31,476 reads at 12.613 ms p95, all six
+abandoned leases recovered, and schedules, deadlines and expiry serviced.
+All affected tests pass, then the final full suite exits 0 in 1,505 seconds:
+all Rust targets/doctests; CLI units 284 passed/four ignored; clients 6,187
+passed/11 skipped; models 79/79; fixtures 9/9; all build/typecheck/budget steps.
+The initial suite had one native witness proc-inspection refusal, retained in
+an open ticket with passing isolated and whole-target controls. No witness,
+upload or replay timeout/check was weakened. Final qualification follows the
+CPU-debt correction; initial candidate data and development refusals remain
+separate evidence.
+
+Locked wasm is 2,116,457 B raw / 639,750 B gzip under the unchanged 639,887 B
+cap, preserving the 130 B macOS allowance with 7 B beyond it. LLP 3000 §7 and
+LLP 3000.013 §4 describe the policy and its limits. The
+[Round 2 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-2--wide-replay-fan-out-under-contention)
+retains distributions, controls, caveats and artifact hashes. All injected
+load and experimental descendants stayed within ten CPUs through the affinity
+guard; the ordinary suite used a separate CPU allocation. Nothing pushed.

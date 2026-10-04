@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 10.60s
+     Running tests/timeline_live_latency.rs (target/debug/deps/timeline_live_latency-711b2ec85a39e2a0)
+
+running 1 test
+fanout width=1 turns=1 examined=8
+
+thread 'wide_live_fanout_does_not_repeatedly_examine_unconsumed_followers' (2799239) panicked at crates/snapback4-lang/tests/timeline_live_latency.rs:84:21:
+one recipient must not pay for a wide unconsumed page: 32/Metered { examined: 39, index_entries: 8, rule_probes: 0, steps: 17, heap_bytes: 137542, output_bytes: 0, rows_written: 2 }, single=8
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test wide_live_fanout_does_not_repeatedly_examine_unconsumed_followers ... FAILED
+
+failures:
+
+failures:
+    wide_live_fanout_does_not_repeatedly_examine_unconsumed_followers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test timeline_live_latency`

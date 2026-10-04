@@ -1,0 +1,1485 @@
+{
+  "rows": [
+    {
+      "copied": 900,
+      "last_copy": 1791115786188.343,
+      "last_copy_ms": 12430.155517578125,
+      "label": "main",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 12838.210105895996,
+      "started": 1791115773419.0684,
+      "host_load": [
+        100.08544921875,
+        85.56884765625,
+        51.3984375
+      ],
+      "commit": 1791115773758.1875,
+      "delivery_done": 1791115786188.343,
+      "delivery_ms": 12430.155517578125,
+      "test_ms": 12450,
+      "first_live_ms": 3.35498046875,
+      "turns": 893,
+      "turns_by_kind": {
+        "delivery": 893
+      },
+      "live_rows": {
+        "2": 886,
+        "3": 7
+      },
+      "pause_decisions": 2678,
+      "nonzero_pause_decisions": 2678,
+      "requested_pause_ms": 10258.029831,
+      "cpu_ms": 1465.432833,
+      "log": "target/lu-r2/main-combined-main-replay-0-0.log",
+      "raw_bytes": 576780,
+      "raw_sha256": "9ea43c35853f9398e39a293a793283819fdbe0244cc6608fa6fc6fb3f486e43f"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115792710.393,
+      "last_copy_ms": 6066.978515625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 6478.326539043337,
+      "started": 1791115786290.6409,
+      "host_load": [
+        85.39208984375,
+        82.89892578125,
+        50.8955078125
+      ],
+      "commit": 1791115786643.4146,
+      "delivery_done": 1791115792710.393,
+      "delivery_ms": 6066.978515625,
+      "test_ms": 6091,
+      "first_live_ms": 2.9169921875,
+      "turns": 635,
+      "turns_by_kind": {
+        "delivery": 635
+      },
+      "live_rows": {
+        "2": 370,
+        "3": 265
+      },
+      "pause_decisions": 1902,
+      "nonzero_pause_decisions": 634,
+      "requested_pause_ms": 4989.963769,
+      "cpu_ms": 712.985528,
+      "log": "target/lu-r2/main-combined-combined-replay-0-0.log",
+      "raw_bytes": 400201,
+      "raw_sha256": "31856fad962e4f366839623ae71c9fcca014077af10f5c2e5130d1d41602d09f"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115804960.208,
+      "last_copy_ms": 11823.554443359375,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 12237.119710072875,
+      "started": 1791115792790.6218,
+      "host_load": [
+        73.265625,
+        80.3828125,
+        50.41943359375
+      ],
+      "commit": 1791115793136.6536,
+      "delivery_done": 1791115804960.208,
+      "delivery_ms": 11823.554443359375,
+      "test_ms": 11838,
+      "first_live_ms": 6.077880859375,
+      "turns": 796,
+      "turns_by_kind": {
+        "delivery": 796
+      },
+      "live_rows": {
+        "2": 694,
+        "3": 100,
+        "4": 2
+      },
+      "pause_decisions": 2387,
+      "nonzero_pause_decisions": 795,
+      "requested_pause_ms": 9656.597622,
+      "cpu_ms": 1379.780336,
+      "log": "target/lu-r2/main-combined-combined-replay-0-1.log",
+      "raw_bytes": 502008,
+      "raw_sha256": "c5af17787f384c97ac852ee0182c42422eafac9307e0fd14893338664d7568b3"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115814769.6216,
+      "last_copy_ms": 9363.564208984375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 9783.42682402581,
+      "started": 1791115805051.707,
+      "host_load": [
+        62.8564453125,
+        77.9169921875,
+        49.93798828125
+      ],
+      "commit": 1791115805406.0574,
+      "delivery_done": 1791115814769.6216,
+      "delivery_ms": 9363.564208984375,
+      "test_ms": 9381,
+      "first_live_ms": 4.514404296875,
+      "turns": 891,
+      "turns_by_kind": {
+        "delivery": 891
+      },
+      "live_rows": {
+        "2": 882,
+        "3": 9
+      },
+      "pause_decisions": 2672,
+      "nonzero_pause_decisions": 2672,
+      "requested_pause_ms": 7892.09309,
+      "cpu_ms": 1127.44187,
+      "log": "target/lu-r2/main-combined-main-replay-0-1.log",
+      "raw_bytes": 575110,
+      "raw_sha256": "91f372a9aefdb0292496f587b77ec9b97d7361af76bea1180720154322ecd9a7"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115825133.4072,
+      "last_copy_ms": 9921.427734375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 10336.37322904542,
+      "started": 1791115814864.22,
+      "host_load": [
+        53.88720703125,
+        75.4990234375,
+        49.45068359375
+      ],
+      "commit": 1791115815211.9795,
+      "delivery_done": 1791115825133.4072,
+      "delivery_ms": 9921.427734375,
+      "test_ms": 9938,
+      "first_live_ms": 4.3896484375,
+      "turns": 886,
+      "turns_by_kind": {
+        "delivery": 886
+      },
+      "live_rows": {
+        "2": 872,
+        "3": 14
+      },
+      "pause_decisions": 2657,
+      "nonzero_pause_decisions": 2657,
+      "requested_pause_ms": 8377.008843,
+      "cpu_ms": 1196.715549,
+      "log": "target/lu-r2/main-combined-main-replay-0-2.log",
+      "raw_bytes": 572523,
+      "raw_sha256": "b6fa1260621b27d13251acba48710bd27f5b30cdccb20847cd5526edddc7ef64"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115832868.7607,
+      "last_copy_ms": 7285.3681640625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 7679.479761049151,
+      "started": 1791115825228.5903,
+      "host_load": [
+        46.216796875,
+        73.14453125,
+        48.96337890625
+      ],
+      "commit": 1791115825583.3926,
+      "delivery_done": 1791115832868.7607,
+      "delivery_ms": 7285.3681640625,
+      "test_ms": 7293,
+      "first_live_ms": 4.647216796875,
+      "turns": 683,
+      "turns_by_kind": {
+        "delivery": 683
+      },
+      "live_rows": {
+        "2": 466,
+        "3": 217
+      },
+      "pause_decisions": 2048,
+      "nonzero_pause_decisions": 682,
+      "requested_pause_ms": 6086.26543,
+      "cpu_ms": 869.641261,
+      "log": "target/lu-r2/main-combined-combined-replay-0-2.log",
+      "raw_bytes": 430991,
+      "raw_sha256": "3657d83f3ca4ddc27cae1919edce34615d4d19424a39204b8967259958354ff7"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115838457.1113,
+      "last_copy_ms": 5178.478759765625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 5576.074931304902,
+      "started": 1791115832929.5012,
+      "host_load": [
+        42.99609375,
+        72.02978515625,
+        48.732421875
+      ],
+      "commit": 1791115833278.6326,
+      "delivery_done": 1791115838457.1113,
+      "delivery_ms": 5178.478759765625,
+      "test_ms": 5197,
+      "first_live_ms": 6.1455078125,
+      "turns": 621,
+      "turns_by_kind": {
+        "delivery": 621
+      },
+      "live_rows": {
+        "2": 342,
+        "3": 279
+      },
+      "pause_decisions": 1862,
+      "nonzero_pause_decisions": 620,
+      "requested_pause_ms": 4302.24438,
+      "cpu_ms": 614.777277,
+      "log": "target/lu-r2/main-combined-combined-replay-0-3.log",
+      "raw_bytes": 391401,
+      "raw_sha256": "f0182306c26f04ac2102320a62661a8b18f098464b243ea0b0ac634c86bb20b7"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115847514.6611,
+      "last_copy_ms": 8639.979736328125,
+      "label": "main",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 9034.226740710437,
+      "started": 1791115838524.2168,
+      "host_load": [
+        36.69287109375,
+        69.72314453125,
+        48.23095703125
+      ],
+      "commit": 1791115838874.6814,
+      "delivery_done": 1791115847514.6611,
+      "delivery_ms": 8639.979736328125,
+      "test_ms": 8662,
+      "first_live_ms": 4.075927734375,
+      "turns": 883,
+      "turns_by_kind": {
+        "delivery": 883
+      },
+      "live_rows": {
+        "2": 866,
+        "3": 17
+      },
+      "pause_decisions": 2648,
+      "nonzero_pause_decisions": 2648,
+      "requested_pause_ms": 7043.633975,
+      "cpu_ms": 1006.233425,
+      "log": "target/lu-r2/main-combined-main-replay-0-3.log",
+      "raw_bytes": 570313,
+      "raw_sha256": "171db630eaf5f22f8faf4b86d3f19803eb436723fbec82691897b72a38f2b619"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115857019.8975,
+      "last_copy_ms": 9080.6103515625,
+      "label": "main",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 9484.546601772308,
+      "started": 1791115847586.9355,
+      "host_load": [
+        31.72705078125,
+        67.57421875,
+        47.76171875
+      ],
+      "commit": 1791115847939.287,
+      "delivery_done": 1791115857019.8975,
+      "delivery_ms": 9080.6103515625,
+      "test_ms": 9097,
+      "first_live_ms": 5.279052734375,
+      "turns": 890,
+      "turns_by_kind": {
+        "delivery": 890
+      },
+      "live_rows": {
+        "2": 880,
+        "3": 10
+      },
+      "pause_decisions": 2669,
+      "nonzero_pause_decisions": 2669,
+      "requested_pause_ms": 7628.726511,
+      "cpu_ms": 1089.818073,
+      "log": "target/lu-r2/main-combined-main-replay-0-4.log",
+      "raw_bytes": 573978,
+      "raw_sha256": "1587d15909d130ea7b7c459cbec79b3be29d8c0bed9d77bd6058267a3a42d0b9"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115864554.2554,
+      "last_copy_ms": 7104.740478515625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 7480.8923760429025,
+      "started": 1791115857099.9434,
+      "host_load": [
+        29.42626953125,
+        66.501953125,
+        47.52099609375
+      ],
+      "commit": 1791115857449.515,
+      "delivery_done": 1791115864561.7842,
+      "delivery_ms": 7112.269287109375,
+      "test_ms": 7118,
+      "first_live_ms": 5.728759765625,
+      "turns": 660,
+      "turns_by_kind": {
+        "delivery": 660
+      },
+      "live_rows": {
+        "2": 420,
+        "3": 240,
+        "1": 1
+      },
+      "pause_decisions": 1978,
+      "nonzero_pause_decisions": 659,
+      "requested_pause_ms": 5944.948478,
+      "cpu_ms": 849.470852,
+      "log": "target/lu-r2/main-combined-combined-replay-0-4.log",
+      "raw_bytes": 417082,
+      "raw_sha256": "5b4d73508c9829bb3e9de7a5bf111d1cc39a790aa324ab38ee25dc29db1a3f74"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115875858.8574,
+      "last_copy_ms": 8204.9521484375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 9252.915668301284,
+      "started": 1791115866662.7485,
+      "host_load": [
+        28.59814453125,
+        65.10205078125,
+        47.2685546875
+      ],
+      "commit": 1791115867653.9053,
+      "delivery_done": 1791115875858.8574,
+      "delivery_ms": 8204.9521484375,
+      "test_ms": 8242,
+      "first_live_ms": 4.175048828125,
+      "turns": 885,
+      "turns_by_kind": {
+        "delivery": 885
+      },
+      "live_rows": {
+        "2": 870,
+        "3": 15
+      },
+      "pause_decisions": 2652,
+      "nonzero_pause_decisions": 2652,
+      "requested_pause_ms": 5822.967248,
+      "cpu_ms": 831.852464,
+      "log": "target/lu-r2/main-combined-main-replay-20-0.log",
+      "raw_bytes": 572412,
+      "raw_sha256": "7f50ccab1ed5fe8ec0b6eaffd4fab7c615b007c97534ba3d40e199a05687f5d7"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115883136.6753,
+      "last_copy_ms": 6190.564697265625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 7246.223206166178,
+      "started": 1791115875942.6301,
+      "host_load": [
+        28.111328125,
+        63.79736328125,
+        47.03515625
+      ],
+      "commit": 1791115876946.1106,
+      "delivery_done": 1791115883144.1047,
+      "delivery_ms": 6197.994140625,
+      "test_ms": 6218,
+      "first_live_ms": 9.512451171875,
+      "turns": 596,
+      "turns_by_kind": {
+        "delivery": 596
+      },
+      "live_rows": {
+        "2": 294,
+        "3": 300,
+        "4": 2,
+        "1": 1
+      },
+      "pause_decisions": 1785,
+      "nonzero_pause_decisions": 595,
+      "requested_pause_ms": 3978.820265,
+      "cpu_ms": 568.455263,
+      "log": "target/lu-r2/main-combined-combined-replay-20-0.log",
+      "raw_bytes": 376863,
+      "raw_sha256": "e74aed40133deea0ba39bf2afcda2fd4287d8dea589d50b8b9b7fbd57e06b265"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115890045.824,
+      "last_copy_ms": 5906.119873046875,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 6893.208933994174,
+      "started": 1791115883197.2622,
+      "host_load": [
+        27.86181640625,
+        63.15283203125,
+        46.91650390625
+      ],
+      "commit": 1791115884139.704,
+      "delivery_done": 1791115890045.824,
+      "delivery_ms": 5906.119873046875,
+      "test_ms": 5923,
+      "first_live_ms": 2.199462890625,
+      "turns": 600,
+      "turns_by_kind": {
+        "delivery": 600
+      },
+      "live_rows": {
+        "2": 302,
+        "3": 296,
+        "4": 2
+      },
+      "pause_decisions": 1797,
+      "nonzero_pause_decisions": 599,
+      "requested_pause_ms": 3995.933144,
+      "cpu_ms": 570.899821,
+      "log": "target/lu-r2/main-combined-combined-replay-20-1.log",
+      "raw_bytes": 378605,
+      "raw_sha256": "79271b81317d6a618fb620763a34e6604b8d187a8a2639f29adfdb72943fefc7"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115900180.2002,
+      "last_copy_ms": 9082.523193359375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 10112.0625869371,
+      "started": 1791115890101.6794,
+      "host_load": [
+        26.8798828125,
+        61.78076171875,
+        46.6435546875
+      ],
+      "commit": 1791115891097.677,
+      "delivery_done": 1791115900180.2002,
+      "delivery_ms": 9082.523193359375,
+      "test_ms": 9112,
+      "first_live_ms": 4.1298828125,
+      "turns": 880,
+      "turns_by_kind": {
+        "delivery": 880
+      },
+      "live_rows": {
+        "2": 860,
+        "3": 20
+      },
+      "pause_decisions": 2637,
+      "nonzero_pause_decisions": 2637,
+      "requested_pause_ms": 5839.179108,
+      "cpu_ms": 834.168444,
+      "log": "target/lu-r2/main-combined-main-replay-20-1.log",
+      "raw_bytes": 568437,
+      "raw_sha256": "846cd8bdc27652b514d430eb25e11ca2099a0b2d34e3b852825239b2b7ba3ad0"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115909984.9766,
+      "last_copy_ms": 9097.173583984375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 9804.209316149354,
+      "started": 1791115900231.9153,
+      "host_load": [
+        26.43017578125,
+        60.5361328125,
+        46.400390625
+      ],
+      "commit": 1791115900887.803,
+      "delivery_done": 1791115909984.9766,
+      "delivery_ms": 9097.173583984375,
+      "test_ms": 9125,
+      "first_live_ms": 3.280029296875,
+      "turns": 883,
+      "turns_by_kind": {
+        "delivery": 883
+      },
+      "live_rows": {
+        "2": 866,
+        "3": 17
+      },
+      "pause_decisions": 2648,
+      "nonzero_pause_decisions": 2648,
+      "requested_pause_ms": 5853.23256,
+      "cpu_ms": 836.17608,
+      "log": "target/lu-r2/main-combined-main-replay-20-2.log",
+      "raw_bytes": 570470,
+      "raw_sha256": "e0c1281a8e44b2170022310f5174e37832296db89d9bbfa77eb00b51a879eca6"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115916928.9666,
+      "last_copy_ms": 5893.12353515625,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 6940.881238784641,
+      "started": 1791115910065.8623,
+      "host_load": [
+        26.357421875,
+        59.39794921875,
+        46.18115234375
+      ],
+      "commit": 1791115911035.843,
+      "delivery_done": 1791115916928.9666,
+      "delivery_ms": 5893.12353515625,
+      "test_ms": 5929,
+      "first_live_ms": 6.9453125,
+      "turns": 616,
+      "turns_by_kind": {
+        "delivery": 616
+      },
+      "live_rows": {
+        "2": 332,
+        "3": 284
+      },
+      "pause_decisions": 1845,
+      "nonzero_pause_decisions": 615,
+      "requested_pause_ms": 4107.008689,
+      "cpu_ms": 586.769037,
+      "log": "target/lu-r2/main-combined-combined-replay-20-2.log",
+      "raw_bytes": 388888,
+      "raw_sha256": "7e217171963b5643708d9d5a567cd490f7327aaa501278565fb08246d3ad13fa"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115923953.6738,
+      "last_copy_ms": 6203.254638671875,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 6996.721927076578,
+      "started": 1791115917029.8645,
+      "host_load": [
+        26.08837890625,
+        58.79345703125,
+        46.056640625
+      ],
+      "commit": 1791115917750.4192,
+      "delivery_done": 1791115923953.6738,
+      "delivery_ms": 6203.254638671875,
+      "test_ms": 6220,
+      "first_live_ms": 4.203369140625,
+      "turns": 604,
+      "turns_by_kind": {
+        "delivery": 604
+      },
+      "live_rows": {
+        "2": 310,
+        "3": 292,
+        "4": 2
+      },
+      "pause_decisions": 1809,
+      "nonzero_pause_decisions": 603,
+      "requested_pause_ms": 4003.017907,
+      "cpu_ms": 571.917918,
+      "log": "target/lu-r2/main-combined-combined-replay-20-3.log",
+      "raw_bytes": 380963,
+      "raw_sha256": "e0dc90fd857037920c1b374db1436a620e7a39809d701c52a44a07670e6a2c3c"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115933756.295,
+      "last_copy_ms": 8733.514892578125,
+      "label": "main",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 9760.43353183195,
+      "started": 1791115924042.1619,
+      "host_load": [
+        25.61328125,
+        57.61474609375,
+        45.80908203125
+      ],
+      "commit": 1791115925022.78,
+      "delivery_done": 1791115933756.295,
+      "delivery_ms": 8733.514892578125,
+      "test_ms": 8763,
+      "first_live_ms": 8.84521484375,
+      "turns": 885,
+      "turns_by_kind": {
+        "delivery": 885
+      },
+      "live_rows": {
+        "2": 870,
+        "3": 15
+      },
+      "pause_decisions": 2654,
+      "nonzero_pause_decisions": 2654,
+      "requested_pause_ms": 5806.328647,
+      "cpu_ms": 829.475521,
+      "log": "target/lu-r2/main-combined-main-replay-20-3.log",
+      "raw_bytes": 572706,
+      "raw_sha256": "d0c70463a9adf04f3911cb91b4541d60866d8bcb029a87f8d408f4b92c7a7d52"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115942827.757,
+      "last_copy_ms": 8022.566650390625,
+      "label": "main",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 9048.67281485349,
+      "started": 1791115933833.399,
+      "host_load": [
+        25.2109375,
+        56.474609375,
+        45.564453125
+      ],
+      "commit": 1791115934805.1904,
+      "delivery_done": 1791115942827.757,
+      "delivery_ms": 8022.566650390625,
+      "test_ms": 8049,
+      "first_live_ms": 2.44091796875,
+      "turns": 875,
+      "turns_by_kind": {
+        "delivery": 875
+      },
+      "live_rows": {
+        "2": 851,
+        "3": 23,
+        "4": 1
+      },
+      "pause_decisions": 2622,
+      "nonzero_pause_decisions": 2622,
+      "requested_pause_ms": 5710.451313,
+      "cpu_ms": 815.778759,
+      "log": "target/lu-r2/main-combined-main-replay-20-4.log",
+      "raw_bytes": 564997,
+      "raw_sha256": "e46bcfa88623805990d00e89b04d1c9fa85153bf7c2481224a84cdee827c6911"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115949849.749,
+      "last_copy_ms": 5950.08935546875,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 6998.919209931046,
+      "started": 1791115942911.8328,
+      "host_load": [
+        25.19384765625,
+        55.95166015625,
+        45.45361328125
+      ],
+      "commit": 1791115943899.6597,
+      "delivery_done": 1791115949849.749,
+      "delivery_ms": 5950.08935546875,
+      "test_ms": 5980,
+      "first_live_ms": 8.085205078125,
+      "turns": 583,
+      "turns_by_kind": {
+        "delivery": 583
+      },
+      "live_rows": {
+        "2": 268,
+        "3": 313,
+        "4": 2
+      },
+      "pause_decisions": 1746,
+      "nonzero_pause_decisions": 582,
+      "requested_pause_ms": 3872.257557,
+      "cpu_ms": 553.23214,
+      "log": "target/lu-r2/main-combined-combined-replay-20-4.log",
+      "raw_bytes": 368224,
+      "raw_sha256": "125825e3216ec288233855e3cc713a9ce386e8d98829c316deb316f7619b4923"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791115980643.6294,
+      "last_copy_ms": 21088.948974609375,
+      "label": "main",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 27676.9317551516,
+      "started": 1791115953076.7478,
+      "host_load": [
+        64.501953125,
+        62.55126953125,
+        47.984375
+      ],
+      "commit": 1791115959554.6804,
+      "delivery_done": 1791115980643.6294,
+      "delivery_ms": 21088.948974609375,
+      "test_ms": 21206,
+      "first_live_ms": 11.142333984375,
+      "turns": 895,
+      "turns_by_kind": {
+        "delivery": 895
+      },
+      "live_rows": {
+        "2": 890,
+        "3": 5
+      },
+      "pause_decisions": 2682,
+      "nonzero_pause_decisions": 2682,
+      "requested_pause_ms": 6209.426895,
+      "cpu_ms": 887.060985,
+      "log": "target/lu-r2/main-combined-main-replay-120-0.log",
+      "raw_bytes": 578209,
+      "raw_sha256": "61792be60850e8bba9bd25edc436f86f2b4bf11d100d5220eb567a28a28ea1b4"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116003594.703,
+      "last_copy_ms": 15746.021240234375,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 22904.78218300268,
+      "started": 1791115980839.8835,
+      "host_load": [
+        85.013671875,
+        67.53515625,
+        50.021484375
+      ],
+      "commit": 1791115987848.6816,
+      "delivery_done": 1791116003623.623,
+      "delivery_ms": 15774.94140625,
+      "test_ms": 15867,
+      "first_live_ms": 19.9951171875,
+      "turns": 613,
+      "turns_by_kind": {
+        "delivery": 613
+      },
+      "live_rows": {
+        "2": 326,
+        "3": 287,
+        "1": 1
+      },
+      "pause_decisions": 1836,
+      "nonzero_pause_decisions": 612,
+      "requested_pause_ms": 4339.153,
+      "cpu_ms": 619.94538,
+      "log": "target/lu-r2/main-combined-combined-replay-120-0.log",
+      "raw_bytes": 386998,
+      "raw_sha256": "949a83dc256ffbba057653a0e20e36a37b33f74489add73cf336c4fc4a9171e8"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116025034.6558,
+      "last_copy_ms": 14112.991943359375,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 21416.36724304408,
+      "started": 1791116003756.388,
+      "host_load": [
+        96.314453125,
+        71.24267578125,
+        51.615234375
+      ],
+      "commit": 1791116010921.6638,
+      "delivery_done": 1791116025034.6558,
+      "delivery_ms": 14112.991943359375,
+      "test_ms": 14239,
+      "first_live_ms": 9.995849609375,
+      "turns": 599,
+      "turns_by_kind": {
+        "delivery": 599
+      },
+      "live_rows": {
+        "2": 298,
+        "3": 301
+      },
+      "pause_decisions": 1794,
+      "nonzero_pause_decisions": 598,
+      "requested_pause_ms": 4122.382775,
+      "cpu_ms": 588.974819,
+      "log": "target/lu-r2/main-combined-combined-replay-120-1.log",
+      "raw_bytes": 377713,
+      "raw_sha256": "80133437d604f8bada08b5001a296dca9432bfbcc3d0752b7ac7704042d66f89"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116049855.6245,
+      "last_copy_ms": 17850.996826171875,
+      "label": "main",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 24806.24904576689,
+      "started": 1791116025191.5613,
+      "host_load": [
+        106.37109375,
+        75.611328125,
+        53.58251953125
+      ],
+      "commit": 1791116032004.6277,
+      "delivery_done": 1791116049855.6245,
+      "delivery_ms": 17850.996826171875,
+      "test_ms": 17953,
+      "first_live_ms": 11.0009765625,
+      "turns": 895,
+      "turns_by_kind": {
+        "delivery": 895
+      },
+      "live_rows": {
+        "2": 890,
+        "3": 5
+      },
+      "pause_decisions": 2682,
+      "nonzero_pause_decisions": 2682,
+      "requested_pause_ms": 6050.320766,
+      "cpu_ms": 864.331538,
+      "log": "target/lu-r2/main-combined-main-replay-120-1.log",
+      "raw_bytes": 577634,
+      "raw_sha256": "4c32bf7daf0695216f32ac321e9b7ea88d0cc1bb17e93b14bff742d916da4938"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116077176.6785,
+      "last_copy_ms": 22180.046142578125,
+      "label": "main",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 27180.26927486062,
+      "started": 1791116050117.556,
+      "host_load": [
+        115.57421875,
+        80.818359375,
+        56.01806640625
+      ],
+      "commit": 1791116054996.6323,
+      "delivery_done": 1791116077176.6785,
+      "delivery_ms": 22180.046142578125,
+      "test_ms": 22284,
+      "first_live_ms": 26.050048828125,
+      "turns": 893,
+      "turns_by_kind": {
+        "delivery": 893
+      },
+      "live_rows": {
+        "2": 886,
+        "3": 7
+      },
+      "pause_decisions": 2676,
+      "nonzero_pause_decisions": 2676,
+      "requested_pause_ms": 6171.548922,
+      "cpu_ms": 881.649846,
+      "log": "target/lu-r2/main-combined-main-replay-120-2.log",
+      "raw_bytes": 576551,
+      "raw_sha256": "92106c0e036530546e635dede6df4445aa19983df42a957cf8f66a38202f404e"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116099484.6748,
+      "last_copy_ms": 15203.042236328125,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 22255.73024014011,
+      "started": 1791116077375.944,
+      "host_load": [
+        118.55078125,
+        83.74658203125,
+        57.51025390625
+      ],
+      "commit": 1791116084281.6326,
+      "delivery_done": 1791116099484.6748,
+      "delivery_ms": 15203.042236328125,
+      "test_ms": 15317,
+      "first_live_ms": 20.041015625,
+      "turns": 601,
+      "turns_by_kind": {
+        "delivery": 601
+      },
+      "live_rows": {
+        "2": 302,
+        "3": 299
+      },
+      "pause_decisions": 1800,
+      "nonzero_pause_decisions": 600,
+      "requested_pause_ms": 4262.210407,
+      "cpu_ms": 608.958518,
+      "log": "target/lu-r2/main-combined-combined-replay-120-2.log",
+      "raw_bytes": 379317,
+      "raw_sha256": "1b3b9aae4275d403faf03dc490a8f9841858a5ecac7e0fe2d568e991ba881ac6"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116119619.6638,
+      "last_copy_ms": 13281.975341796875,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 20022.639418020844,
+      "started": 1791116099686.186,
+      "host_load": [
+        122.9873046875,
+        86.95263671875,
+        59.12158203125
+      ],
+      "commit": 1791116106337.6885,
+      "delivery_done": 1791116119619.6638,
+      "delivery_ms": 13281.975341796875,
+      "test_ms": 13387,
+      "first_live_ms": 13.970947265625,
+      "turns": 587,
+      "turns_by_kind": {
+        "delivery": 587
+      },
+      "live_rows": {
+        "2": 274,
+        "3": 313
+      },
+      "pause_decisions": 1758,
+      "nonzero_pause_decisions": 586,
+      "requested_pause_ms": 4129.322855,
+      "cpu_ms": 589.971547,
+      "log": "target/lu-r2/main-combined-combined-replay-120-3.log",
+      "raw_bytes": 369973,
+      "raw_sha256": "e76f6bf6260763f875bae5d42888f546a081915cefb2c985716f0efb6e0f1d35"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116147048.6736,
+      "last_copy_ms": 18723.99658203125,
+      "label": "main",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 3,
+      "exit": 0,
+      "wall_ms": 27458.201400004327,
+      "started": 1791116119728.5544,
+      "host_load": [
+        123.32080078125,
+        90.478515625,
+        61.1806640625
+      ],
+      "commit": 1791116128324.677,
+      "delivery_done": 1791116147048.6736,
+      "delivery_ms": 18723.99658203125,
+      "test_ms": 18844,
+      "first_live_ms": 14.0009765625,
+      "turns": 893,
+      "turns_by_kind": {
+        "delivery": 893
+      },
+      "live_rows": {
+        "2": 886,
+        "3": 7
+      },
+      "pause_decisions": 2676,
+      "nonzero_pause_decisions": 2676,
+      "requested_pause_ms": 6146.569205,
+      "cpu_ms": 878.081315,
+      "log": "target/lu-r2/main-combined-main-replay-120-3.log",
+      "raw_bytes": 576360,
+      "raw_sha256": "4312b25b923396e496b78df34d2349fbad7b204f98dec805ec92a34bb187a2c8"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116174427.6584,
+      "last_copy_ms": 20370.0244140625,
+      "label": "main",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 27292.98548400402,
+      "started": 1791116147271.7637,
+      "host_load": [
+        123.4990234375,
+        93.15576171875,
+        62.845703125
+      ],
+      "commit": 1791116154057.634,
+      "delivery_done": 1791116174427.6584,
+      "delivery_ms": 20370.0244140625,
+      "test_ms": 20472,
+      "first_live_ms": 11.034423828125,
+      "turns": 893,
+      "turns_by_kind": {
+        "delivery": 893
+      },
+      "live_rows": {
+        "2": 886,
+        "3": 7
+      },
+      "pause_decisions": 2676,
+      "nonzero_pause_decisions": 2676,
+      "requested_pause_ms": 6061.93651,
+      "cpu_ms": 865.99093,
+      "log": "target/lu-r2/main-combined-main-replay-120-4.log",
+      "raw_bytes": 576559,
+      "raw_sha256": "14b1aba9724b97dfc4beb7f451016a17734cc28dbcb36eed9ef1bd5c46141590"
+    },
+    {
+      "copied": 900,
+      "last_copy": 1791116196492.697,
+      "last_copy_ms": 15054.015380859375,
+      "label": "combined",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 4,
+      "exit": 0,
+      "wall_ms": 21970.695931930095,
+      "started": 1791116174647.0493,
+      "host_load": [
+        123.3623046875,
+        95.08984375,
+        64.12890625
+      ],
+      "commit": 1791116181438.6816,
+      "delivery_done": 1791116196492.697,
+      "delivery_ms": 15054.015380859375,
+      "test_ms": 15152,
+      "first_live_ms": 11.97900390625,
+      "turns": 603,
+      "turns_by_kind": {
+        "delivery": 603
+      },
+      "live_rows": {
+        "2": 306,
+        "3": 297
+      },
+      "pause_decisions": 1806,
+      "nonzero_pause_decisions": 602,
+      "requested_pause_ms": 4230.944732,
+      "cpu_ms": 604.482869,
+      "log": "target/lu-r2/main-combined-combined-replay-120-4.log",
+      "raw_bytes": 380319,
+      "raw_sha256": "9485e007729fcc1acefb85969864c0669aefdb784c7d9e7a3097129b2cbe2248"
+    }
+  ],
+  "groups": {
+    "main:replay:0": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 9783.42682402581,
+        "p95": 12838.210105895996,
+        "min": 9034.226740710437,
+        "max": 12838.210105895996
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 9381,
+        "p95": 12450,
+        "min": 8662,
+        "max": 12450
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 9363.564208984375,
+        "p95": 12430.155517578125,
+        "min": 8639.979736328125,
+        "max": 12430.155517578125
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 4.3896484375,
+        "p95": 5.279052734375,
+        "min": 3.35498046875,
+        "max": 5.279052734375
+      },
+      "turns": {
+        "n": 5,
+        "p50": 890,
+        "p95": 893,
+        "min": 883,
+        "max": 893
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 2669,
+        "p95": 2678,
+        "min": 2648,
+        "max": 2678
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 7892.09309,
+        "p95": 10258.029831,
+        "min": 7043.633975,
+        "max": 10258.029831
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 1127.44187,
+        "p95": 1465.432833,
+        "min": 1006.233425,
+        "max": 1465.432833
+      }
+    },
+    "combined:replay:0": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 7480.8923760429025,
+        "p95": 12237.119710072875,
+        "min": 5576.074931304902,
+        "max": 12237.119710072875
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 7118,
+        "p95": 11838,
+        "min": 5197,
+        "max": 11838
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 7104.740478515625,
+        "p95": 11823.554443359375,
+        "min": 5178.478759765625,
+        "max": 11823.554443359375
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 5.728759765625,
+        "p95": 6.1455078125,
+        "min": 2.9169921875,
+        "max": 6.1455078125
+      },
+      "turns": {
+        "n": 5,
+        "p50": 660,
+        "p95": 796,
+        "min": 621,
+        "max": 796
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 659,
+        "p95": 795,
+        "min": 620,
+        "max": 795
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 5944.948478,
+        "p95": 9656.597622,
+        "min": 4302.24438,
+        "max": 9656.597622
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 849.470852,
+        "p95": 1379.780336,
+        "min": 614.777277,
+        "max": 1379.780336
+      }
+    },
+    "main:replay:20": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 9760.43353183195,
+        "p95": 10112.0625869371,
+        "min": 9048.67281485349,
+        "max": 10112.0625869371
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 8763,
+        "p95": 9125,
+        "min": 8049,
+        "max": 9125
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 8733.514892578125,
+        "p95": 9097.173583984375,
+        "min": 8022.566650390625,
+        "max": 9097.173583984375
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 4.1298828125,
+        "p95": 8.84521484375,
+        "min": 2.44091796875,
+        "max": 8.84521484375
+      },
+      "turns": {
+        "n": 5,
+        "p50": 883,
+        "p95": 885,
+        "min": 875,
+        "max": 885
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 2648,
+        "p95": 2654,
+        "min": 2622,
+        "max": 2654
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 5822.967248,
+        "p95": 5853.23256,
+        "min": 5710.451313,
+        "max": 5853.23256
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 831.852464,
+        "p95": 836.17608,
+        "min": 815.778759,
+        "max": 836.17608
+      }
+    },
+    "combined:replay:20": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 6996.721927076578,
+        "p95": 7246.223206166178,
+        "min": 6893.208933994174,
+        "max": 7246.223206166178
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 5980,
+        "p95": 6220,
+        "min": 5923,
+        "max": 6220
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 5950.08935546875,
+        "p95": 6203.254638671875,
+        "min": 5893.12353515625,
+        "max": 6203.254638671875
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 6.9453125,
+        "p95": 9.512451171875,
+        "min": 2.199462890625,
+        "max": 9.512451171875
+      },
+      "turns": {
+        "n": 5,
+        "p50": 600,
+        "p95": 616,
+        "min": 583,
+        "max": 616
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 599,
+        "p95": 615,
+        "min": 582,
+        "max": 615
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 3995.933144,
+        "p95": 4107.008689,
+        "min": 3872.257557,
+        "max": 4107.008689
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 570.899821,
+        "p95": 586.769037,
+        "min": 553.23214,
+        "max": 586.769037
+      }
+    },
+    "main:replay:120": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 27292.98548400402,
+        "p95": 27676.9317551516,
+        "min": 24806.24904576689,
+        "max": 27676.9317551516
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 20472,
+        "p95": 22284,
+        "min": 17953,
+        "max": 22284
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 20370.0244140625,
+        "p95": 22180.046142578125,
+        "min": 17850.996826171875,
+        "max": 22180.046142578125
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 11.142333984375,
+        "p95": 26.050048828125,
+        "min": 11.0009765625,
+        "max": 26.050048828125
+      },
+      "turns": {
+        "n": 5,
+        "p50": 893,
+        "p95": 895,
+        "min": 893,
+        "max": 895
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 2676,
+        "p95": 2682,
+        "min": 2676,
+        "max": 2682
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 6146.569205,
+        "p95": 6209.426895,
+        "min": 6050.320766,
+        "max": 6209.426895
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 878.081315,
+        "p95": 887.060985,
+        "min": 864.331538,
+        "max": 887.060985
+      }
+    },
+    "combined:replay:120": {
+      "n": 5,
+      "failures": 0,
+      "wall_ms": {
+        "n": 5,
+        "p50": 21970.695931930095,
+        "p95": 22904.78218300268,
+        "min": 20022.639418020844,
+        "max": 22904.78218300268
+      },
+      "test_ms": {
+        "n": 5,
+        "p50": 15152,
+        "p95": 15867,
+        "min": 13387,
+        "max": 15867
+      },
+      "last_copy_ms": {
+        "n": 5,
+        "p50": 15054.015380859375,
+        "p95": 15746.021240234375,
+        "min": 13281.975341796875,
+        "max": 15746.021240234375
+      },
+      "first_live_ms": {
+        "n": 5,
+        "p50": 13.970947265625,
+        "p95": 20.041015625,
+        "min": 9.995849609375,
+        "max": 20.041015625
+      },
+      "turns": {
+        "n": 5,
+        "p50": 601,
+        "p95": 613,
+        "min": 587,
+        "max": 613
+      },
+      "nonzero_pause_decisions": {
+        "n": 5,
+        "p50": 600,
+        "p95": 612,
+        "min": 586,
+        "max": 612
+      },
+      "requested_pause_ms": {
+        "n": 5,
+        "p50": 4230.944732,
+        "p95": 4339.153,
+        "min": 4122.382775,
+        "max": 4339.153
+      },
+      "cpu_ms": {
+        "n": 5,
+        "p50": 604.482869,
+        "p95": 619.94538,
+        "min": 588.974819,
+        "max": 619.94538
+      }
+    }
+  }
+}

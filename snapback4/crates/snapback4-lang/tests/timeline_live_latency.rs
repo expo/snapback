@@ -64,6 +64,39 @@ fn oldest_first_control_reproduces_the_head_of_line_block() {
 }
 
 #[test]
+fn wide_live_fanout_does_not_repeatedly_examine_unconsumed_followers() {
+    let mut single = None;
+    for width in [1, 32, 900] {
+        let mut e = engine(SOURCE);
+        for n in 0..width {
+            write(&mut e, "follow", &format!("reader{n:04}"), &[("actor", id("alice"))], 1);
+        }
+        // This is the replay fixture: no historical posts, hence no backfill
+        // or cleanup backlog to blame for slow delivery to the last follower.
+        assert_eq!(e.timeline_work_counts().unwrap()[0].1, 0);
+        post(&mut e, "live", 2);
+        assert_eq!(e.timeline_work_counts().unwrap()[0].1, 1);
+        let mut turns = 0;
+        let mut examined = 0;
+        while let Some(used) = e.run_timeline_turn_for(3, Duration::ZERO).unwrap() {
+            if turns == 0 {
+                if let Some(one) = single {
+                    assert!(used.examined <= one + 4,
+                        "one recipient must not pay for a wide unconsumed page: {width}/{used:?}, single={one}");
+                } else { single = Some(used.examined); }
+            }
+            assert!(used.rows_written <= 2, "one recipient plus durable progress: {used:?}");
+            examined += used.examined;
+            turns += 1;
+            assert!(turns <= width + 1, "finite fan-out failed to advance");
+        }
+        assert_eq!(e.store().rows("feedFeed").unwrap().len(), width + 1);
+        assert!(has(&e, "feedFeed", &format!("reader{:04}", width - 1), "live"));
+        eprintln!("fanout width={width} turns={turns} examined={examined}");
+    }
+}
+
+#[test]
 fn turns_rotate_declarations_and_wrap_across_a_clock_rewind() {
     let source = SOURCE.replace("mutation post(postId:", "maintain second: timeline\n  events posts where .parentId = null and not .removed by authorId, at removed by removed\n  reposts reposts by actorId, postId, at\n  edges follows by followerId, followedId\n\nmutation post(postId:");
     let mut e = fixture(&source);
