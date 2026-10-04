@@ -20,7 +20,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod activation_scan;
 pub mod adoption_report;
+pub mod adoption_estimate;
 mod activation_walk;
 mod activation_plan;
 #[cfg(test)]
@@ -78,6 +80,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    activation_scan: Option<activation_scan::Buffer>,
     pub changes: std::cell::RefCell<crate::revocation::Recorder>,
     sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
@@ -307,7 +310,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -317,7 +320,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -328,7 +331,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -461,6 +464,7 @@ impl Sizes {
 
 impl<'a> Tx<'a> {
     pub fn conn(&self) -> &Connection {
+        self.clear_activation_scan();
         &self.tx
     }
 
@@ -488,6 +492,7 @@ impl<'a> Tx<'a> {
 
     /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        self.clear_activation_scan();
         self.changes.borrow_mut().widen();
         self.tx.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
         // Lazy sequence-table creation may have belonged to this savepoint.
@@ -560,6 +565,7 @@ impl<'a> Tx<'a> {
     }
 
     fn put_indexed(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>, insert_index: &str) -> Result<u64, RuntimeError> {
+        self.clear_activation_scan();
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
@@ -587,6 +593,7 @@ impl<'a> Tx<'a> {
     }
 
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        self.clear_activation_scan();
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         self.changes.borrow_mut().record(table_name, table, Some(old), None);
@@ -1014,6 +1021,17 @@ impl crate::rows::Rows for Tx<'_> {
         // BYTELENARG / LENGTHARG never read overflow payloads. The payload
         // statement uses the granted allowances; Rust borrows its JSON.
         meter.once(crate::meter::HeapSite::SqliteColumns, 2 * self.page_size)?;
+        if limit == 1 && dir == Dir::Asc
+            && let Some(head) = self.activation_head(t, ti, &lo, &hi)? {
+            let Some((data, key)) = head else { return Ok(Vec::new()); };
+            // Keep every ordinary per-row allowance, including both SQLite
+            // payload copies, decoder scratch, vector growth and key storage.
+            meter.heap(((data.len() + key.len()) as u64).saturating_mul(2).saturating_add(64))?;
+            heap::stored_row(&data, scope).charge(meter, scope)?;
+            meter.heap(heap::allocation(key.len()))?;
+            meter.grow::<(Value, Vec<u8>)>(0, 0)?;
+            return Ok(vec![(serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key)]);
+        }
         let sizes = match dir {
             Dir::Asc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
             Dir::Desc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",

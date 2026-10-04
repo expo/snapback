@@ -125,6 +125,48 @@ fn same(a: &Engine, b: &Engine) {
         assert_eq!(rows(a, table), rows(b, table), "{table}");
     }
 }
+
+#[test]
+fn activation_workspace_rolls_back_and_restores_the_callers_cache() {
+    let mut e = engine(false);
+    e.store().conn().pragma_update(None, "cache_size", 7).unwrap();
+    let before = [rows(&e, "r"), rows(&e, "i"), rows(&e, "_commits")];
+    let generation = e.generation();
+    let b = compile(&format!("{BASE}{VIEWS}"));
+    e.store().conn().commit_hook(Some(|| true)).unwrap();
+    assert!(e.adopt_at(b.schema.clone(), b.programs.clone(), 20).is_err());
+    e.store().conn().commit_hook(None::<fn() -> bool>).unwrap();
+    assert_eq!(e.generation(), generation);
+    for (table, expected) in ["r", "i", "_commits"].into_iter().zip(before) { assert_eq!(rows(&e, table), expected); }
+    let conn = e.store().conn();
+    assert_eq!(conn.pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+    assert_eq!(conn.query_row("SELECT count(*) FROM sqlite_temp_schema WHERE name='_adoption_index'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    e.adopt_at(b.schema, b.programs, 20).unwrap();
+    assert_eq!(e.store().conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+}
+
+#[test]
+fn generated_rebuilds_keep_sparse_rows_captures_indexes_and_wide_sum_cancellation() {
+    for seed in 0..12_u64 {
+        let (mut fast, mut slow) = (engine(false), engine(true));
+        let mut random = seed + 1;
+        for n in 0..31 {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let amount = if n % 2 == 0 { crate::value::I53_MAX / 4 } else { -(crate::value::I53_MAX / 4) };
+            let row = object([("id", Value::Id(format!("generated{n}"))), ("author", Value::Id(format!("u{}", random % 7))),
+                ("at", Value::Int((random % 100_000_000) as i64 - 50_000_000)), ("parent", Value::Null), ("amount", Value::Int(amount))]);
+            for e in [&mut fast, &mut slow] { e.seed_at([("posts".into(), row.clone())], 10).unwrap(); }
+        }
+        for e in [&fast, &slow] {
+            e.store().conn().execute("UPDATE r SET data=json_remove(data, '$.Row.parent') WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%'", []).unwrap();
+        }
+        let extra = VIEWS.replace("sum posts of .amount by .author", "sum posts of .amount by .parent");
+        let b = compile(&format!("{BASE}{extra}"));
+        for e in [&mut fast, &mut slow] { e.adopt_at(b.schema.clone(), b.programs.clone(), 20).unwrap(); }
+        same(&fast, &slow);
+        assert_eq!(fast.store().conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%' AND json_type(data, '$.Row.parent') IS NULL", [], |r| r.get::<_, i64>(0)).unwrap(), 31);
+    }
+}
 #[test]
 fn optimized_activation_equals_full_rows_indexes_log_images_and_sequence() {
     let (mut optimized, mut full) = (engine(false), engine(true));

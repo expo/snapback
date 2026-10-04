@@ -86199,3 +86199,71 @@ calculator/export. A supplemental serde-family census rejects the same i64
 serializer on unchanged base and RPF; recorded separately without broadening
 the allowlist. No other host, NZ worktree/process or simulator was used.
 Local commit only; nothing pushed or published.
+
+## 2026-10-04 — AP: reduce and expose populated-store adoption pauses
+
+Lane AP on eb1000, baseline `2154dc163dc42e1808f12ef32e9468b2889407a3`.
+Calibration 30's retained generation definitions support a semantic rollback to
+its generation-1 schema on a private copy, followed by repeatable generation-2
+adoption at a pinned time. This retains the final evidence's later delivery and
+receipt work; it is not exact historical time travel. The physical message table
+contains 100,015 rows; `unread`'s 227,989 number counts repeated source visits.
+
+Three sequential production-profile pairs on an idle CPU gave **16.322 s →
+6.762 s median (2.41×)**. The requested 5× target, **3.264 s** against this
+baseline, **is not met**. The formerly unattributed bulk is new-index insertion:
+row-order B-tree churn wrote roughly 10.5 GB through SQLite versus 612 MB after
+ordered staging and a scoped 64 MiB cache. The complete phase table, capture
+breakdown, profiling caveats, reproduction commands and raw timings are in
+[the AP report](./reports/20261004-ap-adoption-pause/REPORT.md).
+
+Keep one atomic activation transaction and its predecessor-snapshot readers.
+Sort admitted keys before insertion; retain every key/contribution bound. An
+activation-only 32-row/128 KiB serialized read-ahead buffer amortizes SQLite
+seeks while retaining identical logical meter charges and fallback on wide
+rows. Count preflight reuses source validation when the population proves every
+group fits; sums retain wide cancellation. Avoid a second typed admission decode
+when no contribution scratch needs it, and avoid copying maps merely to retain
+all their fields. No interpreter ceiling changes. Capture semantics, sparse
+physical images, pending recounts and device behavior stay unchanged.
+
+Every stored row, all 3,441,029 index entries, all captures, catalog, log and
+commit records compare byte-for-byte with the baseline. Twelve generated seeds
+exercise sparse images, historical captures and cancelling sums; meter/cursor,
+cache invalidation and refused-commit rollback tests cover the new workspace.
+`check` gives read-only `N_ADOPTION_PAUSE` population/rate advice; dev and deploy
+print it before activation. Adoption output now includes disjoint phases and
+explicitly nested details. The estimate names eb1000's measured rate and its
+population uncertainty; it is not a latency SLO.
+
+Wasm before/after is byte-identical: **2,116,457 B raw / 639,750 B gzip**,
+SHA-256 `de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`.
+The **639,887 B** budget and **130 B macOS allowance** are unchanged. Both
+`build-wasm.sh` runs pass. Supplemental `measure-wasm.sh` hits the already
+recorded i64 serde-family census failure; no new web bytes explain or conceal it.
+
+A remaining multi-second pause merits a separate online-adoption project.
+LLP 3000.026 §8.6 recommends snapshot preparation, complete-journal catch-up and
+one brief switch, with publication-time captures, expiry, sparse shadow images,
+all-writer coverage, bounded debt and recovery requirements. This is design only.
+The final suite/ref-check results and cleanup are recorded in the report's
+verification record. No stores or tokens are retained in the commit; no push.
+
+AP final verification follow-up: tightened serialized read-ahead's cursor-growth
+reservation before final qualification. Three new paired runs measure **17.108 s
+→ 6.942 s (2.46×)**, with the 5× bar now **3.422 s**; the report retains both
+sets and uses the final set. A separate RSS probe is **28.5 MiB → 147 MiB** for
+the whole helper: larger SQLite cache/sorter workspace is the explicit memory
+cost of avoiding WAL/temp churn. Final corpus bytes still match exactly.
+
+AP final suite: **zero failures in 1,991 s** on eb1000. All 299 Rust binaries /
+1,012 executions and doctests pass; all 311 client files pass (6,187 tests and
+11 existing skips), as do 79 serial models and nine fixtures. All build,
+typecheck, docs-budget and release-guard stages pass. An earlier full run caught
+private physical names in phase details and a false unchanged-startup adoption
+announcement; both reporting defects were repaired, passed their 13 focused
+tests, and passed again in the final full run. The final wasm hash still matches
+the baseline exactly. `ref-check --verbose` passes with zero errors or unchecked
+references. Private stores and remaining scratch artifacts were removed; the
+existing adoption-pause ticket stays open for the unmet 5× target. Local commit
+only, with the requested co-author trailer; nothing pushed.

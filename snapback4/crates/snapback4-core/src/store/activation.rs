@@ -64,12 +64,32 @@ impl Store {
     }
 
     pub(crate) fn activate_at_with_launch(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        // The SQLite page cache is a bounded storage-engine workspace, separate
+        // from interpreter payload meters. Keep ordinary/device connections at
+        // their caller's setting; only server activation borrows this allowance.
+        let cache: i64 = self.conn.pragma_query_value(None, "cache_size", |r| r.get(0))?;
+        let resize = programs.is_some() && if cache < 0 { -cache < 65_536 } else { (cache as u64).saturating_mul(self.page_size) < 64 * 1024 * 1024 };
+        if resize { self.conn.pragma_update(None, "cache_size", -65_536)?; }
+        let result = self.activate_transaction(schema, programs, reset, now, allow_launch, build);
+        if resize && let Err(error) = self.conn.pragma_update(None, "cache_size", cache) {
+            // A committed generation must never be reported as a failed adoption
+            // merely because restoring a connection-local tuning hint failed.
+            crate::diagnostic!("snapback4: could not restore activation cache_size: {error}");
+        }
+        result
+    }
+
+    fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        let mut report = super::adoption_report::AdoptionReport::default();
+        let mut phase = std::time::Instant::now();
         if programs.is_some() {
+            if let Some(estimate) = self.adoption_estimate(schema)? {
+                crate::diagnostic!("snapback4: atomic adoption: {}", estimate.summary());
+            }
             let estimates = self.check_timeline_activation_at(schema, now, allow_launch)?;
             for estimate in estimates.iter().filter(|e| e.sources != 0) { crate::diagnostic!("snapback4: atomic feed adoption: {}", estimate.summary()); }
         }
-        let mut report = super::adoption_report::AdoptionReport::default();
-        let mut phase = std::time::Instant::now();
+        report.phase("read-only advice", &mut phase);
         self.check_ownership()?;
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
@@ -107,7 +127,7 @@ impl Store {
         // Repeat source-count admission under the writer lock, before any candidate writes.
         let preflight_catalog = catalog.clone();
         let (launches, sql) = {
-            let preflight = Tx { changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
+            let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
             let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
             let Tx { tx: sql, .. } = preflight;
             (launches, sql)
@@ -121,7 +141,10 @@ impl Store {
                 }
             }
         }
-        let tx = Tx { changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
+        let activation_scan = programs.map(|_| Default::default());
+        #[cfg(test)]
+        let activation_scan = if self.full_adoption { None } else { activation_scan };
+        let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();
@@ -137,18 +160,26 @@ impl Store {
             if tx.has_sequence_table()? { tx.tx.execute_batch("DELETE FROM _sequences;")?; }
         }
         if schema_changed && programs.is_some() && !reset {
+            let started = std::time::Instant::now();
             let previous: Option<String> = tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
             let shortened = crate::engine::through_activation::activate(&tx,schema,previous.as_ref(),now)?;
             tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
+            report.detail("read-through retirement", started);
         }
         if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
         if schema_changed && programs.is_some() {
+            let started = std::time::Instant::now();
             super::timeline_launch::build(&tx, schema, &launches, now)?;
+            report.detail("feed launch", started);
+            let started = std::time::Instant::now();
             super::event_slots::fill(&tx, schema, now)?;
+            report.detail("event slot fill", started);
+            let started = std::time::Instant::now();
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));
             }
+            report.detail("successor assessment", started);
         }
         let previous: Option<Schema> = if schema_changed && programs.is_some() && !reset {
             tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
@@ -159,6 +190,16 @@ impl Store {
         let plans = super::activation_plan::plans(schema, previous.as_ref());
         report.phase("preflight", &mut phase);
         if schema_changed {
+            // @ref LLP 3000.000#implementation-follow-up — keys are still evaluated,
+            // admitted and published in this transaction. Spill the key stream to
+            // SQLite's temporary store, then insert in B-tree order instead of
+            // repeatedly dirtying scattered main-database pages for every row.
+            let ordered = programs.is_some() && plans.values().any(|plan| !plan.indexes.is_empty());
+            #[cfg(test)]
+            let ordered = ordered && !self.full_adoption;
+            if ordered {
+                tx.tx.execute_batch("CREATE TEMP TABLE _adoption_index (ti INTEGER NOT NULL, k BLOB NOT NULL, id TEXT NOT NULL);")?;
+            }
             // Removed names retain only their catalog number, never live row
             // images. Reintroducing a name starts empty, without resurrection.
             let active: BTreeSet<String> = schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()).flat_map(|(t, def)| std::iter::once(t.clone()).chain(def.indexes.keys().map(move |i| format!("{t}.{i}")))).collect();
@@ -178,14 +219,17 @@ impl Store {
                     timeline.name == launch.name && ["Posts", "Work", "Edges", "Feed"].iter()
                         .any(|suffix| timeline.table(suffix) == *name))) { continue; }
                 if !plan.project && plan.indexes.is_empty() { continue; }
+                let started = std::time::Instant::now();
                 for index in &plan.indexes { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
-                walk_metered(&tx, t, work, |row| if work.index_entries != 0 { crate::rows::adoption::contribution_bytes(row, table) } else { crate::value::InternalPrice::zero() }, |id, mut row, contribution_meter| {
-                    let original = row.clone();
-                    if plan.project { if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); } }
+                let scratch = |row: &Value| crate::rows::adoption::contribution_bytes(row, table);
+                walk_metered(&tx, t, work, if work.index_entries != 0 { Some(&scratch) } else { None }, |id, mut row, contribution_meter| {
+                    let keep = |column: &str| table.columns.contains_key(column) || (programs.is_none() && column == "pending");
+                    let project = plan.project && row.as_object().is_ok_and(|fields| fields.keys().any(|column| !keep(column)));
                     // Persist only a destructive projection. Defaults and
                     // optionals are an interpretation of the stored image.
-                    if row != original {
+                    if project {
+                        if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| keep(column)); }
                         tx.tx.execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
                     }
                     materialize_optional_fields(&mut row, table);
@@ -209,12 +253,21 @@ impl Store {
                                 return Err(crate::rows::index_key_refusal(name, index_name, 1));
                             }
                             if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
-                            tx.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![catalog[&format!("{name}.{index_name}")], key, id])?;
+                            let insert = if ordered { "INSERT INTO temp._adoption_index(ti, k, id) VALUES (?1, ?2, ?3)" }
+                                else { "INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)" };
+                            tx.tx.prepare_cached(insert)?.execute(params![catalog[&format!("{name}.{index_name}")], key, id])?;
                         }
                         contribution_meter.release_heap(scratch);
                     }
                     Ok(())
                 })?;
+                let label = super::adoption_report::table_label(schema, name);
+                report.detail(format!("project/index {label} ({} indexes)", plan.indexes.len()), started);
+            }
+            if ordered {
+                let started = std::time::Instant::now();
+                tx.tx.execute_batch("INSERT INTO main.i(ti, k, id) SELECT ti, k, id FROM temp._adoption_index ORDER BY ti, k; DROP TABLE temp._adoption_index;")?;
+                report.detail("ordered index insertion", started);
             }
         }
         report.phase("project and index", &mut phase);
@@ -287,7 +340,8 @@ impl Store {
         report.phase("metadata", &mut phase);
         tx.commit()?;
         report.phase("commit", &mut phase);
-        self.adoption_report = report;
+        // Reopening an unchanged backend must not announce a new adoption.
+        self.adoption_report = if changed || reset { report } else { Default::default() };
         // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
         catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
         self.catalog = catalog;

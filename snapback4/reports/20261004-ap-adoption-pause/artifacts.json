@@ -1,0 +1,11 @@
+{
+  "baseline_commit": "2154dc163dc42e1808f12ef32e9468b2889407a3",
+  "build_profile": "production (CLI smoke used release)",
+  "sqlite_flags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "sha256": {
+    "before_helper": "eccc4265f4f30a9ffb8ddc0df72e9f1be2f5ce7e81860e146a04bf18413f28da",
+    "after_helper": "3888c081729cd64da696cfb627d7d7956028c970d9e0103f56c01fded7fb4cf1",
+    "before_cli": "bd899bd4cab6d886b006a41556947f630ca016b950f9f436753972e7dbbd01b1",
+    "wasm": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1"
+  }
+}

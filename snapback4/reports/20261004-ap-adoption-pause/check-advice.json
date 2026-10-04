@@ -1,0 +1,14 @@
+[
+  {
+    "code": "N_ADOPTION_PAUSE",
+    "guide": "maintains",
+    "mechanical": false,
+    "message": "estimated write pause 3.94\u201326.30 s using measured eb1000 release rates (not a host/load SLO); source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; payload width, token fanout, group distribution and WAL/storage affect the actual time",
+    "rewrite": "plan this atomic activation's write pause; queries retain the predecessor snapshot; the adoption line reports measured phases after commit",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 1
+    }
+  }
+]

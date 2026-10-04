@@ -3,6 +3,29 @@ use super::*;
 const ADOPTION_SOURCE: &str = "table expiring:\n  expiresAt: time ?\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- allow\nquery version():\n  return 1\n";
 
 #[test]
+fn populated_adoption_preview_is_read_only_and_names_its_measured_rate() {
+    let p = Project::new();
+    drop(p.seed(&p.store(), 7));
+    p.source(&format!("{SOURCE}view counts: count messages by .body\n"));
+    let paths = [p.store(), PathBuf::from(format!("{}-wal", p.store().display()))];
+    // A read-only WAL connection may create an empty sidecar. Compare bytes,
+    // treating absent and empty WAL as the same absence of written frames.
+    let before: Vec<_> = paths.iter().map(|p| fs::read(p).unwrap_or_default()).collect();
+    let output = p.run(&["check", "--json"]);
+    assert!(output.status.success(), "{output:?}");
+    let data = parsed(&output);
+    let note = data["notes"].as_array().unwrap().iter().find(|n| n["code"] == "N_ADOPTION_PAUSE").unwrap();
+    let text = note["message"].as_str().unwrap();
+    assert!(text.contains("messages=7") && text.contains("eb1000") && text.contains("not a host/load SLO"), "{text}");
+    for (path, bytes) in paths.iter().zip(before) { assert_eq!(fs::read(path).unwrap_or_default(), bytes, "{} changed", path.display()); }
+    let fresh = Project::new();
+    fresh.source(&format!("{SOURCE}view counts: count messages by .body\n"));
+    let output = fresh.run(&["check", "--json"]);
+    assert!(output.status.success());
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("N_ADOPTION_PAUSE"));
+}
+
+#[test]
 fn w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save() {
     let p = Project::new(); p.source(ADOPTION_SOURCE);
     let host = AdoptionHost::start(&p, true);
@@ -84,4 +107,3 @@ fn w8c_startup_waits_for_the_adoption_lock_to_clear() {
     assert_eq!(host.query()["data"], 1);
     println!("adoption: startup_retries=1 recovered_generation=1 restarts=0");
 }
-

@@ -1,0 +1,1 @@
+snapback4: startup schema adopted as generation 5; rebuilt dailyLikes (5008 source rows, 31.683 ms), dailyPosts (50228 source rows, 186.329 ms), originalPostCounts (50228 source rows, 179.813 ms), receivedLikes (5008 source rows, 29.958 ms), receivedReplies (50228 source rows, 162.898 ms), receivedReposts (1004 source rows, 14.521 ms), unread (227989 source rows, 3047.997 ms)

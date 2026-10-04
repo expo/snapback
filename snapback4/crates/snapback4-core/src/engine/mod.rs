@@ -630,13 +630,13 @@ impl Engine {
             let columns = column_activation::changed_parents(schema, previous.as_ref());
             if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
             let seq = tx.next_seq()?;
-            let mut phase = std::time::Instant::now();
+            let phase = std::time::Instant::now();
             if attribution {
                 // This runner owns only activation rewrites; ordinary rebuilds
                 // below retain their commit and partition accounting.
                 let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-                capture.capture_activation(previous.as_ref())?;
-                report.phase("capture recorded paths", &mut phase);
+                capture.capture_activation(previous.as_ref(), Some(report))?;
+                report.detail("capture recorded paths", phase);
                 capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);

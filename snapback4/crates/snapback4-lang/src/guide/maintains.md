@@ -46,10 +46,10 @@ A maintained view has rows `{ id, <group columns>, value }`. A full group key re
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
-During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait for
-adoption, then execute once. Dev and serve report rebuilt view names, source
-row counts and milliseconds. A failed or interrupted adoption keeps the previous
-backend; restart retries the complete build.
+During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait, then execute once.
+`check` reports N_ADOPTION_PAUSE on populated stores; dev and deploy print the estimate before activating. Source counts predict a write-pause range at measured eb1000 release rates, not an SLO for your host or load. Plan the write pause before adopting.
+Payload width, index token fanout, member distribution and WAL/storage change the actual time. The adoption line reports phases, capture fills and rebuilt views with source visits and milliseconds; nested details are included in their parent phase.
+A failed or interrupted adoption keeps the previous backend; restart retries the complete build.
 Signed-in `GET /changes` waits for the whole adoption because reconnecting
 requires a durable presence write. That wait grows with the store; it is not
 bounded by a rebuild chunk. Query and sync reads have reserved admission capacity
