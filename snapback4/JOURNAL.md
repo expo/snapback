@@ -86616,3 +86616,94 @@ from affected tables' time-dependent deletion subsets. Both pauses remain
 unestimated. Guide card line counts and activation behavior are unchanged.
 All 112 guide tests pass, including card budgets; `ref-check --verbose` reports
 zero errors and unchecked references, and `git diff --check` passes.
+
+## 2026-10-04 — RH: retained history cannot publish an ahead empty server page
+
+Closed the retained-history transient-empty ticket. A leave could commit at
+server sequence 5 while the device still held 25 current rows at watermark 4;
+the ordinary unknown-coverage fallback published the authorized server empty
+before the device applied the leave and routed to retained history.
+
+Held-apply tests reproduce that order on both wasm and process without load:
+the unchanged router failed all ten repetitions per host. The router now
+compares retention-sensitive whole-server replies with applied device state.
+Ahead empty/structured replies preserve permitted local history as incomplete
+and stale, or loading; positive server pages remain useful provisionally.
+Sync reroutes after application, including an empty catch-up page. Known
+retained compositions retain current-row refresh and value deadlines; explicit
+refusals and every publication fence remain authoritative. No new polling,
+catch-up wait, delivery authority or retention allowance was added.
+
+The original R5 no-empty assertion remains. Six real-host cases cover held
+leave, stalled leave and empty catch-up; 36 evaluator cases cover routing,
+fast paths, cache custody and await fences. The complete retention file passed
+**30/30 under four CPUs plus one CPU hog: 2,220 cases**. Routing/publication
+checks passed 342/342; decorated/ordinary-history checks 107/107; reset checks
+60/60. The full suite passed with **zero failures in 2,251 seconds**, including
+all 312 client files and both full-count models. A separate inherited expiry
+fixture race was proved on the base (3/100) and isolated by parking its feed
+from startup, preserving explicit sync and the strict two-evaluation assertion.
+R5 and RH continue using the live feed. Reset mocks now include their real
+protocol counterpart's sequence; their assertions are unchanged.
+
+Ordinary complete-local and online-only paths add no device calls. Paired
+600-trial-per-host/mode measurements show pooled ordinary p50 shifts of at most
+0.14 ms; the uncertain retained fallback's time to a complete answer is
+measured separately. Wasm stays **639,750 B gzip / 639,887 B budget**, preserving
+the full 130 B macOS allowance. Sampled worktree usage stayed below 16 GB.
+Only eb1000 and this worktree were used; no push or publication.
+
+Updated LLP 3000.028 §3.2 with matching pointers in LLP 3000.013 and 3000.001.
+The [report](./reports/20261004-rh-retained-history-order/REPORT.md) holds source
+hashes, raw qualification/latency evidence and the diagnostic failures corrected
+before the final run. [Resolved ticket](../issues/closed/20260929-snapback4-retained-history-transient-empty.md).
+
+## 2026-10-04 — RH round 1: bind retained routing to the evaluation transaction
+
+Astra rejected round 0's transport-cut shortcut: a different process could
+apply leave after local evaluation without advancing this reader's authority
+revision. Ordinary non-blank search also had a separate unguarded publication
+path. Both defects reproduce on wasm and process without load. The rebuilt
+round-0 SDK/devices fail all 50 causal controls, including compositions that
+switch to a whole-server route or retain one sibling while another leaves.
+
+Query replies now carry the applied watermark from their read transaction.
+Whole-server routing uses that evaluation's cut, including the second
+observation of a composition. Empty server sibling arrays cannot erase
+permitted device rows while their retained route is unresolved. Search state
+carries its transaction cut and current scopes; the authorized server scope
+opening can prove ordinary routing unchanged without another device call.
+Otherwise search keeps matching rows provisional, or uses its existing bounded
+loading/refusal path. It issues no second HTTP request or continuation and
+resumes one shared meter. Original refusals and publication fences remain.
+
+Updated LLP 3000.028 §§3.2–3.3 and LLP 3000.013 §13.2, corrected the round-0
+report's same-owner assumption, and extended the ticket resolution. The
+[Round 1 report](./reports/20261004-rh-retained-history-order/REPORT.md#round-1--evaluation-cuts-and-ordinary-search)
+records the complete qualification, diagnostics and baseline artifacts.
+
+The final device is 2,117,335 B raw / **639,810 B gzip**, **+60 B gzip** versus
+round 0. Raise the ratchet by **53 B to 639,940 B**, exactly the measured Linux
+artifact plus the retained **130 B macOS allowance**. The new transaction and
+search routing metadata needs these bytes; no runtime ceiling changes.
+Search scope encoding reuses the existing string serializer. An inherited
+attribution omission, independently reproduced on round 0, now admits only the
+`i64` dynamic-envelope scalar; typed containers and non-text decoders remain
+refused. Family/absence checks and the wasm measurement pass on eb1000.
+
+Paired full-artifact live measurements cover 600 mutations per host/mode in
+both creation orders, including ordinary search. Safe paths add no awaited
+host call or round trip; ordinary point pooled p50 increases by at most
+0.117 ms. Tail variation and raw paired differences are preserved, rather than
+claiming zero overhead. No other host was used; nothing is pushed.
+
+Final qualification passed: **30/30** four-CPU hog runs, **3,870 case passes**,
+no failures/cancellations/skips; focused routing/query **395/395**; updated
+continuation probes **14/14**. The final full suite is green in **2085 seconds**:
+4,972 Rust tests + 17 doctests, 6,269 client passes (314 files), 9 fixture tests
+and 79 model cases; existing 33 Rust ignores and 11 client skips remain. The
+first full run identified two cursor assertions that expected publication
+before leave apply; their replacements require partial/stale/no-cursor, then
+verify stable current rows and a changed audience after sync. No product bytes
+changed for that correction. Final hashes match the latency/wasm inputs.
+Largest sampled worktree usage was **21.88 GB**, below 40 GB.

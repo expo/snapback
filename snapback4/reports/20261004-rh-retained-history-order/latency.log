@@ -1,0 +1,26 @@
+{"host":"wasm","mode":"known-local","label":"baseline","n":300,"p50":5.852413999999953,"p95":8.159812999999758,"max":41.93896500000005}
+{"host":"wasm","mode":"known-local","label":"fixed","n":300,"p50":6.054116000000249,"p95":8.380964000000176,"max":43.309439999999995}
+✔ wasm known-local: 300 paired mutations (4080.457955ms)
+{"host":"wasm","mode":"server-only-source","label":"baseline","n":300,"p50":7.724911000001157,"p95":12.92699999999968,"max":74.4699870000004}
+{"host":"wasm","mode":"server-only-source","label":"fixed","n":300,"p50":6.193375000000742,"p95":12.934581999999864,"max":70.74765600000046}
+✔ wasm server-only-source: 300 paired mutations (4998.118173ms)
+{"host":"wasm","mode":"current-history-fallback","label":"baseline","n":300,"p50":8.071361000000252,"p95":12.245327999999063,"max":42.56526400000075}
+{"host":"wasm","mode":"current-history-fallback","label":"fixed","n":300,"p50":9.78127399999903,"p95":13.72200200000043,"max":46.71183100000053}
+✔ wasm current-history-fallback: 300 paired mutations (5035.099376ms)
+{"host":"process","mode":"known-local","label":"fixed","n":300,"p50":5.851061999999729,"p95":8.876217000000906,"max":48.65320099999917}
+{"host":"process","mode":"known-local","label":"baseline","n":300,"p50":5.7764700000007,"p95":8.962847999999212,"max":48.42133399999875}
+✔ process known-local: 300 paired mutations (4744.787569ms)
+{"host":"process","mode":"server-only-source","label":"fixed","n":300,"p50":7.9310999999979686,"p95":17.77409699999771,"max":54.28475400000025}
+{"host":"process","mode":"server-only-source","label":"baseline","n":300,"p50":7.803108000000066,"p95":13.184605999998894,"max":43.915719000000536}
+✔ process server-only-source: 300 paired mutations (6075.053671ms)
+{"host":"process","mode":"current-history-fallback","label":"fixed","n":300,"p50":8.595476999998937,"p95":13.384516000001895,"max":70.52841700000135}
+{"host":"process","mode":"current-history-fallback","label":"baseline","n":300,"p50":8.050770000001648,"p95":11.606349999998201,"max":66.2026509999996}
+✔ process current-history-fallback: 300 paired mutations (7191.082397ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32850.413619

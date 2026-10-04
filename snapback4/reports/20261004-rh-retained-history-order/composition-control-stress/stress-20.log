@@ -1,0 +1,40 @@
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (711.359506ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (239.113775ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (272.417943ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH held leave wasm: retained history and independent held coverage (249.556731ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH stalled leave wasm: retained history and independent held coverage (1257.935543ms)
+✔ RH empty catch-up wasm: retained history and independent held coverage (237.2032ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (211.077233ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (225.265313ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1274.662828ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (278.17223ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (283.567528ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (213.071622ms)
+✖ packages/snapback4/test/retained-history.test.mjs (13601.490692ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13607.880281
+
+✖ failing tests:
+
+test at packages/snapback4/test/retained-history.test.mjs:1:1
+✖ packages/snapback4/test/retained-history.test.mjs (13601.490692ms)
+  'Promise resolution is still pending but the event loop has already resolved'

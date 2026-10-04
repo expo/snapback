@@ -1,0 +1,47 @@
+✔ ahead server empty is replaced by permitted partial history, never remembered as absence (3.639724ms)
+✔ stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true} (0.294612ms)
+✔ stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true} (0.28694ms)
+✔ unchanged fast path has no added device call: until-revoked (0.398066ms)
+✔ unchanged fast path has no added device call: online only (0.235122ms)
+✔ unchanged fast path has no added device call: disjoint (0.219039ms)
+✔ unchanged fast path has no added device call: equal cut (0.191187ms)
+✔ unchanged fast path has no added device call: older cut (0.204777ms)
+✔ unchanged fast path has no added device call: complete local (0.170555ms)
+✔ uncertain routing remains provisional: static unexecuted branch (0.423284ms)
+✔ uncertain routing remains provisional: native (0.283725ms)
+✔ uncertain routing remains provisional: missing watermark (0.261111ms)
+✔ uncertain routing remains provisional: invalid watermark (0.217155ms)
+✔ uncertain routing remains provisional: missing sequence (3.432042ms)
+✔ caught-up device reroutes the original fallback: retained partial (0.287821ms)
+✔ caught-up device reroutes the original fallback: retained complete (0.192559ms)
+✔ caught-up device reroutes the original fallback: still current (0.514641ms)
+✔ caught-up device reroutes the original fallback: new composition (0.435523ms)
+✔ caught-up device reroutes the original fallback: new row mask (0.160801ms)
+✔ caught-up device reroutes the original fallback: local refusal (0.190075ms)
+✔ an explicit original-query refusal wins without waiting for the replica (0.179088ms)
+✔ the watermark await preserves the authority publication fence (0.278758ms)
+✔ the watermark await preserves the incarnation publication fence (0.170486ms)
+✔ the watermark await preserves the credentials publication fence (0.895132ms)
+✔ the watermark await preserves the prediction publication fence (0.123095ms)
+✔ the watermark await preserves the abort publication fence (0.417665ms)
+✔ the watermark await preserves the closed publication fence (0.141642ms)
+✔ known retained composition at an ahead cut: rows (0.495672ms)
+✔ known retained composition at an ahead cut: components (0.185809ms)
+✔ known retained composition at an ahead cut: lost retention (0.117576ms)
+✔ known retained composition at an ahead cut: withheld (0.10025ms)
+✔ a rejected watermark read withholds publication (authority changed: false) (0.197867ms)
+✔ a rejected watermark read withholds publication (authority changed: true) (0.112699ms)
+✔ ahead positive server page stays useful and provisional (local rows: 0) (0.197285ms)
+✔ ahead positive server page stays useful and provisional (local rows: 1) (0.110295ms)
+✔ structured empty siblings cannot replace pending local history (0.154342ms)
+✔ dispatch watermark cannot certify an older evaluation from a shared store (0.168753ms)
+✔ a whole-server route after composition binds the second evaluation cut 4 (0.194171ms)
+✔ a whole-server route after composition binds the second evaluation cut 5 (0.214341ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90.563361

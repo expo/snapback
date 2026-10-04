@@ -1,0 +1,18 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import ts from '../../node_modules/typescript/lib/typescript.js';
+const root='snapback4/packages/snapback4/';
+const baseline=!!process.env.RH_BASELINE;
+const old=path=>execFileSync('git',['show',`b9624729aaa5c5d3ed380c247f415e7dc8d56f81:${path}`],{encoding:'utf8'});
+const compile=source=>ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,rewriteRelativeImportExtensions:true}}).outputText;
+if(baseline)writeFileSync(root+'dist/local-query-rh-trace.js',compile(old(root+'src/local-query.ts')));
+let local=(baseline?compile(old(root+'src/local.ts').replace('./local-query.ts','./local-query-rh-trace.ts')):readFileSync(root+'dist/local.js','utf8')).replaceAll('"./local-reads.js"','"./local-reads-rh-trace.js"');
+writeFileSync(root+'dist/local-rh-trace.js',local);
+let reads=readFileSync(root+'dist/local-reads.js','utf8').replace('evidence() { this.revision++; }', 'evidence() { this.revision++; if(globalThis.__rhExpiry) console.error("RH_EVIDENCE", new Error().stack); }');
+writeFileSync(root+'dist/local-reads-rh-trace.js',reads);
+let test=(baseline?old(root+'test/retained-history.test.mjs'):readFileSync(root+'test/retained-history.test.mjs','utf8')).replace('"../dist/local.js"','"../dist/local-rh-trace.js"');
+test=test.replace(/for \(const tier of \["wasm", "process"\]\) for \(const scenario of \[[^\n]+\]\)/,'for (const tier of ["wasm"]) for (const scenario of Array(100).fill("MQ local branch"))');
+test=test.replace('if (++calls === 1) {','if (++calls === 1) { globalThis.__rhExpiry = true;');
+test=test.replace('const result = await pending;\n    assert.equal(calls, 2,','const result = await pending; globalThis.__rhExpiry = false;\n    assert.equal(calls, 2,');
+test=test.replace('const directory = mkdtempSync','t.after(() => { globalThis.__rhExpiry = false; });\n  const directory = mkdtempSync');
+writeFileSync(root+'test/retained-history-rh-control.mjs',test);

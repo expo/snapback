@@ -1,0 +1,188 @@
+✔ MQ local branch wasm: retained history and independent held coverage (715.128938ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.432911ms)
+✔ MQ local branch wasm: retained history and independent held coverage (202.857259ms)
+✔ MQ local branch wasm: retained history and independent held coverage (209.39551ms)
+✔ MQ local branch wasm: retained history and independent held coverage (207.116814ms)
+✔ MQ local branch wasm: retained history and independent held coverage (210.744713ms)
+✔ MQ local branch wasm: retained history and independent held coverage (201.676157ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.448364ms)
+✔ MQ local branch wasm: retained history and independent held coverage (219.689254ms)
+✔ MQ local branch wasm: retained history and independent held coverage (222.295622ms)
+✔ MQ local branch wasm: retained history and independent held coverage (220.391106ms)
+✔ MQ local branch wasm: retained history and independent held coverage (202.482908ms)
+✔ MQ local branch wasm: retained history and independent held coverage (228.001265ms)
+✔ MQ local branch wasm: retained history and independent held coverage (226.220395ms)
+✔ MQ local branch wasm: retained history and independent held coverage (209.26858ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.279841ms)
+✔ MQ local branch wasm: retained history and independent held coverage (220.838837ms)
+✔ MQ local branch wasm: retained history and independent held coverage (218.791077ms)
+✔ MQ local branch wasm: retained history and independent held coverage (199.358684ms)
+✔ MQ local branch wasm: retained history and independent held coverage (213.763439ms)
+✔ MQ local branch wasm: retained history and independent held coverage (210.286547ms)
+✔ MQ local branch wasm: retained history and independent held coverage (194.785427ms)
+✔ MQ local branch wasm: retained history and independent held coverage (217.229405ms)
+✔ MQ local branch wasm: retained history and independent held coverage (228.777419ms)
+✔ MQ local branch wasm: retained history and independent held coverage (229.893492ms)
+✔ MQ local branch wasm: retained history and independent held coverage (220.255983ms)
+✔ MQ local branch wasm: retained history and independent held coverage (207.113539ms)
+✔ MQ local branch wasm: retained history and independent held coverage (229.689766ms)
+✔ MQ local branch wasm: retained history and independent held coverage (227.939402ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.692851ms)
+✔ MQ local branch wasm: retained history and independent held coverage (222.938345ms)
+✔ MQ local branch wasm: retained history and independent held coverage (206.215704ms)
+✔ MQ local branch wasm: retained history and independent held coverage (206.34696ms)
+✔ MQ local branch wasm: retained history and independent held coverage (206.164527ms)
+✔ MQ local branch wasm: retained history and independent held coverage (214.29782ms)
+✔ MQ local branch wasm: retained history and independent held coverage (218.908803ms)
+✔ MQ local branch wasm: retained history and independent held coverage (221.172156ms)
+✔ MQ local branch wasm: retained history and independent held coverage (221.48129ms)
+✔ MQ local branch wasm: retained history and independent held coverage (205.594011ms)
+✔ MQ local branch wasm: retained history and independent held coverage (222.339907ms)
+✔ MQ local branch wasm: retained history and independent held coverage (218.8661ms)
+✔ MQ local branch wasm: retained history and independent held coverage (220.740499ms)
+✔ MQ local branch wasm: retained history and independent held coverage (209.718425ms)
+✔ MQ local branch wasm: retained history and independent held coverage (201.209628ms)
+✔ MQ local branch wasm: retained history and independent held coverage (203.874974ms)
+✔ MQ local branch wasm: retained history and independent held coverage (219.191657ms)
+✔ MQ local branch wasm: retained history and independent held coverage (212.037441ms)
+✔ MQ local branch wasm: retained history and independent held coverage (196.121751ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.880762ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.216247ms)
+✔ MQ local branch wasm: retained history and independent held coverage (235.685766ms)
+✔ MQ local branch wasm: retained history and independent held coverage (236.81591ms)
+✔ MQ local branch wasm: retained history and independent held coverage (201.697029ms)
+✔ MQ local branch wasm: retained history and independent held coverage (214.145943ms)
+✔ MQ local branch wasm: retained history and independent held coverage (217.800082ms)
+✔ MQ local branch wasm: retained history and independent held coverage (217.917287ms)
+✔ MQ local branch wasm: retained history and independent held coverage (208.858015ms)
+✔ MQ local branch wasm: retained history and independent held coverage (224.064663ms)
+✔ MQ local branch wasm: retained history and independent held coverage (219.704677ms)
+✔ MQ local branch wasm: retained history and independent held coverage (205.371297ms)
+✔ MQ local branch wasm: retained history and independent held coverage (188.281657ms)
+✔ MQ local branch wasm: retained history and independent held coverage (266.956758ms)
+✔ MQ local branch wasm: retained history and independent held coverage (196.698936ms)
+✔ MQ local branch wasm: retained history and independent held coverage (200.190661ms)
+✔ MQ local branch wasm: retained history and independent held coverage (210.639145ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (221.510383ms)
+✔ MQ local branch wasm: retained history and independent held coverage (188.244732ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (223.832105ms)
+✔ MQ local branch wasm: retained history and independent held coverage (218.403015ms)
+✔ MQ local branch wasm: retained history and independent held coverage (205.714772ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (220.660089ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (233.02047ms)
+✔ MQ local branch wasm: retained history and independent held coverage (191.849305ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (222.913427ms)
+✔ MQ local branch wasm: retained history and independent held coverage (212.619013ms)
+✔ MQ local branch wasm: retained history and independent held coverage (216.242516ms)
+✔ MQ local branch wasm: retained history and independent held coverage (196.662061ms)
+✔ MQ local branch wasm: retained history and independent held coverage (189.449167ms)
+✔ MQ local branch wasm: retained history and independent held coverage (193.601462ms)
+✔ MQ local branch wasm: retained history and independent held coverage (191.848555ms)
+✔ MQ local branch wasm: retained history and independent held coverage (194.021322ms)
+✔ MQ local branch wasm: retained history and independent held coverage (205.93305ms)
+✔ MQ local branch wasm: retained history and independent held coverage (189.423448ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (227.266894ms)
+✔ MQ local branch wasm: retained history and independent held coverage (270.508763ms)
+✔ MQ local branch wasm: retained history and independent held coverage (193.648262ms)
+✔ MQ local branch wasm: retained history and independent held coverage (197.038705ms)
+✔ MQ local branch wasm: retained history and independent held coverage (212.05015ms)
+✔ MQ local branch wasm: retained history and independent held coverage (214.873904ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (224.874568ms)
+✔ MQ local branch wasm: retained history and independent held coverage (189.840213ms)
+✔ MQ local branch wasm: retained history and independent held coverage (200.705963ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (221.824654ms)
+✔ MQ local branch wasm: retained history and independent held coverage (197.510913ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✔ MQ local branch wasm: retained history and independent held coverage (230.740532ms)
+✔ MQ local branch wasm: retained history and independent held coverage (200.881907ms)
+RH_EVIDENCE Error
+    at LocalReads.evidence (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:153:90)
+    at LocalReads.notified (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-reads-rh-trace.js:166:14)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1077:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/dist/local-rh-trace.js:1108:38
+✖ MQ local branch wasm: retained history and independent held coverage (228.461215ms)
+✔ MQ local branch wasm: retained history and independent held coverage (193.775544ms)
+✔ MQ local branch wasm: retained history and independent held coverage (189.715326ms)
+✔ MQ local branch wasm: retained history and independent held coverage (195.009083ms)
+ℹ tests 100
+ℹ suites 0
+ℹ pass 99
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21971.881631
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/retained-history-rh-control.mjs:117:89
+✖ MQ local branch wasm: retained history and independent held coverage (228.461215ms)
+  AssertionError [ERR_ASSERTION]: one expiry retry, with no unrelated watch invalidation
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/retained-history-rh-control.mjs:414:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

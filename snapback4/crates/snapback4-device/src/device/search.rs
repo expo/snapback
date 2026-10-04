@@ -69,17 +69,20 @@ impl<S: DeviceStore> Device<S> {
             return Err(RuntimeError::Bound { kind, actual: meter.used.output_bytes,
                 ceiling: meter.ceilings.output_bytes, site: "ordinary search state".into() });
         }
+        // @ref LLP 3000.028#3.3 — bind the membership observation to its applied cut.
+        let watermark = meta_u64(&tx, WATERMARK)?;
         tx.rollback()?;
         // Reuse the canonical text codecs instead of instantiating a second
         // typed serializer into JSON Value for the two ledger records.
-        let mut result = serde_json::json!({ "epoch": epoch, "delivery": delivery,
+        let mut result = serde_json::json!({ "epoch": epoch, "delivery": delivery, "watermark": watermark,
             "metered": decoded::<serde_json::Value>(&encoded(&meter.used)?)? });
         // The delivery recheck consumes only the two fences and the receipt.
         // Avoid rebuilding and serializing opening metadata a second time.
         if initial {
-            let left: Vec<_> = groups.get(&plan.table).into_iter().flat_map(|groups| groups.iter())
-                .filter(|(_, state)| **state == history::Membership::Left).map(|(key, _)| key.clone()).collect();
-            result["left"] = serde_json::json!(left);
+            let (left, current): (Vec<_>, Vec<_>) = groups.get(&plan.table).into_iter().flat_map(|groups| groups.iter())
+                .partition(|(_, state)| **state == history::Membership::Left);
+            result["left"] = serde_json::json!(left.into_iter().map(|(key, _)| key.clone()).collect::<Vec<_>>());
+            result["current"] = serde_json::json!(current.into_iter().map(|(key, _)| key.clone()).collect::<Vec<_>>());
             result["ceilings"] = decoded::<serde_json::Value>(&encoded(&Ceilings::default())?)?;
         }
         Ok(result)

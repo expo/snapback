@@ -1,0 +1,801 @@
+WARNING: measuring a dirty source tree; sha identifies the base, not the measured artifact (dirty=true).
+warning: unused imports: `Bounds`, `Dir`, `Maintain`, `MeterKind`, `RuntimeError`, `materialize_optional_fields`, and `value::Value`
+ --> crates/snapback4-core/src/engine/aggregate_expiry.rs:3:21
+  |
+3 | use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Maintain, materialize_optional_fields}, value::Value};
+  |                     ^^^^^^^^^  ^^^^^^^^^^^^          ^^^^^^  ^^^            ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::BTreeMap`
+  --> crates/snapback4-core/src/engine/maintains.rs:13:5
+   |
+13 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `MeterKind`
+ --> crates/snapback4-core/src/engine/columns.rs:6:21
+  |
+6 | use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
+  |                     ^^^^^^^^^
+
+warning: unused import: `Stmt`
+ --> crates/snapback4-core/src/engine/presence.rs:3:45
+  |
+3 | use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
+  |                                             ^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:462:13
+    |
+462 |         let mut unsettled = existing.as_ref().is_none_or(pending);
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:643:25
+    |
+643 |                     let mut unsettled = existing.as_ref().is_some_and(pending);
+    |                         ----^^^^^^^^^
+    |                         |
+    |                         help: remove this `mut`
+
+warning: unused variable: `runner`
+   --> crates/snapback4-core/src/engine/receipts.rs:278:121
+    |
+278 |                     (crate::error::MeterKind::IndexEntries, price[1]), (crate::error::MeterKind::Examined, price[2])], |runner, _| {
+    |                                                                                                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_runner`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `old`
+   --> crates/snapback4-core/src/engine/receipts.rs:268:17
+    |
+268 |             let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_old`
+
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:28:19
+   |
+28 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:40:19
+   |
+40 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:48:18
+   |
+48 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:67:17
+   |
+67 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:76:15
+   |
+76 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:103:15
+    |
+103 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:146:15
+    |
+146 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:166:4
+    |
+166 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:172:15
+    |
+172 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:176:15
+    |
+176 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:187:15
+    |
+187 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:203:15
+    |
+203 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:220:15
+    |
+220 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `session_digest` is never read
+   --> crates/snapback4-core/src/engine/mod.rs:166:16
+    |
+149 | pub struct Context {
+    |            ------- field in this struct
+...
+166 |     pub(crate) session_digest: Option<String>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `asset`, `claim_asset`, and `release_asset` are never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:100:19
+    |
+ 29 | impl<'a> GuardedRows<'a> {
+    | ------------------------ methods in this implementation
+...
+100 |     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
+    |                   ^^^^^
+101 |     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { sel...
+    |                   ^^^^^^^^^^^
+102 |     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #...
+    |                   ^^^^^^^^^^^^^
+
+warning: method `room` is never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:355:19
+    |
+342 | impl InternalMeter<'_> {
+    | ---------------------- method in this implementation
+...
+355 |     pub(crate) fn room(&self, kind: MeterKind, amount: u64) -> bool { self.0.room(kind, amount) }
+    |                   ^^^^
+
+warning: method `timeline_page` is never used
+   --> crates/snapback4-core/src/engine/timeline.rs:318:8
+    |
+ 61 | impl Runner<'_> {
+    | --------------- method in this implementation
+...
+318 |     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> R...
+    |        ^^^^^^^^^^^^^
+
+warning: variant `Purge` is never constructed
+  --> crates/snapback4-core/src/engine/timeline_authority.rs:12:5
+   |
+ 8 | pub(super) enum Authority {
+   |                 --------- variant in this enum
+...
+12 |     Purge(BTreeMap<String, u64>),
+   |     ^^^^^
+
+warning: function `expression_scans` is never used
+   --> crates/snapback4-core/src/ir.rs:640:15
+    |
+640 | pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    |               ^^^^^^^^^^^^^^^^
+
+warning: associated items `zero`, `plus`, and `fits` are never used
+   --> crates/snapback4-core/src/value.rs:428:19
+    |
+427 | impl InternalPrice {
+    | ------------------ associated items in this implementation
+428 |     pub(crate) fn zero() -> Self { Self(0) }
+    |                   ^^^^
+429 |     pub(crate) fn plus(self, other: Self) -> Self { Self(self.0.saturating_add(other.0)) }
+    |                   ^^^^
+...
+432 |     pub(crate) fn fits(&self, meter: &crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> bool { meter.room(crat...
+    |                   ^^^^
+
+warning: `snapback4-core` (lib) generated 30 warnings (run `cargo fix --lib -p snapback4-core` to apply 8 suggestions)
+    Finished `wasm` profile [optimized] target(s) in 0.05s
+Shallow bytes; debug/name sections excluded (symbol-bearing pre-bindgen module).
+       bytes   share  class
+      509258  19.07%  serde deserialize
+       85690   3.21%  serde serialize
+       52905   1.98%  serde_json own code
+      464969  17.41%  std generics over Snapback types
+      155303   5.81%  B-trees over std-only types
+      596462  22.33%  snapback4-core own code
+      233340   8.74%  snapback4-device own code
+      101342   3.79%  .rodata
+      471875  17.67%  everything else
+2671144 total attributed bytes
+175443 B non-debug custom metadata included in everything else
+BTreeMap/BTreeSet: 516983 B; 2918 distinct generic items
+slice-sort: 87269 B; 317 distinct generic items
+25 largest generic instantiations:
+29309 B  <snapback4_core::engine::runner::Runner>::statements::{closure#0}
+28926 B  <snapback4_core::engine::runner::Runner>::row_changed
+24859 B  <snapback4_core::engine::runner::Runner>::insert_attempt
+19251 B  snapback4_device::call::call::<snapback4_device::memory::MemoryStore>::{closure#0}
+13552 B  <snapback4_core::engine::runner::Runner>::scan_consumed
+13424 B  <snapback4_core::engine::runner::Runner>::merge_with_words
+11943 B  <snapback4_core::engine::runner::Runner>::expr
+11411 B  <snapback4_core::engine::runner::Runner>::builtin
+10600 B  <snapback4_device::device::Device<snapback4_device::memory::MemoryStore>>::apply_publication_inner
+9704 B  <snapback4_core::engine::runner::Runner>::merge_lazy
+9653 B  <snapback4_core::engine::runner::Runner>::get_prepared
+9394 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_device::device::StreamPage as serde_core::de::Deserialize>::deserialize::__Visitor>
+8619 B  <snapback4_core::engine::runner::Runner>::discover_words
+7311 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Maintain as serde_core::de::Deserialize>::deserialize::__Visitor>
+6940 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Table as serde_core::de::Deserialize>::deserialize::__Visitor>
+6672 B  <snapback4_device::device::Device<snapback4_device::memory::MemoryStore>>::delivery
+6671 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::ir::Scan as serde_core::de::Deserialize>::deserialize::__Visitor>
+6655 B  snapback4_device::device::store_identity::observe::<snapback4_device::memory::MemoryTx>
+6449 B  <alloc::vec::Vec<snapback4_core::ir::Stmt> as core::clone::Clone>::clone
+6384 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::capabilities::Wire>::deserialize::__Visitor>
+6354 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::timeline::Timeline as serde_core::de::Deserialize>::deserialize::__Visitor>
+6164 B  <snapback4_core::engine::runner::Runner>::probe_witness_uncached
+5922 B  <snapback4_core::engine::runner::Runner>::check_constraints
+5798 B  <snapback4_device::memory::MemoryStore as snapback4_device::store::DeviceStore>::install
+5660 B  <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Execution as serde_core::de::Deserialize>::deserialize::__Visitor>
+Derived serde family census (surviving symbols, shallow bytes; inlined bodies have no independent size):
+(_, _, _, _, _, _, _) deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2793 B)
+(_, _, _, _, _, _) deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1121 B)
+(_, _, _) deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1522 B)
+(_, _) deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2601 B)
+() deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (12 B)
+[u64; 7usize] serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (204 B)
+&alloc::string::String serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (34 B)
+&snapback4_core::ir::Program serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+&snapback4_core::schema::routes::RouteSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+&snapback4_core::schema::work::ActionSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+&snapback4_core::schema::work::WorkSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+&snapback4_core::value::Value serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+DUPLICATE &str serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (22 B), serde_json::value::ser::Serializer (22 B)
+<<<snapback4_core::ir::ArgType as serde_core::de::Deserialize>::deserialize::__Visitor as serde_core::de::Visitor>::visit_enum::__Visitor as serde_core::de::Visitor>::visit_map::__DeserializeWith deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (100 B)
+<<snapback4_core::value::Value as serde_core::de::Deserialize>::deserialize::__Visitor as serde_core::de::Visitor>::visit_enum::__DeserializeWith deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (93 B)
+<snapback4_device::device::Backend as serde_core::de::Deserialize>::deserialize::Wire deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1972 B)
+<snapback4_device::memory::MemoryStore>::load::Seq deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (952 B)
+<snapback4_device::opening::Opening>::parse::Initial deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1285 B)
+alloc::boxed::Box<snapback4_core::ir::ArgType> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (121 B)
+alloc::boxed::Box<snapback4_core::ir::ArgType> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+alloc::boxed::Box<snapback4_core::ir::Expr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (72 B)
+alloc::boxed::Box<snapback4_core::ir::Expr> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+alloc::boxed::Box<snapback4_core::maintain::Predicate> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (111 B)
+alloc::boxed::Box<snapback4_core::maintain::Predicate> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+alloc::boxed::Box<snapback4_core::schema::ColumnType> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (73 B)
+alloc::boxed::Box<snapback4_core::schema::ColumnType> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+alloc::boxed::Box<snapback4_core::schema::Maintain> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (122 B)
+alloc::boxed::Box<snapback4_core::schema::RuleExpr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (121 B)
+alloc::boxed::Box<str> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (141 B)
+alloc::collections::btree::map::BTreeMap<_, _> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (16878 B)
+alloc::collections::btree::set::BTreeSet<_> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1172 B)
+alloc::rc::Rc<str> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (118 B)
+alloc::string::String deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (126 B)
+DUPLICATE alloc::string::String serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (66 B), serde_json::value::ser::Serializer (22 B)
+alloc::vec::Vec<(alloc::string::String, snapback4_core::schema::reference::RuleTerm)> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (678 B)
+alloc::vec::Vec<alloc::string::String> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (645 B)
+alloc::vec::Vec<alloc::vec::Vec<serde_json::value::Value>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (671 B)
+alloc::vec::Vec<serde_json::value::Value> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (669 B)
+alloc::vec::Vec<snapback4_core::cursor::CursorColumn> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (664 B)
+alloc::vec::Vec<snapback4_core::ir::Expr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (681 B)
+alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (690 B)
+alloc::vec::Vec<snapback4_core::ir::MergeLane> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (693 B)
+alloc::vec::Vec<snapback4_core::ir::Program> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (693 B)
+alloc::vec::Vec<snapback4_core::ir::SortKey> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (680 B)
+alloc::vec::Vec<snapback4_core::ir::Stmt> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (678 B)
+alloc::vec::Vec<snapback4_core::schema::Component> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (695 B)
+alloc::vec::Vec<snapback4_core::schema::Constraint> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (702 B)
+alloc::vec::Vec<snapback4_core::schema::delivery::DeliveryBinding> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (678 B)
+alloc::vec::Vec<snapback4_core::schema::IndexComponent> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (675 B)
+alloc::vec::Vec<snapback4_core::schema::Maintain> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (693 B)
+alloc::vec::Vec<snapback4_core::schema::receipts::ReceiptFamily> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (678 B)
+alloc::vec::Vec<snapback4_core::schema::reference::RuleTerm> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (678 B)
+alloc::vec::Vec<snapback4_core::schema::ResidencySite> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (681 B)
+alloc::vec::Vec<snapback4_core::schema::RuleExpr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (681 B)
+alloc::vec::Vec<snapback4_core::schema::Schedule> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (696 B)
+alloc::vec::Vec<snapback4_core::schema::timeline::Timeline> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (681 B)
+alloc::vec::Vec<snapback4_core::value::Value> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (641 B)
+alloc::vec::Vec<snapback4_core::wire::Acquisition> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (675 B)
+alloc::vec::Vec<snapback4_device::device::StreamEvent> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (694 B)
+alloc::vec::Vec<snapback4_device::memory::Change> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (673 B)
+alloc::vec::Vec<usize> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (656 B)
+bool deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (14 B)
+bool serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+core::option::Option<[u32; 4usize]> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (241 B)
+core::option::Option<[u64; 7usize]> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (239 B)
+core::option::Option<alloc::boxed::Box<snapback4_core::ir::ArgType>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (179 B)
+core::option::Option<alloc::boxed::Box<snapback4_core::ir::Expr>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (179 B)
+core::option::Option<alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::vec::Vec<alloc::vec::Vec<serde_json::value::Value>>>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (241 B)
+core::option::Option<alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::ir::ArgType>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (241 B)
+core::option::Option<alloc::string::String> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (225 B)
+core::option::Option<alloc::string::String> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (36 B)
+core::option::Option<alloc::vec::Vec<alloc::string::String>> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (225 B)
+core::option::Option<bool> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (224 B)
+core::option::Option<i64> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (228 B)
+core::option::Option<serde_json::value::Value> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1526 B)
+core::option::Option<snapback4_core::cursor::CursorScope> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (215 B)
+core::option::Option<snapback4_core::ir::Expr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (218 B)
+core::option::Option<snapback4_core::ir::LaneSource> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (221 B)
+core::option::Option<snapback4_core::ir::Range> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (241 B)
+core::option::Option<snapback4_core::ir::ViewPosition> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (232 B)
+core::option::Option<snapback4_core::ir::WriteCondition> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (221 B)
+core::option::Option<snapback4_core::maintain::Predicate> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (220 B)
+core::option::Option<snapback4_core::maintain::Predicate> serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (36 B)
+core::option::Option<snapback4_core::maintain::row_key::RowKey> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (221 B)
+core::option::Option<snapback4_core::schema::columns::ColumnOwner> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (232 B)
+core::option::Option<snapback4_core::schema::ephemeral::Ephemeral> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (228 B)
+core::option::Option<snapback4_core::schema::Horizon> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (225 B)
+core::option::Option<snapback4_core::schema::RuleExpr> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (218 B)
+core::option::Option<snapback4_core::schema::SearchComposition> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (221 B)
+core::option::Option<snapback4_core::schema::Sync> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (220 B)
+core::option::Option<snapback4_core::schema::TextFormat> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (224 B)
+core::option::Option<snapback4_core::schema::through::Through> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (220 B)
+core::option::Option<snapback4_core::value::Value> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (229 B)
+core::option::Option<snapback4_device::device::ReceiptStore> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (245 B)
+core::option::Option<u64> deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (228 B)
+i64 deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (422 B)
+DUPLICATE i64 serialize: serde_json::value::ser::Serializer (17 B), serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+DUPLICATE serde_json::number::Number serialize: serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter> (295 B), serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter, serde_json::ser::PrettyFormatter> (295 B), serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (221 B), serde_json::value::ser::Serializer (76 B)
+serde_json::value::Value deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2074 B)
+DUPLICATE serde_json::value::Value serialize: serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter, serde_json::ser::PrettyFormatter> (532 B), serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter> (500 B), serde_json::value::ser::Serializer (455 B), serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (764 B)
+snapback4_core::cursor::CursorColumn deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1548 B)
+snapback4_core::cursor::CursorColumn serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::cursor::CursorScope deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1803 B)
+snapback4_core::cursor::CursorScope serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (208 B)
+snapback4_core::engine::components::Coverage serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (236 B)
+snapback4_core::engine::ReadCut serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (32 B)
+snapback4_core::error::Refusal serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (484 B)
+snapback4_core::ir::ArgType deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (13169 B)
+snapback4_core::ir::ArgType serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (1639 B)
+snapback4_core::ir::BinaryOp deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1117 B)
+snapback4_core::ir::BinaryOp serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (264 B)
+snapback4_core::ir::Bound deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2314 B)
+snapback4_core::ir::Bound serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (409 B)
+snapback4_core::ir::Builtin deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (12654 B)
+snapback4_core::ir::Builtin serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (1574 B)
+snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11859 B)
+snapback4_core::ir::Expr serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (1778 B)
+snapback4_core::ir::IndexKeyExpr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (983 B)
+snapback4_core::ir::IndexKeyExpr serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (63 B)
+snapback4_core::ir::Input deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (813 B)
+snapback4_core::ir::Input serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (95 B)
+snapback4_core::ir::KeyProvenance deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (851 B)
+snapback4_core::ir::KeyProvenance serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (116 B)
+snapback4_core::ir::LaneSource deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1102 B)
+snapback4_core::ir::LaneSource serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (359 B)
+snapback4_core::ir::LoopDomain deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (7840 B)
+snapback4_core::ir::LoopDomain serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (829 B)
+snapback4_core::ir::Merge deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (3413 B)
+snapback4_core::ir::Merge serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (351 B)
+snapback4_core::ir::MergeLane deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (4354 B)
+snapback4_core::ir::MergeLane serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (444 B)
+snapback4_core::ir::Order deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (730 B)
+snapback4_core::ir::Order serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (50 B)
+snapback4_core::ir::Program deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (3075 B)
+snapback4_core::ir::Program serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (338 B)
+snapback4_core::ir::ProgramKind deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (813 B)
+snapback4_core::ir::ProgramKind serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (95 B)
+snapback4_core::ir::Range deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1678 B)
+snapback4_core::ir::Range serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (218 B)
+snapback4_core::ir::Read deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2983 B)
+snapback4_core::ir::Read serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (246 B)
+snapback4_core::ir::Recurse deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (3980 B)
+snapback4_core::ir::Recurse serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (330 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (6693 B), serde map replay (LaneSource first key) (4603 B)
+snapback4_core::ir::Scan serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (657 B)
+snapback4_core::ir::SortKey deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1539 B)
+snapback4_core::ir::SortKey serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (208 B)
+snapback4_core::ir::Stmt deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (33617 B)
+snapback4_core::ir::Stmt serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (2527 B)
+snapback4_core::ir::UnaryOp deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (730 B)
+snapback4_core::ir::UnaryOp serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (32 B)
+snapback4_core::ir::ViewPosition deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1882 B)
+snapback4_core::ir::ViewPosition serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (218 B)
+snapback4_core::ir::WriteCondition deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2136 B)
+snapback4_core::ir::WriteCondition serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (192 B)
+snapback4_core::json_codec::validate_text::Checked deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1080 B)
+snapback4_core::maintain::CalendarKey deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2190 B)
+snapback4_core::maintain::CalendarKey serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (236 B)
+snapback4_core::maintain::Operand deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1031 B)
+snapback4_core::maintain::Operand serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (50 B)
+snapback4_core::maintain::Predicate deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5192 B)
+snapback4_core::maintain::Predicate serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (675 B)
+snapback4_core::maintain::row_key::RowKey deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (3505 B)
+snapback4_core::maintain::row_key::RowKey serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (248 B)
+snapback4_core::meter::Ceilings serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (302 B)
+snapback4_core::meter::Metered deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2421 B)
+snapback4_core::schema::Audience deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (3145 B)
+snapback4_core::schema::Audience serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (269 B)
+snapback4_core::schema::Auth deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1136 B)
+snapback4_core::schema::Auth serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::ColumnDefault deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (919 B)
+snapback4_core::schema::ColumnDefault serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (83 B)
+snapback4_core::schema::columns::ColumnOwner deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1605 B)
+snapback4_core::schema::columns::ColumnOwner serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::ColumnType deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (12317 B)
+snapback4_core::schema::ColumnType serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (1527 B)
+snapback4_core::schema::Component deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1577 B)
+snapback4_core::schema::Component serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::Constraint deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (9113 B)
+snapback4_core::schema::Constraint serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (978 B)
+snapback4_core::schema::delivery::DeliveryBinding deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1587 B)
+snapback4_core::schema::delivery::DeliveryBinding serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (376 B)
+snapback4_core::schema::ephemeral::Ephemeral deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (952 B)
+snapback4_core::schema::ephemeral::Ephemeral serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (134 B)
+snapback4_core::schema::Execution deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5682 B)
+snapback4_core::schema::Execution serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (845 B)
+snapback4_core::schema::field_authority::FieldAuthority deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1267 B)
+snapback4_core::schema::field_authority::FieldAuthority serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (180 B)
+snapback4_core::schema::Horizon deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1317 B)
+snapback4_core::schema::Horizon serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::Index deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1306 B)
+snapback4_core::schema::Index serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::IndexComponent deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2973 B)
+snapback4_core::schema::IndexComponent serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (594 B)
+snapback4_core::schema::LeavePolicy deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (730 B)
+snapback4_core::schema::LeavePolicy serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (50 B)
+snapback4_core::schema::Maintain deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (7333 B)
+snapback4_core::schema::Maintain serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (635 B)
+snapback4_core::schema::MaintainKind deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1917 B)
+snapback4_core::schema::MaintainKind serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (170 B)
+snapback4_core::schema::receipts::ReceiptFamily deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1761 B)
+snapback4_core::schema::receipts::ReceiptFamily serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (651 B)
+snapback4_core::schema::RecordedField deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2212 B)
+snapback4_core::schema::RecordedField serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (190 B)
+snapback4_core::schema::reference::RuleTerm deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (4177 B)
+snapback4_core::schema::reference::RuleTerm serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (371 B)
+snapback4_core::schema::reservations::WriteReservation deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2037 B)
+snapback4_core::schema::reservations::WriteReservation serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (263 B)
+snapback4_core::schema::Residency deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1282 B)
+snapback4_core::schema::Residency serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (249 B)
+snapback4_core::schema::ResidencySite deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (4030 B)
+snapback4_core::schema::ResidencySite serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (303 B)
+snapback4_core::schema::routes::RouteSpec deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2406 B)
+snapback4_core::schema::routes::RouteSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (242 B)
+snapback4_core::schema::RuleExpr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11262 B)
+snapback4_core::schema::RuleExpr serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (1346 B)
+snapback4_core::schema::Rules deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2684 B)
+snapback4_core::schema::Rules serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (221 B)
+snapback4_core::schema::Schedule deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2476 B)
+snapback4_core::schema::Schedule serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (269 B)
+snapback4_core::schema::Schema deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1465 B)
+snapback4_core::schema::Schema serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (655 B)
+snapback4_core::schema::SearchComposition deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (4890 B)
+snapback4_core::schema::SearchComposition serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (362 B)
+snapback4_core::schema::SiteClass deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (775 B)
+snapback4_core::schema::SiteClass serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (74 B)
+snapback4_core::schema::Sync deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1689 B)
+snapback4_core::schema::Sync serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (185 B)
+snapback4_core::schema::Table deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (6962 B)
+snapback4_core::schema::Table serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (798 B)
+snapback4_core::schema::TextFormat deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (730 B)
+snapback4_core::schema::TextFormat serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (50 B)
+snapback4_core::schema::through::Through deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2961 B)
+snapback4_core::schema::through::Through serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (246 B)
+snapback4_core::schema::timeline::Timeline deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (6376 B)
+snapback4_core::schema::timeline::Timeline serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (555 B)
+snapback4_core::schema::UniqueRefusal deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1605 B)
+snapback4_core::schema::UniqueRefusal serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::work::ActionSpec deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1871 B)
+snapback4_core::schema::work::ActionSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::schema::work::WorkPolicy deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1567 B)
+snapback4_core::schema::work::WorkPolicy serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (218 B)
+snapback4_core::schema::work::WorkSpec deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1591 B)
+snapback4_core::schema::work::WorkSpec serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_core::value::ObjectFields deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (92 B)
+DUPLICATE snapback4_core::value::ObjectFields serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (20 B), serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter> (20 B)
+snapback4_core::value::Value deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2351 B)
+DUPLICATE snapback4_core::value::Value serialize: serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter> (1077 B), serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (822 B)
+snapback4_core::wire::Acquisition deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2723 B)
+snapback4_device::call::PageArgument deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2415 B)
+snapback4_device::device::Backend deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2355 B)
+snapback4_device::device::Backend serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (191 B)
+snapback4_device::device::deferred::RowEffect deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1942 B)
+snapback4_device::device::deferred::RowEffect serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_device::device::history::Membership deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (939 B)
+snapback4_device::device::history::Membership serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (288 B)
+snapback4_device::device::Predicted serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (246 B)
+snapback4_device::device::predictions::Capture deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2006 B)
+snapback4_device::device::predictions::Capture serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (190 B)
+snapback4_device::device::Queued deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5661 B)
+snapback4_device::device::Queued serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (529 B)
+snapback4_device::device::ReceiptStore deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1409 B)
+snapback4_device::device::ReceiptStore serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (180 B)
+snapback4_device::device::snapshot::Staged deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1575 B)
+snapback4_device::device::snapshot::Staged serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (162 B)
+snapback4_device::device::store_identity::StoreObservation serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (246 B)
+snapback4_device::device::StreamEvent deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (2895 B)
+snapback4_device::device::StreamPage deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (9416 B)
+snapback4_device::device::SyncState serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (672 B)
+snapback4_device::memory::Change deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1729 B)
+snapback4_device::memory::Image serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (69 B)
+snapback4_device::memory::PendingChange serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (190 B)
+u32 deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (442 B)
+u32 serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (101 B)
+u64 deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (422 B)
+u64 serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (118 B)
+u8 deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (411 B)
+u8 serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (101 B)
+usize deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (371 B)
+usize serialize: serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> (17 B)
+serde family check: ok
+IR clone symbols: 31, 14217 B
+6449 B  <alloc::vec::Vec<snapback4_core::ir::Stmt> as core::clone::Clone>::clone
+1456 B  <snapback4_core::ir::Expr as core::clone::Clone>::clone
+1006 B  <alloc::vec::Vec<snapback4_core::ir::MergeLane> as core::clone::Clone>::clone
+663 B  <snapback4_core::ir::Scan as core::clone::Clone>::clone
+559 B  <alloc::collections::btree::map::BTreeMap<_, _, _> as core::clone::Clone>::clone::clone_subtree::<alloc::string::String, snapback4_core::ir::ArgType, alloc::alloc::Global>
+557 B  <alloc::collections::btree::map::BTreeMap<_, _, _> as core::clone::Clone>::clone::clone_subtree::<alloc::string::String, snapback4_core::ir::Expr, alloc::alloc::Global>
+490 B  <snapback4_core::ir::ArgType as core::clone::Clone>::clone
+314 B  <core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>> as core::iter::traits::iterator::Iterator>::fold::<(), core::iter::adapters::map::map_fold<snapback4_core::value::Value, snapback4_core::ir::IndexKeyExpr, (), <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}, core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::IndexKeyExpr, <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr>>::extend_trusted<core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>::{closure#0}>::{closure#0}>::{closure#0}>
+212 B  <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr> as core::clone::Clone>::clone
+211 B  <core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>> as core::iter::traits::iterator::Iterator>::fold::<(), core::iter::adapters::map::map_fold<snapback4_core::value::Value, snapback4_core::ir::Expr, (), snapback4_core::ir::Expr::Literal, core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::Expr, <alloc::vec::Vec<snapback4_core::ir::Expr>>::extend_trusted<core::iter::adapters::map::Map<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, snapback4_core::ir::Expr::Literal>>::{closure#0}>::{closure#0}>::{closure#0}>
+209 B  <alloc::vec::Vec<snapback4_core::ir::SortKey> as core::clone::Clone>::clone
+193 B  <snapback4_core::ir::Program as core::clone::Clone>::clone
+183 B  <alloc::vec::Vec<snapback4_core::ir::Program> as core::clone::Clone>::clone
+181 B  <alloc::vec::Vec<snapback4_core::ir::Expr> as core::clone::Clone>::clone
+151 B  <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<snapback4_core::ir::IndexKeyExpr, core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>>::from_iter
+149 B  <core::iter::adapters::cloned::Cloned<alloc::collections::btree::map::Values<alloc::string::String, snapback4_core::ir::Program>> as core::iter::traits::iterator::Iterator>::fold::<(), core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::Program, <alloc::vec::Vec<snapback4_core::ir::Program>>::extend_trusted<core::iter::adapters::cloned::Cloned<alloc::collections::btree::map::Values<alloc::string::String, snapback4_core::ir::Program>>>::{closure#0}>::{closure#0}>
+138 B  <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr>>::extend_trusted::<core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>
+110 B  core::iter::adapters::map::map_fold::<snapback4_core::value::Value, snapback4_core::ir::IndexKeyExpr, (), <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}, core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::IndexKeyExpr, <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr>>::extend_trusted<core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>::{closure#0}>::{closure#0}>::{closure#0}
+110 B  <alloc::vec::Vec<snapback4_core::ir::Expr> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<snapback4_core::ir::Expr, core::iter::adapters::map::Map<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, snapback4_core::ir::Expr::Literal>>>::from_iter
+105 B  <alloc::vec::Vec<snapback4_core::ir::Program> as alloc::vec::spec_from_iter_nested::SpecFromIterNested<snapback4_core::ir::Program, core::iter::adapters::cloned::Cloned<alloc::collections::btree::map::Values<alloc::string::String, snapback4_core::ir::Program>>>>::from_iter
+94 B  <alloc::vec::Vec<snapback4_core::ir::Expr>>::extend_trusted::<core::iter::adapters::map::Map<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, snapback4_core::ir::Expr::Literal>>
+93 B  <core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>> as core::iter::traits::iterator::Iterator>::fold::<(), &mut core::iter::adapters::map::map_fold<snapback4_core::value::Value, snapback4_core::ir::IndexKeyExpr, (), <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}, core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::IndexKeyExpr, <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr>>::extend_trusted<core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>::{closure#0}>::{closure#0}>::{closure#0}>
+89 B  <alloc::vec::Vec<snapback4_core::ir::Program>>::extend_trusted::<core::iter::adapters::cloned::Cloned<alloc::collections::btree::map::Values<alloc::string::String, snapback4_core::ir::Program>>>
+77 B  <alloc::boxed::Box<snapback4_core::ir::ArgType> as core::clone::Clone>::clone
+76 B  <alloc::boxed::Box<snapback4_core::ir::Expr> as core::clone::Clone>::clone
+73 B  <alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::ir::ArgType> as core::clone::Clone>::clone
+73 B  <alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::ir::Expr> as core::clone::Clone>::clone
+72 B  <snapback4_core::ir::Read as core::clone::Clone>::clone
+64 B  <core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}> as core::iter::traits::iterator::Iterator>::fold::<(), core::iter::traits::iterator::Iterator::for_each::call<snapback4_core::ir::IndexKeyExpr, <alloc::vec::Vec<snapback4_core::ir::IndexKeyExpr>>::extend_trusted<core::iter::adapters::map::Map<core::iter::adapters::chain::Chain<core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<snapback4_core::value::Value>>, core::array::iter::IntoIter<snapback4_core::value::Value, 1usize>>, <snapback4_core::engine::runner::Runner>::word_lanes::{closure#0}::{closure#0}>>::{closure#0}>::{closure#0}>
+35 B  <core::option::Option<snapback4_core::ir::Expr> as core::clone::Clone>::clone
+25 B  <core::option::Option<alloc::boxed::Box<snapback4_core::ir::Expr>> as core::clone::Clone>::clone
+server-only and Unicode-table absence check: ok
+Binaryen 132.0.0 (locked workspace dependency)
+warning: unused imports: `Bounds`, `Dir`, `Maintain`, `MeterKind`, `RuntimeError`, `materialize_optional_fields`, and `value::Value`
+ --> crates/snapback4-core/src/engine/aggregate_expiry.rs:3:21
+  |
+3 | use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Maintain, materialize_optional_fields}, value::Value};
+  |                     ^^^^^^^^^  ^^^^^^^^^^^^          ^^^^^^  ^^^            ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::BTreeMap`
+  --> crates/snapback4-core/src/engine/maintains.rs:13:5
+   |
+13 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `MeterKind`
+ --> crates/snapback4-core/src/engine/columns.rs:6:21
+  |
+6 | use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
+  |                     ^^^^^^^^^
+
+warning: unused import: `Stmt`
+ --> crates/snapback4-core/src/engine/presence.rs:3:45
+  |
+3 | use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
+  |                                             ^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:462:13
+    |
+462 |         let mut unsettled = existing.as_ref().is_none_or(pending);
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:643:25
+    |
+643 |                     let mut unsettled = existing.as_ref().is_some_and(pending);
+    |                         ----^^^^^^^^^
+    |                         |
+    |                         help: remove this `mut`
+
+warning: unused variable: `runner`
+   --> crates/snapback4-core/src/engine/receipts.rs:278:121
+    |
+278 |                     (crate::error::MeterKind::IndexEntries, price[1]), (crate::error::MeterKind::Examined, price[2])], |runner, _| {
+    |                                                                                                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_runner`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `old`
+   --> crates/snapback4-core/src/engine/receipts.rs:268:17
+    |
+268 |             let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_old`
+
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:28:19
+   |
+28 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:40:19
+   |
+40 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:48:18
+   |
+48 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:67:17
+   |
+67 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:76:15
+   |
+76 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:103:15
+    |
+103 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:146:15
+    |
+146 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:166:4
+    |
+166 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:172:15
+    |
+172 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:176:15
+    |
+176 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:187:15
+    |
+187 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:203:15
+    |
+203 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:220:15
+    |
+220 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `session_digest` is never read
+   --> crates/snapback4-core/src/engine/mod.rs:166:16
+    |
+149 | pub struct Context {
+    |            ------- field in this struct
+...
+166 |     pub(crate) session_digest: Option<String>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `asset`, `claim_asset`, and `release_asset` are never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:100:19
+    |
+ 29 | impl<'a> GuardedRows<'a> {
+    | ------------------------ methods in this implementation
+...
+100 |     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
+    |                   ^^^^^
+101 |     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { sel...
+    |                   ^^^^^^^^^^^
+102 |     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #...
+    |                   ^^^^^^^^^^^^^
+
+warning: method `room` is never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:355:19
+    |
+342 | impl InternalMeter<'_> {
+    | ---------------------- method in this implementation
+...
+355 |     pub(crate) fn room(&self, kind: MeterKind, amount: u64) -> bool { self.0.room(kind, amount) }
+    |                   ^^^^
+
+warning: method `timeline_page` is never used
+   --> crates/snapback4-core/src/engine/timeline.rs:318:8
+    |
+ 61 | impl Runner<'_> {
+    | --------------- method in this implementation
+...
+318 |     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> R...
+    |        ^^^^^^^^^^^^^
+
+warning: variant `Purge` is never constructed
+  --> crates/snapback4-core/src/engine/timeline_authority.rs:12:5
+   |
+ 8 | pub(super) enum Authority {
+   |                 --------- variant in this enum
+...
+12 |     Purge(BTreeMap<String, u64>),
+   |     ^^^^^
+
+warning: function `expression_scans` is never used
+   --> crates/snapback4-core/src/ir.rs:640:15
+    |
+640 | pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    |               ^^^^^^^^^^^^^^^^
+
+warning: associated items `zero`, `plus`, and `fits` are never used
+   --> crates/snapback4-core/src/value.rs:428:19
+    |
+427 | impl InternalPrice {
+    | ------------------ associated items in this implementation
+428 |     pub(crate) fn zero() -> Self { Self(0) }
+    |                   ^^^^
+429 |     pub(crate) fn plus(self, other: Self) -> Self { Self(self.0.saturating_add(other.0)) }
+    |                   ^^^^
+...
+432 |     pub(crate) fn fits(&self, meter: &crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> bool { meter.room(crat...
+    |                   ^^^^
+
+{"at":"2026-10-04T20:36:52Z","sha":"0094fe7fd7","dirty":true,"wasm":{"raw":2117335,"gzip":639810,"brotli":485375},"glue":{"raw":14877,"gzip":3606,"brotli":3181},"wasmOpt":true,"budget":639940,"over":0}

@@ -1,0 +1,44 @@
+[
+  {
+    "host": "wasm",
+    "mode": "known-local",
+    "pairs": 600,
+    "mean_paired_delta_ms": 0.06832327000001612,
+    "median_paired_delta_ms": 1.2119214999997894
+  },
+  {
+    "host": "wasm",
+    "mode": "server-only-source",
+    "pairs": 600,
+    "mean_paired_delta_ms": 0.43404895166668517,
+    "median_paired_delta_ms": 0.4308709999995699
+  },
+  {
+    "host": "wasm",
+    "mode": "current-history-fallback",
+    "pairs": 600,
+    "mean_paired_delta_ms": 3.190407776666622,
+    "median_paired_delta_ms": 1.9990260000004128
+  },
+  {
+    "host": "process",
+    "mode": "known-local",
+    "pairs": 600,
+    "mean_paired_delta_ms": -0.22176192833333516,
+    "median_paired_delta_ms": 0.06899349999912374
+  },
+  {
+    "host": "process",
+    "mode": "server-only-source",
+    "pairs": 600,
+    "mean_paired_delta_ms": 0.24887496333321907,
+    "median_paired_delta_ms": -0.10715549999986251
+  },
+  {
+    "host": "process",
+    "mode": "current-history-fallback",
+    "pairs": 600,
+    "mean_paired_delta_ms": 2.0644024583333582,
+    "median_paired_delta_ms": 0.5936750000000757
+  }
+]

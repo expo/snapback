@@ -1,0 +1,9 @@
+{
+  "snapback4/packages/snapback4/src/local-query.ts": "877a7c5945e7534b78745f74425595abe7b6f49289602c56678227032cd33203",
+  "snapback4/packages/snapback4/src/local.ts": "242622477b4d20067d5b793b3bfc85c8d051b3b875bf85f18fa3808ac0008022",
+  "snapback4/packages/snapback4/test/retained-history.test.mjs": "c076cc651b241f2fde631594c9e296a9db1ca5fe529a4d8f7744e58599b95fb3",
+  "snapback4/packages/snapback4/test/retained-history-order.test.mjs": "c1742d98452fca6499c0128836d58b96b01d1571b0165e2e91b3685616dde2dd",
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": "278f622807dc5fcf0ef015e846bbd686ce1e172d127ab3d65b80d586bec83eb2",
+  "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "e7849a36b922d0284eab511168baed6aa5922d50ece1089afd7652b5af110a6e",
+  "snapback4/packages/snapback4/test/store-reset-review.test.mjs": "1cd25c603ac44d3f8de080761fbac940d5956ab702b9551639c917c92a18020e"
+}

@@ -1,0 +1,14 @@
+{"host":"wasm","mode":"current-search","label":"baseline","n":300,"p50":15.001596999999947,"p95":43.327416000000085,"max":168.81178500000078}
+{"host":"wasm","mode":"current-search","label":"fixed","n":300,"p50":14.305082999999968,"p95":38.748655999999755,"max":95.28538300000037}
+✔ wasm current-search: 300 paired mutations (8636.503395ms)
+{"host":"process","mode":"current-search","label":"fixed","n":300,"p50":9.775675999999294,"p95":25.474778000001606,"max":110.40886300000057}
+{"host":"process","mode":"current-search","label":"baseline","n":300,"p50":13.797973000000638,"p95":37.636891000000105,"max":110.7810010000012}
+✔ process current-search: 300 paired mutations (8567.589786ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17423.245712

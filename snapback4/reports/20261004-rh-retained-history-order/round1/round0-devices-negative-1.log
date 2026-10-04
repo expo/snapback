@@ -1,0 +1,112 @@
+{"host":"wasm","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"cf748fc0d69a0cc085511d4bfca65e0b","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"cf748fc0d69a0cc085511d4bfca65e0b","transfer_store_id":"cf748fc0d69a0cc085511d4bfca65e0b","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ wasm commit between evaluation and capture: other owner (596.354628ms)
+{"host":"process","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"85d9c76187f408b867305280837c941c","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"85d9c76187f408b867305280837c941c","transfer_store_id":"85d9c76187f408b867305280837c941c","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process commit between evaluation and capture: other owner (273.014247ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"a63a5d6d2d36cc18e75c694aa6df564b","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"wasm","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"mountedHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"afterRows":1}
+✖ wasm: nonblank search while leave is held (cursor: false) (1654.632513ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"adc34d45209ac88b4149e2431cb699e1","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"wasm","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"afterRows":1}
+✖ wasm: nonblank search while leave is held (cursor: true) (442.804207ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"dc0d7dee86f6c1d348a3ee735b7efffe","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"process","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"mountedHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"afterRows":1}
+✖ process: nonblank search while leave is held (cursor: false) (206.865875ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"44586b4f320a2653d58ea26056d26083","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"process","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[],"complete":true,"cut":null,"fresh":true,"next":false,"existence":"absent"},"afterRows":1}
+✖ process: nonblank search while leave is held (cursor: true) (529.638837ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2960.786384
+
+✖ failing tests:
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:8:76
+✖ wasm commit between evaluation and capture: other owner (596.354628ms)
+  AssertionError [ERR_ASSERTION]: committed retained routing must invalidate the earlier current evaluation
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:37:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:8:76
+✖ process commit between evaluation and capture: other owner (273.014247ms)
+  AssertionError [ERR_ASSERTION]: committed retained routing must invalidate the earlier current evaluation
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:37:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:12:77
+✖ wasm: nonblank search while leave is held (cursor: false) (1654.632513ms)
+  AssertionError [ERR_ASSERTION]: retained matches remain visible before apply
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:68:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:12:77
+✖ wasm: nonblank search while leave is held (cursor: true) (442.804207ms)
+  AssertionError [ERR_ASSERTION]: retained matches remain visible before apply
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:68:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:12:77
+✖ process: nonblank search while leave is held (cursor: false) (206.865875ms)
+  AssertionError [ERR_ASSERTION]: retained matches remain visible before apply
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:68:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:12:77
+✖ process: nonblank search while leave is held (cursor: true) (529.638837ms)
+  AssertionError [ERR_ASSERTION]: retained matches remain visible before apply
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-search-order.test.mjs:68:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,104 @@
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (679.006911ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (266.223883ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (276.918218ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH held leave wasm: retained history and independent held coverage (287.18358ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH stalled leave wasm: retained history and independent held coverage (1289.10997ms)
+✔ RH empty catch-up wasm: retained history and independent held coverage (251.028601ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (228.551259ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (276.954943ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1268.370194ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (266.964804ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (433.895903ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (265.033318ms)
+✔ MQ speculative events wasm: retained history and independent held coverage (8686.927826ms)
+✔ MQ expiry local left wasm: retained history and independent held coverage (1246.117098ms)
+✔ MQ expiry local watch left wasm: retained history and independent held coverage (1232.808313ms)
+✔ MQ local permit wasm: retained history and independent held coverage (239.037061ms)
+✔ MQ local permit watch wasm: retained history and independent held coverage (275.846491ms)
+✔ MQ local branch wasm: retained history and independent held coverage (274.274534ms)
+✔ MQ local branch watch wasm: retained history and independent held coverage (267.512095ms)
+✔ MQ local page wasm: retained history and independent held coverage (249.76108ms)
+✔ MQ ineligible wasm: retained history and independent held coverage (247.612318ms)
+✔ MQ points wasm: retained history and independent held coverage (241.225162ms)
+✔ MQ delete current wasm: retained history and independent held coverage (269.737531ms)
+✔ MQ revoke current wasm: retained history and independent held coverage (297.050433ms)
+✔ MQ rejoin wasm: retained history and independent held coverage (293.478067ms)
+✔ MQ held change wasm: retained history and independent held coverage (287.717449ms)
+✔ MQ close wasm: retained history and independent held coverage (236.29542ms)
+✔ MQ sign-out wasm: retained history and independent held coverage (233.585076ms)
+✔ MQ transport wasm: retained history and independent held coverage (240.716708ms)
+✔ MQ adoption wasm: retained history and independent held coverage (643.355105ms)
+✔ MQ reset wasm: retained history and independent held coverage (1289.087415ms)
+✔ MQ rotation wasm: retained history and independent held coverage (350.679212ms)
+✔ MQ prediction wasm: retained history and independent held coverage (4335.70799ms)
+✔ MQ expiry left wasm: retained history and independent held coverage (278.149333ms)
+✔ MQ expiry held wasm: retained history and independent held coverage (249.609863ms)
+✔ MQ interrupted snapshot wasm: retained history and independent held coverage (1271.090201ms)
+✔ MQ retained snapshot wasm: retained history and independent held coverage (247.125408ms)
+✔ W14A horizon-free matching process: retained history and independent held coverage (223.998042ms)
+ℹ W14A process: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence process: retained history and independent held coverage (226.726253ms)
+ℹ W14A process: acquired before leave; positive retained existence + 26 server rows
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history process: retained history and independent held coverage (240.167295ms)
+RH process held leave: server=0, device=25, deliveries=[26,26,26]
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH held leave process: retained history and independent held coverage (267.086697ms)
+RH process held leave: server=0, device=25, deliveries=[26,26,26]
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH stalled leave process: retained history and independent held coverage (1256.129789ms)
+✔ RH empty catch-up process: retained history and independent held coverage (256.999833ms)
+R1a process empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search process: retained history and independent held coverage (237.356211ms)
+R1a process mixed: device=25, server=26, watch=26
+✔ R1a mixed reads process: retained history and independent held coverage (278.522262ms)
+R2 process mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result process: retained history and independent held coverage (1247.596124ms)
+✔ R2 sync during reply process: retained history and independent held coverage (261.859729ms)
+✔ MQ authoritative bound process: retained history and independent held coverage (248.786278ms)
+✔ MQ speculative component process: retained history and independent held coverage (228.58559ms)
+✔ MQ speculative events process: retained history and independent held coverage (8551.534298ms)
+✔ MQ expiry local left process: retained history and independent held coverage (1326.112136ms)
+✔ MQ expiry local watch left process: retained history and independent held coverage (1414.997977ms)
+✔ MQ local permit process: retained history and independent held coverage (1221.863882ms)
+✔ MQ local permit watch process: retained history and independent held coverage (1217.842612ms)
+✔ MQ local branch process: retained history and independent held coverage (241.709577ms)
+✔ MQ local branch watch process: retained history and independent held coverage (313.758974ms)
+✔ MQ local page process: retained history and independent held coverage (231.705938ms)
+✔ MQ ineligible process: retained history and independent held coverage (240.667495ms)
+✔ MQ points process: retained history and independent held coverage (233.033289ms)
+✔ MQ delete current process: retained history and independent held coverage (264.908981ms)
+✔ MQ revoke current process: retained history and independent held coverage (285.531271ms)
+✔ MQ rejoin process: retained history and independent held coverage (310.092357ms)
+✔ MQ held change process: retained history and independent held coverage (284.314567ms)
+✖ packages/snapback4/test/retained-history.test.mjs (50683.435699ms)
+ℹ tests 64
+ℹ suites 0
+ℹ pass 63
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 50689.724057
+
+✖ failing tests:
+
+test at packages/snapback4/test/retained-history.test.mjs:1:1
+✖ packages/snapback4/test/retained-history.test.mjs (50683.435699ms)
+  'Promise resolution is still pending but the event loop has already resolved'

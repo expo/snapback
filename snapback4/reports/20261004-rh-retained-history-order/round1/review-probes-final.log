@@ -1,0 +1,22 @@
+✔ review: unrelated sync preserves continuation process (270.616856ms)
+✔ review: unrelated sync preserves continuation wasm (558.722088ms)
+✔ review: new unsynced membership invalidates continuation process (397.303095ms)
+✔ review: new unsynced membership invalidates continuation wasm (364.975013ms)
+✔ review: hidden write sync preserves continuation process (223.326716ms)
+✔ review: hidden write sync preserves continuation wasm (194.595096ms)
+✔ review: hidden sync during delivery withdraws the page process (254.955839ms)
+✔ review: hidden sync during delivery withdraws the page wasm (231.184135ms)
+✔ review: unsynced audience change refreshes the live page chain process (227.708204ms)
+✔ review: unsynced audience change refreshes the live page chain wasm (195.724199ms)
+✔ review: unsynced audience loss also withdraws the continuation process (430.973968ms)
+✔ review: unsynced audience loss also withdraws the continuation wasm (383.815626ms)
+✔ review: same-count audience swap withdraws the old continuation process (407.607932ms)
+✔ review: same-count audience swap withdraws the old continuation wasm (382.755156ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4686.142087

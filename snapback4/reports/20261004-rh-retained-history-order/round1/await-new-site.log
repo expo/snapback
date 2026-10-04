@@ -1,0 +1,11 @@
+✔ every delivery await is explicitly classified (171.139978ms)
+✔ 150 transient: local-search.ts:390 ordinarySearch (481.316779ms)
+✔ 150 persistent: local-search.ts:390 ordinarySearch (68.964937ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6075.46252

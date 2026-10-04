@@ -114,7 +114,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
       beforeCall(request) { if(scenario === 'acknowledgement' && !queueIds.length && request.op === 'keep_write') throw Error('prepare acknowledgement'); fault();
         // Only the query host replies are scripted. The real wasm outbox and
         // all delivery host calls continue through the ordinary matrix fixture.
-        if (scenario === 'search' && prepared && request.op === 'search_state') return {ok:{epoch:'matrix',delivery:'matrix',left:['left'],ceilings,metered:request.spent ?? counts()}};
+        if (scenario === 'search' && prepared && request.op === 'search_state') return {ok:{epoch:'matrix',delivery:'matrix',watermark:10,current:index===161?['departed']:['live'],left:['left'],ceilings,metered:request.spent ?? counts()}};
         if (scenario === 'search' && prepared && request.op === 'query' && request.name === 'matrixQuery') return {ok:{data:[],complete:index !== 153,unknown:index === 153,tables:[],metered:request.spent ?? counts()}};
         if(index === 98 && prepared && request.op === 'keep_write' && JSON.parse(request.value).id === first.id && !stack.getStore()?.includes(target)) throw Error('another path cannot repair the receipt before the target read'); },
       afterCall(request, reply) {
@@ -205,7 +205,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
         return before(request);
       };
     }
-    if (scenario === 'search') api.queryFixture([148,149,152,153].includes(index) ? undefined : queryPlan,index === 148,index === 149);
+    if (scenario === 'search') api.queryFixture([148,149,152,153].includes(index) ? undefined : queryPlan,index === 148,index === 149,index === 161);
     enabled = true;
     if (scenario === 'search') run(()=>f.client.query({kind:'query',name:'matrixQuery'},{q:'coffee',c:null}));
     if(index === 118) await assert.doesNotReject(()=>syncTransport(async()=>new Response('invalid JSON',{status:400}))('http://matrix.test',{}, {generation:1}),'legacy discovery tolerates an unreadable error body');

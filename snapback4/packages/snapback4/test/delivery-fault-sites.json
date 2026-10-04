@@ -1051,69 +1051,76 @@
   },
   {
     "index": 150,
-    "id": "local-query.ts:route:env.installNative(env.signal)#1",
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 151,
-    "id": "local-query.ts:route:server()#1",
+    "id": "local-query.ts:route:env.installNative(env.signal)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 152,
-    "id": "local-query.ts:route:blocked()#1",
+    "id": "local-query.ts:route:server()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 153,
-    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+    "id": "local-query.ts:route:blocked()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 154,
-    "id": "local-query.ts:route:local()#1",
+    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 155,
-    "id": "local-query.ts:route:routeLocal(first)#1",
+    "id": "local-query.ts:route:local()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 156,
+    "id": "local-query.ts:route:routeLocal(first)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 157,
     "id": "http-response.ts:readResponse:decode(response)#1",
     "recipe": "queryDecode",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 157,
+    "index": 158,
     "id": "http-response.ts:readResponse:response.json()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 158,
+    "index": 159,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 159,
+    "index": 160,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",

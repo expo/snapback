@@ -1,0 +1,30 @@
+{
+  "cpus": [
+    64,
+    65,
+    66,
+    67
+  ],
+  "hog_pid": 3149173,
+  "elapsed_seconds": 200.327,
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 63.814,
+      "hog_alive": true
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 69.709,
+      "hog_alive": true
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 66.802,
+      "hog_alive": true
+    }
+  ]
+}

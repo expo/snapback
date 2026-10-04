@@ -1,0 +1,40 @@
+✖ RH held leave wasm: retained history and independent held coverage (741.808849ms)
+✖ RH held leave process: retained history and independent held coverage (300.827683ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1183.364786
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/retained-history.test.mjs:117:766
+✖ RH held leave wasm: retained history and independent held coverage (741.808849ms)
+  AssertionError [ERR_ASSERTION]: held leave published empty: [26,26,26,0]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/retained-history.test.mjs:330:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/retained-history.test.mjs:117:766
+✖ RH held leave process: retained history and independent held coverage (300.827683ms)
+  AssertionError [ERR_ASSERTION]: held leave published empty: [26,26,26,0]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/retained-history.test.mjs:330:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
