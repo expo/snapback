@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-03T17:39:23.949463+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.12",
+      "integrity": "sha512-u4WT3Xbw1uKVsCK5LyDc/na3fNS3DgRrI/MI6+WkFgM1DzamRpQz7fPmtbYlxICLMmlfWvA+GHcgwKO5aP202Q=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.12",
+      "integrity": "sha512-D/t3tqVxgg565ZeaEC5/TPT6laUZ0XpoutzjPv4MsZLryCHYM4creUm0IbNosv4AmG/bK3y4HiOl/6NxlVlB7w=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.12",
+      "integrity": "sha512-5VMPoOd8rn3PVMzuT4ZWg1v+m+XkDA/LWqQwjRR6QhP/yj5tEygjElaeqKSSiRpY2/QnwUK+VR9gWCw4CgG/Eg=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "Second-family calibration: one Grok 4.6 xhigh continuous M1\u2013M6/M8 lane on the apartment M5 Pro mini, independent Opus 5 grade, Grok xhigh holistic score; run beside the Astra-medium lane on the office M1 for the same release; M7 and other builder lanes not run",
+  "runPurpose": "Two-family calibration #30 on 0.4.12, the first publication carrying the LLP 3000.032 client-contract lanes (R, A, B, L), UB, ON2 and X27R; predictions pre-registered in LLP 3000.032 section 7 at 484c94733c before the cut",
+  "builder": {
+    "model": "grok-4.6",
+    "effort": "xhigh"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "grok-4.6",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-10-03T17:39:23.949741+00:00"
+  },
+  "load": "10:39  up 1 day,  6:51, 13 users, load averages: 2.84 2.78 2.58",
+  "node": "v24.18.0",
+  "host": "MacMini-Apt101-M5-A"
+}

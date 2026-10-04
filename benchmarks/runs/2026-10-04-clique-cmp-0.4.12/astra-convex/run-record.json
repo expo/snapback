@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "lane": "convex",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API workspace session",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "@auth/core": "0.41.1",
+      "@convex-dev/auth": "0.0.95",
+      "@playwright/test": "1.58.2",
+      "@react-native-async-storage/async-storage": "2.2.0",
+      "@types/react": "19.2.18",
+      "babel-preset-expo": "55.0.25",
+      "convex": "1.45.0",
+      "expo": "55.0.31",
+      "expo-asset": "55.0.20",
+      "expo-file-system": "55.0.26",
+      "expo-image-picker": "55.0.24",
+      "expo-router": "55.0.18",
+      "expo-secure-store": "55.0.18",
+      "expo-video": "55.0.21",
+      "react": "19.2.0",
+      "react-dom": "19.2.0",
+      "react-native": "0.83.10",
+      "react-native-safe-area-context": "5.6.2",
+      "react-native-screens": "4.23.0",
+      "react-native-web": "0.21.2",
+      "typescript": "5.9.3",
+      "convex-local-backend": "precompiled-2026-09-11-157eb19",
+      "node": "v24.13.1",
+      "platform": "linux",
+      "arch": "x64"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-16T10:07:50.000Z",
+    "finishedAt": "2026-09-16T12:44:06.000Z"
+  },
+  "firstGreenProofAt": "2026-09-16T10:19:04.278Z",
+  "wallClock": {
+    "totalSeconds": 9376,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "replay": 3558,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "replay": null,
+      "m7Session": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "1789553559 error attribution=agent-error correction-loop=1 evidence=.convex/local/default/dashboard.json; anonymous watch CLI automatically bound dashboard 6790 despite cloud/site flags. Stopped PID 2718082 immediately after discovering. Workaround use explicit backend process and --once deployments; no dashboard.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789553753 correction-loop=2 attribution=agent-error evidence=artifacts/acceptance-m1.log,artifacts/m1-route.png; Expo Router does not resolve optional catchall root as authored; use index and catchall routes.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789553806 correction-loop=3 attribution=agent-error evidence=artifacts/acceptance-m1-retry.log,node_modules/@convex-dev/auth/src/providers/Password.ts; built-in signUp accepts existing valid credentials; added explicit duplicate-email preflight while retaining transactional callback uniqueness.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789553871 correction-loop=4 attribution=agent-error evidence=artifacts/acceptance-m1-final.log; editor rendered before initial profile state settled causing fill race; gate editor until hydration. Loop 3 second iteration provider options overwrite outer authorize; wrapped options.authorize.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1789554332 correction-loop=5 attribution=environment evidence=artifacts/choreo-m2.log,node_modules/react-native-web/dist/modules/createDOMProps/index.js; RN Web drops kit grouped accessibilityValue/accessibilityState props. Added generic web-only ARIA compatibility module through Metro, leaving frozen kit untouched.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789554659 correction-loop=6 attribution=agent-error evidence=choreography/choreography.mjs toggleFollow and waitForFeedProjection; expose feed navigation tabs on secondary surfaces so follow-to-feed choreography can navigate.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789555185 correction-loop=7 attribution=agent-error evidence=artifacts/choreo-m3-default.log; member removal lost when full navigation closes WebSocket before ack; use authenticated keepalive HTTP mutation for navigation-sensitive membership actions.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1789556055 correction-loop=8 attribution=environment evidence=artifacts/choreo-m5.log,ui/src/ChatSettingsForm.tsx,src/NativeCompat.tsx; RN Web Image places src on nested img while frozen observableState inspects root. Generic image compatibility exposes source as data-state without changing frozen kit. First-pass JSX settings-save brace corrected before completion claim.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789556195 correction-loop=9 attribution=agent-error evidence=scripts/acceptance.mjs,scripts/choreo.mjs; mutable suite receipt path could invalidate an in-flight choreography linkage. Future suites get immutable timestamped receipts and each choreography snapshots suite-status; M5 will rerun against final immutable linkage.",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789557093 correction-loop=10 attribution=agent-error push test assumed original displayName after profile-edit choreography; compare current profile. evidence=artifacts/acceptance-m6.log,convex/push.ts",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789557295 correction-loop=11 attribution=agent-error kit pending receipt requires receiptPending prop; push suite overlapped connected Bob choreography; sequential rerun. evidence=artifacts/choreo-m6-1789557083056.jsonl,artifacts/acceptance-m6-final.log",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789558031 correction-loop=12 attribution=agent-error shortened digest interval needed UTC cron alignment; corrected to */2 UTC minute schedule. source=package source evidence=convex/crons.ts,artifacts/deploy-m8-anchor.log",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789559332 correction-loop=13 attribution=agent-error scale global search scanned unrelated conversations before permission filtering; use per-authorized-conversation posting indexes. Failed at 50% with system-operation timeout; cold repaired query returns 20 rows in 238ms. Fresh instance and prefix retained. evidence=artifacts/scale-clock-attempt-1.json,artifacts/scale-search-recovery.json,convex/search.ts",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789561500 correction-loop=14 attribution=agent-error source=package source: ConvexReactClient.query returns existing localQueryResult (node_modules/convex/src/react/client.ts:683), so refresh without writes can reuse old server-time result. Added ignored optional cache-key nonce for Insights/Trending, fresh on mount and refresh; business time remains server Date.now. evidence=src/Refresh.ts,convex/insights.ts",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789561593 correction-loop=15 attribution=agent-error: running Expo became unresponsive during large local DB backfills; two Metro processes used 2GB/1GB and sustained CPU while watching lane state. Added crawler exclusions for artifacts, backend/probe state, copied harness and caches. Stopped recorded Expo PIDs2758631,2969408 for restart; failed release retry retained. evidence=artifacts/refresh-m8-suite.log,metro.config.js",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789561980 correction-loop=16 attribution=agent-error source=diagnostic/package source: first scale browser attempt connected to main55201 despite scale wrapper env; WebSocket trace proves wrong bundled endpoint, InvalidAccountId. Isolated Metro cacheVersion by backend URL and disabled dotenv in scale wrapper (published @expo/env EXPO_NO_DOTENV). Stopped recorded scale-web PID2984191. evidence=artifacts/scale-browser-proof-attempt-1.json,artifacts/scale-browser-diagnostic.json,metro.config.js",
+      "evidence": "run-log.md"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789562253 correction-loop=17 attribution=agent-error: full browser initial sync under concurrent primary backfill reached1800/10000 in30s despite headlessAPI15.8s. Added optional global inbox limit<=1000 for device bootstrap, preserved default100/chat public API, and skipped no-op receipt writes to avoid subscription invalidation. Persist-before-ACK unchanged. evidence=artifacts/scale-browser-proof-attempt-2.json,convex/chats.ts,src/Chats.tsx",
+      "evidence": "run-log.md"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 7287,
+    "files": 98,
+    "sharedUiLines": 3595
+  },
+  "authParity": {
+    "posture": "production-auth",
+    "notes": "Real password hashing, JWT sessions, per-operation session and membership checks; no persona bypass."
+  },
+  "diary": "diary.md",
+  "notes": "Continuous-session scope M1-M6 and M8 only; M7 intentionally not-run. Base protocol record, not a composed completed grading record. No independent grader or harness-native token/compaction stream is available inside the authorized lane; no metrics are fabricated. See artifacts/journey-record.json and final-report.md."
+}
