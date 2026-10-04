@@ -42,7 +42,7 @@ test('real wrapper finally preserves the previous export across interrupted and 
     assert.equal(compile.status, 0, compile.stderr);
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
     fs.mkdirSync(path.join(root, 'node_modules/expo/bin'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');`);
+    fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');fs.writeFileSync(p.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle'}}}));`);
     const dispatcher = path.join(root, 'dispatch.mjs');
     fs.writeFileSync(dispatcher, `#!${process.execPath}
 import fs from 'node:fs'; import path from 'node:path'; import {spawnSync} from 'node:child_process'; import {inventory,hash} from ${JSON.stringify(payload)};
@@ -58,6 +58,9 @@ if(args[1]==='ios') {
  if(process.env.SB4_FAULT.endsWith('mismatch'))fs.writeFileSync(path.join(path.dirname(args[2]),'publication.json'),JSON.stringify({verifiedAt:Date.now(),source:args[2],target:args[3],proofSha256:'wrong',files:[]}));
 } else {
  const env={...process.env};
+ // A valid export reaches publication. Refuse only its downstream latest
+ // handoff, so this publication-fault fixture never launches real native tools.
+ if(args[1]==='export-publish')fs.mkdirSync(path.join(path.dirname(path.dirname(args[2])),'latest.json.tmp'),{recursive:true});
  if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
  const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
  if(r.signal){process.kill(process.pid,r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
@@ -95,8 +98,8 @@ if(args[1]==='ios') {
       }
     }
     const skip = run('skip-valid'); assert.equal(skip.status, 0, skip.stdout + skip.stderr);
-    // This fixture has no Expo metadata. Publication still succeeds; scheduling
-    // native evidence fails loudly downstream of that independent commit.
+    // A blocked latest-pointer write fails native scheduling loudly downstream
+    // of the successful publication, without ever launching a real simulator.
     assert.match(skip.stderr, /native smoke failed to start/);
     assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

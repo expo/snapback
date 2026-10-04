@@ -431,10 +431,14 @@ pub(super) fn remove(path: &Path) -> Result<()> {
 }
 const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json", "request.json", "result.json", "background.log"];
 pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
+    retention::run(root, completed, || Ok(()))
+}
+pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    // Blocking OS lock: no PID-file takeover race, and SIGKILL releases it.
+    // Retention is optional maintenance: a contender defers immediately.
+    // The supervised process holds this OS lock; no PID-file takeover.
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    lock.lock().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    lock.try_lock().map_err(|e| error("E_WITNESS_ARTIFACT", format!("retention lock busy or unavailable: {e}")))?;
     // A wrapper reporting driver exit does not establish cleanup. In particular
     // SIGKILL leaves owned backend/compilers and app copies behind.
     if let Some(dir) = completed { recover(dir)?; }
@@ -473,6 +477,8 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
             if ["finished.json", "run.lock", "export.lock"].contains(&name.as_str()) { continue; }
             if name.ends_with(".gz") && RECEIPTS.contains(&name.trim_end_matches(".gz")) { retained.push(name); continue; }
             if RECEIPTS.contains(&name.as_str()) && entry.file_type().is_ok_and(|t| t.is_file()) {
+                // This worker and gzip share the retained native anchor group.
+                // retention::run owns the deadline; owner death drains both.
                 let compressed = Command::new("gzip").args(["-n", "-c"]).arg(entry.path()).output().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
                 if !compressed.status.success() { return Err(error("E_WITNESS_ARTIFACT", "receipt compression failed")); }
                 let target = dir.join(format!("{name}.gz"));
@@ -487,8 +493,15 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     Ok(())
 }
 pub(super) fn command(args: &[String]) -> i32 {
+    background::signals();
+    cleanup_command(args, cleanup)
+}
+pub(super) fn retention_command(args: &[String]) -> i32 {
+    cleanup_command(args, cleanup_inner)
+}
+fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -> Result<()>) -> i32 {
     let result = if args.len() == 1 || args.len() == 2 {
-        cleanup(Path::new(&args[0]), args.get(1).map(Path::new))
+        execute(Path::new(&args[0]), args.get(1).map(Path::new))
     } else { Err(error("E_WITNESS_INPUT", "export-cleanup requires the export artifact root and optional completed run")) };
     match result { Ok(()) => 0, Err(e) => { eprintln!("witness: evidence cleanup deferred: {e}"); 1 } }
 }

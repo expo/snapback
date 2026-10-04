@@ -61,7 +61,7 @@ pub(super) fn node_runtime(options: &Options, node: &std::ffi::OsStr) -> Result<
 
 // The native supervisor owns the unreaped anchor. Its owner-exit watcher drains
 // the group even if this driver is SIGKILLed before the journal/start handshake.
-struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf, group: Value, cleanup_deadline: Option<cleanup::Deadline> }
+pub(super) struct PreparationProcess { child: Child, cleaned: bool, result: PathBuf, group: Value, cleanup_deadline: Option<cleanup::Deadline> }
 impl PreparationProcess {
     fn spawn(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
         Self::spawn_with_node(options, std::ffi::OsStr::new("node"), command, args, label)
@@ -71,7 +71,7 @@ impl PreparationProcess {
         let command = if command == "node" { runtime.as_os_str() } else { command };
         Self::launch(options, command, args, label)
     }
-    fn launch(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
+    pub(super) fn launch(options: &Options, command: &std::ffi::OsStr, args: &[&std::ffi::OsStr], label: &str) -> Result<Self> {
         interrupted()?;
         let result = options.artifacts.join(format!("{label}-status.json"));
         let ready = options.artifacts.join(format!("{label}-group.json"));
@@ -99,7 +99,7 @@ impl PreparationProcess {
         owned.child.stdin.as_mut().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
         Ok(owned)
     }
-    fn status(&self) -> Result<Option<ExitStatus>> {
+    pub(super) fn status(&self) -> Result<Option<ExitStatus>> {
         use std::os::unix::process::ExitStatusExt;
         if let Ok(bytes) = fs::read(&self.result) {
             let value: Value = serde_json::from_slice(&bytes).map_err(|e| error("E_WITNESS_PROCESS", e))?;
@@ -116,7 +116,7 @@ impl PreparationProcess {
     fn live_group(&self) -> Result<bool> {
         Ok(self.group["group"].as_u64().map(|g| recovery::members(g as u32)).transpose()?.is_some_and(|m| !m.is_empty()))
     }
-    fn cleanup(&mut self) -> Result<()> {
+    pub(super) fn cleanup(&mut self) -> Result<()> {
         if self.cleaned { return Ok(()); }
         // EOF requests cleanup. A kernel owner watcher also covers inherited
         // control pipes and SIGKILL; this pipe is only the normal-path request.

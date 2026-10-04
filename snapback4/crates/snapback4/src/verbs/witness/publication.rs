@@ -244,6 +244,9 @@ pub(super) fn command(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // These fault-injection tests pause inside reconciliation in this test
+    // executable. Exercise the worker body directly; export-background tests
+    // cover its supervised production entry, deadlines and owner death.
     pub(super) fn pause(dir: &Path, point: &str) {
         if std::env::var("SB4_PUBLICATION_PAUSE").as_deref() != Ok(point) { return; }
         fs::write(dir.join(format!("paused-{point}")), point).unwrap();
@@ -270,9 +273,9 @@ mod tests {
         let expected = files(&source).unwrap();
         let _lease = preparation::lease(&dir.join("export.lock")).unwrap();
         let journal = fs::read(dir.join("live.json")).unwrap();
-        recovery::cleanup(&root.join("runs"), None).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), None).unwrap();
         publish(&source, &root.join("dist"), &expected, &Value::Null, || {
-            recovery::cleanup(&root.join("runs"), None).unwrap();
+            recovery::cleanup_inner(&root.join("runs"), None).unwrap();
             assert_eq!(fs::read(dir.join("live.json")).unwrap(), journal);
             assert!(!dir.join("finished.json").exists());
             assert_eq!(fs::read_dir(root.join("dist")).unwrap().count(), 10_001);
@@ -310,7 +313,7 @@ mod tests {
         let label = std::env::var("SB4_PUBLICATION_RUN").unwrap();
         let dir = root.join("runs").join(&label); let source = dir.join("export");
         let action = std::env::var("SB4_PUBLICATION_ACTION").unwrap_or_default();
-        if action == "cleanup" { recovery::cleanup(&root.join("runs"), None).unwrap(); return; }
+        if action == "cleanup" { recovery::cleanup_inner(&root.join("runs"), None).unwrap(); return; }
         let _lease = preparation::lease(&dir.join("export.lock")).unwrap();
         let record = json!({ "owner": null, "wrapper": recovery::identity(std::process::id()), "children": {} });
         fs::write(dir.join("live.json"), serde_json::to_vec(&record).unwrap()).unwrap();
@@ -343,15 +346,15 @@ mod tests {
         let mut killed = start("1-123"); await_file(&dir.join("exchanged"));
         let mut live = start("9-123"); await_file(&survivor.join("ready"));
         assert!(!survivor.join("exchanged").exists(), "second publisher must wait for verification lock");
-        recovery::cleanup(&root.join("runs"), None).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), None).unwrap();
         assert!(!dir.join("finished.json").exists());
         killed.stop(libc::SIGKILL).unwrap();
         // Recovery races the now-unblocked survivor. Neither a failed writer's
         // swapped old tree nor the currently visible dist is shared custody.
-        recovery::cleanup(&root.join("runs"), Some(&dir)).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), Some(&dir)).unwrap();
         await_file(&survivor.join("verified"));
         assert!(live.0.wait().unwrap().success());
-        recovery::cleanup(&root.join("runs"), Some(&dir)).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), Some(&dir)).unwrap();
         assert!(dir.join("finished.json").exists());
         assert!(!dir.join("publication-pending.json").exists());
         let _ = source;
@@ -409,8 +412,8 @@ mod tests {
                     assert!(!source.exists());
                     assert_eq!(fs::read_to_string(root.join("dist/later")).unwrap(), "later verified export");
                 }
-                recovery::cleanup(&root.join("runs"), None).unwrap();
-                recovery::cleanup(&root.join("runs"), None).unwrap();
+                recovery::cleanup_inner(&root.join("runs"), None).unwrap();
+                recovery::cleanup_inner(&root.join("runs"), None).unwrap();
                 assert!(dir.join("finished.json").exists());
                 assert!(dir.join("retention.json").exists());
                 assert!(!dir.join("publication-pending.json").exists());
@@ -420,7 +423,7 @@ mod tests {
                     let newer = root.join(format!("runs/{i}-123")); fs::create_dir_all(&newer).unwrap();
                     fs::write(newer.join("finished.json"), "{}").unwrap();
                 }
-                recovery::cleanup(&root.join("runs"), None).unwrap();
+                recovery::cleanup_inner(&root.join("runs"), None).unwrap();
                 assert!(!dir.exists(), "orphan is eligible for ordinary oldest-run pruning");
                 assert_eq!(fs::read_to_string(root.join("dist/later")).unwrap(), "later verified export");
                 eprintln!("orphan SIGKILL control passed: {action}, destination initially absent={absent}");
@@ -437,23 +440,23 @@ mod tests {
         save(&dir.join("publication-pending.json"), &pending).unwrap();
         for path in [dir.join("run.lock"), dir.join("export.lock"), lock_path(&target).unwrap()] {
             let held = preparation::lease(&path).unwrap();
-            recovery::cleanup(&root.join("runs"), None).unwrap();
+            recovery::cleanup_inner(&root.join("runs"), None).unwrap();
             assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
             drop(held);
         }
         let destination = lock_path(&target).unwrap().with_file_name("publication-pending.json");
         save(&destination, &pending).unwrap();
-        recovery::cleanup(&root.join("runs"), None).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), None).unwrap();
         assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
         // A different run's outstanding destination intent must survive intact.
         let different = json!({ "source": root.join("runs/99-123/export"), "target": target, "new": [1, 2] });
         save(&destination, &different).unwrap();
         fs::rename(&source, dir.join("saved-new")).unwrap();
         fs::create_dir(&source).unwrap();
-        assert!(recovery::cleanup(&root.join("runs"), None).unwrap_err().contains("identity changed"));
+        assert!(recovery::cleanup_inner(&root.join("runs"), None).unwrap_err().contains("identity changed"));
         assert!(dir.join("publication-pending.json").exists());
         fs::remove_dir(&source).unwrap(); fs::rename(dir.join("saved-new"), &source).unwrap();
-        recovery::cleanup(&root.join("runs"), None).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), None).unwrap();
         assert!(!source.exists()); assert!(!dir.join("publication-pending.json").exists());
         assert_eq!(serde_json::from_slice::<Value>(&fs::read(destination).unwrap()).unwrap(), different);
         assert_eq!(fs::read_to_string(target.join("old")).unwrap(), "old export");

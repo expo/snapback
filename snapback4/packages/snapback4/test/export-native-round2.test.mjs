@@ -90,7 +90,7 @@ test('local plugin resolution, preparation-context reads, late mods, URI resourc
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('concurrent pruning is serialized, compressed sets are bounded and failure preserves smoke success', async () => {
+test('concurrent pruning defers on a busy lock, compressed sets are bounded and failure preserves smoke success', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-prune-r2-'));
   try {
     for (let i = 1; i <= 35; i++) {
@@ -103,9 +103,12 @@ test('concurrent pruning is serialized, compressed sets are bounded and failure 
     const results = await Promise.all(Array.from({ length: 4 }, async () => {
       const child = spawn(binary, ['witness', 'export-cleanup', root], { stdio: ['ignore', 'pipe', 'pipe'] });
       let err = ''; child.stderr.on('data', b => { err += b; });
-      const [status] = await once(child, 'close'); assert.equal(status, 0, err);
+      const [status] = await once(child, 'close');
+      if (status !== 0) { assert.equal(status, 1, err); assert.match(err, /retention lock busy/); }
+      return status;
     }));
     assert.equal(results.length, 4);
+    assert.ok(results.includes(0), 'at least one contender completes retention');
     const dirs = fs.readdirSync(root, { withFileTypes: true }).filter(e => e.isDirectory());
     assert.equal(dirs.length, 25);
     assert.equal(dirs.filter(e => fs.existsSync(path.join(root,e.name,'smoke-ios-screen.mp4'))).length, 5);

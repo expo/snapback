@@ -1,0 +1,76 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "a6af2febbb7ebff592873fc636b29601b5be08d9",
+  "state": "finished",
+  "startedAt": 1791116337.1065779,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r3-full-suite.log",
+  "before": {
+    "at": 1791116338.354635,
+    "load": [
+      18.2919921875,
+      19.53515625,
+      21.59423828125
+    ],
+    "idlePercent": 55.75757575757576,
+    "compilers": [
+      "73109 72421   0.6 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/cargo",
+      "73127 73109  85.2 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc",
+      "73342 73109  78.6 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc",
+      "73365 73109  55.2 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc"
+    ],
+    "backgroundJobs": [
+      72126,
+      73056
+    ],
+    "busy": [
+      "72347 72252  87.4 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+      "73348  1160  86.4 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "73127 73109  85.2 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc",
+      "27142     1  80.9 /usr/libexec/PerfPowerServices",
+      "73342 73109  78.6 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc",
+      "73365 73109  55.2 /Users/ccheever/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/bin/rustc",
+      "15941 14917  35.3 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/StreamingZip.framework/XPCServices/com.apple.StreamingUnzipService.xpc/com.apple.StreamingUnzipService",
+      "73368 99075  23.1 (pairedsyncd)",
+      "73369 56547  18.6 (pairedsyncd)",
+      "  417     1  16.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+    ]
+  },
+  "status": 1,
+  "finishedAt": 1791119403.9549801,
+  "durationSeconds": 3065.605265917,
+  "after": {
+    "at": 1791119405.163209,
+    "load": [
+      38.18017578125,
+      43.5703125,
+      41.1904296875
+    ],
+    "idlePercent": 48.75759249033683,
+    "compilers": [
+      "81009 80988   0.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "81223 81009 118.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "81713 81009  78.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "81714 81009  80.9 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "81223 81009 118.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "  661     1  92.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "27142     1  92.2 /usr/libexec/PerfPowerServices",
+      "81714 81009  80.9 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "81713 81009  78.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "  442     1  43.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "79548 79547  14.7 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "  485     1  12.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "73367 73365   2.5 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      " 1083     1   2.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r3-full-suite.log",
+    "sha256": "d5b831e3f4b588d06ce5ddee078e62cd518ee36b81fe5ff0575d2c58d80885b3",
+    "bytes": 1899101
+  },
+  "inputsUnchanged": true
+}

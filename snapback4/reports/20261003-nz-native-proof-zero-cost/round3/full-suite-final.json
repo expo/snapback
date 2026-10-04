@@ -1,0 +1,66 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "a6af2febbb7ebff592873fc636b29601b5be08d9",
+  "state": "finished",
+  "startedAt": 1791119407.449802,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r3-full-suite-final.log",
+  "before": {
+    "at": 1791119408.63359,
+    "load": [
+      35.68310546875,
+      42.962890625,
+      40.98974609375
+    ],
+    "idlePercent": 61.90738699007718,
+    "compilers": [
+      "81009 80988   0.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "82350 81009  44.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1  92.1 /usr/libexec/PerfPowerServices",
+      "  661     1  64.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "82350 81009  44.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "  442     1  36.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "  485     1  13.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  417     1   9.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "82347 82346   6.8 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "78620 78619   4.8 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      " 1083     1   2.8 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 3063 97864   2.8 claude"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791122242.826554,
+  "durationSeconds": 2834.2028097909997,
+  "after": {
+    "at": 1791122244.0078568,
+    "load": [
+      6.9248046875,
+      9.9443359375,
+      17.291015625
+    ],
+    "idlePercent": 79.12755383765875,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 189.5 /usr/libexec/PerfPowerServices",
+      "62543  1160  16.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "  485     1  16.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1160     1   5.6 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      " 1083     1   4.0 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 3063 97864   1.8 claude",
+      " 1092     1   1.6 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 1495  1166   1.4 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "18428     1   1.2 /usr/libexec/diagnosticd"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r3-full-suite-final.log",
+    "sha256": "676fa3fb757d9b3f1e2bbedf0f2d1e40831c45c4e15372dfd64a6bf30695f18c",
+    "bytes": 1896684
+  },
+  "inputsUnchanged": true
+}

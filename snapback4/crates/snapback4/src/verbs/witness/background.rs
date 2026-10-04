@@ -32,7 +32,7 @@ fn bundle(metadata: &Value) -> Result<&str> {
         .filter(|p| !Path::new(p).is_absolute() && !Path::new(p).components().any(|c| matches!(c, std::path::Component::ParentDir)))
         .ok_or_else(|| error("E_WITNESS_PROOF", "export metadata has no in-tree iOS bundle"))
 }
-fn executable() -> PathBuf {
+pub(super) fn executable() -> PathBuf {
     let path = std::env::current_exe().unwrap();
     #[cfg(test)]
     let path = path.parent().unwrap().parent().unwrap().join("snapback4");
@@ -66,12 +66,21 @@ fn spawn_owned(mut command: Command, export: &File, project: Option<&File>, deta
 fn identity_alive(record: &Value) -> bool {
     !record.is_null() && record["pid"].as_u64().and_then(|p| recovery::identity(p as u32)).as_ref() == Some(record)
 }
-fn current(dir: &Path) -> bool { read(&dir.parent().unwrap().join("latest.json"))["artifacts"].as_str() == dir.to_str() }
+fn current(dir: &Path) -> bool {
+    let request = read(&dir.join("request.json"));
+    let marker = read(&Path::new(request["target"].as_str().unwrap_or("dist")).join(".snapback4-publication.json"));
+    read(&dir.parent().unwrap().join("latest.json"))["artifacts"].as_str() == dir.to_str()
+        && matches_generation(&request, &marker) && marker["mode"] == "background"
+}
+fn matches_generation(value: &Value, publication: &Value) -> bool {
+    publication["generation"].is_string() && publication["exportHash"].is_string()
+        && value["generation"] == publication["generation"] && value["exportHash"] == publication["exportHash"]
+}
 fn finish(dir: &Path, state: &str, reason: &str) -> Result<Value> { finish_at(dir, "result.json", state, reason) }
 fn finish_at(dir: &Path, file: &str, state: &str, reason: &str) -> Result<Value> {
     let request = read(&dir.join("request.json"));
     let result = json!({ "state": state, "reason": reason, "exportHash": request["exportHash"],
-        "publishedAt": request["publishedAt"], "finishedAt": now(), "artifacts": dir,
+        "generation": request["generation"], "publishedAt": request["publishedAt"], "finishedAt": now(), "artifacts": dir,
         "log": dir.join("background.log"), "receipt": dir.join("smoke-ios-run.json") });
     save(&dir.join(file), &result)?;
     eprintln!("{}", summary(&result));
@@ -82,14 +91,16 @@ fn finish_at(dir: &Path, file: &str, state: &str, reason: &str) -> Result<Value>
 /// All errors here describe native evidence; none invalidate the Hermes export.
 pub(super) fn schedule(dir: &Path, target: &Path, export: &File) {
     let result = (|| -> Result<()> {
-        let mut request = json!({ "artifacts": dir, "target": target, "project": std::env::current_dir().map_err(|e| error("E_WITNESS_INPUT", e))?,
-            "exportHash": null, "publishedAt": now(), "qos": "background", "publication": dir.join("publication.json") });
-        save(&dir.join("request.json"), &request)?;
-        save(&dir.parent().unwrap().join("latest.json"), &request)?;
+        let marker = read(&target.join(".snapback4-publication.json"));
         let metadata = read(&dir.join("export/metadata.json"));
         let relative = bundle(&metadata)?;
         let hash = artifact(&dir.join("export").join(relative))?["sha256"].clone();
-        request["exportHash"] = hash.clone();
+        if !marker["generation"].is_string() || marker["exportHash"] != hash || marker["mode"] != "background" {
+            return Err(error("E_WITNESS_PROOF", "publication generation does not bind the background export"));
+        }
+        let request = json!({ "artifacts": dir, "target": target, "project": std::env::current_dir().map_err(|e| error("E_WITNESS_INPUT", e))?,
+            "exportHash": hash, "generation": marker["generation"], "publishedAt": marker["publishedAt"],
+            "qos": "background", "publication": dir.join("publication.json") });
         save(&dir.join("request.json"), &request)?;
         save(&dir.parent().unwrap().join("latest.json"), &request)?;
         let log = output(&dir.join("background.log"))?;
@@ -127,8 +138,13 @@ pub(super) fn skipped(args: &[String]) -> i32 {
         fs::create_dir(&dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let metadata = read(&project.join("dist/metadata.json"));
         let relative = bundle(&metadata)?;
+        let marker = read(&project.join("dist/.snapback4-publication.json"));
+        let hash = artifact(&project.join("dist").join(relative))?["sha256"].clone();
+        if !marker["generation"].is_string() || marker["exportHash"] != hash || marker["mode"] != "skipped" {
+            return Err(error("E_WITNESS_PROOF", "publication generation does not bind the skipped export"));
+        }
         let request = json!({ "artifacts": dir, "target": project.join("dist"), "project": project,
-            "exportHash": artifact(&project.join("dist").join(relative))?["sha256"], "publishedAt": now() });
+            "exportHash": hash, "generation": marker["generation"], "publishedAt": marker["publishedAt"] });
         save(&dir.join("request.json"), &request)?;
         save(&root.join("latest.json"), &request)?;
         writeln!(output(&dir.join("background.log"))?, "native smoke skipped: {}", args[0]).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -150,7 +166,7 @@ fn directory(args: &[String]) -> Result<PathBuf> {
     }
     Ok(dir)
 }
-fn signals() {
+pub(super) fn signals() {
     unsafe { for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] { libc::signal(signal, interrupt as *const () as libc::sighandler_t); } }
 }
 
@@ -177,7 +193,9 @@ pub(super) fn worker(args: &[String]) -> i32 {
         }
         // No newer smoke can start until both this guardian and its driver
         // have released the same open-file-description lease after cleanup.
-        recovery::cleanup(dir.parent().unwrap(), None)?;
+        retention::run(dir.parent().unwrap(), None, || {
+            if current(&dir) { Ok(()) } else { Err(error("E_WITNESS_INTERRUPTED", "retention superseded by a newer export")) }
+        })?;
         if !current(&dir) { finish(&dir, "superseded", "a newer export was published")?; return Ok(()); }
         let mut command = Command::new(executable());
         command.args(["witness", "background-run"]).arg(&dir).process_group(0).stdin(Stdio::null())
@@ -230,13 +248,15 @@ pub(super) fn worker(args: &[String]) -> i32 {
         }
         // Own custody has already drained. Retention of older evidence is
         // maintenance and must not rewrite the completed native outcome.
-        if let Err(e) = recovery::cleanup(dir.parent().unwrap(), Some(&dir)) {
+        if let Err(e) = retention::run(dir.parent().unwrap(), Some(&dir), || {
+            if current(&dir) { Ok(()) } else { Err(error("E_WITNESS_INTERRUPTED", "retention superseded by a newer export")) }
+        }) {
             eprintln!("native smoke evidence cleanup deferred: {e}");
         }
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(e) => {
-        if let Ok(dir) = directory(args) { let _ = finish(&dir, "failed", &format!("{e}; cleanup may require recovery")); }
+        if let Ok(dir) = directory(args) { let _ = finish(&dir, if current(&dir) { "failed" } else { "superseded" }, &format!("{e}; cleanup may require recovery")); }
         eprintln!("{e}"); 1
     } }
 }
@@ -244,7 +264,7 @@ pub(super) fn worker(args: &[String]) -> i32 {
 // Unlike wall time, this difference ignores NTP/calendar changes. Darwin's
 // continuous clock advances asleep; uptime does not. Unit tests inject samples.
 #[allow(deprecated)]
-fn sleep_clock() -> u64 {
+pub(super) fn sleep_clock() -> u64 {
     #[cfg(target_os = "macos")]
     unsafe {
         unsafe extern "C" { fn mach_continuous_time() -> u64; }
@@ -255,7 +275,7 @@ fn sleep_clock() -> u64 {
     #[cfg(not(target_os = "macos"))]
     { 0 }
 }
-fn slept(before: u64, after: u64) -> bool { after.saturating_sub(before) > 1000 }
+pub(super) fn slept(before: u64, after: u64) -> bool { after.saturating_sub(before) > 1000 }
 
 pub(super) fn driver(args: &[String]) -> i32 {
     let guardian = std::env::var("SNAPBACK4_EXPORT_WRAPPER_PID").ok().and_then(|s| s.parse::<i32>().ok());
@@ -352,12 +372,34 @@ fn timestamp(value: &Value) -> String {
 fn summary(value: &Value) -> String {
     let state = value["state"].as_str().unwrap_or("pending");
     let hash = value["exportHash"].as_str().unwrap_or("unknown");
-    if state == "passed" { format!("native smoke passed for export {hash} at {}: prime/offline/restart; receipt: {}", timestamp(&value["finishedAt"]), value["receipt"].as_str().unwrap_or("unknown")) }
+    if state == "unverified" { format!("native smoke: no proof for the current export {hash}: {}; run npm run export:ios", value["reason"].as_str().unwrap_or("publication handoff missing or stale")) }
+    else if state == "passed" { format!("native smoke passed for export {hash} at {}: prime/offline/restart; receipt: {}", timestamp(&value["finishedAt"]), value["receipt"].as_str().unwrap_or("unknown")) }
     else { format!("native smoke {state} for export {hash}: {}; log: {}", value["reason"].as_str().unwrap_or("running in background"), value["log"].as_str().unwrap_or("unknown")) }
 }
 fn latest(project: &Path) -> Option<Value> {
     let request = read(&project.join("artifacts/native-smoke/latest.json"));
-    let dir = PathBuf::from(request["artifacts"].as_str()?);
+    let dist = project.join("dist");
+    if request.is_null() && !dist.exists() { return None; }
+    let marker_path = dist.join(".snapback4-publication.json");
+    let marker = read(&marker_path);
+    let missing = |reason: &str| json!({ "state": "unverified", "exportHash": marker["exportHash"],
+        "generation": marker["generation"], "reason": reason });
+    // Hash the selected HBC too: retaining a marker while replacing its bundle
+    // must not promote older evidence. Re-read the generation after hashing so
+    // an atomic publication during observation fails closed for this poll.
+    let hash = bundle(&read(&dist.join("metadata.json"))).ok()
+        .and_then(|relative| artifact(&dist.join(relative)).ok()).map(|a| a["sha256"].clone());
+    if !marker["generation"].is_string() || hash.as_ref() != Some(&marker["exportHash"]) || read(&marker_path) != marker {
+        return Some(missing("publication identity is missing, changed or unverifiable"));
+    }
+    if !matches_generation(&request, &marker) || !request["artifacts"].is_string() {
+        if marker["mode"] == "skipped" {
+            return Some(json!({ "state": "skipped", "exportHash": marker["exportHash"], "generation": marker["generation"],
+                "reason": format!("no proof for the current export ({}); status handoff missing or stale", marker["reason"].as_str().unwrap_or("skipped")) }));
+        }
+        return Some(missing("publication handoff missing or stale"));
+    }
+    let dir = PathBuf::from(request["artifacts"].as_str().unwrap());
     let mut result = read(&dir.join("result.json"));
     if result.is_null() {
         result = request;
@@ -367,6 +409,8 @@ fn latest(project: &Path) -> Option<Value> {
             result["state"] = json!("failed"); result["reason"] = json!("background worker exited without a result; next export recovers custody");
         }
     }
+    if !matches_generation(&result, &marker) { return Some(missing("proof result belongs to another publication")); }
+    if marker["mode"] == "skipped" && result["state"] != "skipped" { return Some(missing("current export was skipped")); }
     Some(result)
 }
 pub(crate) fn doctor_summary(project: &Path) -> Option<String> { latest(project).as_ref().map(summary) }

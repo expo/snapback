@@ -1,0 +1,87 @@
+[
+  {
+    "path": "/tmp/sb4-nz-r3-all-affected.log",
+    "sha256": "8f75595ea9b2ca518ed1ec33aab557c06f9bedffb8cff06022fef3790b345788",
+    "bytes": 6459
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-background-final.log",
+    "sha256": "281135e4799fa691279d2c5f3bb36c31af51f631cdeb8974279d647dbaa7f4c6",
+    "bytes": 3286
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-background.log",
+    "sha256": "45fa250c3c5e95ec97d8ae23459c91c395330190e9bd986513c502a803ecc1a4",
+    "bytes": 5484
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-build.log",
+    "sha256": "9eb739ee53d59ab7d88db56ffeda10822d42ed29f4e413a03a1dfdd04f2d93fa",
+    "bytes": 2488
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-export-failure-final.log",
+    "sha256": "810054a04ae1a19ec5ab1eaea998d556d6542bcd9cda15962500f6d6d4cfd25a",
+    "bytes": 342
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-focused-other-final.log",
+    "sha256": "766532f8f65311510357b3bf75094be81d394022a374164d29f70adfd092767f",
+    "bytes": 3079
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-focused-other.log",
+    "sha256": "2e46154cc37a4e575f0d6d9e3cd5e7a4a2680a6b31c7a7f9298095f7d66c04ab",
+    "bytes": 4034
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-full-suite-final.log",
+    "sha256": "676fa3fb757d9b3f1e2bbedf0f2d1e40831c45c4e15372dfd64a6bf30695f18c",
+    "bytes": 1896684
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-full-suite.log",
+    "sha256": "d5b831e3f4b588d06ce5ddee078e62cd518ee36b81fe5ff0575d2c58d80885b3",
+    "bytes": 1899101
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-ref-check-final.log",
+    "sha256": "71e10046bbcdbc06c2aec052d4b7d460a2df549fd1d744012cfa4f28ba9cac6d",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-ref-check.log",
+    "sha256": "bbf445e189e8cec0e4e1c68aa0f0418931e50139fb67c51251aaeee8af8a09c9",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-retention-final.log",
+    "sha256": "d8b5cffe1716335d53107cb17afa3a19bf0fc5b1e22c0cff4e00be0a87e1856c",
+    "bytes": 1215
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-whitespace-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-whitespace.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-witness-final.log",
+    "sha256": "c69fc3b07e2bd5d8fb4ef6f4d4b8b7d3b965de60e4dd0a2867f8845f8e248dbd",
+    "bytes": 8568
+  },
+  {
+    "path": "/tmp/sb4-nz-r3-witness.log",
+    "sha256": "4f45d3f5269fbe6a01253a550d7bb02834761f26c177d5d33db949321c2e788a",
+    "bytes": 10579
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4",
+    "sha256": "87b55ca9f8988bea87cf0f5f39032fc81eba765d1f985a7a45b3110531b3a522",
+    "bytes": 33042592
+  }
+]

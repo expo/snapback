@@ -6,14 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 
 const binary = new URL('../../../target/debug/snapback4', import.meta.url).pathname;
 const wrapper = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname;
 const shim = new URL('../bin/snapback4.js', import.meta.url).pathname;
 const pause = () => new Promise(r => setTimeout(r, 50));
-async function until(check, label) {
-  const end = Date.now() + 30000;
+async function until(check, label, timeout = 30000) {
+  const end = Date.now() + timeout;
   while (!check()) { assert.ok(Date.now() < end, label); await pause(); }
 }
 const read = p => { try { return JSON.parse(fs.readFileSync(p)); } catch { return null; } };
@@ -54,7 +54,7 @@ async function cleanup(f) {
   const root = path.join(f.root, 'artifacts/native-smoke');
   if (fs.existsSync(root)) for (const dir of fs.readdirSync(root).filter(n => /^\d+-\d+$/.test(n))) {
     const run = path.join(root, dir);
-    await until(() => read(path.join(run, 'result.json')), 'fixture background result');
+    await until(() => read(path.join(run, 'result.json')) || fs.existsSync(path.join(run, 'retention.json')) || (read(path.join(run, 'worker.json')) && ['worker', 'driver'].every(role => !alive(read(path.join(run, role + '.json'))?.process?.pid))), 'fixture background result or dead custodians');
     await until(() => {
       const p = read(path.join(run, 'worker.json'))?.process?.pid;
       if (!p) return true;
@@ -210,5 +210,134 @@ test('an explicit opt-out supersedes an in-flight proof and reports the new expo
     assert.match(f.status().stdout, /skipped.*SNAPBACK4_NATIVE_SMOKE=off/);
     assert.notEqual(f.latest().exportHash, first.exportHash);
     await until(() => read(path.join(first.artifacts, 'result.json'))?.state === 'superseded', 'old driver cancelled');
+  } finally { await cleanup(f); }
+});
+
+function alive(pid) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+function seedPass(f) {
+  const exportHash = createHash('sha256').update('export one').digest('hex');
+  const generation = randomUUID(), artifacts = path.join(f.root, 'artifacts/native-smoke/1-1');
+  const marker = { generation, exportHash, mode: 'background', publishedAt: Date.now() };
+  const request = { ...marker, artifacts, target: path.join(f.root, 'dist'), project: f.root };
+  f.put('dist/bundle.hbc', 'export one');
+  f.put('dist/metadata.json', JSON.stringify({ fileMetadata: { ios: { bundle: 'bundle.hbc' } } }));
+  f.put('dist/.snapback4-publication.json', JSON.stringify(marker));
+  f.put('artifacts/native-smoke/latest.json', JSON.stringify(request));
+  f.put('artifacts/native-smoke/1-1/request.json', JSON.stringify(request));
+  f.put('artifacts/native-smoke/1-1/finished.json', '{}');
+  f.put('artifacts/native-smoke/1-1/result.json', JSON.stringify({ ...request, state: 'passed', finishedAt: Date.now() }));
+  assert.equal(f.status('--wait').status, 0, 'fixture establishes an earlier matching pass');
+  return request;
+}
+function noOldPass(f) {
+  const status = f.status('--wait');
+  assert.equal(status.status, 2, status.stdout + status.stderr);
+  assert.match(status.stdout, /no proof for the current export/);
+  assert.doesNotMatch(status.stdout, /native smoke passed/);
+  const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
+  assert.match(doctor.stdout, /no proof for the current export/);
+  assert.doesNotMatch(doctor.stdout, /native smoke passed/);
+}
+for (const bytes of ['export one', 'changed export']) test(`failed latest handoff cannot report an older pass (${bytes})`, { skip: process.platform !== 'darwin' }, async () => {
+  const f = fixture();
+  try {
+    const previous = seedPass(f);
+    // write() creates this exact temporary file. A directory fails before
+    // rename, leaving the old latest pointer byte-for-byte intact.
+    fs.mkdirSync(path.join(f.root, 'artifacts/native-smoke/latest.json.tmp'));
+    const result = f.invoke(bytes);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stderr, /native smoke failed to start/);
+    assert.equal(fs.readFileSync(path.join(f.root, 'dist/bundle.hbc'), 'utf8'), bytes);
+    assert.deepEqual(f.latest(), previous);
+    assert.notEqual(read(path.join(f.root, 'dist/.snapback4-publication.json')).generation, previous.generation);
+    noOldPass(f);
+  } finally { await cleanup(f); }
+});
+for (const reason of ['off', 'non-macOS']) test(`failed export-skipped handoff cannot report an older pass (${reason}, equal bytes)`, async () => {
+  const f = fixture();
+  try {
+    const previous = seedPass(f);
+    const cli = path.join(f.root, 'node_modules/expo/bin/cli');
+    fs.writeFileSync(cli, fs.readFileSync(cli, 'utf8').replace("process.argv[process.argv.indexOf('--output-dir')+1]", "(process.argv.includes('--output-dir')?process.argv[process.argv.indexOf('--output-dir')+1]:'dist')"));
+    f.put('bin/snapback4', `#!/bin/sh\nif [ "$2" = export-skipped ]; then echo 'injected skip handoff failure' >&2; exit 77; fi\nexec '${process.execPath}' '${shim}' "$@"\n`, 0o755);
+    if (reason === 'off') f.env.SNAPBACK4_NATIVE_SMOKE = 'off';
+    else {
+      f.put('platform.cjs', "Object.defineProperty(process,'platform',{value:'linux'})");
+      f.env.NODE_OPTIONS = '--require=' + path.join(f.root, 'platform.cjs');
+    }
+    const result = f.invoke(); assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stderr, /native smoke status update failed/);
+    assert.deepEqual(f.latest(), previous);
+    noOldPass(f);
+    // A missing marker is also unverified, even with identical bundle bytes.
+    fs.unlinkSync(path.join(f.root, 'dist/.snapback4-publication.json'));
+    noOldPass(f);
+  } finally { await cleanup(f); }
+});
+
+function blockedRetention(f) {
+  for (let i = 1; i <= 6; i++) {
+    f.put(`artifacts/native-smoke/${i}-1/finished.json`, '{}');
+    f.put(`artifacts/native-smoke/${i}-1/result.json`, '{"state":"skipped"}');
+  }
+  // Only the first compressor blocks. Its child ignores TERM too; the native
+  // keeper must drain the complete group, including after guardian SIGKILL.
+  f.put('bin/gzip', `#!${process.execPath}
+const fs=require('fs'),{spawn,spawnSync}=require('child_process');
+const root=process.cwd();
+if(fs.existsSync(root+'/compression.json')) {
+ const result=spawnSync('/usr/bin/gzip',process.argv.slice(2),{stdio:'inherit'});process.exit(result.status??1);
+}
+process.on('SIGTERM',()=>{});
+const child=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
+fs.writeFileSync(root+'/compression.json',JSON.stringify({pid:process.pid,child:child.pid}));
+setInterval(()=>{},1000);
+`, 0o755);
+  // This tool is CommonJS despite the fixture bin directory's ESM default.
+  const script = path.join(f.root, 'bin/gzip'); fs.renameSync(script, script + '.cjs');
+  f.put('bin/gzip', `#!/bin/sh\nexec '${process.execPath}' '${script}.cjs' "$@"\n`, 0o755);
+}
+for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['before','supersede'], ['before','deadline'], ['after','SIGTERM'], ['after','SIGKILL'], ['after','supersede']]) test(`blocked retention has bounded custody: ${phase} ${mode}`, { skip: process.platform !== 'darwin', timeout: 90000 }, async () => {
+  const f = fixture();
+  try {
+    if (phase === 'before') blockedRetention(f);
+    assert.equal(f.invoke().status, 0);
+    const first = f.latest();
+    if (phase === 'after') {
+      await until(() => f.events().length > 0, 'driver started before retention fixture');
+      blockedRetention(f); f.put('continue', '');
+      assert.equal(f.status('--wait').status, 2);
+    }
+    await until(() => read(path.join(f.root, 'compression.json')), 'retention entered blocked compressor');
+    const compressor = read(path.join(f.root, 'compression.json'));
+    const worker = read(path.join(first.artifacts, 'worker.json')).process.pid;
+    const retentionRoot = path.join(f.root, 'artifacts/native-smoke');
+    const custodyDir = fs.readdirSync(retentionRoot).find(name => name.startsWith('.retention-') && read(path.join(retentionRoot, name, 'retention-group.json')));
+    const custody = read(path.join(retentionRoot, custodyDir, 'retention-group.json'));
+    assert.ok(custody?.guardian?.pid && custody?.group, 'retention journal exists before arbitrary compression');
+    const started = Date.now();
+    // The second retention invocation must defer without waiting for the lock.
+    const contender = spawnSync(binary, ['witness', 'export-cleanup', path.join(f.root, 'artifacts/native-smoke')], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(contender.status, 1, contender.stdout + contender.stderr);
+    assert.match(contender.stderr, /retention lock busy/);
+    if (mode.startsWith('SIG')) process.kill(worker, mode);
+    else if (mode === 'supersede') assert.equal(f.invoke('new publication').status, 0);
+    await until(() => !alive(compressor.pid) && !alive(compressor.child), 'compressor and child drained without recovery', 45000);
+    const elapsed = Date.now() - started;
+    assert.ok(elapsed < (mode === 'deadline' ? 40000 : 10000), `retention cancellation took ${elapsed} ms`);
+    await until(() => !alive(worker) && !alive(custody.guardian.pid) && !alive(custody.group), 'guardian and native keeper release custody');
+    if (mode === 'deadline') {
+      assert.ok(elapsed > 25000, `real 30-second deadline was exercised: ${elapsed}`);
+      assert.match(read(path.join(first.artifacts, 'result.json')).reason, /30-second deadline/);
+    }
+    await until(() => !alive(worker), 'guardian releases its background lease');
+    if (mode !== 'supersede') assert.equal(f.invoke('new publication').status, 0);
+    await until(() => f.events().length > 0, 'new proof acquired the lease and reached its tool');
+    f.put('continue', ''); assert.equal(f.status('--wait').status, 2);
+    console.log(`retention ${phase} ${mode}: compressor group drained in ${elapsed} ms; newer proof started`);
   } finally { await cleanup(f); }
 });

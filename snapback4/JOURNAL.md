@@ -86237,3 +86237,56 @@ process groups are empty. No other session's simulator/process or X27R worktree
 was changed, and no other host was used. New NZ evidence files stay below
 256 KB; large logs, libraries and videos remain outside git. Nothing pushed
 or published. [Report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md).
+
+
+## 2026-10-04 — NZ round 3: bounded retention and current-publication proof
+
+Built on the completed round-2 merge a6af2febbb, including landed WD round 1.
+Read the Astra and Grok round-0/1 reviews from eb1000 with read-only SSH;
+all implementation and verification stayed on this Apartment mini.
+
+Retention now executes inside the existing native supervisor and retained group
+anchor, including compression before the proof driver starts and after it exits.
+A nonblocking lock defers contenders. The worker has 30 seconds of work, followed
+by WD's unchanged bounded drain; SIGTERM, owner death, supersession and detected
+sleep cancel it. Seven blocked-compressor regressions cover guardian SIGTERM and
+SIGKILL, a newer export, pre/post-driver custody and the real 30-second deadline.
+They verify that owned compressors, descendants and keepers exit and a newer
+proof obtains the lease. Completed native results survive maintenance failure.
+
+A fresh generation and Hermes hash now travel inside each atomic publication.
+Status and doctor bind the request/result to current dist and its actual bundle,
+so a failed latest-pointer update cannot resurrect an older pass, even when the
+bundle bytes match. Opt-out/non-macOS exports invalidate the old marker before
+publication; failed skip handoffs report no proof for the current export.
+Four injected handoff failures pass; status --wait is nonzero for unverified or
+skipped current exports. Doctor's native line remains informational.
+
+For review P2, chose the permitted documentation alternative. Output growth is
+activity, not semantic progress; repeated retries/heartbeats may occupy the proof
+slot and private simulator until the 60-minute hard cap. Distinct-line filtering
+would still accept changing timestamps and cannot reliably identify advancement
+across CocoaPods/Xcode. LLP 3000.030 §15 and guide witness state this accepted
+limit. Foreground preparation stays exactly 900 seconds; preparation-deadline.rs,
+WD cleanup.rs and process_group.rs are unchanged.
+
+Build passed, serial witness units passed 55/55, and all 58 affected export and
+preparation JavaScript tests passed together. The first full attempt retained one
+old publication fixture failure in 3,065.6 seconds: fake Expo lacked metadata.
+The fixture now provides metadata and injects downstream handoff failure without
+launching native tools, preserving its publication/interruption/rollback checks.
+Development fixture failures and their fixes remain in the report and archive.
+The final full Mac suite passed with **0 failures in 2,834 seconds**:
+all Rust targets/doctests, 287 CLI units (four existing ignores), 76 witness
+integration cases, 9 fixture wrappers, 6,216 client tests (six existing skips),
+and 79 full-count model cases. Builds, budgets, release guard and typechecks
+passed. No interventions, cancellations or reduced counts in the final run;
+source hashes match its pre-run manifest. Reference and whitespace checks passed.
+
+No real simulator was created in this round; integration controls used recorded
+fake devices. Prior recorded sb4-nz- devices remain absent, and this worktree's
+CLI processes drained. No other session's processes or simulators were signalled.
+Large evidence remains outside git, referenced by hashes; new evidence files are
+under 256 KB with no gzip/video files committed. No native timings were repeated
+and real host sleep remains unexercised. No version bump; NZ targets 0.4.14.
+Nothing pushed or published. [Round 3 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-3--review-corrections).

@@ -1,5 +1,9 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 3 addresses the two blocking review findings and records the accepted
+60-minute activity bound. The final full Mac suite passed with **0 failures in 2,834 s**. See [Round 3](#round-3--review-corrections). NZ is intended
+for 0.4.14; 0.4.13 excludes this lane. Nothing pushed or published.
+
 Round 2 merges main **abafa9af9c**, preserving WD cleanup and NZ background
 preparation. Warm plain/social exports returned in **3.75 / 4.91 s**, and their
 background proofs passed at **120.82 / 143.81 s** from command start. The final
@@ -549,3 +553,122 @@ binaries to the same external content-addressed archive as prior rounds. New NZ
 report artifacts stay below 256 KB; raw logs, libraries, videos and inventories
 remain outside git. Existing upstream artifacts imported by the merge are
 preserved. Nothing pushed or published.
+
+
+## Round 3 — review corrections
+
+Date: 2026-10-04. Base is the completed Round 2 merge **a6af2febbb**, including
+main **abafa9af9c** and WD round 1. Read the commissioned
+[Astra review](round3/review-astra.md) and [Grok review](round3/review-grok.md)
+from eb1000 with read-only SSH. No work ran there: implementation and tests
+stay on this Apartment mini. The existing simulator/process restrictions stand.
+
+**P1 retention: corrected.** Both guardian cleanup calls now run the entire
+retention worker under the existing native supervisor and unreaped group anchor.
+The worker and its compressor share that owned group. Kernel owner-death custody
+therefore exists before the proof driver starts and after it exits; guardian
+SIGKILL cannot strand the compressor. A nonblocking retention lock defers a
+contender immediately. A 30-second total work budget, SIGTERM, supersession or
+sleep detection requests cleanup, followed by WD's unchanged 5-second idle /
+60-second hard group-drain budget. Retention cannot wait indefinitely while
+holding the background lease. Already completed proof results remain unchanged
+on maintenance failure. A killed owner can leave a small `.retention-*` custody
+journal for inspection; it cannot leave a live compressor under the tested
+single-death case. Existing simultaneous-watchdog-loss and kernel inspection
+failure residuals still apply.
+
+The regressions create six completed fixture runs, block the first compressor
+and its TERM-resistant descendant, and exercise SIGTERM, SIGKILL and a newer
+publication both before and after the proof driver. Every case checks that the
+compressor, descendant, native keeper and background guardian exit, then that a
+new proof obtains the lease. A second cleanup invocation checks nonblocking lock
+deferral. A separate case exercises the real, unshortened 30-second deadline.
+Final focused cancellation observations were **282/301/632 ms** before the driver
+(SIGTERM/SIGKILL/supersession) and **290/297/471 ms** after it. The deadline case
+drained at **29,501 ms after observing the compressor**, reflecting that its
+30-second budget starts before compressor launch. These are fixture observations,
+not new native-performance measurements. All seven final custody cases passed.
+
+**P1 current publication: corrected.** Each background export carries a fresh
+UUID generation and Hermes hash in `.snapback4-publication.json`, inside the
+verified atomic publication inventory. Request and result records carry that
+generation. `status` and `doctor` compare it with the current `dist/` publication
+and actual bundle hash, re-reading the marker after the hash observation. An
+older pass cannot establish the current export's result, even for identical
+Hermes bytes. Missing/stale handoff reports **no proof for the current export**,
+and `status --wait` returns nonzero. The opt-out/non-macOS path invalidates the old
+marker before Expo mutates `dist/`, then marks a skipped generation independently
+of `export-skipped`. If either handoff fails, the prior pass cannot reappear.
+Successful exports continue to return zero; proof/status failures remain loud.
+
+Failure injections preserve the old `latest.json` while making its atomic
+replacement fail, for both changed and identical Hermes bytes. Both return a
+successful export and unverified status/doctor output. Separate tests fail
+`export-skipped` for opt-out and simulated non-macOS, again using identical bytes;
+status is skipped/unverified, never passed. Removing the publication marker also
+fails closed. The non-macOS case injects Node's platform inside a local fixture;
+it is not Linux-host qualification. Existing supersession, observer interruption,
+crash cleanup and recorded fake-simulator ownership controls still run.
+
+**P2 activity versus progress: explicit accepted bound.** Chose the review's
+permitted documentation alternative, retaining output activity as the signal.
+CocoaPods/Xcode do not provide a stable semantic advancement protocol here;
+distinct-line filtering still accepts changing timestamps/retry counters and
+can reject legitimate quiet compilation. Repeated or heartbeat output may hold
+the proof slot and private simulator until the 60-minute hard cap. The 900-second
+idle budget detects silent stalls, not all semantic stalls. LLP 3000.030 §15
+and `guide witness` now say this explicitly. Foreground preparation remains
+exactly 900 seconds; its code and the deadline implementation are unchanged.
+
+The guide also corrects the two review documentation nits: superseded results
+are historical run records while status follows the current publication, and
+native doctor output is informational (`status --wait` supplies the exit code).
+LLP §15 now labels the old foreground-cost/opt-out advice as superseded history.
+WD's `cleanup.rs` and `process_group.rs` remain byte-for-byte unchanged.
+
+**Verification and attempts.** Build passed; final serial witness units passed
+**55/55**. Other focused JavaScript tests passed **28/28**, and the four new
+stale-status injections plus existing thirteen background controls passed.
+All seven final retention controls passed. After expanding the scope to every
+export test plus preparation controls, **58/58 tests passed together** in 177.2 s.
+The final complete Mac suite passed with **0 failures in 2,834 s**
+(2,834.2 s measured wall time). All Rust targets and doctests
+passed, including 287 CLI units (four existing ignores) and 76 witness integration
+cases. Fixture wrappers passed 9/9; all 312 client files passed, with **6,216 tests
+passed and six existing skips**; the two full-count model files passed **79/79**.
+Builds, budgets, release guard and typechecks passed. There were no interventions,
+cancellations or reduced counts. The final source hashes still match the
+pre-run manifest in `round3/full-suite-final-inputs.json`. Reference and whitespace
+checks passed. `round3/verification-evidence.json` binds the retained logs and
+`round3/custody-verification.json` records the final read-only custody inspection.
+
+The first witness run had 53 passes and two fixture failures: publication pause
+hooks are test-executable-only and were hidden by moving retention into a real
+CLI subprocess. Those publication tests now invoke the retention worker body,
+retaining their original swap/reconciliation assertions; integration tests cover
+the real supervised entry. The first pruning test expected four blocking callers
+to succeed; it now requires successful maintenance plus explicit busy-lock
+deferral, preserving all 5-full/20-compressed assertions. Initial new retention
+fixtures incorrectly waited for JSON that successful retention had compressed,
+and read the deadline result before the guardian had written it. Teardown now
+accepts the retention receipt, and deadline assertions wait for custody exit.
+No product assertion was removed; no timeout was shortened for the deadline
+regression. The first full suite then exposed an older publication-failure fixture
+whose fake Expo output lacked metadata. It now supplies export metadata, then
+blocks the latest-pointer handoff deliberately so successful publication still
+exercises downstream scheduling failure without launching native tools. Its two
+installed-shim/interruption/rollback cases passed separately and in the broader
+58-test run. The first full attempt finished with one failed stage in **3,065.6 s**: all Rust
+targets/doctests, fixtures and all 79 model cases passed; clients had 6,215 passes,
+six existing skips and the one old-fixture failure. There were no interventions.
+The original scoped input hashes matched, and the additional test-only amendment
+is separately bound in `round3/publication-fixture-fix.json`. The first full
+attempt and fresh complete rerun are both retained. Failed development logs remain in the evidence archive.
+
+Round 3 does not repeat the Round 1 ABBA measurements or Round 2 real-native
+qualification. Its simulator mutation controls use recorded fake devices; no real
+simulator is created. Real host sleep remains unexercised; the existing arithmetic
+and owner-death controls are retained. The published-0.4.12 dependency audit issue
+remains outside this correction. No version bump or publication is made here;
+the author's release target is 0.4.14. Large logs stay outside git, referenced by
+hash in the Round 3 verification artifacts. Nothing pushed.

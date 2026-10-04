@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -34,6 +34,18 @@ export function verifyPublication(artifacts, source, target, expected) {
       receipt.proofSha256 !== expected.proofSha256 || !isDeepStrictEqual(receipt.files, expected.files)) {
     throw Error('publication.json does not match the export proved by this run');
   }
+}
+
+// The marker is part of the atomically published inventory. A fresh generation
+// distinguishes equal-byte exports and survives a failed latest.json handoff.
+const publicationMarker = '.snapback4-publication.json';
+function markPublication(root, skip) {
+  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'metadata.json')));
+  const bundle = metadata?.fileMetadata?.ios?.bundle;
+  if (typeof bundle !== 'string' || path.isAbsolute(bundle) || bundle.split(/[\\/]/).includes('..')) throw Error('export metadata has no in-tree iOS bundle');
+  const marker = { generation: randomUUID(), exportHash: sha256(fs.readFileSync(path.join(root, bundle))),
+    mode: skip ? 'skipped' : 'background', reason: skip, publishedAt: Date.now() };
+  fs.writeFileSync(path.join(root, publicationMarker), JSON.stringify(marker));
 }
 
 export function skipReason(platform, env) {
@@ -93,8 +105,13 @@ export async function main() {
   spawnSync('snapback4', ['witness', 'status', '--if-present'], { stdio: 'inherit', timeout: 5000 });
   const skip = skipReason(process.platform, process.env);
   if (skip) {
+    // Invalidate before Expo mutates dist, including same-byte opt-outs. If
+    // invalidation fails, stop before starting an export whose status could lie.
+    fs.rmSync(path.join('dist', publicationMarker), { force: true });
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
     if (exported.status !== 0) return exported.status;
+    try { markPublication('dist', skip); }
+    catch (error) { console.error(`native smoke publication identity unavailable: ${error.message}`); }
     if (fs.existsSync('artifacts/native-smoke/latest.json')) {
       const marked = spawnSync('snapback4', ['witness', 'export-skipped', skip], { encoding: 'utf8', timeout: 5000 });
       if (marked.status !== 0) console.error(`native smoke status update failed: ${marked.stderr || marked.error?.message}`);
@@ -111,6 +128,7 @@ export async function main() {
   try {
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
     if (exported.status !== 0) return exported.status;
+    markPublication(privateExport, null);
     const expected = publicationExpectation(artifacts, privateExport, true);
     // APFS clones avoid copying bundle bytes. Both trees are independently
     // verified by the publisher; replacing dist cannot mutate the smoke input.

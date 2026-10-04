@@ -1,0 +1,42 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "938893f291fd2c0cf39ef89dc90dab587e8c3e9412b9c9528966a39f951dd300"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "b8d8c1a3e0f79455ddfd52f19914ebe67b396e1ec1fc806ec36dc3b9af651ffc"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "sha256": "d5cd7ed1223050896eac0ffc90e78f9b66c13d5fb6531d9543ef0fe25cd600c0"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+    "sha256": "540ea12d889f995cfaf82e072c491c427e349cea0fd2c43fba09cec8e7b6dc3e"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "de6af8405641ce2e78eb8158bcee3c3974fa529ce054fc5c1e4e9a7c9cfa2f23"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "83d6b6557d7054aa37786293a9e755bc7091a819ef2502d86cd269ca2a00fb41"
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "72662b1cd57813213c0357a7784ed2756b2c96cbae8e7baeea2ae2686c11c17e"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "41c1a7bc0b32b84e0d433d6599399c77a240f7e1b281b86b9c25024062b317ed"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-native-round2.test.mjs",
+    "sha256": "7acf4bff10e75de80f9fedd266bdb739b85597c262de8119731213d342c6da4f"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "5ee98b07ec5ba1ccd8157c08e1bab8dc7718ab2c9b4ffb60a480f940e990a49f"
+  }
+]

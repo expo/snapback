@@ -1,0 +1,12 @@
+{
+  "at": 1791118209.3297532,
+  "path": "snapback4/packages/snapback4/test/export-failure.test.mjs",
+  "beforeSha256": "ae599a1150a71761acf06717abd09bc05aa60438d72334bdb3fdbbf8aed6bdcc",
+  "afterSha256": "f3ef71b68778ed681d4d2d8599cf6fbe3ac3ed3ee91a692258fef643ecbd4e44",
+  "reason": "Supply authentic export metadata so publication fault injection reaches the intended boundary; block latest.json.tmp to preserve downstream scheduling failure without launching native tools.",
+  "focused": {
+    "passed": 2,
+    "failed": 0,
+    "log": "/tmp/sb4-nz-r3-export-failure-final.log"
+  }
+}

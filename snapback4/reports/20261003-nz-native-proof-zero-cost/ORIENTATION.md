@@ -68,3 +68,13 @@ development evidence and guide bounds require the actual loopback listener/peer
 fence. Keep HTTP assertions on a real non-loopback interface, but enumerate
 local up IPv4 addresses instead of depending on a route to 192.0.2.1. Test-only;
 no network configuration, disclosure boundary or runtime change.
+
+Round 3 (2026-10-04): build on the completed Round 2 merge, a6af2febbb.
+LLP 3000.030 §15 governs native retention custody, publication identity and
+background/foreground bounds. The author explicitly requests bounded retention,
+current-publication reporting and a documented choice on activity versus semantic
+progress. Preserve WD's process-group drain/scoped enumeration unchanged. Read
+both commissioned reviews from eb1000 using read-only SSH; all implementation
+and verification stays on this mini. No new review delegation or publication.
+Doc targets: dated §15, witness guide, Round 3 report and append-only JOURNAL.
+Hand-off: none.
