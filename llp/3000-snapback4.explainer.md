@@ -1839,10 +1839,13 @@ seven times the consumed thread CPU (including atomic overruns), capped at 100 m
 LU round 2 also charges empty kinds but combines their repayment with the next
 useful slice, or repays it before an entirely empty cycle waits for work. Each
 kind's charge is capped separately at 100 ms. Accumulated debt reaching 100 ms
-triggers repayment even on an empty turn; a repayment is at most 100 ms and
-any remainder carries forward. No charge is lost by combining empty turns.
-Empty-cycle debt is appended after any repayment already scheduled by a timed
-worker; it cannot overlap that charge. Every sleep remains at most 100 ms.
+triggers repayment even on an empty turn; each turn schedules at most 100 ms
+of that debt and carries any remainder forward. No charge is lost by combining
+empty turns.
+Empty-cycle debt and slice-completion charges each append after any outstanding
+repayment, whichever worker finishes first. LU round 3 fixes completion after
+an empty-cycle flush: neither completion nor flushing can overlap or discard
+the other's charge. Every sleep remains at most 100 ms.
 An ordinary cheap empty recount/job therefore adds no separate sleep/wakeup to
 every delivery slice. Request commits cannot cancel repayment.
 Each kind still releases engine custody and re-enters FIFO admission separately.
@@ -1852,7 +1855,8 @@ falls back to wall time. Chunk deadlines still use wall time. This targets
 one-eighth CPU duty for ordinary short slices; the cap and indivisible work
 preclude a universal duty ceiling. The pause also applies if engine waiters
 arrived during a quiet slice. Request commits do not cancel it. Quiet work has
-no added pause; an entirely empty three-kind cycle waits up to 100 ms for work.
+no new charge, but preserves outstanding repayment; an entirely empty
+three-kind cycle waits up to 100 ms for work.
 After one second without a completed bulk turn, ordinary maintenance runs the
 next kind itself, checking every 100 ms and after each ordinary engine slice.
 Nominal minimum eligibility is **one turn per 1 s plus up to 100 ms polling,
