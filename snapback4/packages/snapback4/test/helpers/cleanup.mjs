@@ -1,5 +1,22 @@
 import { withHangGuard } from './wait.mjs';
 
+// A rejecting finally would replace the body's error. Keep both objects and
+// spell out both failures: native test reporters need not render .errors.
+export async function withCleanup(body, after) {
+  const errors = [];
+  let value;
+  try { value = await body(); } catch (error) { errors.push(error); }
+  try { await after(); } catch (error) { errors.push(error); }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length === 2) {
+    const message = `Test body and cleanup both failed:\n${errors.map(error => error?.stack ?? String(error)).join('\n')}`;
+    // An outer test timeout can hide this eventual rejection too.
+    console.error(message);
+    throw new AggregateError(errors, message, { cause: errors[0] });
+  }
+  return value;
+}
+
 // Node's test timeout does not bound an after hook or cancel an awaited
 // finally block. Give cleanup its own guard and preserve the refusal/logs.
 export async function cleanup(work, label, diagnostics = () => '', children = []) {

@@ -189,3 +189,49 @@ Both owned scratch trees were removed after archiving evidence, and the
 Linux driver stopped and reaped its two hogs. Sampled worktree plus scratch
 use stayed below 15 GB. No other host/worktree/process or simulator was used;
 nothing pushed or published.
+
+## Round 2 — preserve body and cleanup failures
+
+Base: `6173f51c74`. The four cleanup paths inside `finally` now use
+`withCleanup`: release serving, restored-client close, crash teardown and
+worker admission release. A lone failure is rethrown unchanged. If both body
+and cleanup fail, an `AggregateError` retains the body error first (also as
+`cause`) and the cleanup error second, including its original cause and
+fixture diagnostics. The message includes both stacks and is printed before
+throwing, so an outer native-test timeout cannot hide the later rejection.
+The two existing `t.after` cleanup paths retain Node's body-error reporting
+and the cleanup helper's printed diagnostic; their combined output is tested.
+
+`cleanup.test.mjs` covers successful values, single-error identity (including
+`throw undefined`), dual-error identity/cause, and native TAP output for
+`finally`, `t.after`, and a body timeout during cleanup. Its private child
+accelerates the 122-second hang guard to 20 ms; the normal guard is
+unchanged. A control without the aggregate diagnostic reproduced masking by
+an outer timeout, and the final regression passes.
+
+The supplied Astra real-server injection was rerun on the review base and the
+fixed fixture, with its private 250 ms guard. A stopped server plus
+`REVIEW_BODY_SENTINEL` produces only cleanup/hang output on the base; the fixed
+fixture reports the body sentinel and `TEST_CLEANUP`/`TEST_HANG` together.
+
+P3 is deferred in [the watchdog-death custody ticket](../../../issues/20261004-fy-watchdog-death-orphan-custody.md).
+The supplied review's pidfd-controlled SIGKILL reproduction left the original
+worker/helper alive after test exit. Its source and result are retained as
+review-provided evidence; FY did not create new orphans. The worker creates a
+separate process group, and a cached PID/PGID plus an identity check cannot
+reserve its lifetime. A cross-platform keeper/handle fallback needs more
+lifecycle plumbing than this small patch. No unsafe signal fallback was added.
+
+Final-source verification on eb1000: **3/3 whole-file runs each** for release
+activation (18 tests/run) and worker regressions (61 tests/run), confined to
+CPUs 72–79 with a CPU hog in the same affinity. `cleanup.test.mjs` passes all
+three tests. The preliminary runs also passed, but remain separately labeled
+because the aggregate diagnostic was subsequently hardened for outer timeouts.
+`ref-check` and `git diff --check` pass. No full suite or remote tests ran this
+round; product code and every crash/restart/exactly-once/outbox/descendant
+assertion are unchanged.
+
+[Round 2 evidence and control sources](./round2-evidence.log.gz) and
+[verification summary and hashes](./round2-summary.json) retain the results.
+The owned drivers stopped/reaped their hogs and local scratch was deleted
+after export. Sampled use stayed below 15 GB. Nothing pushed or published.

@@ -1,5 +1,5 @@
 import { waitFor, hangBudget } from './helpers/wait.mjs';
-import { cleanup } from './helpers/cleanup.mjs';
+import { cleanup, withCleanup } from './helpers/cleanup.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
 // and deployment directories are isolated and removed by their owner.
 import test from "node:test";
@@ -65,7 +65,7 @@ async function serve(deployment, inspect) {
   let log = "", url;
   child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
-  try {
+  await withCleanup(async () => {
     const deadline = performance.now() + hangBudget();
     while (!url && child.exitCode == null && performance.now() < deadline) await delay(10);
     assert.ok(url, log || "release server did not listen");
@@ -75,14 +75,14 @@ async function serve(deployment, inspect) {
     const signedIn = await (await fetch(url + "/auth/guest", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
     assert.ok(signedIn.session?.token, JSON.stringify(signedIn));
     await inspect(url, { authorization: `Bearer ${signedIn.session.token}` }, signedIn.session);
-  } finally {
+  }, async () => {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     try {
       await cleanup(() => exited, `release server ${child.pid}`, () => log, [child]);
     } finally {
       if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
     }
-  }
+  });
 }
 
 test("rollback then deploy keeps immutable source identities and serving only attaches", { timeout: hangBudget(3) }, async (t) => {
@@ -419,12 +419,12 @@ schedule checkpointDaily every 1d: checkpoint
         },
         writeFile: async (path, text) => writeFileSync(path, text) }),
     });
-    try {
+    await withCleanup(async () => {
       await client.sync();
       const local = await client.query({ kind: "query", name: "q" }, {});
       assert.equal(local.complete, true);
       assert.deepEqual(local.data.map((row) => row.body), ["at backup"]);
-    } finally {
+    }, async () => {
       try {
         await cleanup(() => client.close(), 'restored client close', () => JSON.stringify(deviceChildren.map(child => ({
           pid: child.pid, exitCode: child.exitCode, signalCode: child.signalCode,
@@ -432,7 +432,7 @@ schedule checkpointDaily every 1d: checkpoint
       } finally {
         for (const child of deviceChildren) if (child.exitCode == null && child.signalCode == null) child.kill('SIGKILL');
       }
-    }
+    });
   });
   assert.deepEqual(recoveryState(deployment), originalAfter, "restored serving and authentication must not touch the original");
   const restoredBeforeActivation = recoveryState(restored);
@@ -518,7 +518,7 @@ schedule resumeDaily every 1d: resume
   child.stdout.on("data", data => { log += data; });
   child.stderr.on("data", data => { log += data; });
   let queued;
-  try {
+  await withCleanup(async () => {
     await waitFor(() => {
       assert.equal(child.exitCode, null, log);
       assert.equal(child.signalCode, null, log);
@@ -534,10 +534,10 @@ schedule resumeDaily every 1d: resume
     assert.equal(queued.rows_written, 0);
     child.kill("SIGKILL");
     assert.deepEqual(await exited, [null, "SIGKILL"]);
-  } finally {
+  }, async () => {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
     await cleanup(() => exited, `crashed release server ${child.pid}`, () => log, [child]);
-  }
+  });
   assert.deepEqual(jobs(), [queued], "after witnessed SIGKILL and before any restart, the admitted job is unchanged");
   await serve(deployment, async (url, headers) => {
     const deadline = performance.now() + hangBudget();

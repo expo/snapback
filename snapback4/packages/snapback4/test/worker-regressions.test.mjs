@@ -1,5 +1,5 @@
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
-import { cleanup } from './helpers/cleanup.mjs';
+import { cleanup, withCleanup } from './helpers/cleanup.mjs';
 import { identity, live } from '../../../scripts/test-processes.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -412,14 +412,14 @@ test('worker fixture waits for initial admission after the listening URL', async
   let ready = false;
   const starting = f.start([], { SNAPBACK_NODE: wrapper }).then(s => { ready = true; return s; });
   // Release the deliberately blocked admission even if the assertion fails.
-  try {
+  await withCleanup(async () => {
     await until(() => f.listening && existsSync(join(f.dir, 'probe-ready')));
     await sleep(50);
     assert.equal(ready, false, 'a printed URL is not completed worker admission');
-  } finally {
+  }, async () => {
     writeFileSync(join(f.dir, 'probe-go'), '');
     await cleanup(() => starting, 'worker admission release', () => fixtureDiagnostics.getStore()?.());
-  }
+  });
   await until(() => rows(join(f.dir, 'starts')).length === 1);
 });
 

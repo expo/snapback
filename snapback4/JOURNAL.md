@@ -86281,3 +86281,12 @@ failures). All 180 watchdog variants passed and no cleanup hook failed. The
 [Round 1 report](./reports/20261004-fy-fixture-races/REPORT.md#round-1--bounded-cleanup-hooks)
 records partial-JSON failures for FX plus open log-readiness/writer-lock
 follow-ups. Only cleanup plumbing changed; full suite not rerun this round.
+
+Round 2 (2026-10-04): FY cleanup now retains body and teardown errors together,
+including when an outer test timeout hides the later rejection. All four
+finally paths use the shared wrapper; native after-hook reporting is covered.
+Both whole files passed 3/3 under confined CPU load, and the new masking tests
+passed 3/3. P3 watchdog-death orphan custody is explicitly deferred in an open
+ticket with the supplied review reproduction. See the
+[Round 2 report](./reports/20261004-fy-fixture-races/REPORT.md#round-2--preserve-body-and-cleanup-failures).
+Test-only change; no full suite or remote tests this round; nothing pushed.
