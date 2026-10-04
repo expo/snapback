@@ -7,6 +7,8 @@ pub struct AdoptionEstimate {
     pub cache_mib: u32,
     pub retired_rows: u64,
     pub retired_index_entries: u64,
+    /// Unconditional deadline rewrites, without a measured rate (unlike projections).
+    pub deadline_rewrite_rows: u64,
     /// Work without a measured rate; populations are not exact deletion counts.
     pub unestimated: std::collections::BTreeSet<String>,
     pub sources: BTreeMap<String, u64>,
@@ -138,15 +140,21 @@ impl Store {
             estimate.retired_rows = estimate.retired_rows.saturating_add(rows as u64);
             estimate.retired_index_entries = estimate.retired_index_entries.saturating_add(indexes as u64);
         }
-        // Selection is clock-independent. Avoid decoding old images or predicting
-        // how many are expired at the later activation's pinned time.
+        // Selection is clock-independent. Affected tables may retire old rows;
+        // unaffected through tables still rewrite every row's deadline. Avoid
+        // predicting how many rows expire at the later activation's pinned time.
         let through = crate::engine::through_activation::Retirement::new(schema, &previous, 0);
         for (name, table) in schema.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
             if changed && (through.affects(name) || table.through.is_some()) {
                 let rows = count(name)?;
                 if rows != 0 {
                     let label = super::adoption_report::table_label(schema, name);
-                    estimate.unestimated.insert(format!("read-through retirement/recapture {label} ({rows} stored rows; deletion subset depends on activation time)"));
+                    if through.affects(name) {
+                        estimate.unestimated.insert(format!("read-through retirement/recapture {label} ({rows} stored rows; deletion subset depends on activation time)"));
+                    } else {
+                        estimate.deadline_rewrite_rows = estimate.deadline_rewrite_rows.saturating_add(rows);
+                        estimate.unestimated.insert(format!("read-through {label} rewrites {rows} stored rows to recompute deadlines"));
+                    }
                 }
             }
             let plan = &plans[name];

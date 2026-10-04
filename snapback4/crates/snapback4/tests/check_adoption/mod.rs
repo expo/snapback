@@ -59,7 +59,7 @@ fn check_warns_about_removed_rows_and_removed_indexes_without_build_work() {
 }
 
 #[test]
-fn check_retained_child_retirement_is_read_only_with_live_and_stopped_store() {
+fn check_child_retirement_and_rewrite_advice_is_read_only_with_live_and_stopped_store() {
     let source = "table parents:\n  public\ntable children:\n  parent: parents\n  until: time default 50\n  immutable parent\n  expire at .until\n  read through .parent\n";
     let p = Project::new(); p.source(source);
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -68,16 +68,24 @@ fn check_retained_child_retirement_is_read_only_with_live_and_stopped_store() {
     let parent = wire::row_from_json(&e.schema().tables["parents"], &json!({"id":"p"})).unwrap();
     let child = wire::row_from_json(&e.schema().tables["children"], &json!({"id":"c","parent":"p","until":50})).unwrap();
     e.seed_at([("parents".into(), parent), ("children".into(), child)], 0).unwrap();
-    p.source(&source.replace("default 50", "default 200"));
     let check = || {
         let bytes = || ["", "-wal"].map(|suffix| fs::read(format!("{}{suffix}", p.store().display())).unwrap_or_default());
         let before = bytes();
-        for flags in [vec!["check"], vec!["check", "--json"]] {
-            let output = p.run(&flags);
-            assert!(output.status.success(), "{output:?}");
-            let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-            assert!(text.contains("N_ADOPTION_PAUSE") && text.contains("unestimated write pause") && text.contains("read-through retirement/recapture children (1 stored rows"), "{text}");
-            assert_eq!(bytes(), before, "check must preserve database and WAL");
+        for (candidate, retires) in [
+            (source.replace("default 50", "default 200"), true),
+            (source.replace("read through .parent", "public"), true),
+            (format!("{source}\ntable unrelated:\n  public\n"), false),
+        ] {
+            p.source(&candidate);
+            for flags in [vec!["check"], vec!["check", "--json"]] {
+                let output = p.run(&flags);
+                assert!(output.status.success(), "{output:?}");
+                let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+                assert!(text.contains("N_ADOPTION_PAUSE") && text.contains("unestimated write pause"), "{text}");
+                assert_eq!(text.contains("read-through retirement/recapture children (1 stored rows; deletion subset depends on activation time)"), retires, "{text}");
+                assert_eq!(text.contains("read-through children rewrites 1 stored rows to recompute deadlines"), !retires, "{text}");
+                assert_eq!(bytes(), before, "check must preserve database and WAL");
+            }
         }
     };
     let tx = e.store_mut().transaction().unwrap();
