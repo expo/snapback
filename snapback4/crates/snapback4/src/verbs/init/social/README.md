@@ -28,6 +28,7 @@ The next export and `npx snapback4 doctor` print its result; for your final repo
 run `npx snapback4 witness status --wait`. Receipts and logs stay in
 `artifacts/native-smoke/<timestamp>`. Failures remain visible without failing a
 successful export; unavailable native hosts report a skip.
+Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.
 `npm run native:smoke` explicitly waits for a full Release build and smoke.
 Smoke proves acquisition, cold offline reopen and reconnect; an empty partition
 proves lifecycle only. Pending write replay and application assertions need

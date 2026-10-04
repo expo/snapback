@@ -104,20 +104,6 @@ export async function main() {
   // can fail a new export. The detached worker owns maintenance and cleanup.
   spawnSync('snapback4', ['witness', 'status', '--if-present'], { stdio: 'inherit', timeout: 5000 });
   const skip = skipReason(process.platform, process.env);
-  if (skip) {
-    // Invalidate before Expo mutates dist, including same-byte opt-outs. If
-    // invalidation fails, stop before starting an export whose status could lie.
-    fs.rmSync(path.join('dist', publicationMarker), { force: true });
-    const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
-    if (exported.status !== 0) return exported.status;
-    try { markPublication('dist', skip); }
-    catch (error) { console.error(`native smoke publication identity unavailable: ${error.message}`); }
-    if (fs.existsSync('artifacts/native-smoke/latest.json')) {
-      const marked = spawnSync('snapback4', ['witness', 'export-skipped', skip], { encoding: 'utf8', timeout: 5000 });
-      if (marked.status !== 0) console.error(`native smoke status update failed: ${marked.stderr || marked.error?.message}`);
-    }
-    console.log(`native smoke skipped: ${skip}`); return 0;
-  }
   const root = path.resolve('artifacts/native-smoke');
   const artifacts = path.join(root, `${Date.now()}-${process.pid}`);
   const privateExport = path.join(artifacts, 'export');
@@ -128,13 +114,13 @@ export async function main() {
   try {
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
     if (exported.status !== 0) return exported.status;
-    markPublication(privateExport, null);
+    markPublication(privateExport, skip);
     const expected = publicationExpectation(artifacts, privateExport, true);
     // APFS clones avoid copying bundle bytes. Both trees are independently
     // verified by the publisher; replacing dist cannot mutate the smoke input.
     fs.cpSync(privateExport, publicationExport, { recursive: true, mode: fs.constants.COPYFILE_FICLONE });
     publicationAttempted = true;
-    const published = await runChild('snapback4', ['witness', 'export-publish', publicationExport, path.resolve('dist'), '--background'], { stdio: ['inherit', 'inherit', 'inherit', lease] });
+    const published = await runChild('snapback4', ['witness', 'export-publish', publicationExport, path.resolve('dist'), skip ? '--environment-skip' : '--background'], { stdio: ['inherit', 'inherit', 'inherit', lease] });
     try {
       verifyPublication(artifacts, publicationExport, path.resolve('dist'), expected);
       if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
@@ -142,6 +128,7 @@ export async function main() {
       console.log(`export output publication failed: ${error.message}`);
       return published.status || 1;
     }
+    if (skip) console.log(`native smoke skipped: ${skip}`);
     return 0;
   } finally {
     // After a publication attempt this path may be the displaced last good

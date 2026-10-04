@@ -78,3 +78,16 @@ both commissioned reviews from eb1000 using read-only SSH; all implementation
 and verification stays on this mini. No new review delegation or publication.
 Doc targets: dated §15, witness guide, Round 3 report and append-only JOURNAL.
 Hand-off: none.
+
+Round 4 (2026-10-04), base e7e325b7d1: LLP 3000.030 §15 governs both skipped
+and background publication, retention custody and reporting linearization. The
+operator's commissioned Astra/Grok findings require atomic skipped publication,
+short orphan-reconciliation lock ownership, bounded public retention entry,
+maintenance deferral, consistent status observations and commit-time request
+timestamps. Preserve the accepted 900-second idle / 60-minute activity bound and
+WD group drain/scoped enumeration; no repeated-line filter. Tests must exercise
+the specified interleavings without touching FX or any unowned process/device.
+Doc targets: §15, guide witness, both package READMEs, both generated starter
+READMEs, Round 4 report and append-only JOURNAL. No delegate/review/ship skill
+is required: this is a local correction with explicit no-push authority.
+Hand-off: none.

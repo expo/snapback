@@ -22,6 +22,8 @@ fn w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save()
     wait_adoption(|| host.query()["data"] == 2);
     let doctor = p.run(&["doctor", "--json"]);
     assert!(doctor.status.success(), "{doctor:?}");
+    // Diagnostic output is asynchronous; query/doctor success does not flush it.
+    wait_adoption(|| host.logs().contains("schema adopted as generation 2"));
     assert!(host.logs().contains("schema adopted as generation 2"), "{}", host.logs());
     println!("adoption: locked_refusal_repeated=1 recovered_generation=2 extra_saves=0");
 }

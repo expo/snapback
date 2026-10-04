@@ -73,14 +73,20 @@ test('npm bin symlink really exports, preserves export failure and honors opt-ou
   try {
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
     const expo = path.join(root, 'node_modules/expo/bin'); fs.mkdirSync(expo, { recursive: true });
-    fs.writeFileSync(path.join(expo, 'cli'), `require('node:fs').writeFileSync('export-ran', JSON.stringify(process.argv.slice(2))); process.exit(Number(process.env.EXPORT_STATUS || 0));`);
+    fs.writeFileSync(path.join(expo, 'cli'), `const fs=require('node:fs'),path=require('node:path');fs.writeFileSync('export-ran',JSON.stringify(process.argv.slice(2)));if(process.env.EXPORT_STATUS!=='0')process.exit(Number(process.env.EXPORT_STATUS));const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'bundle.hbc'),'fixture');fs.writeFileSync(path.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle.hbc'}}}));`);
+    const tools=path.join(root,'bin');fs.mkdirSync(tools);
+    fs.symlinkSync(new URL('../bin/snapback4.js',import.meta.url).pathname,path.join(tools,'snapback4'));
     const bin = path.join(root, 'export-bin'); fs.symlinkSync(new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname, bin);
-    const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
+    const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary, PATH: tools+':'+process.env.PATH, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
     const success = invoke(0); assert.equal(success.status, 0, success.stderr);
     assert.match(success.stdout, /native smoke skipped: SNAPBACK4_NATIVE_SMOKE=off/);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'export-ran'))), ['export', '--platform', 'ios', '--dump-assetmap']);
-    const failed = invoke(7); assert.equal(failed.status, 7); assert.equal(failed.stdout, '');
-    assert.equal(fs.existsSync(path.join(root, 'artifacts')), false);
+    const args=JSON.parse(fs.readFileSync(path.join(root,'export-ran')));
+    assert.deepEqual(args.slice(0,5),['export','--platform','ios','--dump-assetmap','--output-dir']);
+    assert.ok(args[5].endsWith('/export')&&!args[5].endsWith('/dist'));
+    const marker=fs.readFileSync(path.join(root,'dist/.snapback4-publication.json'),'utf8');
+    assert.equal(JSON.parse(marker).mode,'skipped');
+    const failed = invoke(7); assert.equal(failed.status, 7); assert.match(failed.stdout, /native smoke skipped/);
+    assert.equal(fs.readFileSync(path.join(root,'dist/.snapback4-publication.json'),'utf8'),marker,'failed private export preserves current publication');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 

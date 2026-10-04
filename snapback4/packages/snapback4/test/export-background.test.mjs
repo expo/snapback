@@ -54,7 +54,7 @@ async function cleanup(f) {
   const root = path.join(f.root, 'artifacts/native-smoke');
   if (fs.existsSync(root)) for (const dir of fs.readdirSync(root).filter(n => /^\d+-\d+$/.test(n))) {
     const run = path.join(root, dir);
-    await until(() => read(path.join(run, 'result.json')) || fs.existsSync(path.join(run, 'retention.json')) || (read(path.join(run, 'worker.json')) && ['worker', 'driver'].every(role => !alive(read(path.join(run, role + '.json'))?.process?.pid))), 'fixture background result or dead custodians');
+    await until(() => read(path.join(run, 'result.json')) || fs.existsSync(path.join(run, 'retention.json')) || (['worker', 'driver', 'launch'].every(role => !alive(read(path.join(run, role + '.json'))?.process?.pid)) && !alive(read(path.join(run, 'live.json'))?.wrapper?.pid) && !alive(read(path.join(run, 'live.json'))?.owner?.pid)), 'fixture background result or dead custodians');
     await until(() => {
       const p = read(path.join(run, 'worker.json'))?.process?.pid;
       if (!p) return true;
@@ -263,7 +263,7 @@ for (const reason of ['off', 'non-macOS']) test(`failed export-skipped handoff c
     const previous = seedPass(f);
     const cli = path.join(f.root, 'node_modules/expo/bin/cli');
     fs.writeFileSync(cli, fs.readFileSync(cli, 'utf8').replace("process.argv[process.argv.indexOf('--output-dir')+1]", "(process.argv.includes('--output-dir')?process.argv[process.argv.indexOf('--output-dir')+1]:'dist')"));
-    f.put('bin/snapback4', `#!/bin/sh\nif [ "$2" = export-skipped ]; then echo 'injected skip handoff failure' >&2; exit 77; fi\nexec '${process.execPath}' '${shim}' "$@"\n`, 0o755);
+    fs.mkdirSync(path.join(f.root, 'artifacts/native-smoke/latest.json.tmp')); // fail the in-transaction skip handoff
     if (reason === 'off') f.env.SNAPBACK4_NATIVE_SMOKE = 'off';
     else {
       f.put('platform.cjs', "Object.defineProperty(process,'platform',{value:'linux'})");
@@ -319,6 +319,7 @@ for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['befor
     const custodyDir = fs.readdirSync(retentionRoot).find(name => name.startsWith('.retention-') && read(path.join(retentionRoot, name, 'retention-group.json')));
     const custody = read(path.join(retentionRoot, custodyDir, 'retention-group.json'));
     assert.ok(custody?.guardian?.pid && custody?.group, 'retention journal exists before arbitrary compression');
+    for (const pid of [compressor.pid, compressor.child]) assert.equal(Number(spawnSync('ps', ['-o','pgid=','-p',String(pid)], {encoding:'utf8'}).stdout.trim()), custody.group, 'compressor descendants share the recorded anchor group');
     const started = Date.now();
     // The second retention invocation must defer without waiting for the lock.
     const contender = spawnSync(binary, ['witness', 'export-cleanup', path.join(f.root, 'artifacts/native-smoke')], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
@@ -329,10 +330,15 @@ for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['befor
     await until(() => !alive(compressor.pid) && !alive(compressor.child), 'compressor and child drained without recovery', 45000);
     const elapsed = Date.now() - started;
     assert.ok(elapsed < (mode === 'deadline' ? 40000 : 10000), `retention cancellation took ${elapsed} ms`);
+    if (mode === 'deadline') {
+      await until(() => f.events().length > 0, 'proof continues after retention deadline');
+      assert.match(fs.readFileSync(path.join(first.artifacts, 'background.log'), 'utf8'), /cleanup deferred:.*30-second deadline/);
+      f.put('continue', ''); assert.equal(f.status('--wait').status, 2);
+    }
     await until(() => !alive(worker) && !alive(custody.guardian.pid) && !alive(custody.group), 'guardian and native keeper release custody');
     if (mode === 'deadline') {
       assert.ok(elapsed > 25000, `real 30-second deadline was exercised: ${elapsed}`);
-      assert.match(read(path.join(first.artifacts, 'result.json')).reason, /30-second deadline/);
+      assert.equal(read(path.join(first.artifacts, 'result.json')).state, 'skipped');
     }
     await until(() => !alive(worker), 'guardian releases its background lease');
     if (mode !== 'supersede') assert.equal(f.invoke('new publication').status, 0);
@@ -340,4 +346,134 @@ for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['befor
     f.put('continue', ''); assert.equal(f.status('--wait').status, 2);
     console.log(`retention ${phase} ${mode}: compressor group drained in ${elapsed} ms; newer proof started`);
   } finally { await cleanup(f); }
+});
+
+
+for (const fault of ['marker', 'handoff']) test(`overlapping skipped export cannot inherit a concurrent publication's proof (${fault} failure)`, { skip: process.platform !== 'darwin' }, async () => {
+  const f = fixture(); let skipped;
+  try {
+    seedPass(f);
+    const cli = path.join(f.root, 'node_modules/expo/bin/cli');
+    fs.appendFileSync(cli, `if(process.env.PAUSE_SKIP){fs.writeFileSync('skip-ready','');while(!fs.existsSync('resume-skip'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);fs.writeFileSync(path.join(out,'assetmap.json'),'changed assets');}`);
+    f.put('marker-fault.cjs', "const fs=require('fs'),write=fs.writeFileSync;fs.writeFileSync=function(p,...a){if(String(p).endsWith('.snapback4-publication.json'))throw Error('injected skipped marker write failure');return write.call(this,p,...a)}");
+    const env = { ...f.env, SNAPBACK4_NATIVE_SMOKE:'off', PAUSE_SKIP:'1', ...(fault==='marker'?{NODE_OPTIONS:'--require='+path.join(f.root,'marker-fault.cjs')}:{}) };
+    skipped = spawn(process.execPath, [wrapper], {cwd:f.root,env,stdio:['ignore','pipe','pipe']});
+    let output=''; skipped.stdout.on('data',b=>output+=b); skipped.stderr.on('data',b=>output+=b);
+    const ended=once(skipped,'exit');
+    await until(()=>fs.existsSync(path.join(f.root,'skip-ready')),'skipped private export paused before marker');
+    // Real wrapper + atomic publisher, equal Hermes bytes, a distinct generation.
+    f.put('continue',''); assert.equal(f.invoke().status,0);
+    assert.equal(f.status('--wait').status,2);
+    const current=f.latest();
+    await until(()=>!alive(read(path.join(current.artifacts,'worker.json'))?.process?.pid),'concurrent proof fixture finished');
+    f.put(path.relative(f.root,path.join(current.artifacts,'result.json')),JSON.stringify({...current,state:'passed',finishedAt:Date.now()}));
+    assert.equal(f.status('--wait').status,0,'seeded pass for concurrently published generation');
+    if(fault==='handoff')fs.mkdirSync(path.join(f.root,'artifacts/native-smoke/latest.json.tmp'));
+    f.put('resume-skip',''); const [code]=await ended;
+    if(fault==='marker') {
+      assert.equal(code,1,output); assert.match(output,/injected skipped marker write failure/);
+      assert.equal(fs.readFileSync(path.join(f.root,'dist/assetmap.json'),'utf8'),'{}','failed private preparation cannot mutate visible assets');
+      assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,current.generation);
+    } else {
+      assert.equal(code,0,output); assert.match(output,/native smoke status update failed/);
+      assert.equal(fs.readFileSync(path.join(f.root,'dist/assetmap.json'),'utf8'),'changed assets');
+      assert.notEqual(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,current.generation);
+      assert.deepEqual(f.latest(),current); noOldPass(f);
+    }
+  } finally {
+    f.put('resume-skip','');
+    if(skipped?.exitCode===null&&skipped?.signalCode===null)await once(skipped,'exit');
+    await cleanup(f);
+  }
+});
+
+test('first opt-out publishes a complete skipped handoff', async()=>{
+  const f=fixture();
+  try {
+    f.env.SNAPBACK4_NATIVE_SMOKE='off';
+    const result=f.invoke(); assert.equal(result.status,0,result.stdout+result.stderr);
+    assert.ok(f.latest()?.generation);
+    const status=f.status('--wait'); assert.equal(status.status,2); assert.match(status.stdout,/native smoke skipped/); assert.doesNotMatch(status.stdout,/handoff missing or stale/);
+    assert.equal(read(path.join(f.latest().artifacts,'result.json')).state,'skipped');
+  } finally {await cleanup(f);}
+});
+
+test('request timestamp begins at publication commit, not private marker creation', {skip:process.platform!=='darwin'},async()=>{
+  const f=fixture();
+  try {
+    f.put('old-clock.cjs','Date.now=()=>1'); f.env.NODE_OPTIONS='--require='+path.join(f.root,'old-clock.cjs');
+    const started=Date.now(); const result=f.invoke(); assert.equal(result.status,0,result.stdout+result.stderr);
+    assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).publishedAt,1);
+    assert.ok(f.latest().publishedAt>=started,'request uses verified commit time');
+    assert.equal(f.latest().publishedAt,read(path.join(f.latest().artifacts,'publication.json')).verifiedAt);
+    assert.equal(f.status().status,2); assert.match(f.status().stdout,/pending/);
+  } finally {await cleanup(f);}
+});
+
+test('direct export-retain has bounded custody and the inner worker rejects manual use', {skip:process.platform!=='darwin'},async()=>{
+  const f=fixture();let caller;
+  try {
+    const root=path.join(f.root,'artifacts/native-smoke');blockedRetention(f);
+    const refused=spawnSync(binary,['witness','export-retain-worker',root,root],{cwd:f.root,env:f.env,encoding:'utf8'});
+    assert.equal(refused.status,1);assert.match(refused.stderr,/requires native custody/);assert.equal(read(path.join(f.root,'compression.json')),null);
+    caller=spawn(binary,['witness','export-retain',root],{cwd:f.root,env:f.env,stdio:'ignore'});const ended=once(caller,'exit');
+    await until(()=>read(path.join(f.root,'compression.json')),'direct retention compressor entered');
+    const compressor=read(path.join(f.root,'compression.json'));caller.kill('SIGTERM');await ended;
+    await until(()=>!alive(compressor.pid)&&!alive(compressor.child),'direct retention descendants drained');
+  } finally {
+    if(caller?.exitCode===null&&caller?.signalCode===null){const ended=once(caller,'exit');caller.kill('SIGTERM');await ended;}
+    await cleanup(f);
+  }
+});
+
+test('SIGKILL overlap defers a still-held retention lock and starts the next proof', {skip:process.platform!=='darwin'},async()=>{
+  const f=fixture();let custody;
+  try {
+    const library=path.join(f.root,'r.dylib');
+    const built=spawnSync('cc',['-dynamiclib',new URL('./retention-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+    assert.equal(built.status,0,built.stderr);
+    // taskpolicy strips DYLD_*; add the test interposer to a private copy's
+    // Mach-O load commands instead. No product binary or system tool is edited.
+    const injected=path.join(f.root,'snapback4-interposed');
+    fs.copyFileSync(binary,injected,fs.constants.COPYFILE_FICLONE);fs.chmodSync(injected,0o755);
+    const fd=fs.openSync(injected,'r+');
+    try {
+      const header=Buffer.alloc(32);fs.readSync(fd,header,0,32,0);assert.equal(header.readUInt32LE(0),0xfeedfacf);
+      const size=header.readUInt32LE(20),commands=Buffer.alloc(size);fs.readSync(fd,commands,0,size,32);
+      let firstSection=Infinity;
+      for(let offset=0;offset<size;offset+=commands.readUInt32LE(offset+4))if(commands.readUInt32LE(offset)===0x19){
+        for(let n=0;n<commands.readUInt32LE(offset+64);n++){
+          const fileOffset=commands.readUInt32LE(offset+72+n*80+48);if(fileOffset)firstSection=Math.min(firstSection,fileOffset);
+        }
+      }
+      const name=Buffer.from('@loader_path/r.dylib\0'),load=Buffer.alloc(Math.ceil((24+name.length)/8)*8);
+      load.writeUInt32LE(0xc,0);load.writeUInt32LE(load.length,4);load.writeUInt32LE(24,8);name.copy(load,24);
+      assert.ok(32+size+load.length<=firstSection,'load command fits existing header padding');
+      const padding=Buffer.alloc(load.length);fs.readSync(fd,padding,0,padding.length,32+size);assert.deepEqual(padding,Buffer.alloc(load.length));
+      fs.writeSync(fd,load,0,load.length,32+size);header.writeUInt32LE(header.readUInt32LE(16)+1,16);header.writeUInt32LE(size+load.length,20);fs.writeSync(fd,header,0,32,0);
+    } finally {fs.closeSync(fd);}
+    const signed=spawnSync('codesign',['--force','--sign','-',injected],{encoding:'utf8'});assert.equal(signed.status,0,signed.stderr);
+    f.env.SNAPBACK4_BIN=injected;f.env.SB4_NZ_RETENTION_BARRIER=f.root;
+    blockedRetention(f);assert.equal(f.invoke().status,0);
+    const first=f.latest();await until(()=>read(path.join(f.root,'compression.json')),'blocked compression');
+    const root=path.join(f.root,'artifacts/native-smoke');
+    const journal=fs.readdirSync(root).find(n=>n.startsWith('.retention-')&&read(path.join(root,n,'retention-group.json')));
+    custody=read(path.join(root,journal,'retention-group.json'));
+    f.put('pause-owner-pid',String(custody.guardian.pid));
+    await until(()=>fs.existsSync(path.join(f.root,'owner-exit-paused')),'native owner-exit watcher is paused before owner death');
+    assert.equal(f.events().length,0,'first proof is still before its driver');
+    const worker=read(path.join(first.artifacts,'worker.json')).process.pid;process.kill(worker,'SIGKILL');
+    await until(()=>!alive(worker),'old guardian released background.lock');
+    const result=f.invoke('next generation');assert.equal(result.status,0,result.stdout+result.stderr);
+    const next=f.latest();await until(()=>f.events().length>0,'next proof starts while old retention lock remains held');
+    assert.match(fs.readFileSync(path.join(next.artifacts,'background.log'),'utf8'),/cleanup deferred:.*retention lock busy/);
+    const compressor=read(path.join(f.root,'compression.json'));assert.ok(alive(compressor.pid));
+    f.put('resume-owner-exit','');
+    await until(()=>!alive(compressor.pid)&&!alive(compressor.child)&&!alive(custody.group)&&!alive(custody.guardian.pid),'old compression and keepers drained after watcher resumes');
+    f.put('continue','');assert.equal(f.status('--wait').status,2);
+  } finally {
+    f.put('resume-owner-exit','');
+    if(custody)await until(()=>!alive(custody.group)&&!alive(custody.guardian.pid),'paused custody drained before fixture removal');
+    await cleanup(f);
+  }
 });

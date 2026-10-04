@@ -21,7 +21,7 @@ fn run_with_budget(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -
     let options = Options::parse(&["ios".into(), "--build".into(), ".".into(), "--smoke".into(),
         "--artifacts".into(), dir.to_string_lossy().into_owned()])?;
     let binary = background::executable();
-    let mut args = vec![std::ffi::OsStr::new("witness"), std::ffi::OsStr::new("export-retain"), root.as_os_str()];
+    let mut args = vec![std::ffi::OsStr::new("witness"), std::ffi::OsStr::new("export-retain-worker"), dir.as_os_str(), root.as_os_str()];
     if let Some(completed) = completed { args.push(completed.as_os_str()); }
     // Native supervisor + unreaped anchor + kernel owner-exit watcher. The
     // complete retention operation, including gzip and lock acquisition, lives
@@ -48,4 +48,21 @@ fn run_with_budget(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -
     child.cleanup()?;
     recovery::remove(&dir)?;
     result
+}
+
+// Internal entry refuses ordinary/manual invocation. The worker must be the
+// native anchor's direct child in its recorded group, after the custody gate.
+pub(super) fn worker(args: &[String]) -> i32 {
+    let guarded = (|| -> Result<()> {
+        if args.len() < 2 { return Err(error("E_WITNESS_PROCESS", "retention worker requires native custody")); }
+        let record = recovery::read(&Path::new(&args[0]).join("retention-group.json"));
+        let group = unsafe { libc::getpgrp() };
+        if group != unsafe { libc::getppid() } || record["group"].as_i64() != Some(group as i64)
+            || record["leader"] != recovery::birth(group as u32).unwrap_or(Value::Null)
+            || record["leader"].is_null() {
+            return Err(error("E_WITNESS_PROCESS", "retention worker requires native custody"));
+        }
+        Ok(())
+    })();
+    match guarded { Ok(()) => recovery::retention_command(&args[1..]), Err(e) => { eprintln!("{e}"); 1 } }
 }

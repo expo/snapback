@@ -530,7 +530,8 @@ pub fn run(args: &[String]) -> i32 {
     if args.first().is_some_and(|arg| arg == "background-run") { return background::driver(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-publish") { return publication::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-lease") { return publication::lease_command(&args[1..]); }
-    if args.first().is_some_and(|arg| arg == "export-retain") { return recovery::retention_command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-retain") { return recovery::command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-retain-worker") { return retention::worker(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {

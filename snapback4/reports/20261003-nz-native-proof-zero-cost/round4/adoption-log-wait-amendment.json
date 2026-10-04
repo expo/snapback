@@ -1,0 +1,9 @@
+{
+  "at": 1791130376.84582,
+  "path": "snapback4/crates/snapback4/tests/check_adoption/mod.rs",
+  "before": "b43184e8796eb5798132f43f127a95feab7e6ca2b7b1096b28b3a2269d3e349e",
+  "after": "5362b9ee35ca8acae7c489f7ec3a17b70938408fa9fa4077aade496608b8c128",
+  "failure": "Immediate adoption log assertion failed after generation-2 query and doctor succeeded; diagnostic writer is asynchronous.",
+  "change": "Wait for the expected log line with the existing bounded 35-second wait_adoption helper, then keep the original assertion. No production code, assertion or timeout bound removed.",
+  "verification": "First full run passed 84/84 check tests; second full run failed this assertion. Affected replay and final complete suite follow."
+}

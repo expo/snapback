@@ -99,7 +99,7 @@ pub(super) fn schedule(dir: &Path, target: &Path, export: &File) {
             return Err(error("E_WITNESS_PROOF", "publication generation does not bind the background export"));
         }
         let request = json!({ "artifacts": dir, "target": target, "project": std::env::current_dir().map_err(|e| error("E_WITNESS_INPUT", e))?,
-            "exportHash": hash, "generation": marker["generation"], "publishedAt": marker["publishedAt"],
+            "exportHash": hash, "generation": marker["generation"], "publishedAt": read(&dir.join("publication.json"))["verifiedAt"],
             "qos": "background", "publication": dir.join("publication.json") });
         save(&dir.join("request.json"), &request)?;
         save(&dir.parent().unwrap().join("latest.json"), &request)?;
@@ -136,23 +136,29 @@ pub(super) fn skipped(args: &[String]) -> i32 {
         lock.lock().map_err(|e| error("E_WITNESS_PROCESS", e))?;
         let dir = root.join(format!("{}-{}", now(), std::process::id()));
         fs::create_dir(&dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-        let metadata = read(&project.join("dist/metadata.json"));
-        let relative = bundle(&metadata)?;
-        let marker = read(&project.join("dist/.snapback4-publication.json"));
-        let hash = artifact(&project.join("dist").join(relative))?["sha256"].clone();
-        if !marker["generation"].is_string() || marker["exportHash"] != hash || marker["mode"] != "skipped" {
-            return Err(error("E_WITNESS_PROOF", "publication generation does not bind the skipped export"));
-        }
-        let request = json!({ "artifacts": dir, "target": project.join("dist"), "project": project,
-            "exportHash": hash, "generation": marker["generation"], "publishedAt": marker["publishedAt"] });
-        save(&dir.join("request.json"), &request)?;
-        save(&root.join("latest.json"), &request)?;
-        writeln!(output(&dir.join("background.log"))?, "native smoke skipped: {}", args[0]).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-        finish(&dir, "skipped", &args[0])?;
-        save(&dir.join("finished.json"), &json!({ "finishedAt": now(), "skipped": true }))?;
-        Ok(())
+        skip_publication(&dir, &project.join("dist"))
     })();
     match result { Ok(()) => 0, Err(e) => { eprintln!("{e}"); 1 } }
+}
+
+// Called under the publisher's lock on every skipped publication, including
+// the first one. This handoff is downstream of commit; failure cannot undo it.
+pub(super) fn skip_publication(dir: &Path, target: &Path) -> Result<()> {
+    let marker = read(&target.join(".snapback4-publication.json"));
+    let metadata = read(&target.join("metadata.json"));
+    let hash = artifact(&target.join(bundle(&metadata)?))?["sha256"].clone();
+    if !marker["generation"].is_string() || marker["exportHash"] != hash || marker["mode"] != "skipped" {
+        return Err(error("E_WITNESS_PROOF", "publication generation does not bind the skipped export"));
+    }
+    let project = target.parent().unwrap();
+    let request = json!({ "artifacts": dir, "target": target, "project": project,
+        "exportHash": hash, "generation": marker["generation"], "publishedAt": now() });
+    save(&dir.join("request.json"), &request)?;
+    save(&dir.parent().unwrap().join("latest.json"), &request)?;
+    let reason = marker["reason"].as_str().unwrap_or("native proof skipped");
+    writeln!(output(&dir.join("background.log"))?, "native smoke skipped: {reason}").map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    finish(dir, "skipped", reason)?;
+    save(&dir.join("finished.json"), &json!({ "finishedAt": now(), "skipped": true }))
 }
 
 fn directory(args: &[String]) -> Result<PathBuf> {
@@ -168,6 +174,12 @@ fn directory(args: &[String]) -> Result<PathBuf> {
 }
 pub(super) fn signals() {
     unsafe { for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] { libc::signal(signal, interrupt as *const () as libc::sighandler_t); } }
+}
+
+fn defer_retention(dir: &Path, completed: Option<&Path>) {
+    if let Err(e) = retention::run(dir.parent().unwrap(), completed, || {
+        if current(dir) { Ok(()) } else { Err(error("E_WITNESS_INTERRUPTED", "retention superseded by a newer export")) }
+    }) { eprintln!("native smoke evidence cleanup deferred: {e}"); }
 }
 
 pub(super) fn worker(args: &[String]) -> i32 {
@@ -193,9 +205,8 @@ pub(super) fn worker(args: &[String]) -> i32 {
         }
         // No newer smoke can start until both this guardian and its driver
         // have released the same open-file-description lease after cleanup.
-        retention::run(dir.parent().unwrap(), None, || {
-            if current(&dir) { Ok(()) } else { Err(error("E_WITNESS_INTERRUPTED", "retention superseded by a newer export")) }
-        })?;
+        defer_retention(&dir, None);
+        interrupted()?;
         if !current(&dir) { finish(&dir, "superseded", "a newer export was published")?; return Ok(()); }
         let mut command = Command::new(executable());
         command.args(["witness", "background-run"]).arg(&dir).process_group(0).stdin(Stdio::null())
@@ -248,11 +259,7 @@ pub(super) fn worker(args: &[String]) -> i32 {
         }
         // Own custody has already drained. Retention of older evidence is
         // maintenance and must not rewrite the completed native outcome.
-        if let Err(e) = retention::run(dir.parent().unwrap(), Some(&dir), || {
-            if current(&dir) { Ok(()) } else { Err(error("E_WITNESS_INTERRUPTED", "retention superseded by a newer export")) }
-        }) {
-            eprintln!("native smoke evidence cleanup deferred: {e}");
-        }
+        defer_retention(&dir, Some(&dir));
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(e) => {
@@ -376,7 +383,23 @@ fn summary(value: &Value) -> String {
     else if state == "passed" { format!("native smoke passed for export {hash} at {}: prime/offline/restart; receipt: {}", timestamp(&value["finishedAt"]), value["receipt"].as_str().unwrap_or("unknown")) }
     else { format!("native smoke {state} for export {hash}: {}; log: {}", value["reason"].as_str().unwrap_or("running in background"), value["log"].as_str().unwrap_or("unknown")) }
 }
-fn latest(project: &Path) -> Option<Value> {
+fn latest(project: &Path) -> Option<Value> { latest_observed(project, || {}) }
+fn latest_observed(project: &Path, after_hash: impl FnOnce()) -> Option<Value> {
+    let root = project.join("artifacts/native-smoke");
+    if !root.exists() && !project.join("dist").exists() { return None; }
+    // A reader never observes the exchange/verify/handoff transaction halfway
+    // through. Never wait here: doctor is informational; --wait polls pending.
+    let locked = (|| -> Result<File> {
+        fs::create_dir_all(&root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        OpenOptions::new().read(true).write(true).create(true).truncate(false)
+            .open(root.join("publication.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))
+    })();
+    let lock = match locked { Ok(file) => file, Err(e) => return Some(json!({ "state": "unverified", "reason": e })) };
+    match lock.try_lock_shared() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => return Some(json!({ "state": "pending", "reason": "publication commit in progress", "log": root })),
+        Err(e) => return Some(json!({ "state": "unverified", "reason": format!("cannot observe publication: {e}") })),
+    }
     let request = read(&project.join("artifacts/native-smoke/latest.json"));
     let dist = project.join("dist");
     if request.is_null() && !dist.exists() { return None; }
@@ -389,6 +412,9 @@ fn latest(project: &Path) -> Option<Value> {
     // an atomic publication during observation fails closed for this poll.
     let hash = bundle(&read(&dist.join("metadata.json"))).ok()
         .and_then(|relative| artifact(&dist.join(relative)).ok()).map(|a| a["sha256"].clone());
+    after_hash();
+    let changed = || json!({ "state": "unverified", "transient": true, "reason": "publication changed during observation" });
+    if read(&root.join("latest.json")) != request || read(&marker_path) != marker { return Some(changed()); }
     if !marker["generation"].is_string() || hash.as_ref() != Some(&marker["exportHash"]) || read(&marker_path) != marker {
         return Some(missing("publication identity is missing, changed or unverifiable"));
     }
@@ -402,7 +428,7 @@ fn latest(project: &Path) -> Option<Value> {
     let dir = PathBuf::from(request["artifacts"].as_str().unwrap());
     let mut result = read(&dir.join("result.json"));
     if result.is_null() {
-        result = request;
+        result = request.clone();
         result["state"] = json!("pending"); result["log"] = json!(dir.join("background.log"));
         let running = ["driver.json", "worker.json", "launch.json"].iter().any(|p| identity_alive(&read(&dir.join(p))["process"]));
         if !running && now().saturating_sub(result["publishedAt"].as_u64().unwrap_or(0) as u128) > 5000 {
@@ -411,6 +437,7 @@ fn latest(project: &Path) -> Option<Value> {
     }
     if !matches_generation(&result, &marker) { return Some(missing("proof result belongs to another publication")); }
     if marker["mode"] == "skipped" && result["state"] != "skipped" { return Some(missing("current export was skipped")); }
+    if read(&root.join("latest.json")) != request || read(&marker_path) != marker { return Some(changed()); }
     Some(result)
 }
 pub(crate) fn doctor_summary(project: &Path) -> Option<String> { latest(project).as_ref().map(summary) }
@@ -419,14 +446,22 @@ pub(super) fn status(args: &[String]) -> i32 {
         eprintln!("E_WITNESS_INPUT: use snapback4 witness status [--wait] [--json]"); return 1;
     }
     let project = match std::env::current_dir() { Ok(p) => p, Err(e) => { eprintln!("{e}"); return 1; } };
+    status_at(&project, args)
+}
+fn status_at(project: &Path, args: &[String]) -> i32 { status_observed(args, || latest(project)) }
+fn status_observed(args: &[String], mut observe: impl FnMut() -> Option<Value>) -> i32 {
     let wait = args.iter().any(|a| a == "--wait");
     if wait { signals(); }
+    let mut unstable_since = None;
     loop {
-        let Some(result) = latest(&project) else {
+        let Some(result) = observe() else {
             if !args.iter().any(|a| a == "--if-present") { println!("native smoke: no background export result; run npm run export:ios"); }
             return 2;
         };
-        if wait && result["state"] == "pending" {
+        let transient = result["state"] == "unverified" && result["transient"] == true;
+        if !transient { unstable_since = None; }
+        let retry = transient && unstable_since.get_or_insert_with(Instant::now).elapsed() < Duration::from_secs(5);
+        if wait && (result["state"] == "pending" || retry) {
             if interrupted().is_err() { return 130; }
             sleep(Duration::from_millis(100)); continue;
         }
@@ -459,4 +494,64 @@ mod tests {
         assert!(!environment_skip(&json!({ "phase": "preparation", "error": "E_WITNESS_BUILD: failed" })));
         assert_eq!(timestamp(&json!(1791068400000u64)), "2026-10-03T23:00:00Z");
     }
+    #[test]
+    fn witness_status_rechecks_latest_after_hash_and_wait_retries_transient_observation() {
+        let root = std::env::temp_dir().join(format!("sb4-status-observation-{}-{}", std::process::id(), now()));
+        let dir = root.join("artifacts/native-smoke/1-1"); fs::create_dir_all(&dir).unwrap();
+        fs::create_dir_all(root.join("dist")).unwrap();
+        fs::write(root.join("dist/bundle"), "same bytes").unwrap();
+        save(&root.join("dist/metadata.json"), &json!({"fileMetadata":{"ios":{"bundle":"bundle"}}})).unwrap();
+        let record = json!({"generation":"old","exportHash":artifact(&root.join("dist/bundle")).unwrap()["sha256"],"artifacts":dir,"mode":"background","state":"passed"});
+        save(&root.join("dist/.snapback4-publication.json"), &record).unwrap();
+        save(&root.join("artifacts/native-smoke/latest.json"), &record).unwrap();
+        save(&dir.join("result.json"), &record).unwrap();
+        assert_eq!(latest(&root).unwrap()["state"], "passed");
+        let changed = latest_observed(&root, || {
+            let mut next = record.clone(); next["generation"] = json!("new");
+            save(&root.join("artifacts/native-smoke/latest.json"), &next).unwrap();
+        }).unwrap();
+        assert_eq!(changed["state"], "unverified"); assert_eq!(changed["transient"], true);
+        let mut polls = 0;
+        assert_eq!(status_observed(&["--wait".into()], || {
+            polls += 1;
+            Some(if polls == 1 { changed.clone() } else { json!({"state":"skipped","generation":"new"}) })
+        }), 2);
+        assert_eq!(polls, 2);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn witness_passed_outcome_survives_post_driver_compression_failure_fixture() {
+        let Ok(root) = std::env::var("SB4_RETENTION_PASSED_FIXTURE") else { return; };
+        let root = PathBuf::from(root); let dir = root.join("artifacts/native-smoke/9999999999999-1");
+        fs::create_dir_all(&dir).unwrap(); fs::create_dir(root.join("dist")).unwrap();
+        let record = json!({"generation":"passed","exportHash":"hash","target":root.join("dist"),"artifacts":dir,"mode":"background"});
+        save(&root.join("dist/.snapback4-publication.json"), &record).unwrap();
+        save(&root.join("artifacts/native-smoke/latest.json"), &record).unwrap();
+        save(&dir.join("request.json"), &record).unwrap();
+        save(&dir.join("finished.json"), &json!({})).unwrap();
+        for i in 1..=6 {
+            let old = root.join(format!("artifacts/native-smoke/{i}-1")); fs::create_dir(&old).unwrap();
+            save(&old.join("finished.json"), &json!({})).unwrap(); save(&old.join("result.json"), &json!({"state":"passed"})).unwrap();
+        }
+        let completed = finish(&dir, "passed", "prime/offline/restart").unwrap();
+        defer_retention(&dir, Some(&dir));
+        assert_eq!(read(&dir.join("result.json")), completed);
+    }
+    #[test]
+    fn witness_passed_outcome_survives_post_driver_compression_failure() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = std::env::temp_dir().join(format!("sb4-retention-passed-{}-{}", std::process::id(), now()));
+        fs::create_dir_all(root.join("bin")).unwrap();
+        fs::write(root.join("bin/gzip"), "#!/bin/sh\nexit 99\n").unwrap();
+        fs::set_permissions(root.join("bin/gzip"), fs::Permissions::from_mode(0o755)).unwrap();
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure_fixture", "--nocapture"])
+            .env("SB4_RETENTION_PASSED_FIXTURE", &root)
+            .env("PATH", format!("{}:{}", root.join("bin").display(), std::env::var("PATH").unwrap()))
+            .current_dir(&root).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("receipt compression failed"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
 }

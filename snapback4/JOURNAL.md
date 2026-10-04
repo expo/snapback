@@ -86290,3 +86290,75 @@ Large evidence remains outside git, referenced by hashes; new evidence files are
 under 256 KB with no gzip/video files committed. No native timings were repeated
 and real host sleep remains unexercised. No version bump; NZ targets 0.4.14.
 Nothing pushed or published. [Round 3 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-3--review-corrections).
+
+
+## 2026-10-04 — NZ round 4: atomic skipped exports and retention races
+
+Built on e7e325b7d1, which includes the round-2 WD/main merge. Fixed every
+finding in the operator's Astra/Grok review excerpts on this Apartment mini.
+Skipped exports now prepare a private tree and generation marker and use the
+same leased atomic publication as background exports. Marker failure stops
+before changing dist; failed post-commit handoff remains a successful export
+with unverified native status. Every committed skip, including the first
+opt-out, gets a handoff. Deterministic equal-byte/changed-asset overlap tests
+cover a concurrent real publication plus marker and handoff failures.
+
+Orphan reconciliation renames its owned tree under the destination lock, then
+deletes it after releasing the lock. A new export completes while deletion is
+paused; interrupted private deletion remains recoverable. Status/doctor observe
+marker, actual bundle, request and result under a nonblocking shared publication
+lock and recheck both marker and latest pointer. A waiter follows publication
+through exchange/verify/handoff into the new generation; transient changed
+observations retry for at most five seconds, stable missing handoffs fail closed.
+Request timestamps now come from verified commit rather than private preparation.
+
+The public export-retain alias uses bounded native custody. Its internal worker
+requires the recorded anchor's parent/group/birth identity. Pre/post-driver
+maintenance failures defer without changing proof results. The deterministic
+SIGKILL overlap exposed a second cleanup in driver startup; background startup
+now uses the guardian's maintenance attempt, while explicit foreground startup
+keeps its previous path. Tests assert compressor PGIDs, public cancellation,
+inner-entry refusal, passed-result preservation on gzip failure, and a newer
+proof starting while the old retention lock remains held after guardian death.
+The test-only watcher barrier uses a private interposed CLI copy, never a changed
+product binary or production hook. Failed fixture barriers and compilation edits
+remain in the report and evidence archive; no assertion was removed.
+
+Both package READMEs and both generated starter READMEs now disclose the
+900-second idle and 60-minute total background preparation bounds, and that
+activity alone does not establish progress. No repeated-line filter was added.
+LLP 3000.030 §15 and guide witness record the changed behavior. WD's group drain,
+scoped enumeration and the preparation deadline implementation are unchanged.
+
+The first full run passed all tests but failed the README physical-line budget
+(301/300). Joining adjacent prose lines preserved all disclosure text and the
+docs gate passed; the failed run and format-only amendment are retained.
+The second run exposed an existing asynchronous-diagnostic race in the adoption
+lock test: the generation-2 query and doctor succeeded before the log assertion
+could see the queued adoption line. The test now waits with its existing bounded
+35-second helper before the unchanged assertion. The affected replay passed;
+the second full attempt and this test-only amendment are retained, and the final
+complete run covers the correction. No product behavior or timeout was relaxed.
+The next complete attempt passed Rust but missed the unchanged ephemeral expiry
+acceptance bound once (5,979.005 ms against 4,500 ms, trial 5). Both prior runs
+passed all five trials. The separate open issue records this intermittent
+failure; no assertion or ceiling was changed. Its replay and the final complete
+run are retained separately, and a later pass does not erase the failed sample.
+That attempt also found an unchanged release-activation fixture missing its
+queued-job crash cut: the job was already done when its listener-message
+SIGSTOP arrived. The other 17 cases passed; both prior runs passed the file.
+A separate open issue records the missing deterministic barrier. Its assertions
+and the release-serving implementation remain unchanged.
+Build passed; witness units passed 60/60; affected export/preparation tests
+passed 64/64 with no skips; starter tests passed 17/17. The full Mac suite passed
+with **0 failures in 2,679 seconds**: all Rust targets/doctests, 292 CLI units
+(four existing ignores), 76 witness integration cases, nine fixture wrappers,
+6,222 client tests (six existing skips), and 79 full-count model cases. Builds,
+budgets, release guard and typechecks passed. No interventions, cancellations or
+reduced counts; recorded source inputs are unchanged. Reference and whitespace
+checks passed. No real simulators were created; prior owned NZ devices remain
+absent, and this worktree's CLI processes drained. FX and other sessions were
+untouched. Large evidence stays outside git with content hashes; no gzip/video
+or new files over 256 KB are committed. No native measurements were repeated;
+real host sleep remains unexercised. NZ targets 0.4.14, not 0.4.13. Nothing pushed
+or published. [Round 4 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-4--publication-and-retention-races).

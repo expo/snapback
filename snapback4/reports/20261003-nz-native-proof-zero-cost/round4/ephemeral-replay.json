@@ -1,0 +1,65 @@
+{
+  "state": "finished",
+  "startedAt": 1791134954.381821,
+  "command": "node --test packages/snapback4/test/ephemeral-e2e.test.mjs",
+  "testSha256": "3016346c37b7119033ec8b8b0593b71aeee991ad52916d430f90df0a1b16109d",
+  "before": {
+    "at": 1791134955.5948632,
+    "load": [
+      6.56201171875,
+      10.91015625,
+      26.2880859375
+    ],
+    "idlePercent": 70.70484581497797,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 193.6 /usr/libexec/PerfPowerServices",
+      "  485     1  23.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  661     1  13.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "97405     1   9.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      " 1164     1   4.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1083     1   4.4 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 3063 97864   3.1 claude",
+      " 1092     1   3.0 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 1160     1   2.8 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  488     1   2.2 /usr/sbin/cfprefsd"
+    ]
+  },
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r4-ephemeral-replay.log",
+  "status": 0,
+  "durationSeconds": 62.101763249999976,
+  "finishedAt": 1791135017.701329,
+  "after": {
+    "at": 1791135018.921669,
+    "load": [
+      9.44482421875,
+      10.94140625,
+      25.25
+    ],
+    "idlePercent": 26.564215148188804,
+    "compilers": [
+      "99793 99792   0.7 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 173.8 /usr/libexec/PerfPowerServices",
+      " 2936  2935  99.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2938  2937  98.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2949  2948  86.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2901  1160  84.7 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      " 2953  2952  47.3 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2955  2954  42.7 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 1160     1  24.4 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  485     1  21.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   4.0 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r4-ephemeral-replay.log",
+    "sha256": "350db2a94d402646a050fb1500a259c857f13dbde76558f7ea63bfa0e1a406ef",
+    "bytes": 1997
+  },
+  "testUnchanged": true
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "2ae947188d9f768362cd2113f15ea2952caf4c5516a9dc57c531cf6308088f6f"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init.rs",
+    "sha256": "231c8ad8af29209a1e0a54d52bbc51de86772f532108a6f5b1de4da4b72031bf"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social/README.md",
+    "sha256": "4a564635b9ee7c35a8eeb8af2d1b61ee65ef37cb686a7fee6afc5d9b06483474"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "c98eb456b854074267b6874b3a55a35047d0fee0d0b9808b9cb14a1f2da41ba6"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "sha256": "4d6c9b387957450460e34958bf7711ef25ca42e595cb551581d5eb9d878ac044"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "5bb3467fef86fe7ccccb03441c5abe7de245482aa3db5265af227b606a212eab"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "f353ee62fc4437d7eee9b4f2066efbece1611d2a90729fb282725a698d13ffe7"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "c6027f416b0e26ddd80e6e47e013d392fb78d53b3397b345b476625106caa8d5"
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/README.md",
+    "sha256": "4a19bd381d4af26b1b81bedf991be60f5c633374870eb0875aaa82ea19d16678"
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "d26e7eddb6ca05902ed0b0e069f57cff39fc4788020449f3e4289f7818955dba"
+  },
+  {
+    "path": "snapback4/packages/snapback4/README.md",
+    "sha256": "8d7a633042bcfb2539716d5a457dc31666d9c1c915198ed18ce4d9b15f51e62e"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "f4d482da24f822e6361aa7fffa00459b08c15cfa8640644c169a1764095a22e6"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-native.test.mjs",
+    "sha256": "dc0379f4326dbeb593cefef3a56e1748658676dc394b80d70a9812512af535df"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/retention-interposer.c",
+    "sha256": "07c7be2a3975ef8cd5c3afab53393b29100519b8c08578f094a95f914f72ed82"
+  }
+]

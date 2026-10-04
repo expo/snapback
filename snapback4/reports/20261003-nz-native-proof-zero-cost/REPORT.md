@@ -1,5 +1,9 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 4 closes the publication/retention review races on **e7e325b7d1**. See
+[Round 4](#round-4--publication-and-retention-races). NZ remains targeted at
+0.4.14. The full Mac suite passed: **0 failures in 2,679 s**. Nothing pushed or published.
+
 Round 3 addresses the two blocking review findings and records the accepted
 60-minute activity bound. The final full Mac suite passed with **0 failures in 2,834 s**. See [Round 3](#round-3--review-corrections). NZ is intended
 for 0.4.14; 0.4.13 excludes this lane. Nothing pushed or published.
@@ -672,3 +676,169 @@ and owner-death controls are retained. The published-0.4.12 dependency audit iss
 remains outside this correction. No version bump or publication is made here;
 the author's release target is 0.4.14. Large logs stay outside git, referenced by
 hash in the Round 3 verification artifacts. Nothing pushed.
+
+
+## Round 4 — publication and retention races
+
+Date: 2026-10-04. Base **e7e325b7d1** already includes the Round 2 merge of
+main abafa9af9c and WD round 1. This round implements every finding in the
+operator's Astra/Grok review excerpts. All work and tests remain on this
+Apartment mini. FX's `/private/tmp/sb4-fx-test-races.*` jobs and other sessions'
+worktrees, processes and simulators are untouched. No real simulator is created.
+
+**Astra P1; Grok 4 — atomic skipped publication.** Removed the direct-to-dist
+skip path. Opt-out and non-macOS exports now use the same private export,
+generation marker, cloned publication tree, leases, atomic exchange and complete
+inventory verification as background exports. A marker-write failure returns
+nonzero before touching the visible export. A successful skipped publication
+always writes its skipped request/result under the publication lock, including
+the first opt-out. Handoff failure remains downstream of commit: export returns
+zero, while status and doctor refuse the previous generation's pass.
+
+The deterministic regression starts a skipped export and pauses its private
+preparation at the former invalidation boundary, publishes a concurrent
+generation through the real wrapper/publisher, seeds its passing receipt, then
+resumes the skipped export with equal Hermes bytes and changed assets. With an
+injected skipped marker-write failure the skipped export fails and the concurrent
+publication remains intact; no changed assets enter dist. With an injected
+latest-handoff failure the skipped export succeeds, the changed assets and fresh
+generation are visible, the old pointer remains, and both status and doctor
+report no proof. This distinguishes publication failure from proof-reporting
+failure. These seeded passes test reporting, not native runtime qualification.
+The earlier changed/equal-byte handoff failures and simulated non-macOS case
+remain. A first opt-out now reports an ordinary skip with no stale-handoff suffix.
+
+**Astra P2 — no retention deletion under the publication lock.** Orphan
+reconciliation validates intents and inode ownership, then renames the orphan
+to `publication-orphan` inside its own run. It releases the destination lock
+before recursively removing that tree. Original inode plus run/export leases
+make interrupted deletion retryable. The regression pauses deletion, completes
+a newer atomic publication while the deleter stays paused, kills only the owned
+fixture deleter, and verifies that a later cleanup finishes its private tree.
+Existing repeated-SIGKILL reconciliation controls still pass.
+
+**Astra P3 — preparation bounds in every README.** Client package, Expo package,
+plain generated starter and social generated starter READMEs now say 900 seconds
+without output activity, at most 60 minutes total, and that activity alone does
+not establish build progress. The accepted repeated-output bound is unchanged;
+no repeated-line filtering was added. Guide witness and LLP 3000.030 §15 also
+record the changed publication, observation and retention behavior.
+
+**Grok 1–2 and retention test gaps.** The public `witness export-retain` now
+uses the supervised, cancellable 30-second wrapper. The internal worker rejects
+ordinary invocation unless it is the recorded native anchor's direct child in
+its group with the recorded birth identity. Tests cover direct public-entry
+cancellation and inner-entry refusal. Existing compressor tests now explicitly
+assert that compressor and descendant PGIDs equal the recorded anchor.
+
+Pre-driver and post-driver maintenance failures log deferral instead of failing
+or rewriting native proof. Interrupt/supersession checks remain before driver
+start. The exact SIGKILL-overlap test exposed a second maintenance call in driver
+startup; background drivers now rely on their guardian's maintenance attempt,
+while explicit foreground startup retains its existing cleanup path. The test
+holds the old retention lock after guardian death, sees the new proof defer
+maintenance and reach its tool, then releases the old keeper and verifies that
+all old compressor/keeper processes exit. A separate real supervised compression
+failure preserves a seeded **passed** terminal result, complementing the existing
+skipped-result case.
+
+The overlap barrier is test-only: a C interposer pauses one recorded native
+watcher poll for at most 30 seconds. It is loaded into a private cloned CLI with
+an added Mach-O load command and ad-hoc signature, because taskpolicy strips
+DYLD environment injection. The test asserts existing header padding before
+patching. No product binary, system tool or production hook is changed. Initial
+SIGSTOP barriers were invalid on Darwin: orphan-group handling resumes stopped
+keepers, so they did not preserve the intended overlap. A NOTE_EXIT-only barrier
+also raced the control-pipe EOF; the final barrier pauses the live watcher before
+owner death. Those failed fixture attempts are retained. This is a custody race
+control, not timing or performance evidence.
+
+**Grok 3 and 5 — consistent observation and commit time.** Status/doctor try a
+shared publication lock; an in-progress exclusive publication reports pending.
+A waiter therefore spans exchange, verification and handoff instead of reading
+an older pass or returning 2 for a half-swap. Marker, actual hash, latest request
+and result are checked together; both marker and latest pointer are re-read
+before returning a terminal result. Changed observations retry for at most five
+seconds; stable missing handoffs remain nonzero. Request `publishedAt` comes
+from the verified commit, and the lock hides the latest-to-launch gap.
+
+Deterministic tests hold publication before exchange and between exchange and
+verify: an already polling `--wait` stays alive, doctor reports pending, and the
+waiter eventually reports the new skipped generation rather than the old pass.
+Another test changes latest.json after the hash observation and verifies rejection
+and retry. An artificially old private marker proves the request uses the current
+verified commit timestamp. The reporting snapshot is linearized under the shared
+lock; it does not promise that no later export can supersede it.
+
+The first full run finished in 2,705.4 s with all tests passing, but exited 1
+because the client README was 301 physical lines against its 300-line budget.
+Joining two adjacent prose lines preserved every word of the disclosure and
+restored the budget; the docs gate passed. That failed full run and the
+one-newline amendment are retained separately. The complete suite was rerun.
+
+The second full run exposed an existing race in
+`check_adoption::w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save`.
+The new generation query and doctor check both succeeded, but the immediate
+assertion of the adoption log line failed. `diagnostic!` queues output to an
+asynchronous writer; those successes do not flush its queue. The test now uses
+its existing 35-second bounded `wait_adoption` helper before the unchanged log
+assertion. No product behavior, assertion or deadline was weakened. The first
+full run had passed this target 84/84. The second attempt finished with this
+one failure in 3,140 s (3,139.7 s measured wall time); all 312 client files
+(6,222 passed / six existing skips) and all 79 model cases passed. It retains its failure;
+the test-only amendment occurred after that target finished. A supplemental
+input audit records this newly changed file, which was not in the runner's
+initial set of modified inputs. Affected replay and another complete
+run qualify the final source.
+
+The third full attempt passed all Rust targets, including the corrected check
+suite (84/84), but its client pool exposed an unrelated expiry acceptance miss:
+`ephemeral-e2e.test.mjs` trial 5 disappeared after **5,979.005 ms** against its
+**4,500 ms** bound. Appearance was 3.024 ms and it sent two requests. The same
+unchanged test passed all five trials in both earlier attempts. No timing bound
+or assertion was changed. The cause is unestablished; the
+[separate issue](../../../issues/20261004-snapback4-ephemeral-expiry-bound-intermittent.md)
+retains the failure for investigation. An unchanged standalone replay after
+the complete attempt passed all five trials in 62.1 s: expiry was
+3,932.912–3,962.861 ms, first sight 3.897–39.473 ms, and every trial sent two
+requests. The issue remains open; a later pass does not explain the failed
+sample. Another complete run uses the same source and acceptance bounds.
+
+The same third attempt also failed `release-activation.test.mjs` subtest 12:
+the job was already **done** when the listener-message SIGSTOP attempted to
+establish a **queued** crash cut. The other 17 cases passed. This unchanged
+fixture passed in both earlier full runs; no release-serving code is changed
+by NZ. A [separate crash-cut issue](../../../issues/20261004-snapback4-release-activation-crash-cut-race.md)
+records the need for a controlled pre-first-chunk barrier. No assertion was
+weakened to accept an already completed job. This complete attempt finished
+with one failed stage in **2,855 s** (2,854.9 s measured): 310 client files
+passed and two failed, with 6,220 passing tests / two failures / six existing
+skips / no cancellations. All Rust targets and all 79 model cases passed.
+Its recorded code/package inputs stayed unchanged.
+
+**Verification.** Build passed. Final serial witness units passed **60/60** in
+41.75 s. All export/preparation tests passed **64/64**, with no skips, in
+189.3 s; starter tests passed **17/17**. The full Mac suite passed with
+**0 failures in 2,679 s** (2,678.9 s measured wall time):
+all Rust targets and doctests, including 292 CLI units (four existing ignores)
+and 76 witness integration cases; fixture wrappers 9/9; all 312 client files,
+with **6,222 passed / six existing skips / zero failed or cancelled**; both
+full-count model files **79/79**. Builds, budgets, release guard and typechecks
+passed. There were no interventions or reduced counts. Exact source hashes
+match the pre-run manifest. Reference and whitespace checks passed. Final
+read-only custody verification found no worktree CLI jobs or previously recorded
+NZ devices. The tests created no real simulators.
+Initial test edits had two Rust fixture call-arity errors and one JavaScript
+parenthesis error; they were corrected before the final runs. The legacy opt-out
+fixture assumed no CLI or artifact directory was needed. It now uses the real
+CLI and valid private export metadata, verifies skipped atomic publication, and
+checks that an Expo failure preserves the previous generation. No product
+assertion was removed or test count reduced. The full suite runs on physical
+Node 24.18.0 with the required SQLite flag and `sb4-nz-` prefix. Failed attempts,
+passing logs, exact source hashes and final custody checks remain in `round4/`
+and the content-addressed external evidence archive.
+
+WD's group drain, scoped enumeration and both preparation deadline policies are
+unchanged. No ABBA timing or real-native qualification is repeated here; previous
+rounds retain those scopes and limitations. Real host sleep remains unexercised.
+No release/version change or push is made; NZ is for 0.4.14, not 0.4.13.

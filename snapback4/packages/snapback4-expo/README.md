@@ -71,7 +71,8 @@ Native proof runs in the background at background QoS while you keep building.
 The next export and `npx snapback4 doctor` print the result; for your final report
 run `npx snapback4 witness status --wait`. A newer export supersedes pending proof.
 Failures stay visible with log paths without failing a successful export;
-unavailable hosts report a skip. `npm run native:smoke` explicitly waits for the full build and smoke.
+unavailable hosts report a skip. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.
+`npm run native:smoke` explicitly waits for the full build and smoke.
 The smoke prepares and installs your Release app, chooses its own simulator and free
 port, and keeps receipts in `artifacts/native-smoke/<timestamp>`. It proves local
 store acquisition, cold offline reopen and reconnect. Pending write replay, media

@@ -82,7 +82,7 @@ Native sessions use SecureStore; browser persistence is explicit because page sc
 At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building.
 Both Expo starters include it. The next export and `npx snapback4 doctor` print the result; `npx snapback4 witness status --wait` waits for your final report.
 Failures stay visible with their log paths without failing a successful export. Unavailable hosts report a skip. A newer export supersedes pending proof.
-Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild.
+Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.
 `npm run native:smoke` explicitly waits for a full build and smoke. Empty starters prove lifecycle; write replay needs an app scenario (`guide witness`).
 
 ```ts

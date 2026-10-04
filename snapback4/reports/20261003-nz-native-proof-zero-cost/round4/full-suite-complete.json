@@ -1,0 +1,67 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "e7e325b7d13ccbe527c29455f104b7a5b16d92c8",
+  "state": "finished",
+  "startedAt": 1791135019.918817,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r4-full-suite-complete.log",
+  "before": {
+    "at": 1791135021.19167,
+    "load": [
+      9.5693359375,
+      10.94189453125,
+      25.16650390625
+    ],
+    "idlePercent": 45.00827357970215,
+    "compilers": [
+      " 3068  2984  60.3 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      " 3069  2987  58.9 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "99793 99792   0.1 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 125.0 /usr/libexec/PerfPowerServices",
+      " 2969  2965  97.3 (clang)",
+      " 2962  2961  96.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2983  2982  96.7 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2981  2979  96.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 3046  3045  90.0 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 3060  3059  82.8 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+      " 2901  1160  73.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      " 3068  2984  60.3 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      " 3069  2987  58.9 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791137700.089547,
+  "durationSeconds": 2678.8941411250003,
+  "after": {
+    "at": 1791137701.2572129,
+    "load": [
+      5.14697265625,
+      5.033203125,
+      9.2939453125
+    ],
+    "idlePercent": 80.7542983915696,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 182.5 /usr/libexec/PerfPowerServices",
+      " 4943 64989  45.7 (pairedsyncd)",
+      " 4964 99075  33.1 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/PairedSync.framework/Support/pairedsyncd",
+      " 4963 56547  32.7 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/PairedSync.framework/Support/pairedsyncd",
+      "  485     1  19.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  738     1  18.0 /usr/libexec/searchpartyd",
+      "59757 59730  10.5 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/locationd",
+      "59783 59730   9.2 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "  489     1   6.3 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      "18428     1   6.1 /usr/libexec/diagnosticd"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r4-full-suite-complete.log",
+    "sha256": "09cbf3fb79b98a36533fa81b1a36a50056fb998770db8e626882a51b664aec52",
+    "bytes": 1898004
+  },
+  "inputsUnchanged": true
+}

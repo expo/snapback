@@ -113,7 +113,7 @@ fn clear_pending(marker: &Path, source: &Path) -> Result<()> {
     #[cfg(test)] tests::pause(source.parent().unwrap(), "destination-cleared");
     recovery::remove(&source.parent().unwrap().join("publication-pending.json"))
 }
-fn lock_path(target: &Path) -> Result<PathBuf> {
+pub(super) fn lock_path(target: &Path) -> Result<PathBuf> {
     Ok(target.parent().ok_or_else(|| error("E_WITNESS_INPUT", "missing export parent"))?.join("artifacts/native-smoke/publication.lock"))
 }
 
@@ -148,9 +148,18 @@ pub(super) fn reconcile_orphan(dir: &Path) -> Result<bool> {
     if !remaining.is_null() && remaining != pending["new"] {
         return Err(error("E_WITNESS_ARTIFACT", "orphan publication identity changed; preserve private tree for recovery"));
     }
-    // Idempotent even if killed during recursive removal or after it. Absent
-    // source is also the normal verified-commit case, with its receipt retained.
-    recovery::remove(&source)?;
+    // Detach the private orphan while the decision is protected, then release
+    // the destination lock before recursive deletion. A killed deleter can be
+    // retried using the original inode and run/export leases.
+    let trash = dir.join("publication-orphan");
+    let at_trash = inode(&trash)?;
+    if !at_trash.is_null() && (at_trash != pending["new"] || !remaining.is_null()) {
+        return Err(error("E_WITNESS_ARTIFACT", "orphan deletion identity changed; preserve private tree for recovery"));
+    }
+    if !remaining.is_null() { fs::rename(source, &trash).map_err(|e| error("E_WITNESS_ARTIFACT", e))?; }
+    drop(_destination);
+    #[cfg(test)] tests::pause(dir, "orphan-delete");
+    recovery::remove(&trash)?;
     #[cfg(test)] tests::pause(dir, "orphan-removed");
     recovery::remove(&marker)?;
     eprintln!("witness: reconciled orphan publication marker at {}", dir.display());
@@ -196,6 +205,7 @@ fn publish_then(source: &Path, target: &Path, expected: &Value, proof_hash: &Val
     let result = (|| {
         exchange(source, target)?;
         after_exchange();
+        #[cfg(test)] tests::pause(dir, "exchange-before-verify");
         verify(target, expected)?;
         save(&dir.join("publication.json"), &json!({ "verifiedAt": now(), "source": source, "target": target, "proofSha256": proof_hash, "files": expected, "transaction": pending }))
     })();
@@ -236,6 +246,11 @@ pub(super) fn command(args: &[String]) -> i32 {
         if background { verify(&dir.join("export"), &expected)?; }
         publish_then(source, target, &expected, &proof_hash, || {}, || {
             if background { super::background::schedule(dir, target, &custody); }
+            else if args.len() == 3 {
+                if let Err(e) = super::background::skip_publication(dir, target) {
+                    eprintln!("native smoke status update failed: {e}");
+                }
+            }
         })?;
         Ok(())
     })())
@@ -250,7 +265,7 @@ mod tests {
     pub(super) fn pause(dir: &Path, point: &str) {
         if std::env::var("SB4_PUBLICATION_PAUSE").as_deref() != Ok(point) { return; }
         fs::write(dir.join(format!("paused-{point}")), point).unwrap();
-        loop { sleep(Duration::from_secs(1)); }
+        while !dir.join(format!("resume-{point}")).exists() { sleep(Duration::from_millis(10)); }
     }
     fn fixture(label: &str) -> (PathBuf, PathBuf, PathBuf) {
         let root = std::env::temp_dir().join(format!("sb4-publish-{label}-{}-{}", std::process::id(), now()));
@@ -319,10 +334,15 @@ mod tests {
         fs::write(dir.join("live.json"), serde_json::to_vec(&record).unwrap()).unwrap();
         let expected: Value = serde_json::from_slice(&fs::read(dir.join("expected.json")).unwrap()).unwrap();
         fs::write(dir.join("ready"), "ready").unwrap();
-        let result = publish(&source, &root.join("dist"), &expected, &Value::Null, || {
+        let result = publish_then(&source, &root.join("dist"), &expected, &Value::Null, || {
             fs::write(dir.join("exchanged"), "exchanged").unwrap();
             if action == "rollback" { fs::write(root.join("dist/bundle"), "rejected bytes").unwrap(); }
             if label == "1-123" && action.is_empty() { loop { sleep(Duration::from_secs(1)); } }
+        }, || {
+            if action == "status-commit" {
+                background::skip_publication(&dir, &root.join("dist")).unwrap();
+                save(&root.join("artifacts/native-smoke/latest.json"), &recovery::read(&dir.join("request.json"))).unwrap();
+            }
         });
         if action == "rollback" { assert!(result.is_err()); } else { result.unwrap(); }
         fs::write(dir.join("verified"), "verified").unwrap();
@@ -462,4 +482,76 @@ mod tests {
         assert_eq!(fs::read_to_string(target.join("old")).unwrap(), "old export");
         fs::remove_dir_all(root).unwrap();
     }
+    fn await_path(path: &Path) {
+        let end = Instant::now() + Duration::from_secs(15);
+        while !path.exists() && Instant::now() < end { sleep(Duration::from_millis(10)); }
+        assert!(path.exists(), "missing {}", path.display());
+    }
+    fn fixture_process(root: &Path, label: &str, action: &str, pause: &str) -> Owned {
+        Owned::spawn(Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "verbs::witness::publication::tests::witness_publication_process_fixture", "--nocapture"])
+            .env("SB4_PUBLICATION_FIXTURE", root).env("SB4_PUBLICATION_RUN", label)
+            .env("SB4_PUBLICATION_ACTION", action).env("SB4_PUBLICATION_PAUSE", pause)
+            .stdout(Stdio::null()).stderr(Stdio::inherit())).unwrap()
+    }
+    #[test]
+    fn witness_orphan_deletion_does_not_hold_the_publication_lock() {
+        let (root, dir, source) = fixture("delete-outside-lock");
+        let target = root.join("dist");
+        save(&dir.join("publication-pending.json"), &json!({ "source": source, "target": target, "new": inode(&source).unwrap(), "old": inode(&target).unwrap() })).unwrap();
+        fs::write(dir.join("finished.json"), "{}").unwrap();
+        let mut deleter = fixture_process(&root, "1-123", "cleanup", "orphan-delete");
+        await_path(&dir.join("paused-orphan-delete"));
+        assert!(!source.exists()); assert!(dir.join("publication-orphan").exists());
+        let later = root.join("runs/9-123"); fs::create_dir_all(later.join("export")).unwrap();
+        fs::write(later.join("export/later"), "later export").unwrap();
+        save(&later.join("expected.json"), &files(&later.join("export")).unwrap()).unwrap();
+        let mut publisher = fixture_process(&root, "9-123", "commit", "");
+        await_path(&later.join("verified"));
+        assert!(publisher.0.wait().unwrap().success());
+        assert!(deleter.0.try_wait().unwrap().is_none(), "deletion remains paused while the export completes");
+        assert_eq!(fs::read_to_string(target.join("later")).unwrap(), "later export");
+        deleter.stop(libc::SIGKILL).unwrap();
+        recovery::cleanup_inner(&root.join("runs"), None).unwrap();
+        assert!(!dir.join("publication-orphan").exists());
+        assert!(!dir.join("publication-pending.json").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass() {
+        for point in ["run-intent-saved", "exchange-before-verify"] {
+            let (root, dir, source) = fixture(point);
+            let target = root.join("dist");
+            let old = root.join("artifacts/native-smoke/old"); fs::create_dir_all(&old).unwrap();
+            let hash = artifact(&source.join("bundle")).unwrap()["sha256"].clone();
+            let metadata = json!({"fileMetadata":{"ios":{"bundle":"bundle"}}});
+            for (tree, generation, mode) in [(&target, "old", "background"), (&source, "new", "skipped")] {
+                fs::write(tree.join("bundle"), "proved bundle").unwrap();
+                save(&tree.join("metadata.json"), &metadata).unwrap();
+                save(&tree.join(".snapback4-publication.json"), &json!({"generation":generation,"exportHash":hash,"mode":mode,"reason":"fixture skip","publishedAt":1})).unwrap();
+            }
+            let previous = json!({"generation":"old","exportHash":hash,"artifacts":old,"state":"passed"});
+            save(&root.join("artifacts/native-smoke/latest.json"), &previous).unwrap();
+            save(&old.join("result.json"), &previous).unwrap();
+            assert!(background::doctor_summary(&root).unwrap().contains("native smoke passed"));
+            save(&dir.join("expected.json"), &files(&source).unwrap()).unwrap();
+            let mut publisher = fixture_process(&root, "1-123", "status-commit", point);
+            await_path(&dir.join(format!("paused-{point}")));
+            let output = root.join("observer.json");
+            let mut observer = Owned::spawn(Command::new(background::executable())
+                .args(["witness", "status", "--wait", "--json"]).current_dir(&root)
+                .stdout(File::create(&output).unwrap()).stderr(Stdio::inherit())).unwrap();
+            sleep(Duration::from_millis(250));
+            assert!(observer.0.try_wait().unwrap().is_none(), "wait must not return the old pass or transient unverified");
+            assert!(background::doctor_summary(&root).unwrap().contains("publication commit in progress"));
+            fs::write(dir.join(format!("resume-{point}")), "").unwrap();
+            await_path(&dir.join("verified"));
+            assert!(publisher.0.wait().unwrap().success());
+            assert_eq!(observer.0.wait().unwrap().code(), Some(2));
+            let observed: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+            assert_eq!(observed["generation"], "new"); assert_eq!(observed["state"], "skipped");
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+
 }

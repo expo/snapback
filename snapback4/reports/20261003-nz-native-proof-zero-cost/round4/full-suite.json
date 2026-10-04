@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "e7e325b7d13ccbe527c29455f104b7a5b16d92c8",
+  "state": "finished",
+  "startedAt": 1791125922.1622431,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r4-full-suite.log",
+  "before": {
+    "at": 1791125923.3368409,
+    "load": [
+      7.1572265625,
+      6.6630859375,
+      7.572265625
+    ],
+    "idlePercent": 80.23127753303964,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 188.1 /usr/libexec/PerfPowerServices",
+      "  485     1  11.9 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   3.6 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 3063 97864   2.6 claude",
+      " 1164     1   2.4 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "57453 14846   2.1 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1092     1   1.5 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   1.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "    1     0   0.4 /sbin/launchd",
+      "14846 14839   0.4 codex"
+    ]
+  },
+  "status": 1,
+  "finishedAt": 1791128628.716727,
+  "durationSeconds": 2705.37021875,
+  "after": {
+    "at": 1791128629.8911512,
+    "load": [
+      5.60400390625,
+      6.1630859375,
+      10.54931640625
+    ],
+    "idlePercent": 81.94905869324474,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 198.4 /usr/libexec/PerfPowerServices",
+      "  485     1  16.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "94254     1  14.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      " 1083     1   2.9 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.8 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  661     1   1.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "93911     1   1.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "    1     0   1.3 /sbin/launchd",
+      "  442     1   1.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r4-full-suite.log",
+    "sha256": "a892c1e92ff67fb4990ce1a6a3f29efd082afa07c2d24d7baef5e8b811fd0510",
+    "bytes": 1898189
+  },
+  "inputsUnchanged": true
+}

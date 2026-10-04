@@ -94,8 +94,10 @@ pub(super) fn begin_wrapper(dir: &Path) -> Result<()> {
 }
 pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     if options.export.is_none() { return Ok(None); }
-    if let Some(root) = options.artifacts.parent() {
-        cleanup(root, None)?;
+    // The background guardian already attempted bounded maintenance. Repeating
+    // it here would turn its deliberate busy-lock deferral into a proof failure.
+    if !background::active() {
+        if let Some(root) = options.artifacts.parent() { cleanup(root, None)?; }
     }
     let lease = preparation::lease(&options.artifacts.join("run.lock"))?;
     let owner = identity(std::process::id()).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record driver process start time"))?;
