@@ -58,7 +58,7 @@ impl Runner<'_> {
         assigned(body, &mut names);
         let mut saved = Vec::new();
         for name in names {
-            self.meter.heap(64)?; // Saved dependency slot, including vector growth.
+            self.meter.heap(64 + name.len() as u64)?; // Saved name and dependency slot, including vector growth.
             let value = self.env.get(&name);
             if value.is_some() { self.meter.heap(self.environment_value_copy_heap(&name))?; }
             let deps = self.effect_presence.variables.get(&name);

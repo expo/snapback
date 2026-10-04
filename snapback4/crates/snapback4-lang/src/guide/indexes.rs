@@ -37,7 +37,8 @@ the ambiguous null ties across replicas. Guard nullable arguments before
 `require exists`: it proves row presence, not optional field presence.
 To read null matches, use a bounded
 `where` population ordered `by .id`, or address a row by id. Null for a
-required key column returns null; maintained aggregate null groups are unchanged.
+unique key argument returns no row at runtime, without scanning ties; the
+guard is still required at compile time; maintained aggregate null groups are unchanged.
 A fully pinned maintained group is unique even
 with null, including rule probes that also test its value.
 E_QUARRY_POINT_KEY refuses a point probe whose key can match several rows.

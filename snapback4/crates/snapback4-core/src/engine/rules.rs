@@ -232,6 +232,8 @@ pub trait Probe {
     fn take_unknown(&mut self) -> bool { false }
     /// Called only when evaluation loads a field, after short-circuit decisions.
     fn field(&mut self, _field: &str, _old: bool) {}
+    /// Apply the schema's point-key null rule before storage access. Timeline
+    /// evaluation can visit operands that logical short-circuiting would skip.
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
@@ -314,6 +316,9 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
                 // structure/verdicts alone prove them irrelevant. An exists
                 // with a permanent witness visits exactly the same branches
                 // as one with a finite witness, under the same physical bound.
+                // Logical guard narrowing does not assume this traversal skips
+                // an operand: ordinary unique null points return a known miss
+                // before touching storage (LLP 3000.013 §2.2).
                 if answer.value == decisive && answer.invariant { break; }
             }
             Ok(answer)
@@ -397,7 +402,7 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe:
 }
 
 /// The schema-derived probe allowance, independent of short-circuit answers.
-pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
+pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
     let hops = |terms: &[&RuleTerm]| terms.iter().filter(|t| matches!(t, RuleTerm::Reference { .. })).count() as u64;
     match rule {
         RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => hops(&[a,b]),

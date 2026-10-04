@@ -1,6 +1,8 @@
 //! NL key admission and QE2 presence/reference facts must compose without
 //! using an ambiguous probe as its own proof or mixing old/next images.
 mod common;
+#[path = "nl_qe2_integration/null_runtime.rs"]
+mod null_runtime;
 use common::*;
 use snapback4_core::{Value, WriteState, value::object};
 

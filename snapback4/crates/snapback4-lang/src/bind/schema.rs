@@ -395,8 +395,11 @@ struct RuleBindings {
 }
 
 // @ref LLP 3000.013#2.2 — presence facts retain a reference term's old/next image.
-// Facts hold only on the short-circuit edge entering the next rule operand.
-// In particular, an OR does not leak one branch's guard into another branch.
+// Facts hold on the logical edge where the next operand can affect truth.
+// Expiry accounting may evaluate other edges too: the shared runtime returns
+// no witness for an ordinary unique null key, without accessing tied rows.
+// Thus admission does not require physical short-circuiting. Facts still
+// cannot leak from one OR alternative into an unrelated alternative.
 fn present_terms(rule: &RuleExpr, truth: bool) -> Vec<RuleTerm> {
     match rule {
         RuleExpr::Ne(left, right) if truth => non_null_term(left, right),

@@ -91,6 +91,8 @@ pub trait DeviceTx: Rows {
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError>;
     /// Seek one touched id without loading confirmed images or unrelated tables.
     fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError>;
+    /// Whether any base image exists for this table, including the empty id.
+    fn base_has_table(&self, table: &str) -> Result<bool, RuntimeError>;
     fn base_clear(&self) -> Result<(), RuntimeError>;
 
     /// A staged snapshot row, keyed by `key` (ordered), in `table`.

@@ -282,11 +282,11 @@ fn guide_clique_unread_reloads_and_expires<H: Host>(h: &mut H) {
             ),
             (
                 "members",
-                json!({"id":"b","conversationId":"c","principal":"bob","readUpTo":501}),
+                json!({"id":"b","conversationId":"c","principal":"bob","seenOrdinal":501,"joinedOrdinal":0}),
             ),
             (
                 "members",
-                json!({"id":"a","conversationId":"c","principal":"alice","readUpTo":0}),
+                json!({"id":"a","conversationId":"c","principal":"alice","seenOrdinal":0,"joinedOrdinal":0}),
             ),
         ]
         .into_iter()

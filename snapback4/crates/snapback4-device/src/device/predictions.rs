@@ -3,6 +3,55 @@
 //! are replayed in submission order over the confirmed base.
 use super::*;
 
+const DELETED_GROUPS: &str = "device:receipt-deleted:";
+fn deleted_key(table: &str, id: &str) -> String {
+    format!("{DELETED_GROUPS}{}", snapback4_core::value::digest(&(table, id)))
+}
+
+// @ref LLP 3000.022#14.3 — save ordinary group keys while the last image exists.
+// The base stays unchanged: it alone decides what rollback restores.
+pub(super) fn remember_deleted<T: DeviceTx>(tx: &T, schema: &Schema, table: &str, row: &Value) -> Result<(), RuntimeError> {
+    let mut fields = BTreeMap::new();
+    let mut keep = |field: &String| {
+        if !schema.receipt_dependencies.get(table).is_some_and(|owned| owned.contains(field)) {
+            if let Ok(value) = row.field(field) { fields.insert(field.clone(), value.clone()); }
+        }
+    };
+    for m in schema.maintains.iter().filter(|m| schema.receipt_dependencies.contains_key(&m.target)) {
+        if m.source == table {
+            if let Some(k) = &m.row_key { keep(&k.source_key); }
+            else { for f in &m.by { keep(m.aliases.get(f).unwrap_or(f)); } }
+        }
+        if let Some(k) = &m.row_key { if k.table == table { keep(&k.member_key); } }
+    }
+    if !fields.is_empty() {
+        tx.set_meta(&deleted_key(table, row.field("id")?.as_str()?), &encoded(&Value::Row(fields.into()))?)?;
+    }
+    Ok(())
+}
+
+// @ref LLP 3000.022#14.3 — overlay metadata, never a history scan. Include
+// empty ids, the deleted base, and both domains of an update/member move.
+pub(super) fn provisional_groups<T: DeviceTx>(tx: &T, table: &str, fields: &[String]) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+    let mut groups = Vec::new();
+    if !tx.base_has_table(table)? { return Ok(Some(groups)); }
+    for (name, id, base) in tx.base_entries()? {
+        if name != table { continue; }
+        let base = base.as_deref().map(decoded::<Value>).transpose()?;
+        let mut current = tx.get(table, &id)?;
+        if base.is_none() && current.is_none() {
+            current = tx.meta(&deleted_key(table, &id))?.as_deref().map(decoded::<Value>).transpose()?;
+        }
+        if base.is_none() && current.is_none() { return Ok(None); }
+        for image in [base, current].into_iter().flatten() {
+            let key = fields.iter().map(|f| image.field(f).cloned().ok()).collect::<Option<Vec<_>>>();
+            let Some(key) = key else { return Ok(None); };
+            groups.push(key);
+        }
+    }
+    Ok(Some(groups))
+}
+
 // @ref LLP 3000#7-decisions-during-execution — pending belongs to the device
 // card, not the application row supplied to the shared mutation interpreter.
 // Only this metadata is removed; undeclared application fields still refuse.
@@ -40,7 +89,7 @@ pub(super) fn restore<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<BTreeSet<S
         }
         touched.insert(name);
     }
-    tx.delete_meta(&["device:sequence-floor:"])?;
+    tx.delete_meta(&["device:sequence-floor:", DELETED_GROUPS])?;
     tx.base_clear()?;
     Ok(touched)
 }
@@ -221,7 +270,7 @@ fn echo_matches(page: &StreamPage, captured: Declaration) -> bool {
 pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
     clear_capture(tx)?;
     if !keep_images {
-        tx.delete_meta(&[PUBLISHED, "device:sequence-floor:"])?;
+        tx.delete_meta(&[PUBLISHED, "device:sequence-floor:", DELETED_GROUPS])?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
             if success_seq(&entry).is_some() && let Some(seq) = entry.observed_seq.take() {

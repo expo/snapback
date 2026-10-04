@@ -73,6 +73,15 @@ fn durable_schema_and_types_keep_base_bytes() {
 // insert sites. Only that appended prose is new; the CLI snapshots bind it.
 fn strip_update_explanations(text: &str) -> String {
     let mut schema: snapback4_core::Schema = serde_json::from_str(text).unwrap();
+    // @ref LLP 3000.022#14.3 — the versioned source prices are the only RP
+    // wire addition here. Verify the complete price before comparing every
+    // original durable byte; genuine old fixture files remain untouched.
+    if !schema.source_reservations.is_empty() {
+        for name in schema.tables.keys() {
+            assert_eq!(schema.source_reservations.get(name), snapback4_core::schema::reservations::reservation(&schema,name).as_ref());
+        }
+        schema.source_reservations.clear();
+    }
     for op in schema.operations.values_mut() {
         for site in &mut op.sites {
             if matches!(site.kind.as_str(), "upsert insert" | "upsert insert blocked")

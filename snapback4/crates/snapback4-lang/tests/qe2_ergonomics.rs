@@ -154,9 +154,10 @@ fn calibration_send_replays_successfully_and_emits_preview() {
     for reverted in [false, true] {
         let b = calibration(reverted, reverted);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-        // Both forms independently depend on receipt-derived unread maintenance.
-        assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("never"));
-        assert!(b.schema.operations["send"].sites.iter().any(|s| s.reason.contains("receipt-derived maintenance unread")));
+        // RP defers receipt-derived unread maintenance; both QE2 forms still
+        // predict while the target retains its settled value until settlement.
+        assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("eligible"));
+        assert!(b.schema.operations["send"].sites.iter().any(|s| s.reason.contains("receipt-derived maintenance unread stays settled")));
         let mut e = engine(b);
         for who in ["alice", "bob"] {
             let out = e.mutate("saveProfile", None, Context::new(who, std::collections::BTreeMap::from([

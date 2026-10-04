@@ -102,6 +102,8 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #[cfg(feature = "sqlite")] column: &str, now: i64) -> Result<(), RuntimeError> { #[cfg(feature = "sqlite")] { self.raw.release_asset(id, table, row_id, column, now) } #[cfg(not(feature = "sqlite"))] { self.raw.release_asset(id, now) } }
     pub(crate) fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> { self.raw.effect_once(effect, key) }
     pub(crate) fn provisional_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> { self.raw.provisional_id_after(table, after) }
+    pub(crate) fn has_provisional(&self, table: &str) -> Result<bool, RuntimeError> { self.raw.has_provisional(table) }
+    pub(crate) fn provisional_groups(&self, table: &str, fields: &[String]) -> Result<Option<Vec<Vec<crate::value::Value>>>, RuntimeError> { self.raw.provisional_groups(table, fields) }
     pub(crate) fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.provisional_row(table, row) }
     pub(crate) fn search_retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.search_retained_row(table, row) }
     pub(crate) fn retained_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> { self.raw.retained_row(table, row) }
@@ -116,7 +118,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn prefetch(&self, requests: &[PrefetchRequest]) { self.raw.prefetch(requests) }
 }
 
-struct PrepaidState {
+pub(super) struct PrepaidState {
     mark: crate::meter::MeterMark,
     ceilings: Ceilings,
     cut: Cut,
@@ -211,7 +213,7 @@ impl Runner<'_> {
     // Kept out of the generic closure wrapper: every protected access shares
     // the same scope transition instead of instantiating its restoration code.
     #[inline(never)]
-    fn enter_prepaid(&mut self, physical: bool) -> PrepaidState {
+    pub(super) fn enter_prepaid(&mut self, physical: bool) -> PrepaidState {
         let nested = self.caller_heap_ceiling.is_some();
         self.caller_heap_ceiling.get_or_insert((self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes));
         PrepaidState {
@@ -224,7 +226,7 @@ impl Runner<'_> {
     }
 
     #[inline(never)]
-    fn leave_prepaid(&mut self, state: PrepaidState, error: Option<&RuntimeError>) {
+    pub(super) fn leave_prepaid(&mut self, state: PrepaidState, error: Option<&RuntimeError>) {
         self.tx.authorizing.set(state.authorizing);
         self.meter.restore(state.mark);
         self.meter.ceilings = state.ceilings;

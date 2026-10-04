@@ -139,6 +139,7 @@ impl super::Schema {
     pub fn prepare_receipt_dependencies(&mut self) {
         if self.receipts.is_empty() {
             self.receipt_dependencies.clear();
+            self.prepare_write_reservations();
             return;
         }
         let mut fields = self.receipt_dependencies.clone();
@@ -207,6 +208,7 @@ impl super::Schema {
         }
         fields.retain(|_, fields| !fields.is_empty());
         self.receipt_dependencies = fields;
+        self.prepare_write_reservations();
     }
 
     pub fn receipt_assigned(&self, table: &str, field: &str) -> bool {

@@ -18,6 +18,16 @@ fn run_args(
     device: bool,
     args: std::collections::BTreeMap<String, Value>,
 ) -> (Value, Metered) {
+    run_seeded(source, name, device, args, |_, _| {})
+}
+
+fn run_seeded(
+    source: &str,
+    name: &str,
+    device: bool,
+    args: std::collections::BTreeMap<String, Value>,
+    seed: impl FnOnce(&Schema, &MemoryRows),
+) -> (Value, Metered) {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     // The language dev-dependency links its own core instance in unit tests.
@@ -49,6 +59,7 @@ fn run_args(
         )
         .unwrap();
     }
+    seed(&schema, &rows);
     let mut runner = Runner::new(
         &rows,
         &schema,
@@ -156,5 +167,71 @@ fn bound_large_insert_charges_each_result_byte_once() {
         );
         assert_eq!(result, Value::Null, "the omitted field is completed");
         assert_eq!(metered.heap_bytes, 14_401_017);
+    }
+}
+
+// @ref LLP 3000.022#14.3 — the complete source reservation composes with
+// QE2's total result copy and per-occurrence authorized reference probes.
+#[test]
+fn private_maintenance_total_results_and_rule_hops_share_all_seven_meters() {
+    let source = include_str!("../../../snapback4-lang/tests/fixtures/qe2/result-cost.q")
+        .replace("table parents:\n", "table parents:\n  total: count kids by .parent\n")
+        .replace(".parent.value = 1", ".parent.value = 1 and .parent.owner = viewer");
+    for name in ["bound", "discarded"] {
+        let seed = |schema: &Schema, rows: &MemoryRows| {
+            rows.put("parents", &schema.tables["parents"], &object([
+                ("id", Value::Id("p".into())), ("owner", Value::Id("alice".into())),
+                ("value", Value::Int(1)), ("total", Value::Int(0)),
+            ]), None).unwrap();
+        };
+        let server = run_seeded(&source, name, false, Default::default(), seed);
+        let device = run_seeded(&source, name, true, Default::default(), seed);
+        assert_eq!(server, device, "{name}");
+        assert_eq!(server.1.rule_probes, 2);
+        assert!(server.1.rows_written > 1, "the private maintain was reserved");
+    }
+}
+
+// @ref LLP 3000#contended-read-serving — a private durable queue position
+// changes scheduling, never the predicting caller's logical admission price.
+#[test]
+fn following_tail_and_total_result_prices_ignore_private_queue_length_and_clock() {
+    let source = format!("{}{}\nmutation post():\n  p = insert posts {{id: 'new', authorId: viewer, at: now}}\n  return p.removed\n",
+        include_str!("../../../snapback4/tests/timeline/app.q"),
+        include_str!("../../../snapback4/tests/timeline/declaration.q"));
+    let device = run(&source, "post", true);
+    assert_eq!(device.0, Value::Bool(false));
+    for tail in [None, Some(crate::value::I53_MIN), Some(0), Some(4_000_000_000_000), Some(crate::value::I53_MAX - 1)] {
+        let server = run_seeded(&source, "post", false, Default::default(), |schema, rows| {
+            if let Some(at) = tail {
+                let t = &schema.timelines[0];
+                let table = t.table("Work");
+                rows.put(&table, &schema.tables[&table], &object([
+                    ("id", Value::Id("old".into())), ("viewerId", Value::Id("someone-else".into())),
+                    ("epoch", Value::Null), ("remaining", Value::Int(0)),
+                    ("kind", Value::String("delivery".into())), ("actorId", Value::Id("someone-else".into())),
+                    ("readerId", Value::Null), ("eventId", Value::Id("old-post".into())),
+                    ("cursor", Value::Null), ("admitted", Value::Id("00000000000000000000000000000000".into())),
+                    ("at", Value::Int(at)), ("status", Value::String("pending".into())), ("error", Value::Null),
+                ]), None).unwrap();
+            }
+        });
+        assert_eq!(server, device, "private tail {tail:?}; all seven meters and result");
+    }
+}
+
+#[test]
+fn receipt_results_complete_ordinary_fields_inside_the_existing_copy_reservation() {
+    let source = include_str!("../../../snapback4-lang/tests/fixtures/rp-predecessor/schema.q")
+        .replace("table messages:\n", "table messages:\n  label: text <=20 default 'ready'\n  note: text <=20 ?\n  extra: json <=100 ?\n  extras: [json <=100] <=2 ?\n")
+        + "\nmutation completed():\n  m = insert messages { id: 'new', conversation: 'c', sender: viewer, text: 'hello', at: now }\n  return { label: m.label, note: m.note, photo: m.photo, text: m.text }\n";
+    for device in [false, true] {
+        let (result, _) = run_seeded(&source, "completed", device, Default::default(), |schema, rows| {
+            for (table, row) in [
+                ("conversations", object([("id", Value::Id("c".into())), ("creatorId", Value::Id("alice".into())), ("lastOrdinal", Value::Int(0)), ("title", Value::Null)])),
+                ("members", object([("id", Value::Id("a".into())), ("conversation", Value::Id("c".into())), ("principal", Value::Id("alice".into())), ("joinedOrdinal", Value::Int(0)), ("seenOrdinal", Value::Int(0)), ("deliveredOrdinal", Value::Int(0))])),
+            ] { rows.put(table, &schema.tables[table], &row, None).unwrap(); }
+        });
+        assert_eq!(result, object([("label", Value::String("ready".into())), ("note", Value::Null), ("photo", Value::Null), ("text", Value::String("hello".into()))]));
     }
 }

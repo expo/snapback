@@ -2,7 +2,7 @@
 // @ref LLP 3000.022#14.3 — static dependencies and the allocation refusal backstop.
 use super::*;
 
-fn classified(source: &str, name: &str, reason: &str) -> snapback4_lang::Bound {
+pub(super) fn classified(source: &str, name: &str, reason: &str) -> snapback4_lang::Bound {
     let b = bound(source);
     let fact = &b.schema.operations[name];
     assert_eq!(fact.predicts.as_deref(), Some("never"), "{name}: {fact:?}");

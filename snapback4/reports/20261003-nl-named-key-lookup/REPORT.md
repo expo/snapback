@@ -2,13 +2,15 @@
 
 Exact named keys select points in any equality order. Both spellings require
 provably non-null arguments on nullable columns of the selected unique key.
-NL changes are in the compiler, diagnostics, tests and docs. Round 8 merges
-main’s runtime changes and wasm budget, including QE2; NL adds no runtime code. Work stayed on eb1000; nothing pushed.
+Rounds 8–9 merge main’s QE2 and RP changes. Round 9 additionally guards runtime
+unique-key null arguments before storage access, so whole-rule expiry traversal
+can safely evaluate a logically guarded operand. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
 Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
 Round 4: `1bed2b74d4`; Round 5: `c25aa1b2dc`; Round 6: `dc3484fabb`;
 Round 7: `93acf8675c`;
+Round 8: `b475bbf2f5`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -18,7 +20,7 @@ branch `sb4-intent/nl-named-key-lookup`.
 | Stored unique key contains null | Multiple rows remain legal. [`check_constraints`](../../crates/snapback4-core/src/engine/write.rs#L436) skips null-bearing collisions; device prediction uses the same interpreter. |
 | Fully non-null unique key | Duplicate writes fail; a point reads the matching row, subject to authorization and device coverage. |
 | Nullable selected key column, possibly null argument | Compilation refuses with `E_QUARRY_NULL_KEY`. A required argument type or presence guard admits the lookup. |
-| Required key column, null argument | No row (false for `exists`): [`get_prepared`](../../crates/snapback4-core/src/engine/read_point.rs#L133). |
+| Ordinary unique key, runtime null argument | No row (false for `exists`/`created`) without a storage read: shared point/created guard in [`read_point.rs`](../../crates/snapback4-core/src/engine/read_point.rs), also used by [`probe_witness`](../../crates/snapback4-core/src/engine/witness.rs). Source admission remains required. |
 | Population `.col = arg`, null argument | Equality remains total: null equals null ([`BinaryOp::Eq`](../../crates/snapback4-core/src/engine/runner.rs#L1230)); a bounded population can return every visible null match. |
 | Nonunique point probe | `E_QUARRY_POINT_KEY` refuses. A fully pinned superset of a required unique key is unique too; otherwise use population `exists` in code. |
 | Maintained aggregate null group | Unchanged; it addresses a maintained group, exempt from the point refusal. |
@@ -31,7 +33,8 @@ one candidate from their own store; [`authorized_point`](../../crates/snapback4-
 then checks that candidate alone. A replica can hold a different subset:
 with null ties owned by alice, bob and carol, bob's server could reject
 alice's candidate while bob's device selected bob's row. Round 1 refuses
-such source programs rather than changing storage or raw-IR execution.
+such source programs. Round 9 also defines the runtime null result; raw point
+IR can no longer select a nullable unique tie. Storage remains unchanged.
 
 [`Requests::read`](../../crates/snapback4-lang/src/bind/intent.rs) recognizes
 exact plain unique keys. With the same selected index and no residual
@@ -388,6 +391,62 @@ both `RuleBindings` constructors. Retained both revision histories in LLP
   integration does not raise the budget. SHA-256:
   `8fca81ca6628c036993d654c6a55c6526e9d4d5051bb97073c0af886e81dbdd3`.
   Logs and measurement: `/tmp/sb4-nl-r8-verification/{wasm-build.log,wasm.json}`.
+
+## Round 9 (2026-10-04)
+
+- Merged `origin/main` **718ac00471** (RP) into Round 8. Code merged without
+  conflict; both journal histories and LLP revision histories are retained.
+- Reproduced the review's expired-null-tie exhaustion on both device stores.
+  The shared [`null_unique_point`](../../crates/snapback4-core/src/engine/read_point.rs)
+  now returns a known miss before storage/coverage work in `Get`/code `Exists`,
+  rule witnesses and `created` facts. Null-bearing uniqueness, population
+  equality and maintained null groups are unchanged. Unproved nullable source
+  points still refuse with the existing diagnostic.
+- Kept logical-edge narrowing. Whole-rule expiry traversal may evaluate an
+  operand outside that edge; its null probe is now false with no tie scan or
+  tie-derived deadline. Reference terms retain their own lifetimes. This makes
+  the binder proof sound without changing operand traversal or the full static
+  rule reservation. The binder comment, runtime contract, guide and §2.2 now
+  state that distinction explicitly.
+- The integration regression exercises OR/AND, null/present/missing keys and
+  zero/8,193 expired null ties on the server and memory/SQLite local runners.
+  Counted stores require zero key-table access for null rule probes. Raw point
+  reads/probes return complete null/false with zero examined/index entries.
+  Core tests cover every null position in arities 1–3 and created facts, plus
+  expiring/permanent/expired non-null witnesses and reference lifetimes. The
+  latter's full logical meter and deadlines were recorded on the unmodified
+  merged runtime before the guard and remain pinned in the regression.
+
+- Affected suites: **1,021 Rust tests pass**, with one existing ignore, plus
+  **99 client tests** (QE2, RP upgrades/reservations/headroom and codec census).
+  This includes all 211 receipt/RY cases, the reservation differentials, existing
+  maintained-null-group tests and the unchanged QE2 allocation limits. The
+  preliminary guide run caught a capitalization mismatch in its pinned
+  maintained-group sentence; restoring that wording made all 112 guide tests
+  pass. Reference validation, documentation budgets and whitespace checks pass.
+- The first full run exposed two frozen Snapback 2 null-point oracles that
+  required the old first-row result. Stopped that owned run after retaining
+  its failure log. The frozen data stays unchanged; `legacy-null-point` names
+  the two incompatible conformance expectations. A separate adapter regression
+  executes both inputs with the new null/false contract and the same maintained
+  count of one. All 19 corpus/adapter tests pass (210 compatible frozen cases,
+  85 named semantic exclusions); these two inputs are tested as SB4 behavior,
+  not counted as legacy conformance passes. The complete rerun follows this
+  sole test-adapter change; runtime and wasm inputs did not change.
+- Locked wasm: **2,116,457 B raw / 639,750 B gzip**, SHA-256
+  `55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`.
+  This is 7 B below RP's recorded merged gzip size; the unchanged **639,887 B**
+  budget leaves **137 B**. No work ceiling or budget is raised.
+
+The full eb1000 rerun exits **0: `== 0 failure(s) in 1406 s`**. It passes
+**4,943 Rust tests / 33 existing ignores**, all **17 doctests**, **6,176 client
+tests / 11 existing skips** across all 311 pooled files, **79 serial model tests**
+and all nine fixture wrapper tests. All **1,878** pinned implementation/test/build
+inputs remain unchanged after the run; the rebuilt wasm reproduces the hash
+and size above. No test bound, worker count or process-ownership guard changed.
+Logs, hashes and structured totals are in `/tmp/sb4-nl-r9-verification/`
+(`full.log`, `verification.json`, `inputs-before.json`). Work stayed on eb1000;
+only this round's own failed suite was signalled; nothing pushed or published.
 
 ## Governing context
 

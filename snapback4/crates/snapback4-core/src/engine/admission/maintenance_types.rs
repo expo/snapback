@@ -357,7 +357,23 @@ impl Check<'_> {
                     if let Some(c) = condition { self.bind(&c.old, row.clone()); self.body(&c.setup, Output::Effect)?; self.inspected(&c.value)?; }
                     if let Some(name) = result { self.bind(name, row); }
                 },
-                Stmt::Insert { row, .. } => { self.inspected(row)?; },
+                Stmt::Insert { table, row } => {
+                    let ty = self.inspected(row)?;
+                    // @ref LLP 3000.007#5.4 — completion supplies ordinary
+                    // omitted fields. Extend the structural image monotonically;
+                    // never replace an assigned type or erase maintenance taint.
+                    if let Expr::Variable(name) = row && let Type::Object(mut fields) = ty {
+                        let table = &self.schema.tables[table];
+                        for (field, ty) in &table.columns {
+                            if !fields.contains_key(field) && !table.engine_field(field)
+                                && !crate::schema::timeline::is_slot(field) && !table.maintained.contains_key(field)
+                                && (ty.is_optional() || table.defaults.contains_key(field)) {
+                                fields.insert(field.clone(), completed_column_type(ty));
+                            }
+                        }
+                        self.bind(name, Type::Object(fields));
+                    }
+                },
                 Stmt::InsertIfAbsent { table, row, result } => { self.inspected(row)?; self.bind(result, Type::Row(table.clone())); },
                 Stmt::Update { key, patch, .. } | Stmt::Upsert { key, row: patch, .. } => { self.inspected(key)?; self.inspected(patch)?; },
                 Stmt::Delete { key, .. } => { self.inspected(key)?; },
@@ -369,6 +385,19 @@ impl Check<'_> {
         Ok(returned)
     }
 }
+// Omitted values come only from null or schema literals, never a maintained
+// row supplied by a caller. Keep collection/asset shape, but do not introduce
+// unknown runtime JSON taint for these statically supplied ordinary defaults.
+fn completed_column_type(column: &crate::schema::ColumnType) -> Type {
+    use crate::schema::ColumnType;
+    match column {
+        ColumnType::Optional(t) => completed_column_type(t),
+        ColumnType::List { of, .. } => completed_column_type(of).list(),
+        ColumnType::Json { .. } => Type::Scalar,
+        _ => column_type(column),
+    }
+}
+
 fn column_type(column: &crate::schema::ColumnType) -> Type {
     use crate::schema::ColumnType;
     match column {

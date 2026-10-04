@@ -2,12 +2,10 @@
 // @ref LLP 3000.007.001#3.2 — never probe parent authority or resurrect expired rows.
 use super::runner::Runner;
 #[cfg(feature = "sqlite")]
-use super::write_target::row_copy_ceiling;
-#[cfg(feature = "sqlite")]
 use super::write::Origin;
-use crate::{error::RuntimeError, schema::Maintain, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
 #[cfg(feature = "sqlite")]
-use crate::{error::MeterKind, schema::maintained_id};
+use crate::schema::maintained_id;
 
 pub(crate) fn write_result(table: &crate::schema::Table, mut row: Value) -> Value {
     if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field,_| !table.maintained.contains_key(field)); }
@@ -42,24 +40,23 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007.001#3.2 — devices preserve synchronized column values;
-    // only the server reads private totals or reserves their mirrored writes.
-    #[cfg(not(feature = "sqlite"))]
-    pub(super) fn birth_columns(&mut self, _name: &str, row: Value) -> Result<Value,RuntimeError> { Ok(row) }
-
-    #[cfg(feature = "sqlite")]
+    // only the server reads private totals or performs their mirrored writes.
+    #[allow(unused_mut)] // The server fills the private values; the device only charges.
     pub(super) fn birth_columns(&mut self, name: &str, mut row: Value) -> Result<Value,RuntimeError> {
+        let price = self.source_price(name, crate::schema::reservations::BIRTH)?;
+        self.reservation_deferred |= self.device && price[2] != 0;
+        self.charge_price(price)?;
         if self.device { return Ok(row); }
+        #[cfg(feature = "sqlite")]
+        {
         let declarations: Vec<_> = self.schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|o|o.table == name)).cloned().collect();
         if declarations.is_empty() { return Ok(row); }
         let id = row.field("id")?.clone();
-        // A fixed ceiling includes cloning an existing private image and stamping the parent.
-        self.meter.heap(row_copy_ceiling(&self.schema.tables[name]))?;
         for m in declarations {
-            self.meter.charge(MeterKind::Examined,1)?;
-            self.meter.heap(row_copy_ceiling(&self.schema.tables[&m.target]))?;
             let total = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &m.target,&maintained_id(&[id.clone()])))?
                 .and_then(|r|r.field("value").ok().cloned()).unwrap_or(Value::Int(0));
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(m.private.as_ref().unwrap().column.clone(),total); }
+        }
         }
         Ok(row)
     }
@@ -88,48 +85,22 @@ impl Runner<'_> {
         self.row_changed(&owner.table,Some(&old),Some(&row),Origin::Maintained)
     }
 
-    /// Always prepaid, even for public unfiltered sources and the system.
-    /// Ordinary maintains retain their separate reservation/actual charging.
-    #[cfg(not(feature = "sqlite"))]
-    pub(super) fn reserve_columns(&mut self, _source: &str) -> Result<(),RuntimeError> { Ok(()) }
-
-    #[cfg(feature = "sqlite")]
+    // All source attempts use the same complete plan, independent of receipts.
     pub(super) fn reserve_columns(&mut self, source: &str) -> Result<(),RuntimeError> {
-        if self.device { return Ok(()) }
-        let mut steps = 0_u64;
-        let mut entries = 0_u64;
-        let mut heap = 0_u64;
-        let mut count = 0_u64;
-        for m in self.schema.maintains.iter().filter(|m|m.source == source && m.private.is_some()) {
-            let owner = m.private.as_ref().unwrap();
-            let target = &self.schema.tables[&m.target];
-            let parent = &self.schema.tables[&owner.table];
-            count += 1;
-            steps = steps.saturating_add(m.evaluation_steps()*2 + 8);
-            // A words index can order by the maintained column. Each token then
-            // changes two keys, on each of the old and new parents.
-            let parent_entries = parent.indexes.values().map(|index| {
-                if let Some((_,fields)) = index.word_component() {
-                    fields.iter().filter_map(|field|parent.columns.get(field)).map(|kind| match kind.required() {
-                        crate::schema::ColumnType::Text { max } => u64::from(*max), _ => 0,
-                    }).sum::<u64>().min(crate::words::MAX_TOKENS_PER_ROW as u64)
-                } else { 1 }
-            }).sum::<u64>();
-            entries = entries.saturating_add(4*(target.indexes.len() as u64+parent_entries));
-            // Account for word-key buffers as well as the ordinary row copies.
-            heap = heap.saturating_add(4*parent_entries.saturating_sub(parent.indexes.len() as u64)
-                *(crate::rows::MAX_INDEX_KEY_BYTES as u64+24));
-            heap = heap.saturating_add(row_copy_ceiling(&self.schema.tables[source])*2)
-                .saturating_add(row_copy_ceiling(target)*(16+4*target.indexes.len() as u64))
-                .saturating_add(row_copy_ceiling(parent)*(16+4*parent.indexes.len() as u64));
+        // Preserve the write authority/schema refusal for an unknown raw target.
+        if self.schema.table(source).is_none() { return Ok(()); }
+        let price = self.source_price(source, COLUMNS)?;
+        self.reservation_deferred |= self.device && price[3] != 0;
+        self.charge_price(price)?;
+        self.column_heap = price[4];
+        self.column_prepaid = price[3] > 0;
+        let assets = self.source_price(source, ASSETS)?;
+        if self.device || self.tx.holds_assets() {
+            self.charge_price(assets)?;
+            self.column_heap = self.column_heap.saturating_add(assets[4]);
         }
-        for (kind,amount) in [(MeterKind::Steps,steps),(MeterKind::IndexEntries,entries),(MeterKind::Examined,4*count),
-            (MeterKind::RowsWritten,4*count),(MeterKind::HeapBytes,heap)] { self.meter.charge(kind,amount)?; }
-        self.column_heap = heap;
-        let assets = if let Some(table) = self.schema.table(source) { self.reserve_assets(table)? } else { 0 };
-        self.column_heap = self.column_heap.saturating_add(assets);
-        self.assets_prepaid = true;
-        self.column_prepaid = count > 0;
+        #[cfg(feature = "sqlite")]
+        { self.assets_prepaid = true; }
         Ok(())
     }
 }
