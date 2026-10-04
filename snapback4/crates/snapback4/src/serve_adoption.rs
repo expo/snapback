@@ -244,10 +244,9 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
 
 // @ref LLP 3000.019#3.6 — report each completed rebuild after atomic publication.
 pub(super) fn summary(engine: &snapback4_core::Engine) -> String {
-    let views = &engine.store().adoption_report.views;
-    if views.is_empty() { return String::new(); }
-    format!("; rebuilt {}", views.iter().map(|view|format!("{} ({} source rows, {:.3} ms)",view.name,view.rows,view.elapsed.as_secs_f64()*1000.0)).collect::<Vec<_>>().join(", "))
+    engine.store().adoption_report.summary()
 }
+
 pub(super) fn report(engine: &snapback4_core::Engine) {
     let detail = summary(engine);
     if !detail.is_empty() { snapback4_core::diagnostic!("snapback4: startup schema adopted as generation {}{}", engine.generation(), detail); }

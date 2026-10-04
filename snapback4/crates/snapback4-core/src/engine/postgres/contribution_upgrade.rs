@@ -86,7 +86,7 @@ pub(super) fn source_page(tx: &super::store::Tx<'_>, table: &str, schema: &Table
         };
         let page=tx.query(query,&[&table,&after,&limit])?;
         if adoption::page_fits(page.iter().map(|raw| raw.get::<_,&str>(1)), meter, work,
-            |row| adoption::contribution_bytes(row,schema))? { return Ok(page); }
+            Some(&|row| adoption::contribution_bytes(row,schema)))? { return Ok(page); }
         limit=(page.len() as i64/2).max(1);
         drop(page);
         meter.release_heap(page_mark.clone());

@@ -1,6 +1,7 @@
 //! Compare the incremental index plan with the former whole-store activation.
 use super::*;
 use crate::{Context, Engine, value::object};
+mod retirement;
 const BASE: &str = r#"
 table posts:
   author: principal
@@ -123,6 +124,115 @@ fn same(a: &Engine, b: &Engine) {
     assert_eq!(a.seq().unwrap(), b.seq().unwrap());
     for table in ["r", "i", "_log", "_commits"] {
         assert_eq!(rows(a, table), rows(b, table), "{table}");
+    }
+}
+
+#[test]
+fn activation_workspace_rolls_back_and_restores_the_callers_cache() {
+    let mut e = engine(false);
+    e.store().conn().pragma_update(None, "cache_size", 7).unwrap();
+    let before = [rows(&e, "r"), rows(&e, "i"), rows(&e, "_commits")];
+    let generation = e.generation();
+    let b = compile(&format!("{BASE}{VIEWS}"));
+    e.store().conn().commit_hook(Some(|| true)).unwrap();
+    assert!(e.adopt_at(b.schema.clone(), b.programs.clone(), 20).is_err());
+    e.store().conn().commit_hook(None::<fn() -> bool>).unwrap();
+    assert_eq!(e.generation(), generation);
+    for (table, expected) in ["r", "i", "_commits"].into_iter().zip(before) { assert_eq!(rows(&e, table), expected); }
+    let conn = e.store().conn();
+    assert_eq!(conn.pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+    assert_eq!(conn.query_row("SELECT count(*) FROM sqlite_temp_schema WHERE name='_adoption_index'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    e.adopt_at(b.schema, b.programs, 20).unwrap();
+    assert_eq!(e.store().conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+}
+
+#[test]
+fn activation_nomem_rolls_back_every_write_then_retries_at_the_original_cache() {
+    let (mut retry, mut control) = (engine(false), engine(false));
+    let next = compile(&format!("{BASE}\nquery latest():\n  return unrelated last 10 by .n\n"));
+    let programs: BTreeMap<_, _> = next.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+    for (engine, inject) in [(&mut retry, true), (&mut control, false)] {
+        let before: Vec<_> = ["r", "i", "_log", "_commits"].map(|t| rows(engine, t)).into();
+        engine.store().conn().pragma_update(None, "cache_size", 7).unwrap();
+        engine.store().conn().pragma_update(Some("temp"), "cache_size", 9).unwrap();
+        let mut calls = 0;
+        let generation = engine.store_mut().with_activation_cache(64, |store| {
+            calls += 1;
+            if calls == 2 {
+                assert!(store.conn().is_autocommit());
+                assert_eq!(store.conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+                assert_eq!(store.conn().pragma_query_value(Some("temp"), "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 9);
+                for (table, expected) in ["r", "i", "_log", "_commits"].into_iter().zip(&before) {
+                    let mut stmt = store.conn().prepare(&format!("SELECT * FROM {table} ORDER BY 1,2,3")).unwrap();
+                    let columns = stmt.column_count();
+                    let actual: Vec<Vec<rusqlite::types::Value>> = stmt.query_map([], |r| (0..columns).map(|i| r.get(i)).collect()).unwrap().collect::<Result<_, _>>().unwrap();
+                    assert_eq!(&actual, expected, "{table} leaked from the failed attempt");
+                }
+                assert_eq!(store.meta("generation").unwrap().as_deref(), Some("1"));
+                assert_eq!(store.conn().query_row("SELECT count(*) FROM sqlite_temp_schema WHERE name='_adoption_index'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+            }
+            store.activate_transaction(&next.schema, Some(&programs), false, 20, true, |tx, _, _| {
+                // Inject after index writes and a real builder write, not at an
+                // empty transaction's entry. The retry must start from scratch.
+                let row = object([("id", Value::Id("built".into())), ("owner", Value::Id("u".into())), ("n", Value::Int(9))]);
+                tx.put("unrelated", &next.schema.tables["unrelated"], &row, None)?;
+                tx.record_commit(tx.next_seq()?, 20, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &["unrelated".into()], 1)?;
+                if inject && calls == 1 {
+                    return Err(rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_NOMEM), Some("out of memory".into())).into());
+                }
+                Ok(())
+            })
+        }).unwrap();
+        assert_eq!(generation, 2);
+        assert_eq!(calls, if inject { 2 } else { 1 });
+        assert_eq!(engine.store().conn().pragma_query_value(None, "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 7);
+        assert_eq!(engine.store().conn().pragma_query_value(Some("temp"), "cache_size", |r| r.get::<_, i64>(0)).unwrap(), 9);
+        assert_eq!(engine.store().adoption_report.phases.iter().any(|(name, _)| *name == "memory fallback (rolled back)"), inject);
+    }
+    same(&retry, &control);
+}
+
+#[test]
+fn retirement_only_and_mixed_adoptions_always_warn_about_their_write_work() {
+    const SOURCE: &str = "table entries:\n  n: int\n  by byN: n\n  public\n";
+    let source = compile(SOURCE);
+    let mut engine = Engine::new_at(Store::memory().unwrap(), source.schema, source.programs, 1).unwrap();
+    engine.seed_at((0..1000).map(|n| ("entries".into(), object([("id", Value::Id(format!("r{n}"))), ("n", Value::Int(n))]))), 1).unwrap();
+    for (next, rows, indexes, mixed) in [
+        ("", 1000, 2000, false),
+        ("table entries:\n  n: int\n  public\n", 0, 1000, false),
+        ("table entries:\n  n: int\n  public\nview totals: count entries by .n\n", 0, 1000, true),
+    ] {
+        let next = compile(next);
+        let estimate = engine.store_mut().adoption_estimate(&next.schema).unwrap().unwrap();
+        assert_eq!((estimate.retired_rows, estimate.retired_index_entries), (rows, indexes));
+        let message = estimate.summary();
+        assert!(message.contains("unestimated") && message.contains("retirement pause"), "{message}");
+        assert!(message.contains("147 MiB") && message.contains("SNAPBACK4_ADOPTION_CACHE_MIB"), "{message}");
+        if mixed { assert!(estimate.aggregate_rows > 0 && message.contains("not a floor")); }
+    }
+}
+
+#[test]
+fn generated_rebuilds_keep_sparse_rows_captures_indexes_and_wide_sum_cancellation() {
+    for seed in 0..12_u64 {
+        let (mut fast, mut slow) = (engine(false), engine(true));
+        let mut random = seed + 1;
+        for n in 0..31 {
+            random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let amount = if n % 2 == 0 { crate::value::I53_MAX / 4 } else { -(crate::value::I53_MAX / 4) };
+            let row = object([("id", Value::Id(format!("generated{n}"))), ("author", Value::Id(format!("u{}", random % 7))),
+                ("at", Value::Int((random % 100_000_000) as i64 - 50_000_000)), ("parent", Value::Null), ("amount", Value::Int(amount))]);
+            for e in [&mut fast, &mut slow] { e.seed_at([("posts".into(), row.clone())], 10).unwrap(); }
+        }
+        for e in [&fast, &slow] {
+            e.store().conn().execute("UPDATE r SET data=json_remove(data, '$.Row.parent') WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%'", []).unwrap();
+        }
+        let extra = VIEWS.replace("sum posts of .amount by .author", "sum posts of .amount by .parent");
+        let b = compile(&format!("{BASE}{extra}"));
+        for e in [&mut fast, &mut slow] { e.adopt_at(b.schema.clone(), b.programs.clone(), 20).unwrap(); }
+        same(&fast, &slow);
+        assert_eq!(fast.store().conn().query_row("SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='posts') AND id LIKE 'generated%' AND json_type(data, '$.Row.parent') IS NULL", [], |r| r.get::<_, i64>(0)).unwrap(), 31);
     }
 }
 #[test]

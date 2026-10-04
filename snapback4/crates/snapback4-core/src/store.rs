@@ -20,7 +20,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod activation_cache;
+mod activation_index;
+mod activation_scan;
 pub mod adoption_report;
+pub mod adoption_estimate;
 mod activation_walk;
 mod activation_plan;
 #[cfg(test)]
@@ -78,6 +82,7 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    activation_scan: Option<activation_scan::Buffer>,
     pub changes: std::cell::RefCell<crate::revocation::Recorder>,
     sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
@@ -307,7 +312,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -317,7 +322,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -328,7 +333,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -461,6 +466,7 @@ impl Sizes {
 
 impl<'a> Tx<'a> {
     pub fn conn(&self) -> &Connection {
+        self.clear_activation_scan();
         &self.tx
     }
 
@@ -477,19 +483,20 @@ impl<'a> Tx<'a> {
     /// A savepoint, so a program can roll back its own writes and keep the
     /// enclosing bookkeeping (a refused mutation still records its outcome).
     pub fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
-        self.tx.execute_batch(&format!("SAVEPOINT {name}"))?;
+        self.conn().execute_batch(&format!("SAVEPOINT {name}"))?;
         Ok(())
     }
 
     pub fn release(&self, name: &str) -> Result<(), RuntimeError> {
-        self.tx.execute_batch(&format!("RELEASE {name}"))?;
+        self.conn().execute_batch(&format!("RELEASE {name}"))?;
         Ok(())
     }
 
     /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        self.clear_activation_scan();
         self.changes.borrow_mut().widen();
-        self.tx.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
+        self.conn().execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
         // Lazy sequence-table creation may have belonged to this savepoint.
         self.sequence_table.set(None);
         Ok(())
@@ -560,6 +567,7 @@ impl<'a> Tx<'a> {
     }
 
     fn put_indexed(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>, insert_index: &str) -> Result<u64, RuntimeError> {
+        self.clear_activation_scan();
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
@@ -574,7 +582,7 @@ impl<'a> Tx<'a> {
             if before == after { continue; }
             let ti = self.num(&format!("{table_name}.{name}"))?;
             for key in before.iter().filter(|key| !after.contains(key)) {
-                self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
                 entries += 1;
             }
             for key in after.iter().filter(|key| !before.contains(key)) {
@@ -587,16 +595,17 @@ impl<'a> Tx<'a> {
     }
 
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        self.clear_activation_scan();
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?.to_owned();
-        self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
+        self.conn().prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
         let mut entries = 0;
         for (index_name, index) in &table.indexes {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
             for key in stored_index_keys(table, index, old, &id) {
-                self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                self.conn().prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
                 entries += 1;
             }
         }
@@ -611,7 +620,7 @@ impl<'a> Tx<'a> {
     /// A meta key written with the transaction (a device's watermark lands
     /// with the rows it covers).
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
-        self.tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
+        self.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
         Ok(())
     }
 
@@ -621,11 +630,11 @@ impl<'a> Tx<'a> {
 
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {
         if !self.changes.borrow().covers(touched) { self.changes.borrow_mut().widen(); }
-        self.tx.execute("INSERT INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", params![seq as i64, canonical_json(&self.changes.borrow().footprint())])?;
+        self.conn().execute("INSERT INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", params![seq as i64, canonical_json(&self.changes.borrow().footprint())])?;
         // @ref LLP 3000.023#12 — retain twice the 500-commit certification
         // window. Pruning rolls back with the commit; older intervals widen.
-        self.tx.prepare_cached("DELETE FROM _change_evidence WHERE seq <= ?1")?.execute([seq.saturating_sub(1000) as i64])?;
-        self.tx.prepare_cached("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
+        self.conn().prepare_cached("DELETE FROM _change_evidence WHERE seq <= ?1")?.execute([seq.saturating_sub(1000) as i64])?;
+        self.conn().prepare_cached("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
         )?;
         Ok(())
     }
@@ -636,18 +645,18 @@ impl<'a> Tx<'a> {
     }
 
     pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
-        self.tx.prepare_cached("INSERT INTO _ops(principal, id, seq, outcome) VALUES (?1, ?2, ?3, ?4)")?.execute(params![principal, id, seq as i64, outcome])?;
+        self.conn().prepare_cached("INSERT INTO _ops(principal, id, seq, outcome) VALUES (?1, ?2, ?3, ?4)")?.execute(params![principal, id, seq as i64, outcome])?;
         Ok(())
     }
 
     pub fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError> {
-        self.tx.execute("UPDATE _ops SET name = ?3, args_digest = ?4, at = ?5 WHERE principal = ?1 AND id = ?2",
+        self.conn().execute("UPDATE _ops SET name = ?3, args_digest = ?4, at = ?5 WHERE principal = ?1 AND id = ?2",
             params![principal, id, name, payload_digest(args), at])?;
         Ok(())
     }
 
     pub fn append_log(&self, partition: &str, seq: u64, ord: u32, table: &str, kind: &str, id: &str, data: Option<&str>) -> Result<(), RuntimeError> {
-        self.tx.prepare_cached("INSERT INTO _log(partition, seq, ord, t, kind, id, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![partition, seq as i64, ord as i64, table, kind, id, data],
+        self.conn().prepare_cached("INSERT INTO _log(partition, seq, ord, t, kind, id, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![partition, seq as i64, ord as i64, table, kind, id, data],
         )?;
         Ok(())
     }
@@ -1014,6 +1023,17 @@ impl crate::rows::Rows for Tx<'_> {
         // BYTELENARG / LENGTHARG never read overflow payloads. The payload
         // statement uses the granted allowances; Rust borrows its JSON.
         meter.once(crate::meter::HeapSite::SqliteColumns, 2 * self.page_size)?;
+        if limit == 1 && dir == Dir::Asc
+            && let Some(head) = self.activation_head(t, ti, &lo, &hi)? {
+            let Some((data, key)) = head else { return Ok(Vec::new()); };
+            // Keep every ordinary per-row allowance, including both SQLite
+            // payload copies, decoder scratch, vector growth and key storage.
+            meter.heap(((data.len() + key.len()) as u64).saturating_mul(2).saturating_add(64))?;
+            heap::stored_row(&data, scope).charge(meter, scope)?;
+            meter.heap(heap::allocation(key.len()))?;
+            meter.grow::<(Value, Vec<u8>)>(0, 0)?;
+            return Ok(vec![(serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key)]);
+        }
         let sizes = match dir {
             Dir::Asc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
             Dir::Desc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",

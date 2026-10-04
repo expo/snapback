@@ -1,0 +1,49 @@
+{
+  "returncode": 0,
+  "process_wall_s": 1.4267126242630184,
+  "user_s": 0.9642179999999999,
+  "system_s": 0.378476,
+  "rss_kib": 16128,
+  "cpu": 95,
+  "generation": 4,
+  "phases": [
+    [
+      "key validation",
+      0.034462000000000007
+    ],
+    [
+      "preflight",
+      17.829646
+    ],
+    [
+      "project and index",
+      759.569028
+    ],
+    [
+      "cap counts",
+      0.00011999999999999999
+    ],
+    [
+      "capture recorded paths",
+      0.060361
+    ],
+    [
+      "derived rebuild",
+      1.011497
+    ],
+    [
+      "validation",
+      266.76934800000004
+    ],
+    [
+      "metadata",
+      2.0603890000000002
+    ],
+    [
+      "commit",
+      306.512622
+    ]
+  ],
+  "total_ms": 1355.63415,
+  "views": []
+}

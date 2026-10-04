@@ -1,0 +1,54 @@
+Round 1 full-suite attempts; eb1000, 2026-10-04
+Both completed attempts failed the client stage. No green full-suite claim.
+Command from repository root:
+taskset -c 64-87 env LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 bash snapback4/scripts/test.sh
+
+Complete attempt A
+Exit status: 1
+-- ok: cargo build (3 s)
+-- ok: wasm build (33 s)
+-- ok: docs budget (1 s)
+-- ok: release guard (4 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (3 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 299 test binaries, 1012 executions; at most 24 concurrent processes
+-- ok: cargo test (559 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (11 s)
+-- client file FAIL: packages/snapback4/test/worker-regressions.test.mjs (464646 ms)
+-- client files: 311/311; failed 1; tests {"tests":6198,"pass":6186,"fail":1,"cancelled":0,"skipped":11,"todo":0}
+-- FAIL: client tests (1075 s)
+-- client files: 2/2; failed 0; tests {"tests":79,"pass":79,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: client models (358 s)
+== 1 failure(s) in 2038 s
+
+Complete attempt B
+Exit status: 1
+-- ok: cargo build (3 s)
+-- ok: wasm build (32 s)
+-- ok: docs budget (2 s)
+-- ok: release guard (4 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (3 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 299 test binaries, 1012 executions; at most 24 concurrent processes
+-- ok: cargo test (557 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (13 s)
+-- client file FAIL: packages/snapback4/test/read-through.test.mjs (27320 ms)
+-- client file FAIL: packages/snapback4/test/read-through-provenance.test.mjs (33158 ms)
+-- client file FAIL: packages/snapback4/test/read-through-upsert.test.mjs (32705 ms)
+-- client file FAIL: packages/snapback4/test/readauth.test.mjs (51083 ms)
+-- client file FAIL: packages/snapback4/test/server-e2e.test.mjs (63936 ms)
+-- client file FAIL: packages/snapback4/test/keep-app-model.test.mjs (400817 ms)
+-- client file FAIL: packages/snapback4/test/ordinary-search-oracle.test.mjs (544245 ms)
+-- client files: 311/311; failed 7; tests {"tests":6198,"pass":6180,"fail":7,"cancelled":0,"skipped":11,"todo":0}
+-- FAIL: client tests (1097 s)
+-- client files: 2/2; failed 0; tests {"tests":79,"pass":79,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: client models (348 s)
+== 1 failure(s) in 2049 s

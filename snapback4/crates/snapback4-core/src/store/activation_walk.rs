@@ -3,11 +3,11 @@ use super::*;
 use crate::{error::MeterKind, meter::{Ceilings, Cut, Meter}, rows::{adoption, word_heap as heap}};
 
 pub(super) fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
-    walk_metered(tx, table, adoption::Work::DECODE, |_| crate::value::InternalPrice::zero(), |id, row, _| visit(id, row))
+    walk_metered(tx, table, adoption::Work::DECODE, None, |id, row, _| visit(id, row))
 }
 
 // @ref LLP 3000.007#20.24.1 — reserve stored bytes before fetching or decoding; page scratch stays live until consumed.
-pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratch: impl Fn(&Value) -> crate::value::InternalPrice,
+pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratch: Option<&dyn Fn(&Value) -> crate::value::InternalPrice>,
     mut visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     const PAGE: usize = 256;
     let mut after: Option<String> = None;
@@ -59,7 +59,7 @@ pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratc
                 let mut rows = statement.query(params![table, after, count as i64])?;
                 while let Some(row) = rows.next()? { page.push((row.get(0)?, row.get(1)?)); }
             }
-            if adoption::page_fits(page.iter().map(|(_, data)| data.as_str()), &mut meter, work, &scratch)? { break page; }
+            if adoption::page_fits(page.iter().map(|(_, data)| data.as_str()), &mut meter, work, scratch)? { break page; }
             limit = (page.len() / 2).max(1);
             drop(page);
             meter.release_heap(page_mark.clone());
@@ -116,7 +116,7 @@ mod tests {
         }
         let mut calls = 0;
         let mut first_heap = None;
-        walk_metered(&tx, 1, adoption::Work::DECODE, |_| crate::value::InternalPrice::zero(), |_, row, meter| {
+        walk_metered(&tx, 1, adoption::Work::DECODE, None, |_, row, meter| {
             let mut decoder = Meter::new(Ceilings::unbounded(), Cut::Abort);
             adoption::charge(&mut decoder, adoption::decode_bytes(&canonical_json(&row)))?;
             let decode = decoder.used.heap_bytes;
@@ -142,7 +142,7 @@ mod tests {
         let work = adoption::Work { examined: 2, steps: 1, index_entries: 1 };
         let scratch = |row: &Value| adoption::contribution_bytes(row, &crate::schema::public_table(Default::default(), Default::default()));
         let mut observed = Vec::new();
-        walk_metered(&tx, 1, work, scratch, |_, row, meter| {
+        walk_metered(&tx, 1, work, Some(&scratch), |_, row, meter| {
             observed.push(meter.used.examined);
             assert_eq!((meter.used.steps, meter.used.index_entries), (0, 0), "rejected attempts perform no contribution work");
             meter.charge(MeterKind::Examined, 1)?;
@@ -169,7 +169,7 @@ mod tests {
             let mut store = fixture(256, 0);
             let tx = store.transaction().unwrap();
             let (mut page, mut offset, mut calls) = (0, 0u64, 0);
-            walk_metered(&tx, 1, work, |_| crate::value::InternalPrice::zero(), |_, _, meter| {
+            walk_metered(&tx, 1, work, None, |_, _, meter| {
                 assert_eq!(meter.used.examined, sizes[page] + offset * work.examined + 1,
                     "the entire admission pass and every earlier callback remain charged");
                 assert_eq!(meter.used.steps, offset * work.steps);
@@ -199,7 +199,7 @@ mod tests {
                 let mut store = fixture(count, 0);
                 let tx = store.transaction().unwrap();
                 let mut calls = 0;
-                let result = walk_metered(&tx, 1, work, |_| crate::value::InternalPrice::zero(), |_, _, _| { calls += 1; Ok(()) });
+                let result = walk_metered(&tx, 1, work, None, |_, _, _| { calls += 1; Ok(()) });
                 assert_eq!(calls, 0, "no callback can start with an impossible page budget");
                 if count == 0 { result.unwrap(); }
                 else { assert!(matches!(result, Err(RuntimeError::Bound { kind: got, .. }) if got == kind), "{result:?}"); }

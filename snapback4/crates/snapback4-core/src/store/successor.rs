@@ -10,6 +10,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
     let Some(previous) = previous else { return Ok(Vec::new()) };
     let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))?;
     let mut steps = crate::successor::classify(&previous, schema);
+    let mut count_checks = BTreeMap::<String, bool>::new();
     for step in &mut steps {
         if let Some(position) = step.path.strip_prefix("maintains[").and_then(|s| s.strip_suffix(']')).and_then(|s| s.parse::<usize>().ok()) {
             let maintain = &schema.maintains[position];
@@ -17,6 +18,17 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
             // read-only and use the same interpreted contribution, without a write.
             if previous.tables.contains_key(&maintain.source) {
                 let source = &schema.tables[&maintain.source];
+                // @ref LLP 3000.000#implementation-follow-up — population proof shares validation, not sums.
+                // A count's largest possible group is the entire source. Below
+                // I53_MAX no predicate/key can overflow it. Validate the same
+                // interpreted/captured source once for counts sharing a table;
+                // sums retain their wide per-group cancellation assessment.
+                let count_safe = matches!(maintain.kind, crate::schema::MaintainKind::Count)
+                    && tx.tx.query_row("SELECT count(*) FROM r WHERE t = ?1", [tx.num(&maintain.source)?], |r| r.get::<_, i64>(0))? <= crate::value::I53_MAX;
+                if count_safe && let Some(fits) = count_checks.get(&maintain.source) {
+                    assessed(step, maintain, *fits);
+                    continue;
+                }
                 let paths: Vec<_> = source.recorded.keys().filter(|path| !previous.tables[&maintain.source].recorded.contains_key(*path)).cloned().collect();
                 let mut capture = crate::engine::runner::Runner::new(tx, schema, crate::engine::Context::system().at(crate::now_ms()), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
                 let mut totals = BTreeMap::<Vec<u8>, i128>::new();
@@ -28,7 +40,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     // could falsely reject sums that fit their real groups.
                     let row = capture.capture_recorded(source, crate::schema::row_image(&row, source).into_owned(), &paths)?;
                     if validate_row(schema, &maintain.source, &row).is_err() { fits = false; return Ok(()); }
-                    if maintain.selected(&row) {
+                    if !count_safe && maintain.selected(&row) {
                         let value = match &maintain.kind {
                             crate::schema::MaintainKind::Count => 1,
                             crate::schema::MaintainKind::Sum { of } => i128::from(row.field(of)?.as_int()?),
@@ -39,10 +51,8 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     Ok(())
                 })?;
                 fits &= totals.values().all(|total| (crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(total));
-                if !fits {
-                    step.change = Change::Narrowing;
-                    step.message = format!("maintain {} cannot adopt these source rows: an interpreted contribution is invalid or the final value is out of range", maintain.label());
-                } else { step.message.push_str("; assessed source rows fit the derived rebuild"); }
+                if count_safe { count_checks.insert(maintain.source.clone(), fits); }
+                assessed(step, maintain, fits);
             }
             continue;
         }
@@ -145,4 +155,11 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
         }
     }
     Ok(steps)
+}
+
+fn assessed(step: &mut Step, maintain: &crate::schema::Maintain, fits: bool) {
+    if !fits {
+        step.change = Change::Narrowing;
+        step.message = format!("maintain {} cannot adopt these source rows: an interpreted contribution is invalid or the final value is out of range", maintain.label());
+    } else { step.message.push_str("; assessed source rows fit the derived rebuild"); }
 }

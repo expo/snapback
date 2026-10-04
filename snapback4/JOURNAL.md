@@ -86382,3 +86382,143 @@ and pass with the fix. All three files passed 3/3 under confined CPU load
 [Round 3 report](./reports/20261004-fy-fixture-races/REPORT.md#round-3--report-the-body-before-cleanup-and-keep-it-primary).
 The accepted orphan-custody deferral is unchanged; test-only commit, no full
 suite or remote tests, scratch removed and owned hog reaped, nothing pushed.
+## 2026-10-04 — AP: reduce and expose populated-store adoption pauses
+
+Lane AP on eb1000, baseline `2154dc163dc42e1808f12ef32e9468b2889407a3`.
+Calibration 30's retained generation definitions support a semantic rollback to
+its generation-1 schema on a private copy, followed by repeatable generation-2
+adoption at a pinned time. This retains the final evidence's later delivery and
+receipt work; it is not exact historical time travel. The physical message table
+contains 100,015 rows; `unread`'s 227,989 number counts repeated source visits.
+
+Three sequential production-profile pairs on an idle CPU gave **16.322 s →
+6.762 s median (2.41×)**. The requested 5× target, **3.264 s** against this
+baseline, **is not met**. The formerly unattributed bulk is new-index insertion:
+row-order B-tree churn wrote roughly 10.5 GB through SQLite versus 612 MB after
+ordered staging and a scoped 64 MiB cache. The complete phase table, capture
+breakdown, profiling caveats, reproduction commands and raw timings are in
+[the AP report](./reports/20261004-ap-adoption-pause/REPORT.md).
+
+Keep one atomic activation transaction and its predecessor-snapshot readers.
+Sort admitted keys before insertion; retain every key/contribution bound. An
+activation-only 32-row/128 KiB serialized read-ahead buffer amortizes SQLite
+seeks while retaining identical logical meter charges and fallback on wide
+rows. Count preflight reuses source validation when the population proves every
+group fits; sums retain wide cancellation. Avoid a second typed admission decode
+when no contribution scratch needs it, and avoid copying maps merely to retain
+all their fields. No interpreter ceiling changes. Capture semantics, sparse
+physical images, pending recounts and device behavior stay unchanged.
+
+Every stored row, all 3,441,029 index entries, all captures, catalog, log and
+commit records compare byte-for-byte with the baseline. Twelve generated seeds
+exercise sparse images, historical captures and cancelling sums; meter/cursor,
+cache invalidation and refused-commit rollback tests cover the new workspace.
+`check` gives read-only `N_ADOPTION_PAUSE` population/rate advice; dev and deploy
+print it before activation. Adoption output now includes disjoint phases and
+explicitly nested details. The estimate names eb1000's measured rate and its
+population uncertainty; it is not a latency SLO.
+
+Wasm before/after is byte-identical: **2,116,457 B raw / 639,750 B gzip**,
+SHA-256 `de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`.
+The **639,887 B** budget and **130 B macOS allowance** are unchanged. Both
+`build-wasm.sh` runs pass. Supplemental `measure-wasm.sh` hits the already
+recorded i64 serde-family census failure; no new web bytes explain or conceal it.
+
+A remaining multi-second pause merits a separate online-adoption project.
+LLP 3000.026 §8.6 recommends snapshot preparation, complete-journal catch-up and
+one brief switch, with publication-time captures, expiry, sparse shadow images,
+all-writer coverage, bounded debt and recovery requirements. This is design only.
+The final suite/ref-check results and cleanup are recorded in the report's
+verification record. No stores or tokens are retained in the commit; no push.
+
+AP final verification follow-up: tightened serialized read-ahead's cursor-growth
+reservation before final qualification. Three new paired runs measure **17.108 s
+→ 6.942 s (2.46×)**, with the 5× bar now **3.422 s**; the report retains both
+sets and uses the final set. A separate RSS probe is **28.5 MiB → 147 MiB** for
+the whole helper: larger SQLite cache/sorter workspace is the explicit memory
+cost of avoiding WAL/temp churn. Final corpus bytes still match exactly.
+
+AP final suite: **zero failures in 1,991 s** on eb1000. All 299 Rust binaries /
+1,012 executions and doctests pass; all 311 client files pass (6,187 tests and
+11 existing skips), as do 79 serial models and nine fixtures. All build,
+typecheck, docs-budget and release-guard stages pass. An earlier full run caught
+private physical names in phase details and a false unchanged-startup adoption
+announcement; both reporting defects were repaired, passed their 13 focused
+tests, and passed again in the final full run. The final wasm hash still matches
+the baseline exactly. `ref-check --verbose` passes with zero errors or unchecked
+references. Private stores and remaining scratch artifacts were removed; the
+existing adoption-pause ticket stays open for the unmet 5× target. Local commit
+only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 1: refusal order and constrained activation memory
+
+Addressed the Astra/Grok READY WITH CHANGES findings on `547c9eaa0b`.
+Ordered staging now has an immediate `(ti,k)` primary key, preserving the
+original duplicate's walk step, `E_STORE` message and charges before a later
+validation failure. Raw activation and store writes use the read-ahead
+invalidating accessor; a savepoint rollback test verifies old images return.
+
+`SNAPBACK4_ADOPTION_CACHE_MIB` controls the combined main/temp target (0–512,
+default 64 MiB, half each; 0 preserves caller settings). Larger caller settings
+are retained. Linux procfs supplies finite address-space headroom for a
+conservative reduction. A SQLite `NOMEM` after enlargement rolls back completely,
+restores both caller settings, checks predecessor identity and retries once;
+other failures and one-shot device preparation are not retried. The injected
+failure test compares the predecessor before retry and final output against an
+uninterrupted control. The failed-attempt duration is reported separately.
+
+An actual 96 MiB address-space probe exposed a Rust allocator abort before
+SQLite could return `NOMEM` in the initial main-cache-only revision. The final
+headroom policy succeeds on the full corpus at **47.54 MiB peak RSS**, with all
+rows/indexes/captures/log/commits identical; explicit 0 succeeds at 30.83 MiB.
+The retained round-0 binary reproduces SQLite NOMEM with complete rollback.
+Normal final runs peak at **93.11 MiB RSS** versus round 0's approximately
+147 MiB. LLP 3000.002 now states the sorter/cache relationship and the limits
+of this workspace policy; it is not a process or cgroup memory guarantee.
+
+Three new paired production runs on eb1000 CPU 95 (sibling 47 idle before each
+sample) give **17.871 s → 7.914 s median, 2.26× faster**. Every complete digest
+and every per-table/index/capture digest matches the original slow path. The
+325 selected tests pass, including the 12 generated sparse/capture/sum seeds,
+maintained-column/device adoption and the new CLI advice regressions. The
+original 5× target remains unmet. Online adoption remains design-only; §8.6 of
+LLP 3000.026 retains the separate snapshot/catch-up recommendation.
+
+Advice now counts retirement rows/index entries and explicitly warns that their
+additional pause is unestimated, including retirement-only changes. The modeled
+build work says “up to” at measured eb1000 rates; its subtotal is not a floor or
+an SLO. Builder advice and `guide maintains` disclose the cache control and RSS.
+The [Round 1 report](./reports/20261004-ap-adoption-pause/REPORT.md#round-1--refusal-order-memory-and-complete-pause-advice)
+retains the failed exploratory probe, accepted timing pairs and memory evidence.
+
+Round-1 qualification remains **red for the full client suite**. After fixing a
+stale guide definition/action pin (112 guide tests pass), two complete suites
+finished with client-stage failures: one worker readiness fetch in 2,038 s, then
+five transport and two assertion failures in 2,049 s. Both passed all 299 Rust
+binaries / 1,012 executions and doctests, nine fixtures, all 79 serial models,
+and every build/typecheck/docs/release stage. The worker case and its whole
+61-test file passed focused reruns. The second run's seven failing files then
+passed against both the retained pre-AP release CLI and the candidate debug CLI:
+89 tests each, including all 600 search seeds. These controls do not replace a
+green full suite or establish a cause. No retry workaround was added; the
+[follow-up ticket](../issues/20261004-snapback4-intermittent-client-suite-failures.md)
+and report preserve both complete failures and the controls separately.
+Wasm remains byte-identical at 2,116,457 B raw / 639,750 B gzip; its budget and
+recorded macOS allowance are unchanged. No macOS execution is claimed.
+
+Final reference audit: zero errors and unchecked references. Private stores and
+remaining scratch artifacts were removed; disk use is 40.06 GiB.
+Local commit only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 2: surviving-table retirement advice
+
+Completed pause advice for reused timeline names and dependent targets,
+aggregate/private/recount/basis cleanup, replaced indexes, read-through
+expiry/recapture, parent mirrors, cap resets and asset-home retirement. Definite
+predecessor populations are counted once; conditional work explicitly warns
+that its pause is unestimated. Legacy sum/cap repairs are visible without a
+schema delta. Activation is unchanged. All 419 affected tests and the nested
+allocation probe pass (one existing ignore), including held-writer and stopped
+`check` database/WAL byte comparisons; guide budget and reference checks pass.
+No full-suite or timing rerun for this advice-only round. See the
+[Round 2 audit](./reports/20261004-ap-adoption-pause/REPORT.md#round-2--retirement-and-rewrites-inside-surviving-tables).

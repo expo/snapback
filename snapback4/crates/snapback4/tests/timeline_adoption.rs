@@ -266,6 +266,11 @@ fn retirement_resets_dependent_aggregates_even_when_all_names_survive() {
         if !keep_aggregate { next.maintains.retain(|m| m.target != "totals"); }
         let steps = snapback4_core::successor::classify(e.schema(), &next);
         assert!(steps.iter().any(|s| s.path == "timelines.following" && s.change == snapback4_core::successor::Change::Destructive));
+        let estimate = e.store_mut().adoption_estimate(&next).unwrap().expect("retained names still retire rows");
+        let retired_before: i64 = e.store().conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('followingPosts','followingWork','followingEdges','followingFeed','totals')", [], |r| r.get(0)).unwrap();
+        assert_eq!(estimate.retired_rows, retired_before as u64, "do not count a target twice when also rebuilt");
+        assert!(estimate.retired_index_entries > 0);
+        assert!(estimate.summary().contains("unestimated"));
         e.adopt(next, e.programs().cloned().collect::<Vec<_>>()).unwrap();
         assert!(e.store().rows("totals").unwrap().is_empty());
         assert!(e.store().rows("followingPosts").unwrap().is_empty());
@@ -609,6 +614,10 @@ fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence
                 let json: serde_json::Value = serde_json::from_slice(&check.stdout).unwrap();
                 assert_eq!(fs::read(&path).unwrap(), before, "{case}");
                 assert_eq!(fs::read(&wal_path).unwrap(), wal, "{case}");
+                let pause = json["notes"].as_array().unwrap().iter().find(|n| n["code"] == "N_ADOPTION_PAUSE").expect("source rewrite or retirement needs advice");
+                if changed {
+                    assert!(pause["message"].as_str().unwrap().contains("unestimated write pause"), "{case}: {pause}");
+                }
                 let preview = e.store_mut().check_timeline_activation_at(&b.schema, 5000, true);
                 let adoption = e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 5000);
                 let expected = true;

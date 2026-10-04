@@ -30,7 +30,7 @@ fn fill_slot(tx: &Tx<'_>, schema: &Schema, t: &Timeline, repost: bool, now: i64)
     // source's declared copy ceiling, never a stored image's length.
     let scratch = crate::engine::row_copy_ceiling(&schema.tables[source]).saturating_mul(4)
         .saturating_add(crate::engine::row_copy_ceiling(definition).saturating_mul(8)).saturating_add(8192);
-    super::activation_walk::walk_metered(tx, tx.num(source)?, Work { examined: 2, steps: 1, index_entries: 0 }, |_| crate::value::InternalPrice::zero(),
+    super::activation_walk::walk_metered(tx, tx.num(source)?, Work { examined: 2, steps: 1, index_entries: 0 }, None,
         |id, mut row, meter| {
             meter.at(&format!("adopt {source}.{slot}"));
             meter.heap(scratch)?;

@@ -143,7 +143,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_RECEIPTS_CLAUSE" | "E_RECEIPTS_OWNED" | "E_DELIVERY_CLAUSE" | "E_DELIVERY_BINDING" | "RUNS_FULL" => "receipts",
         "E_QUARRY_EPHEMERAL" | "E_EPHEMERAL_FULL" | "N_EPHEMERAL_SERVER" => "ephemeral",
         "E_READ_THROUGH" | "E_READ_THROUGH_ADOPT" | "E_PARENT_HAS_CHILDREN" => "rules",
-        "E_READ_THROUGH_SCAN" => "maintains",
+        "E_READ_THROUGH_SCAN" | "N_ADOPTION_PAUSE" => "maintains",
         code if code.starts_with("E_TIMELINE_") || code == "N_TIMELINE_PROFILE_CAP" || code == "N_TIMELINE_COMPAT" || code == "N_TIMELINE_ADOPT" => "feeds",
         "N_PUBLIC_AGGREGATE_COPY" => "feeds",
         "E_QUARRY_SYNTAX" => "language",

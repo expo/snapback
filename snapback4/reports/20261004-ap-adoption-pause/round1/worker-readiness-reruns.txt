@@ -1,0 +1,88 @@
+Commands from snapback4/, same candidate debug CLI and package output:
+
+taskset -c 88-95 node --test --test-name-pattern='^restart refuses an entry symlink already rejected by discovery$' packages/snapback4/test/worker-regressions.test.mjs
+(node:3205376) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ restart refuses an entry symlink already rejected by discovery (2491.213944ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2571.65206
+
+
+taskset -c 88-95 node --test packages/snapback4/test/worker-regressions.test.mjs
+(node:3254015) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dev immediate host restart waits for the previous worker group and excludes ownership from Node (4288.293253ms)
+✔ serve immediate host restart waits for the previous worker group and excludes ownership from Node (4315.142648ms)
+✔ dev workers/push.mjs snapshot does not add the temporary directory to package lookup (161.779366ms)
+✔ serve workers/push.mjs snapshot does not add the temporary directory to package lookup (179.219034ms)
+✔ dev worker.mjs snapshot does not add the temporary directory to package lookup (171.877307ms)
+✔ named snapshot refuses a symlinked snapback package manifest (122067.108522ms)
+✔ named snapshot refuses a symlinked project package manifest (122044.143263ms)
+✔ named snapshot refuses a symlinked ancestor package manifest (122031.669475ms)
+✔ dev startup clears a removed worker's stale running status after host death (269.080176ms)
+✔ serve startup clears a removed worker's stale running status after host death (244.412144ms)
+✔ supervised workers/push.mjs refuses refresh without logging a bearer across split writes (321.860683ms)
+✔ supervised worker.mjs refuses refresh without logging a bearer across split writes (337.978841ms)
+✔ dev private worker snapshot resolves schema-local packages (233.303675ms)
+✔ dev private worker snapshot resolves schema-local packages before project packages (210.83603ms)
+✔ serve private worker snapshot resolves schema-local packages (249.388482ms)
+✔ serve private worker snapshot resolves schema-local packages before project packages (836.946262ms)
+✔ standalone worker reports errors containing its bearer with automatic redaction (1.802751ms)
+✔ automatic worker.mjs refuses a symlink before issuing a service token (160.428379ms)
+✔ automatic worker restart rejects an entry replaced with a symlink (566.195392ms)
+✔ automatic worker executes validated entry and relative helper after source replacement (200.085467ms)
+✔ removed worker retains query fence while deletion is locked (20671.595919ms)
+✔ removed worker retains retirement custody while deletion is locked (11005.455016ms)
+✔ restart refuses an entry symlink already rejected by discovery (2544.524236ms)
+✔ launch executes validated entry and helper bytes after source paths are replaced (207.095099ms)
+✔ watchdog SIGKILL terminates its Node group before replacement (589.934789ms)
+✔ ledger commits with FULL synchronization and durable journaling (9.332107ms)
+✔ worker fixture waits for initial admission after the listening URL (284.837132ms)
+✔ new declarations retry failed admission after Node is repaired without another source edit (1030.068915ms)
+✔ watchdog SIGTERM completes group cleanup without a live supervisor (2264.717383ms)
+✔ watchdog SIGINT completes group cleanup without a live supervisor (2265.478948ms)
+✔ watchdog SIGHUP completes group cleanup without a live supervisor (2262.692586ms)
+✔ ledger open waits for a busy writer before becoming ready (110.722404ms)
+✔ failed revocation blocks restart until the retired bearer is refused (10469.001017ms)
+✔ rotation retires the old bearer even while its stored expiry still stands (380.163565ms)
+✔ worker snapshot refuses schema escapes or non-regular files (94.910135ms)
+✔ worker snapshot refuses root escapes or non-regular files (99.684401ms)
+✔ worker snapshot refuses entry escapes or non-regular files (88.831605ms)
+✔ worker snapshot refuses helper escapes or non-regular files (68.932468ms)
+✔ worker snapshot refuses fifo escapes or non-regular files (89.814498ms)
+✔ worker snapshot retains regular nested helper bytes and permissions (126.772292ms)
+✔ fresh stores and replacement stores cannot replay another store completion (996.360557ms)
+✔ worker stops worker descendants (854.055215ms)
+✔ SIGTERM stops worker descendants (404.662516ms)
+✔ SIGKILL stops worker descendants (349.136762ms)
+✔ ledger corrupt initialization reports once without claiming or settling (113.743904ms)
+✔ ledger schema initialization reports once without claiming or settling (114.040149ms)
+✔ ledger receipt initialization reports once without claiming or settling (116.254818ms)
+✔ ledger parent-file initialization reports once without claiming or settling (111.761584ms)
+✔ named workers receive only entry-named declared secrets, defaulting to none (237.6699ms)
+✔ shutdown starts every worker grace period together (2286.778858ms)
+✔ repeated secret admission failures increase restart backoff (1985.36648ms)
+✔ SQLite busy retries return the winning receipt to both waiters (105.26758ms)
+✔ ledger disk-full closes storage and stops without failed settlement (11.094369ms)
+✔ ledger commit-and-rollback closes storage and stops without failed settlement (12.161749ms)
+✔ dev credentialed worker receives only the explicit runtime environment (235.35402ms)
+✔ serve credentialed worker receives only the explicit runtime environment (262.137554ms)
+✔ dev ledger initialization stops the child and doctor reports ledger-unavailable (348.316684ms)
+✔ serve ledger initialization stops the child and doctor reports ledger-unavailable (361.903369ms)
+✔ serve renews peers once after a failed credential retirement fences their revision (1341.16219ms)
+✔ automatic snapshot validates checked project imports: entry-copy (260.028764ms)
+✔ automatic snapshot validates checked project imports: linked-helper (209.551857ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 444360.34669

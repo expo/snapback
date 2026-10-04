@@ -1,0 +1,303 @@
+{
+  "baseline": {
+    "returncode": 0,
+    "process_wall_s": 17.26663979375735,
+    "user_s": 9.473851999999994,
+    "system_s": 6.816747999999997,
+    "rss_kib": 29184,
+    "cpu": 87,
+    "generation": 5,
+    "phases": [
+      [
+        "key validation",
+        0.036274
+      ],
+      [
+        "preflight",
+        1710.444571
+      ],
+      [
+        "project and index",
+        10754.81873
+      ],
+      [
+        "cap counts",
+        0.00015
+      ],
+      [
+        "capture recorded paths",
+        592.805278
+      ],
+      [
+        "derived rebuild",
+        4061.077525
+      ],
+      [
+        "validation",
+        295.289311
+      ],
+      [
+        "metadata",
+        1.752186
+      ],
+      [
+        "commit",
+        402.883437
+      ]
+    ],
+    "total_ms": 17229.688329999997,
+    "views": [
+      {
+        "ms": 31.336148,
+        "name": "dailyLikes",
+        "rows": 5008
+      },
+      {
+        "ms": 172.711997,
+        "name": "dailyPosts",
+        "rows": 50228
+      },
+      {
+        "ms": 166.488199,
+        "name": "originalPostCounts",
+        "rows": 50228
+      },
+      {
+        "ms": 28.759885999999998,
+        "name": "receivedLikes",
+        "rows": 5008
+      },
+      {
+        "ms": 149.79136200000002,
+        "name": "receivedReplies",
+        "rows": 50228
+      },
+      {
+        "ms": 14.286944,
+        "name": "receivedReposts",
+        "rows": 1004
+      },
+      {
+        "ms": 2887.512142,
+        "name": "unread",
+        "rows": 227989
+      }
+    ],
+    "rlimit_as_mib": 96,
+    "cache_mib": 64,
+    "stderr": "checkpoint_ms=22.405\n",
+    "equivalent": true
+  },
+  "round0": {
+    "returncode": 1,
+    "process_wall_s": 2.31406585406512,
+    "user_s": 2.1265829999999966,
+    "system_s": 0.18664700000000067,
+    "rss_kib": 92160,
+    "cpu": 87,
+    "stdout": "",
+    "rlimit_as_mib": 96,
+    "cache_mib": 64,
+    "stderr": "snapback4: atomic adoption: estimated write pause 3.94\u201326.30 s using measured eb1000 release rates (not a host/load SLO); source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; payload width, token fanout, group distribution and WAL/storage affect the actual time\nError: Sql(SqliteFailure(Error { code: OutOfMemory, extended_code: 7 }, Some(\"out of memory\")))\n",
+    "rollback_equal": true
+  },
+  "candidate": {
+    "returncode": 134,
+    "process_wall_s": 7.744350936729461,
+    "user_s": 4.43360899999999,
+    "system_s": 2.1893379999999993,
+    "rss_kib": 93696,
+    "cpu": 87,
+    "stdout": "",
+    "rlimit_as_mib": 96,
+    "cache_mib": 64,
+    "stderr": "snapback4: atomic adoption: estimated write work up to 26.30 s on a host like measured eb1000 (not a host/load SLO); 3.94 s subtotal excludes row-view visits and is not a floor; source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; memory: 64 MiB main cache target (larger caller settings retained), reference 64 MiB run used about 147 MiB process RSS (not a cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps the caller setting, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at the caller setting; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time\nmemory allocation of 808 bytes failed\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  "candidate-opt-out": {
+    "returncode": 0,
+    "process_wall_s": 11.377116810064763,
+    "user_s": 7.172993000000005,
+    "system_s": 3.381459999999997,
+    "rss_kib": 31488,
+    "cpu": 87,
+    "details": [
+      [
+        "read-through retirement",
+        15.114735000000001
+      ],
+      [
+        "feed launch",
+        0.00019
+      ],
+      [
+        "event slot fill",
+        0.352198
+      ],
+      [
+        "successor assessment",
+        873.900619
+      ],
+      [
+        "project/index unread live basis (1 indexes)",
+        0.052238
+      ],
+      [
+        "project/index unread recount state (2 indexes)",
+        0.007642
+      ],
+      [
+        "project/index dailyLikes (2 indexes)",
+        0.004647
+      ],
+      [
+        "project/index dailyPosts (2 indexes)",
+        0.004136
+      ],
+      [
+        "project/index follows (1 indexes)",
+        18.978556
+      ],
+      [
+        "project/index likes (0 indexes)",
+        8.699810000000001
+      ],
+      [
+        "project/index members (2 indexes)",
+        10.780527999999999
+      ],
+      [
+        "project/index messages (5 indexes)",
+        3826.3374830000002
+      ],
+      [
+        "project/index originalPostCounts (2 indexes)",
+        0.067461
+      ],
+      [
+        "project/index posts (1 indexes)",
+        366.528643
+      ],
+      [
+        "project/index receivedLikes (2 indexes)",
+        0.053861
+      ],
+      [
+        "project/index receivedReplies (2 indexes)",
+        0.00636
+      ],
+      [
+        "project/index receivedReposts (2 indexes)",
+        0.0048980000000000004
+      ],
+      [
+        "project/index reposts (0 indexes)",
+        2.1838729999999997
+      ],
+      [
+        "project/index unread (3 indexes)",
+        0.010496
+      ],
+      [
+        "ordered index insertion",
+        547.349207
+      ],
+      [
+        "capture likes: postId.authorId",
+        87.767201
+      ],
+      [
+        "capture posts: parentId.authorId",
+        614.9329449999999
+      ],
+      [
+        "capture reposts: postId.authorId",
+        20.59593
+      ],
+      [
+        "capture recorded paths",
+        723.422455
+      ]
+    ],
+    "generation": 5,
+    "phases": [
+      [
+        "read-only advice",
+        34.241082
+      ],
+      [
+        "key validation",
+        0.035934
+      ],
+      [
+        "preflight",
+        892.836712
+      ],
+      [
+        "project and index",
+        4781.216128
+      ],
+      [
+        "cap counts",
+        0.00014000000000000001
+      ],
+      [
+        "derived rebuild",
+        4973.79343
+      ],
+      [
+        "validation",
+        237.636834
+      ],
+      [
+        "metadata",
+        1.718425
+      ],
+      [
+        "commit",
+        395.404114
+      ]
+    ],
+    "total_ms": 11319.806951,
+    "views": [
+      {
+        "ms": 73.853856,
+        "name": "dailyLikes",
+        "rows": 5008
+      },
+      {
+        "ms": 196.24312999999998,
+        "name": "dailyPosts",
+        "rows": 50228
+      },
+      {
+        "ms": 189.829687,
+        "name": "originalPostCounts",
+        "rows": 50228
+      },
+      {
+        "ms": 164.91253,
+        "name": "receivedLikes",
+        "rows": 5008
+      },
+      {
+        "ms": 222.773205,
+        "name": "receivedReplies",
+        "rows": 50228
+      },
+      {
+        "ms": 65.78254899999999,
+        "name": "receivedReposts",
+        "rows": 1004
+      },
+      {
+        "ms": 3316.597373,
+        "name": "unread",
+        "rows": 227989
+      }
+    ],
+    "rlimit_as_mib": 96,
+    "cache_mib": 0,
+    "stderr": "snapback4: atomic adoption: estimated write work up to 26.30 s on a host like measured eb1000 (not a host/load SLO); 3.94 s subtotal excludes row-view visits and is not a floor; source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; memory: caller cache setting, reference 64 MiB run used about 147 MiB process RSS (not a cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps the caller setting, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at the caller setting; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time\ncheckpoint_ms=22.029\n",
+    "equivalent": true
+  }
+}

@@ -1,0 +1,18 @@
+Functions sorted by metric: Exclusive Total CPU Time
+
+Excl. Total   Incl. Total    Name
+CPU           CPU
+ sec.      %   sec.      %
+0.067 100.00  0.067 100.00   <Total>
+0.042  62.69  0.067 100.00   <static>@0x0 (<adoption_pause>)
+0.006   8.96  0.006   8.96   <static>@0x188341 (<libc.so.6>)
+0.005   7.46  0.005   7.46   pread
+0.004   5.97  0.004   5.97   pwrite
+0.003   4.48  0.004   5.97   <static>@0xaab1b (<libc.so.6>)
+0.002   2.99  0.003   4.48   free
+0.002   2.99  0.004   5.97   malloc
+0.001   1.49  0.001   1.49   <static>@0xa8e24 (<libc.so.6>)
+0.001   1.49  0.001   1.49   fsync
+0.001   1.49  0.002   2.99   realloc
+0.      0.    0.064  95.52   <static>@0x2a145 (<libc.so.6>)
+0.      0.    0.064  95.52   __libc_start_main

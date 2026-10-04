@@ -46,10 +46,10 @@ A maintained view has rows `{ id, <group columns>, value }`. A full group key re
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
-During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait for
-adoption, then execute once. Dev and serve report rebuilt view names, source
-row counts and milliseconds. A failed or interrupted adoption keeps the previous
-backend; restart retries the complete build.
+During adoption, query and sync snapshot reads keep reading the previous backend. A newly added query answers pending until the views are complete. Writes wait, then execute once.
+`check` reports N_ADOPTION_PAUSE; dev and deploy print it before activating. Plan the write pause before adopting. Source counts estimate work at measured eb1000 rates; the subtotal is not a floor. The modeled “up to” time is not an SLO or hard bound. Removed or rebuilt rows/indexes add an explicitly unestimated retirement pause, including tables whose names survive. Read-through expiry/recapture, maintained-column mirrors, cap resets and asset-home retirement warn separately when unpriced; named populations are not exact deletion counts. Payload width, fanout, cache and WAL/storage affect time.
+Activation defaults to a 64 MiB combined main/temp cache target (half each). Set SNAPBACK4_ADOPTION_CACHE_MIB to 0–512; 0 keeps caller settings and larger caller caches are retained. Linux reduces the target for address-space headroom. Workspace is not an RSS cap: the prior 64 MiB main-cache run used about 147 MiB process RSS; sorter RAM follows the cache. SQLite NOMEM after enlargement rolls back and retries once at caller settings; choose 0 for constrained hosts.
+The adoption line reports phases, capture fills and rebuilt views with source visits and milliseconds; nested details are included in their parent phase. A failed or interrupted attempt keeps the previous backend; restart retries the complete build.
 Signed-in `GET /changes` waits for the whole adoption because reconnecting
 requires a durable presence write. That wait grows with the store; it is not
 bounded by a rebuild chunk. Query and sync reads have reserved admission capacity

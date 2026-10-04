@@ -64,7 +64,7 @@ pub(super) fn preflight(tx: &Tx<'_>, schema: &Schema, now: i64, allow: bool) -> 
 
 fn walk(tx: &Tx<'_>, table: &str, work: Work, visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     if let Some(num) = tx.catalog.get(table) {
-        super::activation_walk::walk_metered(tx, *num, work, |_| crate::value::InternalPrice::zero(), visit)?;
+        super::activation_walk::walk_metered(tx, *num, work, None, visit)?;
     }
     Ok(())
 }

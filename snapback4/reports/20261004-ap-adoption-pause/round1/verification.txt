@@ -1,0 +1,22 @@
+Affected tests: 325 selected tests, plus the nested allocation probe; one existing ignored test.
+Guide correction: all 112 guide tests pass.
+Worker readiness reruns: exact case 1 pass; entire file 61 pass, zero failures.
+Corpus: three before/after pairs; median 17870.762 -> 7913.958 ms (2.258x); 5x target remains unmet.
+Every rebuilt table/index/capture and all five complete database digests match.
+All 12 generated sparse/capture/sum oracle seeds pass.
+96 MiB address space: baseline and final candidate/default/opt-out pass with equal digests.
+Round 0 under 96 MiB: SQLITE_NOMEM, all seven predecessor table digests preserved.
+Complete full suite A: exit 1 in 2038 seconds, one worker-readiness client failure.
+Complete full suite B: exit 1 in 2049 seconds, seven client failures (five transport, two assertions).
+Both full suites: all Rust/build/fixture stages and all 79 serial models pass.
+No green full-suite claim. See full-suite-summary.txt and failure records.
+The seven files from B then pass against both pre-AP baseline and candidate: 89 tests each,
+including 300 process + 300 wasm ordinary-search seeds in each control.
+These scoped results do not qualify the entire suite or establish a cause for its failures.
+Wasm byte comparison and SHA256 pass: 2116457 raw / 639750 gzip bytes.
+Wasm SHA256: de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1
+wasm-budget.json is byte-identical to HEAD: 639887 gzip, recorded 130-byte macOS allowance retained.
+No macOS run is claimed.
+ref-check: ok — 527 LLP docs, 10348 refs in 34470 files, 0 errors, 0 unchecked
+Private corpus stores and all remaining .ap-r1 scratch artifacts removed.
+Lane disk usage after cleanup: 43012562944 bytes (40.06 GiB), below 50 GiB.

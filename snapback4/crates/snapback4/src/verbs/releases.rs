@@ -60,6 +60,7 @@ fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, boun
         writeln!(ledger, "{prepared}").and_then(|_| ledger.sync_all()).map_err(|e| e.to_string())?;
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
         let engine = snapback4_core::Engine::new_release_with_feed_adoption(store, bound.schema, bound.programs.into_iter().map(|p| p.program), release, previous, allow_feed_adoption).map_err(|e| e.to_string())?;
+        snapback4_core::diagnostic!("snapback4: release {release} adopted as generation {}{}", engine.generation(), engine.store().adoption_report.summary());
         std::fs::rename(&staged, &pointer).map_err(|e| format!("release {release} activated in the database, but current copy could not be updated: {e}"))?;
         let activated = json!({"at": snapback4_core::now_ms(), "release": release, "previous": previous, "rollback": rollback, "generation": engine.generation(), "state": "activated"});
         writeln!(ledger, "{activated}").and_then(|_| ledger.sync_all()).map_err(|e| format!("release activated, but ledger completion failed: {e}"))?;

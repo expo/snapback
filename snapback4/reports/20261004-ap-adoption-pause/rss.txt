@@ -1,0 +1,9 @@
+Measured separately with /usr/bin/time -f peak_rss_kib=%M, same helpers and store copies.
+BEFORE
+checkpoint_ms=21.554
+peak_rss_kib=29184
+
+AFTER
+snapback4: atomic adoption: estimated write pause 3.94–26.30 s using measured eb1000 release rates (not a host/load SLO); source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; payload width, token fanout, group distribution and WAL/storage affect the actual time
+checkpoint_ms=21.090
+peak_rss_kib=150528
