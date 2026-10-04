@@ -1,0 +1,58 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "started": "2026-10-04T04:17:54Z",
+  "finished": "2026-10-04T04:44:09Z",
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1575 s",
+  "rust": {
+    "targets": 1005,
+    "passed": 4811,
+    "failed": 0,
+    "ignored": 34
+  },
+  "doctests": {
+    "passed": 18,
+    "failed": 0
+  },
+  "clientPhases": [
+    {
+      "files": 1,
+      "total": 1,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "files": 307,
+      "total": 307,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 6134,
+        "pass": 6123,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0
+      }
+    },
+    {
+      "files": 2,
+      "total": 2,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ]
+}

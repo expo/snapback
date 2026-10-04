@@ -19,6 +19,15 @@ separate from meaning. State is one token (platform flags are allowed); comm
 is the remaining text. Identity uses normalized lstart spacing on Darwin and
 /proc start ticks on Linux. UID and comm never authorize signaling.
 
+QF2's exact RP row is retained in `test-processes.test.mjs`: Linux `X+`, PPID
+0, PGID 4294967295. Tests discard that snapshot and require a clean fresh one;
+they also refuse it when persistent, regardless of PID existence. Darwin's
+`print.c` appends `E` for P_WEXIT and `X` for P_TRACED; `tasks.c` supplies `?`
+for unknown state. `keyword.c` uses PIDFMT `d`, so -1 is printed signed (Libc
+`fmtcheck` accepts `d` and `u` as the same integer argument type). Synthetic
+Darwin cases cover both -1 presentations with Z, ?, ?E, SE+ and SXE. These
+only permit bounded snapshot retries. Valid-routing ?, E and X remain living.
+
 `ps-nobody.sh`, copied as `ps` into a directory placed first on PATH, invokes
 /bin/ps and appends the exact distnoted row. Set SB4_PS_NOBODY_PID only to a
 caller-owned, still-live fixture PID to also emit that process's real row with

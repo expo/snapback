@@ -4,6 +4,45 @@ import { spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
+class TransientRouting extends Error {}
+
+// Only recognized exit-time routing anomalies get another snapshot. Never
+// drop a damaged row or let its apparent PID confer ownership/exemption.
+// @ref LLP 3000#publication-suite-under-contention — three fresh snapshots,
+// 50 ms apart; persistent malformed routing keeps the first refusal.
+function freshSnapshots(inspect) {
+  let first;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return inspect(); }
+    catch (error) {
+      first ??= error;
+      if (!(error instanceof TransientRouting) || attempt === 2) throw first;
+      // This inspection API is synchronous; only this rare retry path waits.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+    }
+  }
+}
+
+function psMetadata(rest) {
+  const match = /^(-?\d+)\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+([A-Za-z?][A-Za-z0-9+<>-]*?)\s+(.*)$/.exec(rest);
+  return match && Number(match[1]) >= -0x80000000 && Number(match[1]) <= 0xffffffff
+    && Number.isFinite(Date.parse(match[2].replace(/\s+/g, ' '))) ? match : undefined;
+}
+
+function transientRouting(ids, rest, platform) {
+  if (!ids || ids[0] < 1 || !ids.slice(0, 2).every(id => Number.isSafeInteger(id) && id >= 0 && id <= 0x7fffffff)) return false;
+  const sentinel = ids[2] === -1 || ids[2] === 0xffffffff;
+  const linuxCandidate = platform === 'linux'
+    && (sentinel || (ids[1] === 0 && ids[2] >= 0 && ids[2] <= 0x7fffffff));
+  if (!linuxCandidate && !(platform === 'darwin' && sentinel)) return false;
+  const state = psMetadata(rest)?.[3];
+  // Linux X is dead, with only procps stat flags permitted here. Darwin X is
+  // a *traced flag*, E is exiting, and ? is unknown (never evidence of death).
+  if (linuxCandidate) return /^X[<NLsl+]*$/.test(state ?? '');
+  if (platform === 'darwin') return sentinel && /^[RUSITHZ?][<NXEVLs+]*$/.test(state ?? '')
+    && (state[0] === 'Z' || state[0] === '?' || state.slice(1).includes('E'));
+  return false;
+}
 
 // Signal 0 only tests existence; EPERM proves presence, never ownership.
 export function processExists(pid) {
@@ -30,7 +69,11 @@ function metadataFailure(pid, error, raw, exists) {
 // confused with a failed command. C locale fixes lstart's words, not spacing.
 // @ref LLP 3000#publication-suite-under-contention — classify every routing
 // prefix before validating metadata; unrelated rows cannot refuse a file.
-export function processTable({ run = spawnSync, exists = processExists, group, pid, onDiagnostic = () => {} } = {}) {
+export function processTable(options = {}) {
+  return freshSnapshots(() => processSnapshot(options));
+}
+
+function processSnapshot({ run = spawnSync, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
   const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
     timeout: 2000, maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, LC_ALL: 'C' },
@@ -40,13 +83,17 @@ export function processTable({ run = spawnSync, exists = processExists, group, p
   // Split bytes, not decoded text, so a rejected row retains its exact bytes.
   const rows = Buffer.from(result.stdout).toString('latin1').split('\n').filter(Boolean).map(bytes => {
     const raw = Buffer.from(bytes, 'latin1'), line = raw.toString('utf8');
-    const prefix = /^\s*(\d+)\s+(\d+)\s+(\d+)(?:\s+|$)/.exec(line);
+    const prefix = /^\s*(\d+)\s+(\d+)\s+(-?\d+)(?:\s+|$)/.exec(line);
     const ids = prefix?.slice(1).map(Number);
+    const rest = prefix ? line.slice(prefix[0].length) : '';
+    if (transientRouting(ids, rest, platform)) throw new TransientRouting(inspectionError(JSON.stringify({
+      firstError: 'transient ps row: pid/ppid/pgid', rawBase64: raw.toString('base64'),
+    })).message);
     // PID 0 / PGID 0 are real kernel rows. Never guess ownership from a
     // damaged prefix, even if its apparent PID has since disappeared.
-    if (!ids || !ids.every(id => Number.isSafeInteger(id) && id <= 0x7fffffff))
+    if (!ids || !ids.every(id => Number.isSafeInteger(id) && id >= 0 && id <= 0x7fffffff))
       metadataFailure(undefined, Error('malformed ps row: pid/ppid/pgid'), raw, exists);
-    return { pid: ids[0], parent: ids[1], group: ids[2], raw, rest: line.slice(prefix[0].length) };
+    return { pid: ids[0], parent: ids[1], group: ids[2], raw, rest };
   });
   let selected;
   if (group !== undefined) {
@@ -69,10 +116,9 @@ export function processTable({ run = spawnSync, exists = processExists, group, p
     // lstart is five whitespace-separated C-locale fields, never a fixed width.
     // stat has platform-specific flags; only Z is nonliving. The rest of the
     // line is comm, including spaces, parentheses and <defunct>.
-    const match = /^(-?\d+)\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+([A-Za-z?][A-Za-z0-9+<>-]*?)\s+(.*)$/.exec(row.rest);
+    const match = psMetadata(row.rest);
     const start = match?.[2].replace(/\s+/g, ' ');
-    if (!match || Number(match[1]) < -0x80000000 || Number(match[1]) > 0xffffffff
-      || !Number.isFinite(Date.parse(start))) {
+    if (!match) {
       metadataFailure(row.pid, Error('malformed ps row'), row.raw, exists);
       return [];
     }
