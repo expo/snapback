@@ -33,7 +33,22 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: 120000 }, () => {
+// Successful publication schedules detached maintenance even when its native
+// handoff fails. Keep this fixture's custody records until those owners exit.
+async function maintenanceExited(root) {
+  const live = name => {
+    let pid;
+    try { pid=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process?.pid; } catch { return false; }
+    if(!pid)return false;
+    try { process.kill(pid,0);return true; } catch { return false; }
+  };
+  const deadline=Date.now()+45000;
+  while(['maintenance-next.json','maintenance-active.json'].some(live)) {
+    assert.ok(Date.now()<deadline,'fixture maintenance exited before deleting its custody records');
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+}
+test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: 120000 }, async () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-wrapper-fault-')));
   try {
     install(root);
@@ -70,6 +85,7 @@ if(args[1]==='ios') {
     delete env.SNAPBACK4_NATIVE_SMOKE;
     const run = fault => spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: 20000 });
     for (const fault of ['missing', 'mismatch', 'skip-missing', 'skip-mismatch', 'before', 'after', 'tamper']) {
+      await maintenanceExited(root);
       fs.rmSync(path.join(root, 'artifacts'), { recursive: true, force: true });
       fs.rmSync(path.join(root, 'dist'), { recursive: true, force: true });
       fs.mkdirSync(path.join(root, 'dist')); fs.writeFileSync(path.join(root, 'dist/old'), 'last good export');
@@ -102,5 +118,5 @@ if(args[1]==='ios') {
     // of the successful publication, without ever launching a real simulator.
     assert.match(skip.stderr, /native smoke failed to start/);
     assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally { await maintenanceExited(root); fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -252,9 +252,10 @@ pub(super) fn command(args: &[String]) -> i32 {
                 }
             }
         })?;
-        // publish_then has released the destination lock. Maintenance keeps
-        // export custody, but its work and lock waits never delay this command.
-        if args.get(2).is_some_and(|a| a == "--environment-skip") { retention::schedule(dir, &custody); }
+        // publish_then has released the destination lock. Every automatic
+        // export requests maintenance, including a failed background handoff.
+        // Work and passive lease probes never delay this command.
+        if args.len() == 3 { retention::schedule(dir, &custody); }
         Ok(())
     })())
 }

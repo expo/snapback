@@ -1,0 +1,276 @@
+{
+  "build": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r7-build-final.log"
+  },
+  "witness": {
+    "passed": 62,
+    "failed": 0,
+    "durationSeconds": 38.47,
+    "log": "/tmp/sb4-nz-r7-witness.log"
+  },
+  "newInterleavings": {
+    "log": "/tmp/sb4-nz-r7-regressions.log",
+    "tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 27067.911
+  },
+  "initialExports": {
+    "log": "/tmp/sb4-nz-r7-exports.log",
+    "tests": 78,
+    "passed": 77,
+    "failed": 1,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 297233.512833
+  },
+  "publicationFixtureFixed": {
+    "log": "/tmp/sb4-nz-r7-export-failure-fixed.log",
+    "tests": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 7019.045417
+  },
+  "parkedFailure": {
+    "log": "/tmp/sb4-nz-r7-parked.log",
+    "tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 4436.358333
+  },
+  "samples": [
+    {
+      "mode": "off",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        289,
+        184,
+        180,
+        176,
+        184,
+        178,
+        177,
+        182,
+        180,
+        178,
+        179,
+        178,
+        183,
+        187,
+        181,
+        179,
+        179,
+        181,
+        183,
+        176,
+        178,
+        180,
+        178,
+        177,
+        186,
+        201,
+        191,
+        189
+      ]
+    },
+    {
+      "mode": "non-macOS",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        275,
+        184,
+        179,
+        180,
+        181,
+        177,
+        177,
+        177,
+        183,
+        186,
+        185,
+        186,
+        183,
+        178,
+        180,
+        185,
+        180,
+        185,
+        179,
+        176,
+        182,
+        183,
+        182,
+        178,
+        179,
+        179,
+        182,
+        181
+      ]
+    },
+    {
+      "mode": "off",
+      "exports": 28,
+      "maximumMaintenanceProcesses": 1,
+      "pendingObservers": 1,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        325,
+        173,
+        182,
+        201,
+        180,
+        177,
+        176,
+        179,
+        178,
+        175,
+        178,
+        180,
+        176,
+        176,
+        177,
+        192,
+        175,
+        176,
+        177,
+        179,
+        182,
+        174,
+        176,
+        178,
+        180,
+        167,
+        166,
+        168
+      ]
+    },
+    {
+      "mode": "non-macOS",
+      "exports": 28,
+      "maximumMaintenanceProcesses": 1,
+      "pendingObservers": 1,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        307,
+        177,
+        201,
+        184,
+        181,
+        177,
+        183,
+        178,
+        178,
+        177,
+        182,
+        176,
+        176,
+        181,
+        180,
+        178,
+        178,
+        180,
+        185,
+        177,
+        176,
+        175,
+        180,
+        179,
+        175,
+        175,
+        180,
+        180
+      ]
+    },
+    {
+      "mode": "off",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "mode": "non-macOS",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "mode": "background",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "heldPublicationMs": 2200,
+      "retentionStartsWhileHeld": 0,
+      "retentionStartsAfterRelease": 1,
+      "full": 5,
+      "compressed": 10
+    }
+  ],
+  "note": "The initial combined export run had one publication-fixture teardown failure (ENOTEMPTY): successful background publication now starts maintenance even when its proof handoff fails. The fixture now waits for its recorded maintenance owners before resetting/deleting custody; both cases in that file passed on rerun. The new parked-error control was added after the combined run started and passed separately. The complete full suite runs all 79 final export/preparation cases.",
+  "fullSuite": {
+    "status": 0,
+    "reportedSeconds": 2617,
+    "durationSeconds": 2616.942620667,
+    "inputsUnchanged": true,
+    "inputCount": 6,
+    "rustCli": {
+      "passed": 294,
+      "ignored": 4
+    },
+    "witnessIntegrations": 76,
+    "fixtureWrappers": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "clientFiles": 312,
+    "clientTests": {
+      "tests": 6243,
+      "pass": 6237,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 6,
+      "todo": 0
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "finalAffectedCases": 79
+  },
+  "referenceCheck": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r7-ref-check-final.log"
+  },
+  "whitespaceCheck": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r7-whitespace-final.log"
+  }
+}

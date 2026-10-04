@@ -1,0 +1,26 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "bb591ea70616c6205b9db950744efb9b7607a4bc80c841e858343d181f67c455"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "9017c6d04a2da893bbc60589f449640c48634d2c36673e3a72a2ba8eb75a9935"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "a2787918b2db3e85c773b0e0aee0be154682e8f953c5c03f6cd92515b6531e78"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "5650d1fad848dc06811be029fa257f653fbffb48812a5bdebcf99d0e63af7e66"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "ef8bc59c1444c44b8c6a55071c2d420f0f0e0a455349d769da3868c60c4215d6"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-failure.test.mjs",
+    "sha256": "34dfbc18655fbf6eabff074c115e85037514bc4b581644fb641c891e1c06597f"
+  }
+]

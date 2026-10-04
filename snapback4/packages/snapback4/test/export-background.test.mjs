@@ -59,7 +59,7 @@ async function cleanup(f) {
   // Never remove a live fixture's custody records. Its own driver has a short
   // mocked environment operation and completes under its normal guardian.
   const root = path.join(f.root, 'artifacts/native-smoke');
-  await maintenanceIdle(f);
+  await maintenanceIdle(f, true);
   await until(() => f.maintainers.every(pid => !alive(pid)), 'detached maintenance exited', 90000);
   if (fs.existsSync(root)) for (const dir of fs.readdirSync(root).filter(n => /^\d+-\d+$/.test(n))) {
     const run = path.join(root, dir);
@@ -561,9 +561,9 @@ for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','de
 
 // Queue records live outside retained run trees, so cleanup also sees a pending
 // observer which was launched by the preceding custodian rather than a wrapper.
-async function maintenanceIdle(f) {
+async function maintenanceIdle(f, allowParked = false) {
   const root=path.join(f.root,'artifacts/native-smoke');
-  await until(()=>!fs.existsSync(path.join(root,'maintenance-request.json')) &&
+  await until(()=>(allowParked || !fs.existsSync(path.join(root,'maintenance-request.json'))) &&
     ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
     'coalesced maintenance queue drained',90000);
 }
@@ -609,7 +609,7 @@ for(const mode of ['off','non-macOS','background']) test(`first-started last-pub
     const early=path.dirname(path.resolve(f.root,read(path.join(f.root,'early-export.json')).out));
     f.env.SNAPBACK4_NATIVE_SMOKE='off';
     for(let i=0;i<8;i++){const later=f.invoke(`later started ${i}`);assert.equal(later.status,0,later.stdout+later.stderr);}
-    await maintenanceIdle(f);
+    assert.ok(fs.existsSync(path.join(f.root,'artifacts/native-smoke/maintenance-request.json')),'unfinished export keeps maintenance pending');
     assert.ok(Number(path.basename(early).split('-')[0])<Number(path.basename(f.latest().artifacts).split('-')[0]));
     assert.ok(fs.existsSync(path.join(early,'export/bundle.hbc')),'pending export retained despite its old start time');
     f.put('resume-early','');const [code]=await exited;assert.equal(code,0,output);first=null;
@@ -631,4 +631,110 @@ for(const mode of ['off','non-macOS','background']) test(`first-started last-pub
     const status=f.status('--wait');assert.equal(status.status,2,status.stdout+status.stderr);assert.match(status.stdout,/native smoke skipped/);assert.doesNotMatch(status.stdout,/no proof|unverified/);
     const doctor=spawnSync(binary,['doctor'],{cwd:f.root,env:f.env,encoding:'utf8'});assert.match(doctor.stdout,/native smoke skipped/);assert.doesNotMatch(doctor.stdout,/no proof for the current export/);
   } finally {f.put('resume-early','');if(first)await exited;await cleanup(f);}
+});
+
+for(const mode of ['off','non-macOS','background']) test(`failed handoffs with held wrapper leases retain deferred maintenance (${mode})`,{skip:process.platform!=='darwin',timeout:120000},async()=>{
+  const f=fixture(), wrappers=[];
+  try {
+    f.env.SNAPBACK4_NATIVE_SMOKE='off';
+    for(let i=0;i<5;i++){const r=f.invoke(`seed ${i}`);assert.equal(r.status,0,r.stdout+r.stderr);}
+    await maintenanceIdle(f);
+    delete f.env.SNAPBACK4_NATIVE_SMOKE;
+    if(mode!=='background')skipMode(f,mode);
+    const root=path.join(f.root,'artifacts/native-smoke');
+    fs.mkdirSync(path.join(root,'latest.json.tmp')); // fail after verified commit
+    f.put('hold-wrapper.cjs', `
+const fs=require('fs'),path=require('path'),open=fs.openSync,close=fs.closeSync,held=new Map();
+fs.openSync=function(p,...args){const fd=open.call(this,p,...args);if(String(p).endsWith('/export.lock'))held.set(fd,path.dirname(String(p)));return fd;};
+fs.closeSync=function(fd){if(held.has(fd)){fs.mkdirSync('wrapper-held',{recursive:true});fs.writeFileSync('wrapper-held/'+process.pid+'.json',JSON.stringify({dir:held.get(fd)}));while(!fs.existsSync('release-wrapper-leases'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,25);held.delete(fd);}return close.call(this,fd);};
+`);
+    for(let i=0;i<10;i++) {
+      const child=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,EXPORT_BYTES:`deferred ${i}`,NODE_OPTIONS:[f.env.NODE_OPTIONS,'--require='+path.join(f.root,'hold-wrapper.cjs')].filter(Boolean).join(' ')},stdio:['ignore','pipe','pipe']});
+      const run={child,exited:once(child,'exit'),output:''};wrappers.push(run);
+      child.stdout.on('data',x=>run.output+=x);child.stderr.on('data',x=>run.output+=x);
+      await until(()=>read(path.join(f.root,'wrapper-held',child.pid+'.json')),`wrapper ${i} paused after publication, before lease release`);
+      assert.match(run.output,/native smoke (status update failed|failed to start)/);
+    }
+    assert.equal(retainedRuns(f).full.length,15);assert.equal(retainedRuns(f).compressed.length,0);
+    // Force discovery under the still-held export leases too: this models a
+    // lease acquired after the observer's passive probe but before its worker.
+    let scan;
+    for(let i=0;i<20;i++) {
+      scan=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
+      if(scan.status===0)break;
+      assert.match(scan.stderr,/retention lock busy/);await pause();
+    }
+    assert.equal(scan.status,0,scan.stderr);
+    await until(()=>fs.existsSync(path.join(root,'maintenance-request.json'))&&alive(read(path.join(root,'maintenance-next.json'))?.process?.pid),'unfinished discoveries have a pending request and observer');
+    const observer=read(path.join(root,'maintenance-next.json')).process.pid;
+    const attempts=read(path.join(root,'maintenance-active.json'))?.attempt??0;
+    for(let i=0;i<10;i++) {
+      await pause();
+      assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')),'deferred work remains pending');
+      assert.ok(alive(observer),'the pending observer waits passively');
+      assert.equal(read(path.join(root,'maintenance-active.json'))?.attempt??0,attempts,'held exports do not respawn retention workers');
+    }
+    f.put('release-wrapper-leases','');
+    for(const run of wrappers){const [code]=await run.exited;assert.equal(code,0,run.output);}
+    await maintenanceIdle(f);
+    const runs=retainedRuns(f);assert.equal(runs.full.length,5);assert.equal(runs.compressed.length,10);assert.equal(runs.dirs.length,15);
+    const current=read(path.join(f.root,'dist/.snapback4-publication.json'));
+    assert.ok(runs.full.some(dir=>read(path.join(dir,'export/.snapback4-publication.json'))?.generation===current.generation));
+    for(const dir of runs.compressed)assert.ok(fs.existsSync(path.join(dir,'publication.json.gz')));
+    noOldPass(f);
+    console.log(JSON.stringify({mode,failedHandoffs:10,pausedFull:15,full:runs.full.length,compressed:runs.compressed.length,pendingAfterRelease:false}));
+  } finally {f.put('release-wrapper-leases','');for(const run of wrappers)await run.exited;await cleanup(f);}
+});
+
+test('a held publication lock pauses one observer without starting retention workers',{timeout:120000},async()=>{
+  const f=fixture();let retention, publication;
+  const hold=async(name)=>{
+    const root=path.join(f.root,'artifacts/native-smoke');fs.mkdirSync(root,{recursive:true});
+    const child=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,name+'.lock'),path.join(f.root,name+'-held')],{stdio:['pipe','ignore','inherit']});
+    const held={child,exited:once(child,'exit')};await until(()=>fs.existsSync(path.join(f.root,name+'-held')),name+' lock held by our fixture');return held;
+  };
+  try {
+    skipMode(f,'off');retention=await hold('retention');
+    for(let i=0;i<15;i++){const r=f.invoke(`pending ${i}`);assert.equal(r.status,0,r.stdout+r.stderr);}
+    const root=path.join(f.root,'artifacts/native-smoke');
+    publication=await hold('publication');
+    const observer=read(path.join(root,'maintenance-next.json')).process.pid;
+    const before=read(path.join(root,'maintenance-active.json'))?.attempt??0;
+    retention.child.stdin.end();await retention.exited;retention=null;
+    const untilTime=Date.now()+2200;
+    while(Date.now()<untilTime){
+      await pause();assert.ok(alive(observer),'publication contention keeps the same passive observer');
+      assert.equal(read(path.join(root,'maintenance-next.json')).process.pid,observer);
+      assert.equal(read(path.join(root,'maintenance-active.json'))?.attempt??0,before,'no native worker attempt while publication is locked');
+      assert.equal(fs.readdirSync(root).filter(n=>n.startsWith('.retention-')).length,0);
+    }
+    publication.child.stdin.end();await publication.exited;publication=null;
+    await maintenanceIdle(f);
+    const runs=retainedRuns(f);assert.equal(runs.full.length,5);assert.equal(runs.compressed.length,10);
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,before+1,'one scan covers all queued exports after release');
+    console.log(JSON.stringify({heldPublicationMs:2200,retentionStartsWhileHeld:0,retentionStartsAfterRelease:1,full:5,compressed:10}));
+  } finally {for(const held of [retention,publication])if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+test('failed maintenance retains a parked request and a later export retries it',{timeout:120000},async()=>{
+  const f=fixture();let holder,exited;
+  try {
+    skipMode(f,'off');const root=path.join(f.root,'artifacts/native-smoke');fs.mkdirSync(root,{recursive:true});
+    holder=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,'retention.lock'),path.join(f.root,'error-lock-held')],{stdio:['pipe','ignore','inherit']});
+    exited=once(holder,'exit');await until(()=>fs.existsSync(path.join(f.root,'error-lock-held')),'retention lock held');
+    f.put('bin/gzip','#!/bin/sh\nexit 99\n',0o755);
+    for(let i=0;i<6;i++){const r=f.invoke(`before failure ${i}`);assert.equal(r.status,0,r.stdout+r.stderr);}
+    holder.stdin.end();await exited;holder=null;
+    await until(()=>read(path.join(root,'maintenance-result.json'))?.error,'failed maintenance is recorded');
+    await maintenanceIdle(f,true);
+    assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')),'failure preserves deferred work');
+    const attempted=read(path.join(root,'maintenance-active.json')).attempt;assert.equal(attempted,1);
+    for(let i=0;i<10;i++){await pause();assert.equal(read(path.join(root,'maintenance-active.json')).attempt,attempted,'persistent failure stays parked');}
+    assert.equal(retainedRuns(f).full.length,6);
+    fs.rmSync(path.join(f.root,'bin/gzip'));
+    const later=f.invoke('retry after repair');assert.equal(later.status,0,later.stdout+later.stderr);
+    await maintenanceIdle(f);
+    assert.equal(retainedRuns(f).full.length,5);assert.equal(retainedRuns(f).compressed.length,2);
+    assert.equal(read(path.join(root,'maintenance-result.json')).error,null);
+  } finally {if(holder){holder.stdin.end();await exited;}await cleanup(f);}
 });

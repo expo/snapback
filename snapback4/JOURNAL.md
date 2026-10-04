@@ -86456,3 +86456,45 @@ recorded NZ devices; other worktrees, processes and simulators untouched. Large
 evidence stays outside git with hashes. Earlier qualifications and intermittent
 issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
 [Round 6 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-6--publication-pins-and-coalesced-retention).
+
+
+## 2026-10-04 — NZ round 7: retain deferred maintenance and probe locks passively
+
+On d488a5f7db, address the operator's Astra P2 and Grok Low. Every deferred
+retention discovery now reasserts the durable request, including unfinished
+exports, live owners, busy leases and unresolved publication reconciliation.
+Errors keep a pending request; persistent maintenance failures park for a later
+request. The one pending observer probes publication/run/export custody and live
+owners at the existing 100 ms interval, without launching native work while
+blocked. A race after probing is covered by the worker's deferred request.
+Every committed automatic export schedules coalesced maintenance after releasing
+the publication lock, covering background-mode failed handoffs that start no
+native guardian. Current-generation pins, 30-second work custody, WD group drain
+and native preparation bounds remain unchanged. LLP 3000.030 §15 and the witness
+guide record the policy; unknown unfinished legacy custody stays pending for repair.
+
+Three deterministic controls pause ten real wrappers after failed status handoffs
+and before lease release, for opt-out, simulated non-macOS and background modes.
+Fifteen full snapshots remain pending; release alone restores five full plus ten
+compressed, preserves current evidence and leaves status/doctor correctly unverified.
+A publication-lock control observes zero worker starts during its 2.2-second hold,
+then exactly one scan and restoration on release. A fifth control parks a failed
+compressor request and restores retention after repair and a later export. A Rust
+unit covers discovery after a readiness race. These are fixture tests on this Mac;
+no new native timings, Linux qualification or real host-sleep exercise are claimed.
+
+Build and 62 witness unit tests passed. The initial combined export run passed
+77/78 and exposed one teardown race: the publication-failure fixture removed its
+project before the newly scheduled background maintenance exited. Its teardown
+now waits for its recorded owners; both cases passed, as did the additional
+parked-error test. The original failure evidence is retained. The full Mac suite
+exercised all 79 final affected cases and passed with **0 failures in 2,617
+seconds**: all Rust targets/doctests, 294 CLI units (four existing ignores),
+76 witness integrations, nine fixture wrappers, all 312 client files (6,237 passes,
+six existing skips), and 79 model cases. All six recorded code/guide hashes stayed
+unchanged; no interventions or reduced counts. Reference/whitespace and final
+read-only custody checks passed. No real devices created, remaining lane CLI jobs
+or previously recorded NZ devices; other worktrees, processes and simulators were
+untouched. Large evidence stays outside git with hashes. Earlier qualifications
+and intermittent issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
+[Round 7 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-7--durable-deferral-and-passive-lock-backoff).

@@ -1,5 +1,9 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 7 preserves deferred maintenance and backs off passively on **d488a5f7db**.
+See [Round 7](#round-7--durable-deferral-and-passive-lock-backoff). The full Mac
+suite passed: **0 failures in 2,617 s**. NZ remains for 0.4.14. Nothing pushed.
+
 Round 6 pins publication evidence and coalesces retention on **f118e78bf2**.
 See [Round 6](#round-6--publication-pins-and-coalesced-retention). The full Mac
 suite passed: **0 failures in 2,614 s**. NZ remains for 0.4.14. Nothing pushed.
@@ -1000,3 +1004,91 @@ and custody checks are in `round6/`; large logs and the binary are retained in t
 external content-addressed archive. No gzip/video or new files over 256 KB are
 committed. Earlier qualification scopes and open intermittent-test issues remain
 intact. Nothing pushed or published.
+
+
+## Round 7 — durable deferral and passive lock backoff
+
+Date: 2026-10-04. Base **d488a5f7db**. This addresses the operator's Astra P2
+and Grok Low. The supplied findings are the review input; no new independent
+review is claimed. All work stays on this mini. No real simulators are created.
+
+**Deferred discovery.** Every skipped discovery now sets the durable pending
+request, including unfinished leased exports, still-live owners, busy leases
+and unresolved publication reconciliation. The explicit completed-run recovery
+path does so too. A worker that claims a request and then encounters a deferred
+run cannot finish with that work silently absent from the backlog. Errors retain
+a durable request; a persistent maintenance failure parks for a later request,
+while an already queued observer can cover a newer publication after custody
+is released. Proof results and already committed exports are unchanged.
+
+**Passive readiness.** Before claiming work, the one pending observer probes the
+publication lock, per-run/export leases and recorded live owners at the existing
+100 ms interval. Each probe is released immediately. Busy publication or export
+custody causes a passive wait with no native worker launch. A lease acquired after
+the probes is handled by the worker's deferred-work request. Unknown unfinished
+legacy custody stays pending for repair. Maintenance can wait until active
+exports finish; the 5/20 bound remains quiescent. This replaces round 6's repeated
+worker launches against a held publication lock. Maintenance attempt numbers in
+the active record make worker-start counts inspectable.
+
+Every committed automatic publication requests coalesced maintenance after the
+publication lock is released, including background-mode failed handoffs. This
+covers the case where no native guardian starts to perform its normal cleanup.
+The native supervisor, retained anchor, owner-death watcher, 30-second worker
+budget, WD drain, publication pins and preparation deadlines remain unchanged.
+LLP 3000.030 §15 and the witness guide have corresponding revisions.
+
+**Deterministic controls.** For each of opt-out, simulated non-macOS and background
+mode, five exports establish history, then ten more verified publications fail
+the latest-status handoff. A fixture preloader pauses each real wrapper immediately
+before closing its actual export lease. Discovery is also forced through the
+supervised cleanup command while those leases remain held, covering the race
+between readiness probing and discovery. All fifteen full trees stay pending;
+the same observer waits without new worker attempts. After releasing the wrappers,
+without another export, retention restores exactly five full plus ten compressed
+runs. The current generation remains full, and status/doctor still report no
+proof for the failed current handoff. A Rust unit control proves discovery
+reasserts the request, then clears it only after the lease is released and the
+previously unfinished history is processed.
+
+The publication-lock control queues fifteen skipped exports under a held
+retention lock, then holds publication and releases retention. Over 2.2 seconds
+it observes the same pending observer, zero worker attempts and no native
+retention group. Releasing publication triggers exactly one scan and restores
+5/10. The four new integration controls passed in 27.07 s. The earlier reversed-
+publication test now expects pending maintenance while its early export remains
+leased; it still checks final pruning and current-proof preservation. Fixture
+teardown permits a parked pending request only after all recorded custodians
+have exited; ordinary retention assertions still require the queue to drain.
+These are fake-export/host-tool controls on macOS, not Linux or real-native
+qualification. Earlier timing, native and host-sleep limitations remain intact.
+
+A fifth control verifies persistent compressor failure leaves a pending request
+without repeated work attempts; after repair, a later export resumes maintenance
+and restores the bound. It passed in 4.44 s. The initial combined export run
+exposed one fixture teardown race (ENOTEMPTY): successful background publication
+now starts maintenance after a failed handoff, while export-failure.test.mjs
+removed its project immediately. The fixture now waits for its recorded queue
+owners before every reset and final deletion. Both cases in that file passed in
+7.02 s; no publication assertion was relaxed. The original failure log is retained.
+
+**Verification.** Build and serial witness tests passed **62/62** in 38.47 s.
+The combined export/preparation run passed 77 of 78 cases before the fixture
+teardown repair described above; its two repaired cases and the fifth new control
+passed separately. The full suite then exercised all **79 final affected cases**
+and passed with **0 failures in 2,617 s** (2,616.94 s measured wall time).
+
+All Rust targets and doctests passed, including **294 CLI units** (four existing
+ignores) and **76 witness integrations**. Nine fixture wrappers passed. All
+**312 client files** passed: **6,237 passed / six existing skips / zero failures
+or cancellations**. Both full-count model files passed **79/79**. Builds, budgets,
+release guard and typechecks passed. No intervention or reduced counts occurred.
+All six recorded code/guide input hashes remained unchanged. Reference and
+whitespace checks passed. Final read-only custody verification found no lane CLI
+jobs or interposed fixture CLIs; previously recorded NZ devices remain absent.
+No real devices were created, and no other worktree, process or simulator was
+modified. Outcomes, source hashes, samples and custody checks are in `round7/`;
+large logs (including the initial fixture failure) and the binary stay in the
+external content-addressed archive. No gzip/video or new files over 256 KB are
+committed. Earlier qualification scopes and intermittent-test issues remain
+intact. NZ remains for 0.4.14. Nothing pushed or published.

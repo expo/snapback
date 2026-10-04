@@ -116,3 +116,16 @@ Tests must exercise late publication, contended scheduling, and a substantive
 post-crash 5/20 restoration using real full fixture exports. Scope: retention,
 recovery, export-background tests, witness guide and dated §15; report/JOURNAL.
 No new real native, cross-host or independent-review claim. Hand-off: none.
+
+
+Round 7 (2026-10-04), base d488a5f7db: LLP 3000.030 §15 governs durable
+maintenance, generation pins, leases and bounded process custody. The operator's
+Astra reproduction requires a successful scan to preserve every skipped unfinished
+discovery; Grok requires passive publication-lock backoff rather than a worker
+respawn loop. Preserve the round-6 5/20 quiescent bound, one active custodian plus
+one pending observer, fail-closed current status and unchanged WD/preparation
+policies. Scope: recovery discovery, observer readiness, post-commit scheduling,
+three-mode failed-handoff/held-wrapper tests and the held-publication-lock control.
+Doc targets: dated §15, witness guide, Round 7 report and append-only JOURNAL.
+No other host, worktree, process or simulator; no new native measurement or
+independent review is claimed. Hand-off: none.

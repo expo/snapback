@@ -6,9 +6,13 @@ const BUDGET: Duration = Duration::from_secs(30);
 
 pub(super) fn run(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -> Result<()>) -> Result<()> {
     let result = run_with_budget(root, completed, cancelled, BUDGET);
+    // A failed attempt is still deferred work. Leave it durable, but do not
+    // immediately retry a persistent compressor/recovery error without a new
+    // request. An already queued observer may still cover a later publication.
+    if result.is_err() { request(root)?; }
     // A proof-bound scan can encounter a publication or export lease too.
     // Ensure its deferred dirty bit has an observer, even without a skip caller.
-    if pending(root) && fs::canonicalize("artifacts/native-smoke").is_ok_and(|project_root| fs::canonicalize(root).ok().as_ref() == Some(&project_root)) {
+    if result.is_ok() && pending(root) && fs::canonicalize("artifacts/native-smoke").is_ok_and(|project_root| fs::canonicalize(root).ok().as_ref() == Some(&project_root)) {
         if let Err(e) = kick(root) { eprintln!("witness: evidence cleanup deferred: {e}"); }
     }
     result
@@ -29,6 +33,29 @@ fn lock_file(root: &Path, name: &str) -> Result<File> {
 }
 fn try_lock(file: &File) -> Result<bool> {
     match file.try_lock() { Ok(()) => Ok(true), Err(std::fs::TryLockError::WouldBlock) => Ok(false), Err(e) => Err(error("E_WITNESS_ARTIFACT", e)) }
+}
+// These are short, passive probes, never leases held across a scan. A race
+// after the probe is handled by the worker recording deferred work again.
+fn ready(root: &Path) -> Result<bool> {
+    let publication = lock_file(root, "publication.lock")?;
+    match publication.try_lock_shared() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => return Ok(false),
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
+    drop(publication);
+    for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
+        let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
+        let dir = entry.path();
+        for name in ["run.lock", "export.lock"] {
+            if !try_lock(&lock_file(&dir, name)?)? { return Ok(false); }
+        }
+        let live = recovery::read(&dir.join("live.json"));
+        if recovery::alive(&live["owner"]) || (live.is_null() && !recovery::finished(&dir)) { return Ok(false); }
+    }
+    Ok(true)
 }
 fn kick(root: &Path) -> Result<Value> {
     if !pending(root) { return Ok(Value::Null); }
@@ -91,17 +118,19 @@ pub(super) fn maintain(args: &[String]) -> i32 {
             if !try_lock(&active)? { sleep(Duration::from_millis(100)); continue; }
             let available = lock_file(&root, "retention.lock")?;
             if !try_lock(&available)? { drop(active); sleep(Duration::from_millis(100)); continue; }
+            if !ready(&root)? { drop(available); drop(active); sleep(Duration::from_millis(100)); continue; }
             drop(available);
             recovery::remove(&root.join("maintenance-request.json"))?;
-            recovery::write(&root.join("maintenance-active.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now() }))?;
+            let attempt = recovery::read(&root.join("maintenance-active.json"))["attempt"].as_u64().unwrap_or(0).saturating_add(1);
+            recovery::write(&root.join("maintenance-active.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "attempt": attempt }))?;
             drop(queued);
             // No native work group waits for the retention lock. The probe can
             // race a proof's maintenance, so a refused claim just requeues.
             let result = run(&root, None, || Ok(()));
-            if result.as_ref().err().is_some_and(|e| e.contains("retention lock busy")) { request(&root)?; }
+            let busy = result.as_ref().err().is_some_and(|e| e.contains("retention lock busy"));
             recovery::write(&root.join("maintenance-result.json"), &json!({ "finishedAt": now(), "error": result.as_ref().err(), "pending": pending(&root) }))?;
             drop(active);
-            kick(&root)?;
+            if result.is_ok() || busy { kick(&root)?; }
             return result;
         }
     })();

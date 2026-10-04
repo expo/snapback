@@ -52,7 +52,7 @@ fn darwin_birth(pid: u32) -> Option<Value> {
     if info.pid != pid as i32 { return None; }
     Some(json!({ "pid": pid, "start": [info.start.tv_sec, info.start.tv_usec] }))
 }
-fn alive(record: &Value) -> bool {
+pub(super) fn alive(record: &Value) -> bool {
     record["pid"].as_u64().and_then(|pid| identity(pid as u32)).as_ref() == Some(record) && !record.is_null()
 }
 pub(super) fn read(path: &Path) -> Value { fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null) }
@@ -435,6 +435,10 @@ const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "p
 pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     retention::run(root, completed, || Ok(()))
 }
+pub(super) fn finished(dir: &Path) -> bool {
+    let run = read(&dir.join("smoke-ios-run.json"));
+    dir.join("finished.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
+}
 // The caller keeps the candidate's export lease through deletion. A candidate
 // cannot become a publication after this decision without acquiring that lease.
 // Publication locking protects both sides of a swap, including rollback custody;
@@ -465,25 +469,25 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
     lock.try_lock().map_err(|e| error("E_WITNESS_ARTIFACT", format!("retention lock busy or unavailable: {e}")))?;
     // A wrapper reporting driver exit does not establish cleanup. In particular
     // SIGKILL leaves owned backend/compilers and app copies behind.
-    if let Some(dir) = completed { recover(dir)?; }
+    if let Some(dir) = completed { if !recover(dir)? { retention::request(root)?; } }
     let mut runs = Vec::new();
     for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
         let dir = entry.path();
-        let run = read(&dir.join("smoke-ios-run.json"));
-        let finished = dir.join("finished.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()));
+        let finished = finished(&dir);
         // Even a finalized receipt may precede a driver's last cleanup/drop.
-        if alive(&read(&dir.join("live.json"))["owner"]) && finished { continue; }
+        if alive(&read(&dir.join("live.json"))["owner"]) && finished { retention::request(root)?; continue; }
         // Also reconcile prematurely finished runs and the five full-evidence
         // slots, which otherwise bypass recover() and the compression loop.
         if finished && dir.join("publication-pending.json").exists() {
-            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
-            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
-            if !publication::reconcile_orphan(&dir)? { continue; }
+            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
+            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+            if !publication::reconcile_orphan(&dir)? { retention::request(root)?; continue; }
         }
         if finished || recover(&dir)? { runs.push(dir); }
+        else { retention::request(root)?; }
     }
     let mut ordered = runs.into_iter().map(|dir| {
         let pinned = publication_pinned(root, &dir)?;
@@ -496,7 +500,7 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
     for (index, (_, dir)) in ordered.iter().enumerate().skip(5) {
         let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
         let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
-        if dir.join("publication-pending.json").exists() { continue; }
+        if dir.join("publication-pending.json").exists() { retention::request(root)?; continue; }
         if publication_pinned(root, dir)? { continue; }
         if index >= 25 { remove(dir)?; continue; }
         if dir.join("retention.json").exists() { continue; }
@@ -539,6 +543,27 @@ fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn discovery_of_an_unfinished_leased_export_keeps_maintenance_pending() {
+        let root = std::env::temp_dir().join(format!("sb4-deferred-discovery-{}-{}", std::process::id(), now()));
+        for n in 1..=8 {
+            let dir = root.join(format!("{n}-1")); fs::create_dir_all(dir.join("export")).unwrap();
+            fs::write(dir.join("export/bundle.hbc"), "snapshot").unwrap();
+            write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": identity(std::process::id()), "children": {} })).unwrap();
+            if n > 1 { write(&dir.join("finished.json"), &json!({})).unwrap(); }
+        }
+        let lease = preparation::lease(&root.join("1-1/export.lock")).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(root.join("maintenance-request.json").exists(), "discovery must retain deferred work");
+        assert!(root.join("1-1/export").exists());
+        drop(lease);
+        remove(&root.join("maintenance-request.json")).unwrap(); // next scan claims it
+        cleanup_inner(&root, None).unwrap();
+        assert!(!root.join("maintenance-request.json").exists(), "all discoveries were covered");
+        assert!(root.join("1-1/retention.json").exists(), "previously unfinished history was pruned");
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn retention_pins_current_and_pending_swap_generations_before_start_order() {
         let project = std::env::temp_dir().join(format!("sb4-retention-pins-{}-{}", std::process::id(), now()));
