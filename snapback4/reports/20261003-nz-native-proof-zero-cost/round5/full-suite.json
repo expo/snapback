@@ -1,0 +1,66 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "7f0ef58712853328b8784d58f062891269864fc3",
+  "state": "finished",
+  "startedAt": 1791140335.918763,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r5-full-suite.log",
+  "before": {
+    "at": 1791140337.091965,
+    "load": [
+      6.33154296875,
+      6.6357421875,
+      6.7421875
+    ],
+    "idlePercent": 81.41202426916712,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 185.6 /usr/libexec/PerfPowerServices",
+      "  485     1  12.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "44921 28563   4.6 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 3063 97864   3.4 claude",
+      " 1164     1   2.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1083     1   2.4 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1092     1   1.4 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "18484     1   0.9 /usr/libexec/taskgated",
+      "65070 64989   0.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      " 1165     1   0.7 /Applications/cmux.app/Contents/MacOS/cmux"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791143043.112479,
+  "durationSeconds": 2706.008261542,
+  "after": {
+    "at": 1791143044.2972841,
+    "load": [
+      6.87646484375,
+      6.81298828125,
+      11.54345703125
+    ],
+    "idlePercent": 71.6887417218543,
+    "compilers": [
+      "77439 77432   0.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "77533 77439  50.7 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 163.3 /usr/libexec/PerfPowerServices",
+      "  577     1  77.4 /usr/libexec/syspolicyd",
+      "77533 77439  50.7 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      " 1165     1  45.0 /Applications/cmux.app/Contents/MacOS/cmux",
+      "  485     1  14.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   2.7 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.6 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  661     1   1.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "  442     1   0.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r5-full-suite.log",
+    "sha256": "e893de6a0df22528d585b627caa00391d2383d4574b28cf50a3137f6e9adbbd2",
+    "bytes": 1900170
+  },
+  "inputsUnchanged": true
+}

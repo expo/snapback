@@ -1,5 +1,9 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 5 fixes skipped-export retention on **7f0ef58712**. See
+[Round 5](#round-5--bounded-retention-for-skipped-exports). NZ remains targeted
+at 0.4.14. The full Mac suite passed: **0 failures in 2,706 s**. Nothing pushed or published.
+
 Round 4 closes the publication/retention review races on **e7e325b7d1**. See
 [Round 4](#round-4--publication-and-retention-races). NZ remains targeted at
 0.4.14. The full Mac suite passed: **0 failures in 2,679 s**. Nothing pushed or published.
@@ -842,3 +846,71 @@ WD's group drain, scoped enumeration and both preparation deadline policies are
 unchanged. No ABBA timing or real-native qualification is repeated here; previous
 rounds retain those scopes and limitations. Real host sleep remains unexercised.
 No release/version change or push is made; NZ is for 0.4.14, not 0.4.13.
+
+
+## Round 5 — bounded retention for skipped exports
+
+Date: 2026-10-04. Base **7f0ef58712**. This round addresses the operator's
+Astra P2 and both Grok lows. All work and tests stay on this Apartment mini;
+no other worktree, process or simulator is touched. No real simulator is created.
+The operator supplied the review findings; no new independent review is claimed.
+
+**Skipped-export maintenance.** After a skipped private-tree publication and
+handoff, the atomic publisher releases its destination lock, then launches a
+detached maintenance custodian at background QoS on macOS. The export does not
+wait for retention work or its lock. Scheduling also occurs if the post-commit
+skipped handoff failed; scheduling/maintenance failures cannot change a committed
+export or its native outcome. Logs stay in the run's `background.log`.
+
+The custodian inherits export custody, waits for the originating wrapper to exit,
+and releases that lease before scanning. This ensures that a late old custodian
+can prune its own run if it has moved outside the five full slots. Its worker
+uses the existing native supervisor, retained anchor, kernel owner-death watcher
+and WD group drain. The 30-second budget includes wrapper exit, retention-lock
+wait and all maintenance work; SIGTERM and detected host sleep cancel it.
+A busy skipped-export custodian waits inside that supervised group instead of
+losing the last cleanup request. Every contender scans after acquiring the lock.
+The existing proof-bound and explicit cleanup paths still defer immediately on
+a busy lock. WD drain, scoped enumeration, simulator ownership, background proof
+serialization and preparation deadlines are unchanged.
+
+**Documentation and timestamps.** LLP 3000.030 §15's stale description of
+invalidating and mutating `dist/` is replaced with private-tree atomic publication
+followed by the skipped handoff. The dated Round 5 revision and guide witness
+record skipped retention and its bounded lock wait. Both request modes now copy
+`publication.json.verifiedAt` exactly into `publishedAt`.
+
+**Regressions.** Each mode runs 28 actual wrapper/publisher transactions using a
+fake Expo exporter: explicit opt-out and the simulated non-macOS wrapper branch.
+Both finish with exactly **five full snapshots and twenty compressed runs**,
+retaining the latest skipped result and compressed older receipts. Every export
+has a recorded maintenance launch and exact verifiedAt timestamp. No simulator
+tool runs. The first focused repetition took 7.41 s for opt-out and 6.30 s for
+the non-macOS branch. These fake-export durations are regression diagnostics,
+not replacements for the earlier real-native/ABBA measurements or Linux
+qualification.
+
+Three additional controls block a compressor with a TERM-ignoring descendant,
+then require a newer export to return while that compressor remains blocked.
+The export remains visible and skipped. Each compressor and descendant must
+share the recorded anchor PGID. SIGTERM, guardian SIGKILL and the real 30-second
+deadline all drain the owned group; the later custodian completes without an
+extra export. Fixture teardown waits for recorded maintenance custodians before
+removing their project. The five new tests passed without skips in 51.50 s.
+
+**Verification.** Build passed; serial witness tests passed **60/60** in
+41.85 s; complete export/preparation tests passed **69/69**, with no skips or
+cancellations, in 223.88 s. The full Mac suite passed with **0 failures in
+2,706 s** (2,706.01 s measured wall time). All Rust targets and
+doctests passed, including 292 CLI units (four existing ignores) and 76 witness
+integration cases. Fixture wrappers passed 9/9; all 312 client files passed,
+with **6,227 tests passed / six existing skips / zero failures or cancellations**;
+both full-count model files passed **79/79**. Builds, budgets, release guard and
+typechecks passed. There were no interventions or reduced counts. All seven
+recorded code/package hashes are unchanged. Reference and whitespace checks
+passed. Final read-only custody checks found no remaining lane CLI jobs or
+previously recorded NZ devices. Exact inputs, outcomes and host snapshots are
+retained under `round5/`; large logs and binary evidence stay in the external
+content-addressed archive. No gzip/video or new files over 256 KB are committed. No native timings
+or real host-sleep exercise are added. Earlier rounds' qualification scopes and
+open intermittent-test issues remain intact. Nothing pushed or published.

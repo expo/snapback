@@ -86362,3 +86362,51 @@ untouched. Large evidence stays outside git with content hashes; no gzip/video
 or new files over 256 KB are committed. No native measurements were repeated;
 real host sleep remains unexercised. NZ targets 0.4.14, not 0.4.13. Nothing pushed
 or published. [Round 4 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-4--publication-and-retention-races).
+
+
+## 2026-10-04 — NZ round 5: bounded history for skipped exports
+
+Built on 7f0ef58712. Fixed Astra's skipped-export retention regression and both
+Grok documentation/timestamp lows on this Apartment mini. Every committed
+opt-out or non-macOS publication now schedules detached maintenance after the
+publication lock is released, including after failed skipped-result handoff.
+No retention work or lock wait enters the foreground export wait. The Mac
+custodian uses background QoS; it inherits export custody until the originating
+wrapper exits, then releases that lease so a late old maintainer can prune its
+own snapshot. Compression and lock waiting run in the existing supervised native
+anchor group with owner-death cleanup. The 30-second budget includes wrapper
+exit, lock waiting and work, followed by unchanged WD drain. Proof-bound and
+explicit maintenance still defer immediately on a busy lock. Maintenance errors
+are logged and never change committed export or native result status.
+
+Both request modes now copy the exact publication.json verifiedAt timestamp.
+LLP 3000.030 §15's removed skip-path description now matches private-tree atomic
+publication followed by handoff; its dated revision and guide witness describe
+skipped retention. WD cleanup/scoped enumeration, simulator ownership, single
+background proof custody and preparation deadlines are unchanged.
+
+New regressions run 28 successful wrapper/publisher exports for each skip mode;
+both finish with exactly five full snapshots and twenty compressed runs, retaining
+the latest skip and older compressed receipts. Every committed skip has a
+maintenance launch and identical verifiedAt/publishedAt. Other controls pause
+compression and require a newer export to return before it resumes, assert the
+compressor/descendant anchor PGID, and prove SIGTERM, custodian SIGKILL and the
+real 30-second deadline drain owned processes. Five new tests passed in 51.50 s.
+The non-macOS case is a simulated wrapper branch on the mini, not Linux/native
+runtime qualification. Fixture teardown waits for its recorded maintainers.
+
+Build passed; serial witness tests passed 60/60; all export/preparation tests
+passed 69/69 with no skips or cancellations. The complete Mac suite passed with
+**0 failures in 2,706 seconds**: all Rust targets/doctests, 292 CLI units (four
+existing ignores), 76 witness integration cases, nine fixture wrappers, all
+312 client files (6,227 tests passed, six existing skips), and 79 full-count
+model cases. Builds, budgets, release guard and typechecks passed. No interventions
+or reduced counts; all seven recorded code/package inputs remained unchanged.
+Reference and whitespace checks passed. No real simulators were created, prior
+owned NZ devices remain absent, and lane CLI processes drained. Other sessions'
+worktrees, processes and simulators were untouched. Large evidence stays outside
+git with content hashes; no gzip/video or new files over 256 KB are committed.
+Earlier qualification scopes and open intermittent-test issues remain intact;
+no native/ABBA timings or real host-sleep exercise were repeated. NZ remains for
+0.4.14. Nothing pushed or published.
+[Round 5 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-5--bounded-retention-for-skipped-exports).

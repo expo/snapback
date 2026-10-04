@@ -436,11 +436,20 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     retention::run(root, completed, || Ok(()))
 }
 pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
+    cleanup_inner_locked(root, completed, false)
+}
+fn cleanup_inner_locked(root: &Path, completed: Option<&Path>, wait_lock: bool) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    // Retention is optional maintenance: a contender defers immediately.
-    // The supervised process holds this OS lock; no PID-file takeover.
+    // Proof-bound maintenance defers immediately; detached skipped maintenance
+    // can wait under its supervisor's deadline. No PID-file takeover.
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    lock.try_lock().map_err(|e| error("E_WITNESS_ARTIFACT", format!("retention lock busy or unavailable: {e}")))?;
+    if wait_lock {
+        // Only the native-custody worker may wait; its supervisor's 30-second
+        // deadline covers both this lock and all work after acquisition.
+        lock.lock().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    } else {
+        lock.try_lock().map_err(|e| error("E_WITNESS_ARTIFACT", format!("retention lock busy or unavailable: {e}")))?;
+    }
     // A wrapper reporting driver exit does not establish cleanup. In particular
     // SIGKILL leaves owned backend/compilers and app copies behind.
     if let Some(dir) = completed { recover(dir)?; }
@@ -499,7 +508,10 @@ pub(super) fn command(args: &[String]) -> i32 {
     cleanup_command(args, cleanup)
 }
 pub(super) fn retention_command(args: &[String]) -> i32 {
-    cleanup_command(args, cleanup_inner)
+    let wait_lock = args.last().is_some_and(|a| a == "--wait-lock");
+    let args = if wait_lock { &args[..args.len() - 1] } else { args };
+    if wait_lock { cleanup_command(args, |root, completed| cleanup_inner_locked(root, completed, true)) }
+    else { cleanup_command(args, cleanup_inner) }
 }
 fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -> Result<()>) -> i32 {
     let result = if args.len() == 1 || args.len() == 2 {

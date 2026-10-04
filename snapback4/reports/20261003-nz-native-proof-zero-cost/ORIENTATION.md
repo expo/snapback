@@ -91,3 +91,16 @@ Doc targets: §15, guide witness, both package READMEs, both generated starter
 READMEs, Round 4 report and append-only JOURNAL. No delegate/review/ship skill
 is required: this is a local correction with explicit no-push authority.
 Hand-off: none.
+
+
+Round 5 (2026-10-04), base 7f0ef58712: LLP 3000.030 §15 still governs the
+private-tree publication, exact generation handoff and 5-full/20-compressed
+retention contract. The operator requests detached bounded maintenance for both
+skipped modes, after the publication lock is released, and exact verifiedAt
+parity. Retain the same 30-second custody and WD drain, make retention-lock
+waiting background-only and include it in that budget. Preserve proof outcomes,
+all foreground preparation bounds and recorded ownership; no real device is
+needed. Tests must reproduce 28 skips per mode and prove publication completes
+while compression is paused. Update stale §15 prose, guide witness, Round 5 report
+and append-only JOURNAL. No other worktrees, hosts, processes or simulators.
+Hand-off: none.

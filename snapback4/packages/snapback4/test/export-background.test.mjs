@@ -41,19 +41,28 @@ if(args.join(' ')==='simctl list runtimes --json') {
   const env = { ...process.env, SNAPBACK4_BIN: binary, PATH: path.join(root, 'bin') + ':' + process.env.PATH,
     SNAPBACK4_SMOKE_DEVICE_PREFIX: 'sb4-nz-test-', XDG_STATE_HOME: path.join(root, 'state') };
   delete env.SNAPBACK4_NATIVE_SMOKE;
-  const invoke = (bytes = 'export one') => spawnSync(process.execPath, [wrapper], { cwd: root, env: { ...env, EXPORT_BYTES: bytes }, encoding: 'utf8', timeout: 20000 });
+  const maintainers = [];
+  const invoke = (bytes = 'export one') => {
+    const result = spawnSync(process.execPath, [wrapper], { cwd: root, env: { ...env, EXPORT_BYTES: bytes }, encoding: 'utf8', timeout: 20000 });
+    const dir = read(path.join(root, 'artifacts/native-smoke/latest.json'))?.artifacts;
+    const pid = dir && read(path.join(dir, 'maintenance-launch.json'))?.process?.pid;
+    if (pid) maintainers.push(pid);
+    return result;
+  };
   const latest = () => read(path.join(root, 'artifacts/native-smoke/latest.json'));
   const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: 30000 });
   const events = () => { try { return fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } };
-  return { root, put, env, invoke, latest, status, events };
+  return { root, put, env, invoke, latest, status, events, maintainers };
 }
 async function cleanup(f) {
   f.put('continue', '');
   // Never remove a live fixture's custody records. Its own driver has a short
   // mocked environment operation and completes under its normal guardian.
   const root = path.join(f.root, 'artifacts/native-smoke');
+  await until(() => f.maintainers.every(pid => !alive(pid)), 'detached maintenance exited', 90000);
   if (fs.existsSync(root)) for (const dir of fs.readdirSync(root).filter(n => /^\d+-\d+$/.test(n))) {
     const run = path.join(root, dir);
+    await until(() => !alive(read(path.join(run, 'maintenance-launch.json'))?.process?.pid), 'maintenance custodian exited', 90000);
     await until(() => read(path.join(run, 'result.json')) || fs.existsSync(path.join(run, 'retention.json')) || (['worker', 'driver', 'launch'].every(role => !alive(read(path.join(run, role + '.json'))?.process?.pid)) && !alive(read(path.join(run, 'live.json'))?.wrapper?.pid) && !alive(read(path.join(run, 'live.json'))?.owner?.pid)), 'fixture background result or dead custodians');
     await until(() => {
       const p = read(path.join(run, 'worker.json'))?.process?.pid;
@@ -476,4 +485,69 @@ test('SIGKILL overlap defers a still-held retention lock and starts the next pro
     if(custody)await until(()=>!alive(custody.group)&&!alive(custody.guardian.pid),'paused custody drained before fixture removal');
     await cleanup(f);
   }
+});
+
+
+function skipMode(f, mode) {
+  if (mode === 'off') f.env.SNAPBACK4_NATIVE_SMOKE = 'off';
+  else {
+    f.put('platform.cjs', "Object.defineProperty(process,'platform',{value:'linux'})");
+    f.env.NODE_OPTIONS = '--require=' + path.join(f.root, 'platform.cjs');
+  }
+}
+function retainedRuns(f) {
+  const root = path.join(f.root, 'artifacts/native-smoke');
+  const dirs = fs.readdirSync(root).filter(n => /^\d+-\d+$/.test(n)).map(n => path.join(root, n));
+  return { full: dirs.filter(d => fs.existsSync(path.join(d, 'export'))), compressed: dirs.filter(d => read(path.join(d, 'retention.json'))), dirs };
+}
+for (const mode of ['off', 'non-macOS']) test(`repeated skipped exports retain five full plus twenty compressed runs (${mode})`, {timeout:120000}, async()=>{
+  const f=fixture();
+  try {
+    skipMode(f,mode);
+    const timings=[];
+    for(let i=0;i<28;i++) {
+      const started=Date.now(), result=f.invoke(`skipped export ${i}`); timings.push(Date.now()-started);
+      assert.equal(result.status,0,result.stdout+result.stderr);
+      assert.equal(f.latest().publishedAt,read(path.join(f.latest().artifacts,'publication.json')).verifiedAt,'skipped handoff copies exact verified commit time');
+      assert.ok(read(path.join(f.latest().artifacts,'maintenance-launch.json')),'each committed skip schedules maintenance');
+    }
+    await until(()=>f.maintainers.every(pid=>!alive(pid)),'all skipped maintenance finished',90000);
+    const runs=retainedRuns(f);
+    assert.equal(runs.full.length,5); assert.equal(runs.compressed.length,20); assert.equal(runs.dirs.length,25);
+    assert.ok(runs.full.includes(f.latest().artifacts),'latest result remains uncompressed');
+    assert.equal(f.status('--wait').status,2); assert.match(f.status().stdout,/native smoke skipped/);
+    assert.equal(f.events().length,0,'skipped exports never start simulator tools');
+    for(const dir of runs.compressed) assert.ok(fs.existsSync(path.join(dir,'result.json.gz')),'compressed skipped receipt retained');
+    console.log(JSON.stringify({mode,exports:28,full:runs.full.length,compressed:runs.compressed.length,returnMs:timings}));
+  } finally {await cleanup(f);}
+});
+
+for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','deadline']]) test(`skipped maintenance never blocks publication and drains under ${fault} (${mode})`,{timeout:120000},async()=>{
+  const f=fixture();
+  try {
+    skipMode(f,mode); blockedRetention(f);
+    const first=f.invoke(); assert.equal(first.status,0,first.stdout+first.stderr);
+    const firstDir=f.latest().artifacts;
+    const maintainer=read(path.join(firstDir,'maintenance-launch.json')).process.pid;
+    await until(()=>read(path.join(f.root,'compression.json')),'skipped compressor started after export returned');
+    const compressor=read(path.join(f.root,'compression.json'));
+    const root=path.join(f.root,'artifacts/native-smoke');
+    const journal=fs.readdirSync(root).find(n=>n.startsWith('.retention-')&&read(path.join(root,n,'retention-group.json')));
+    const custody=read(path.join(root,journal,'retention-group.json'));
+    for(const pid of [compressor.pid,compressor.child]) assert.equal(Number(spawnSync('ps',['-o','pgid=','-p',String(pid)],{encoding:'utf8'}).stdout.trim()),custody.group);
+    const started=Date.now();
+    const next=f.invoke('new skipped generation'); assert.equal(next.status,0,next.stdout+next.stderr);
+    assert.ok(alive(compressor.pid),'the next export returns while previous compression is still paused');
+    assert.equal(fs.readFileSync(path.join(f.root,'dist/bundle.hbc'),'utf8'),'new skipped generation');
+    assert.equal(f.status('--wait').status,2);
+    if(fault!=='deadline')process.kill(maintainer,fault);
+    await until(()=>!alive(compressor.pid)&&!alive(compressor.child)&&!alive(custody.group)&&!alive(custody.guardian.pid),'owned skipped compression group drained',45000);
+    await until(()=>f.maintainers.every(pid=>!alive(pid)),'all skipped custodians exited',45000);
+    if(fault==='deadline') {
+      const elapsed=Date.now()-started; assert.ok(elapsed>25000&&elapsed<40000,`real bounded retention deadline: ${elapsed}`);
+      assert.match(fs.readFileSync(path.join(firstDir,'background.log'),'utf8'),/30-second deadline/);
+    }
+    assert.equal(read(path.join(f.latest().artifacts,'result.json')).state,'skipped');
+    assert.ok(retainedRuns(f).full.length<=5);
+  } finally {await cleanup(f);}
 });

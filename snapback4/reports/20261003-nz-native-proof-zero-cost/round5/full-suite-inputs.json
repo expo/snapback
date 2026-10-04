@@ -1,0 +1,30 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "657d8acd4041d05bf7b2fc5430c697d4721e7321a308083ac2f7ce40fbedf3b6"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "79fb721e258d2cd07378af12a5f02bf173d48604c750301152c1847fdbe549b5"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "sha256": "d119d7fd4259dfe4692bf974d42b6179e5d4f55a184fc61a2bac6d2e474842af"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "a283aa5694a0b0c6bbe083d6c913e2a889e2c85c20cf1bc5f7e2c829e0f4bc2d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "014d4f9f761dfcca96701f8cef2f35f4e8d01309e0852b39d177c6ba4a11a3cb"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "0418c937b2e67a45226644518e3f2eafc435ba31ae3910ee3bfb36fe77e3fc86"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "d8633770c82e940641f68dd3d8d192d03bdd2d84437821a074029be2bae77df1"
+  }
+]

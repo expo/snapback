@@ -38,7 +38,7 @@ pub(super) fn executable() -> PathBuf {
     let path = path.parent().unwrap().parent().unwrap().join("snapback4");
     path
 }
-fn inherited(fd: i32) -> Result<File> {
+pub(super) fn inherited(fd: i32) -> Result<File> {
     if unsafe { libc::fcntl(fd, libc::F_GETFD) } < 0 { return Err(error("E_WITNESS_PROCESS", "missing background custody descriptor")); }
     // Keep inherited custody private to this process except explicit transfers.
     unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC); }
@@ -46,7 +46,7 @@ fn inherited(fd: i32) -> Result<File> {
 }
 // Command's pre_exec captures raw descriptors; this small wrapper closes the
 // parent's copies on both spawn success and failure.
-fn spawn_owned(mut command: Command, export: &File, project: Option<&File>, detached: bool) -> Result<Child> {
+pub(super) fn spawn_owned(mut command: Command, export: &File, project: Option<&File>, detached: bool) -> Result<Child> {
     let duplicate = |file: &File| -> Result<File> {
         let fd = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 10) };
         if fd < 0 { return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error())); }
@@ -152,7 +152,7 @@ pub(super) fn skip_publication(dir: &Path, target: &Path) -> Result<()> {
     }
     let project = target.parent().unwrap();
     let request = json!({ "artifacts": dir, "target": target, "project": project,
-        "exportHash": hash, "generation": marker["generation"], "publishedAt": now() });
+        "exportHash": hash, "generation": marker["generation"], "publishedAt": read(&dir.join("publication.json"))["verifiedAt"] });
     save(&dir.join("request.json"), &request)?;
     save(&dir.parent().unwrap().join("latest.json"), &request)?;
     let reason = marker["reason"].as_str().unwrap_or("native proof skipped");
