@@ -12,6 +12,9 @@ results are preserved. The optimized web artifact is byte-identical to baseline.
 now succeeds with identical derived state. **Full-suite qualification remains red:**
 two completed runs failed different client cases; affected tests pass. See the [round-1 record](#round-1--refusal-order-memory-and-complete-pause-advice).
 
+**Round 2:** surviving-table cleanup/rewrite advice is complete; all 419 affected
+tests pass. See the [round-2 audit and verification](#round-2--retirement-and-rewrites-inside-surviving-tables).
+
 All measurements and changes belong
 to `lane-ap`; no other lane, host or process was changed. Nothing was pushed.
 
@@ -538,3 +541,68 @@ passing focused controls do not replace a green full suite. See the
 Final `ref-check --verbose` passes with zero errors and zero unchecked references.
 Private corpus stores and all remaining scratch artifacts were removed; lane disk
 use is 40.06 GiB, below 50 GiB. No store, token or binary is committed.
+
+## Round 2 — retirement and rewrites inside surviving tables
+
+Base: `311c4d59fc`. Both reviews found that catalog-name retirement alone missed
+work within retained tables. This change is confined to estimation, advice,
+tests and documentation. No activation, successor, timeline, read-through,
+rebuild, memory, isolation or device execution path changed. The existing
+measured rates are unchanged; no new corpus timing or full-suite result is
+claimed for this round.
+
+The audit followed `store/activation.rs`, `store/successor.rs`, `successor.rs`,
+`store/timeline_launch.rs` and their called retirement/rebuild paths. LLP
+3000.000's atomic publication, LLP 3000.007 §20.9.4's backfill ownership, LLP
+3000.007.001 §3.11's mirror order, LLP 3000.014 §7's predecessor-expiry barrier
+and LLP 3000.026 §4's launch admission remain the governing constraints.
+
+| Activation work | Preview coverage after round 2 |
+|---|---|
+| Removed tables/indexes, durable-to-ephemeral transitions | Existing catalog counts retained. |
+| Timeline retirement with reused names and transitive maintain targets | Reuse `retired_timeline_tables`; count stored rows and old index entries even when names survive. |
+| Changed aggregate predicate, key, kind, source or dependency interpretation | Reuse `maintain_rebuild_needed`; count the retained target cleared before folding, even with an empty source. Fold visits retain their existing model. |
+| Row-keyed rebuild | Count target, recount work and live-basis rows/indexes cleared by `rebuild_row_view`; preserve modeled member/source visits. |
+| Read-through additions/removals and expiry/default changes | Reuse `Retirement::affects`; warn of an unestimated write pause with the affected stored population. No expiry evaluation or source-image decode in preview. |
+| Unchanged read-through children during another schema change | Warn: activation still rewrites them to recompute deadlines. |
+| Destructive projection, index replacement, recorded capture fills | Existing projection/build/capture populations remain modeled; also count old replaced index entries as unpriced cleanup. |
+| Maintained-column private rebuild and parent mirror | Count private cleanup; warn of unpriced parent mirror work, including parent lifetime changes without a private rebuild. Other parent-definition changes conservatively receive the same warning. |
+| First-use Following construction and event-slot fill | Existing `N_TIMELINE_ADOPT` source/event/copy model and general source-projection counts cover these writes; retirement excluded from copy counts still warns separately. |
+| Cap occupancy reset/rebuild | Warn with existing ledger entries and source populations, including legacy metadata repair with unchanged schema. |
+| Asset-home release | Count unreleased ledger rows by home and warn for homes absent from the candidate, even when application rows are gone. |
+| Legacy live-sum repair | Include retained targets and source visits even when the schema is unchanged. |
+
+Predecessor populations selected for unconditional clearing are deduplicated by
+catalog name across retirement, rebuild and index replacement. They do not
+count intermediate rows created and cleared again during activation. Conditional
+retirement/recapture and bookkeeping use an explicit **unestimated write pause**
+warning. Named populations are not promises that all those rows are deleted;
+they may overlap modeled visits and do not supply additional seconds to add.
+The additional queries read scalar counts and grouped home metadata only, with
+no writer transaction, temporary work table or row-image scan. Validation and
+successor assessment remain read-only; ordinary expiry changes without a
+read-through barrier do not themselves delete source rows.
+
+Regression coverage includes Astra's 1,000-child/default-50→200 case at time 100,
+read-through addition/removal and unchanged-child rewrites, filter and key
+changes, a retained target with an empty source, row-view basis/recount cleanup,
+parent mirrors, index replacement/projection/capture counts, cap and asset
+bookkeeping, legacy repairs, and quiet unchanged/empty controls. Grok's existing
+timeline test now checks counts both with and without the dependent maintain,
+and rejects double counting when a target is both retired and rebuilt. CLI
+checks verify the new warning in plain/JSON output and preserve database/WAL
+bytes with a held writer transaction and with a stopped store; the existing
+Following expiry matrix checks the warning alongside admission/copy results.
+
+Round-2 verification: **419 affected tests passed**, plus the nested allocation
+probe, with one existing ignored test. This includes 242 core library tests,
+112 guide tests, seven CLI adoption checks, the existing live/stopped-store
+read-only check, 15 timeline tests and 42 simulator adoption/maintain tests.
+All 13 new core cases passed. Docs-budget passes (maintains remains 879/879
+lines); `ref-check --verbose` reports zero errors and zero unchecked references.
+[Commands and results](round2/verification.txt) bind the scope. Activation code
+is unchanged, so the full suite was not repeated as directed. The prior full-suite
+failures remain historical evidence; this is not a new green full-suite claim.
+
+Round-2 scratch was removed; no evidence-store copies were needed. Lane disk use
+is 40.51 GiB, below 50 GiB. Nothing was pushed.

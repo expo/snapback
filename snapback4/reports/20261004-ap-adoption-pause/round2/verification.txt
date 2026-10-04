@@ -1,0 +1,72 @@
+AP Round 2, eb1000 (expose-builder-pixel), base 311c4d59fc, 2026-10-04
+Scope: estimation/advice only; activation implementation unchanged.
+Commands run from snapback4/ with taskset -c 80-87 and environment:
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=4 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+Core: cargo test -p snapback4-core --lib (exit 0)
+cli-check START
+cli-check EXIT 0 SECONDS 45.565 COMMAND cargo test -p snapback4 --test check check_adoption
+cli-read-only START
+cli-read-only EXIT 0 SECONDS 0.135 COMMAND cargo test -p snapback4 --test check check_preserves_database_and_wal_bytes_with_live_and_stopped_dev
+timeline START
+timeline EXIT 0 SECONDS 2.489 COMMAND cargo test -p snapback4 --test timeline_adoption
+guide START
+guide EXIT 0 SECONDS 33.078 COMMAND cargo test -p snapback4-lang --test guide
+adoption-sim START
+adoption-sim EXIT 0 SECONDS 96.216 COMMAND cargo test -p snapback4-sim --test adoption --test maintains --test maintains_recorded --test maintains_review
+docs-budget START
+docs-budget EXIT 0 SECONDS 1.468 COMMAND node scripts/docs-budget.mjs
+FAILED []
+
+Core library
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 242 filtered out; finished in 0.18s
+test store::adoption_tests::retirement::adding_and_removing_read_through_warn_about_predecessor_retirement ... ok
+test store::adoption_tests::retirement::cap_occupancy_reset_is_visible_even_when_table_definition_is_unchanged ... ok
+test store::adoption_tests::retirement::asset_home_retirement_warns_even_without_application_rows ... ok
+test store::adoption_tests::retirement::changed_filter_counts_cleared_retained_view_rows ... ok
+test store::adoption_tests::retirement::changed_key_counts_cleared_retained_view_rows ... ok
+test store::adoption_tests::retirement::legacy_live_sum_repair_is_visible_even_without_schema_change ... ok
+test store::adoption_tests::retirement::empty_source_does_not_hide_retained_target_cleanup ... ok
+test store::adoption_tests::retirement::parent_lifetime_change_warns_about_mirror_without_private_rebuild ... ok
+test store::adoption_tests::retirement::inherited_expiry_default_warns_before_retiring_one_thousand_children ... ok
+test store::adoption_tests::retirement::projection_index_replacement_and_capture_fills_keep_their_population_advice ... ok
+test store::adoption_tests::retirement::unchanged_read_through_tables_still_have_a_recapture_pass ... ok
+test store::adoption_tests::retirement::unchanged_and_empty_stores_remain_quiet ... ok
+test store::adoption_tests::retirement::row_view_rebuild_counts_retained_recount_and_basis_rows ... ok
+test result: ok. 242 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 114.33s
+
+CLI adoption
+test check_adoption::check_retained_child_retirement_is_read_only_with_live_and_stopped_store ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 15.60s
+
+CLI existing read-only
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 86 filtered out; finished in 0.04s
+
+Timeline adoption
+test retirement_resets_dependent_aggregates_even_when_all_names_survive ... ok
+test check_and_adoption_agree_across_expiry_through_changes_and_following_presence ... ok
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+Guide
+test result: ok. 112 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s
+
+Simulator adoption/maintains
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.64s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+
+docs budget: README 300/300 physical lines
+
+running 1 test
+test w14b_first_account_screen_is_self_contained ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 111 filtered out; finished in 0.00s
+
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-ap/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-ap/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.39s
+     Running tests/guide.rs (target/debug/deps/guide-a442dfea1c679b80)
+ref-check: ok — 527 LLP docs, 10348 refs in 34465 files, 0 errors, 0 unchecked
+Full suite and corpus/wasm remeasurement not repeated for this advice-only round.
+The historical Round 1 full-suite failures remain separately recorded.
+Scratch removed; no corpus stores copied. Lane disk use: 40.51 GiB.

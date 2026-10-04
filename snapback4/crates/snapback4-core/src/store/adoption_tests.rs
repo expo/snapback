@@ -1,6 +1,7 @@
 //! Compare the incremental index plan with the former whole-store activation.
 use super::*;
 use crate::{Context, Engine, value::object};
+mod retirement;
 const BASE: &str = r#"
 table posts:
   author: principal

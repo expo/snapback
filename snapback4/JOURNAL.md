@@ -86327,3 +86327,16 @@ recorded macOS allowance are unchanged. No macOS execution is claimed.
 Final reference audit: zero errors and unchecked references. Private stores and
 remaining scratch artifacts were removed; disk use is 40.06 GiB.
 Local commit only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 2: surviving-table retirement advice
+
+Completed pause advice for reused timeline names and dependent targets,
+aggregate/private/recount/basis cleanup, replaced indexes, read-through
+expiry/recapture, parent mirrors, cap resets and asset-home retirement. Definite
+predecessor populations are counted once; conditional work explicitly warns
+that its pause is unestimated. Legacy sum/cap repairs are visible without a
+schema delta. Activation is unchanged. All 419 affected tests and the nested
+allocation probe pass (one existing ignore), including held-writer and stopped
+`check` database/WAL byte comparisons; guide budget and reference checks pass.
+No full-suite or timing rerun for this advice-only round. See the
+[Round 2 audit](./reports/20261004-ap-adoption-pause/REPORT.md#round-2--retirement-and-rewrites-inside-surviving-tables).

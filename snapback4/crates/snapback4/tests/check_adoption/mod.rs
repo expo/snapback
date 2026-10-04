@@ -59,6 +59,34 @@ fn check_warns_about_removed_rows_and_removed_indexes_without_build_work() {
 }
 
 #[test]
+fn check_retained_child_retirement_is_read_only_with_live_and_stopped_store() {
+    let source = "table parents:\n  public\ntable children:\n  parent: parents\n  until: time default 50\n  immutable parent\n  expire at .until\n  read through .parent\n";
+    let p = Project::new(); p.source(source);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty());
+    let mut e = Engine::new_at(Store::open(&p.store()).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program), 0).unwrap();
+    let parent = wire::row_from_json(&e.schema().tables["parents"], &json!({"id":"p"})).unwrap();
+    let child = wire::row_from_json(&e.schema().tables["children"], &json!({"id":"c","parent":"p","until":50})).unwrap();
+    e.seed_at([("parents".into(), parent), ("children".into(), child)], 0).unwrap();
+    p.source(&source.replace("default 50", "default 200"));
+    let check = || {
+        let bytes = || ["", "-wal"].map(|suffix| fs::read(format!("{}{suffix}", p.store().display())).unwrap_or_default());
+        let before = bytes();
+        for flags in [vec!["check"], vec!["check", "--json"]] {
+            let output = p.run(&flags);
+            assert!(output.status.success(), "{output:?}");
+            let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            assert!(text.contains("N_ADOPTION_PAUSE") && text.contains("unestimated write pause") && text.contains("read-through retirement/recapture children (1 stored rows"), "{text}");
+            assert_eq!(bytes(), before, "check must preserve database and WAL");
+        }
+    };
+    let tx = e.store_mut().transaction().unwrap();
+    check(); // Preview must not need the held writer lock.
+    tx.rollback().unwrap(); drop(e);
+    check();
+}
+
+#[test]
 fn w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save() {
     let p = Project::new(); p.source(ADOPTION_SOURCE);
     let host = AdoptionHost::start(&p, true);
