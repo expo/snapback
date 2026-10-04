@@ -39,7 +39,7 @@ Mutations insert, update and delete rows in one transaction.
 Rules and constraints apply before that transaction commits.
 
 Bound results charge heap, steps, output and rule probes: the `result-cost`
-regression measures 1 probe, 2,778 heap bytes, 20 steps, 70 output bytes
+regression measures 1 probe, 2,316 heap bytes, 20 steps, 70 output bytes
 in both interpreters. Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the

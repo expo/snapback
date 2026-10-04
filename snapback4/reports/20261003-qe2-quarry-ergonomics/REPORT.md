@@ -315,3 +315,86 @@ shared program-use analysis and actual-value allocation pricing. The budget
 is **623,659**: measured Linux plus the unchanged estimated macOS offset of
 **130 bytes** and **500 bytes** headroom. No macOS measurement is claimed.
 Round-0 evidence above remains historical; round-1 inputs and logs are separate.
+
+
+## Round 2 — 2026-10-04
+
+Base: `a1e278d32c` (round 1). Astra's round-1 review was READY WITH
+CHANGES with one remaining P2; Grok ended without a verdict. All work in this
+round runs on eb1000. Nothing is pushed.
+
+### Bound result allocation
+
+The retained [native baseline](./round2/device-before.log) and
+[wasm/process baseline](./round2/wire-before.log) reproduce the remaining
+regression before the engine edit. Memory and SQLite report 1,834 heap bytes
+for the empty-default case and E_BOUND at 16,801,227 bytes for the bound
+2,400,000-character payload. The wasm and process tests fail on those same
+cases; their public refusals correctly expose the ceiling, not private counts.
+The discarded-result baseline cases still pass on every host.
+
+`Stmt::Insert` charged the full retained image just before cloning its `Arc`.
+That clone shares the row; `complete_insert_result` already prepays the actual
+field-map copy, defaults and optional fields. Removing the duplicate charge
+preserves the completed result and discarded path. No resource ceiling,
+authority rule, prediction classification, IR or transport shape changes.
+Round 1's statement that the extra cost was necessary for a total result is
+superseded: it was a duplicate charge.
+
+| Quarry source case | Round 1 heap | Round 2 heap |
+| --- | ---: | ---: |
+| Empty owned default; bound result returns id | 1,834 | 1,621 |
+| Bound 2,400,000-character payload; return omitted optional boolean | 16,801,227 (E_BOUND) | 14,401,017 |
+| Discarded 3,000,000-character payload | 12,000,421 | 12,000,421 |
+| Discarded `if absent`, 4,000,000-character payload | 16,000,421 | 16,000,421 |
+
+These heap figures use viewer `alice`, id `r` and ASCII `x` payloads.
+The new `bound-insert.q` fixture reads the omitted boolean and expects null;
+the empty-default fixture still returns the inserted id. Shared-runner tests
+pin the two successful totals on server and device execution. The memory and
+SQLite tests assert the server's exact meter and exercise real device
+prediction. All four device hosts (memory, SQLite, wasm and process) additionally
+prove each exact heap figure at the production boundary: a second mutation
+has the identical body and an unused text parameter, whose bytes are charged
+once at runner entry. Padding by `16,777,216 - expected_heap` succeeds with the
+same completed result; one more byte refuses E_BOUND. Predictions are withdrawn
+between calls. This gives exact host assertions without exposing private meter
+counts or adding a test-only production API.
+
+The `result-cost.q` bound operation now measures **1 probe, 2,316 heap bytes,
+20 steps and 70 output bytes** in both interpreters; two sibling hops cost two
+probes with the same other totals. Its discarded operation remains at 926 heap
+bytes, 12 steps and 13 output bytes. The writes card and dated revisions in
+LLP 3000.007 §5.4 and LLP 3000.013 §12.3 record the correction.
+
+### Qualification
+
+The affected runs pass **155 Rust tests**: [112 guide, 11 lowering and 17
+QE2 language tests](./round2/affected-language-final.log), [five shared-runner
+allocation tests](./round2/meter-tests-final.log), and [10 memory/SQLite
+allocation and ergonomics tests](./round2/affected-device.log). All [10
+wasm/process wire tests](./round2/wire-after.log) and [26 codec census
+checks](./round2/codec-census.log) pass. The [focused verification record](./round2/affected-verification.json)
+contains exact prices, commands, environment and artifact hashes.
+
+The requested `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh` finishes with **zero failures in 1,928 seconds**.
+It passes **4,798 Rust tests and 17 doctests** (34 existing ignored), **6,044
+client tests** across 304 files (11 existing skips), **79 model tests** and
+**nine fixture wrappers**. Every build, guide-budget, release-guard and
+package/app typecheck stage passes. The [full summary](./round2/full-suite-summary.txt),
+[verbatim compressed output](./round2/full-suite.log.gz) and [verification
+receipt](./round2/verification.json) retain counts and hashes. All **56 pinned
+inputs** stayed unchanged during the run. The Cargo environment remains eight
+jobs, no incremental compilation, no dev/test debug information and the
+required SQLite flag. Reference/metadata and whitespace audits pass; affected
+Rust files remain below 1,500 lines.
+
+Wasm measures **2,065,586 bytes raw / 623,025 bytes gzip**, down 43 raw bytes
+and four gzip bytes from round 1. The budget ratchets down four bytes to
+**623,655**, preserving the recorded **130-byte estimated macOS allowance**
+and **500-byte headroom**. No macOS machine was used. The full build uses the
+locked Binaryen 132 optimizer; the [build log](./round2/wasm-build.log) records
+the measurement (before the four-byte budget ratchet). The only production
+runtime change is deletion of the duplicate charge; this round adds no wasm
+code for its test instrumentation.

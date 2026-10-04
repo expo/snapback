@@ -84891,3 +84891,40 @@ inputs remained unchanged. Reference and whitespace checks pass.
 The [Round 1 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-1--2026-10-04)
 retains reproductions, exact prices, full-suite output and hashes. Work ran on
 eb1000 only; nothing pushed or published.
+
+
+## 2026-10-04 — QE2 round 2: charge the bound result once
+
+Address Astra's remaining P2 from round 1. An ordinary bound insert charged
+the authored row's retained footprint just before cloning its `Arc`, although
+completion already prepays the actual result field-map allocation. Remove that
+duplicate charge. Empty owned defaults now cost exactly 1,621 heap bytes
+(previously 1,834); a bound insert with 2,400,000 ASCII characters and an
+omitted optional boolean succeeds at 14,401,017 (previously E_BOUND at
+16,801,227). Its completed optional field still reads null. Round 1's claim
+that the extra charge was necessary for the completed result is superseded.
+
+Quarry-source regressions assert both figures on memory, SQLite, wasm and
+process hosts. Each host also succeeds when an unused text argument pads the
+meter exactly to the production ceiling, and refuses one byte above it. This
+pins private device totals without a new production test API. Discarded
+ordinary/if-absent inserts remain at 12,000,421 and 16,000,421. Guide writes
+now records the corrected example: one probe, 2,316 heap bytes, 20 steps and
+70 output bytes. LLP 3000.007 §5.4 and LLP 3000.013 §12.3 have dated revisions.
+
+Locked Linux wasm is 2,065,586 bytes raw / 623,025 gzip, down 43 raw bytes and
+four gzip bytes from round 1. Ratchet the budget to 623,655, retaining the
+recorded 130-byte estimated macOS allowance and 500-byte headroom. No resource
+ceiling or serialized language/runtime surface changes.
+
+Final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh`: zero failures in 1,928 seconds. Rust passes 4,798
+plus 17 doctests (34 existing ignored); 304 client files pass 6,044 tests with
+11 existing skips; models pass 79/79; fixture wrappers pass 9/9. All build,
+guide-budget, release-guard and typecheck stages pass. Focused checks pass 155
+Rust tests, 10 wasm/process wire tests and 26 codec-census checks. All 56 pinned
+inputs remained unchanged; reference/metadata and whitespace audits pass.
+
+The [Round 2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-2--2026-10-04)
+retains failing baselines, exact meter tests, full-suite output and hashes.
+All work ran on eb1000; nothing pushed or published.

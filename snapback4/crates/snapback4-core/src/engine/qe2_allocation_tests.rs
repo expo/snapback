@@ -9,6 +9,15 @@ use crate::{
 };
 
 fn run(source: &str, name: &str, device: bool) -> (Value, Metered) {
+    run_args(source, name, device, Default::default())
+}
+
+fn run_args(
+    source: &str,
+    name: &str,
+    device: bool,
+    args: std::collections::BTreeMap<String, Value>,
+) -> (Value, Metered) {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     // The language dev-dependency links its own core instance in unit tests.
@@ -43,7 +52,7 @@ fn run(source: &str, name: &str, device: bool) -> (Value, Metered) {
     let mut runner = Runner::new(
         &rows,
         &schema,
-        Context::new("alice", Default::default()).at(100),
+        Context::new("alice", args).at(100),
         Meter::new(Ceilings::default(), Cut::Abort),
         0,
     );
@@ -68,6 +77,9 @@ fn known_default_price_is_independent_of_declared_maximum() {
             let large_result = run(&source, "add", device);
             assert_eq!(large_result, run(&small, "add", device));
             assert!(large_result.1.heap_bytes < 4096);
+            if default.is_empty() {
+                assert_eq!(large_result.1.heap_bytes, 1_621);
+            }
             results.push(large_result);
         }
         assert_eq!(results[0], results[1]);
@@ -94,7 +106,7 @@ fn bound_result_and_sibling_hops_have_equal_server_device_prices() {
             assert_eq!(
                 (server.1.heap_bytes, server.1.steps, server.1.output_bytes),
                 if name == "bound" {
-                    (2778, 20, 70)
+                    (2316, 20, 70)
                 } else {
                     (926, 12, 13)
                 }
@@ -127,5 +139,22 @@ fn inlined_helper_and_branch_keep_the_consumed_insert_result() {
 #[test]
 fn consumed_if_absent_result_is_still_completed() {
     let source = "table records:\n  note: text <=10 ?\n  public\n  insert <- allow\n  sync public\nmutation add():\n  r = insert records { id: 'r' } if absent\n  require r != null else NOT_FOUND\n  return r.note\n";
-    for device in [false, true] { assert_eq!(run(source, "add", device).0, Value::Null); }
+    for device in [false, true] {
+        assert_eq!(run(source, "add", device).0, Value::Null);
+    }
+}
+
+#[test]
+fn bound_large_insert_charges_each_result_byte_once() {
+    let source = include_str!("../../../snapback4-lang/tests/fixtures/qe2/bound-insert.q");
+    for device in [false, true] {
+        let (result, metered) = run_args(
+            source,
+            "add",
+            device,
+            [("payload".into(), Value::String("x".repeat(2_400_000)))].into(),
+        );
+        assert_eq!(result, Value::Null, "the omitted field is completed");
+        assert_eq!(metered.heap_bytes, 14_401_017);
+    }
 }

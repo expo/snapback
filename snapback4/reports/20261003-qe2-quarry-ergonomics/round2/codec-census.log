@@ -1,0 +1,34 @@
+✔ web-reachable typed JSON calls all use the codec funnel (484.253915ms)
+✔ census kills parse, encoded, MQ components and container regressions (1886.8296ms)
+✔ allowlist binds the exact line to its sqlite function and consumes it once (0.600249ms)
+✔ census rejects typed imports, crate aliases, pretty writers and deserializer constructors (0.251517ms)
+✔ census includes wire and engine read mutants (949.352586ms)
+✔ census refuses an owned decode bypassing parse on the fast route (473.43007ms)
+✔ census refuses encoded reverting to an aliased owned serializer (467.902404ms)
+✔ module cfg declarations exclude only their files and subtrees (0.791326ms)
+✔ comments and literals are inert, dynamic envelope imports stay legal (0.577516ms)
+✔ every typed entry point is refused in qualified, imported and grouped forms (1.649292ms)
+✔ sqlite exceptions cannot move into a web function or lose their cfg (11486.140148ms)
+✔ existing refusal exceptions are exact, function-bound and consumed once (90.409584ms)
+✔ cfg quoted in a doc attribute cannot hide a web call (0.225948ms)
+✔ content representations require a decoder and cannot hide in whitespace or cfg_attr (32.92228ms)
+✔ representation exceptions require the exact sqlite decoder and are consumed once (306.013223ms)
+✔ the JSON funnel exception does not exempt content representations (0.228502ms)
+✔ content decoder aliases, qualified derives and macro output cannot evade the census (0.937365ms)
+✔ serde derive import policy refuses renames and re-exports at the import (0.361231ms)
+✔ three-file Deserialize collision is refused at its serde aliases (0.230676ms)
+✔ three-file indirect Serialize alias is refused at its serde re-export (0.199759ms)
+✔ macro representation refuses unresolvable derive crate::prelude::Deserialize (0.305638ms)
+✔ macro representation refuses unresolvable derive $derive (0.18043ms)
+✔ plain serde imports including trait paths stay accepted (0.16723ms)
+✔ derive classification is lexical per item and only restricts unknowns with representations (0.898647ms)
+✔ renaming the serde crate is refused, so a decoder cannot hide under a trusted name (0.410826ms)
+✔ a representation needs a visible, reviewed, decoder-free derive list on the same item or macro body (0.44017ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16271.611041

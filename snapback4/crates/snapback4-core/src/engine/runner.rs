@@ -561,7 +561,8 @@ impl<'a> Runner<'a> {
                     if !consumed || !self.needs_insert_result(table, &image) {
                         self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
-                        self.meter.heap(expression_heap(&image))?;
+                        // @ref LLP 3000.007#5.4 — the Arc clone shares this image;
+                        // result completion prepays the actual field-map copy.
                         self.insert(table, image.clone().expression_input(ExpressionAccess(())))?;
                         // A bound insert keeps its engine-filled image in the result local.
                         if let Expr::Variable(name) = row {
