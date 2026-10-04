@@ -172,7 +172,11 @@ fn recover_pending(marker: &Path, target: &Path) -> Result<()> {
     }
     clear_pending(marker, source)
 }
+#[cfg(test)]
 fn publish(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, after_exchange: impl FnOnce()) -> Result<()> {
+    publish_then(source, target, expected, proof_hash, after_exchange, || {})
+}
+fn publish_then(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, after_exchange: impl FnOnce(), committed: impl FnOnce()) -> Result<()> {
     // Serializes recovery, publication, receipt and displaced-tree removal.
     // Never unlink this lock: waiters must share the same inode.
     let lock_path = lock_path(target)?;
@@ -201,11 +205,15 @@ fn publish(source: &Path, target: &Path, expected: &Value, proof_hash: &Value, a
         return Err(e);
     }
     recovery::remove(source)?;
-    clear_pending(&marker, source)
+    clear_pending(&marker, source)?;
+    // Publication order is also supersession order. Scheduling is downstream
+    // of the verified commit and cannot roll back an already successful export.
+    committed();
+    Ok(())
 }
 pub(super) fn command(args: &[String]) -> i32 {
     status((|| {
-        if args.len() != 2 && !(args.len() == 3 && args[2] == "--environment-skip") {
+        if args.len() != 2 && !(args.len() == 3 && ["--environment-skip", "--background"].contains(&args[2].as_str())) {
             return Err(error("E_WITNESS_INPUT", "export-publish requires private and visible export directories"));
         }
         let source = Path::new(&args[0]); let target = Path::new(&args[1]);
@@ -224,7 +232,11 @@ pub(super) fn command(args: &[String]) -> i32 {
             if receipt["exitStatus"] != 0 || receipt["proof"]["sha256"] != hash { return Err(error("E_WITNESS_PROOF", "export proof differs from the successful smoke receipt")); }
             (proof["exported"]["inventory"]["files"].clone(), hash)
         };
-        publish(source, target, &expected, &proof_hash, || {})?;
+        let background = args.get(2).is_some_and(|a| a == "--background");
+        if background { verify(&dir.join("export"), &expected)?; }
+        publish_then(source, target, &expected, &proof_hash, || {}, || {
+            if background { super::background::schedule(dir, target, &custody); }
+        })?;
         Ok(())
     })())
 }

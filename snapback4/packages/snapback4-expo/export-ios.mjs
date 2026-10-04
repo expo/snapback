@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @ref LLP 3000.030#15 — exact export, explicit environment skips, bounded evidence.
+// @ref LLP 3000.030#15 — publish Hermes first; detached proof retains its exact snapshot.
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -88,42 +88,48 @@ export function acquireExportLease(artifacts, binary = 'snapback4') {
 }
 export async function main() {
   const req = createRequire(path.resolve('package.json'));
+  // Status is informational: neither an earlier failed proof nor its reporter
+  // can fail a new export. The detached worker owns maintenance and cleanup.
+  spawnSync('snapback4', ['witness', 'status', '--if-present'], { stdio: 'inherit', timeout: 5000 });
   const skip = skipReason(process.platform, process.env);
   if (skip) {
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
     if (exported.status !== 0) return exported.status;
+    if (fs.existsSync('artifacts/native-smoke/latest.json')) {
+      const marked = spawnSync('snapback4', ['witness', 'export-skipped', skip], { encoding: 'utf8', timeout: 5000 });
+      if (marked.status !== 0) console.error(`native smoke status update failed: ${marked.stderr || marked.error?.message}`);
+    }
     console.log(`native smoke skipped: ${skip}`); return 0;
   }
   const root = path.resolve('artifacts/native-smoke');
   const artifacts = path.join(root, `${Date.now()}-${process.pid}`);
   const privateExport = path.join(artifacts, 'export');
-  const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
+  const publicationExport = path.join(artifacts, 'publication-export');
   fs.mkdirSync(artifacts, { recursive: true });
   const lease = acquireExportLease(artifacts);
   let publicationAttempted = false;
   try {
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
     if (exported.status !== 0) return exported.status;
-    const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', privateExport, '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
-    let receipt;
-    try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
-    const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
-    if (outcome.status === 0) {
-      const expected = publicationExpectation(artifacts, privateExport, result.status !== 0, receipt);
-      publicationAttempted = true;
-      const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist'), ...(result.status === 0 ? [] : ['--environment-skip'])], { stdio: ['inherit', 'inherit', 'inherit', lease] });
-      try {
-        verifyPublication(artifacts, privateExport, path.resolve('dist'), expected);
-        if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
-      } catch (error) { outcome.status = published.status || 1; outcome.message = `export output publication failed: ${error.message}`; }
+    const expected = publicationExpectation(artifacts, privateExport, true);
+    // APFS clones avoid copying bundle bytes. Both trees are independently
+    // verified by the publisher; replacing dist cannot mutate the smoke input.
+    fs.cpSync(privateExport, publicationExport, { recursive: true, mode: fs.constants.COPYFILE_FICLONE });
+    publicationAttempted = true;
+    const published = await runChild('snapback4', ['witness', 'export-publish', publicationExport, path.resolve('dist'), '--background'], { stdio: ['inherit', 'inherit', 'inherit', lease] });
+    try {
+      verifyPublication(artifacts, publicationExport, path.resolve('dist'), expected);
+      if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
+    } catch (error) {
+      console.log(`export output publication failed: ${error.message}`);
+      return published.status || 1;
     }
-    console.log(`${outcome.message}; receipt: ${receiptPath}`);
-    return outcome.status;
+    return 0;
   } finally {
     // After a publication attempt this path may be the displaced last good
     // export. Only the publisher, under its destination lock, may remove it.
     try { if (!publicationAttempted) fs.rmSync(privateExport, { recursive: true, force: true }); }
-    finally { fs.closeSync(lease); retainEvidence(root, artifacts); }
+    finally { fs.closeSync(lease); }
   }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {

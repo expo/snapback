@@ -1,0 +1,50 @@
+{
+  "result": {
+    "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/artifacts/native-smoke/1791080290467-21749",
+    "exportHash": "f61e15eed5829795ad9a2bcfd64471add032e5d2351d5f62e5d3b8e624270eec",
+    "finishedAt": 1791080406650,
+    "log": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/artifacts/native-smoke/1791080290467-21749/background.log",
+    "publishedAt": 1791080293412,
+    "reason": "prime/offline/restart",
+    "receipt": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/artifacts/native-smoke/1791080290467-21749/smoke-ios-run.json",
+    "state": "passed"
+  },
+  "backgroundPolicies": {
+    "offline": {
+      "darwinBackgroundSet": true,
+      "pid": 25176
+    },
+    "prime": {
+      "darwinBackgroundSet": true,
+      "pid": 24510
+    },
+    "restart": {
+      "darwinBackgroundSet": true,
+      "pid": 25505
+    }
+  },
+  "nativeCache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "583fcec4848dc855bf3d97183bad56d88d666f188afe35eb241ea2f92e205b33"
+      }
+    },
+    "hit": true
+  },
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "loadedHash": "f61e15eed5829795ad9a2bcfd64471add032e5d2351d5f62e5d3b8e624270eec",
+  "simulator": {
+    "name": "sb4-nz-1791080295919-21849",
+    "prefix": "sb4-nz-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "CA02E697-FE8A-49FA-B4BE-786EC1A8E249"
+  },
+  "deviceAbsent": true,
+  "scope": "functional only; concurrent full suite, excluded from quiet timing cohort"
+}

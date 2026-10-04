@@ -11,6 +11,7 @@ mod cleanup;
 mod recorded_process;
 pub(crate) mod process_group;
 mod publication;
+pub(super) mod background;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
@@ -227,6 +228,9 @@ impl Run {
         // app it launched. Record that PID before any fallible log write.
         self.app_pid = text.lines().find_map(|l| l.strip_prefix(&prefix).and_then(|p| p.trim().parse::<u32>().ok())).filter(|p| *p > 0);
         recovery::app(&self.options, self.app_pid, &self.udid, &self.options.bundle, &self.dir)?;
+        if background::active() {
+            if let Some(pid) = self.app_pid { self.manifest["backgroundPolicies"][segment] = background::lower_app(pid)?; }
+        }
         output(&self.path("launch.log"))?.write_all(text.as_bytes()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let status = status?;
         if !status.success() { return Err(error("E_WITNESS_APP", format!("--bundle-id app launch failed ({status}); see the command's own log path: {}", self.path("launch.log").display()))); }
@@ -518,6 +522,10 @@ fn prepare(mut options: Options, preparation: &mut Value) -> Result<Run> {
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|arg| arg == "status") { return background::status(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-skipped") { return background::skipped(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "background-worker") { return background::worker(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "background-run") { return background::driver(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-publish") { return publication::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-lease") { return publication::lease_command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }

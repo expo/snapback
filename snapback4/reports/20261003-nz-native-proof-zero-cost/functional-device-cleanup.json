@@ -1,0 +1,53 @@
+{
+  "at": 1791085199.964671,
+  "devices": [
+    {
+      "receipt": "snapback4/target/nz/functional/artifacts/native-smoke/1791078120214-68767/smoke-ios-run.json",
+      "udid": "AF616AF3-EC3E-47D3-817E-848AE91735A5",
+      "name": "sb4-nz-1791078125531-68808",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional/artifacts/native-smoke/1791078431618-73026/smoke-ios-run.json",
+      "udid": "3D3C9AEC-4822-4A12-8E45-5C4371FF09BA",
+      "name": "sb4-nz-1791078441981-73126",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional/artifacts/native-smoke/1791079468797-97979/smoke-ios-run.json",
+      "udid": "951F4E8E-D368-4857-85AF-383B8F756D3C",
+      "name": "sb4-nz-1791079473859-98089",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional/artifacts/native-smoke/1791080290467-21749/smoke-ios-run.json",
+      "udid": "CA02E697-FE8A-49FA-B4BE-786EC1A8E249",
+      "name": "sb4-nz-1791080295919-21849",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional/artifacts/native-smoke/1791084887567-1051/smoke-ios-run.json",
+      "udid": "884423C4-ED20-4335-88F1-C9B224FC6EEB",
+      "name": "sb4-nz-1791084892527-1232",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional-social/artifacts/native-smoke/1791080957526-34447/smoke-ios-run.json",
+      "udid": "77E77AAA-A773-443C-96AC-2D05B7F33443",
+      "name": "sb4-nz-1791080963943-34572",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional-social/artifacts/native-smoke/1791082113927-53698/smoke-ios-run.json",
+      "udid": "14350806-F22E-4F21-97B9-1006043F9E95",
+      "name": "sb4-nz-1791082119562-53755",
+      "absent": true
+    },
+    {
+      "receipt": "snapback4/target/nz/functional-social/artifacts/native-smoke/1791083906636-88978/smoke-ios-run.json",
+      "udid": "2195F253-397F-4487-9DB9-651F8B644DDD",
+      "name": "sb4-nz-1791083912508-89063",
+      "absent": true
+    }
+  ]
+}

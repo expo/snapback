@@ -66,8 +66,12 @@ runner, commands and artifact contract are in `snapback4 guide witness`
 “Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
 Release witness.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
-`npm run native:smoke` always runs the full Release build; `SNAPBACK4_NATIVE_SMOKE=off` skips the automatic smoke. Unavailable hosts skip, app/SDK failures fail.
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.
+Native proof runs in the background at background QoS while you keep building.
+The next export and `npx snapback4 doctor` print the result; for your final report
+run `npx snapback4 witness status --wait`. A newer export supersedes pending proof.
+Failures stay visible with log paths without failing a successful export;
+unavailable hosts report a skip. `npm run native:smoke` explicitly waits for the full build and smoke.
 The smoke prepares and installs your Release app, chooses its own simulator and free
 port, and keeps receipts in `artifacts/native-smoke/<timestamp>`. It proves local
 store acquisition, cold offline reopen and reconnect. Pending write replay, media
@@ -95,5 +99,5 @@ After JS edits, repeat `npm run export:ios`; simulator selection and fresh
 artifact directories are automatic. Matching native inputs reuse the Release
 app and install the exact exported bundle/assets. Native changes rebuild;
 `npm run native:smoke` always runs Xcode. Both routes retain the same loaded-file
-hash and prime/offline/restart proof. Measured on the Apartment M5 Pro mini,
-18 cores/64 GiB, Xcode/iOS 27, with tools/dependencies installed first.
+hash and prime/offline/restart proof. Automatic smoke creates and removes its own
+recorded simulator, with project and device leases held through cleanup.

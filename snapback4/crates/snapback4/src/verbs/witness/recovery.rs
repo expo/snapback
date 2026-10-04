@@ -41,8 +41,8 @@ fn darwin_birth(pid: u32) -> Option<Value> {
 fn alive(record: &Value) -> bool {
     record["pid"].as_u64().and_then(|pid| identity(pid as u32)).as_ref() == Some(record) && !record.is_null()
 }
-fn read(path: &Path) -> Value { fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null) }
-fn write(path: &Path, value: &Value) -> Result<()> {
+pub(super) fn read(path: &Path) -> Value { fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null) }
+pub(super) fn write(path: &Path, value: &Value) -> Result<()> {
     let temp = path.with_extension("json.tmp");
     let mut file = File::create(&temp).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     file.write_all(&serde_json::to_vec(value).unwrap()).and_then(|_| file.sync_all()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -86,7 +86,7 @@ pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     let lease = preparation::lease(&options.artifacts.join("run.lock"))?;
     let owner = identity(std::process::id()).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record driver process start time"))?;
     let wrapper = std::env::var("SNAPBACK4_EXPORT_WRAPPER_PID").ok().and_then(|s| s.parse().ok()).and_then(identity);
-    write(&options.artifacts.join("live.json"), &json!({ "owner": owner, "wrapper": wrapper, "children": {}, "startedAt": now() }))?;
+    write(&options.artifacts.join("live.json"), &json!({ "owner": owner, "wrapper": wrapper, "background": background::active(), "children": {}, "startedAt": now() }))?;
     Ok(Some(lease))
 }
 fn stop(record: &Value, signal: i32) -> Result<()> {
@@ -206,7 +206,7 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
     }
 }
 
-fn recover(dir: &Path) -> Result<bool> {
+pub(super) fn recover(dir: &Path) -> Result<bool> {
     let mut record = read(&dir.join("live.json"));
     if alive(&record["owner"]) {
         // A wrapper killed with SIGKILL cannot forward cancellation. Request
@@ -267,7 +267,9 @@ fn recover(dir: &Path) -> Result<bool> {
             }
         }
         if owned["udid"] == udid && owned["name"] == simulator["name"] && owned["runtime"] == simulator["runtime"] && !owned["prefix"].is_null() {
-            if owned["ready"] == false {
+            if owned["ready"] == false || (record["background"] == true && simulator["selection"] == "created") {
+                // Detached runs create a private device, never reuse a user's
+                // or another run's device. Delete it on success and on recovery.
                 simctl(&["delete", udid], Duration::from_secs(10))?;
                 owners.remove(udid)?;
             } else if active {
@@ -317,7 +319,7 @@ pub(super) fn remove(path: &Path) -> Result<()> {
     let result = if path.is_dir() && !path.is_symlink() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
     result.or_else(|e| if e.kind() == std::io::ErrorKind::NotFound { Ok(()) } else { Err(e) }).map_err(|e| error("E_WITNESS_ARTIFACT", e))
 }
-const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json"];
+const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json", "request.json", "result.json", "background.log"];
 pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     // Blocking OS lock: no PID-file takeover race, and SIGKILL releases it.

@@ -50,6 +50,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
                                       prove fresh acquisition and retained cold restart on the native process device
   witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
+  witness status [--wait] [--json]  latest background native proof
   witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
                                       record an installed iOS app cold-offline, then reconnect its owned backend
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line

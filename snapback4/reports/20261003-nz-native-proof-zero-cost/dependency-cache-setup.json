@@ -1,0 +1,30 @@
+[
+  {
+    "project": "plain",
+    "source": "/Users/ccheever/Library/Caches/CocoaPods",
+    "destination": "snapback4/target/nz/plain/.snapback4-witness/pods-cache",
+    "at": 1791078815.485894,
+    "purpose": "warm third-party download cache; no project native products"
+  },
+  {
+    "project": "social",
+    "source": "/Users/ccheever/Library/Caches/CocoaPods",
+    "destination": "snapback4/target/nz/social/.snapback4-witness/pods-cache",
+    "at": 1791078825.887895,
+    "purpose": "warm third-party download cache; no project native products"
+  },
+  {
+    "project": "plain",
+    "source": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/.snapback4-witness/pods-cache",
+    "destination": "snapback4/target/nz/plain/.snapback4-witness/pods-cache",
+    "at": 1791082430.433219,
+    "purpose": "identical dependency-download cache from completed own plain fixture; no native products or intermediates"
+  },
+  {
+    "project": "social",
+    "source": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/.snapback4-witness/pods-cache",
+    "destination": "snapback4/target/nz/social/.snapback4-witness/pods-cache",
+    "at": 1791082435.229654,
+    "purpose": "identical dependency-download cache from completed own plain fixture; no native products or intermediates"
+  }
+]

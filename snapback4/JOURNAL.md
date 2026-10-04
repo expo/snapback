@@ -84844,3 +84844,55 @@ index. The original deadline ticket is closed. Only this mini and the lane's
 own simulator were used; that device and its private ownership records were
 removed after timing. No office M1, M5, other worktree or other session's device
 was touched. Nothing pushed or published.
+
+
+## 2026-10-03 — NZ: publish Hermes before detached native proof
+
+`npm run export:ios` now publishes the verified Hermes tree to `dist/` and
+returns after handing its exact export lease to a detached background guardian.
+Native preparation, prime/offline/restart and cleanup run under Darwin background
+policy. A shared project lease serializes smokes through cleanup; a newer export
+supersedes old work. The next export, `doctor`, and `witness status [--wait]`
+show the result and its export hash. Native failures cannot fail an already
+successful export. Starter READMEs lead with background proof and result lookup;
+the opt-out remains in `guide witness` only. LLP 3000.030 §15 records the dated
+revision and keeps the synchronous NX history.
+
+The guardian retains an unreaped driver/group identity, while the driver watches
+its guardian, supersession and suspended-time advancement. Background smokes
+create and delete their own recorded, leased device; explicit witnesses keep
+the existing reuse behavior. NX/WD ownership and watchdog residuals are unchanged.
+The 13 new detached integration controls exercise peer death, interruption,
+serialized supersession, create/boot crashes, skip/failure reporting and retention
+failure after a completed outcome. The sleep-clock detector has a unit control;
+this lane did not deliberately sleep the shared Mac.
+
+The real plain starter passed all three native segments with the published and
+loaded Hermes hash equal. Its device was deleted. Busy-host social preparation
+attempts hit the existing 900-second limit; a cleanup timeout on the second
+attempt was recovered by the independent guardian, and its device was deleted.
+A third social retry after our full suite also hit 900 seconds while unrelated
+host load persisted; its device was deleted. Cold social proof remains unqualified.
+These functional attempts are excluded from timing claims. The final Mac suite
+passed `== 0 failure(s) in 2540 s`: all Rust targets, 6,053 client tests with
+five existing skips, nine fixture wrappers and 79 models. Affected checks passed
+51 witness units and 66 JavaScript tests; reference validation has zero errors.
+An earlier full-suite run failed two documentation assertions, corrected before the
+final frozen-source run; its failures remain recorded. Quiet timing qualification
+is blocked: no sample was admitted, including a final five-minute window after
+all our builds and smokes ended. Unrelated `PerfPowerServices` remained near two
+cores. No unrelated process was signalled. The watcher is stopped and all eight
+functional-run devices are absent. No critical-path time distribution, CPU
+placement or interference claim is made. The open NZ qualification ticket records
+the remaining before/after and foreground-workload cohorts. A final-binary plain
+repeat conservatively missed cache on the changed CLI toolchain; it was cancelled
+through its birth-verified guardian to clear the machine, and cleaned up correctly.
+
+Only the Apartment mini and this lane's own `sb4-nz-` devices are used. The
+hardware reports M5 Pro with Performance/Super levels and no Efficiency tier.
+Background policy is verified on guardian/driver; app launches record successful
+policy application. Shared simulator services remain system-scheduled. No
+exclusive-core or zero-interference claim follows from setting QoS. The
+[NZ report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md) retains
+source/binary hashes, attempts, custody controls and measurement admission.
+Nothing pushed or published.

@@ -1,0 +1,22 @@
+{
+  "samples": 448,
+  "firstAt": 1791076517.960289,
+  "lastAt": 1791085504.169306,
+  "admitted": 0,
+  "paused": 346,
+  "perfPowerServices": {
+    "observations": 437,
+    "medianPercent": 193.3,
+    "maxPercent": 202.3
+  },
+  "finalNoOwnedWorkWindow": {
+    "samples": 28,
+    "seconds": 354.89630603790283,
+    "idlePercentRange": [
+      72.5860155382908,
+      86.75824175824175
+    ],
+    "admitted": 0
+  },
+  "note": "No measurement started. Watcher stopped after >5 minutes without owned builds/smokes. No unrelated process was signalled. Raw history retained outside git by SHA-256."
+}

@@ -1,0 +1,27 @@
+{
+  "base": "38d9bfe0de9072ec71138cf0fd987ba666254d96",
+  "branch": "sb4-intent/nz-native-proof-zero-cost",
+  "profile": "production",
+  "buildEnvironment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "runtimeNode": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+  "files": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/baseline-production",
+      "sha256": "91e3c821deb1ed63d0142c68834f63c6ad3304419d457c2a0caeb1b7ae028cfb",
+      "bytes": 15220928
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-production",
+      "sha256": "e99e146789344d21fff0f11d7374392c5de5c615090092de58fec970a1f3270a",
+      "bytes": 15270752
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/baseline-export-ios.mjs",
+      "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa",
+      "bytes": 8357
+    }
+  ],
+  "note": "candidate source bound separately by source-manifest.json; executable replacement uses new inode and rename"
+}

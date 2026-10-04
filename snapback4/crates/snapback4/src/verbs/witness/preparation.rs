@@ -238,7 +238,7 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
         let notice = options.artifacts.join("cache-miss.json");
         if !announced && label == "preparation" && notice.is_file() {
             let reason = fs::read(&notice).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok()).unwrap_or(Value::Null);
-            eprintln!("native-cache miss: {}; a Release build takes about three to four minutes. Opt out with SNAPBACK4_NATIVE_SMOKE=off.", reason["reason"].as_str().unwrap_or("native inputs changed"));
+            eprintln!("native-cache miss: {}; preparing a Release app{}; progress and result stay in this run's artifacts.", reason["reason"].as_str().unwrap_or("native inputs changed"), if background::active() { " in the background" } else { "" });
             announced = true;
         }
         if let Err(e) = interrupted() { break Err(e); }

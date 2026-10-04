@@ -21,14 +21,17 @@ is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
 contains the complete provider example. There is no separate worker launcher.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
-`npm run native:smoke` always runs the full Release build. Automatic smoke reuses
-only a matching native app, installs the exact exported bundle, chooses its own
-simulator/free port, and writes `artifacts/native-smoke/<timestamp>`. Unavailable
-hosts print a skip; app/SDK failures fail the command. `SNAPBACK4_NATIVE_SMOKE=off`
-opts out. It proves acquisition, cold offline reopen and reconnect; an empty
-partition proves lifecycle only. Pending write replay and application assertions
-need `snapback4 guide witness`. Guest sign-in is the starter's normal auth flow.
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.
+Native proof runs in the background at background QoS, so you can keep building
+without waiting for Xcode or the simulator. A newer export supersedes pending proof.
+The next export and `npx snapback4 doctor` print its result; for your final report
+run `npx snapback4 witness status --wait`. Receipts and logs stay in
+`artifacts/native-smoke/<timestamp>`. Failures remain visible without failing a
+successful export; unavailable native hosts report a skip.
+`npm run native:smoke` explicitly waits for a full Release build and smoke.
+Smoke proves acquisition, cold offline reopen and reconnect; an empty partition
+proves lifecycle only. Pending write replay and application assertions need
+`snapback4 guide witness`. Guest sign-in is the starter's normal auth flow.
 
 Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses

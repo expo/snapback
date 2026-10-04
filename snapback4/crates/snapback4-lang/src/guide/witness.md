@@ -12,8 +12,9 @@ npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --
 ```
 
 For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (six warm runs each on an M5 Pro mini under shared load: 18.335/26.716 s medians; 25 s social target unmet on this host, quiet-host qualification pending; last cold 174.512/229.510 s).
-Both starters provide these scripts. Unavailable hosts skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building.
+The next export and `snapback4 doctor` print its result. Use `npx snapback4 witness status --wait` for a final report (`--json` for the receipt summary); plain `status` never waits.
+Results/logs stay in `artifacts/native-smoke/<timestamp>`. Native failures stay loud without failing a successful export; unavailable hosts report a skip. `SNAPBACK4_NATIVE_SMOKE=off` disables automatic smoke.
 
 The build route chooses a free backend port and writes fresh artifacts under
 `artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
@@ -22,7 +23,7 @@ Otherwise it creates a current iPhone; unsafe records are ignored with one warni
 Newest iOS runtime wins. Creation holds a device lease through boot; only boot-complete records permit reuse. Names alone prove no ownership. `--udid` chooses an explicit booted
 device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
 `SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.
-The socket stays owned through backend startup. Devices remain for warm runs; delete their recorded UDIDs when finished.
+The socket stays owned through backend startup. Explicit runs keep devices for reuse; delete their recorded UDIDs when finished. Background runs create and delete their own device, never reuse another run’s.
 Without Xcode or an iOS runtime, one setup message appears before any build.
 
 Use matching `snapback4` and `snapback4-expo` packages, with `createApp` and
@@ -69,7 +70,6 @@ refuses their conditional module availability rather than calling them server-on
 Ordinary launches do not load the smoke runner or install its error handler.
 
 ## Own Release preparation (bounded adapter)
-
 `--build <project>` requires `--smoke`; each invocation gets fresh artifacts. It
 prepares that project's own Release simulator application with a private stable
 snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl` and launches its bundle ID directly. It never opens Simulator.app, invokes AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
@@ -124,8 +124,8 @@ Release app, replacing its bundle/assets with the exact export. Dependencies and
 lockfiles, config/plugins, native files, generated inputs, toolchain and SDK are
 bound with per-export evaluated Expo prebuild config; all project-local plugins and unknown mods retain JS. Remote/URI resources and out-of-tree config files refuse; the image toolchain is pinned. This cache optimizes correctness for honest projects; a plugin already runs arbitrary code during prebuild, so it is not a sandbox. The app reports the selected file's SHA-256 on
 all three launches; `exported` and `nativeCache` in the receipt identify it and reuse.
-`export:ios` leases its private export through atomic `dist/` publication and verification against the smoke inventory; a missing/mismatched publication receipt fails. Failed verification restores the previous export; interrupted swaps preserve it for the next exporter to recover. Cleanup never prunes leased or pending exports. Publishers serialize through verification. Each path lookup sees a complete old or new directory; separate file opens can cross generations. Five full plus twenty compressed runs remain, with temporary apps removed and asset removals matching fresh builds. `native:smoke` always builds.
-A native-cache miss prints its reason, the three-to-four-minute build cost and `SNAPBACK4_NATIVE_SMOKE=off`; reuse needs no downloads.
+`export:ios` verifies and atomically publishes Hermes before launching detached smoke on a separate immutable export copy. Publication is not native proof. Failed publication restores the previous export; interrupted swaps remain recoverable. Separate opens can cross generations. One background smoke per project holds the project/export leases through cleanup; a newer publication cancels the older proof before the next starts. Independent guardian/driver custody recovers a crashed peer; host sleep cancels proof and cleans up on wake. Only recorded owned devices/processes may be cleaned. The existing §15 custody residuals still apply.
+`status` distinguishes pending, passed, skipped, superseded and failed; `--wait` follows the latest export and returns 0 only for a passed proof (1 failure, 2 skip/no result). A failed proof includes its log path. Background QoS lowers native work's scheduling priority; shared simulator services and I/O mean it is not a zero-contention guarantee. Five full plus twenty compressed runs remain. `native:smoke` always builds and waits; a cache miss in automatic smoke builds in the background.
 
 The starter's packaged `snapback4-expo/plugin` supplies Expo 57's UIScene lifecycle;
 custom native lifecycle projects should keep their own configuration.

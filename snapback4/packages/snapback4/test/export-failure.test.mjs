@@ -77,7 +77,7 @@ if(args[1]==='ios') {
       const runs = fs.readdirSync(path.join(root, 'artifacts/native-smoke')).filter(n => /^\d+-\d+$/.test(n));
       assert.equal(runs.length, 1);
       const dir = path.join(root, 'artifacts/native-smoke', runs[0]);
-      const oldAt = fault === 'after' ? path.join(dir, 'export') : path.join(root, 'dist');
+      const oldAt = fault === 'after' ? path.join(dir, 'publication-export') : path.join(root, 'dist');
       assert.deepEqual(inventory(oldAt).files, previous, fault);
       if (fault === 'after' || fault === 'before') {
         assert.equal(fs.existsSync(path.join(dir, 'publication-pending.json')), true);
@@ -95,6 +95,9 @@ if(args[1]==='ios') {
       }
     }
     const skip = run('skip-valid'); assert.equal(skip.status, 0, skip.stdout + skip.stderr);
-    assert.match(skip.stdout, /native smoke skipped/);
+    // This fixture has no Expo metadata. Publication still succeeds; scheduling
+    // native evidence fails loudly downstream of that independent commit.
+    assert.match(skip.stderr, /native smoke failed to start/);
+    assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

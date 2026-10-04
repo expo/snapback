@@ -1,0 +1,13 @@
+{
+  "at": 1791085143.994365,
+  "guardian": {
+    "pid": 1230,
+    "start": [
+      1791084890,
+      970518
+    ]
+  },
+  "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional/artifacts/native-smoke/1791084887567-1051",
+  "signal": "SIGTERM",
+  "reason": "stop extra non-quiet cold functional rebuild and clear our work for timing admission"
+}
