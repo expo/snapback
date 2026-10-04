@@ -55,3 +55,9 @@ fixture before changing those horizons. Row counts do not measure client memory.
 Verify your production build on a real device: acquire a room, close the page,
 reopen offline, send twice, reopen again, and reconnect without duplicate rows.
 The repository's `node witness/web-shell.mjs` exercises cold-offline shell and replica restoration.
+
+The invitation worker runs from a private copy of `snapback/`; keep relative
+helpers there. `process.cwd()` starts at `SNAPBACK_PROJECT_DIR` (project root
+in dev, active release in serve). Write application files under that root's
+`data/`, never relative to `import.meta.url`. Host-installed packages are shared;
+arbitrary environment variables are stripped. See `snapback4 guide effects`.

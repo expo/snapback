@@ -190,6 +190,9 @@ impl DevWorker {
 
     // @ref LLP 3000.009#5.3 — serve constructs the child environment explicitly.
     pub(crate) fn start_source(project: &Project, shared: Arc<Shared>, url: String, source: PathBuf, explicit_env: bool) -> Result<Self, String> {
+        // @ref LLP 3000.009#5.3 — a stable application-file base, separate from
+        // the disposable module snapshot and unchanged if Node later chdirs.
+        let project = Project { root: project.root.canonicalize().map_err(|e| format!("worker project: {e}"))? };
         // Preserve the automatic entry spelling. Canonicalizing it here would
         // forget a symlink before the per-launch no-follow snapshot validates it.
         let source = if explicit_env { source.canonicalize().map_err(|e| format!("worker {}: {e}", source.display()))? } else { source };
@@ -335,7 +338,7 @@ impl DevWorker {
         process::isolate(&mut child_command);
         child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry);
         process::retain_owner(&mut child_command, self.shared.worker_owner());
-        match child_command.current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).env("SNAPBACK_WORKER_SUPERVISED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        match child_command.current_dir(&self.project.root).envs(secrets).env("SNAPBACK_PROJECT_DIR", &self.project.root).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).env("SNAPBACK_WORKER_SUPERVISED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
                 use std::io::BufRead;
                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));

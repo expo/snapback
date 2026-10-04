@@ -19,7 +19,12 @@ keep that file with backups. Add your provider call, passing
 The starter does not send or emit notifications until you connect it. Delivery
 is at least once: provider idempotency covers a crash after the call but before
 the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
-contains the complete provider example. There is no separate worker launcher.
+contains the provider and local log recipes. There is no separate worker launcher.
+Workers execute private copies of `snapback/workers/`; keep relative helpers in
+its subdirectories. `process.cwd()` starts at `SNAPBACK_PROJECT_DIR` (project
+root in dev, active release root in serve). Write under that root's `data/`,
+never relative to `import.meta.url`. Dependencies remain host-installed.
+Arbitrary parent environment variables are stripped; declare/select needed secrets.
 
 At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
 `npm run native:smoke` always runs the full Release build. Automatic smoke reuses
@@ -193,3 +198,13 @@ generation changes. Account/backend/client/argument changes clear the draft too.
 `usePage` owns every cursor; no past body/cursor/asset metadata is retained.
 The full Conversation retains the journal, receipts and richer UI. See
 `guide social` for the full bounded source and `guide client` for the contract.
+
+## Quoted messages
+
+`src/QuotedMessage.tsx` is ready to mount with a referenced message ID when adding
+reply UI; this starter has no quote composer. Its `messagePhoto` point read returns
+the whole message, even outside the loaded history page. `readPresentation`
+keeps a stable loading placeholder, renders present text, uses “unavailable” only
+for proven absence, hides denied reads, and keeps partial empty reads uncertain.
+It never caches a previous quote through withdrawal. `snapback4 guide social`
+includes the same component; hold the point read in tests, then settle it.

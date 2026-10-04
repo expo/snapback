@@ -686,7 +686,7 @@ export default worker; await worker.done;
   await until(() => starts().length === 2, "serve restarts its killed child");
   assert.notEqual(starts()[1].pid, owned);
   assert.deepEqual((await f.collect("echo", "serve-second", { message: "second" }, f.token)).result, { value: "second", principal: "service:test-driver" });
-  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED", "MAIL_KEY"]);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_PROJECT_DIR", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED", "MAIL_KEY"]);
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
   for (const start of starts()) { assert.equal(start.declared, true); assert.equal(start.unrelated, null); assert.ok(start.keys.every(key => allowed.has(key)), JSON.stringify(start.keys)); }
   assert.equal(f.log().includes(secret), false); assert.doesNotMatch(f.log(), /token \(printed once\)/);
