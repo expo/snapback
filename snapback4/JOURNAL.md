@@ -86637,3 +86637,13 @@ on eb1000 in this worktree; no sibling processes or worktrees were modified.
 See the [SX report](./reports/20261004-sx-sql-inspection/REPORT.md) for final
 CLI examples, logs and caveats. Local commit with the requested co-author
 trailer; nothing pushed.
+
+## 2026-10-05 — SX round 1: catalog review corrections
+
+Hide all compiler-owned index names and omit indexes over hidden bookkeeping
+columns; both description aliases now refuse private targets by public parent
+column. Corrected the report's qualified-name claim. All 7 SQL, 89 check,
+112 guide and 203 affected client tests pass; 18 CLI probes, reference audit
+and unchanged wasm hash recorded in the [Round 1 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-1--generated-indexes-and-private-target-descriptions).
+No full-suite rerun for this catalog-only change; round 0's red remains recorded.
+Scratch removed, disk below 14.84 GB. Local commit only; nothing pushed.

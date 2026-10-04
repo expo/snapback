@@ -20,7 +20,8 @@ not an authorization-filtered or expiry-filtered application query.
 `snapback4 sql '\d messages'` and `snapback4 sql '.schema messages'`
 describe columns with Quarry types and nullability, maintained columns,
 indexes and unique keys, including implicit `id`. Public maintained views
-name their source. Qualified table names work; lookup is case-insensitive.
+name their source. Lookup is case-insensitive. Qualified names do not apply:
+Quarry table identifiers cannot contain `.`, so `\d scope.messages` is refused.
 `--release dir` and `--json` work for all four spellings. There is no SQL REPL.
 CLI addressing remains the persisted dev store or a release; the memory-store
 proof exercises the catalog directly through `Store::memory()`.
@@ -29,8 +30,10 @@ Catalog JSON contains `header`, `generation`, `tables` and
 `ruleFiltered: false`. Each table has `name`, `kind` and
 `rows: { count, exact }`; an unavailable count is null with a reason.
 Descriptions add `columns`, `indexes` and, for a maintained view,
-`maintainedFrom`. Unnamed indexes keep their complete keys with `name: null`
-and `generated: true`; authored names remain intact. The implicit id key is
+`maintainedFrom`. Displayed compiler-owned indexes keep their complete public
+keys with `name: null` and `generated: true`; authored names remain intact.
+Indexes depending on hidden bookkeeping columns are omitted as a whole.
+The implicit id key is
 listed once, and calendar keys include duration/offset arguments. This is a
 CLI inspection result, not a client wire change.
 
@@ -174,3 +177,68 @@ and `sql-help.txt` show the final CLI output. This commit includes the code,
 guide and starter changes, the comment-only fixture regeneration, governing
 LLP update, journal entry and follow-up issue, with the requested co-author
 trailer. Local commit only; no push.
+
+## Round 1 — generated indexes and private-target descriptions
+
+Base: `98d09e2ebd`. Both round-0 reviews were **READY WITH CHANGES**:
+[Astra review and evidence](../../../../reviews/sx-r0.astra.evidence/REVIEW.md),
+[Grok review](../../../../reviews/sx-r0.grok.md) and
+[Grok probe evidence](../../../../reviews/sx-r0.grok.evidence/probe-summary.json).
+These are the received reviews of round 0, not reviews of this revision.
+
+The scoped context remains LLP 3000.007 §8 (active-generation, read-only
+developer inspection) and LLP 3000.007.001 §3.2 (private-target refusals name
+the parent column). No new design ruling or review hand-off is needed.
+
+1. Every displayed `$`-prefixed index identity is now `name: null` with
+   `generated: true`, including sequence and timeline follower indexes.
+   Index visibility uses the same column visibility as the column list,
+   including calendar and word-index inputs. An index containing a hidden
+   bookkeeping input is omitted entirely, including `$expiry` over `$deadline`
+   and `$children` over a captured deadline. This preserves complete keys;
+   it does not present a shortened tuple as the actual index or unique key.
+   Authored keys, public generated keys, and existing calendar arguments remain.
+2. Both `\d` and `.schema` resolve known private maintained targets
+   case-insensitively before ordinary table lookup and return
+   `E_MAINTAINED_COLUMN_PRIVATE`. The message retains SELECT's public parent
+   column and repair, adds the catalog hint, and never echoes the private name.
+   No SELECT authorizer or store-opening code changed.
+3. The result section above now says that case-insensitive lookup works and
+   qualified names do not apply. A regression explicitly refuses
+   `scope.messages`; the parser accepting one token does not make it a valid
+   Quarry table name.
+
+Tests exercise the actual social/chat starter schemas, extended only in the
+test input with sequence and expiring read-through declarations. They verify
+`$intent`, `$sequence:ordinal`, `$expiry`, `$children`, and timeline follower
+indexes, preserving authored names and full public keys. The maintained-column
+client tests exercise both aliases, original/uppercase private names and both
+JSON/text output, comparing their refusal with SELECT's parent-column message.
+The first new SQL test run had a mistaken assertion that the sequence lookup
+index was unique; corrected against the compiled schema before the passing run.
+
+Round-1 verification, all passing:
+
+- SQL verb: **7 tests**, including populated memory and SQLite stores.
+- Complete `check` integration target: **89 tests**.
+- Guide target: **112 tests**, with unchanged card budgets.
+- Six affected client files: **203 tests**, zero failures/skips, using the
+  rebuilt CLI and two concurrent files on CPUs 24–47. These are periphery,
+  social starter, maintained columns, ordinary/retained history and horizon
+  boundaries, matching the round-0 review scope.
+- **18 CLI probes** record human/JSON catalog and refusal output in
+  `r1-catalog-examples.json`.
+- Reference audit: **527 LLPs / 10,365 refs**, zero errors/unchecked;
+  `git diff --check` passes.
+
+`r1-*.log.gz` preserves the test/build logs, including the initial assertion
+mistake; `r1-verification.json` records the totals and disk accounting. Build
+limits remain eight Cargo jobs, no incremental cache or dev/test debug info.
+The existing wasm artifact hash still matches round 0 exactly; no wasm source
+changed and no rebuild is claimed. Own probe/client scratch was removed.
+Sampled allocation stayed below **14.84 GB**, within the **40 GB** limit.
+
+No full-suite rerun was required for this catalog-and-tests-only runtime
+change. Round 0's recorded full-suite Rust red remains unchanged. The report
+and journal are updated with this local commit and the requested co-author
+trailer; nothing pushed.

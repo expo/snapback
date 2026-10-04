@@ -60,6 +60,16 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts\.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
   const privateSql=command(["sql",`select * from "${privateTarget}"`,"--json"]);
   assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts\.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
+  for(const alias of ["\\d", ".schema"]) for(const target of [privateTarget, privateTarget.toUpperCase()]) for(const json of [false,true]) {
+    const refused=command(["sql",`${alias} ${target}`,...(json?["--json"]:[])]);
+    assert.equal(refused.status,1,refused.stdout+refused.stderr);
+    const output=json?refused.stdout:refused.stderr;
+    assert.match(output,/E_MAINTAINED_COLUMN_PRIVATE/);assert.match(output,/posts\.likeCount/);
+    assert.doesNotMatch(output,/\$column:/i);assert.ok(!output.toLowerCase().includes(privateTarget.slice(8)));
+    const message=json?JSON.parse(output).denied.message:output;
+    assert.ok(message.includes(JSON.parse(privateSql.stdout).denied.message));
+    assert.ok(message.includes("`\\dt` lists tables; `\\d messages` describes one"));
+  }
   const catalog=command(["sql","\\dt","--json"]);
   assert.equal(catalog.status,0,catalog.stderr);assert.doesNotMatch(catalog.stdout,/\$column/);
   assert.equal(JSON.parse(catalog.stdout).tables.length,2);

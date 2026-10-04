@@ -35,6 +35,11 @@ pub(super) fn row_count(conn: &Connection, name: &str, limit: u64) -> Result<u64
 
 pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) -> Result<Vec<Value>> {
     let requested = match command { Command::Tables => None, Command::Describe(name) => Some(name) };
+    // @ref LLP 3000.007.001#3.2 — refusals identify the owning column, never its private target.
+    if let Some(maintain) = schema.maintains.iter().find(|m| m.private.is_some()
+        && requested.is_some_and(|name| m.target.eq_ignore_ascii_case(name))) {
+        return Err(("E_MAINTAINED_COLUMN_PRIVATE", format!("{} is engine-maintained; read its parent column (guide maintains); {CATALOG_HINT}", maintain.label())));
+    }
     if requested.is_some_and(internal) {
         return Err(("E_SQL_INTERNAL", format!("internal tables are refused; {CATALOG_HINT}")));
     }
@@ -54,19 +59,25 @@ pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) 
         };
         let mut description = json!({"name": name, "kind": kind, "rows": rows});
         if requested.is_some() {
+            let public_column = |name: &str| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name);
             let mut columns = vec![json!({"name": "id", "type": "id", "nullable": false})];
             // Match the generated Rows surface: captures, expiry bookkeeping
             // and timeline slots are not application column declarations.
-            columns.extend(table.columns.iter().filter(|(name, _)| name.as_str() != "id"
-                && !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)).map(|(name, kind)|
+            columns.extend(table.columns.iter().filter(|(name, _)| name.as_str() != "id" && public_column(name)).map(|(name, kind)|
                 json!({"name": name, "type": kind.required().to_string(), "nullable": kind.is_optional(),
                     "maintained": table.maintained.contains_key(name)})));
             description["columns"] = json!(columns);
             let mut indexes = vec![json!({"name": "id", "keys": ["id"], "unique": true, "primary": true})];
+            // Omit bookkeeping indexes with hidden inputs rather than presenting
+            // a shortened tuple as the full index (or changing a unique key).
             indexes.extend(table.indexes.iter().filter(|(name, index)|
                 !(name.as_str() == "byId" && index.unique && index.is_plain() && index.columns() == ["id"])
-                && !index.components.iter().any(|c| matches!(c, IndexComponent::Contribution(_))
-                    || c.column().is_some_and(|name| snapback4_core::schema::timeline::is_slot(name)))).map(|(name, index)| {
+                && index.components.iter().all(|c| match c {
+                    IndexComponent::Column(name) => public_column(name),
+                    IndexComponent::Calendar(key) => public_column(&key.column),
+                    IndexComponent::WordPrefixes { fields, .. } => fields.iter().all(|name| public_column(name)),
+                    IndexComponent::Contribution(_) => false,
+                })).map(|(name, index)| {
                 let keys: Vec<_> = index.components.iter().map(|c| match c {
                     IndexComponent::Column(name) => name.clone(),
                     IndexComponent::Calendar(key) => {
@@ -80,7 +91,7 @@ pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) 
                 }).collect();
                 // Generated identities are not authorable index names. Keep the
                 // complete key while distinguishing them from named declarations.
-                let generated = name.starts_with("$intent:");
+                let generated = name.starts_with('$');
                 json!({"name": if generated { None } else { Some(name) }, "keys": keys,
                     "unique": index.unique, "primary": false, "generated": generated})
             }));
@@ -164,6 +175,9 @@ mod tests {
             assert_eq!(code, "E_SQL_INTERNAL");
             assert!(message.contains(CATALOG_HINT));
         }
+        let (code, message) = inspect(conn, &schema, Command::Describe("scope.messages")).unwrap_err();
+        assert_eq!(code, "E_INPUT");
+        assert!(message.contains("no application table named scope.messages"));
         assert!(inspect(conn, &schema, Command::Describe("messages;DELETE")).is_err());
         assert_eq!(conn.total_changes(), before);
         conn.execute_batch("ROLLBACK").unwrap();
@@ -192,6 +206,81 @@ mod tests {
         for feed in feeds { assert!(tables.iter().any(|t| t["name"] == feed && t["kind"] == "timeline")); }
         let posts = inspect(engine.store().conn(), &schema, Command::Describe("posts")).unwrap();
         assert!(!posts[0].to_string().contains("$timeline:"));
+    }
+
+    fn starter_indexes(source: &str, social: bool) {
+        // Extend each real starter with expiry inheritance and automatic
+        // allocation, which the starter apps do not currently declare.
+        let source = format!("{source}\ntable catalogRoots:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  insert <- allow\n  online only\ntable catalogChildren:\n  root: catalogRoots\n  immutable root\n  read through .root\n  insert <- allow\n  online only\ntable catalogSequence:\n  root: catalogRoots\n  ordinal: sequence by root\n  public\n  online only\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let conn = engine.store().conn();
+        let (_, schema) = active_schema(conn).unwrap();
+        let describe = |name| inspect(conn, &schema, Command::Describe(name)).unwrap().remove(0);
+        let sequence = describe("catalogSequence");
+        assert!(schema.tables["catalogSequence"].indexes.contains_key("$sequence:ordinal"));
+        assert!(sequence["indexes"].as_array().unwrap().iter().any(|i|
+            i["keys"] == json!(["root", "ordinal"]) && i["unique"] == false && i["generated"] == true && i["name"].is_null()));
+        let children = describe("catalogChildren");
+        for name in ["$expiry", "$children"] { assert!(schema.tables["catalogChildren"].indexes.contains_key(name)); }
+        assert!(!children.to_string().contains('$'), "{children}");
+        assert_eq!(children["indexes"], json!([{"name":"id", "keys":["id"], "unique":true, "primary":true}]));
+        if social {
+            assert!(schema.tables["typing"].indexes.contains_key("$expiry"));
+            assert!(!describe("typing").to_string().contains('$'));
+            assert!(schema.tables["follows"].indexes.contains_key("$timeline:following:followers"));
+            assert!(describe("follows")["indexes"].as_array().unwrap().iter().any(|i|
+                i["keys"] == json!(["followedId", "followerId"]) && i["generated"] == true && i["name"].is_null()));
+        } else {
+            assert!(describe("messages")["indexes"].as_array().unwrap().iter().any(|i|
+                i["name"] == "byConvTime" && i["generated"] == false && i["keys"] == json!(["conversationId", "at", "id"])));
+        }
+        let mut unnamed = 0;
+        for (name, table) in schema.visible_tables() {
+            let description = describe(name);
+            assert!(!description["columns"].to_string().contains('$'), "{description}");
+            for index in description["indexes"].as_array().unwrap() {
+                assert!(!index.to_string().contains('$'), "{description}");
+                if index["name"].is_null() { unnamed += 1; assert_eq!(index["generated"], true); }
+            }
+            // Every ordinary-column key whose inputs are public survives intact;
+            // verify provenance against the compiled starter, including $intent.
+            for (identity, index) in &table.indexes {
+                if !identity.starts_with('$') || !index.is_plain() || index.columns().iter().any(|c| c.starts_with('$')) { continue; }
+                assert!(description["indexes"].as_array().unwrap().iter().any(|i|
+                    i["keys"] == json!(index.columns()) && i["unique"] == index.unique && i["name"].is_null() && i["generated"] == true), "{identity}: {description}");
+            }
+        }
+        assert!(unnamed > 0);
+    }
+
+    #[test]
+    fn social_starter_index_names_and_keys_are_public() { starter_indexes(include_str!("init/social/schema.q"), true); }
+
+    #[test]
+    fn chat_starter_index_names_and_keys_are_public() { starter_indexes(include_str!("../../../../apps/chat/snapback/schema.q"), false); }
+
+    #[test]
+    fn catalog_private_targets_name_the_parent_column() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let conn = engine.store().conn();
+        let (_, schema) = active_schema(conn).unwrap();
+        assert!(schema.maintains.iter().any(|m| m.private.is_some()));
+        for maintain in schema.maintains.iter().filter(|m| m.private.is_some()) {
+            for name in [&maintain.target, &maintain.target.to_uppercase()] {
+                for alias in ["\\d", ".schema"] {
+                    let input = format!("{alias} {name}");
+                    let (code, message) = inspect(conn, &schema, command(&input).unwrap().unwrap()).unwrap_err();
+                    assert_eq!(code, "E_MAINTAINED_COLUMN_PRIVATE");
+                    assert!(message.contains(&maintain.label()));
+                    assert!(message.contains(CATALOG_HINT));
+                    assert!(!message.to_lowercase().contains(&maintain.target));
+                }
+            }
+        }
     }
 
     #[test]
