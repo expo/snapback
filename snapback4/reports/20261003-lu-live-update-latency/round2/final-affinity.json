@@ -1,0 +1,73 @@
+[
+  {
+    "phase": "native",
+    "load": "setup",
+    "at": "2026-10-04T12:54:58.633253+00:00",
+    "root": 3395234,
+    "processes": 4,
+    "thread_masks": {
+      "80-89": 13
+    },
+    "names": {
+      "python3": 2,
+      "replay-test": 1,
+      "server": 1
+    }
+  },
+  {
+    "phase": "native",
+    "load": 0,
+    "at": "2026-10-04T12:55:06.659116+00:00",
+    "root": 3395234,
+    "processes": 4,
+    "thread_masks": {
+      "80-89": 13
+    },
+    "names": {
+      "python3": 2,
+      "replay-test": 1,
+      "server": 1
+    }
+  },
+  {
+    "phase": "native",
+    "load": 20,
+    "at": "2026-10-04T12:55:58.700943+00:00",
+    "root": 3395234,
+    "processes": 24,
+    "thread_masks": {
+      "80-89": 25
+    },
+    "names": {
+      "python3": 23,
+      "replay-test": 1
+    }
+  },
+  {
+    "phase": "native",
+    "load": 120,
+    "at": "2026-10-04T12:57:50.777187+00:00",
+    "root": 3395234,
+    "processes": 124,
+    "thread_masks": {
+      "80-89": 125
+    },
+    "names": {
+      "python3": 123,
+      "replay-test": 1
+    }
+  },
+  {
+    "phase": "mixed",
+    "load": 120,
+    "at": "2026-10-04T13:01:02.891519+00:00",
+    "root": 3395234,
+    "processes": 62,
+    "thread_masks": {
+      "80-89": 62
+    },
+    "names": {
+      "python3": 62
+    }
+  }
+]

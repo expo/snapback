@@ -1,0 +1,16 @@
+{
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "cpu": "AMD EPYC 9454 48-Core Processor",
+  "cores": 10,
+  "binary": "/home/ccheever/sb4-intent/lane-lu/snapback4/target/lu-r2-main",
+  "binarySha256": "a1b5bce4082d95796a44695f2792da31e2c0f62f0692a7f91691f202e38b110f",
+  "seconds": 125,
+  "levels": [
+    0
+  ],
+  "deadlineOnly": false,
+  "followingBacklog": false,
+  "started": "2026-10-04T12:16:38.755Z"
+}

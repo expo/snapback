@@ -86229,3 +86229,135 @@ three early mini completions. The [report](./reports/20261004-fx-test-races/REPO
 lists every audit fix and preserves the clean run records. Both tickets are
 closed. Large owned targets and scratch were removed, and no other worktree or
 simulator was used. Local commit only; nothing pushed.
+
+## 2026-10-04 — LU round 2: bounded lookahead and preserved CPU repayment
+
+Merged origin/main 2cc55e168c9 (RP, QE2, NL, WD, QF/QF2) before investigating
+the 0.4.13 Darwin replay/upload failures on eb1000. The actual 900-follower
+fixture has no backfills or cleanup: all follows precede the first post.
+Pre-LU 4353aa735c and merged main pass all 30 traced replay trials and all
+60 upload trials at 0/20/120 burners on CPUs 80–89. The reported Darwin
+timeouts are not reproduced, and no Mac is used or qualified.
+
+Following walks now begin with two candidates and grow only while a slice
+can consume them, avoiding repeated decoding of 31 unused followers. Cheap
+empty bulk kinds combine CPU repayment with useful work or the idle cycle.
+Every kind retains its seven-times CPU charge and 100 ms cap; accumulated
+charges are never recapped away, each sleep stays at most 100 ms, and debt
+cannot overlap a timed worker's already scheduled repayment. New deterministic
+regressions cover wide fan-out scan cost, empty-cycle debt and the cap/race
+cases. The durable frozen-P service bound, cursor atomicity, row/rule/meter
+checks, CT admission, deadlines and aged opportunities remain unchanged.
+
+Final paired native trials (five per revision/load) reduce heavy-load p95
+commit-to-900th-copy from 24.920 to 16.055 seconds. These include tracing
+cost, not an uninstrumented production or width-independent wall-time promise.
+The no-burner p95 worsens in a mixture of paced and unpaced runs; the report
+retains all cells. Final web trials use the same frozen SDK, 30 writes per
+shape/load and two remote receivers. Heavy primary p95s are 1,352.9 ms repost,
+1,276.3 ms message and 746.2 ms reaction. Message p95 rises versus main while
+its maximum falls; no universal message win is claimed. No-burner repost p95
+605.3 ms still misses 500 ms and remains in the existing client-publication
+follow-up. One fast receiver has a −9.626 ms raw cross-clock render interval;
+it is retained and does not change the paired primary percentile.
+
+The final CT mixed control passes with 31,476 reads at 12.613 ms p95, all six
+abandoned leases recovered, and schedules, deadlines and expiry serviced.
+All affected tests pass, then the final full suite exits 0 in 1,505 seconds:
+all Rust targets/doctests; CLI units 284 passed/four ignored; clients 6,187
+passed/11 skipped; models 79/79; fixtures 9/9; all build/typecheck/budget steps.
+The initial suite had one native witness proc-inspection refusal, retained in
+an open ticket with passing isolated and whole-target controls. No witness,
+upload or replay timeout/check was weakened. Final qualification follows the
+CPU-debt correction; initial candidate data and development refusals remain
+separate evidence.
+
+Locked wasm is 2,116,457 B raw / 639,750 B gzip under the unchanged 639,887 B
+cap, preserving the 130 B macOS allowance with 7 B beyond it. LLP 3000 §7 and
+LLP 3000.013 §4 describe the policy and its limits. The
+[Round 2 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-2--wide-replay-fan-out-under-contention)
+retains distributions, controls, caveats and artifact hashes. All injected
+load and experimental descendants stayed within ten CPUs through the affinity
+guard; the ordinary suite used a separate CPU allocation. Nothing pushed.
+## 2026-10-04 — DG: calibration #30 worker paths and quoted-message recipes
+
+Published the worker copy/import/cwd/environment rules in `guide effects`, the
+worker reference, starter READMEs and worker comments. `SNAPBACK_PROJECT_DIR`
+now gives every supervised worker the canonical project root (active release
+root on serve), stable across child chdir. The executable recipe writes under
+its `data/`; cross-release output still needs a durable explicit location.
+Named workers now exclude nested `node_modules` from source validation/deploy
+packaging and link host dependencies at launch. Before the fix, project/schema
+links passed but worker/helper-local links reproduced ELOOP. The supplied replay
+record lacks its link targets, so this is not a claim to reproduce that exact
+root-level layout. Source and manifest symlink protections remain intact.
+
+The social starter ships `QuotedMessage`, embedded in `guide social` and linked
+from `guide client`. The existing whole-message point read and `readPresentation`
+distinguish loading, present, absent, denied and partial. Loading keeps the box;
+only proven absence says unavailable; withdrawal retains no protected text.
+The browser holds the point read explicitly and checks each transition; all
+eight social guide blocks typecheck against generated operations. Guide caps
+are unchanged (client 110 lines/1,198 words). Existing LLP 3000.009 §5.3 and
+LLP 3000.031 §7 record the changes.
+
+On eb1000 only: guide 112/112; canonical full suite completed in 1,656 s with
+one failed stage (clients: 6,202 pass, two stale environment-allowlist assertions,
+11 skips). All Rust/doctests, builds/typechecks, nine fixture wrappers and
+79/79 serial models passed. The worker regression file passed 77/77. Both
+allowlists were corrected and both complete files passed 44/44; final path
+cases passed 18/18. Runtime code was unchanged after the full-suite build.
+An earlier affected run overlapped a CLI rebuild and failed two restart tests
+with ENOENT; both passed on stable bytes and in the canonical run. Those failed
+runs remain failed in the [report and logs](./reports/20261004-dg-cal30-doc-gaps/REPORT.md).
+No Mac contacted, push or publication; no native-UI-layout claim.
+
+## 2026-10-04 — SU: held serve clients include their fixture's work budget
+
+On eb1000 only, reproduced the upload client's three-second read timeout on
+unchanged `2154dc163d`: **50/50 failures** at the original read/join sites.
+Eight CPU hogs and the test shared CPUs 0–1; an external shim stalled only
+the driver for four seconds after both uploads parked. The fixed test
+passed **50/50** with the same confinement, hogs and stall. A 25-second stall
+still fails, witnessing the finite bound.
+
+Held clients now share one absolute connect/write/read deadline: the driver's
+bounded setup/probes plus 15 seconds. Uploads get 23 seconds; the longest
+worker-adoption case gets 55. Its two post-claim setup waits share 30 seconds;
+earlier child startup/exit guards remain 60 seconds. The audit corrected
+20 test cases across auth, adoption, delivery, detached sync, latency and
+spawn-failure dispatch. Delivery and effect gates also release on panic.
+All existing assertions, variants, seeds and short progress probes remain;
+no product timeout or production source changed.
+
+The serve target passes 189 tests with four existing ignores. The full suite
+ran on CPUs 8–31 and finished in **2,382 seconds, exit 1**: Rust has 4,968
+passes, 33 existing ignores and 17 passing doctests; all 79 serial models
+pass. The 311-file client pool has 6,185 passes, two failures and 11 skips.
+The two failures are unchanged fixtures: scheduled-job crash recovery saw
+`done` after a queued snapshot, and the watchdog SIGTERM helper liveness
+assertion saw `true` after waiting for `false`. Both pass isolated reruns;
+the full result remains red. Follow-ups are
+[scheduled-job crash cut](../issues/20261004-snapback4-scheduled-job-crash-cut-race.md)
+and [watchdog helper liveness](../issues/20261004-snapback4-watchdog-helper-liveness-fixture.md).
+
+The [SU report](./reports/20261004-su-serve-upload-timeout/REPORT.md) lists
+all 20 cases, budgets, reproduction code and retained logs. Reference checking
+passes; the affected LLP decisions remain applicable. Sampled worktree plus
+scratch use stayed below 24.1 GB; scratch was removed. Lane FX's worktree
+was untouched. Local commit only; nothing pushed or published.
+
+
+## 2026-10-04 — LU round 3: preserve outstanding maintenance repayment
+
+Fixed Astra's P2: slice completion now appends its charge after any outstanding
+repayment, including an empty-cycle flush that races the aged worker. The new
+deterministic regression fails on round 2 (70 ms retained instead of 130 ms);
+both orderings, the 240 ms debt case, aged/expiry service, fairness, timeline
+and live-latency checks pass. Three paired heavy replay trials per revision on
+CPUs 80–89 retain comparable 900-follower completion: round 3 11.742–13.289 s,
+round 2 12.820–15.974 s; these are sample ranges, not stable tail percentiles.
+Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
+Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
+LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
+record the correction and evidence. Local commit on b0e17cec74; nothing pushed.

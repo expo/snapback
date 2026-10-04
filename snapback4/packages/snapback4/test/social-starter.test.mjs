@@ -105,7 +105,7 @@ test("published social starter and guide snippets typecheck against generated op
   const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
-  assert.equal(snippets.length, 7);
+  assert.equal(snippets.length, 8);
   for (const [, name, source] of snippets) {
     assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
     writeFileSync(join(dir, name), source); // Compile the emitted guide text.

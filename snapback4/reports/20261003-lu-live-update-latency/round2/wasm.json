@@ -1,0 +1,11 @@
+{
+  "raw": 2116457,
+  "gzip": 639750,
+  "gzip_command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "cap": 639887,
+  "headroom": 137,
+  "reserved_macos_allowance": 130,
+  "macos_measured": false,
+  "sha256": "55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1",
+  "matches_frozen_browser_sdk": true
+}

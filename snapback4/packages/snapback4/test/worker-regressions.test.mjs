@@ -3,9 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync, chmodSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync, chmodSync, statSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -225,6 +225,44 @@ else console.log(JSON.stringify(values));`);
   await until(() => existsSync(join(s.workdir, 'package-result')) || s.log.includes('ERR_MODULE_NOT_FOUND'));
   assert.equal(s.log.includes('ERR_MODULE_NOT_FOUND'), false, s.log);
   assert.deepEqual(JSON.parse(readFileSync(join(s.workdir, 'package-result'), 'utf8')), expected);
+});
+
+for (const [mode, kind] of [['dev','named'], ['serve','named'], ['dev','conventional']]) for (const scope of ['', 'snapback', 'snapback/workers', 'snapback/workers/helpers'])
+test(`${mode} ${kind} snapshot uses symlinked dependencies at ${scope || 'project root'}`, async t => {
+  const f = fixture(t, `import value from './helpers/value.mjs';
+import {mkdirSync,writeFileSync} from 'node:fs';
+mkdirSync('data',{recursive:true});
+writeFileSync('data/package-result',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+setInterval(()=>{},1000);`);
+  if (kind === 'conventional') {
+    const named = join(f.dir,'snapback/workers/push.mjs');
+    writeFileSync(join(f.dir,'snapback/worker.mjs'), readFileSync(named,'utf8').replace('./helpers/value.mjs','./workers/helpers/value.mjs'));
+    rmSync(named);
+  }
+  mkdirSync(join(f.dir, 'snapback/workers/helpers'));
+  writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "import value from 'dg-package';export default value;");
+  // Both the dependency directory and the installed package use relative links,
+  // as in a replay checkout borrowing an existing workspace installation.
+  const packages = join(f.dir, 'installed/node_modules'), actual = join(f.dir, 'installed/actual');
+  mkdirSync(packages, {recursive:true}); mkdirSync(actual);
+  writeFileSync(join(actual, 'package.json'), JSON.stringify({name:'dg-package',type:'module',exports:'./index.js'}));
+  writeFileSync(join(actual, 'index.js'), "export default 'host dependency';");
+  symlinkSync('../actual', join(packages, 'dg-package'));
+  symlinkSync(relative(join(f.dir, scope), packages), join(f.dir, scope, 'node_modules'));
+  if (mode === 'serve') {
+    const deployed = spawnSync(binary, ['deploy', join(f.dir, 'release')], {cwd:f.dir,encoding:'utf8'});
+    assert.equal(deployed.status, 0, deployed.stderr);
+    const installed = join(f.dir, 'release/releases/1', scope, 'node_modules');
+    assert.equal(existsSync(installed), false, 'deploy ships source, never host dependencies');
+    symlinkSync(relative(join(installed, '..'), packages), installed);
+  }
+  const s = await f.start([], {}, false, mode);
+  await until(() => existsSync(join(s.workdir, 'data/package-result')) || /ERR_MODULE_NOT_FOUND|workers:/.test(s.log));
+  assert.equal(/ERR_MODULE_NOT_FOUND|workers:/.test(s.log), false, s.log);
+  const result = JSON.parse(readFileSync(join(s.workdir, 'data/package-result'), 'utf8'));
+  assert.equal(result.value, 'host dependency');
+  assert.equal(result.cwd, realpathSync(s.workdir));
+  assert.ok(fileURLToPath(result.module).startsWith(join(realpathSync(s.workdir), '.snapback4/worker-')));
 });
 
 test('standalone worker reports errors containing its bearer with automatic redaction', async () => {
@@ -678,7 +716,7 @@ writeFileSync('environment-result.tmp',JSON.stringify({keys:Object.keys(process.
   await until(() => existsSync(join(s.workdir, 'environment-result')));
   const actual = JSON.parse(readFileSync(join(s.workdir, 'environment-result'), 'utf8'));
   assert.equal(actual.preloaded, false, 'only validated project source runs before its declared imports');
-  const allowed = ['PATH','HOME','TMPDIR','LANG','LC_ALL','TZ','SNAPBACK_URL','SNAPBACK_SERVICE_TOKEN','SNAPBACK_WORKER_LEDGER','SNAPBACK_WORKER_SUPERVISED'];
+  const allowed = ['PATH','HOME','TMPDIR','LANG','LC_ALL','TZ','SNAPBACK_URL','SNAPBACK_SERVICE_TOKEN','SNAPBACK_PROJECT_DIR','SNAPBACK_WORKER_LEDGER','SNAPBACK_WORKER_SUPERVISED'];
   if (process.platform === 'darwin') allowed.push('__CF_USER_TEXT_ENCODING');
   assert.deepEqual(actual.keys.filter(key => !allowed.includes(key)), []);
 });
@@ -767,4 +805,33 @@ import {writeFileSync,renameSync} from 'node:fs';writeFileSync('checked-value.tm
     await until(()=>existsSync(join(f.dir,'checked-value')));
     assert.equal(readFileSync(join(f.dir,'checked-value'),'utf8'),'validated');
   }
+});
+
+for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs'], ['serve','external.mjs']])
+test(`${mode} ${entry} runs the published file-output recipe in the project data directory`, async t => {
+  const guide = spawnSync(binary, ['guide','effects'], {encoding:'utf8'});
+  assert.equal(guide.status, 0, guide.stderr);
+  const recipe = guide.stdout.split('## Worker files and imports')[1].match(/```js\n([\s\S]*?)```/)[1];
+  const reference = readFileSync(fileURLToPath(new URL('../CLIENT-AND-OPERATIONS.md', import.meta.url)), 'utf8')
+    .split('#### Worker files, modules and runtime paths')[1].match(/```js\n([\s\S]*?)```/)[1];
+  assert.equal(recipe, reference, 'both published entry points teach the same runnable recipe');
+  const f = fixture(t);
+  const source = join(f.dir, 'snapback', entry);
+  writeFileSync(source, recipe + `
+await recordPush({text:'acceptance'}, {idempotencyKey:'stable-key'});
+const {writeFileSync}=await import('node:fs');
+writeFileSync('paths.json',JSON.stringify({projectDir:process.env.SNAPBACK_PROJECT_DIR,cwd:process.cwd(),module:import.meta.url}));
+process.chdir('/');
+await recordPush({text:'after chdir'}, {idempotencyKey:'next-key'});
+setInterval(()=>{},1000);
+`);
+  const s = await f.start(mode === 'serve' && entry === 'external.mjs' ? ['--worker',source] : [],
+    {SNAPBACK_PROJECT_DIR:'/must-not-inherit'}, false, mode);
+  const log = join(s.workdir,'data/push-log.jsonl');
+  await until(() => rows(log).length === 2);
+  assert.deepEqual(rows(log), [{id:'stable-key',payload:{text:'acceptance'}},{id:'next-key',payload:{text:'after chdir'}}]);
+  const paths=JSON.parse(readFileSync(join(s.workdir,'paths.json'),'utf8'));
+  assert.equal(paths.projectDir,realpathSync(s.workdir)); assert.equal(paths.cwd,realpathSync(s.workdir));
+  if(entry === 'external.mjs') assert.equal(fileURLToPath(paths.module),realpathSync(source));
+  else assert.ok(fileURLToPath(paths.module).startsWith(join(realpathSync(s.workdir),'.snapback4/worker-')));
 });

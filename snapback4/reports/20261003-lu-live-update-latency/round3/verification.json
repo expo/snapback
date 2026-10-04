@@ -1,0 +1,197 @@
+{
+  "base": "b0e17cec74f2420cc7f02f2b852a0532f2796559",
+  "candidate": "round-3 change in this commit",
+  "host": "eb1000 (expose-builder-pixel)",
+  "cwd": "snapback4",
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "12",
+    "LU_TEST_CPUS": "90-91"
+  },
+  "affinity": {
+    "replay": "80-89",
+    "ordinary_verification": "0-31,48-79",
+    "suite_contention": "90-91"
+  },
+  "checks": [
+    {
+      "check": "affected-maintenance",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "serve::maintenance::tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 43.478161573410034,
+      "artifact": {
+        "path": "snapback4/target/lu-r3/affected-maintenance.log",
+        "bytes": 2317,
+        "sha256": "d55116e5ff09e30925e5a4bb9a2e668b7c568d976607abdddf088eee91af9336"
+      },
+      "results": [
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 280 filtered out; finished in 0.07s"
+      ]
+    },
+    {
+      "check": "affected-timeline",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "timeline_background",
+        "--test",
+        "timeline_fairness",
+        "--test",
+        "timeline_live_latency",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 38.553256034851074,
+      "artifact": {
+        "path": "snapback4/target/lu-r3/affected-timeline.log",
+        "bytes": 4204,
+        "sha256": "0b703a7043bc2fa0c67ff5d4fc9474bd498625556fb95c638f8d198334da0ada"
+      },
+      "results": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s"
+      ]
+    },
+    {
+      "check": "affected-replay",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "replay",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 28.59904932975769,
+      "artifact": {
+        "path": "snapback4/target/lu-r3/affected-replay.log",
+        "bytes": 22125,
+        "sha256": "669cf6f10a6ed1421fd5a38d6574399647af0848165a2859773047187b842929"
+      },
+      "results": [
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.41s"
+      ]
+    },
+    {
+      "check": "full-suite",
+      "command": [
+        "bash",
+        "scripts/test.sh"
+      ],
+      "exit": 0,
+      "seconds": 1957.0475478172302,
+      "artifact": {
+        "path": "snapback4/target/lu-r3/full-suite.log",
+        "bytes": 1886633,
+        "sha256": "f3ecd0666e02eeedbb9c720d80b8013d0a8bd43355ba0f29cd96a541b2adb0b9"
+      },
+      "results": [
+        "-- ok: cargo build (23 s)",
+        "-- ok: wasm build (68 s)",
+        "-- ok: docs budget (17 s)",
+        "-- ok: release guard (9 s)",
+        "-- ok: package typecheck (3 s)",
+        "-- ok: package build (2 s)",
+        "-- ok: chat app check (0 s)",
+        "-- ok: cargo test (886 s)",
+        "-- ok: chat app typecheck (1 s)",
+        "-- ok: expo app typecheck (1 s)",
+        "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+        "-- ok: fixture wrapper tests (11 s)",
+        "-- client files: 311/311; failed 0; tests {\"tests\":6198,\"pass\":6187,\"fail\":0,\"cancelled\":0,\"skipped\":11,\"todo\":0}",
+        "-- ok: client tests (638 s)",
+        "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+        "-- ok: client models (311 s)",
+        "== 0 failure(s) in 1957 s"
+      ]
+    }
+  ],
+  "negative_control": {
+    "exit": 101,
+    "assertion": "70ms retained; 130ms expected",
+    "artifact": {
+      "path": "snapback4/target/lu-r3/negative.log",
+      "bytes": 839,
+      "sha256": "adf3477f29f069e8a6b22731f02071255c98ed85eb6d5629b64e7afdc4377226"
+    }
+  },
+  "replay": {
+    "exit": 0,
+    "environment": {
+      "LU_LABELS": "r2,r3",
+      "LU_RUNS": "3",
+      "LU_UPLOAD_RUNS": "0",
+      "LU_LEVELS": "120",
+      "LU_TAG": "round3"
+    },
+    "results": "replay.csv",
+    "binary_sha256": {
+      "r2": {
+        "server": "775fbf9db96ca329de47200313892b2f2ee6bd63028f846f590042f8165d5b90",
+        "replay-test": "236eca47da64e255480066ce76681b2922c9c4f3976c26e8b529dad9f9e87bdf"
+      },
+      "r3": {
+        "server": "ba421c731a961b1a35c02f478ab91ac95cc8779f5cc11c1da90ce83a52829355",
+        "replay-test": "236eca47da64e255480066ce76681b2922c9c4f3976c26e8b529dad9f9e87bdf"
+      }
+    },
+    "build_logs": [
+      {
+        "path": "snapback4/target/lu-r3/build-r2.log",
+        "bytes": 2712,
+        "sha256": "a548cfd01e63c08abbc572efd7d3c07e9559c6f071ef89a192cc5fbffa812fe2"
+      },
+      {
+        "path": "snapback4/target/lu-r3/build-r3.log",
+        "bytes": 536,
+        "sha256": "0eac2715cf85b82629cd7044714b040f051bb6ca1b9533b72c647806f1cafce5"
+      }
+    ]
+  },
+  "wasm": {
+    "raw_bytes": 2116457,
+    "gzip_bytes": 639750,
+    "budget_gzip_bytes": 639887,
+    "macos_allowance_bytes": 130
+  },
+  "disk": {
+    "maximum_sampled_worktree_bytes": 14085586944,
+    "samples": 70,
+    "artifact": {
+      "path": "snapback4/target/lu-r3/disk.jsonl",
+      "bytes": 4911,
+      "sha256": "d063fa7083005126319db57b9d7fee5036345e61ecd12f16dc439bf01f029d35"
+    },
+    "note": "du snapshots during tests can race deletion of temporary databases; raw samples retain exit codes where available."
+  },
+  "ref_check": {
+    "exit": 0,
+    "result": "ref-check: ok \u2014 527 LLP docs, 10342 refs in 34415 files, 0 errors, 0 unchecked",
+    "artifact": {
+      "path": "snapback4/target/lu-r3/ref-check.log",
+      "bytes": 81,
+      "sha256": "d893771229d292c6232d475fe920db3405c7ad01ce3b98b31b54da46db7f2430"
+    }
+  }
+}

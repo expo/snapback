@@ -1,0 +1,182 @@
+[
+  {
+    "label": "main",
+    "trial": 0,
+    "exit": 0,
+    "seconds": 1.3976707458496094,
+    "log": "target/lu-r2/witness-valid-main-0.log",
+    "raw_bytes": 460,
+    "raw_sha256": "eaae7991f8be1d056192601fd5b500e86abc877459f8adc60f6b47578d1ab245"
+  },
+  {
+    "label": "after",
+    "trial": 0,
+    "exit": 0,
+    "seconds": 1.4202423095703125,
+    "log": "target/lu-r2/witness-valid-after-0.log",
+    "raw_bytes": 460,
+    "raw_sha256": "8227aba873ead1f174fa7c036a6583d741251e6f9a24d6fb6e952364ade01bbb"
+  },
+  {
+    "label": "main",
+    "trial": 1,
+    "exit": 0,
+    "seconds": 1.3549606800079346,
+    "log": "target/lu-r2/witness-valid-main-1.log",
+    "raw_bytes": 460,
+    "raw_sha256": "a409275e396760647991dbd5a9fd46cd49d91e8cdd0fe97103523d63e37c2c74"
+  },
+  {
+    "label": "after",
+    "trial": 1,
+    "exit": 0,
+    "seconds": 1.38810396194458,
+    "log": "target/lu-r2/witness-valid-after-1.log",
+    "raw_bytes": 460,
+    "raw_sha256": "2c1a3d6e3c91318bc6ebbb346735fac38b03326b03f0f8f67e902721b241017a"
+  },
+  {
+    "label": "main",
+    "trial": 2,
+    "exit": 0,
+    "seconds": 1.3668346405029297,
+    "log": "target/lu-r2/witness-valid-main-2.log",
+    "raw_bytes": 460,
+    "raw_sha256": "b0ef31cdc078278293cfa19f3611190bc77fb5054a9ce9c1f071c8ec7aed457a"
+  },
+  {
+    "label": "after",
+    "trial": 2,
+    "exit": 0,
+    "seconds": 1.3869407176971436,
+    "log": "target/lu-r2/witness-valid-after-2.log",
+    "raw_bytes": 460,
+    "raw_sha256": "c2caa1b431553905488944b84e013da5b4dd4bd2e55bf294f4de6d67ae75dd88"
+  },
+  {
+    "label": "main",
+    "trial": 3,
+    "exit": 0,
+    "seconds": 1.373462438583374,
+    "log": "target/lu-r2/witness-valid-main-3.log",
+    "raw_bytes": 460,
+    "raw_sha256": "b6bd03e50f921899d10bba73073e56a862a8395710c7801f4c5e1b02ebf74a2d"
+  },
+  {
+    "label": "after",
+    "trial": 3,
+    "exit": 0,
+    "seconds": 1.4110658168792725,
+    "log": "target/lu-r2/witness-valid-after-3.log",
+    "raw_bytes": 460,
+    "raw_sha256": "8cb73cc4f2cd2e997e076e4d482a391e7f388cafff03db95ae4e64b269f7c7c1"
+  },
+  {
+    "label": "main",
+    "trial": 4,
+    "exit": 0,
+    "seconds": 1.2732102870941162,
+    "log": "target/lu-r2/witness-valid-main-4.log",
+    "raw_bytes": 460,
+    "raw_sha256": "40b44e900ab7d15555934d0b652d62752f21baa2ad2c4dd704954266c366b573"
+  },
+  {
+    "label": "after",
+    "trial": 4,
+    "exit": 0,
+    "seconds": 1.3808209896087646,
+    "log": "target/lu-r2/witness-valid-after-4.log",
+    "raw_bytes": 460,
+    "raw_sha256": "35b45f7720bc6a23f07aad371574ab345267be541099e9ab0387abe6c853c594"
+  },
+  {
+    "label": "main",
+    "trial": 5,
+    "exit": 0,
+    "seconds": 1.4168453216552734,
+    "log": "target/lu-r2/witness-valid-main-5.log",
+    "raw_bytes": 460,
+    "raw_sha256": "9d4a7034b38c6ce6fe36219c8242b4370f8eb6521708fffb028dca672c77e157"
+  },
+  {
+    "label": "after",
+    "trial": 5,
+    "exit": 0,
+    "seconds": 1.2995171546936035,
+    "log": "target/lu-r2/witness-valid-after-5.log",
+    "raw_bytes": 460,
+    "raw_sha256": "ec347cc70730cd9256ec4aba7e21e92ecbf876d5c3b09c3926ce5aa62c0193e9"
+  },
+  {
+    "label": "main",
+    "trial": 6,
+    "exit": 0,
+    "seconds": 1.3502106666564941,
+    "log": "target/lu-r2/witness-valid-main-6.log",
+    "raw_bytes": 460,
+    "raw_sha256": "5d90adfa901cedfb167194d87069e11b560d0b16fd24e9f0834a9f1e13772fe0"
+  },
+  {
+    "label": "after",
+    "trial": 6,
+    "exit": 0,
+    "seconds": 1.4797868728637695,
+    "log": "target/lu-r2/witness-valid-after-6.log",
+    "raw_bytes": 460,
+    "raw_sha256": "2ce86f7f331bc015ae21606a5ed03f3338adad513fbc4e7a6c9bf449815c5e37"
+  },
+  {
+    "label": "main",
+    "trial": 7,
+    "exit": 0,
+    "seconds": 1.3413405418395996,
+    "log": "target/lu-r2/witness-valid-main-7.log",
+    "raw_bytes": 460,
+    "raw_sha256": "224639fdc763e5d0550e29042ad76fe5c9512e86345b2f0d0b5168689d06bbb5"
+  },
+  {
+    "label": "after",
+    "trial": 7,
+    "exit": 0,
+    "seconds": 1.3598592281341553,
+    "log": "target/lu-r2/witness-valid-after-7.log",
+    "raw_bytes": 460,
+    "raw_sha256": "62eb48a8be9304793f8a37ba4d851d86a15b8d1597e0b26d5507c86064225ccb"
+  },
+  {
+    "label": "main",
+    "trial": 8,
+    "exit": 0,
+    "seconds": 1.3304178714752197,
+    "log": "target/lu-r2/witness-valid-main-8.log",
+    "raw_bytes": 460,
+    "raw_sha256": "0dc6a9f36a7fa7295050924b1265a4fdac62a2058a86f3bd6065f0861748136f"
+  },
+  {
+    "label": "after",
+    "trial": 8,
+    "exit": 0,
+    "seconds": 1.407343864440918,
+    "log": "target/lu-r2/witness-valid-after-8.log",
+    "raw_bytes": 460,
+    "raw_sha256": "cb90f255e0dfe375ee1df049e23d05dc49b6a3080d88d7db639fdef1ed803fb4"
+  },
+  {
+    "label": "main",
+    "trial": 9,
+    "exit": 0,
+    "seconds": 1.3610310554504395,
+    "log": "target/lu-r2/witness-valid-main-9.log",
+    "raw_bytes": 460,
+    "raw_sha256": "b983241af3f7a48eee076a37ce6acf8352921fe0ecfb4044f0380ca88d9dc2a6"
+  },
+  {
+    "label": "after",
+    "trial": 9,
+    "exit": 0,
+    "seconds": 1.3459932804107666,
+    "log": "target/lu-r2/witness-valid-after-9.log",
+    "raw_bytes": 460,
+    "raw_sha256": "0708a447621cb5cc7f779cb9dadd3e9683669577a7e5fb4109053392bfd309fe"
+  }
+]

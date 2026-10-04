@@ -1,0 +1,706 @@
+{
+  "baseline": [
+    {
+      "run": 1,
+      "exit": 101,
+      "seconds": 4.093,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 2,
+      "exit": 101,
+      "seconds": 4.089,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 3,
+      "exit": 101,
+      "seconds": 4.084,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 4,
+      "exit": 101,
+      "seconds": 4.089,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 5,
+      "exit": 101,
+      "seconds": 4.074,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 6,
+      "exit": 101,
+      "seconds": 4.093,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 7,
+      "exit": 101,
+      "seconds": 4.115,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 8,
+      "exit": 101,
+      "seconds": 4.112,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 9,
+      "exit": 101,
+      "seconds": 4.115,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 10,
+      "exit": 101,
+      "seconds": 4.11,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 11,
+      "exit": 101,
+      "seconds": 4.107,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 12,
+      "exit": 101,
+      "seconds": 4.121,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 13,
+      "exit": 101,
+      "seconds": 4.108,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 14,
+      "exit": 101,
+      "seconds": 4.113,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 15,
+      "exit": 101,
+      "seconds": 4.098,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 16,
+      "exit": 101,
+      "seconds": 4.103,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 17,
+      "exit": 101,
+      "seconds": 4.091,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 18,
+      "exit": 101,
+      "seconds": 4.097,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 19,
+      "exit": 101,
+      "seconds": 4.101,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 20,
+      "exit": 101,
+      "seconds": 4.103,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 21,
+      "exit": 101,
+      "seconds": 4.122,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 22,
+      "exit": 101,
+      "seconds": 4.103,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 23,
+      "exit": 101,
+      "seconds": 4.11,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 24,
+      "exit": 101,
+      "seconds": 4.106,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 25,
+      "exit": 101,
+      "seconds": 4.101,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 26,
+      "exit": 101,
+      "seconds": 4.104,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 27,
+      "exit": 101,
+      "seconds": 4.12,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 28,
+      "exit": 101,
+      "seconds": 4.097,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 29,
+      "exit": 101,
+      "seconds": 4.097,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 30,
+      "exit": 101,
+      "seconds": 4.108,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 31,
+      "exit": 101,
+      "seconds": 4.117,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 32,
+      "exit": 101,
+      "seconds": 4.122,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 33,
+      "exit": 101,
+      "seconds": 4.115,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 34,
+      "exit": 101,
+      "seconds": 4.099,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 35,
+      "exit": 101,
+      "seconds": 4.111,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 36,
+      "exit": 101,
+      "seconds": 4.117,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 37,
+      "exit": 101,
+      "seconds": 4.11,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 38,
+      "exit": 101,
+      "seconds": 4.152,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 39,
+      "exit": 101,
+      "seconds": 4.112,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 40,
+      "exit": 101,
+      "seconds": 4.115,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 41,
+      "exit": 101,
+      "seconds": 4.117,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 42,
+      "exit": 101,
+      "seconds": 4.104,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 43,
+      "exit": 101,
+      "seconds": 4.1,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 44,
+      "exit": 101,
+      "seconds": 4.097,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 45,
+      "exit": 101,
+      "seconds": 4.093,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 46,
+      "exit": 101,
+      "seconds": 4.11,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 47,
+      "exit": 101,
+      "seconds": 4.103,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 48,
+      "exit": 101,
+      "seconds": 4.11,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 49,
+      "exit": 101,
+      "seconds": 4.113,
+      "injected": true,
+      "client_timeout": true
+    },
+    {
+      "run": 50,
+      "exit": 101,
+      "seconds": 4.116,
+      "injected": true,
+      "client_timeout": true
+    }
+  ],
+  "fixed": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 4.093,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 4.132,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 4.137,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "seconds": 4.153,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "seconds": 4.134,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "seconds": 4.198,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "seconds": 4.128,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "seconds": 4.155,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "seconds": 4.153,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 10,
+      "exit": 0,
+      "seconds": 4.153,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 11,
+      "exit": 0,
+      "seconds": 4.179,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 12,
+      "exit": 0,
+      "seconds": 4.168,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 13,
+      "exit": 0,
+      "seconds": 4.166,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 14,
+      "exit": 0,
+      "seconds": 4.141,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 15,
+      "exit": 0,
+      "seconds": 4.149,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 16,
+      "exit": 0,
+      "seconds": 4.165,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 17,
+      "exit": 0,
+      "seconds": 4.182,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 18,
+      "exit": 0,
+      "seconds": 4.153,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 19,
+      "exit": 0,
+      "seconds": 4.162,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 20,
+      "exit": 0,
+      "seconds": 4.134,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 21,
+      "exit": 0,
+      "seconds": 4.167,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 22,
+      "exit": 0,
+      "seconds": 4.09,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 23,
+      "exit": 0,
+      "seconds": 4.157,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 24,
+      "exit": 0,
+      "seconds": 4.192,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 25,
+      "exit": 0,
+      "seconds": 4.212,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 26,
+      "exit": 0,
+      "seconds": 4.187,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 27,
+      "exit": 0,
+      "seconds": 4.19,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 28,
+      "exit": 0,
+      "seconds": 4.142,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 29,
+      "exit": 0,
+      "seconds": 4.177,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 30,
+      "exit": 0,
+      "seconds": 4.135,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 31,
+      "exit": 0,
+      "seconds": 4.167,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 32,
+      "exit": 0,
+      "seconds": 4.177,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 33,
+      "exit": 0,
+      "seconds": 4.175,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 34,
+      "exit": 0,
+      "seconds": 4.116,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 35,
+      "exit": 0,
+      "seconds": 4.166,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 36,
+      "exit": 0,
+      "seconds": 4.162,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 37,
+      "exit": 0,
+      "seconds": 4.15,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 38,
+      "exit": 0,
+      "seconds": 4.152,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 39,
+      "exit": 0,
+      "seconds": 4.153,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 40,
+      "exit": 0,
+      "seconds": 4.137,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 41,
+      "exit": 0,
+      "seconds": 4.155,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 42,
+      "exit": 0,
+      "seconds": 4.06,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 43,
+      "exit": 0,
+      "seconds": 4.138,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 44,
+      "exit": 0,
+      "seconds": 4.162,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 45,
+      "exit": 0,
+      "seconds": 4.145,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 46,
+      "exit": 0,
+      "seconds": 4.108,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 47,
+      "exit": 0,
+      "seconds": 4.098,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 48,
+      "exit": 0,
+      "seconds": 4.084,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 49,
+      "exit": 0,
+      "seconds": 4.162,
+      "injected": true,
+      "client_timeout": false
+    },
+    {
+      "run": 50,
+      "exit": 0,
+      "seconds": 4.136,
+      "injected": true,
+      "client_timeout": false
+    }
+  ]
+}

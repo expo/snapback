@@ -60,7 +60,7 @@ Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/b
 Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
-`guide social`: tested route-owned screen with bounded point bodies, generation resets and hidden-route cleanup.
+`guide social`: quoted-message point reads distinguish loading/absence/denial; bounded route-owned screens preserve drafts.
 
 ## Row queries
 Shared observations avoid repetition. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.

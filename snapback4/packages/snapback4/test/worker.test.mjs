@@ -739,7 +739,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   await until(() => { if (child.exitCode != null) throw Error(log); return url; });
   const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };
   await until(() => starts().length === 1);
-  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED"]);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_PROJECT_DIR", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED"]);
   assert.equal(starts()[0].inherited, null);
   // macOS synthesizes this variable inside the child; it is not inherited.
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");

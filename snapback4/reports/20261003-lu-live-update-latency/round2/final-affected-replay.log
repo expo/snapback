@@ -1,0 +1,209 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 3.57s
+     Running tests/replay.rs (target/debug/deps/replay-5a06cca8524955c0)
+
+running 22 tests
+test host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits ... ok
+test host_limits::tests::hard_capped_1024_warns_without_attempting_a_setter ... ok
+test host_limits::tests::doctor_uses_the_live_servers_effective_limit ... ok
+test host_limits::tests::inherited_hard_cap_requires_operator_remediation ... ok
+test host_limits::tests::inherited_macos_limit_accounts_for_open_max_and_lower_host_ceilings ... ok
+test host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause ... ok
+test host_limits::tests::inherited_linux_default_needs_no_operator_remediation ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+test help_lists_both_replay_holds ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+test changed_schedule_shape_releases_at_first_boundary ... ok
+test replay_is_refused_outside_dev_and_for_release_directories ... ok
+snapback4 dev: http://127.0.0.1:38947  (schema: snapback/, types: /tmp/sb4-replay-3656138-schedules/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-schedules/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:35315  (schema: snapback/, types: /tmp/sb4-replay-3656138-w7c-tokens/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-w7c-tokens/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: http://127.0.0.1:38347  (schema: snapback/, types: /tmp/sb4-replay-3656138-competing-port/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-competing-port/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:37049  (schema: snapback/, types: /tmp/sb4-replay-3656138-busy-listener/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-busy-listener/.snapback4/store.sqlite
+store: /tmp/sb4-replay-3656138-w7c-banner-None/.snapback4/store.sqlite
+snapback4 dev: http://127.0.0.1:34951  (schema: snapback/, types: /tmp/sb4-replay-3656138-release-policy/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-release-policy/.snapback4/store.sqlite
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+snapback4 dev: http://127.0.0.1:45055  (schema: snapback/, types: /tmp/sb4-replay-3656138-startup-policy/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-startup-policy/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+snapback4 0.4.12
+  project   /tmp/sb4-replay-3656138-startup-policy
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    ok: 1 tables, 0 synced, 2 operations
+  server    HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+  store     /tmp/sb4-replay-3656138-startup-policy/.snapback4/store.sqlite at seq 1, generation 1
+  latency   since 1791118531844 (Unix ms); total / acquisition wait / engine / thread CPU in ms
+  latency   /m/send: n=1 refused=0 total p50=0.883 p95=0.883 p99=0.883 max=0.911; wait p50=0.001 p95=0.001 p99=0.001 max=0.001; engine p50=0.636 p95=0.636 p99=0.636 max=0.636; cpu n=1 p50=0.663 p95=0.663 p99=0.663 max=0.670
+  latency   worst wait: /m/send 0.001 ms (p95 0.001 ms)
+  backend   host generation 1 matches store
+  replay    on — new effects suppressed; schedules held (persisted dev policy)
+  storage   rows 0 B (0 rows, including engine-internal storage) · indexes 0 B · log 0 B (0 events, 0.0× rows) · ops 161 B · file 184.0 KB
+  requests  0 queued, 0 running, 0 done, 0 failed
+  schedule  ticking every 1m → tick; last boundary 1791118500000
+  effects   1 suppressed, 0 deferred
+  types     generated
+  personas  alice
+  ok in 3.5 ms
+
+snapback4 dev: http://127.0.0.1:35421  (schema: snapback/, types: /tmp/sb4-replay-3656138-effects/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-effects/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:38297  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-replay/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test a_busy_listener_leaves_stopped_replay_policy_unchanged ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+test release_engines_ignore_dev_suppression_and_delayed_dev_policy_is_refused ... ok
+test w7c_run_accepts_principal_ids_and_declared_personas ... ok
+test serve_emits_with_replay_metadata_left_in_the_release_store ... ok
+snapback4 dev: http://127.0.0.1:40771  (schema: snapback/, types: /tmp/sb4-replay-3656138-effects/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-effects/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test held_effects_remain_durable_and_claimable_after_restart ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:37989  (schema: snapback/, types: /tmp/sb4-replay-3656138-startup-policy/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-startup-policy/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+snapback4 0.4.12
+  project   /tmp/sb4-replay-3656138-startup-policy
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    ok: 1 tables, 0 synced, 2 operations
+  server    HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+  store     /tmp/sb4-replay-3656138-startup-policy/.snapback4/store.sqlite at seq 2, generation 1
+  latency   since 1791118531861 (Unix ms); total / acquisition wait / engine / thread CPU in ms
+  latency   /m/send: n=1 refused=0 total p50=0.802 p95=0.802 p99=0.802 max=0.817; wait p50=0.074 p95=0.074 p99=0.074 max=0.075; engine p50=0.548 p95=0.548 p99=0.548 max=0.564; cpu n=1 p50=0.595 p95=0.595 p99=0.595 max=0.595
+  latency   worst wait: /m/send 0.075 ms (p95 0.074 ms)
+  backend   host generation 1 matches store
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 0 B (0 rows, including engine-internal storage) · indexes 0 B · log 0 B (0 events, 0.0× rows) · ops 324 B · file 184.0 KB
+  requests  0 queued, 0 running, 0 done, 0 failed
+  schedule  ticking every 1m → tick; last boundary 1791118500000
+  effects   1 queued, 1 suppressed, 0 deferred
+  types     generated
+  personas  alice
+  ok in 3.6 ms
+
+test replay_startup_and_doctor_report_the_active_policy ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:38787  (schema: snapback/, types: /tmp/sb4-replay-3656138-competing-port/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-competing-port/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+store: temporary — discarded on exit
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:40217  (schema: snapback/, types: /tmp/sb4-replay-3656138-control-replay/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-control-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test w7c_service_token_output_names_its_owning_store ... ok
+snapback4 dev: http://127.0.0.1:37797  (schema: snapback/, types: /tmp/sb4-replay-3656138-competing-store/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-competing-store/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+store: temporary — discarded on exit
+test w7c_dev_banner_names_the_store_and_stdout_is_readiness ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:33861  (schema: snapback/, types: /tmp/sb4-replay-3656138-competing-store/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-competing-store/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test competing_starts_preserve_the_live_replay_policy ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:45795  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-replay/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:42425  (schema: snapback/, types: /tmp/sb4-replay-3656138-control-replay/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-control-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:40143  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-replay/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+replay: mutations=32 duplicate_retries=32 refused=1 explicit_job_rows=32 equal_rows=32 suppressed=64 claimable_before=0 claimable_after=0 restart_replay=true held_schedule_runs=0
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:44303  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-normal/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:42171  (schema: snapback/, types: /tmp/sb4-replay-3656138-control-normal/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-control-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:34171  (schema: snapback/, types: /tmp/sb4-replay-3656138-timeline/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-timeline/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:39681  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-normal/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:35241  (schema: snapback/, types: /tmp/sb4-replay-3656138-control-normal/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-control-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:36419  (schema: snapback/, types: /tmp/sb4-replay-3656138-suppress-normal/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-suppress-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+replay: mutations=32 duplicate_retries=32 refused=1 explicit_job_rows=32 equal_rows=32 suppressed=64 claimable_before=0 claimable_after=0 restart_replay=false held_schedule_runs=0
+test replay_suppresses_committed_emits_and_preserves_writes_jobs_and_restarts ... ok
+MEASURE dev --replay delivery followers=900 wall_ms=215
+test replay_delivers_900_followers_promptly_after_commit_without_schedules ... ok
+snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 dev: http://127.0.0.1:43635  (schema: snapback/, types: /tmp/sb4-replay-3656138-schedules/snapback/generated/api.ts)
+store: /tmp/sb4-replay-3656138-schedules/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+test held_schedules_skip_missed_periods_and_resume_at_the_next_boundary ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s

@@ -34,7 +34,7 @@ fn detached_sync_never_skips_a_commit_after_its_snapshot() {
             let address = host.address;
             let page = thread::spawn(move || {
                 let input = json!({"stream":stream,"limit":1,"pending":[concurrent]}).to_string();
-                body(&exchange(address, &format!("POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: {}\r\n\r\n{input}", input.len())))
+                body(&exchange_held(address, Duration::from_secs(5) + CLIENT_TIMEOUT, &format!("POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{PERSONA}Content-Length: {}\r\n\r\n{input}", input.len())))
             });
             waiting.recv_timeout(Duration::from_secs(5)).unwrap();
             let committed = add(concurrent)["seq"].as_u64().unwrap();
