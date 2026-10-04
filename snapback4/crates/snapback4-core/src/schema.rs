@@ -42,6 +42,10 @@ pub struct Schema {
     /// Decode-only compatibility fence; programs narrow it before admission.
     pub legacy_receipt_prediction: bool,
     pub tables: BTreeMap<String, Table>,
+    /// Source-declared index identities, captured before compiler expansion.
+    /// None on older generations; inspection must not guess their provenance.
+    #[cfg(feature = "sqlite")]
+    pub authored_indexes: Option<BTreeMap<String, BTreeSet<String>>>,
     pub delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]
     pub delivery_lookup: crate::engine::delivery::Lookup,

@@ -76,6 +76,11 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 // verifying the diagnostics from a rejected candidate.
 pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    // @ref LLP 3000.007#8 — catalog provenance comes from source, before any generated declarations.
+    let authored_indexes = documents.iter().flat_map(|doc|
+        doc.tables.iter().map(|t| (&t.name, &t.indexes))
+            .chain(doc.maintains.iter().map(|m| (&m.name, &m.indexes))))
+        .map(|(name, indexes)| (name.clone(), indexes.iter().map(|i| i.name.clone()).collect())).collect();
     receipts::expand(&mut documents, &mut diagnostics);
     ephemeral::declarations(&documents, &mut diagnostics);
     helper_names::normalize(&mut documents, &mut diagnostics);
@@ -96,6 +101,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
+    schema.authored_indexes = Some(authored_indexes);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
     receipts::bind(&catalog, &mut schema, &mut diagnostics);

@@ -32,6 +32,10 @@ Catalog JSON contains `header`, `generation`, `tables` and
 Descriptions add `columns`, `indexes` and, for a maintained view,
 `maintainedFrom`. Displayed compiler-owned indexes keep their complete public
 keys with `name: null` and `generated: true`; authored names remain intact.
+Authored unnamed unique keys have `name: null` and `generated: false`.
+Generations predating the authored-index record report `generated: null`, hide
+unverified names and explain that provenance is unavailable until adoption
+with a current compiler; inspection itself never adopts or recompiles source.
 Indexes depending on hidden bookkeeping columns are omitted as a whole.
 The implicit id key is
 listed once, and calendar keys include duration/offset arguments. This is a
@@ -242,3 +246,60 @@ No full-suite rerun was required for this catalog-and-tests-only runtime
 change. Round 0's recorded full-suite Rust red remains unchanged. The report
 and journal are updated with this local commit and the requested co-author
 trailer; nothing pushed.
+
+## Round 2 — source provenance for every index
+
+Base: `19f492f247`. Grok marked round 1 READY; [Astra's review](../../../../reviews/sx-r1.astra.evidence/REVIEW.md)
+identified compiler-created non-dollar names still marked authored, including
+`followingFeed.byReaderPage` and `$ownKeys:likes.byGroup`. This round replaces
+the name-based origin test rather than enumerating more generated families.
+
+The compiled schema now records `authored_indexes`, collected from the original
+table and maintained-view index/unique declarations before any binder expansion.
+It persists with the active generation on the server, is absent from device
+projections and is excluded from the wasm build. Catalog provenance tests set
+membership, independent of the index's spelling or generator. Consequently
+intrinsic id, timeline/feed, own-key and maintained-view bookkeeping indexes
+are generated, as are sequence, expiry, children and intent-planner indexes.
+An unnamed source `unique` remains authored; its synthetic spelling stays hidden.
+Generated indexes have no displayed name, and the complete-public-key/hidden-
+bookkeeping policy from round 1 remains intact.
+
+Legacy schemas deserialize with no record. The catalog returns an unknown
+origin (`generated: null`) and a short explanation, never a guessed boolean.
+The next ordinary adoption records provenance in the new schema generation;
+inspection does not write metadata or use the possibly broken working source.
+The record changes server schema serialization and its generation hash, but
+does not change any physical index definition, query plan or device projection.
+LLP 3000.007 §8 now documents this policy; LLP 3000.013 §2.1 still governs the
+unchanged planning semantics.
+
+The new census walks **every physical index** of the unmodified social and chat
+starters, including intrinsic/private/hidden indexes, and compares its origin
+with declarations parsed from the original source. It repeats after schema
+serialization and store persistence. Output checks pin the two review examples
+and maintained-view `byGroup`; other tests cover authored unnamed unique keys,
+authored maintained-view indexes, device projection and legacy missing metadata.
+The durable-byte compatibility test strips only this newly documented metadata
+field before comparing its existing frozen runtime bytes; no fixture was replaced.
+
+Round-2 validation passes: **9 SQL, 89 check, 112 guide, 10 schema-capability,
+2 receipt-corpus and 1 durable-byte compatibility tests**. Four CLI probes
+confirm both review examples through both aliases with broken local source;
+see `r2-catalog-examples.json`. The source census supersedes round 1's
+prefix-limited classification. The CLI builds, reference audit and whitespace
+check pass. No full-suite or client-suite rerun is claimed for this round.
+
+The wasm rebuild is **2,116,457 B raw / 639,751 B gzip**, within the unchanged
+**639,887 B** cap. It is **not byte-identical**: exactly three bytes in the data
+section record the four-line shift of three panic source locations in
+`schema.rs`; the instruction and all other sections are identical. This adds
+**1 B gzip**. `r2-wasm-comparison.json` records offsets, source lines and hashes;
+the new hash is `a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26`.
+No wasm metadata field, runtime instruction, budget change or native-device
+format change is introduced.
+
+`r2-*.log.gz` and `r2-verification.json` retain the results. Probe scratch was
+removed; final sampled allocation is **15.09 GB**, below **40 GB**. All work
+remained on eb1000 in this worktree. Local commit with the requested co-author
+trailer; nothing pushed. Round 0's full-suite red remains recorded separately.

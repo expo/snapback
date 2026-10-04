@@ -73,6 +73,9 @@ fn durable_schema_and_types_keep_base_bytes() {
 // insert sites. Only that appended prose is new; the CLI snapshots bind it.
 fn strip_update_explanations(text: &str) -> String {
     let mut schema: snapback4_core::Schema = serde_json::from_str(text).unwrap();
+    // SX adds server inspection provenance; compare every existing runtime byte.
+    // The SQL starter census separately verifies the complete authored set.
+    assert!(schema.authored_indexes.take().is_some());
     // @ref LLP 3000.022#14.3 — the versioned source prices are the only RP
     // wire addition here. Verify the complete price before comparing every
     // original durable byte; genuine old fixture files remain untouched.

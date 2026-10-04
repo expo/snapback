@@ -86647,3 +86647,12 @@ column. Corrected the report's qualified-name claim. All 7 SQL, 89 check,
 and unchanged wasm hash recorded in the [Round 1 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-1--generated-indexes-and-private-target-descriptions).
 No full-suite rerun for this catalog-only change; round 0's red remains recorded.
 Scratch removed, disk below 14.84 GB. Local commit only; nothing pushed.
+
+## 2026-10-05 — SX round 2: record index provenance at the source
+
+Persist source-declared index identities before expansion; catalog origin now
+uses that record, with unknown provenance for legacy generations. Both starter
+schemas have a complete index census. All 9 SQL, 89 check, 112 guide and 13
+schema/corpus compatibility tests pass. Wasm differs only in three panic-line
+bytes (+1 B gzip), within the unchanged budget. See the [Round 2 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-2--source-provenance-for-every-index).
+Scratch removed, disk 15.09 GB. Local commit only; nothing pushed.
