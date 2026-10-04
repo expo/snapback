@@ -166,7 +166,7 @@ no existing case or assertion is removed. Source stayed frozen throughout every 
 
 Passing repetitions do not close the product failures found during this work:
 
-- [Retained-history empty publication](../../../issues/20260929-snapback4-retained-history-transient-empty.md): server sequence 5 can publish empty before the device applies the leave, followed by 25 retained rows. The unchanged assertion fails in 15/100 instrumented wasm repetitions and 18/100 process repetitions. These are diagnostic frequencies, not estimates of production incidence. Whole final-source attempt 10 also fails; its failure is retained between the passing attempts.
+- [Retained-history empty publication](../../../issues/closed/20260929-snapback4-retained-history-transient-empty.md): server sequence 5 can publish empty before the device applies the leave, followed by 25 retained rows. The unchanged assertion fails in 15/100 instrumented wasm repetitions and 18/100 process repetitions. These are diagnostic frequencies, not estimates of production incidence. Whole final-source attempt 10 also fails; its failure is retained between the passing attempts.
 - [Search continuation after reconnect and reopen](../../../issues/20260930-snapback4-search-cursor-reopen-restarts.md): an in-memory link revision changes from two to zero on reopen, causing an unchanged cursor to restart page one. All ten deterministic process/wasm controls fail. The oracle and query runtime remain unchanged.
 - [Historical Mac cleanup stalls](../../../issues/20260929-snapback4-browser-close-stalls-under-publication-load.md): the recorded browser/app/session-close stalls are not established as fixed by Linux clock or route-fixture corrections. No tests or load were run on either source Mac.
 

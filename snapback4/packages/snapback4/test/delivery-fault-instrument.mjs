@@ -161,6 +161,12 @@ export function instrument(destination) {
 // presentation references and admission order before copying terminal arguments.
 // Those synchronous operations change the enclosing await's text, without adding
 // I/O, custody writes or a new await. Delivery scopes/recipes remain unchanged.
+// RH (LLP 3000.028 §3.2): pendingRoute reads the applied watermark before a
+// whole query answer can replace current/retained device history. Its callers
+// only route query candidates; none admits, dispatches, persists or settles a
+// write. Rejection withholds the read and rechecks session/incarnation fences.
+// retained-history-order tests cover success/rejection and publication races;
+// real held-apply cases cover both device hosts. No delivery site/recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

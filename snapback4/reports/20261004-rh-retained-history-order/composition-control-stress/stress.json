@@ -1,0 +1,126 @@
+{
+  "cpus": [
+    64,
+    65,
+    66,
+    67
+  ],
+  "hog_pid": 3311860,
+  "elapsed_seconds": 1207.942,
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 60.739,
+      "hog_alive": true
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 60.295,
+      "hog_alive": true
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 66.156,
+      "hog_alive": true
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "seconds": 78.389,
+      "hog_alive": true
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "seconds": 67.271,
+      "hog_alive": true
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "seconds": 59.231,
+      "hog_alive": true
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "seconds": 58.858,
+      "hog_alive": true
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "seconds": 60.11,
+      "hog_alive": true
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "seconds": 65.033,
+      "hog_alive": true
+    },
+    {
+      "run": 10,
+      "exit": 0,
+      "seconds": 60.178,
+      "hog_alive": true
+    },
+    {
+      "run": 11,
+      "exit": 0,
+      "seconds": 59.592,
+      "hog_alive": true
+    },
+    {
+      "run": 12,
+      "exit": 0,
+      "seconds": 59.78,
+      "hog_alive": true
+    },
+    {
+      "run": 13,
+      "exit": 0,
+      "seconds": 59.292,
+      "hog_alive": true
+    },
+    {
+      "run": 14,
+      "exit": 0,
+      "seconds": 58.984,
+      "hog_alive": true
+    },
+    {
+      "run": 15,
+      "exit": 0,
+      "seconds": 59.477,
+      "hog_alive": true
+    },
+    {
+      "run": 16,
+      "exit": 0,
+      "seconds": 62.662,
+      "hog_alive": true
+    },
+    {
+      "run": 17,
+      "exit": 0,
+      "seconds": 61.977,
+      "hog_alive": true
+    },
+    {
+      "run": 18,
+      "exit": 1,
+      "seconds": 86.75,
+      "hog_alive": true
+    },
+    {
+      "run": 19,
+      "exit": 0,
+      "seconds": 63.161,
+      "hog_alive": true
+    }
+  ]
+}

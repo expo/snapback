@@ -1,6 +1,7 @@
 # Snapback 4: R5 retained history can publish a transient empty answer
 
-Status: Open
+Status: Closed
+Resolved: 2026-10-04
 Date: 2026-09-29
 Scope: `packages/snapback4/test/retained-history.test.mjs` (`R5 history wasm` and `R5 history process`), LLP 3000.028 §2.1 (former member: the server loses authority, the device keeps history)
 
@@ -26,8 +27,8 @@ mask changes. The test took 278.897513 ms and failed at
 `retained-history.test.mjs:838:46`, exactly `assert.ok(!deliveries.includes(0))`.
 This is an assertion failure, not a hang-budget expiry.
 
-Evidence: [whole-run log](../snapback4/reports/20260929-sl-suite-under-load/qualified-moderate.log)
-and its [complete failure extract](../snapback4/reports/20260929-sl-suite-under-load/qualified-moderate.summary.json).
+Evidence: [whole-run log](../../snapback4/reports/20260929-sl-suite-under-load/qualified-moderate.log)
+and its [complete failure extract](../../snapback4/reports/20260929-sl-suite-under-load/qualified-moderate.summary.json).
 Starting commit: `38abb89b8e0b206644b9e2619c6f2d159a981d23`;
 tested source-diff SHA-256: `64e5c41182080bd576b09bed5e34822e4aecce1f95a15ff0fba88ab2d8eddc62`.
 SL changes test fixtures and guide text; the runtime and this test are unchanged.
@@ -46,11 +47,11 @@ routing/publication fences must remain intact.
 
 ### Captured ordering under 48 busy workers
 
-SL's [focused trace](../snapback4/reports/20260929-sl-suite-under-load/control-retained-heavy.log)
+SL's [focused trace](../../snapback4/reports/20260929-sl-suite-under-load/control-retained-heavy.log)
 repeats the original wasm R5 assertions 100 times, without changing the runtime.
 It records **85 passes and 15 failures** in 40.571 seconds. The copy is outside
 the suite inventory; it does not replace or reduce any full-suite cases.
-[Generator](../snapback4/reports/20260929-sl-suite-under-load/prepare-retained-control.py)
+[Generator](../../snapback4/reports/20260929-sl-suite-under-load/prepare-retained-control.py)
 and source hashes make the instrumentation reproducible. It adds timeline
 observations and one JSON-decoding wrapper, so its failure frequency is a
 control observation, not an estimate of production incidence.
@@ -68,7 +69,7 @@ The first failure proves the following order (milliseconds from case start):
 | 228.545 | Device applies the leave event; its watermark then becomes 5. |
 | 233.154 | Device query returns 25 rows, `unknown=false`, `retained=true`. |
 
-[All 15 failure windows](../snapback4/reports/20260929-sl-suite-under-load/retained-failure-windows.json)
+[All 15 failure windows](../../snapback4/reports/20260929-sl-suite-under-load/retained-failure-windows.json)
 are retained. This confirms a server/device publication-order race rather than
 a wall-clock guard failure. A fix must preserve the current/retained routing
 law and publication fences; hiding the empty observation or delaying this test's
@@ -80,7 +81,7 @@ repetitions do not establish that this reproduced defect is resolved.
 `qualified-heavy-6` reproduces the same line-838 empty-delivery assertion under
 48 busy workers, in 412.423534 ms. The client stage completes with 5,196 passes,
 one failure, ten inherited skips and no cancellations. Its
-[raw log](../snapback4/reports/20260929-sl-suite-under-load/qualified-heavy-6.log)
+[raw log](../../snapback4/reports/20260929-sl-suite-under-load/qualified-heavy-6.log)
 retains the failure; all 79 subsequent models and all 4,342 Rust checks pass.
 The exact whole-suite footer is `== 1 failure(s) in 3515 s`.
 The tested source-diff digest is
@@ -104,10 +105,10 @@ This extends the observed empty-flash invariant failure to both device hosts.
 The subsequent process trace also proves the server/device publication order.
 Neither the R5 assertion nor the SDK query runtime is changed. The existing
 final-source heavy pass remains valid evidence for its run, not a fix for this
-product defect. [Raw whole-run log](../snapback4/reports/20260929-sl-suite-under-load/qualified-heavy-10.log).
+product defect. [Raw whole-run log](../../snapback4/reports/20260929-sl-suite-under-load/qualified-heavy-10.log).
 
 
-The [process trace control](../snapback4/reports/20260929-sl-suite-under-load/control-retained-process-heavy.log)
+The [process trace control](../../snapback4/reports/20260929-sl-suite-under-load/control-retained-process-heavy.log)
 repeats the original R5 assertions 100 times under 48 busy workers: **82 pass,
 18 fail**, in 52.616 seconds, with no cancellation or asynchronous error.
 All 18 failures are the same empty-delivery assertion. As with the wasm control,
@@ -126,9 +127,30 @@ The first failure records:
 | 412.945 | Device query returns 25 retained rows. |
 | 413.022 | Watch publishes those 25 rows, incomplete. |
 
-[All 18 failure windows](../snapback4/reports/20260929-sl-suite-under-load/retained-process-failure-windows.json)
+[All 18 failure windows](../../snapback4/reports/20260929-sl-suite-under-load/retained-process-failure-windows.json)
 and the full timelines remain available. Run the existing
-[generator](../snapback4/reports/20260929-sl-suite-under-load/prepare-retained-control.py)
+[generator](../../snapback4/reports/20260929-sl-suite-under-load/prepare-retained-control.py)
 with `process` to produce this diagnostic copy outside the suite inventory.
 The SDK query runtime, R5 assertions, timeouts and full-suite counts remain
 unchanged. This ticket stays **Open**.
+
+
+## Resolution — Lane RH, 2026-10-04
+
+The captured order is reproduced without load on both real device hosts by
+holding the leave page before device application. The unchanged router failed
+all ten repetitions per host, publishing `[26,26,26,0]`. The fixed router never
+publishes that empty page while the device's retained routing is pending.
+
+Whole-server fallbacks that can read synced delivered history compare the
+server cut against applied device state. Ahead replies are provisional:
+empty/structured replies preserve permitted local history, positive pages
+remain useful with incomplete/stale metadata, and sync reroutes once applied.
+Already-known retained compositions preserve their existing current-row refresh
+and deadlines. Refusals and publication fences still win; no new waiting loop
+or retention allowance was introduced. LLP 3000.028 §3.2 records the rule.
+
+Deterministic held, stalled, and empty-catch-up cases cover wasm and process;
+the original `assert.ok(!deliveries.includes(0))` is unchanged. Qualification,
+latency comparisons, wasm budget, stress results and initial diagnostic failures
+are recorded in the [RH report](../../snapback4/reports/20261004-rh-retained-history-order/REPORT.md).

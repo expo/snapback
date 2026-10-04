@@ -184,8 +184,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-query.ts": {
-    "count": 32,
-    "sha256": "6f947dbedfa2241d943a2e924e86c0d4bfb1c85f5278d8096d6283fbf7ced5bb"
+    "count": 36,
+    "sha256": "210041941f938ae296badc83049de9640e77ce1f45bb8ce37a59bdbf115628a4"
   },
   "local-read-deadlines.ts": {
     "count": 0,

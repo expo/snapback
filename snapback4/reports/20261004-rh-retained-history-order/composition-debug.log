@@ -1,0 +1,52 @@
+▶ decorated generated search oracle on process
+  ✔ seed 1 (1526.820419ms)
+  ✔ seed 2 (1414.144765ms)
+  ✔ seed 3 (1295.720574ms)
+  ✔ seed 4 (1176.442472ms)
+  ✔ seed 5 (1158.102767ms)
+  ✔ seed 6 (1350.167611ms)
+  ✔ seed 7 (1221.092191ms)
+  ✔ seed 8 (1172.202676ms)
+RH_ROUTE {"op":"search","args":{"q":"","c":null},"first":{"complete":false,"cut":null,"data":[{"at":1024,"author":"dev:alice","expires":null,"id":"m24","room":"left","text":"coffee","tombstone":false},{"at":1023,"author":"dev:alice","expires":null,"id":"m23","room":"left","text":"coffee","tombstone":false},{"at":1022,"author":"dev:alice","expires":null,"id":"m22","room":"left","text":"coffee","tombstone":false},{"at":1021,"author":"dev:alice","expires":null,"id":"m21","room":"left","text":"coffee","tombstone":false},{"at":1020,"author":"dev:alice","expires":null,"id":"m20","room":"left","text":"coffee","tombstone":false},{"at":1019,"author":"dev:alice","expires":null,"id":"m19","room":"left","text":"coffee","tombstone":false}],"decorationExpiry":null,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxOX0seyJJZCI6Im0xOSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","nextExpiry":null,"retained":false,"scopes":{"messages":[{}]},"tables":["members","messages"],"unknown":true},"latest":{"complete":false,"cut":null,"data":[{"at":1024,"author":"dev:alice","expires":null,"id":"m24","room":"left","text":"coffee","tombstone":false},{"at":1023,"author":"dev:alice","expires":null,"id":"m23","room":"left","text":"coffee","tombstone":false},{"at":1022,"author":"dev:alice","expires":null,"id":"m22","room":"left","text":"coffee","tombstone":false},{"at":1021,"author":"dev:alice","expires":null,"id":"m21","room":"left","text":"coffee","tombstone":false},{"at":1020,"author":"dev:alice","expires":null,"id":"m20","room":"left","text":"coffee","tombstone":false},{"at":1019,"author":"dev:alice","expires":null,"id":"m19","room":"left","text":"coffee","tombstone":false}],"decorationExpiry":null,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxOX0seyJJZCI6Im0xOSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","nextExpiry":null,"retained":false,"scopes":{"messages":[{}]},"tables":["members","messages"],"unknown":true},"remote":{"data":[{"at":2000,"author":"dev:alice","expires":null,"id":"m24","room":"live","text":"not matching","tombstone":false},{"at":1015,"author":"dev:alice","expires":null,"id":"m15","room":"live","text":"coffee","tombstone":false},{"at":1014,"author":"dev:alice","expires":null,"id":"m14","room":"live","text":"coffee","tombstone":false},{"at":1013,"author":"dev:alice","expires":null,"id":"m13","room":"live","text":"coffee","tombstone":false},{"at":1012,"author":"dev:alice","expires":null,"id":"m12","room":"live","text":"coffee","tombstone":false},{"at":1011,"author":"dev:alice","expires":null,"id":"m11","room":"live","text":"coffee","tombstone":false}],"complete":false,"cut":null,"fresh":true,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxMX0seyJJZCI6Im0xMSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","existence":"present"},"watermark":4}
+RH_ROUTE {"op":"decorated","args":{"q":"","c":null},"first":{"complete":false,"cut":null,"data":[{"at":1024,"author":"dev:alice","expires":null,"id":"m24","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1023,"author":"dev:alice","expires":null,"id":"m23","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1022,"author":"dev:alice","expires":null,"id":"m22","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1021,"author":"dev:alice","expires":null,"id":"m21","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1020,"author":"dev:alice","expires":null,"id":"m20","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1019,"author":"dev:alice","expires":null,"id":"m19","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false}],"decorationExpiry":1791140592280,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxOX0seyJJZCI6Im0xOSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","nextExpiry":null,"retained":false,"scopes":{"cards":[{}],"messages":[{}],"profiles":[{}],"rooms":[{"0":"left"}]},"tables":["cards","members","messages","profiles","rooms"],"unknown":true},"latest":{"complete":false,"cut":null,"data":[{"at":1024,"author":"dev:alice","expires":null,"id":"m24","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1023,"author":"dev:alice","expires":null,"id":"m23","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1022,"author":"dev:alice","expires":null,"id":"m22","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1021,"author":"dev:alice","expires":null,"id":"m21","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1020,"author":"dev:alice","expires":null,"id":"m20","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false},{"at":1019,"author":"dev:alice","expires":null,"id":"m19","ownerName":null,"privateName":null,"room":"left","sender":null,"text":"coffee","title":"left","tombstone":false}],"decorationExpiry":1791140592280,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxOX0seyJJZCI6Im0xOSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","nextExpiry":null,"retained":false,"scopes":{"cards":[{}],"messages":[{}],"profiles":[{}],"rooms":[{"0":"left"}]},"tables":["cards","members","messages","profiles","rooms"],"unknown":true},"remote":{"data":[{"at":2000,"author":"dev:alice","expires":null,"id":"m24","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"not matching","title":"live","tombstone":false},{"at":1015,"author":"dev:alice","expires":null,"id":"m15","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"coffee","title":"live","tombstone":false},{"at":1014,"author":"dev:alice","expires":null,"id":"m14","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"coffee","title":"live","tombstone":false},{"at":1013,"author":"dev:alice","expires":null,"id":"m13","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"coffee","title":"live","tombstone":false},{"at":1012,"author":"dev:alice","expires":null,"id":"m12","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"coffee","title":"live","tombstone":false},{"at":1011,"author":"dev:alice","expires":null,"id":"m11","ownerName":null,"privateName":null,"room":"live","sender":null,"text":"coffee","title":"live","tombstone":false}],"complete":false,"cut":null,"fresh":true,"next":"WzIsIm1lc3NhZ2VzIiwiJGludGVudDpieVRvbWJzdG9uZUF0OjBlYTkzMTczYzI2MTExMzQiLCJEZXNjIixbeyJuYW1lIjoiYXQiLCJraW5kIjoiVGltZSJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MTAxMX0seyJJZCI6Im0xMSJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siQm9vbCI6ZmFsc2V9XSwidmFyaWFudCI6WzM0MDA5MTUyMTEsMjE0MDM5MTIxOSwxNDk1NDEzMDA4LDIxMjk2OTAxMjNdfV0","existence":"present"},"watermark":4}
+SJ process oracle {"pages":1006,"online":702,"offline":304,"short":10,"currentNull":1059,"retainedNull":2094,"expiryPages":765,"expiryNulls":355,"browsePages":21,"browseExpiryPages":1}
+  ✖ seed 9 (362.661121ms)
+✖ decorated generated search oracle on process (10680.834083ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10846.148272
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/decorated-search.test.mjs:95:13
+✖ seed 9 (362.661121ms)
+  AssertionError [ERR_ASSERTION]: seed=9 step=4 room=undefined page=0
+  + actual - expected
+  
+    [
+  +   'left',
+      null,
+      null,
+      null,
+  -   null
+    ]
+  
+      at check (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/decorated-search.test.mjs:153:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/decorated-search.test.mjs:186:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/decorated-search.test.mjs:95:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'left', null, null, null ],
+    expected: [ null, null, null, null ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,11 @@
+{
+  "base": "b9624729aaa5c5d3ed380c247f415e7dc8d56f81",
+  "sha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1",
+  "raw_bytes": 2116457,
+  "gzip_bytes": 639750,
+  "budget_bytes": 639887,
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "binaryen": "132.0.0",
+  "macos_allowance_bytes": 130
+}
