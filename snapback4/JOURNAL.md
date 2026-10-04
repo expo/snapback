@@ -86290,3 +86290,13 @@ passed 3/3. P3 watchdog-death orphan custody is explicitly deferred in an open
 ticket with the supplied review reproduction. See the
 [Round 2 report](./reports/20261004-fy-fixture-races/REPORT.md#round-2--preserve-body-and-cleanup-failures).
 Test-only change; no full suite or remote tests this round; nothing pushed.
+
+Round 3 (2026-10-04): FY reports the body error before awaiting cleanup and
+rethrows that same error, preserving assertion fields and its existing cause;
+nested cleanup failures attach separately. The exact timeout-with-successful-
+cleanup regression and native assertion-reporting checks fail on the old helper
+and pass with the fix. All three files passed 3/3 under confined CPU load
+(255 tests, zero failures/skips). Reference validation passed. See the
+[Round 3 report](./reports/20261004-fy-fixture-races/REPORT.md#round-3--report-the-body-before-cleanup-and-keep-it-primary).
+The accepted orphan-custody deferral is unchanged; test-only commit, no full
+suite or remote tests, scratch removed and owned hog reaped, nothing pushed.

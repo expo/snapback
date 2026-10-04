@@ -1,19 +1,29 @@
 import { withHangGuard } from './wait.mjs';
 
-// A rejecting finally would replace the body's error. Keep both objects and
-// spell out both failures: native test reporters need not render .errors.
+// A rejecting finally would replace the body's error. Report it before cleanup
+// starts: a native test timeout can hide even a later successful cleanup's return.
 export async function withCleanup(body, after) {
-  const errors = [];
-  let value;
-  try { value = await body(); } catch (error) { errors.push(error); }
-  try { await after(); } catch (error) { errors.push(error); }
-  if (errors.length === 1) throw errors[0];
-  if (errors.length === 2) {
-    const message = `Test body and cleanup both failed:\n${errors.map(error => error?.stack ?? String(error)).join('\n')}`;
-    // An outer test timeout can hide this eventual rejection too.
-    console.error(message);
-    throw new AggregateError(errors, message, { cause: errors[0] });
+  let value, bodyError, bodyFailed = false;
+  try { value = await body(); } catch (error) {
+    bodyFailed = true; bodyError = error;
+    console.error('TEST_BODY:', error);
   }
+  try { await after(); } catch (error) {
+    if (!bodyFailed) throw error;
+    // Report separately too: reporters need not render attached cleanup errors.
+    console.error('TEST_CLEANUP_AFTER_BODY:', error);
+    try {
+      if (bodyError !== null && (typeof bodyError === 'object' || typeof bodyError === 'function')) {
+        if (bodyError.cleanupErrors === undefined) Object.defineProperty(bodyError, 'cleanupErrors', {
+          value: [], enumerable: true, configurable: true, writable: true,
+        });
+        if (Array.isArray(bodyError.cleanupErrors)) bodyError.cleanupErrors.push(error);
+      }
+    } catch { /* Frozen/custom errors keep their identity; diagnostics above retain both failures. */ }
+  }
+  // Preserve class, code, comparison fields, stack and any pre-existing cause,
+  // including through nested helpers. The flag also handles `throw undefined`.
+  if (bodyFailed) throw bodyError;
   return value;
 }
 

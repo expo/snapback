@@ -235,3 +235,44 @@ assertion are unchanged.
 [verification summary and hashes](./round2-summary.json) retain the results.
 The owned drivers stopped/reaped their hogs and local scratch was deleted
 after export. Sampled use stayed below 15 GB. Nothing pushed or published.
+
+## Round 3 — report the body before cleanup and keep it primary
+
+Base: `eb39b39936`. The remaining timeout case was successful cleanup that
+outlasted the native test timeout: the round-2 helper waited to rethrow the
+saved body error, so Node could discard it. `withCleanup` now prints the body
+failure before invoking cleanup. It always rethrows the original body value;
+cleanup failures are printed separately and appended to its `cleanupErrors`
+array, in inner-to-outer order for nested helpers. Assertion class, code,
+`actual`, `expected`, `operator`, message, stack and any existing cause remain
+intact. Frozen errors and primitive thrown values retain their identity and
+both printed diagnostics even when an attachment is impossible.
+
+The regression reproduces Astra's exact case: an assertion fails, the native
+25 ms timeout fires during a successful 150 ms cleanup, and cleanup completes.
+It requires the body sentinel to remain visible before the success sentinel,
+without a cleanup failure. Additional coverage checks native TAP assertion
+fields for single/nested cleanup failures, early reporting, ordered cleanup
+attachments, existing causes and immutable/primitive failures. The earlier
+finally/after-hook/hanging-cleanup reporting regressions remain in place.
+Running these six tests against the unchanged base helper produced four
+failures; the fixed helper passed all six before the repetition runs.
+
+All three files passed **3/3 whole-file runs** on eb1000, confined to CPUs
+72–79 with a CPU hog in the same affinity: release activation 18 tests/run,
+worker regressions 61, and cleanup reporting six. All **255 tests passed**,
+with zero skips or cancellations. The worker files took 445.1–445.2 seconds;
+their existing timeout probes and all cleanup deadlines are unchanged.
+`ref-check --verbose` and `git diff --check` pass.
+
+Executable edits are limited to `helpers/cleanup.mjs` and `cleanup.test.mjs`.
+The release and worker fixture files are byte-identical to the review base;
+crash, restart, exactly-once, outbox and descendant-death assertions are intact.
+Watchdog custody and its accepted deferred ticket are unchanged. No product
+code, normal hang budget, full-suite run or remote test is involved this round.
+
+[Round 3 baseline/fixed logs, source snapshots and repetition driver](./round3-evidence.log.gz)
+and [verification results and source hashes](./round3-summary.json) retain the
+evidence. The owned CPU hog was stopped and reaped, and local scratch was
+removed after export. Sampled worktree plus scratch use stayed below 15 GB.
+Nothing pushed or published.
