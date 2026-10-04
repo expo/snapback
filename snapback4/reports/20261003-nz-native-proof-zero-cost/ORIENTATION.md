@@ -104,3 +104,15 @@ needed. Tests must reproduce 28 skips per mode and prove publication completes
 while compression is paused. Update stale §15 prose, guide witness, Round 5 report
 and append-only JOURNAL. No other worktrees, hosts, processes or simulators.
 Hand-off: none.
+
+
+Round 6 (2026-10-04), base f118e78bf2: LLP 3000.030 §15's publication identity,
+leased ownership and bounded retention govern the fixes. Pin the current and
+pending publication evidence without holding the destination lock over work;
+coalesce requests without putting maintenance waits on export publication.
+Preserve native owner-death custody, 30-second work deadline and WD drain.
+The operator explicitly supersedes round 5's per-request lock-wait design.
+Tests must exercise late publication, contended scheduling, and a substantive
+post-crash 5/20 restoration using real full fixture exports. Scope: retention,
+recovery, export-background tests, witness guide and dated §15; report/JOURNAL.
+No new real native, cross-host or independent-review claim. Hand-off: none.

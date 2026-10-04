@@ -86410,3 +86410,49 @@ Earlier qualification scopes and open intermittent-test issues remain intact;
 no native/ABBA timings or real host-sleep exercise were repeated. NZ remains for
 0.4.14. Nothing pushed or published.
 [Round 5 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-5--bounded-retention-for-skipped-exports).
+
+
+## 2026-10-04 — NZ round 6: pin publication evidence and coalesce retention
+
+On f118e78bf2, address the operator's two Astra P2s and Grok's recovery-test gap.
+Retention pins the current generation/hash and both sides of an unresolved
+publication transaction, under a brief nonblocking shared destination lock.
+Pinned evidence takes precedence over start timestamps; pruning rechecks while
+holding the candidate's export lease and releases the publication lock before
+compression/deletion. Active exports and pending proofs retain their evidence.
+
+Skipped exports now mark one durable maintenance request after publication.
+Newer requests coalesce into that slot. Separate leases permit one active
+custodian and one pending observer. Busy requests return immediately; the single
+observer probes nonblockingly without launching native work until available.
+The claimed worker keeps the existing 30-second deadline, native owner-death
+custody and WD drain. A later request resumes after an active custodian dies;
+SIGTERM/host sleep stop pending observation, leaving its request for a later
+schedule. Queue records and maintenance.log live outside historical run trees.
+Proof-bound deferred pruning also arranges an observer. This supersedes round 5's
+per-export custodian and blocking lock wait; no retention wait enters publication.
+The guide and dated LLP 3000.030 §15 revision describe the policy and quiescent
+5-full/20-compressed bound. Native preparation deadlines and WD are unchanged.
+
+Three deterministic controls publish the first-started export last, covering
+opt-out, simulated non-macOS and background proof; status/doctor retain its current
+uncompressed evidence. A Rust control also pins the pending rollback generation.
+Both skip modes hold retention locked across 28 exports: exactly one pending
+maintenance process, no native group, every export returned, then exactly 5 full
+plus 20 compressed runs after release without another export. Blocked-compressor
+controls now seed 28 full export trees and require later restoration to exactly
+5/20 after SIGTERM, custodian SIGKILL and the real deadline, while checking the
+compressor/descendant anchor PGID. No real native or Linux qualification is added.
+
+Build and 61 witness unit tests passed; all 74 export/preparation tests passed.
+The final deadline assertion passed separately; the full Mac suite exercised the
+final source and passed with **0 failures in 2,614 seconds**: all Rust targets
+and doctests, 293 CLI units (four existing ignores), 76 witness integrations,
+nine fixture wrappers, all 312 client files (6,232 passes, six existing skips),
+and 79 model cases. All four recorded code/guide hashes stayed unchanged, with
+no interventions or reduced counts. Reference/whitespace and final read-only
+custody checks passed. No new real devices, remaining lane CLI jobs or previously
+recorded NZ devices; other worktrees, processes and simulators untouched. Large
+evidence stays outside git with hashes. Earlier qualifications and intermittent
+issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
+[Round 6 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-6--publication-pins-and-coalesced-retention).

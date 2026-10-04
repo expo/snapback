@@ -1,0 +1,18 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "89a4c7bdc476e66729f36180f9bcaa99d0be9b6b08a9d172eb91b1057d283de2"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "d86371b79ca2e96bda12395673af4d8047ba39969c85e5f11494845702043272"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "b820c06b16976bbca14cc98528fd14659e45c757e848ef8b9ba50146a1adae7d"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "c801819f9c0b8b76c7e9f8be886bb4d6d2d14de94f44030e0bc3f17c43bbe518"
+  }
+]

@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "f118e78bf20b40a2c05c19c5586c8b38040205e4",
+  "state": "finished",
+  "startedAt": 1791145865.662976,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r6-full-suite.log",
+  "before": {
+    "at": 1791145866.820802,
+    "load": [
+      4.2265625,
+      4.75146484375,
+      5.208984375
+    ],
+    "idlePercent": 84.08458542014469,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 185.6 /usr/libexec/PerfPowerServices",
+      "  485     1  14.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "30061 94240   6.4 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   2.9 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.6 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "94240 94233   1.4 codex",
+      " 1980     1   0.7 /Applications/Dropbox.app/Contents/PlugIns/DropboxFileProvider.appex/Contents/MacOS/DropboxFileProvider",
+      "59783 59730   0.7 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "    1     0   0.5 /sbin/launchd"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791148480.006575,
+  "durationSeconds": 2613.175932125,
+  "after": {
+    "at": 1791148481.171665,
+    "load": [
+      6.451171875,
+      5.50244140625,
+      8.57421875
+    ],
+    "idlePercent": 84.40265486725664,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 195.8 /usr/libexec/PerfPowerServices",
+      "  485     1  13.1 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   3.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "90114     1   2.8 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+      " 1164     1   2.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.7 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  922     1   1.2 /System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd",
+      "    1     0   0.5 /sbin/launchd",
+      "  793     1   0.5 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "  918     1   0.4 /System/Library/PrivateFrameworks/IMDPersistence.framework/XPCServices/IMDPersistenceAgent.xpc/Contents/MacOS/IMDPersistenceAgent"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r6-full-suite.log",
+    "sha256": "436d23a47ebf4e9545a358d08a9eb1c18ccbc0aa72c2bc4187b6bafbddb165e9",
+    "bytes": 1901290
+  },
+  "inputsUnchanged": true
+}

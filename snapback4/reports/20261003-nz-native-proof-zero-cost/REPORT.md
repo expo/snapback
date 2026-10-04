@@ -1,5 +1,9 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 6 pins publication evidence and coalesces retention on **f118e78bf2**.
+See [Round 6](#round-6--publication-pins-and-coalesced-retention). The full Mac
+suite passed: **0 failures in 2,614 s**. NZ remains for 0.4.14. Nothing pushed.
+
 Round 5 fixes skipped-export retention on **7f0ef58712**. See
 [Round 5](#round-5--bounded-retention-for-skipped-exports). NZ remains targeted
 at 0.4.14. The full Mac suite passed: **0 failures in 2,706 s**. Nothing pushed or published.
@@ -914,3 +918,85 @@ retained under `round5/`; large logs and binary evidence stay in the external
 content-addressed archive. No gzip/video or new files over 256 KB are committed. No native timings
 or real host-sleep exercise are added. Earlier rounds' qualification scopes and
 open intermittent-test issues remain intact. Nothing pushed or published.
+
+
+## Round 6 — publication pins and coalesced retention
+
+Date: 2026-10-04. Base **f118e78bf2**. The operator supplied Astra's two P2s
+and Grok's test gap; no new independent review is claimed. All implementation
+and verification stays on this mini. No real simulator is created or other
+worktree/device/process modified. NZ remains targeted at **0.4.14**.
+
+**Current and pending evidence.** Retention prioritizes the current publication's
+generation/hash within the full-evidence slots, plus either side of an unresolved
+publication swap. It observes those identities under the nonblocking shared
+publication lock, releases that lock before work, and rechecks while holding the
+candidate's export lease before compressing or deleting. A busy publication lock
+or candidate lease defers pruning and requests another scan. The start timestamp
+still orders unpinned history; it cannot evict the current generation. Active
+exports retain their leases. The five-full/twenty-compressed bound is the
+quiescent bound; outstanding leases and unresolved publication custody can
+require additional evidence until they finish.
+
+**Coalesced maintenance.** A committed skipped export sets one durable dirty bit
+outside the publication lock and returns. All later requests coalesce into that
+slot; the eventual sweep sees the current project state. Separate leases permit
+one active maintenance custodian and one pending observer. A busy request records
+pending and exits without launching another custodian. The single observer has
+no native child while waiting; it probes the leases nonblockingly at background
+QoS, then claims the request and starts the existing supervised 30-second worker.
+This replaces round 5's per-export custodian and blocking lock wait. The pending
+slot needs no work budget: it is one passive observer, not an accumulating queue
+of native groups. The actual worker retains the unchanged owner-death watcher,
+anchor, cancellation and WD drain. If its lock probe races another worker, it
+requeues. A later request's observer survives an active custodian's death and
+can restore the bound after that worker releases custody. Signals/sleep stop a
+pending observer; its unclaimed request remains durable for the next schedule
+attempt. Root queue records and `maintenance.log` survive historical-run pruning.
+Proof-bound scans also arrange an observer for deferred pruning. No retention
+wait is added to publication or status, and maintenance never rewrites a proof.
+
+**Deterministic controls.** Three new wrapper/publisher tests pause the first
+export in its private tree, publish eight newer-started exports, then let the
+first export publish last. Opt-out, simulated non-macOS, and background modes
+all retain that generation's uncompressed request/result and report its actual
+skip through status and doctor. The background case additionally sweeps while
+proof is pending. A Rust control pins both current and rollback-side generations,
+then shows the old generation becoming eligible once superseded.
+
+Two new tests hold the retention lock across 28 real wrapper transactions, one
+per skip mode. Every export returns while the lock remains held. Each sample
+requires exactly one pending maintenance process, the same observer PID, and no
+native retention group. Releasing the lock, without another export, must restore
+exactly five full and twenty compressed runs and retain the latest evidence.
+The SIGTERM, SIGKILL and 30-second-deadline tests now start with 28 full fixture
+export trees, explicitly exceed the bound while gzip is blocked, and require the
+later custodian to restore exactly 5/20 with compressed result receipts. Both
+compressor and TERM-ignoring child must belong to the recorded anchor PGID.
+Teardown drains root queue owners as well as individual proof custodians.
+These are Mac integration tests with fake exporters/host tools, including a
+simulated non-macOS wrapper branch; they do not add Linux or real-native timing
+qualification. The earlier ABBA measurements and native evidence retain their
+original scopes. Real host sleep remains unexercised.
+
+**Verification.** Build passed. Serial witness tests passed **61/61** in
+38.20 s; complete export/preparation tests passed **74/74** in 268.30 s, with
+no failures, skips or cancellations. The deadline assertion was refined to time
+the blocked group's drain separately from the later custodian's restoration;
+its final form passed a separate 33.74 s run. The full suite then exercised the
+final input hashes, including every new regression, and passed with **0 failures
+in 2,614 s** (2,613.18 s measured wall time).
+
+All Rust targets and doctests passed, including **293 CLI units** (four existing
+ignores) and **76 witness integrations**. Nine fixture wrappers passed. All
+**312 client files** passed: **6,232 passed / six existing skips / zero failures
+or cancellations**. Both full-count model files passed **79/79**. Builds, budgets,
+release guard and typechecks passed. No intervention or reduced counts occurred.
+All four recorded code/guide input hashes remained unchanged. Reference and
+whitespace checks passed. Final read-only custody verification found no lane CLI
+jobs or interposed fixture CLIs; previously recorded NZ devices remain absent.
+No real devices were created. Exact outcomes, source hashes, process-count samples
+and custody checks are in `round6/`; large logs and the binary are retained in the
+external content-addressed archive. No gzip/video or new files over 256 KB are
+committed. Earlier qualification scopes and open intermittent-test issues remain
+intact. Nothing pushed or published.
