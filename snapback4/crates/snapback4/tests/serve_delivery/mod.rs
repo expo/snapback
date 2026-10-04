@@ -186,26 +186,26 @@ fn http_rebound_removed_and_malformed_bindings_never_run_the_body() {
 fn binding_is_rechecked_after_waiting_for_the_executing_writer() {
     let h = host();
     let fp = lock(&h.shared.engine).schema().delivery[0].fingerprint.clone();
-    let entered = Arc::new(std::sync::Barrier::new(2));
-    let release = Arc::new(std::sync::Barrier::new(2));
-    let (enter_hook, release_hook) = (entered.clone(), release.clone());
+    let gate = Arc::new(WorkGate::default());
+    let _release_on_panic = ReleaseGate(gate.clone());
+    let hook = gate.clone();
     let visits = AtomicUsize::new(0);
     *lock(&h.shared.mutation_wait) = Some(Arc::new(move || {
         if visits.fetch_add(1, Ordering::AcqRel) == 2 {
-            enter_hook.wait(); release_hook.wait();
+            hook.park();
         }
     }));
     let address = h.address;
     let request = thread::spawn(move || {
         let payload = json!({"id":"waiting","args":{"group":"c1","low":1,"high":1},"delivery":{"fingerprint":fp}}).to_string();
-        exchange(address, &format!("POST /m/delivered HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{ALICE}Content-Length: {}\r\n\r\n{payload}", payload.len()))
+        exchange_held(address, WAIT_TIMEOUT, &format!("POST /m/delivered HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{ALICE}Content-Length: {}\r\n\r\n{payload}", payload.len()))
     });
-    entered.wait(); // receipt/fingerprint preflight passed; body has not run
+    wait_until(|| gate.entered.load(Ordering::Acquire) == 1); // receipt/fingerprint preflight passed; body has not run
     let changed = SOURCE.replace("\n  reports delivery of messages by .chat, .ordinal:", ":")
         .replace("  return null\nmutation ordinary", "  require false else BODY_RAN\n  return null\nmutation ordinary");
     adopt(&h, &format!("use personas alice, bob\n{changed}"));
     let head = lock(&h.shared.engine).seq().unwrap();
-    release.wait();
+    gate.release();
     let response = request.join().unwrap();
     assert_eq!(status(&response), 200, "a terminal binding refusal is not a transport failure");
     let result = body(&response);
@@ -218,21 +218,21 @@ fn adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding(
     for change in ["arguments", "removed", "query"] {
         let h = host();
         let fp = lock(&h.shared.engine).schema().delivery[0].fingerprint.clone();
-        let entered = Arc::new(std::sync::Barrier::new(2));
-        let release = Arc::new(std::sync::Barrier::new(2));
-        let (enter_hook, release_hook) = (entered.clone(), release.clone());
+        let gate = Arc::new(WorkGate::default());
+        let _release_on_panic = ReleaseGate(gate.clone());
+        let hook = gate.clone();
         let visits = AtomicUsize::new(0);
         *lock(&h.shared.mutation_wait) = Some(Arc::new(move || {
             if visits.fetch_add(1, Ordering::AcqRel) == 1 {
-                enter_hook.wait(); release_hook.wait();
+                hook.park();
             }
         }));
         let address = h.address;
         let request = thread::spawn(move || {
             let payload = json!({"id":"preflight","args":{"group":"c1","low":1,"high":1},"delivery":{"fingerprint":fp}}).to_string();
-            exchange(address, &format!("POST /m/delivered HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{ALICE}Content-Length: {}\r\n\r\n{payload}", payload.len()))
+            exchange_held(address, WAIT_TIMEOUT, &format!("POST /m/delivered HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{ALICE}Content-Length: {}\r\n\r\n{payload}", payload.len()))
         });
-        entered.wait(); // preflight released ownership; decoding has not begun
+        wait_until(|| gate.entered.load(Ordering::Acquire) == 1); // preflight released ownership; decoding has not begun
         let changed = match change {
             "arguments" => SOURCE.replace("low", "first"),
             "removed" => SOURCE.replace("mutation delivered", "mutation newDelivery"),
@@ -241,7 +241,7 @@ fn adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding(
         }.replace("  return null\nmutation ordinary", "  require false else BODY_RAN\n  return null\nmutation ordinary");
         adopt(&h, &format!("use personas alice, bob\n{changed}"));
         let head = lock(&h.shared.engine).seq().unwrap();
-        release.wait();
+        gate.release();
         let response = request.join().unwrap();
         assert_eq!(status(&response), 200, "{change}: {response}");
         let result = body(&response);

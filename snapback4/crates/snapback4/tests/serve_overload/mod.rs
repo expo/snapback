@@ -100,7 +100,9 @@ fn failed_thread_spawn_refuses_unfinished_upload_and_releases_permit() {
     let address = server.server_addr().to_ip().unwrap();
     let peer = thread::spawn(move || {
         let mut stream = TcpStream::connect(address).unwrap();
-        stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+        // The driver first receives this request (up to one second), then
+        // injects the spawn failure. Start with room for that held interval.
+        stream.set_read_timeout(Some(Duration::from_secs(1) + CLIENT_TIMEOUT)).unwrap();
         stream.write_all(b"POST /assets HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100000\r\n\r\n").unwrap();
         let mut response = String::new();
         let read = stream.read_to_string(&mut response);
