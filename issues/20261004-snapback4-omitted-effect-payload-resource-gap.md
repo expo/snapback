@@ -81,9 +81,10 @@ mutation sendGap(conversation: conversations):
 ```
 
 Unmodified `a8c20c40e9` queues this receipt-derived writer; RP predicts a message.
-The server refuses on both versions at **1,000,680 steps**. At 490 payloads both
-servers commit. The server failure boundary is unchanged; prediction exposure
-is not. R3 and R5 match, independently measured in Astra's
+At 495 payloads, the server refuses at **1,000,632 steps before RP** and
+**1,000,680 steps with RP**. Both versions commit at 490 payloads and refuse at
+495: that commit/refuse boundary is unchanged, while prediction exposure widens.
+R3 and R5 have matching meters, independently measured in Astra's
 `/tmp/rp-r5-astra-evidence/comparison.json` and receipt-gap logs on eb1000.
 
 The permanent R6 regression runs 490 and 495 on memory and SQLite and exports
