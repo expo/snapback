@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018: a live query that reads connected[p] re-runs on the interval
 // its server names. Alice's observed online mark for Bob turns when Bob's
@@ -86,9 +87,10 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   mkdirSync(join(dir, "snapback")); mkdirSync(join(dir, "devices"));
   writeFileSync(join(dir, "snapback/schema.q"), schema);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit");
   let log = "", url;
-  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  server.stdout.on("data", data => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); delete globalThis[clockKey]; });

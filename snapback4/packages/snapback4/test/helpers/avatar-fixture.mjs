@@ -1,3 +1,4 @@
+import { captureStdout } from './server-output.mjs';
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
@@ -15,6 +16,7 @@ export async function avatarFixture(t) {
   cpSync(new URL("../fixtures/cal26-avatars/", import.meta.url), join(dir, "snapback"), { recursive: true });
   let log = "";
   const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(host);
   host.stdout.on("data", b => { log += b; }); host.stderr.on("data", b => { log += b; });
   const clients = [];
   t.after(async () => {
@@ -22,7 +24,7 @@ export async function avatarFixture(t) {
     if (host.exitCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); host.kill(); await done; }
     rmSync(dir, { recursive: true, force: true });
   });
-  const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "calibration server");
+  const url = await until(() => { assert.equal(host.exitCode, null, log); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "calibration server");
   const users = {};
   const write = async (client, name, args) => {
     const result = await client.mutate(mutation(name), args);

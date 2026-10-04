@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.007 §8.7: real /m replies and a process device's durable queue.
 import test from "node:test";
@@ -44,9 +45,10 @@ async function fixture(t) {
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const clients = [];
   t.after(async () => {

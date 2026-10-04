@@ -172,6 +172,28 @@ fn scene_symbol_must_be_on_the_selected_nonzero_faulting_thread() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+fn scene_peak_bytes(stdout: &str) -> Option<u64> {
+    // Libtest can prepend its banner. Keep the first record, as before: a
+    // malformed measurement must not be replaced by a later, smaller value.
+    let value = stdout.lines().find_map(|line| line.split_once("scene-peak-bytes=").map(|(_, value)| value))?;
+    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+    value.parse().ok()
+}
+
+#[test]
+fn scene_peak_parser_requires_the_whole_first_measurement() {
+    for prefix in ["", "test many_large_scene_reports ... "] {
+        for ending in ["\n", "\r\n"] {
+            assert_eq!(scene_peak_bytes(&format!("{prefix}scene-peak-bytes=12345{ending}ok\n")), Some(12345));
+        }
+        for value in ["12x345", "1e9", "12 345", "+12", "", "18446744073709551616", "\n12345", "12 scene-peak-bytes=1"] {
+            assert_eq!(scene_peak_bytes(&format!("{prefix}scene-peak-bytes={value}\n")), None, "{value:?}");
+        }
+    }
+    assert_eq!(scene_peak_bytes("scene-peak-bytes=100000000\nscene-peak-bytes=1\n"), Some(100000000));
+    assert_eq!(scene_peak_bytes("scene-peak-bytes=12x345\nscene-peak-bytes=1\n"), None);
+}
+
 #[cfg(unix)]
 #[test]
 fn many_large_scene_reports_keep_constant_peak_memory() {
@@ -197,10 +219,7 @@ fn many_large_scene_reports_keep_constant_peak_memory() {
             .args(["--exact", "many_large_scene_reports_keep_constant_peak_memory", "--nocapture"])
             .env("SB4_SCENE_MEMORY_DIR", &dir).output().unwrap();
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        // Libtest's unterminated test banner can share the marker's line.
-        let stdout = String::from_utf8(output.stdout).unwrap();
-        let peak = stdout.rsplit_once("scene-peak-bytes=").unwrap().1;
-        peak.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u64>().unwrap()
+        scene_peak_bytes(&String::from_utf8(output.stdout).unwrap()).expect("complete scene peak measurement")
     };
     std::fs::write(dir.join("0.ips"), &report).unwrap();
     let one = measure();

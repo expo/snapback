@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget, waitFor } from './helpers/wait.mjs';
 // The real HTTP host: bounded admission, bounded encoding, and slow network
 // clients release the engine. Only this test's recorded child/socket handles
@@ -46,9 +47,10 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const sockets = new Set();
   const headers = { "x-snapback-persona": "alice" };

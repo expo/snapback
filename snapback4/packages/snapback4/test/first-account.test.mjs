@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -105,8 +106,9 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   const { api } = await import(pathToFileURL(join(dir, "snapback/generated/api.mjs")));
   let output = "";
   host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(host);
   for (const stream of [host.stdout, host.stderr]) stream.on("data", bytes => { output += bytes; });
-  const url = await until(() => { assert.equal(host.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
+  const url = await until(() => { assert.equal(host.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
   const originalFetch = globalThis.fetch;
   let loseSaveReply = false, replyLost = false;
   globalThis.fetch = async (...args) => {

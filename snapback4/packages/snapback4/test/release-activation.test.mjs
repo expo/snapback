@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // CLI activation and inspection over real persisted stores. Test processes
 // and deployment directories are isolated and removed by their owner.
@@ -60,9 +61,10 @@ function state(path) {
 
 async function serve(deployment, inspect) {
   const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1"], { stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   try {
     const deadline = performance.now() + hangBudget();
@@ -485,11 +487,12 @@ schedule resumeDaily every 1d: resume
   db.prepare("UPDATE _meta SET value = '0' WHERE key = 'schedule:resumeDaily'").run();
   db.close();
   const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1"], { stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let ready = false, log = "";
   child.stdout.on("data", data => {
     log += data;
-    if (!ready && /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(log)) {
+    if (!ready && /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout())) {
       // Startup admitted the schedule before it announced the listener. Stop
       // this owned process before its one-second maintenance tick can run it.
       ready = true;

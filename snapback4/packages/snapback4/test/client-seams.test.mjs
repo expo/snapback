@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Lane C's client/dev seams against the real HTTP host and process device.
 import test from "node:test";
@@ -108,9 +109,10 @@ async function fixture(t, release = false, schema = source) {
   const meterToken = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(dir, "release")] : [])], { cwd: dir, encoding: "utf8" });
   assert.equal(meterToken.status, 0, meterToken.stderr);
   const server = spawn(binary, release ? ["serve", join(dir, "release"), "--port", "0"] : ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit");
   let log = "", url;
-  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  server.stdout.on("data", data => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close(); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });

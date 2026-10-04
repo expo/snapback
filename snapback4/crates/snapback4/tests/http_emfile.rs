@@ -100,6 +100,23 @@ fn accept_cpu() -> Duration {
     Duration::new(time.tv_sec as u64, time.tv_nsec as u32)
 }
 
+fn descriptor_address(line: &str) -> Option<&str> {
+    // Accept a libtest banner before the first marker, then parse its whole value.
+    line.trim().split_once("FDL_ADDRESS=").map(|(_, address)| address)
+}
+
+#[test]
+fn descriptor_address_parser_rejects_partial_ports() {
+    for prefix in ["", "test descriptor_exhaustion ... "] {
+        let parse = |value: &str| descriptor_address(&format!("{prefix}FDL_ADDRESS={value}\n"))
+            .and_then(|address| address.parse::<std::net::SocketAddr>().ok());
+        assert_eq!(parse("127.0.0.1:12345"), Some("127.0.0.1:12345".parse().unwrap()));
+        for port in ["12x345", "1e9", "12 345", "+12", "", "18446744073709551616", "\n12345", "12 FDL_ADDRESS=127.0.0.1:1"] {
+            assert_eq!(parse(&format!("127.0.0.1:{port}")), None, "{port:?}");
+        }
+    }
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn descriptor_exhaustion_backlog_backs_off_and_recovers() {
@@ -117,8 +134,7 @@ fn descriptor_exhaustion_backlog_backs_off_and_recovers() {
             let address = loop {
                 let mut line = String::new();
                 assert!(stdout.read_line(&mut line).unwrap() > 0, "child exited before publishing listener");
-                // Libtest can prepend its unterminated banner to this record.
-                if let Some((_, address)) = line.trim().rsplit_once("FDL_ADDRESS=") { break address.parse().unwrap(); }
+                if let Some(address) = descriptor_address(&line) { break address.parse().unwrap(); }
             };
             // A nonempty backlog exists before exhaustion begins; continuously
             // refill it, including while the child has no free descriptor.

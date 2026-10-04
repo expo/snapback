@@ -231,3 +231,85 @@ requested. The [follow-up manifest](./round1-followup.json) and
 audit exclusions and controls, including an initial witness series repeated
 after correcting when the driver sampled hog affinity. The 436 MB target
 and owned scratch were removed after verification; nothing was pushed.
+
+## Round 2 — keep readiness streams separate and parse whole measurements
+
+On `0edf7c4690`, fixed both Astra P2s with test-only changes. All 79 combined
+readiness reads in 62 files now use a stdout-only capture registered before
+readiness callbacks; diagnostic logs still retain both streams. The existing
+newline requirement, waits and guards are unchanged. The other two entries
+in the Round 1 CSV already used stdout only. The
+[site audit](./round2-readiness.csv) lists every entry, including shared
+fixtures and restart readers; the archive contains the wider search and safe
+exclusions. The new regression interleaves stderr between stdout port digits
+and between the port and its LF/CRLF terminator, preserving the complete port.
+It passes 2/2 and fails 2/2 when the capture deliberately combines streams.
+Astra's real-startup 500 ms interleaving reproduces the parent's 122-second
+`TEST_HANG` and passes on the final source.
+
+The witness parser finds the marker after a libtest banner and parses its
+entire line value as ASCII digits fitting `u64`. It restores **first-record
+semantics**: the child emits one measurement, and a later smaller value must
+not hide a malformed or larger first measurement. The unchanged memory
+assertion remains `many < one + 16 * 1024 * 1024`. HTTP-descriptor and
+acquisition parsers also select the first marker on a line and consume the
+whole value. HTTP still uses `SocketAddr` parsing; acquisition now rejects
+extra tokens that its old `split_whitespace().nth(1)` silently ignored.
+All three reject `12x345`, `1e9`, signs, overflow and extra values; permanent
+regressions cover both banner placements and duplicate markers. Extracted
+final helper/test probes pass 3/3; adapted parent expressions fail 3/3.
+
+AST comparison preserves all 4,534 existing assertion calls, test names and
+timeout expressions in the 62 touched JavaScript files. All 302 original
+Rust assertion source lines are preserved. Product code, model counts and
+hang budgets are unchanged.
+
+On eb1000, **63 JavaScript file series × 30 = 1,890 invocations: 1,874 passes,
+16 failures**. This covers all 57 changed test files, five complete consumers
+of shared helpers and the new regression; the full suite covers the remaining
+transitive consumers. Each invocation ran under a four-CPU `taskset` with a
+live hog. **All three full Rust binaries passed 30/30 on CPU 0 with a busy
+loop**: witness 32 tests/run, HTTP descriptors 10, acquisition 3 including
+all 48 process kills. Every native exit, log hash, affinity and cleanup
+receipt was checked; test sources and Rust binary hashes remained unchanged.
+The [per-run CSV](./round2-repetitions.csv) records all 1,980 invocations.
+
+All 16 stress failures remain test failures, with no infrastructure exclusions:
+
+- Four reproduce the open retained-history R5 transient-empty assertion.
+- Two hit the wasm same-key row arrival/delete condition guard. Thirty whole-file
+  parent controls gave **29 passes and one identical timeout**; its root cause
+  remains open. An initial progress update said 30/30 based on the latest log
+  lines; the complete-record check corrected that before reporting evidence.
+- Ten remain unclassified: seven `fetch failed` errors, two worker-recovery
+  attempt assertions in server-e2e, and one missing `E_BOUND` in sync-overflow.
+  One whole-file parent control each for server-e2e, sync-overflow and
+  admit-before-identity passed; those passes do not classify the stress reds.
+
+[Failure records](./round2-failures.json) retain names, iterations, assertions
+and log hashes. These are distinct from Astra's separate retained-history
+**MQ query-count** failure (67/68, calls 3 expected 2). Its 30 isolated
+baseline controls passed; that finding remains unclassified and was not
+investigated in this lane, as requested.
+
+The full eb1000 suite (`bash scripts/test.sh`) **passed, exit 0, zero failed
+stages in 2,082 seconds**: 4,975 Rust passes, 33 existing ignores,
+workspace doctests, all 312 client files (6,206 passes, 11 existing skips),
+all 79 serial model tests at full 5,000/3,000 histories, nine fixture tests,
+and every build/budget/typecheck stage. Its CLI hash matches the repetition
+binary. This pass does not erase or classify the stress failures.
+
+The [manifest](./round2-validation.json) and
+[raw evidence archive](./round2-evidence.tar.gz) retain commands, native
+receipts, source hashes, controls, all stress failures and full-suite output.
+Node 24.13.1, Rust 1.97.0, SQLite's publication flag and the same no-debug-symbol,
+non-incremental Cargo environment as Round 1 were used; default test/debug
+assertions remain enabled. The initial new probe compile error was repaired
+before qualification and is retained as development output. The original
+13:51Z disk-full interruption remains disclosed in Round 0; no Round 2 run
+overlapped it or was excluded. Observed build, dependency and
+scratch allocations peaked at 12.29 GB, below 40 GB. The sampler continued
+through 8 transient `du` errors as live files disappeared; their stderr is
+retained. Completed stress/control scratch was removed promptly. The final
+local target and remaining owned scratch were deleted after archive verification. No remote machine,
+push or publication.

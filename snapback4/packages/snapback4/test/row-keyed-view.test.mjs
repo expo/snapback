@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -179,6 +180,7 @@ mutation fill(start: int):
   const checked = JSON.parse(execFileSync(binary, ['check', '--json'], { cwd: directory, encoding: 'utf8' }));
   assert.deepEqual(checked.rowViews, [{ view: 'unread', source: 'messages', sourceKey: 'conversationId', member: 'members', memberKey: 'conversationId', fanout: 100, range: null, writerRecount: 1024, recountChunk: 256 }]);
   const server = spawn(binary, ['dev', '--port', '0', '--no-watch', '--hold-schedules'], { cwd: directory, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(server);
   appendFileSync(join(root, 'target/b3-r1-server-pids.log'), `${server.pid}\n`);
   const exited = once(server, 'exit');
   let log = '', device;
@@ -192,7 +194,7 @@ mutation fill(start: int):
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(Error(log)), hangBudget());
     server.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
-    server.stdout.on('data', b => { log += b; const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (url) { clearTimeout(timer); resolve(url); } });
+    server.stdout.on('data', b => { log += b; const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (url) { clearTimeout(timer); resolve(url); } });
   });
   const response = await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'bob' } });
   assert.equal(response.status, 200);

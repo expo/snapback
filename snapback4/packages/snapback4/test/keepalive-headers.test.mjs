@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,10 +26,11 @@ async function host(t, serve) {
     assert.equal(deployed.status, 0, deployed.stdout + deployed.stderr);
   }
   const child = spawn(binary, [...(serve ? ["serve", "release"] : ["dev", "--no-watch"]), "--port", "0"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit"); let log = "";
   child.stdout.on("data", bytes => { log += bytes; }); child.stderr.on("data", bytes => { log += bytes; });
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
-  const url = await until(() => { assert.equal(child.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  const url = await until(() => { assert.equal(child.exitCode, null, log); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   return { url, dir };
 }
 

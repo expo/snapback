@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,12 +34,13 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-existence-'));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(host);
   const exit = once(host, 'exit'); let log = '', local, online, observed;
   const gate = Promise.withResolvers(), refusal = Promise.withResolvers(); let held = false, refuseAdmission = false;
   host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
   t.after(async () => { gate.resolve(); refusal.resolve(); observed?.close(); await local?.close(); await online?.close(); host.kill('SIGTERM'); await exit; rmSync(dir, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(log); });
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout()); });
+  const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   const post = async (path, data) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(data) });
   assert.equal((await (await post('/seed', [{ table: 'rows', row: { id: 'hidden', owner: 'dev:bob', label: 'hidden' } }])).json()).seeded, 1);
   const op = { kind: 'query', name: 'point' };

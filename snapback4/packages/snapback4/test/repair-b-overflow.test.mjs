@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP encoding at the unchanged 16 MiB ceiling, SQLite server storage,
 // and the production catch-up loop on both wasm and SQLite process devices.
@@ -71,11 +72,12 @@ async function fixture(t) {
   async function start(next = source, fresh = false) {
     await stop(); writeFileSync(join(dir, "snapback/schema.q"), next);
     child = spawn(binary, ["dev", "--no-watch", "--port", url ? new URL(url).port : "0", ...(fresh ? ["--fresh"] : [])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     exited = once(child, "exit");
     let log = "", listening = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
+      const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; listening = true; }
     });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");

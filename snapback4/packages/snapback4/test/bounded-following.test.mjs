@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.016#5 — the real wasm and native clients never publish a missing card or advance past it.
 import test from "node:test";
@@ -51,9 +52,10 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
     symlinkSync(join(root, "target/native-fixture"), join(directory, "snapback/generated/native-target"), "dir");
   }
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], releases = [];
   t.after(async () => {
     releases.forEach(release => release());

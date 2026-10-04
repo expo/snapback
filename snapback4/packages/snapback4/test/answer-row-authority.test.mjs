@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.3 — read rules also depend on the protected row's fields.
 // Revision 3's probe-table set is exact and empty for this non-opaque query.
@@ -39,12 +40,13 @@ async function fixture(t) {
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(host);
   const exit = once(host, "exit");
   let log = "";
   host.stdout.on("data", b => { log += b; }); host.stderr.on("data", b => { log += b; });
   t.after(async () => { host.kill("SIGTERM"); await exit; rmSync(directory, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(log); }, "server did not listen");
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout()); }, "server did not listen");
+  const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   const post = async (path, body) => (await fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify(body) })).json();
   assert.equal((await post("/seed", [{ table: "secrets", row: { id: "private", owner: "dev:bob", body: "private answer" } }])).seeded, 1);
   const backend = await (await fetch(url + "/schema", { headers: { "x-snapback-persona": "bob" } })).json();

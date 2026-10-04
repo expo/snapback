@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -21,6 +22,7 @@ test('wasm reconstructed view preserves predicted identities, pending and member
     .replace('  joinedAt: int default 0', '  joinedAt: int default 0\n  until: time ?\n  expire at .until');
   writeFileSync(join(directory, 'snapback/schema.q'), source);
   const server = spawn(binary, ['dev', '--port', '0', '--no-watch', '--hold-schedules'], { cwd: directory, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(server);
   const exited = once(server, 'exit');
   let log = '';
   t.after(async () => {
@@ -34,7 +36,7 @@ test('wasm reconstructed view preserves predicted identities, pending and member
     server.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
     server.stdout.on('data', b => {
       log += b;
-      const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
+      const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (url) { clearTimeout(timer); resolve(url); }
     });
   });

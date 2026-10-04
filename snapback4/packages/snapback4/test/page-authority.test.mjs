@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,13 +24,14 @@ async function fixture(t, online = false) {
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), readFileSync(new URL('./fixtures/page-authority.q', import.meta.url)));
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(host);
   const exited = new Promise(resolve => host.once('exit', resolve));
   let log = '', client, core, held = false, release, entered = false, offline = false, failServer = false, serverLoading = false, failApply = false, holdWrites = false;
   const requests = [];
   host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
   t.after(async () => { release?.(); await client?.close(); host.kill('SIGTERM'); await exited; rmSync(dir, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); }, 'server');
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); }, 'server');
+  const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   let serial = 0;
   const post = async (path, args = {}) => (await fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-snapback-persona': 'bob' }, body: JSON.stringify({ args, id: `authority-${++serial}` }) })).json();
   assert.equal((await post('/m/setup')).state, 'sent');

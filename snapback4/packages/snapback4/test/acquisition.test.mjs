@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.001#2-three-facts-to-distinguish — a compiled device capability is not an acquired partition.
 import nodeTest from "node:test";
@@ -63,9 +64,10 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
   async function start() {
     if (child) { child.kill("SIGTERM"); await exit; }
     child = spawn(binary, ["dev", "--port", url ? new URL(url).port : "0", "--fresh"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     exit = once(child, "exit");
     let log = "", listening = false;
-    child.stdout.on("data", (data) => { log += data; const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { url = address; listening = true; } });
+    child.stdout.on("data", (data) => { log += data; const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { url = address; listening = true; } });
     child.stderr.on("data", (data) => { log += data; });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
   }

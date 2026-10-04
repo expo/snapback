@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // Compile Quarry through the real CLI; run its admitted IR on both device stores.
 import test from 'node:test';
@@ -99,6 +100,7 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
   writeFileSync(join(directory, 'snapback/schema.q'), source);
   writeFileSync(join(directory, 'snapback/m.q'), 'fn twice(x: int): x + x\nfn label(row: members): row.principal\nfn note(chat: id, owner: principal): privateNotes[conversation = chat, owner = owner] { body }\n');
   const server = spawn(binary, ['dev', '--port', '0', '--no-watch', '--memory', '--hold-schedules'], {cwd: directory, stdio: ['ignore', 'pipe', 'pipe']});
+  const readStdout = captureStdout(server);
   const exited = once(server, 'exit');
   let log = '', url;
   const clients = [];
@@ -108,7 +110,7 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     await exited;
     rmSync(directory, {recursive: true, force: true});
   });
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log += bytes; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const deadline = performance.now() + hangBudget();
   while (!url) {
     assert.equal(server.exitCode, null, log);

@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -35,10 +36,11 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
     writeFileSync(path, before);
     // Keep one serving process: a schema save activates under live watches.
     const child = spawn(binary, ["dev", "--port", "0", "--hold-schedules"], {cwd: dir, stdio: ["ignore", "pipe", "pipe"]});
+    const readStdout = captureStdout(child);
     const exited = once(child, "exit");
     let log = "", url, client, core;
     const watches=[];
-    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
     t.after(async () => { for(const watch of watches)watch.close(); await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill(); await exited; rmSync(dir,{recursive:true,force:true}); });
     await until(() => { assert.equal(child.exitCode,null,log); return url; });
     const headers = {"x-snapback-persona":"alice", "content-type":"application/json"};

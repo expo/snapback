@@ -86389,3 +86389,20 @@ CPU-0 busy loop; the full 48-kill acquisition model passes there too. FY's
 fails both without it. The [Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
 records the follow-up; its full-suite evidence stands. Build and scratch
 files were removed. One local follow-up commit on `12b101b76b`; no push.
+
+## 2026-10-04 — FX round 2: independent readiness and whole marker values
+
+Fixed Astra's two P2s on `0edf7c4690`: all 79 combined-stream readiness reads
+now parse stdout alone while retaining complete-line guards; witness, HTTP
+descriptor and acquisition markers consume whole values and select the first
+record. Existing assertions, names and bounds remain unchanged. Interleaving
+and malformed-value controls fail the parent and pass the repairs. All three
+Rust binaries pass 30/30 under a CPU-0 hog. The 63 JavaScript file series
+ran 30 times each under four-CPU contention: 1,874 passes and 16 retained
+failures (four known R5, two parent-reproduced condition timeouts, ten
+unclassified). The full suite passes in 2,082 s at full counts. Astra's
+separate MQ count failure remains unclassified and was not pursued. The
+[Round 2 report](./reports/20261004-fx-test-races/REPORT.md#round-2--keep-readiness-streams-separate-and-parse-whole-measurements)
+records every result, source/receipt checks, controls and cleanup. Observed
+allocations peaked at 12.29 GB; owned target/scratch removed after verified
+archival. One local commit, with no push or remote-host work.

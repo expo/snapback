@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -22,6 +23,7 @@ async function backend(t) {
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), readFileSync(new URL("./fixtures/page-ready.q", import.meta.url)));
   const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(host);
   const exited = new Promise(resolve => host.once("exit", resolve));
   let log = "";
   host.stdout.on("data", bytes => { log += bytes; }); host.stderr.on("data", bytes => { log += bytes; });
@@ -31,7 +33,7 @@ async function backend(t) {
   });
   const url = await awaitState(() => {
     assert.equal(host.exitCode, null, log);
-    return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
+    return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
   }, "page observation server", { diagnostics: () => log });
   return { url, dir };
 }

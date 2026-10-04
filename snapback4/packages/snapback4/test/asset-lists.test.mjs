@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.019#3.5 — real HTTP serving and ordinary list bytes offline on both devices.
 import test from "node:test";
@@ -67,8 +68,9 @@ async function fixture(t, schema = source, shape = assets => assets.map(a => ({ 
   const start = async () => {
     let log = ""; url = undefined;
     server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(server);
     exited = once(server, "exit");
-    for (const stream of [server.stdout, server.stderr]) stream.on("data", b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+    for (const stream of [server.stdout, server.stderr]) stream.on("data", b => { log += b; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
     const deadline = performance.now() + hangBudget();
     while (!url) { if (server.exitCode != null || performance.now() > deadline) throw Error(log); await new Promise(r => setTimeout(r, 20)); }
     return url;

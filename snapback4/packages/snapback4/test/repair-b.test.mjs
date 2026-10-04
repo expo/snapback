@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Native round trip uses the same Device without requiring a wasm build.
 import test from "node:test";
@@ -31,6 +32,7 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   mkdirSync(join(directory, "devices"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit");
   let log = "", client, core;
   server.stderr.on("data", chunk => { log += chunk; });
@@ -38,7 +40,7 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
+    server.stdout.on("data", chunk => { log += chunk; const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
   });
   const post = async (path, body, persona = "alice") => {
     const r = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -293,12 +295,13 @@ test("row reset between A2 acquisition and B fetches B's backend and retires A's
     const cwd = join(directory, label); mkdirSync(join(cwd, "snapback"), { recursive: true });
     writeFileSync(join(cwd, "snapback/schema.q"), `${source}\nquery stamp():\n  return '${label}'\n`);
     const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(server);
     const exited = once(server, "exit"); servers.push({ server, exited });
     let log = ""; server.stderr.on("data", chunk => { log += chunk; });
     return await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error(log)), hangBudget());
       server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-      server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
+      server.stdout.on("data", chunk => { log += chunk; const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
     });
   }
   const a = await host("A1"), b = await host("B");

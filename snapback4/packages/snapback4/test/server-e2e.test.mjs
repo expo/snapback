@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real CLI, HTTP, supervised Node children and an on-disk provider double.
 // This proves the provider protocol under crashes, not a third-party adapter.
@@ -73,11 +74,12 @@ function project(t, source, entry) {
     assert.equal(operator.status, 0, safe(operator.stderr));
     const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])];
     const child = spawn(binary, args, { cwd: directory, env: { ...process.env, SNAPBACK_NODE: NODE, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     let log = "", url, exited = false, spawnError;
     const output = { stdout: [], stderr: [] };
     const done = new Promise(resolve => { child.once("exit", () => { exited = true; resolve(); }); child.once("error", error => { spawnError = error; exited = true; resolve(); }); });
     for (const [name, stream] of [["stdout", child.stdout], ["stderr", child.stderr]]) stream.on("data", bytes => {
-      output[name].push(Buffer.from(bytes)); log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
+      output[name].push(Buffer.from(bytes)); log += bytes; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
     });
     let stopping;
     const host = {

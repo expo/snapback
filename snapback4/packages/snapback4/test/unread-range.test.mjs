@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.020#6 — the same replica cases run on wasm and both native stores.
 import test from 'node:test';
@@ -30,6 +31,7 @@ async function serverFor(t, c) {
   for (const [before, after] of c.replace ?? []) text = text.replaceAll(before, after);
   writeFileSync(join(dir, 'snapback/schema.q'), 'use personas bob, alice\n' + text);
   const child = spawn(binary, ['dev', '--memory', '--port', '0', '--no-watch', '--hold-schedules'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(child);
   const exited = once(child, 'exit');
   const close = async () => { if (child.exitCode === null && child.signalCode === null) child.kill(); await exited; rmSync(dir, { recursive: true, force: true }); };
   t.after(close);
@@ -38,7 +40,7 @@ async function serverFor(t, c) {
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(Error(log)), hangBudget());
     child.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
-    child.stdout.on('data', b => { log += b; const found = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    child.stdout.on('data', b => { log += b; const found = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const r = await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona, 'content-type': 'application/json' }, body: JSON.stringify(body) });

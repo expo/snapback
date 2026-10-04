@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -71,11 +72,12 @@ async function fixture(t, tier = "process", serverBinary = binary) {
   async function start(schema = source) {
     await stop(); writeFileSync(join(dir, "snapback/schema.q"), schema);
     child = spawn(serverBinary, ["dev", "--no-watch", "--port", url ? new URL(url).port : "0"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     exited = once(child, "exit");
     let log = "", ready = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
+      const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; ready = true; }
     });
     const deadline = performance.now() + hangBudget();

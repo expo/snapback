@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // The worker's door on the real wire: a service token from the CLI, a
 // session minted for an account the application authenticated itself,
@@ -71,9 +72,10 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
     assert.match(serviceToken, /^[A-Za-z0-9_-]{40,}$/);
   // Not --fresh: the CLI mints the token into the same store file.
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const stop = new AbortController();
   try {
@@ -735,8 +737,9 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   const minted = spawnSync(binary, ["token", "--release", release, "--service", "caller"], { cwd: directory, encoding: "utf8" });
   assert.equal(minted.status, 0, minted.stderr);
   const child = spawn(binary, ["serve", release, "--port", "0", "--worker", entry], { cwd: directory, env: { ...process.env, A1_PARENT_ONLY: "must-not-reach-worker" }, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   const exited = once(child, "exit"); let log = "", url;
-  for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   t.after(async () => { if (child.exitCode == null && child.signalCode == null) { child.kill("SIGTERM"); await Promise.race([exited, sleep(4000)]); } if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; } rmSync(directory, { recursive: true, force: true }); });
   await until(() => { if (child.exitCode != null) throw Error(log); return url; });
   const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };

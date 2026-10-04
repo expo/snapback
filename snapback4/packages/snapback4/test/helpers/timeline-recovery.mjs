@@ -1,3 +1,4 @@
+import { captureStdout } from './server-output.mjs';
 import { hangBudget, waitFor as awaitState } from './wait.mjs';
 // Revision 7: the original historical-image counterexample, driven through
 // the production SDK on both device stores, is a positive recovery regression.
@@ -34,9 +35,10 @@ export async function recoverTimeline() {
   await mkdir(join(directory,'snapback'));
   await copyFile(new URL('./timeline-recovery.q',import.meta.url),join(directory,'snapback/schema.q'));
   const server=spawn(binary,['dev','--port','0','--fresh','--no-watch'],{cwd:directory,stdio:['ignore','pipe','pipe']});
+  const readStdout = captureStdout(server);
   const exited=once(server,'exit');
   let log='',url;
-  for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});
+  for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});
   const devices=[];
   try {
     await until(()=>{assert.equal(server.exitCode,null,log);return url;},'server startup');

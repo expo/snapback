@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -149,9 +150,10 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const dir = starter(t), api = await generatedApi(dir);
   let output = "";
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   server.stdout.on("data", bytes => { output += bytes; }); server.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
-  const url = await until(() => { assert.equal(server.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "social dev ready");
+  const url = await until(() => { assert.equal(server.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "social dev ready");
   await until(() => output.includes("notifications.mjs (pid"), "declared starter worker ready");
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
   const open = async () => {
