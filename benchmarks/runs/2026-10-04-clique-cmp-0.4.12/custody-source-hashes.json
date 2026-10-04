@@ -1,0 +1,541 @@
+{
+  "method": "SHA256 of allowlisted source/narrative/scale evidence on original custody clones via SSH; compared with local comparative copies",
+  "files": [
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Shell.tsx",
+      "sha256": "2c68961b9cdf74e107d12b2b5424db7760f3d4b135680f543a9fe1ce59d5ed10",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Feed.tsx",
+      "sha256": "39e9c7e48909c3fa919215f144992597418bcbba7bce618a8048173377994200",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Video.web.tsx",
+      "sha256": "507834816a7e75640e40db6e45184e7b82962095c9b126b1cae2fcde0d9a3c44",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Chats.tsx",
+      "sha256": "1c54069d69971b664276d7680c15fae4ae3c19f78e1fc667cc5aaa225e1f4757",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Search.tsx",
+      "sha256": "6f7d27dfe5988358de6a2f9d1c6830d07669f2a69ca3fab5495e7f8b94a41035",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Video.tsx",
+      "sha256": "507834816a7e75640e40db6e45184e7b82962095c9b126b1cae2fcde0d9a3c44",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/useOnlineArm.ts",
+      "sha256": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/client.ts",
+      "sha256": "cf06f8722e84d3eb8cdfcc56168dd7537b4dcdb136d16aa6239b894b0fc80b85",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Insights.tsx",
+      "sha256": "177d93e5b0d9d2385ceead966caabe067f74a49bfedd5eb8e5645e7b94574a38",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/useTyping.ts",
+      "sha256": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "src/Video.native.tsx",
+      "sha256": "f0e9ea4af6723bb1e997895ba29b1d6131311fca47cbc996e00ae0dd38699709",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "app/index.tsx",
+      "sha256": "b91bbe0eee619ee1f747246d274f1ac084460b36afd10dcf93cb760324f3120d",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "app/_layout.tsx",
+      "sha256": "7c498b6f31ad1c202bae6a3c7e33dab2cafcbd5829cb98acc07ce88da8c5ac85",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "app/[...path].tsx",
+      "sha256": "b91bbe0eee619ee1f747246d274f1ac084460b36afd10dcf93cb760324f3120d",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/schedule.q",
+      "sha256": "dd95a57021524fa6b48805f85b0e574ab3dbd296e1afb2168f6a00771aa51d32",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/config.q",
+      "sha256": "b9b7add541e5ffba1da6aef91ccc3903bf758764928c6586aacbb11604175c17",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/schema.q",
+      "sha256": "aac0c238369601fb24e5d23ce84369d29e3d699e8424d60bc623a876e5234a37",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/generated/residency.json",
+      "sha256": "231b7c01bc19cbc5f35db6a125b3a9f0be6ffeb209e7fa252e35fd57c51efb31",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/generated/api.ts",
+      "sha256": "27c458723cd4c9da79c041a3182cec0cc0d482ba6f4bc6a152f1f67079b975c2",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/generated/package.json",
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/generated/server.ts",
+      "sha256": "d8bf37968562d12414f792eb92f528ead0fc2c66e59492f7abe03d2b604b3c78",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "snapback/workers/push.mjs",
+      "sha256": "65e722f660426aab4c2cb154fbd91849fad3bbafe21da7c6b7ce2558a3bbbffb",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "diary.md",
+      "sha256": "a37752519cfb22ca81b9e7147bb1457585798d1b2b853ae39dc376e9f158c886",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "essay.md",
+      "sha256": "c064a162ea86043ce4f9fb9f95a03f450515df9e1292b80e576549fabde9e6c5",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "run-log.md",
+      "sha256": "98988ceab4e4ba46d0e086eed67b69b259b441b4c81a6b6662ea5d5ed8178554",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "final-report.md",
+      "sha256": "c0695fa60fe0ab69f25fcf17af92a2fe07b0cc41c9a7108cd0c3a9445c1f3f98",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "README.md",
+      "sha256": "18bb59b394e2593246fdb8b8035749c55873eade3ae1e535f8530903c11aa96a",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "astra",
+      "custody_relative_path": "API.md",
+      "sha256": "e8b403af0715a015fb878b3ff16d8c56b270cf9e6d199e52281fa1be0b0c6728",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/InsightsScreen.tsx",
+      "sha256": "068d1044792d00f22028c90169e22d5e79884df867c160fbcb7237dc3b0f992b",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/PostCard.tsx",
+      "sha256": "1ba6539537dea688e3a51db5f15bfede6da5c8de27f9f72ac81906ccfe27e70a",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Feed.tsx",
+      "sha256": "f8697d62d10312973bad546da4893db5cf907a4cd5076ddabed3ebb936e2fb26",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/intent-store.web.ts",
+      "sha256": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Chats.tsx",
+      "sha256": "8c885b75daf62f8beb82e4f6f4de74ee99b95a56a17ba022d26a7819f6366f83",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/ProfileEdit.tsx",
+      "sha256": "1f8a7372bcfc0ea8e290f5125ebab9497bc2e3b8154927581cad728b3eb73fd1",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Search.tsx",
+      "sha256": "a5f68243544760a05f6b0a7b62d61f41989e1675e23a85079dcf063cb4926681",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/ResolveConversation.tsx",
+      "sha256": "abc832ebfbc72fb62a50844e1f697d097f1d67aa46cdeef839f30caa3eae61d5",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/BoundedConversation.tsx",
+      "sha256": "a46418dadb37dd2ba445eef9b02f73a2d23e8a3c5b5f5ddd6f05613dcab64508",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/intent-store.native.ts",
+      "sha256": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/ProfileScreen.tsx",
+      "sha256": "f9ac0220ec777be819aa027da69f8ce89d5daea2184d4450dba47bfb3f52b47f",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/feed-tab.ts",
+      "sha256": "1965d947ea639becf69255f40e42ddf8ea2acd89f2a533edfa15cc98dd986a1a",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/SearchScreen.tsx",
+      "sha256": "02d0774ff28d6fc702aafbcae586aa9749bd1f7038485cd272add116531bc236",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/PageLifetime.ts",
+      "sha256": "ab2961da7501c7e2dc6f3fe31127878ce685da715fb238683f549edd1ba67001",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/useOnlineArm.ts",
+      "sha256": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Conversation.tsx",
+      "sha256": "6915146b3b2b5519c841e03285c47e7e368b4ca1e743a34edc15fb6f09b557cc",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Profile.tsx",
+      "sha256": "74a8304c45f115a605093a31e1bdc3ef02f5a18d6d8fa9882a3616edae3c8895",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/client.ts",
+      "sha256": "e183dd8c31585fa375a6da6727490e9e740bd3f9654a3d659798304cac36b9e4",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/ChatSettingsScreen.tsx",
+      "sha256": "e573e0aec7b0693bd9513ce889447816f44714a531dbb65c7538eafa3fb33581",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/intent-store.ts",
+      "sha256": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/native-smoke.ts",
+      "sha256": "cfc79958fcc6b6643ef2aced08fe660951d53c40e576263a195859d9b691c745",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/useOnceMedia.ts",
+      "sha256": "5fb984a22c8964ca68f899026974558709c10d2b200d8750e14e63edf1fa3cf0",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/Direct.tsx",
+      "sha256": "e429abaa9fc489450b5d9d5989a4f4d08857178aa901c8e0f9a4a2adbb59574e",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/intents.ts",
+      "sha256": "06f1de4d302d33aec1ee1abb3f6ffb04e689e385aa848dec024551d634785178",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/useTyping.ts",
+      "sha256": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/media.tsx",
+      "sha256": "9e5e8e4722a5654733cc3079183402dd8a9d9f9b36a23479878c3d4740ca4f7e",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/PersistentFeedTabs.tsx",
+      "sha256": "aa24f326475a82083a6dafeef1c9a089e35381b9e30919e7def8fb77d59e3889",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "src/ui.tsx",
+      "sha256": "9d798eeec79e6e7fdc376eb40281a7c1853c53a01762b1f29ac620b701e32655",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/settings.tsx",
+      "sha256": "dca29037d894b25a0d09a588e462eb8aac17b094cdd8b8d6439ee6f3902be881",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/insights.tsx",
+      "sha256": "1f74db7be83d39ab6aac7d6a8257ddbe3ca700a29ce6b8b4b6eb508e693cae9b",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/_layout.tsx",
+      "sha256": "f0a36d41258d17b25c27d013e376ea873215b2e4f795ffa7e404590736192a94",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/post/[id].tsx",
+      "sha256": "9cc4474fcd361fee367452b8a7ef34b715dc798d2f7a3a2ffd6f3c4df7e342d0",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/(tabs)/index.tsx",
+      "sha256": "d3dcd9b2739dfab3163e25ae0a3144e87945b113630c802f53f4a9772f605bab",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/(tabs)/chats.tsx",
+      "sha256": "c50d9a4e86bb565bb949ba87e494f0107d6840f4324d195787ce8f7949bddc96",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/(tabs)/search.tsx",
+      "sha256": "00dc0a1377389d5e1ce0abd686e3ec25e9aaba2d665c2b4adc01725e6ed042ce",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/(tabs)/profile.tsx",
+      "sha256": "d5c2a086d5fad8a0145cd0803d307b06242c079cabfa3dc65d9e3c2aed0d9252",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/(tabs)/_layout.tsx",
+      "sha256": "5a579729f43a79624f8facf330ce2968c60c9f108fd23ac5278a0848d197758c",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/search-chat/[id].tsx",
+      "sha256": "dfd92798880468233a165dfb745a7c5fc0b2881991ecc75335e4a2012c7a824f",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/profile/[handle].tsx",
+      "sha256": "2b4854a972e72bbf0bdfa5084db39dd585542ee379c9a28f97f3d87ab2f23771",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/profile/edit.tsx",
+      "sha256": "664b69971fd9b31d2a29d4477af08afd35958d2a23829c71c21f55a3254baa0d",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/dm/[other].tsx",
+      "sha256": "d46bd9bd350cd9bbe3d55a8c4ccc3a29644cf744578d675c87cd6291461e9f99",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/conversation/[handle].tsx",
+      "sha256": "a2aaaf649de2cb0e6bf6bb60c2025fb2ed3eb841fd83884e2bfe4e0907d7b6a4",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/conversation/[handle]/settings.tsx",
+      "sha256": "e46ce8732bf3647abedd93d83696c9d956efdb3e0f51ab1a6eafe968eb2865f7",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/conversation/group/[group]/settings.tsx",
+      "sha256": "a1a1e14f6dd893dd33284767235552ff1badcad71534b28efcf2da1932b413a8",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "app/conversation/group/[group]/index.tsx",
+      "sha256": "5e3e1b727f1f5cbbdaca66d278da324eb0311fcd979c76f45c502ef8b4f99899",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/schema.q",
+      "sha256": "bd53aae3b7fef323b687a87983be7a1e800ca3ce04e51ab963cd2674ea2b2dce",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/generated/residency.json",
+      "sha256": "3fd89bc073114ca772c99f45868dcb1ac185977419e018d9971a0a9029595b4a",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/generated/api.ts",
+      "sha256": "a82bb010b0aeac134a4964009bf81b7956220140f2ea2a8c02b9bde9488fac5c",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/generated/package.json",
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/generated/server.ts",
+      "sha256": "dcd5ef919dac1db6a2c279a5e329dc9eb256b19fa3f06312d777d99a78c8a045",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "snapback/workers/notifications.mjs",
+      "sha256": "a8e741a9040afe586344f7ff6c99ead2961bc00de4ab8fd82ac06cb65452009e",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "diary.md",
+      "sha256": "27bab3144a44166fdba43f062b3903f202d019b4fe7b7430107287a5f0b89be5",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "essay.md",
+      "sha256": "e752e902e906c73850eefa426874b4017bf0cd685b6cd3d39b29297b379cb489",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "run-log.md",
+      "sha256": "c7f347865212ff924b4488256118d4b4082162d8571e504471e6d5f83ebfd493",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "final-report.md",
+      "sha256": "b2420da1ba7e527b3b55879d0c45fb3312a1efa967d80782e78e780836ce626f",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "README.md",
+      "sha256": "a286b25bacfa19588a1e0162e77fc4c6016be620dcd0dfb61621f0e8b0da39c6",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "API.md",
+      "sha256": "a67782763f66d12e5dc6f7ca509ab2233dc808573b1a202927a4541b1c865e65",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "receipts/scale-replay.json",
+      "sha256": "472b68e4eb1a648dad56327b27371176776d4a9595aa2f38400938dc110c30a0",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "receipts/scale-verify.json",
+      "sha256": "a6abf677ab6156d98fbdd9724dea3de1a3b2cede802ebc10292948730afda3d6",
+      "comparative_copy_identical": true
+    },
+    {
+      "family": "grok",
+      "custody_relative_path": "receipts/scale-progress.jsonl",
+      "sha256": "6bf646418d0192ae9978c73925642e73f6683b62881c37c2790d8cdf7ea43fec",
+      "comparative_copy_identical": true
+    }
+  ],
+  "additional_replay_source": {
+    "host": "ccheever@100.64.36.16",
+    "custody_relative_path": "scale-run/snapback/schema.q",
+    "sha256": "10c99d76e0be2b2c9d4444840a82a5f44bafa703f5fddee66c1587fb041c6ffa",
+    "method": "remote shasum -a 256 matched retained copy",
+    "final_app_schema_sha256": "bd53aae3b7fef323b687a87983be7a1e800ca3ce04e51ab963cd2674ea2b2dce",
+    "only_difference": "replay inbox return shape omits seenOrdinal"
+  }
+}

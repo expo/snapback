@@ -1,0 +1,25 @@
+{
+  "wave": "astra",
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "start": 1791106903,
+  "end": 1791107231,
+  "exit": 0,
+  "command": [
+    "/home/ccheever/.local/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=xhigh",
+    "-C",
+    "/home/ccheever/clique-cmp-20261003-0412",
+    "-o",
+    "/home/ccheever/clique-cmp-20261003-0412/scores/astra/FINAL.md",
+    "-"
+  ]
+}
