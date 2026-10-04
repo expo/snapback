@@ -196,9 +196,14 @@ fn last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone() {
     for n in 0..900 {run(&mut e,"follow",&format!("r{n:04}"),&[("actor",id("a"))],1);}
     post(&mut e,"a","gone",100);e.run_timeline_chunk_for(100, std::time::Duration::MAX).unwrap();
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),257);
-    // Rewind only this supplied test clock to make purge win the queue order.
-    // Correctness cannot depend on the worker observing delivery first.
+    // Queue positions no longer follow the test clock. Force a trusted restored
+    // order instead: correctness cannot depend on observing delivery first.
     run(&mut e,"remove","a",&[("postId",id("gone"))],2);
+    let old=e.store().rows("feedWork").unwrap().into_iter().find(|r|r.field("kind").unwrap().as_str().unwrap()=="purge").unwrap();
+    let mut first=old.clone();let Value::Row(fields)=&mut first else {unreachable!()};
+    fields.insert("at".into(),Value::Int(-1));
+    let table=e.schema().tables["feedWork"].clone();
+    let tx=e.store_mut().transaction().unwrap();tx.put("feedWork",&table,&first,Some(&old)).unwrap();tx.commit().unwrap();
     e.run_timeline_chunk_for(101, std::time::Duration::MAX).unwrap();
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),1);
     assert_eq!(e.store().rows("feedRemovedEvents").unwrap().len(),1);

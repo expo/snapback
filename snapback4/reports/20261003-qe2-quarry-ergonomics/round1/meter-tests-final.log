@@ -1,0 +1,15 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 22.41s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-038c5751cb12eb2e)
+
+running 4 tests
+test engine::qe2_allocation_tests::bound_result_and_sibling_hops_have_equal_server_device_prices ... bound, 1 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 1, steps: 20, heap_bytes: 2778, output_bytes: 70, rows_written: 1 }
+discarded, 1 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 1, steps: 12, heap_bytes: 926, output_bytes: 13, rows_written: 1 }
+bound, 2 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 2, steps: 20, heap_bytes: 2778, output_bytes: 70, rows_written: 1 }
+discarded, 2 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 2, steps: 12, heap_bytes: 926, output_bytes: 13, rows_written: 1 }
+ok
+test engine::qe2_allocation_tests::consumed_if_absent_result_is_still_completed ... ok
+test engine::qe2_allocation_tests::inlined_helper_and_branch_keep_the_consumed_insert_result ... ok
+test engine::qe2_allocation_tests::known_default_price_is_independent_of_declared_maximum ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 208 filtered out; finished in 0.01s

@@ -268,7 +268,9 @@ impl Walk<'_> {
         }
     }
     fn term(&mut self, table: &str, term: &RuleTerm) {
-        match term { RuleTerm::Field(f) | RuleTerm::OldField(f) | RuleTerm::NextField(f) => self.field(table, f), _ => {} }
+        match term {
+            RuleTerm::Reference { table: target, column, field, .. } => { self.field(table, column); self.field(target, field); self.rule(target, "read"); }
+            RuleTerm::Field(f) | RuleTerm::OldField(f) | RuleTerm::NextField(f) => self.field(table, f), _ => {} }
     }
     fn rule_expr(&mut self, owner: &str, rule: &RuleExpr) {
         match rule {

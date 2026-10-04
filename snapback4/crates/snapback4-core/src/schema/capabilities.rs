@@ -54,6 +54,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // writes using their receipt-derived maintenance path.
     ("receipt-derived-prediction-v1", |s| s.maintains.iter().any(|m| s.receipt_dependencies.contains_key(&m.target))
         || s.has_receipt_columns()),
+    ("rule-reference", |s| s.tables.values().any(|t| [&t.rules.insert, &t.rules.update, &t.rules.delete].iter().any(|r| r.has_reference()))),
     ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),

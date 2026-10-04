@@ -1,0 +1,130 @@
+✖ wasm: empty-owned-default costs exactly 1621 heap bytes (785.888835ms)
+✖ wasm: bound-insert costs exactly 14401017 heap bytes (143.312033ms)
+✔ wasm: discarded-insert costs exactly 12000421 heap bytes (369.384428ms)
+✔ wasm: discarded-if-absent costs exactly 16000421 heap bytes (365.199345ms)
+✖ process: empty-owned-default costs exactly 1621 heap bytes (302.39773ms)
+✖ process: bound-insert costs exactly 14401017 heap bytes (185.904717ms)
+✔ process: discarded-insert costs exactly 12000421 heap bytes (491.886349ms)
+✔ process: discarded-if-absent costs exactly 16000421 heap bytes (414.707765ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 4
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3210.413588
+
+✖ failing tests:
+
+test at packages/snapback4/test/qe2-allocations.test.mjs:15:3
+✖ wasm: empty-owned-default costs exactly 1621 heap bytes (785.888835ms)
+  AssertionError [ERR_ASSERTION]: {"ok":{"denied":{"code":"E_BOUND","family":"bound","guide":"bounds","message":"heap bytes reached the ceiling 16777216","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","site":"metered:3"}}}
+  + actual - expected
+
+  + {
+  +   code: 'E_BOUND',
+  +   family: 'bound',
+  +   guide: 'bounds',
+  +   message: 'heap bytes reached the ceiling 16777216',
+  +   rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows',
+  +   site: 'metered:3'
+  + }
+  - undefined
+
+      at success (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:27:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:33:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_BOUND', family: 'bound', guide: 'bounds', message: 'heap bytes reached the ceiling 16777216', rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows', site: 'metered:3' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/qe2-allocations.test.mjs:15:3
+✖ wasm: bound-insert costs exactly 14401017 heap bytes (143.312033ms)
+  AssertionError [ERR_ASSERTION]: {"ok":{"denied":{"code":"E_BOUND","family":"bound","guide":"bounds","message":"heap bytes reached the ceiling 16777216","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","site":"add:3"}}}
+  + actual - expected
+
+  + {
+  +   code: 'E_BOUND',
+  +   family: 'bound',
+  +   guide: 'bounds',
+  +   message: 'heap bytes reached the ceiling 16777216',
+  +   rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows',
+  +   site: 'add:3'
+  + }
+  - undefined
+
+      at success (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:27:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:32:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_BOUND', family: 'bound', guide: 'bounds', message: 'heap bytes reached the ceiling 16777216', rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows', site: 'add:3' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/qe2-allocations.test.mjs:15:3
+✖ process: empty-owned-default costs exactly 1621 heap bytes (302.39773ms)
+  AssertionError [ERR_ASSERTION]: {"ok":{"denied":{"code":"E_BOUND","family":"bound","guide":"bounds","message":"heap bytes reached the ceiling 16777216","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","site":"metered:3"}}}
+  + actual - expected
+
+  + {
+  +   code: 'E_BOUND',
+  +   family: 'bound',
+  +   guide: 'bounds',
+  +   message: 'heap bytes reached the ceiling 16777216',
+  +   rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows',
+  +   site: 'metered:3'
+  + }
+  - undefined
+
+      at success (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:27:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:33:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_BOUND', family: 'bound', guide: 'bounds', message: 'heap bytes reached the ceiling 16777216', rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows', site: 'metered:3' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/qe2-allocations.test.mjs:15:3
+✖ process: bound-insert costs exactly 14401017 heap bytes (185.904717ms)
+  AssertionError [ERR_ASSERTION]: {"ok":{"denied":{"code":"E_BOUND","family":"bound","guide":"bounds","message":"heap bytes reached the ceiling 16777216","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","site":"add:3"}}}
+  + actual - expected
+
+  + {
+  +   code: 'E_BOUND',
+  +   family: 'bound',
+  +   guide: 'bounds',
+  +   message: 'heap bytes reached the ceiling 16777216',
+  +   rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows',
+  +   site: 'add:3'
+  + }
+  - undefined
+
+      at success (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:27:14)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/qe2-allocations.test.mjs:32:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_BOUND', family: 'bound', guide: 'bounds', message: 'heap bytes reached the ceiling 16777216', rewrite: 'move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows', site: 'add:3' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

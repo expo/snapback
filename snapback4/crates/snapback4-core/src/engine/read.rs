@@ -72,7 +72,7 @@ fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -
     use crate::schema::{RuleExpr::*, RuleTerm};
     let term = |t: &RuleTerm| match t {
         RuleTerm::Viewer => word_heap::text(viewer), RuleTerm::Literal(v) => DisclosedKey(v).heap(),
-        RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
+        RuleTerm::Reference { .. } | RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
     };
     match rule {
         Eq(a,b) | Ne(a,b) => term(a) + term(b),
@@ -83,7 +83,6 @@ fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -
         _ => 0,
     }
 }
-
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
@@ -135,6 +134,7 @@ pub(super) struct RuleProbe<'a, 'b> {
     pub(super) allowance: &'a Authorization,
 }
 impl Probe for RuleProbe<'_, '_> {
+    fn reference(&mut self, table: &str, id: &Value, field: &str) -> Result<Option<Value>, RuntimeError> { self.runner.rule_reference(table, id, field) }
     fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {

@@ -38,6 +38,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_DUPLICATE_FIELD", &["Rename or remove the second field"]),
     ("E_QUARRY_SPREAD", &["Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`"]),
     ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),
+    ("E_QUARRY_RULE_HOP", &["Each hop costs one prepaid rule probe", "read through .message", "deeper hop chains", "Sibling hops are legal and charged"]),
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_JOB_SCHEDULE", &["`job sweep every 1h:` with `job sweep():`, keep the indented body"]),
     ("E_QUARRY_KEY_ORDER", &["move all positional components first, then write the named tests"]),

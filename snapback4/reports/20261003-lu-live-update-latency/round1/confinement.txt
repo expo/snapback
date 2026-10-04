@@ -1,0 +1,16 @@
+Discarded first round-1 baseline, observed during the 20-burner cell:
+  root measurement Node PID: 33809
+  GPU process PID: 34389, command included --use-angle=swiftshader-webgl
+  thread masks: 278 at 80-89, 16 at 0-9
+  escaped threads: 34393..34408, named Thread<00>..Thread<15>
+The owned run was terminated, its burner keeper closed/reaped, and no owned
+server, keeper or browser remained in the following process check. No burners
+escaped their mask. Its raw records were moved to target/lu-r1-before-unconfined.*
+and are excluded from qualification.
+
+Corrected launcher: taskset, then confine.py, then Node. The guard self-tests
+EPERM for sched_setaffinity before exec and is inherited across fork/exec/thread
+creation. A subprocess probe also received EPERM. The 80-post pilot completed
+27 updates across 0/20/120 burners, with no page errors. audit-affinity.py and
+round1/affinity.json retain the corrected tree/thread observations. The formal
+1,000-post baseline was restarted from setup using this guard.

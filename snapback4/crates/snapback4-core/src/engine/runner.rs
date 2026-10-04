@@ -32,6 +32,7 @@ impl Runner<'_> {
     }
 }
 pub(super) fn expression_heap(value: &Value) -> u64 { value.expression_heap(ExpressionAccess(())) }
+pub(super) fn expression_copy(value: &Value) -> u64 { value.expression_copy(ExpressionAccess(())) }
 
 #[derive(Clone, Debug)]
 pub(super) enum Flow {
@@ -95,6 +96,8 @@ pub struct Runner<'a> {
     pub(super) caller_heap_ceiling: Option<(u64, u64)>,
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
+    /// Program-only use counts; None keeps standalone/raw statement callers conservative.
+    pub(super) insert_uses: Option<BTreeMap<String, u8>>,
     /// Rows this transaction inserted, by (table, index, encoded key).
     pub(crate) created: BTreeMap<(String, String, String), usize>,
     /// Current facts owned by each row inserted in this execution. Distinct
@@ -356,6 +359,7 @@ impl<'a> Runner<'a> {
             evaluating_write_condition: false,
             prediction_guards: BTreeSet::new(),
             prediction_skips: BTreeSet::new(),
+            insert_uses: None,
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -374,6 +378,7 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
+        self.insert_uses = (program.kind != ProgramKind::Query).then(|| effects::Effects::variable_uses(&program.body));
         self.receipt_operation = program.name.clone();
         self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
@@ -554,16 +559,25 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
                     let row = self.expr(row)?;
-                    let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { self.sequence_result(table, row)? } else { Value::Null };
-                    self.bind(result, value);
+                    let consumed = self.insert_uses.as_ref().is_none_or(|uses| uses.contains_key(result));
+                    if consumed {
+                        let value = if self.insert_if_absent(table, row.clone().expression_input(ExpressionAccess(())))? { self.sequence_result(table, row)? } else { Value::Null };
+                        self.bind(result, value);
+                    } else {
+                        self.insert_if_absent(table, row.expression_input(ExpressionAccess(())))?;
+                    }
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
                     let image = self.expr(row)?;
-                    if self.schema.tables[table].sequences.is_empty() && !self.schema.receipt_insert(table) {
+                    // @ref LLP 3000.007#5.4 — the compiler also creates a
+                    // temporary for discarded inserts; only another use demands its result.
+                    let consumed = matches!(row, Expr::Variable(name) if self.insert_uses.as_ref().is_none_or(|uses| uses.get(name).copied().unwrap_or(0) > 1));
+                    if !consumed || !self.needs_insert_result(table, &image) {
                         self.insert(table, image.expression_input(ExpressionAccess(())))?;
                     } else {
-                        self.meter.heap(expression_heap(&image))?;
+                        // @ref LLP 3000.007#5.4 — the Arc clone shares this image;
+                        // result completion prepays the actual field-map copy.
                         self.insert(table, image.clone().expression_input(ExpressionAccess(())))?;
                         // A bound insert keeps its engine-filled image in the result local.
                         if let Expr::Variable(name) = row {

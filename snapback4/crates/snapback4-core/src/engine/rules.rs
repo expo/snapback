@@ -123,7 +123,7 @@ fn all_disjunct(rule: &RuleExpr, test: &impl Fn(&RuleExpr) -> bool) -> bool {
     match rule { RuleExpr::Or(terms) => terms.iter().all(|term| all_disjunct(term, test)), other => test(other) }
 }
 fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
-    let term = |term: &RuleTerm| !matches!(term, RuleTerm::Field(field) if pinned(field).is_none());
+    let term = |term: &RuleTerm| !matches!(term, RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } if pinned(field).is_none());
     match rule {
         RuleExpr::Or(_) => all_disjunct(rule, &|part| any_disjunct(rule, &|other| self_probe_absorbs(name, table, part, other)) || fields_pinned(name, table, part, pinned)),
         RuleExpr::And(terms) => terms.iter().all(|part| fields_pinned(name, table, part, pinned)),
@@ -223,6 +223,7 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    fn reference(&mut self, _table: &str, _id: &Value, _field: &str) -> Result<Option<Value>, crate::error::RuntimeError> { Ok(None) }
     /// Exact count-predicate transitions, distinct from ordinary witness expiry.
     fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { None }
     /// Exchange the private expiry accumulator; ordinary probes have none.
@@ -325,9 +326,10 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
         }
         _ => {
             probe.take_changes();
-            let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe)?;
+            let mut missing = false;
+            let value = evaluate_leaf(rule, viewer, old, next, created_allowed, probe, &mut missing)?;
             let expiry = probe.replace_expiry(None);
-            let mut answer = Timeline::constant(if probe.take_unknown() { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
+            let mut answer = Timeline::constant(if probe.take_unknown() || missing { Verdict::Unknown } else if value { Verdict::Readable } else { Verdict::Denied });
             if let Some(changes) = probe.take_changes() {
                 answer.changes = changes;
                 answer.invariant = false;
@@ -343,15 +345,15 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
     }
 }
 
-fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
+fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe, missing: &mut bool) -> Result<bool, crate::error::RuntimeError> {
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
         RuleExpr::Deny => Ok(false),
-        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next, probe)? == term(right, viewer, old, next, probe)?),
-        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next, probe)? != term(right, viewer, old, next, probe)?),
+        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next, probe, missing)? == term(right, viewer, old, next, probe, missing)?),
+        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next, probe, missing)? != term(right, viewer, old, next, probe, missing)?),
         RuleExpr::Compare(op,left,right) => {
-            let left = term(left, viewer, old, next, probe)?;
-            let right = term(right, viewer, old, next, probe)?;
+            let left = term(left, viewer, old, next, probe, missing)?;
+            let right = term(right, viewer, old, next, probe, missing)?;
             let (Value::Int(a),Value::Int(b)) = (left,right) else { return Ok(false); };
             Ok(match op { crate::ir::BinaryOp::Gte => a >= b, crate::ir::BinaryOp::Gt => a > b,
                 crate::ir::BinaryOp::Lte => a <= b, crate::ir::BinaryOp::Lt => a < b, _ => false })
@@ -363,21 +365,32 @@ fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Valu
             if created && !created_allowed {
                 return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
             }
-            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe)).collect::<Result<Vec<_>, _>>()?;
+            let key = key.iter().map(|term| self::term(term, viewer, old, next, probe, missing)).collect::<Result<Vec<_>, _>>()?;
+            if *missing { return Ok(false); }
             if created {
                 if !probe.created(table, index, &key) { return Ok(false); }
                 if equalities.is_empty() { return Ok(true); }
             }
-            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next, probe, missing)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            if *missing { return Ok(false); }
             probe.exists(table, index, &key, &equalities)
         }
     }
 }
 
-fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<Value, crate::error::RuntimeError> {
+fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe, missing: &mut bool) -> Result<Value, crate::error::RuntimeError> {
     Ok(match term {
         RuleTerm::Field(field) | RuleTerm::NextField(field) => { probe.field(field, false); next.field(field).cloned().unwrap_or(Value::Null) },
         RuleTerm::OldField(field) => { probe.field(field, true); old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null) },
+        RuleTerm::Reference { table, column, field, old: previous } => {
+            probe.field(column, *previous);
+            let row = if *previous { old } else { Some(next) };
+            let id = row.and_then(|r| r.field(column).ok()).unwrap_or(&Value::Null);
+            match probe.reference(table, id, field)? {
+                Some(value) => value,
+                None => { *missing = true; Value::Null }
+            }
+        },
         RuleTerm::Viewer => Value::Id(viewer.to_owned()),
         RuleTerm::Literal(value) => value.clone(),
     })
@@ -385,21 +398,30 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe:
 
 /// The schema-derived probe allowance, independent of short-circuit answers.
 pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
+    let hops = |terms: &[&RuleTerm]| terms.iter().filter(|t| matches!(t, RuleTerm::Reference { .. })).count() as u64;
     match rule {
-        RuleExpr::Exists { .. } => 1,
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => hops(&[a,b]),
+        RuleExpr::Exists { key, equalities, .. } => 1 + key.iter().chain(equalities.iter().map(|(_,t)| t)).map(|t| hops(&[t])).sum::<u64>(),
         // @ref LLP 3000.007#17 — created facts with extra equalities take the metered exists path when the fact holds.
-        RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
+        RuleExpr::Created { key, equalities, .. } => u64::from(!equalities.is_empty()) + key.iter().chain(equalities.iter().map(|(_,t)| t)).map(|t| hops(&[t])).sum::<u64>(),
         RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
         RuleExpr::Not(inner) => rule_probes(inner),
-        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Compare(..) => 0,
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } => 0,
     }
 }
 
 /// A rule's probe sites, as `(table, index)`: what a rule reads besides the
 /// row, for live subscriptions and the partition audience.
 pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
+    fn term(t: &RuleTerm, out: &mut Vec<(String, String)>) {
+        if let RuleTerm::Reference { table, .. } = t { out.push((table.clone(), "byId".into())); }
+    }
     match rule {
-        RuleExpr::Exists { table, index, .. } | RuleExpr::Created { table, index, .. } => out.push((table.clone(), index.clone())),
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { term(a,out); term(b,out); }
+        RuleExpr::Exists { table, index, key, equalities, .. } | RuleExpr::Created { table, index, key, equalities, .. } => {
+            out.push((table.clone(), index.clone()));
+            for t in key.iter().chain(equalities.iter().map(|(_,t)| t)) { term(t,out); }
+        }
         RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().for_each(|item| probe_sites(item, out)),
         RuleExpr::Not(inner) => probe_sites(inner, out),
         _ => {}

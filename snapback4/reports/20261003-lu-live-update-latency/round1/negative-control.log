@@ -1,0 +1,50 @@
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-lu/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 22.48s
+     Running tests/timeline_fairness.rs (target/debug/deps/timeline_fairness-399a11997aeb5893)
+
+running 8 tests
+test later_delivery_can_arrive_first_but_pages_remain_event_ordered_and_unique ... ok
+
+thread 'multi_slice_fanout_advances_within_its_frozen_pending_count_under_continuing_arrivals' (32669) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:69:21:
+9d1a2afaaa1498bebfd0637015120ce9d3e91e3adb02d6698addd562790cc85b: no progress since 0, bound 1, turn 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test multi_slice_fanout_advances_within_its_frozen_pending_count_under_continuing_arrivals ... FAILED
+
+thread 'tail_position_rolls_back_with_copies_cursor_epochs_and_sequence' (32671) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:157:56:
+assertion `left == right` failed
+  left: 50
+ right: 51
+test tail_position_rolls_back_with_copies_cursor_epochs_and_sequence ... FAILED
+
+thread 'restart_and_adoption_every_turn_preserve_item_share_during_arrivals' (32670) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:170:15:
+assertion failed: turn < deadline
+test restart_and_adoption_every_turn_preserve_item_share_during_arrivals ... FAILED
+
+thread 'every_backfill_advances_within_its_frozen_pending_count_under_continuing_arrivals' (32666) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:69:21:
+bc2d7f758b380beccd71a4440d114578da994c40115e41cc23bbcfc59f385e78: no progress since 0, bound 5, turn 5
+test every_backfill_advances_within_its_frozen_pending_count_under_continuing_arrivals ... FAILED
+
+thread 'declaration_rotation_preserves_d_times_p_bound_with_arrivals_every_turn' (32665) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:138:21:
+feedWork starved at 2/2
+test declaration_rotation_preserves_d_times_p_bound_with_arrivals_every_turn ... FAILED
+test fifo_control_also_services_backfill_during_the_same_arrival_stream ... ok
+
+thread 'cleanup_advances_within_its_frozen_pending_count_under_continuing_arrivals' (32664) panicked at crates/snapback4-lang/tests/timeline_fairness.rs:69:21:
+bfb36344f1cf0ca6082dffd92e797d2b40cefdd0ba2bf5f89fb80461e956dd95: no progress since 0, bound 1, turn 1
+test cleanup_advances_within_its_frozen_pending_count_under_continuing_arrivals ... FAILED
+
+failures:
+
+failures:
+    cleanup_advances_within_its_frozen_pending_count_under_continuing_arrivals
+    declaration_rotation_preserves_d_times_p_bound_with_arrivals_every_turn
+    every_backfill_advances_within_its_frozen_pending_count_under_continuing_arrivals
+    multi_slice_fanout_advances_within_its_frozen_pending_count_under_continuing_arrivals
+    restart_and_adoption_every_turn_preserve_item_share_during_arrivals
+    tail_position_rolls_back_with_copies_cursor_epochs_and_sequence
+
+test result: FAILED. 2 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+error: test failed, to rerun pass `-p snapback4-lang --test timeline_fairness`

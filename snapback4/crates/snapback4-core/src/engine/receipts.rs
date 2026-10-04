@@ -318,7 +318,9 @@ impl Runner<'_> {
                     code: "NOT_FOUND".into(),
                     site: None,
                 })?;
-            let mut row = row;
+            // @ref LLP 3000.007#5.4 — total ordinary fields and assigned
+            // receipt ints share this already-reserved full result map copy.
+            let mut row = self.complete_insert_result(table, row, true)?;
             for family in &self.schema.receipts {
                 for field in family.assigned(table) {
                     set(&mut row, field, stored.field(field)?.as_int()?)?;

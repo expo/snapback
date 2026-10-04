@@ -9,6 +9,13 @@ use std::time::{Duration, Instant};
 // SQLite commit are indivisible; this is a cooperative budget, not a timeout.
 const DELIVERY_TIME: Duration = Duration::from_millis(1);
 
+// Only the declaration position is a hint. Per-item queue positions are durable
+// and move to the tail in the same transaction as the slice and its cursor.
+#[derive(Default)]
+pub(crate) struct Schedule {
+    next: usize,
+}
+
 #[derive(Default)]
 struct Progress { visited: usize, copied: usize, last: Option<Vec<u8>>, exhausted: bool }
 impl Progress {
@@ -16,6 +23,21 @@ impl Progress {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000#contended-read-serving — append and requeue behind every
+    // pending item, including legacy timestamp keys and a rewound clock. This
+    // engine-only, metered one-row peek is scheduling, never a viewer read.
+    pub(super) fn timeline_queue_tail(&mut self, t: &Timeline) -> Result<Value, RuntimeError> {
+        let row = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,
+            &t.table("Work"), "byStatusTime", &[Value::String("pending".into())],
+            &Default::default(), crate::rows::Dir::Desc, 1, &mut runner.meter))?.pop();
+        let position = match row {
+            Some((row, _)) => row.field("at")?.as_int()?.checked_add(1).filter(|n| *n <= crate::value::I53_MAX)
+                .ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery queue position exhausted; restore the complete store"))?,
+            None => 0,
+        };
+        Ok(Value::Int(position))
+    }
+
     fn timeline_follows(&mut self, t: &Timeline, reader: &Value, actor: &Value, epoch: &Value) -> Result<bool, RuntimeError> {
         Ok(self.timeline_edge(t, reader, actor)?.is_some_and(|edge| edge.field("epoch").ok() == Some(epoch)))
     }
@@ -46,7 +68,7 @@ impl Runner<'_> {
         Ok(progress)
     }
 
-    fn timeline_work(&mut self, t: &Timeline, work: &Value, started: Instant, budget: Duration) -> Result<(), RuntimeError> {
+    fn timeline_work(&mut self, t: &Timeline, work: &Value, started: Instant, budget: Duration, rotate: bool) -> Result<(), RuntimeError> {
         let kind = text(work, "kind")?;
         let actor = field(work, "actorId")?;
         let reader = field(work, "readerId")?;
@@ -128,7 +150,9 @@ impl Runner<'_> {
             }
         } else {
             let cursor = progress.last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery made no progress; restore the complete timeline store"))?;
-            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(progress.copied) as i64))]).timeline_input(&super::TimelineInput(())))?;
+            let mut changes = vec![("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(progress.copied) as i64))];
+            if rotate { changes.push(("at", self.timeline_queue_tail(t)?)); }
+            self.update(&t.table("Work"), &field(work, "id")?, object(changes).timeline_input(&super::TimelineInput(())))?;
         }
         Ok(())
     }
@@ -145,16 +169,32 @@ impl Engine {
     /// records the last processed row, never the end of the prefetched page.
     /// A zero budget still processes one row so recovery always makes progress.
     pub fn run_timeline_chunk_for(&mut self, now: i64, budget: Duration) -> Result<Option<Metered>, RuntimeError> {
+        self.timeline_chunk(now, budget, false)
+    }
+
+    /// Background service rotates pending items and declarations, rather than
+    /// draining one backfill before admitting a new, small delivery. Explicit
+    /// clock drains finish the queue head before moving to the next item.
+    // @ref LLP 3000#contended-read-serving — bounded turns protect small deliveries as well as reads.
+    pub fn run_timeline_turn_for(&mut self, now: i64, budget: Duration) -> Result<Option<Metered>, RuntimeError> {
+        self.timeline_chunk(now, budget, true)
+    }
+
+    fn timeline_chunk(&mut self, now: i64, budget: Duration, rotate: bool) -> Result<Option<Metered>, RuntimeError> {
         let started = Instant::now();
-        for timeline in self.schema.timelines.clone() {
+        let count = self.schema.timelines.len();
+        for offset in 0..count {
+            let index = if rotate { (self.timeline_schedule.next + offset) % count } else { offset };
+            let timeline = self.schema.timelines[index].clone();
             let tx = self.store.transaction()?;
             tx.savepoint("timeline_chunk")?;
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::job(), Cut::Abort), seq);
             let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
-            let work = runner.timeline_scan(&timeline.table("Work"), "byStatusTime", vec![Value::String("pending".into())], 1, false)?.pop();
-            let Some(work) = work else { continue; };
-            let outcome = runner.timeline_work(&timeline, &work, started, budget).and_then(|()| runner.check_final_exists());
+            let pending = vec![Value::String("pending".into())];
+            let (mut rows, _) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending, 1, false, None)?;
+            let Some(work) = rows.pop() else { continue; };
+            let outcome = runner.timeline_work(&timeline, &work, started, budget, rotate).and_then(|()| runner.check_final_exists());
             let events = runner.events.take();
             let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
             let metered = runner.meter.used;
@@ -164,6 +204,9 @@ impl Engine {
                     tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
                     partition::append(&tx, seq, &events)?;
                     tx.commit()?;
+                    if rotate {
+                        self.timeline_schedule.next = (index + 1) % count;
+                    }
                     return Ok(Some(metered));
                 }
                 Err(error) if error.is_refusal() => {
@@ -180,6 +223,9 @@ impl Engine {
                     tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
                     partition::append(&tx, seq, &events)?;
                     tx.commit()?;
+                    if rotate {
+                        self.timeline_schedule.next = (index + 1) % count;
+                    }
                     return Ok(Some(metered));
                 }
                 Err(error) => return Err(error),

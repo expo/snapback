@@ -1354,3 +1354,125 @@ Additional focused logs: `/tmp/rp-r6-profile-native.log`,
 the resolved guide-length failure; the qualified guide log and full run are
 both green. The authentic old-wasm fixture generator also passes without its
 update flag. Runtime/price policy and all R0–5 repairs remain unchanged.
+
+
+## Round 7 — integration (2026-10-04)
+
+Work is confined to eb1000. Fetch resolved `origin/main` to
+`6e4967479f403c18063c5790a8379d8b9af7b36f`; merge it into RP with two parents,
+not a rebase. This includes QF `4353aa735c`, LU `848b645294` and QE2
+`e7f9243ddb`. NL is not folded in separately. Nothing is pushed or published.
+
+### Review corrections
+
+The payload ticket now distinguishes **1,000,632** pre-RP steps from
+**1,000,680** RP steps. Both commit at 490 payloads and refuse at 495; the
+boundary, not the exact price, is unchanged. LLP 3000.022 §14.3 names real
+calibration writers: `publish`, `configureChat` (0.4.11) and `renameChat`
+(0.4.12), alongside `saveProfile` and `setLike`. Preparatory commit
+`c6ce64a4ec` contains these two corrections.
+
+### Semantic integration
+
+| Intersection | Resolution and evidence |
+| --- | --- |
+| QE2 bound results × RP receipt result reservations | The initial merge charged ordinary field completion and then the existing receipt full-row copy. The unchanged 50-member headroom test caught a 518 B heap increase for 0.4.11's hello. Complete ordinary defaults/nulls inside the receipt result's existing full-row reservation, then add assigned receipt ints to that same map. Ordinary QE2 results retain their exact actual-copy fee and the removed duplicate Arc charge stays removed. Both hosts call the same functions. |
+| QE2 total results × structural maintenance typing | Insert temporaries previously carried only supplied fields in the maintenance-type census. A new receipt result returning omitted ordinary fields exposed an erroneous `E_VIEW_KEY` when a row-keyed view existed. Extend an ordinary object type with omitted optional/default column types, joining monotonically with all other assignments. Existing field types and unknown/heterogeneous maintenance taint are never replaced. The new compiled-source test returns literal defaults, null text, null image and supplied text on both runners. |
+| QE2 one-hop references × RP rule reservations | Retain every QE2 `Reference` branch and per-occurrence probe count; keep the shared `rule_probes` callable by RP's compiler reservation planner. The receipt fence follows both the local reference column and the target field/read rule. New integration tests combine two authorized hops, private count maintenance and consumed/discarded total insert results; results and all seven logical meters match on both runners. |
+| LU rotation × RP hidden Following work | Enqueue prepays one examined row, one index entry, eight steps and reusable scratch of eight times the owned Work row's copy ceiling on both hosts. Only the server scans the durable pending tail. Hidden Work output uses a maximum-width signed safe-integer placeholder for its price; only the actual server row receives the tail position. New tests compare all seven meters and completed results for an empty tail, a negative legacy position, zero, a legacy timestamp ahead of the clock, and a near-maximum tail. |
+| LU scheduling behavior | Keep bounded rotating background turns, durable append/requeue positions, declaration rotation and cursor/position atomicity. Explicit chunk drains keep their existing behavior. Background tail lookups retain ordinary metering; the fixed enqueue allowance applies only to synchronous source-write work. Fairness, background and live-latency tests remain intact. |
+| QF test ownership | Keep the main runner's owned process groups, stdin-release keeper, native Node status, progress watchdog, fail-closed inspection and bounded client-file pool. The focused ownership/process/replacement tests pass under that runner. No unrelated process is signalled. |
+| Capability and history conflicts | Retain the union of QE2 `rule-reference` and RP receipt/source-reservation capabilities. Preserve both branches' journal entries, LLP revisions and wasm measurement history. |
+
+QE2's calibration replay test and the adjacent LLP 3000.013 text still described
+receipt-derived unread maintenance as an independent prediction refusal. Update
+that assertion to RP's `eligible` plus the explicit **stays settled** diagnostic;
+keep its replay, preview and authority checks. This is a changed intended
+prediction contract, not a skipped test.
+
+The six real calibration cases retain their original R3 headroom ceiling
+assertions. All predict and commit on native memory and SQLite. The resulting
+heap is lower than R3: 0.4.11 hello/realistic/near-max are 132,003 / 139,961 /
+151,461 B; 0.4.12 are 224,341 / 235,893 / 339,073 B. The regenerated six wasm
+oracles change only measured heap. The receipt payload exception oracle also
+reduces heap from 6,320,097 to 6,310,351 B; all other meters, its 490/495 boundary,
+its source and its custody/rollback assertions stay unchanged. No runtime
+ceiling, test bound or headroom assertion is raised.
+
+### Validation and size
+
+- Focused core integration: **8** tests pass, including the three new
+  cross-lane tests. QE2 native devices: **10** pass. Maintained capture/restore:
+  **19** pass. Focused final language run: **60** pass across QE2 ergonomics,
+  real app/profile upgrades, effect reads, Following background/fairness and
+  live latency. Guide, general ergonomics and lowering tests also passed in
+  the preliminary affected run.
+- **211 receipt/RY tests pass.** The extended deterministic differential
+  executes **320 cases on each store**, each with **114 predicted commits,
+  8 conservative queues whose server commits, and 198 server refusals**.
+  No predicted case in that reservation differential is refused. Six real
+  50-member application cases per store predict and commit, with the original
+  headroom bounds unchanged. The pathological omitted-effect exception stays
+  separately asserted and is not counted as parity.
+- Affected client pool: **94 pass** across RP reservations, real-app wasm
+  sends, authentic receipt/profile upgrades, QE2 wasm/process allocations and
+  ergonomics, LU contention and retention pages. QF's process ownership,
+  replacement fixture and test-file runner tests: **69 pass**.
+- Locked merged Linux wasm: **2,116,259 B raw / 639,757 B gzip**;
+  SHA-256 `7035d2087e2ae70b0ff670931daefd8e36b310fe85ab62077ac4a0936a5addbe`.
+  Set the cap to **639,887 B**, exactly measured Linux plus the recorded
+  **130 B macOS allowance**. This is **+5,427 B** over R6's recorded 634,330 B;
+  it includes QE2 and the merged integration work, not an isolated RP feature
+  cost. The retained same-host pre-RP artifact is 617,327 B (total merged delta
+  **+22,430 B, 3.63%**). Neither control nor macOS was rebuilt this round.
+- Full eb1000 run: **`== 1 failure(s) in 1509 s`**, exit 1. Rust:
+  **4,877 pass / 33 existing ignored**, plus **17 doctests**. The 311-file
+  client pool reports **6,176 pass / 11 existing skipped / zero assertion
+  failures**, but one file fails its process-cleanup inspection. Serial
+  models: **79 pass**; fixture wrappers: **9 pass**. Every build, wasm,
+  documentation-budget, release-guard and typecheck stage passes.
+- The sole failure is inherited from unmodified main: QF's cleanup of
+  `familiar-forms.test.mjs` rejects a captured `ps` row with PGID `4294967295`
+  and state `X+`, after the application's one test passes. The exact main
+  `6e4967479f` process-inspection module, byte-identical in RP, deterministically
+  rejects that recorded row even with `exists: () => false`. This is a replay
+  of the **captured parser failure**, not a claim that the live process race
+  repeats on every run. The isolated file rerun passes, including cleanup.
+  Track it in [the QF exiting-PGID ticket](../../../issues/20261004-snapback4-qf-exiting-linux-pgid-inspection.md).
+  No failure is hidden, retried into a green full-suite claim, or skipped;
+  QF's fail-closed policy is unchanged.
+- All **1,966** pinned implementation/test/build inputs remain byte-identical
+  after the full run. The full-suite wasm rebuild reproduces the recorded
+  artifact hash and exactly 130 B budget allowance. Only the report, journal
+  and inherited-failure ticket are completed after qualification.
+- Final `ref-check --verbose`: **527 LLP docs, 10,324 refs, zero errors/unchecked**.
+  Whitespace checks pass
+  for the RP delta against main. Cached first-parent warnings are confined to
+  incoming main's already-committed report logs; those historical logs are
+  preserved. No RP-added file is over 256,000 bytes or is gzip/video/wasm.
+  Incoming main's existing report archives are retained by the merge.
+
+The preliminary affected runs exposed the corrected receipt double charge,
+QE2's obsolete `predicts: never` expectation, and the receipt-payload oracle's
+reduced heap after QE2. The original headroom assertion stays unchanged.
+No existing test is removed or skipped, and neither resource ceilings nor
+watchdog limits are raised.
+
+
+Retained eb1000 evidence (large logs/binaries remain outside git):
+
+| File | SHA-256 |
+| --- | --- |
+| `/tmp/rp-r7-full-qualified.log` | `af4e108e27cd412def695f64eee9e4bb5b30e1060446c6011e08a28ca326df73` |
+| `/tmp/rp-r7-source-qualified.sha256` | `c9005d0f6ba482a239c9f9d09659f640fd30fe94ba9490cfcbe87933242f365f` |
+| `/tmp/rp-r7-main-inspection/test-processes.mjs` | `fca0821b5264a58aa93936ddc8589733d8e2aee46c3c1d8acc9241edc37a683e` |
+| `/tmp/rp-r7-main-inspection/repro.mjs` | `2109efe481081a3f6709e6edb0cafd27b0892fcddcee3e11ddc540325f198fac` |
+| `/tmp/rp-r7-main-inspection/repro.log` | `ff840864ae98d4ef48cdffbc163c4e2ae5d308032971bae794fce86df9b2b363` |
+
+Focused logs: `/tmp/rp-r7-core-final.log`, `/tmp/rp-r7-device.log`,
+`/tmp/rp-r7-maintains.log`, `/tmp/rp-r7-affected-final.log`,
+`/tmp/rp-r7-receipts-qualified.log`, `/tmp/rp-r7-apps-final.log`,
+`/tmp/rp-r7-client-qualified.log`, `/tmp/rp-r7-qf.log`,
+`/tmp/rp-r7-wasm-qualified.log`, `/tmp/rp-r7-familiar-rerun.log` and
+`/tmp/rp-r7-ref-check-final.log`. No second full-suite run is represented by
+these focused reruns. All work ran on eb1000; nothing pushed or published.

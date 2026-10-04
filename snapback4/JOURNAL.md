@@ -85198,3 +85198,345 @@ the existing 130 B macOS allowance; no new runtime bytes or ceiling change.
 All 1,932 qualified implementation/test inputs remained unchanged. Report:
 `reports/20261003-rp-receipt-derived-prediction/REPORT.md`, Round 6, with hashes
 and logs. Work stayed on eb1000; no other machine, push or publication.
+## 2026-10-03 — QF Round 8: process-table scope and signed Darwin UIDs
+
+Merged main through 0185dfd67e (a fast-forward) and re-applied a8c20c40e9 in
+its own commit, 6545d92a6f. Main's entry recording the publication revert remains
+unchanged. The runner accepts Darwin's signed UID presentation, tokenizes
+C-locale start time without fixed widths, and accepts platform state flags and
+spaced command names. Synthetic Darwin/Linux fixtures include the exact
+supplied distnoted row and 5,000-row cases, without user process data.
+
+LLP 3000 §7 records the rule: parse every PID/PPID/PGID prefix fail-closed;
+validate metadata for the file's group and visible transitive descendants;
+count unrelated rows without validating their metadata or probing existence.
+Ancestry expands inspection only. Keeper-owned group signaling, native Node
+verdicts, two empty snapshots, guards, seeds and skips remain unchanged.
+Test inspection adapters preserve that scope, including their deliberately
+injected stale rows. The snapshot fixture also releases its helper in finally:
+with the old parser and the real shim, it now fails promptly instead of hanging.
+
+Every distinct M5 runner failure is attributed in the Round 8 report, including
+19 failed subtests, the test-29 stall and the replacement-fixture failure.
+Controls use a real PATH ps shim. An optional live fixture row makes UID -2 and
+malformed-metadata controls decisive even when synthetic PID 889 is absent.
+Final affected checks pass 64/64 plain and 64/64 with live malformed metadata.
+The single eb1000 full suite reports `== 0 failure(s) in 1511 s`. Its three
+client phases and their separate UID-shim repeats have identical counts:
+wrappers 9/9; ordinary clients 304/304 files, 6,095 passes and 11 existing skips;
+models 79/79. Each set totals 6,183 JavaScript passes, no failures/cancellations.
+The test-only amendments and their final-source checks are explicitly recorded.
+
+The operator withdrew mini execution to protect calibration. No macOS test ran;
+all six mini phase checks are **pending operator verification**, with exact
+commands in the [Round 8 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-8--process-table-isolation-and-darwin-uid-parsing).
+The scratch created for preparation before that amendment was removed. No office
+M1 or M5 was contacted, and no unrelated process was signaled. Reference and
+whitespace checks pass. Local commits carry the required GPT-6 Astra co-author
+trailer. Nothing is pushed or published.
+
+
+## 2026-10-03 — QF Round 9: Darwin identity rereads keep the file scope
+
+Addressed Astra's P2 on Round 8 and Grok's shim-evidence finding. Every Darwin
+identity reread performed by ownedProcesses now receives the keeper's group,
+so its fresh table classifies the group and visible descendants before parsing
+ancillary fields. A reused PID outside that scope counts as exited whether its
+replacement metadata is malformed or well-formed. Related malformed metadata
+and unclassifiable routing prefixes still refuse. LLP 3000 §7 records this
+fresh-snapshot rule; keeper custody, native verdicts and guards are unchanged.
+
+Five new regressions cover scoped identity and both before-release and cleanup
+verification with malformed and well-formed replacements. On the Round 8 code,
+the scoped identity case and both malformed cases fail; the real runner returns
+native exit 0 with TEST_PROCESS_INSPECTION. All five pass after the fix. These
+exercise Darwin's JavaScript branch with controlled snapshots on Linux, not
+native macOS or forced kernel PID reuse. The permanent CLI shim test now
+requires an owned marker count to increase on each shimmed invocation. Removing
+only that write makes the test fail, independently of unrelated-row counts.
+
+All verification ran on eb1000. Focused tests: **69/69 plain and 69/69 shimmed**,
+zero skips. Full suite: **`== 0 failure(s) in 1419 s`**. Its client phases
+and the UID-shim repeat have identical counts: wrappers **9/9**; ordinary
+clients **304/304 files, 6,100 passes and 11 existing skips**; models **79/79**.
+Each set totals **6,188 passes**, zero failures/cancellations, 307 file results.
+The focused external shim records 174 hits; the phase repeat records 1,390.
+Affected source hashes are unchanged throughout qualification. The
+[Round 9 report](./reports/20261002-qf-qualification-flakes/REPORT.md#round-9--retain-file-scope-across-darwin-identity-rereads)
+retains the counterexamples, logs, summaries, source hashes and exact commands.
+
+All six macOS cells remain **pending operator verification**, with commands in
+the report. No mini, office M1 or M5 was contacted. Grok's
+`~/sb4-intent/qf-r8-scratch-review` is left for the operator. No unrelated process
+was signaled. Reference and whitespace checks pass; the local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+## 2026-10-03 — LU: small live deliveries get a turn during backfill
+
+The three-browser webDevice/React harness reproduces a Following delivery
+queue delay on eb1000. With 1,000 historical posts and a refollow before each
+write, the original selector drains the oldest work item before a new repost
+gets service. Background delivery now rotates pending items and declarations
+after each bounded transaction. Durable cursors and edge epochs still commit
+with their copies; restart resets only scheduling hints. Explicit clock drains
+retain oldest-first order. CT's pacing, slice limits, aged opportunities and
+read admission are unchanged. LLP 3000 §7 and the feeds guide record the policy.
+
+All experimental servers, browsers and burners were confined to CPUs 80–95;
+formal before/after runs used the same ten physical cores, 80–89, at 0/20/120
+workers. At 120 workers, twenty writes per shape give slower-remote render p95
+of 36,389.7→1,788.2 ms for reposts, 1,917.0→932.4 ms for messages and
+2,279.1→622.1 ms for reactions. All meet the two-second heavy-load p95 target.
+The idle repost p95 is still 929.3 ms, above the 500 ms target: matching query
+responses can wait through repeated change evidence before publication.
+That residual has an [open issue](../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md);
+no authority/retention fence or observation budget was loosened. The small
+steady-state control remains below 500 ms, including heavy load. This does
+not claim to identify the exact frozen calibration app's cause.
+
+Five deterministic service/epoch/restart tests and seventeen existing timeline
+tests pass. The full suite completed in 1,595 seconds with one introduced guide
+line-budget failure; shortening the guide to 401 lines and rerunning its entire
+target passed 112/112. Every other suite category passed, including 6,035 client
+tests, all 79 models and the new Chromium contention witness. Reference and
+whitespace checks pass. Locked wasm stays at 2,048,676 raw / 617,398 gzip bytes
+against the unchanged 618,040-byte cap, retaining its macOS allowance.
+
+The [LU report](./reports/20261003-lu-live-update-latency/REPORT.md) retains
+per-stage percentiles, individual timestamps, confined-load evidence, the
+development failures and reproduction tools. Large raw traces remain ignored
+under `target/`. No remote machine, unrelated process signal, push or publication
+was used.
+
+## 2026-10-04 — LU round 1: bounded delivery share during continuing arrivals
+
+Both round-0 reviewers found that the forward-key rotator could starve old work
+indefinitely while a fresh one-recipient delivery arrived before every turn.
+Following now uses a durable round-robin queue: new items append behind every
+pending item, and an unfinished slice atomically moves its cursor and queue
+position to the tail. The existing internal Work.at field holds that position;
+no schema/index migration is needed. An item pending at time t among P items
+gets a slice within P successful visits to its declaration, or D×P successful
+background delivery turns across D fixed declarations. P is frozen at t;
+later arrivals cannot extend that obligation. After service a new obligation
+uses the then-current P. Cancellation/parking ends it; growing overload and
+OS/commit delays do not gain a wall-clock promise. CT pacing, aged opportunities,
+admission and ceilings remain unchanged. LLP 3000 §7 states the proof and the
+restart/declaration-hint scope; LLP 3000.013 and the feeds guide agree.
+
+Eight deterministic regressions cover continuing one-row arrivals before every
+turn with five backfills, cleanup and multi-slice fan-out; the D×P bound, FIFO
+control, atomic failure and reopen/adopt are retained. Six fail against the
+round-0 selector, including all four ongoing service bounds. Later events can
+reach a follower before earlier events; the final page remains sorted and
+duplicate-free. A React page regression checks that ordering with overlapping
+pages. The SDK and included chat surfaces derive their lists and counts from
+query snapshots, not FIFO delivery notifications. The report scopes the audit
+of calibration backend source separately from its unavailable frozen UI.
+
+Correction to the preceding entry's blanket confinement claim: taskset alone
+does not keep Chromium SwiftShader workers in their inherited mask. A live
+thread audit found workers on 0–9 during the first round-1 attempt; that attempt
+was stopped and excluded. Round 0's browser confinement was not fully proved.
+The LU launcher now freezes the mask with an inherited unprivileged seccomp
+filter refusing affinity changes, and the formal run audits all descendant
+threads. Both final runs use CPUs 80–89; the suite witness uses 90–91. Burners
+remain in owned groups and were reaped normally. Other harnesses' corresponding
+audit is tracked in the Chromium-affinity follow-up; no unrelated process was
+signaled and no other machine was used.
+
+The final guarded sweep repeats 0/20/120 burners, 1,000 historical posts and a
+refollow before every update, with 30 writes per shape/load and two remote
+receivers. Heavy-load slower-receiver p95 is 24,645.0→892.1 ms for repost,
+2,160.9→1,485.5 ms for message, and 2,278.6→657.5 ms for reaction. Each meets
+the two-second target in this shared-host run. Message maximum is 1,596.1 ms;
+the report retains all cells and the review's inconsistent message result,
+without claiming a universal speedup. No-burner repost p95 remains 757.7 ms,
+above 500 ms: the slowest trial evaluates at +43.0 ms but publishes its matching
+observation at +779.4 ms. The existing publication follow-up now has this guarded
+reproduction; retention and authority fences remain intact.
+
+The affected tests pass (112 guide, 30 timeline, 6 page-reconciliation). The full
+eb1000 suite exits 0 with zero failures in 1,899 seconds, including 6,036 client
+passes, 11 skips and 79 client models. Its guarded Chromium witness also passes.
+The locked wasm build measures 2,048,676 raw / 617,398 gzip bytes against the
+unchanged 618,040-byte cap, retaining the 130-byte macOS estimate and 512 bytes
+beyond it. The fresh wasm and frozen identical-client comparison have separate
+digests in the manifest; equal sizes are not an artifact-identity claim.
+
+The [Round 1 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-1--bounded-service-during-continuing-arrivals)
+retains the bounds, regressions, stage percentiles, individual timestamps,
+confinement audits, qualification and limitations. Large raw traces stay ignored
+under target. This local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
+## 2026-10-03 — QE2: total Quarry write results, reference rules and point guards
+
+Calibration #30's data-modeling charge reproduced on 0.4.12: an omitted
+optional insert field compiled but failed E_FIELD, a write-rule reference hop
+was refused as E_QUARRY_UNKNOWN, and a guarded lookup remained nullable at a
+helper call. The shared engine now completes bound insert results with nulls
+and defaults after write authority; updates retain their total stored image.
+Private fields keep projection, assigned sequence/receipt fields keep their
+existing result paths, and maintained fields keep their compile-time refusal.
+Omitted payloads and historical program IR remain unchanged. Raw inserts that
+bind no result avoid result allocation; the full disclosure matrix found and
+motivated that regression check.
+
+Write rules admit one live, authorized reference hop on server and device.
+Absent, expired, hidden and unheld parents fail closed, including under
+negation; rule probes are prepaid and physical authority work stays bounded.
+Insert, old/next update and pre-delete images are covered. Unsupported hops
+use E_QUARRY_RULE_HOP with a concrete lookup or read-through repair. The new
+rule-reference capability fences older devices.
+
+Identical point reads narrow after existence/null guards and in present
+branches, including helper arguments. Writes, key changes and viewer scopes
+invalidate facts. Enum-to-text widening already worked; the guide now makes
+its bounds explicit. Membership cannot prove parent existence because a
+required reference is a typed id, not a foreign key. The diagnostic therefore
+names `require exists conversations[conversation] else NOT_FOUND`. The original
+calibration source and the reverted source with those guards both send,
+replay and emit the preview successfully. Its full send still cannot predict
+because of receipt-derived unread maintenance; the isolated result/rule
+scenario predicts on memory, SQLite and wasm.
+
+The final locked Linux wasm measures 2,058,160 bytes raw / 620,784 gzip,
++3,386 gzip (0.55%) over the measured base. The cap is 621,414, retaining the
+existing estimated macOS offset of 130 bytes and 500 bytes of headroom. No
+macOS size is claimed and no runtime ceiling changes. The added bytes cover
+the rule term, authorization path and total result completion. Point facts
+stay in the compiler. Guide cards and LLP 3000.007/3000.013 carry the matching
+revisions. The [QE2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md)
+retains baseline failures, fixture hashes, focused checks and final suite
+results. Work ran only in this eb1000 worktree; nothing pushed or published.
+
+Final qualification: `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh` exits 0 with `0 failure(s) in 1995 s`. Rust passes
+4,785 tests plus 17 doctests (34 existing ignored); clients pass 6,036 with
+11 existing skips across 303 files; models pass 79/79; fixture wrappers pass
+9/9. All build, documentation and typecheck categories pass. Focused checks
+cover 188 distinct Rust tests and both wire hosts. The 41 pinned inputs stayed
+unchanged; reference, source-size and whitespace audits pass.
+
+
+## 2026-10-04 — QE2 round 1: result allocation and rule-hop wording
+
+Address both Astra P2s from the round-0 review. Completing an omitted default
+now charges its known clone allocation, plus the field and result image,
+rather than the declared column maximum. The owned empty-default counterexample
+falls from E_BOUND at 20,001,239 heap bytes to success at 1,834.
+
+An exhaustive, conservative variable-use pass over the existing IR distinguishes
+the compiler's discarded insert temporary from a consumed result, including
+job chunks and inlined helpers. Ordinary discarded inserts keep their move-only
+path: the three-million-character Quarry case returns to 12,000,421 heap bytes
+from E_BOUND at 18,000,929. Discarded `if absent` results also skip completion;
+a four-million-character case succeeds at 16,000,421. Consumed results remain
+total. Authored payloads and serialized program IR are unchanged; no runtime
+ceiling is raised. Memory, SQLite, wasm and process regressions cover the cases.
+
+Address both Grok documentation corrections: sibling depth-one hops are legal
+and each occurrence prepays a probe; deeper chains refuse. The rules/why cards,
+report and LLP 3000.007 §5.4 agree. Guide writes states the measured bound-result
+cost for the regression: one probe, 2,778 heap bytes, 20 steps and 70 output
+bytes in both interpreters. Two sibling hops charge two probes. LLP 3000.013
+§12.3 carries the matching dated revision.
+
+Locked Linux wasm is 2,065,629 bytes raw / 623,029 gzip, +2,245 gzip (0.36%)
+from round 0. The shared use analysis and actual-value pricing justify the
+small whole-artifact increase. Budget 623,659 retains the recorded estimated
+macOS offset of 130 bytes and 500 bytes headroom; no macOS measurement is claimed.
+
+Final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh`: zero failures in 1,921 seconds. Rust passes 4,795
+plus 17 doctests (34 existing ignored); 304 client files pass 6,042 tests with
+11 existing skips; models pass 79/79; fixture wrappers pass 9/9. All build,
+guide-budget, release-guard and typecheck stages pass. Focused checks pass 152
+Rust tests, eight wire tests and 26 codec-census checks. An intermediate full
+run caught direct serde calls in the new unit-test setup; routing those through
+`json_codec::to_text` fixed the census without an exception. All 55 final pinned
+inputs remained unchanged. Reference and whitespace checks pass.
+
+The [Round 1 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-1--2026-10-04)
+retains reproductions, exact prices, full-suite output and hashes. Work ran on
+eb1000 only; nothing pushed or published.
+
+
+## 2026-10-04 — QE2 round 2: charge the bound result once
+
+Address Astra's remaining P2 from round 1. An ordinary bound insert charged
+the authored row's retained footprint just before cloning its `Arc`, although
+completion already prepays the actual result field-map allocation. Remove that
+duplicate charge. Empty owned defaults now cost exactly 1,621 heap bytes
+(previously 1,834); a bound insert with 2,400,000 ASCII characters and an
+omitted optional boolean succeeds at 14,401,017 (previously E_BOUND at
+16,801,227). Its completed optional field still reads null. Round 1's claim
+that the extra charge was necessary for the completed result is superseded.
+
+Quarry-source regressions assert both figures on memory, SQLite, wasm and
+process hosts. Each host also succeeds when an unused text argument pads the
+meter exactly to the production ceiling, and refuses one byte above it. This
+pins private device totals without a new production test API. Discarded
+ordinary/if-absent inserts remain at 12,000,421 and 16,000,421. Guide writes
+now records the corrected example: one probe, 2,316 heap bytes, 20 steps and
+70 output bytes. LLP 3000.007 §5.4 and LLP 3000.013 §12.3 have dated revisions.
+
+Locked Linux wasm is 2,065,586 bytes raw / 623,025 gzip, down 43 raw bytes and
+four gzip bytes from round 1. Ratchet the budget to 623,655, retaining the
+recorded 130-byte estimated macOS allowance and 500-byte headroom. No resource
+ceiling or serialized language/runtime surface changes.
+
+Final `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+snapback4/scripts/test.sh`: zero failures in 1,928 seconds. Rust passes 4,798
+plus 17 doctests (34 existing ignored); 304 client files pass 6,044 tests with
+11 existing skips; models pass 79/79; fixture wrappers pass 9/9. All build,
+guide-budget, release-guard and typecheck stages pass. Focused checks pass 155
+Rust tests, 10 wasm/process wire tests and 26 codec-census checks. All 56 pinned
+inputs remained unchanged; reference/metadata and whitespace audits pass.
+
+The [Round 2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-2--2026-10-04)
+retains failing baselines, exact meter tests, full-suite output and hashes.
+All work ran on eb1000; nothing pushed or published.
+
+## 2026-10-04 — RP round 7: integrate QF, LU and QE2
+
+Merge origin/main `6e4967479f` into lane RP without rebasing. Preserve QF's
+owned-process-group test runner, LU's durable Following rotation, QE2's total
+write results/one-hop rules/guard narrowing, and RP's shared reservations,
+receipt read fence, settled count snapshots and authentic upgrades. The ticket
+now distinguishes the 1,000,632 pre-RP steps from 1,000,680 RP steps at the same
+490-commit/495-refuse payload boundary. LLP 3000.022 names `publish`,
+`configureChat` and `renameChat` as the real calibration operations.
+
+The semantic merge exposed two allocation overlaps. Following enqueue now
+prepays its private durable-tail lookup on both hosts: one examined row, one
+index entry, eight steps and bounded reusable scratch. Hidden Work output is
+priced with a maximum-width signed position; only the server reads or writes
+the private queue. Receipt result completion now shares the existing full-row
+copy reservation instead of adding QE2's ordinary completion charge twice.
+Default/null result fields remain total, and structural maintenance typing
+recognizes them without replacing existing types or dropping taint. Three new
+integration tests cover these paths and shared rule-hop/private-maintain fees.
+QE2's calibration test now asserts RP's eligible/stays-settled contract while
+keeping its replay, preview and authority checks.
+
+Both real calibration apps' six 50-member cases predict and commit, retaining
+the original headroom assertions; heap is lower than R3. The 320-case seeded
+differential on each store reports 114 predicted commits, eight conservative
+queues and 198 server refusals, with no predicted reservation refusal. The
+separately documented pathological effect-payload exception remains explicit.
+All 211 receipt/RY tests pass. Focused clients pass 94 RP/QE2/LU checks and 69
+QF ownership/process checks. The full Rust phase passes 4,877 plus 17 doctests
+(33 existing ignored). Full suite: **`== 1 failure(s) in 1509 s`**. The client
+pool passes 6,176 tests (11 existing skips), serial models pass 79, and fixture
+wrappers pass nine. The sole failure is QF cleanup inspection of a captured
+Linux PGID `4294967295` after `familiar-forms` itself passed. Replaying the
+captured row with unmodified main's byte-identical parser reproduces it; the
+isolated file rerun passes. The [inherited QF ticket](../issues/20261004-snapback4-qf-exiting-linux-pgid-inspection.md)
+retains the distinction and reproduction. All 1,966 pinned source/test/build
+inputs stayed unchanged, and reference/metadata and RP whitespace checks pass.
+
+Locked Linux wasm measures 2,116,259 B raw / 639,757 B gzip, +5,427 B versus
+RP round 6's recorded artifact. Set the cap to 639,887 B, exactly Linux plus
+the recorded 130 B macOS allowance. No runtime ceiling increase, macOS build,
+test weakening, push or publication. Full integrated qualification is recorded in
+the [Round 7 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-7--integration-2026-10-04).

@@ -36,12 +36,12 @@ impl Binder<'_> {
 
     // @ref LLP 3000.007#21.12 — calls are reevaluated under the new viewer,
     // including implicit/transitive helper dependencies. Snapshot fields stay
-    // valid. Conservatively discard all call facts at both authority edges.
+    // valid. Conservatively discard call and point facts at both authority edges.
     fn clear_authority_refinements(&mut self) {
         self.call_types.clear();
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
-                binding.fields.retain(|path, _| path.first().is_none_or(|part| part != "$pureCall"));
+                binding.fields.retain(|path, _| path.first().is_none_or(|part| part != "$pureCall" && part != "$point"));
             }
         }
     }

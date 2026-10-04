@@ -1,0 +1,48 @@
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 10.20s
+     Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-a8e0d5627d20040c)
+
+running 8 tests
+test memory_bound_quarry_insert ...
+thread 'memory_bound_quarry_insert' (2455385) panicked at crates/snapback4-device/tests/qe2_allocations.rs:32:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 16801227, ceiling: 16777216, site: "add:3" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test memory_discarded_if_absent ... memory seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 16000421, output_bytes: 13, rows_written: 1 }
+ok
+test memory_discarded_quarry_insert ... memory seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 12000421, output_bytes: 13, rows_written: 1 }
+ok
+test memory_empty_default ... memory add: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 14, heap_bytes: 1834, output_bytes: 10, rows_written: 1 }
+
+thread 'memory_empty_default' (2455389) panicked at crates/snapback4-device/tests/qe2_allocations.rs:43:5:
+assertion `left == right` failed
+  left: 1834
+ right: 1621
+FAILED
+test sqlite_bound_quarry_insert ...
+thread 'sqlite_bound_quarry_insert' (2455390) panicked at crates/snapback4-device/tests/qe2_allocations.rs:32:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 16801227, ceiling: 16777216, site: "add:3" }
+FAILED
+test sqlite_discarded_if_absent ... sqlite seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 16000421, output_bytes: 13, rows_written: 1 }
+ok
+test sqlite_discarded_quarry_insert ... sqlite seed: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 9, heap_bytes: 12000421, output_bytes: 13, rows_written: 1 }
+ok
+test sqlite_empty_default ... sqlite add: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 14, heap_bytes: 1834, output_bytes: 10, rows_written: 1 }
+
+thread 'sqlite_empty_default' (2455393) panicked at crates/snapback4-device/tests/qe2_allocations.rs:43:5:
+assertion `left == right` failed
+  left: 1834
+ right: 1621
+FAILED
+
+failures:
+
+failures:
+    memory_bound_quarry_insert
+    memory_empty_default
+    sqlite_bound_quarry_insert
+    sqlite_empty_default
+
+test result: FAILED. 4 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+error: test failed, to rerun pass `-p snapback4-device --test qe2_allocations`

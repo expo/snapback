@@ -1,0 +1,46 @@
+# Snapback 4: a named lookup on an optional unique key asks for a cap; the positional key compiles
+
+- Opened: 2026-10-03
+- Area: Snapback 4 language (`snapback4-lang` binder, lookup planning and diagnostics)
+- Source: calibration #29's run log, line 30 (`benchmarks/runs/2026-10-02-snapback4-clique-astra-0.4.11/astra/lane-run-log.md`), attributed "ambiguous"; the scorer did not charge it.
+
+## Observed
+
+Calibration #29's DM table keys each direct conversation by a sorted principal pair. Both columns are optional, because group rows have neither:
+
+```quarry
+table conversations:
+  low: principal ?
+  high: principal ?
+  unique low, high
+query direct(other: principal):
+  (low, high) = sorted(viewer, other)
+  return conversations[low, high]                  # compiles: point lookup on the unique key
+# return conversations[low = low, high = high]     # refused
+```
+
+The named form is refused with 0.4.11 (and the key order does not matter: `high = high, low = low` and `low = viewer, high = other` are refused too):
+
+```
+schema.q:206:10 — E_QUARRY_BOUND: conversations has no cap over this prefix; this position needs a bounded page
+  rewrite: declare `cap N by high, low` on conversations, or page with `first N` and a cursor: `conversations where .high = high and .low = low first 50 by .id after c` (declare `c: cursor ?`)
+```
+
+With `low: principal` and `high: principal` (required), the same named lookup compiles. The trigger is the optional columns: named equalities over a nullable unique key are planned as a scan, while the positional key over the same columns is planned as a point lookup.
+
+## Why it matters
+
+- The two spellings of the same key disagree, and only one is accepted. The builder lost a loop finding the positional workaround.
+- The rewrite is wrong for this shape. A cap or a page of DM conversations is not what the author wants; the unique key already answers with at most one row whenever both arguments are non-null.
+
+## Expected
+
+Decide one meaning for an equality on a nullable unique-key column, and apply it to both spellings. Either:
+- a named lookup whose equalities exactly cover a unique key is a point lookup, with the same null rule as the positional key; or
+- if a null argument must stay able to match many null rows, the diagnostic says so and names the positional key `conversations[low, high]` (or a non-null guard) as the rewrite, instead of a cap.
+
+Add a guide sentence under `guide indexes` or `guide reads` saying how null arguments behave in key lookups.
+
+## Reproduction
+
+Copy the calibration #29 source (`.../astra/source/snapback/{schema.q,windows.q,workers/push.mjs}`), change line 206 to the named form, and run `snapback4 check`.

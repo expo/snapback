@@ -7,6 +7,8 @@ mod online;
 #[cfg(feature = "sqlite")]
 mod work;
 #[cfg(feature = "sqlite")]
+pub(super) use work::Schedule;
+#[cfg(feature = "sqlite")]
 mod activation;
 #[cfg(feature = "sqlite")]
 pub(crate) use activation::{check_activation, check_activation_read_only, check_no_rebuilds};
@@ -182,13 +184,37 @@ impl Runner<'_> {
         let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone(), epoch.clone()];
         let id = Value::Id(crate::schema::timeline::owned_id(&t.name, "Work", &key));
         let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
+        let table = t.table("Work");
+        // @ref LLP 3000#contended-read-serving — append behind the durable
+        // queue tail, even after a clock rewind. Both hosts admit one private
+        // indexed row and reusable scan scratch; only the server reads it.
+        let scratch = super::write_target::row_copy_ceiling(&self.schema.tables[&table]) * 8;
+        let position: Option<Value> = self.disclosed_scratch(scratch, &[
+            (crate::MeterKind::Examined, 1), (crate::MeterKind::IndexEntries, 1),
+            (crate::MeterKind::Steps, 8),
+        ], |runner, _| {
+            if runner.device { return Ok(None); }
+            #[cfg(feature = "sqlite")]
+            { runner.timeline_queue_tail(t).map(Some) }
+            #[cfg(not(feature = "sqlite"))]
+            { unreachable!("device never reads server-owned work") }
+        })?;
         let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
-            ("admitted", self.timeline_admission()), ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
-        let table = t.table("Work");
+            ("admitted", self.timeline_admission()), ("at", Value::Int(crate::value::I53_MIN)), ("status", Value::String("pending".into())), ("error", Value::Null)]);
         let bytes = crate::value::canonical_json(&row).len() as u64;
-        self.timeline_hidden_write(&table, Some(bytes), |runner|
-            runner.upsert(&table, &id, row.timeline_input(&TimelineInput(()))))
+        // Price the maximum-width queue position on both hosts; its private
+        // value must not change admission or output reservations on the device.
+        self.timeline_hidden_write(&table, Some(bytes), |runner| {
+            #[cfg(feature = "sqlite")]
+            {
+                let mut fields = row.as_object()?.clone();
+                fields.insert("at".into(), position.expect("server queue position"));
+                runner.upsert(&table, &id, Value::Row(fields.into()).timeline_input(&TimelineInput(())))
+            }
+            #[cfg(not(feature = "sqlite"))]
+            { let _ = (runner, row, id, position); unreachable!("device never performs server-owned work") }
+        })
     }
 
     // @ref LLP 3000.016#2.1 — server-owned work has a shared fixed allowance;
@@ -287,10 +313,6 @@ impl Runner<'_> {
         }
         self.timeline_known()?;
         Ok((value != Value::Null).then_some(value))
-    }
-
-    fn timeline_scan(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool) -> Result<Vec<Value>, RuntimeError> {
-        self.timeline_page(table, index, prefix, take, reverse, None).map(|(rows,_)| rows)
     }
 
     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {

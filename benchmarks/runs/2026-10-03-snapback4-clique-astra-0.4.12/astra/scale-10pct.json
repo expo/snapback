@@ -1,0 +1,300 @@
+{
+  "label": "10%",
+  "actions": 24863,
+  "at": 1791048792,
+  "verification": {
+    "pass": true,
+    "counts": {
+      "users": 1008,
+      "profiles": 1008,
+      "followEdges": 5921,
+      "posts": 5048,
+      "topLevelPosts": 4844,
+      "replies": 204,
+      "activeLikes": 508,
+      "activeReposts": 104,
+      "conversations": 1002,
+      "dms": 901,
+      "groups": 101,
+      "memberships": 2053,
+      "messages": 10015,
+      "textMessages": 10014,
+      "mediaMessages": 1,
+      "quotedReplies": 9,
+      "activeReactions": 200,
+      "disappearingSettingsEnabled": 0
+    },
+    "checks": [
+      {
+        "name": "settle-accounting-vs-invariant-manifest",
+        "pass": true
+      },
+      {
+        "name": "profile:alice",
+        "pass": true
+      },
+      {
+        "name": "profile:u0093",
+        "pass": true
+      },
+      {
+        "name": "profile:u0193",
+        "pass": true
+      },
+      {
+        "name": "profile:u0293",
+        "pass": true
+      },
+      {
+        "name": "profile:u0393",
+        "pass": true
+      },
+      {
+        "name": "profile:u0493",
+        "pass": true
+      },
+      {
+        "name": "profile:u0593",
+        "pass": true
+      },
+      {
+        "name": "profile:u0693",
+        "pass": true
+      },
+      {
+        "name": "profile:u0793",
+        "pass": true
+      },
+      {
+        "name": "profile:u0893",
+        "pass": true
+      },
+      {
+        "name": "post:sp0001",
+        "pass": true
+      },
+      {
+        "name": "post:p000476",
+        "pass": true
+      },
+      {
+        "name": "post:p000977",
+        "pass": true
+      },
+      {
+        "name": "post:p001479",
+        "pass": true
+      },
+      {
+        "name": "post:p001981",
+        "pass": true
+      },
+      {
+        "name": "post:p002483",
+        "pass": true
+      },
+      {
+        "name": "post:p002985",
+        "pass": true
+      },
+      {
+        "name": "post:p003487",
+        "pass": true
+      },
+      {
+        "name": "post:p003989",
+        "pass": true
+      },
+      {
+        "name": "post:p004491",
+        "pass": true
+      },
+      {
+        "name": "chat:d-alice-bob",
+        "pass": true
+      },
+      {
+        "name": "chat:g0099",
+        "pass": true
+      },
+      {
+        "name": "chat:d0099",
+        "pass": true
+      },
+      {
+        "name": "chat:d0199",
+        "pass": true
+      },
+      {
+        "name": "chat:d0299",
+        "pass": true
+      },
+      {
+        "name": "chat:d0399",
+        "pass": true
+      },
+      {
+        "name": "chat:d0499",
+        "pass": true
+      },
+      {
+        "name": "chat:d0599",
+        "pass": true
+      },
+      {
+        "name": "chat:d0699",
+        "pass": true
+      },
+      {
+        "name": "chat:d0799",
+        "pass": true
+      },
+      {
+        "name": "message:sm0001",
+        "pass": true
+      },
+      {
+        "name": "message:mg0001-00987",
+        "pass": true
+      },
+      {
+        "name": "message:md0099-008",
+        "pass": true
+      },
+      {
+        "name": "message:md0199-009",
+        "pass": true
+      },
+      {
+        "name": "message:md0299-010",
+        "pass": true
+      },
+      {
+        "name": "message:md0400-001",
+        "pass": true
+      },
+      {
+        "name": "message:md0500-002",
+        "pass": true
+      },
+      {
+        "name": "message:md0600-003",
+        "pass": true
+      },
+      {
+        "name": "message:md0700-004",
+        "pass": true
+      },
+      {
+        "name": "message:md0800-005",
+        "pass": true
+      },
+      {
+        "name": "message:sm0002",
+        "pass": true
+      },
+      {
+        "name": "message:sm0003",
+        "pass": true
+      },
+      {
+        "name": "message:sm0006",
+        "pass": true
+      },
+      {
+        "name": "message:sm0008",
+        "pass": true
+      },
+      {
+        "name": "message:sm0011",
+        "pass": true
+      },
+      {
+        "name": "message:sm0014",
+        "pass": true
+      },
+      {
+        "name": "message:mg0001-00250",
+        "pass": true
+      },
+      {
+        "name": "message:mg0001-00500",
+        "pass": true
+      },
+      {
+        "name": "message:mg0001-00750",
+        "pass": true
+      },
+      {
+        "name": "message:mg0001-01000",
+        "pass": true
+      },
+      {
+        "name": "named:u0500",
+        "pass": true
+      },
+      {
+        "name": "named:u0005",
+        "pass": true
+      },
+      {
+        "name": "named:u0900",
+        "pass": true
+      },
+      {
+        "name": "named:u0901",
+        "pass": true
+      },
+      {
+        "name": "named:g0001",
+        "pass": true
+      }
+    ],
+    "note": "Builder-owned deterministic spread sample; hidden grader sample remains independent."
+  },
+  "performance": {
+    "busy-page-1": {
+      "n": 20,
+      "p50": 3.2084170000161976,
+      "p95": 10.762667000002693,
+      "max": 15.336333000042941
+    },
+    "busy-page-50": {
+      "n": 20,
+      "p50": 2.6906669999589212,
+      "p95": 4.166250000009313,
+      "max": 5.954916000016965
+    },
+    "following-u0005": {
+      "n": 20,
+      "p50": 2.233583000022918,
+      "p95": 3.2089999999734573,
+      "max": 3.400708000001032
+    },
+    "following-u0500": {
+      "n": 20,
+      "p50": 3.090041999996174,
+      "p95": 5.209875000000466,
+      "max": 6.176000000035856
+    },
+    "following-u0901": {
+      "n": 20,
+      "p50": 2.295540999970399,
+      "p95": 3.9322079999838024,
+      "max": 4.446124999958556
+    },
+    "global": {
+      "n": 20,
+      "p50": 2.75104200001806,
+      "p95": 3.5060839999932796,
+      "max": 251.54691699997056
+    },
+    "search": {
+      "n": 20,
+      "p50": 4.756458000047132,
+      "p95": 6.357458000013139,
+      "max": 6.535957999993116
+    }
+  },
+  "wallMs": 1471
+}

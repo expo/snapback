@@ -308,6 +308,7 @@ impl Engine {
             context = context.with_generation(self.generation);
             let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
             runner.job_read_scope = 1;
+            runner.insert_uses = Some(crate::ir::effects::Effects::variable_uses(&program.body));
 
             // The sweep's upper key is captured when it begins: a row the body
             // inserts beyond it is never visited, so a sweep over its own

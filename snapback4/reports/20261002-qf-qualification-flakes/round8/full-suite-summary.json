@@ -1,0 +1,60 @@
+{
+  "summary": "== 0 failure(s) in 1511 s",
+  "status": 0,
+  "phases": [
+    {
+      "files": 1,
+      "expectedFiles": 1,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "name": "fixture wrapper tests"
+    },
+    {
+      "files": 304,
+      "expectedFiles": 304,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 6106,
+        "pass": 6095,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0
+      },
+      "name": "client tests"
+    },
+    {
+      "files": 2,
+      "expectedFiles": 2,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "name": "client models"
+    }
+  ],
+  "totalJavaScript": {
+    "tests": 6194,
+    "pass": 6183,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "fileResults": 307,
+  "failedCategories": [],
+  "failedFiles": [],
+  "sourceAmendment": "source-amendment.json: exceptional test-29 cleanup; inspection-adapter-amendment.json and live-malformed-amendment.json: test selectors and a stronger live-row probe. Runner implementation is unchanged. The final 64/64 plain and 64/64 live-malformed-shim checks cover all amended tests."
+}

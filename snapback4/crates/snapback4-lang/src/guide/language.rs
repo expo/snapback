@@ -247,7 +247,9 @@ fn kindLabel(value: text <=6): value                               -- every enum
 shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
 shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- named shape: `.` denotes the row; use `row card` or `page card`
 fn messageBody(m: messages): m.body                                  -- row arguments keep their fields
-fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- reference arguments keep their ids
+fn messageById(m: messages):
+  require exists messages[m] else NOT_FOUND
+  return messages[m].body      -- reference arguments keep their ids
 fn expiryTtl(setting: text): 60000 if setting = 'short' else null
 query expiration(setting: text):
   return now + expiryTtl(setting) if expiryTtl(setting) != null else null  -- repeated pure calls narrow (guide types)
@@ -445,7 +447,6 @@ query roomWindow(roomId: id, c: cursor ?):
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
 
-
 table subjects:
   at: time
   voteCount: count votes
@@ -525,7 +526,6 @@ query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?
 ```
 
 A maintained count can use another table's row as its key: `view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule; a large mark change reports `complete: false` while its recount settles. The complete, compiled Clique recipe is on `guide maintains`.
-
 
 `snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules in any order. Other `.q` files share its namespace; their operations and scheduled jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name. Comments start with `--`; blocks indent two spaces. The suite compiles every block.
 

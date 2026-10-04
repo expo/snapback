@@ -1,0 +1,76 @@
+== cargo build
+-- ok: cargo build (26 s)
+== wasm build
+wasm 2048676 B raw, 617398 B gzip (budget 618040: ok)
+-- ok: wasm build (82 s)
+== docs budget
+-- ok: docs budget (25 s)
+== release guard
+-- ok: release guard (10 s)
+== package typecheck
+-- ok: package typecheck (2 s)
+== package build
+-- ok: package build (3 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust target: snapback4-lang::guide (8.1 s): test result: ok. 112 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.14s
+-- rust target: snapback4-lang::timeline_guide (0.2 s): test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+-- rust target: snapback4-lang::timeline_epoch_counterexample (1.5 s): test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+-- rust target: snapback4-lang::timeline_live_latency (1.3 s): test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+-- rust target: snapback4-lang::timeline_fairness (5.2 s): test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.17s
+-- rust target: snapback4-lang::timeline_background (7.7 s): test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.66s
+-- rust target: snapback4::timeline_delivery (1.0 s): test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+-- rust target: snapback4::timeline_design (0.0 s): test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+-- rust target: snapback4::timeline_adoption (1.7 s): test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+-- rust target: snapback4::timeline_delivery_counterexample (1.7 s): test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+-- ok: cargo test (826 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (11 s)
+-- available CPUs: 64; client file concurrency: 21
+== client tests
+wasm [
+wasm moved survivor hidden=false: payload-bytes=655 identical-worlds=2 completions=1 key-at=100
+wasm moved survivor hidden=true: payload-bytes=655 identical-worlds=2 completions=1 key-at=100
+wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true
+wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119331
+wasm written unselected round-trip=true: payload-bytes=836 worlds=2 p1-puts=3 completions=1 key-at=1000
+wasm written unselected round-trip=false: payload-bytes=746 worlds=1 p1-puts=2 completions=1 key-at=1000
+wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+wasm membership collision kind=join row-event=null: payload-bytes=687 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=put: payload-bytes=813 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=del: payload-bytes=674 identical-worlds=2 completions=1 key-at=1000
+wasm {
+✔ Chromium: repost, group message and reaction render under confined contention (15103.474121ms)
+ℹ {"affinity":"90-91","groups":{"0:repost":{"n":4,"p50":122.185791015625,"p95":202.8857421875,"max":202.8857421875},"0:message":{"n":4,"p50":271.445556640625,"p95":362.56591796875,"max":362.56591796875},"0:reaction":{"n":4,"p50":74.8173828125,"p95":126.852294921875,"max":126.852294921875},"2:repost":{"n":4,"p50":186.426025390625,"p95":249.426025390625,"max":249.426025390625},"2:message":{"n":4,"p50":364.875,"p95":376.074951171875,"max":376.074951171875},"2:reaction":{"n":4,"p50":93.707763671875,"p95":179.60791015625,"max":179.60791015625}}}
+wasm root ready
+wasm boundary passed
+wasm denial passed
+wasm expiry passed
+wasm held response
+wasm released response
+wasm late drained
+wasm reactivated
+ℹ tests 6047
+ℹ pass 6036
+ℹ fail 0
+ℹ skipped 11
+-- ok: client tests (617 s)
+== client models
+ℹ tests 79
+ℹ pass 79
+ℹ fail 0
+ℹ skipped 0
+-- ok: client models (308 s)
+== 0 failure(s) in 1899 s

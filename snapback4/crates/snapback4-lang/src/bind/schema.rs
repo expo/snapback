@@ -378,7 +378,7 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
 
 /// Bind a rule expression over a table's focal row.
 pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
-    let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert };
+    let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error)
     })
@@ -389,6 +389,7 @@ struct RuleBindings {
     next: Option<String>,
     update: bool,
     insert: bool,
+    hops: bool,
 }
 
 fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBindings) -> Fallible<RuleExpr> {
@@ -476,6 +477,13 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
     match expr {
         Expr::Name { name, .. } if name == "viewer" => Ok((RuleTerm::Viewer, Ty::Principal)),
         Expr::Member { base, name, .. } => match base.as_ref() {
+            Expr::Read(read) if read.keys.len() == 1 && read.keys[0].column.is_none()
+                && read.range.is_none() && read.filter.is_none() && read.matching.is_none()
+                && read.index.is_none() && read.seeks.is_empty() => {
+                let result = rule_reference(catalog, info, &read.keys[0].value, name, bindings, site)?;
+                if matches!(&result.0, RuleTerm::Reference { table, .. } if table == &read.table) { Ok(result) }
+                else { Err(type_error(site, "the lookup table differs from the reference type", "use the reference's declared table")) }
+            }
             Expr::Focal { .. } => {
                 if bindings.update && bindings.old.is_some() {
                     return Err(unknown(site, "an update (old, next) rule names its images; . is not bound", format!("next.{name}")));
@@ -491,8 +499,7 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
                 Ok((RuleTerm::NextField(name.clone()), ty))
             }
-            other => Err(unknown(site, format!("rules cannot traverse `{}`; dropping `{}` would change the rule", crate::print::expression(expr), crate::print::expression(other)),
-                "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values").guide("rules")),
+            other => rule_reference(catalog, info, other, name, bindings, site),
         },
         Expr::Name { name, .. } if bindings.update && (bindings.old.as_deref() == Some(name) || bindings.next.as_deref() == Some(name)) => Err(unknown(site, format!("select a field of {name} explicitly"), format!("{name}.id"))),
         Expr::Name { name, .. } => Err(unknown(site, format!("`{name}` is not a rule term; rules read the row as .{name}"), format!(".{name}"))),
@@ -526,7 +533,7 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
 /// Final-insert obligations retain their exact-index write-path contract.
 /// Ordinary effect rules use `probe` with residual equalities enabled.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
-    let bindings = RuleBindings { old: None, next: None, update, insert: false };
+    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: false };
     let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false)?;
     Ok((table, index, key))
 }
@@ -746,3 +753,7 @@ table messages:
         assert!(accepted.diagnostics.is_empty(), "{:?}", accepted.diagnostics);
     }
 }
+
+#[path = "rule_reference.rs"]
+mod reference;
+use reference::rule_reference;

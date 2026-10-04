@@ -1,0 +1,90 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling typenum v1.20.1
+   Compiling quote v1.0.47
+   Compiling subtle v2.6.1
+   Compiling shlex v2.0.1
+   Compiling libm v0.2.16
+   Compiling find-msvc-tools v0.1.12
+   Compiling serde_core v1.0.229
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling cc v1.4.5
+   Compiling generic-array v0.14.7
+   Compiling wasmparser v0.228.0
+   Compiling foldhash v0.2.0
+   Compiling wasmi_ir v2.0.0
+   Compiling bitflags v2.13.2
+   Compiling zmij v1.0.23
+   Compiling libc v0.2.189
+   Compiling syn v3.0.5
+   Compiling hashbrown v0.17.1
+   Compiling wasmi v2.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling wasmi_core v2.0.0
+   Compiling digest v0.10.7
+   Compiling serde_json v1.0.151
+   Compiling rand_core v0.6.4
+   Compiling libsqlite3-sys v0.38.2
+   Compiling cfg-if v1.0.4
+   Compiling base64ct v1.8.3
+   Compiling cpufeatures v0.2.17
+   Compiling getrandom v0.3.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling password-hash v0.5.0
+   Compiling tinyvec v1.13.2
+   Compiling blake2 v0.10.6
+   Compiling hashlink v0.12.2
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling smallvec v1.16.1
+   Compiling itoa v1.0.18
+   Compiling thiserror-impl v2.0.20
+   Compiling serde_derive v1.0.229
+   Compiling fallible-iterator v0.3.0
+   Compiling spin v0.9.9
+   Compiling memchr v2.8.3
+   Compiling wasmi_collections v2.0.0
+   Compiling unicode-normalization v0.1.25
+   Compiling argon2 v0.5.3
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 55.50s
+     Running tests/qe2_allocations.rs (snapback4/target/debug/deps/qe2_allocations-a8e0d5627d20040c)
+
+running 4 tests
+
+thread 'memory_empty_default' (3968467) panicked at crates/snapback4-device/tests/qe2_allocations.rs:17:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 20001239, ceiling: 16777216, site: "add:2" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test memory_empty_default ... FAILED
+
+thread 'sqlite_empty_default' (3968469) panicked at crates/snapback4-device/tests/qe2_allocations.rs:17:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 20001239, ceiling: 16777216, site: "add:2" }
+test sqlite_empty_default ... FAILED
+
+thread 'memory_discarded_quarry_insert' (3968466) panicked at crates/snapback4-device/tests/qe2_allocations.rs:17:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 18000929, ceiling: 16777216, site: "seed:2" }
+test memory_discarded_quarry_insert ... FAILED
+
+thread 'sqlite_discarded_quarry_insert' (3968468) panicked at crates/snapback4-device/tests/qe2_allocations.rs:17:68:
+called `Result::unwrap()` on an `Err` value: Bound { kind: HeapBytes, actual: 18000929, ceiling: 16777216, site: "seed:2" }
+test sqlite_discarded_quarry_insert ... FAILED
+
+failures:
+
+failures:
+    memory_discarded_quarry_insert
+    memory_empty_default
+    sqlite_discarded_quarry_insert
+    sqlite_empty_default
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p snapback4-device --test qe2_allocations`

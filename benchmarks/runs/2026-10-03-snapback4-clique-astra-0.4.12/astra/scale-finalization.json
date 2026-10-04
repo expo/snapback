@@ -1,0 +1,7 @@
+{
+  "pass": true,
+  "start": 1791050888,
+  "end": 1791050967,
+  "sql": "evidence/scale-sql-verification.json",
+  "m8": "evidence/scale-m8-probes.json"
+}
