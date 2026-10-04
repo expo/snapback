@@ -217,8 +217,6 @@ pub struct Runner<'a> {
     pub(crate) evaluating_write_condition: bool,
     prediction_guards: BTreeSet<String>,
     pub(super) prediction_skips: BTreeSet<String>,
-    effect_reservations: BTreeMap<String, crate::schema::reservations::Price>,
-    effect_prepaid: bool,
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
@@ -358,8 +356,6 @@ impl<'a> Runner<'a> {
             evaluating_write_condition: false,
             prediction_guards: BTreeSet::new(),
             prediction_skips: BTreeSet::new(),
-            effect_reservations: BTreeMap::new(),
-            effect_prepaid: false,
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -388,13 +384,6 @@ impl<'a> Runner<'a> {
         self.prediction_skips = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && program.kind == ProgramKind::Mutation && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_skips.iter().cloned().collect()).unwrap_or_default();
-        if let Some(fact) = self.schema.operations.get(&program.name).filter(|f| program.kind == ProgramKind::Mutation && f.predicts.as_deref() == Some("eligible")) {
-            self.effect_reservations = fact.effect_reservations.clone();
-            #[cfg(feature = "sqlite")]
-            if !self.device {
-                self.effect_reservations = crate::schema::effect_prices::prices(self.schema, program, &fact.prediction_skips).unwrap_or_default();
-            }
-        }
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap or maintained-value cut cannot invent a scalar/shape or a
         // continuation. Keep the internal null placeholder and private meter
@@ -441,33 +430,21 @@ impl<'a> Runner<'a> {
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
             let (previous, capped, component_return) = self.begin_component(index);
-            let site = format!("{prefix}:{}", index + 1);
-            let price = (!self.effect_prepaid).then(|| self.effect_reservations.get(&site).copied()).flatten();
-            if let Some(price) = price {
-                self.meter.at(&site);
-                self.reservation_deferred |= self.device;
-                self.charge_price(price)?;
-            }
-            let prepaid = price.filter(|_| !self.device && !matches!(statement, Stmt::Emit { .. })).map(|_| {
-                self.effect_prepaid = true;
-                self.enter_prepaid(false)
-            });
             let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
             // @ref LLP 3000.013#12.3 — infallible effect-payload reads and their
-            // exclusive bindings are server work, including in an untaken arm.
+            // exclusive bindings use actual-value server fees. Omitted payloads
+            // can exhaust the server meter after prediction (the documented
+            // exception); once-key charges still run on both hosts.
             if self.prediction_skips.contains(&site) {
-                if price.is_none() && !self.effect_prepaid {
-                    return Err(RuntimeError::Prediction("omitted effect work has no complete reservation; adopt the current backend".into()));
-                }
                 if let Stmt::Emit { effect, once, .. } = statement { self.effect_once(effect, once.as_ref())?; }
                 return Ok(Flow::Next);
             }
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);
-            if price.is_none() { self.meter.step(1)?; }
+            self.meter.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
                     let value = self.binding_expr(value)?;
@@ -620,22 +597,12 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Emit { effect, payload, once } => {
-                    let payload = if price.is_some() {
-                        let state = self.enter_prepaid(false);
-                        let value = self.expr(payload);
-                        self.leave_prepaid(state, value.as_ref().err());
-                        value?
-                    } else { self.expr(payload)? };
+                    let payload = self.expr(payload)?;
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
                     if !self.effect_once(effect, once.as_ref())? { return Ok(Flow::Next); }
-                    let presence = if price.is_some() {
-                        let state = self.enter_prepaid(false);
-                        let value = self.emission_presence();
-                        self.leave_prepaid(state, value.as_ref().err());
-                        value?
-                    } else { self.emission_presence()? };
+                    let presence = self.emission_presence()?;
                     if !self.discard_effects {
                         let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
                         self.outbox.push((id, effect.clone(), payload, presence));
@@ -674,10 +641,6 @@ impl<'a> Runner<'a> {
             };
             Ok(flow)
             })();
-            if let Some(state) = prepaid {
-                self.leave_prepaid(state, result.as_ref().err());
-                self.effect_prepaid = false;
-            }
             self.end_component(previous, capped);
             let flow = result?;
             if !matches!(flow, Flow::Next) {

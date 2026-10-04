@@ -1029,3 +1029,185 @@ The new corpus is 74,893 bytes. No new file over 256 KB, wasm artifact, gzip or
 video is committed; the existing journal receives the requested append. Work
 stayed on eb1000. No Apartment mini, office M1 or M5 was used, and nothing is
 pushed or published.
+
+## Round 5 — 2026-10-04
+
+### Decision and headroom
+
+Restore the pre-round-4 **actual-value effect-payload behavior on both hosts**,
+as expressly permitted by the round-5 task. The server evaluates and meters the
+original payload, bindings, reads and presence metadata. The device omits only
+the compiler's exclusive, infallible payload slice. Remove the declared-maximum
+analyzer, serialized effect-price map and runtime prepaid scopes. This does not
+remove the complete **source-write** price plans or any other R0–4 reservation.
+
+The two complete, unchanged calibration backends now predict and commit a send
+at their declared cap of **50 members**, with short realistic profiles and each
+of three message bodies. Every server meter is **exactly equal to round 3**,
+not merely below the default ceilings. Permanent assertions compare all seven
+fields to independently measured base values; memory, SQLite and wasm all
+predict a `pending: true` message in the actual `history` query.
+
+| App / text | R3 heap = R5 heap (B) | Heap headroom | Examined | Index entries | Steps | Writes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.4.11 / hello | 132,571 | 99.21% | 513 | 1,062 | 9,354 | 202 |
+| 0.4.11 / realistic 81 chars | 140,605 | 99.16% | 513 | 1,092 | 9,354 | 202 |
+| 0.4.11 / 1,999 chars | 154,023 | 99.08% | 513 | 1,062 | 9,354 | 202 |
+| 0.4.12 / hello | 224,907 | 98.66% | 561 | 1,063 | 9,798 | 202 |
+| 0.4.12 / realistic 81 chars | 236,535 | 98.59% | 561 | 1,093 | 9,798 | 202 |
+| 0.4.12 / 1,999 chars | 341,633 | 97.96% | 561 | 1,063 | 9,798 | 202 |
+
+Every case also uses 10 rule probes and 182,210 output bytes on both revisions.
+No ceiling changed. These are **server headroom measurements**, paired with
+successful default-ceiling admission on all three device runtimes; no numerical
+device-meter measurement is claimed through an API that does not expose it.
+
+Evidence is `/tmp/rp-r5-base.log` (R3 `7fc57283b3`, detached eb1000 worktree),
+`/tmp/rp-r5-original.log` (R4), `/tmp/rp-r5-tight-prototype.log` (experiment) and
+`/tmp/rp-r5-apps-native.log` (R5). All revisions use the same seed and timestamp,
+50-member group, realistic profile values and exact Quarry source files.
+R4 refused all six at the heap ceiling. A local tighter-price experiment joined
+selected-column bounds, capped literal slices and replaced rule-JSON node counts
+and four-row read scratch with a fixed read allowance. It still refused all six:
+0.4.11 hello reached 16,637,231 heap bytes before the refused reservation;
+0.4.12 hello reached 16,538,434. Retained maximum-bound copying and per-node
+allowances were still too large. This was a **measurement prototype**, not a
+qualified sound replacement analyzer or proof that all tight pricing is
+impossible; its patch is retained at `/tmp/rp-r5-tight-prototype.patch`.
+The actual-value option meets the strict base-headroom requirement without
+inventing another static byte policy for private payloads.
+
+### Exact coverage and the explicit exception
+
+`crates/snapback4-lang/tests/reservation_app_headroom.rs` compiles every program
+and helper in both real apps, acquires actual server pages, predicts on memory
+and SQLite, checks the pending history and executes the server mutation. It
+also revalidates the fixtures used by the six wasm tests in
+`packages/snapback4/test/reservation-app-headroom.test.mjs`. Sources and SHA-256
+provenance are in `tests/fixtures/rp-calibrations/README.md`. The 0.4.12 source
+is absent from the lane's base commit; it was copied read-only from the exact
+named run in eb1000's `lane-lu` worktree. No other machine was accessed. Backends
+are split into schema/program files, each below 256 KB; no full large artifact,
+gzip or wasm binary is committed.
+
+The source/interpreter reservation differential retains its 320 seeded cases
+per store, with **114 predicted-and-committed / 8 conservative queues / 198
+server refusals**, about 21 seconds for its affected group. Adding the six real
+apps gives **326 cases per store: 120 / 8 / 198**. The seed and case labels remain
+reproducible. The four R3 review shapes, owner births, sequence indexes, parent
+deletes, 1,024/1,025 once/no-once pairs, duplicate keys, private/public/online
+maintains, list slots, Following work and all earlier receipt cases remain.
+
+There is deliberately **no universal device-predicts ⇒ server-resource-admits
+claim for omitted effect payloads**. The R4 600-payload case is preserved as an
+explicit counterexample test, separate from the passing differential, and the
+same shape at 40 iterations stays in that differential and its wasm corpus.
+It predicts one note, then the server atomically refuses at `burst:4:3`:
+1,001,466 steps against 1,000,000, 6,336,802 heap bytes, 497 examined, 1 index
+entry, 0 rule probes, 0 output bytes, 1 metered write. No server row or effect
+commits. The exact result reproduces on **unmodified main `a8c20c40e9`**, R3 and
+R5; logs are `/tmp/rp-r5-pre-rp-gap.log`, `/tmp/rp-r5-r3-gap.log` and
+`/tmp/rp-r5-gap.log`. Memory, SQLite and wasm assert the restored behavior rather
+than ignoring the old test. See
+[the open ticket](../../../issues/20261004-snapback4-omitted-effect-payload-resource-gap.md).
+
+Runtime once-key charges are unchanged: key expressions still execute, their
+heap/step charge is common, new keys cost a written row and devices never take
+the durable ledger. A kept effect slice without obsolete payload prices can
+predict a small payload; a 1,025-distinct-key slice still queues without rows.
+Expiring rows, private owner columns, read-through authority, rule probes and
+live/row-keyed aggregates retain the real read path. The compiler now checks
+those dependencies directly when selecting a slice. Coalescing only erases
+value branches; an emit, including `once` inside a branch, cannot disappear
+inside an erased branch. New compiler tests retain those fences and the
+ordinary read deciding whether a once emission occurs.
+
+All other R4 audit-table rows stand. Its effect-payload reservation row and the
+R4 paragraph claiming that gap closed are **superseded by this explicit R5
+exception**. The analyzer was already `#[cfg(feature = "sqlite")]` in committed
+R4, so no additional wasm saving is attributed to Grok's suggested cfg change.
+Removing the price representation and interpreter scopes is the runtime cut.
+
+### Legacy and documentation
+
+The historical ordinary chat `send`, maintaining `messageCounts`, may queue
+until a current priced backend is adopted. This is an **accepted compatibility
+limit**, not a promise that every old ordinary writer retains prediction. An
+old public/private projection may lack the complete nonzero source plan;
+assuming zero reopens the reviewed reservation holes. Custody, queued writes,
+outbox and delivery debt survive offline, unaffected provably-zero writers
+still predict under Kept and the SDK helper, and adoption restores current
+compiler facts. No runtime price reconstruction is reintroduced into wasm.
+
+LLP 3000.013 §12.3 records the actual-value decision and ticketed exception;
+LLP 3000.022 §14.3 records the corresponding reservation scope and legacy
+aggregate limitation, with dated revision notes. `guide prediction` explains
+that the worked send can still receive a server resource refusal and that the
+SDK restores settled rows; `guide effects` and `why` state the actual-value
+server-only payload fee. Guide line budgets and reference checks remain binding.
+
+### Wasm
+
+Locked eb1000 builds use the same Rust/wasm-bindgen/Binaryen toolchain. Base
+`a8c20c40e9` was rebuilt again this round, not inferred from a previous report.
+
+| Artifact | Raw (B) | gzip (B) |
+| --- | ---: | ---: |
+| Same-host pre-RP base | 2,048,676 | 617,327 |
+| R4 | 2,107,138 | 636,469 |
+| R5 | 2,097,970 | 634,330 |
+
+R5 is **−2,139 B gzip vs R4**, **+17,003 B / 2.75% vs base**. Ratchet the budget
+down to **634,460 B = Linux + the recorded 130 B macOS offset**. The offset is
+historical allowance, not a claimed macOS measurement. Runtime ceilings are
+unchanged. Final build log: `/tmp/rp-r5-full-qualified.log`; base: `/tmp/rp-r5-base-wasm.log`.
+The earlier `/tmp/rp-r5-wasm.log` measured 634,326 B before the final comment
+edit; the final full-run rebuild is the figure above. Raw artifact SHA-256:
+R5 `17df474c6444a4ebc06bc5757ca5b1ad1ef8f1549d43522a0cdef8454ffd3b20`;
+base `1fd8cd3fdef29bc5038a642e10ba0eb22df841b44ca704d1f0d2d4f5decf0e74`.
+
+### Qualification and delivery
+
+All work and checks ran on eb1000. The affected run passed **209 receipt/RY**,
+**9 effect-read** and **2 real-app headroom** tests (six cases per host),
+**112 guide** tests, **20 selected device** tests, and **73 client** tests,
+including real-app wasm headroom, both reservation corpora, Kept opening,
+upgrades, the explicit payload counterexample and the social starter. Logs:
+`/tmp/rp-r5-affected-rust.log`, `/tmp/rp-r5-guide.log`,
+`/tmp/rp-r5-device.log`, `/tmp/rp-r5-affected-clients.log`.
+
+The complete command, from `snapback4/`, was:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh
+```
+
+Result: **`== 0 failure(s) in 1480 s`**, exit **0**.
+Rust: **4,825 passed**, 33 existing ignores; doctests: **17 passed**.
+Client pool: **6,095 passed**, 11 existing skips; serial client models:
+**79 passed**; fixture wrappers: **9 passed**. All RY escapes, the extended
+reservation differential and every real-app case ran in this full suite.
+There is no failed full-suite check requiring an unmodified-main exception.
+The separate, explicitly asserted payload counterexample is the pre-existing
+main mismatch named above; it is not silently counted as a parity success.
+
+All **1,916** recorded implementation/test inputs remained byte-identical
+through full-run completion. The final wasm was the same artifact used by the
+full client run. After completion, only the budget metadata among those inputs
+changed: **634,456 → 634,460 B**, reconciling the 4 B final-build difference and
+keeping exactly 130 B of host allowance. The complete suite had already passed
+the stricter cap; `node scripts/wasm-budget.mjs metrics/wasm-budget.json 634330`
+passes the final cap. No implementation or test changed after qualification.
+
+Evidence SHA-256:
+
+- `/tmp/rp-r5-full-qualified.log`:
+  `028d11b4dcce04e9caea74160b94c5c0c10c9d2ba99dd3151541d60f53b9fdf7`
+- `/tmp/rp-r5-source-qualified.sha256`:
+  `052039b7c466ca630b8217f27837dce0fe2b1949d9d75f36d852132bf5ca5578`
+
+`./ref-check --verbose` and `git diff --check` pass. No new file exceeds
+256 KB, and no gzip, video or wasm artifact is committed. The pre-existing
+JOURNAL receives the specifically requested append. No Apartment mini, office
+M1 or M5 was used. Nothing pushed or published. The commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

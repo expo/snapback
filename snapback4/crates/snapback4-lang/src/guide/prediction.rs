@@ -166,9 +166,9 @@ the acquired horizon.
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
 eligible: the server decides the effects at commit. An infallible point read
 used only by an effect payload is **server-only, feeds an effect** in `why`.
-The device skips that read and its exclusive local bindings; both hosts reserve
-declared work before server evaluation with ordinary authorization. Nullable
-fields, `??`, `sha256` and `join` need known bounds. Live counts keep read residency.
+The device skips that read and its exclusive local bindings. The server evaluates
+and charges their actual values with ordinary authorization. Expiring rows,
+read-through authority, rule probes and live counts keep ordinary read residency.
 A once-key stays in the prediction body and pays its runtime allocation charge,
 even when its payload is skipped. Online-only key sources stay server-only.
 No hoisting is needed for an ordinary emit from an online-only table:
@@ -210,6 +210,7 @@ mutation send(chat: id, body: text <=2000) predicts:
   return message
 ```
 
+The server can still refuse this send at a resource limit: it charges payload work the device omits. On refusal, the SDK restores settled rows.
 Presence deciding rows, a refusal or the returned value still costs prediction;
 so does fallible presence work such as `falliblePost`, even inside an emit.
 A read also used by a condition, write, require, return or loop domain keeps
@@ -218,8 +219,7 @@ overflowing arithmetic and division without a nonzero proof are not infallible
 payload work. For a presence-controlled read outside this class, `why` retains
 the presence origin and the consuming read's source site. `check --fix` does
 not hoist it: moving fallible work can introduce a refusal on another branch.
-Effect arms can change server charges, as live versus absent presence already
-could (`guide effects`). See `guide presence`.
+Effect arms can change server charges (`guide effects` and `guide presence`).
 
 ## Set-state writes: likes and reactions
 

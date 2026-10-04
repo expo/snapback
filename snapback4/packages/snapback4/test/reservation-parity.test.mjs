@@ -113,7 +113,7 @@ mutation post():
 });
 
 // A kept compiler may have proved the slice before payload prices existed.
-test('wasm queues legacy omitted effects without their complete price', { timeout: hangBudget(10) }, async t => {
+test('wasm keeps small omitted effects eligible without obsolete payload prices', { timeout: hangBudget(10) }, async t => {
   const c = cases.find(c => c.label === 'r4-hidden-payload-1');
   const backend = await backendFor(t, c.source);
   delete backend.schema.operations.burst.effect_reservations;
@@ -121,9 +121,26 @@ test('wasm queues legacy omitted effects without their complete price', { timeou
   try {
     c.pages.forEach((page, i) => ok(call(device, { op: 'apply', first: i === 0, page })));
     const q = ok(call(device, { op: 'admit', entry: entry('burst', {}) }));
-    assert.equal(q.predictable, false);
-    assert.deepEqual(q.predicted, []);
+    assert.equal(q.predictable, true);
+    assert.equal(q.predicted.length, 1);
     assert.equal(ok(call(device, { op: 'queued' })).length, 1);
-    assert.deepEqual(ok(call(device, { op: 'query', name: 'rows', args: {}, viewer: 'alice', now })).data, []);
+    assert.equal(ok(call(device, { op: 'query', name: 'rows', args: {}, viewer: 'alice', now })).data.length, 1);
+  } finally { device.free(); }
+});
+
+// Explicit actual-value exception, re-executed by the Rust engine in the suite.
+// issues/20261004-snapback4-omitted-effect-payload-resource-gap.md
+// This counterexample is separate from the passing reservation differential.
+test('wasm reproduces the documented pathological payload gap', { timeout: hangBudget(10) }, async t => {
+  const c = JSON.parse(readFileSync(new URL('rp-effect-payload-gap.json', root), 'utf8'));
+  assert.equal(c.serverCommitted, false);
+  assert.equal(c.predicted, true);
+  const backend = await backendFor(t, c.source);
+  const device = new WebDevice(JSON.stringify(backend), '[]');
+  try {
+    c.pages.forEach((page, i) => ok(call(device, { op: 'apply', first: i === 0, page })));
+    const q = ok(call(device, { op: 'admit', entry: entry('burst', c.args) }));
+    assert.equal(q.predictable, true);
+    assert.equal(q.predicted.length, 1);
   } finally { device.free(); }
 });

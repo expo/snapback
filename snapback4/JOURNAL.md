@@ -85092,3 +85092,66 @@ or wasm artifact is committed; this existing journal receives the requested
 append. Work stayed on eb1000, without the Apartment mini, office M1 or M5.
 Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-10-04 — RP round 5: restore real group-send headroom
+
+Round 4's effect-payload maximum prices broke ordinary sends in both complete
+Clique calibration apps: selected fields inherited whole-row bounds, literal
+slices retained input maxima, and point reads priced rule JSON as expression
+nodes. At the 50-member cap, all six short/realistic/1,999-character sends queued
+and received a server heap refusal. A tighter-price experiment still refused
+all six. Under the author's explicit round-5 option, restore the base's
+actual-value effect fees on both hosts: the server executes and charges the
+payload, and the device omits the proven exclusive slice. Delete the analyzer,
+price representation and runtime prepaid scopes. Keep shared source prices,
+runtime once-key charging and every other R0–4 reservation repair.
+
+Both unchanged real schemas now predict pending history rows on memory, SQLite
+and wasm and commit with **exactly the round-3 meters in all seven dimensions**.
+At 50 members, 0.4.11 uses 132,571 / 140,605 / 154,023 heap bytes for hello,
+realistic and near-maximum bodies; 0.4.12 uses 224,907 / 236,535 / 341,633 B.
+The native differential compiles the complete source modules and validates the
+server acquisition/backend fixtures used by wasm. Independent base meters are
+permanent regression ceilings. No runtime ceiling increased.
+
+The explicit cost is the pre-existing pathological-payload admission gap:
+600 SHA-256 notifications over an online-only 2,000-character name predict one note,
+then the server atomically refuses at 1,001,466 steps. This reproduces identically
+on unmodified main `a8c20c40e9`, RP round 3 and this revision. The old 600-payload
+case remains an explicit counterexample test on both stores and wasm, separate
+from the passing reservation differential, with an
+[open ticket](../issues/20261004-snapback4-omitted-effect-payload-resource-gap.md).
+The same shape at 40 iterations stays in the differential. It reports
+114 predicted-and-committed / 8 conservative / 198 server-refused cases per
+store; with the six real-app cases, 326 per store report 120 / 8 / 198.
+Expiring, read-through, rule-probe and live maintained reads retain their real
+read path; once keys still execute and charge on devices without claiming the
+server ledger. LLP 3000.013 §12.3, LLP 3000.022 §14.3, `guide effects`,
+`guide prediction` and `why` state the actual-value exception. Legacy ordinary
+aggregate writers without complete source prices still queue until adoption;
+that compatibility limit is accepted, custody remains intact, and unrelated
+provably-zero writers retain Kept-first offline prediction.
+
+Wasm: **2,097,970 B raw / 634,330 B gzip**, down **2,139 B** from R4. The rebuilt
+same-host pre-RP base is 2,048,676 / 617,327: total RP delta **+17,003 B / 2.75%**.
+Ratchet the budget down to **634,460 B**, Linux plus the file's recorded 130 B
+macOS allowance. The effect analyzer was already native-only in committed R4;
+this saving is the whole-artifact runtime/representation removal, not a cfg
+attribution. The final full run passed under the stricter 634,456 B cap, then
+budget metadata alone was reconciled by 4 B to preserve the complete allowance;
+the final budget check passes. No macOS build is claimed.
+
+Full eb1000 suite: **`== 0 failure(s) in 1480 s`**, exit 0. Rust: 4,825 passed,
+33 existing ignores; doctests: 17; clients: 6,095 passed, 11 existing skips;
+serial models: 79; fixture wrappers: 9. All 209 receipt/RY tests, the extended
+differential, authentic upgrades, Kept-first writers, both reservation corpora
+and real-app wasm cases pass. Affected checks and 112 guide tests also pass.
+All 1,916 qualification inputs stayed unchanged during the full run; no test or
+implementation changed afterward. No full-suite failure needs a main exception.
+Reference and whitespace checks pass. The
+[Round 5 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-5--2026-10-04)
+records exact source hashes, comparison logs, artifact hashes and the full-run
+input/log digests. New files remain below 256 KB; gzip, video and wasm stay out
+of git. Work stayed on eb1000, without the Apartment mini, office M1 or M5.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

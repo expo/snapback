@@ -24,12 +24,6 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
 pub(super) fn presence_facts(schema: &Schema, program: &Program, ownership: &super::program::setup::Ownership, sources: &[(Expr, crate::diag::Site, String)]) -> Execution {
     let mut fact = Execution::default();
     fact.prediction_skips = effect_reads::plan(schema, program);
-    if let Some(prices) = snapback4_core::schema::effect_prices::prices(schema, program, &fact.prediction_skips) {
-        fact.effect_reservations = prices;
-    } else {
-        // Unpriced payloads retain ordinary read residency and meter work.
-        fact.prediction_skips.clear();
-    }
     let local = effect_reads::prediction_program(program, &fact.prediction_skips);
     presence::inspect(program, &local.body, &mut fact, ownership, sources);
     let retained: BTreeSet<_> = ir::read_sites(&local).into_iter().map(|read| read.site).collect();
@@ -82,7 +76,6 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         fact.connected_effects_only = presence.connected_effects_only;
         fact.prediction_guards = presence.prediction_guards;
         fact.prediction_skips = presence.prediction_skips;
-        fact.effect_reservations = presence.effect_reservations;
         fact.effect_payload_reads = presence.effect_payload_reads;
         fact.sites.extend(presence.sites);
     }
@@ -568,7 +561,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
     }
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.effect_payload_reads {
-        lines.push(format!("    {} (site {}); payload evaluated on the server only; both hosts reserve its declared work", site.reason, site.site));
+        lines.push(format!("    {} (site {}); payload evaluated and charged at actual values on the server only", site.reason, site.site));
     }
     for site in &fact.sites {
         // The insert explanation also names the upsert target; do not follow it

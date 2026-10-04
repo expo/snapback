@@ -28,7 +28,7 @@ fn infallible_effect_payload_reads_are_server_only_with_source_sites() {
         assert_eq!(fact.predicts.as_deref(), Some("eligible"), "{body}\n{why}");
         assert_eq!(fact.effect_payload_reads.len(), 1, "{body}\n{why}");
         assert!(fact.sites.iter().all(|site| site.table != "profiles"), "{why}");
-        assert!(why.contains("server-only, feeds an effect") && why.contains("schema.q:") && why.contains("both hosts reserve its declared work"), "{why}");
+        assert!(why.contains("server-only, feeds an effect") && why.contains("schema.q:") && why.contains("payload evaluated and charged at actual values on the server only"), "{why}");
         assert!(!fact.prediction_skips.is_empty());
     }
 }
@@ -130,4 +130,26 @@ fn expiring_sum_point_reads_are_fallible_even_in_a_payload() {
     let sent = engine.mutate("probe", None, Context::new("alice", [("p".into(), Value::Id("bob".into()))].into()).at(2)).unwrap();
     assert!(matches!(sent.state, WriteState::Failed { ref why, .. } if why.code == "E_OVERFLOW"), "{sent:?}");
     assert!(engine.effects(None, 10).unwrap().is_empty());
+}
+
+#[test]
+fn data_dependent_payload_reads_keep_the_real_read_path() {
+    let bodies = [
+        TABLES.replace("  n: int\n  unique principal", "  n: int\n  expires: time ?\n  expire at .expires\n  unique principal"),
+        format!("table grants:\n  principal: principal\n  unique principal\n  public\n  sync public\n{}", TABLES.replace("  public 'profiles'", "  read <- exists grants[principal = viewer]")),
+        format!("table parents:\n  public\n  sync public\n{}", TABLES.replace("  public 'profiles'", "  parent: parents\n  immutable parent\n  read through .parent")),
+    ];
+    for tables in bodies {
+        let b=snapback4_lang::compile(&[("schema.q".into(),format!("{tables}\nmutation probe(p: principal):\n  if not exists connected[p]:\n    emit notify {{ name: profiles[principal = viewer].displayName }}\n"))]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let fact=&b.schema.operations["probe"];
+        assert_eq!(fact.predicts.as_deref(),Some("never"),"{}",residency::operation_lines("probe",fact));
+        assert!(fact.effect_payload_reads.is_empty());
+        assert!(fact.prediction_skips.is_empty());
+    }
+    // A read deciding whether a once key exists remains ordinary read work.
+    let b=compile("  if profiles[principal = viewer].n != null:\n    emit notify { name: profiles[principal = viewer].displayName } once [p]");
+    let fact=&b.schema.operations["probe"];
+    assert_eq!(fact.predicts.as_deref(),Some("never"));
+    assert!(fact.sites.iter().any(|s|s.table=="profiles"));
 }

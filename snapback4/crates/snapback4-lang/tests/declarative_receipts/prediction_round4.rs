@@ -100,14 +100,14 @@ fn must_queue(c:&Case)->bool {
     let n=&c.label;
     n.contains("review-") || n.contains("effects-rtrue-n1025-oncetrue-duplicatefalse")
         || n.contains("effects-rfalse-n1025-oncetrue-duplicatefalse") || n=="r4-hidden-once"
-        || n=="r4-hidden-payload-600" || n.starts_with("r4-following-257-")
+        || n.starts_with("r4-following-257-")
 }
 fn concrete()->Vec<Case> {vec![
     effects(true,1025,true,false),review("owners"),review("sequences"),review("parents"),
     effects(false,1024,true,false),effects(false,1025,true,false),
     effects(false,1024,false,false),effects(false,1025,false,false),effects(false,1025,true,true),
     make("r4-explicit-zero".into(),false,0,false,0,false,false,0,1,0),hidden_once_case(),
-    hidden_payload(1),hidden_payload(600),following(1,false),following(257,false),following(1,true),following(257,true),
+    hidden_payload(1),hidden_payload(40),following(1,false),following(257,false),following(1,true),following(257,true),
 ]}
 pub(super) fn generated()->Vec<Case> {
     let mut rng=0x5250_0420_2610_03_u64;
@@ -172,17 +172,12 @@ fn hidden_once<H:Host>(host:&mut H){
     let mut d=host.open("hidden-once-current",Some(b.clone())).unwrap();publish(&mut e,&mut d,"alice");
     let q=d.admit(request("burst",json!({}),1)).unwrap();
     assert!(!q.predictable && q.predicted.is_empty());
-    // Legacy facts can omit an emit. Isolate that guard from unknown reads.
-    use snapback4_core::ir::{Stmt,Expr};
-    let fact=b.schema.operations.get_mut("burst").unwrap();fact.predicts=Some("eligible".into());
-    fact.prediction_skips=vec!["burst:1".into()];fact.effect_reservations.clear();
-    b.programs.iter_mut().find(|p|p.name=="burst").unwrap().body=vec![Stmt::Emit {
-        effect:"pinged".into(),payload:Expr::Literal(Value::Null),
-        once:Some(Expr::Array(vec![Expr::Literal(Value::Int(0))])),
-    }];
+    // R4 prices in a kept blob are obsolete metadata. Their absence cannot
+    // erase runtime once-key charges: the same 1,025 distinct keys still queue.
+    let mut wire=serde_json::to_value(&b).unwrap();
+    wire["schema"]["operations"]["burst"]["effect_reservations"]=json!({});
+    b=serde_json::from_value(wire).unwrap();
     let mut old=host.open("hidden-once-legacy",Some(b)).unwrap();publish(&mut e,&mut old,"alice");
-    let error=old.predict("burst","alice",&json!({}),NOW,vec![],1).unwrap_err();
-    assert!(format!("{error:?}").contains("omitted effect work has no complete reservation"),"{error:?}");
     let q=old.admit(request("burst",json!({}),1)).unwrap();
     assert!(!q.predictable && q.predicted.is_empty());
 }
@@ -201,3 +196,26 @@ fn current_client_chat_fixture_exports_complete_prices() {
     if std::env::var_os("UPDATE_RP_WASM_CASES").is_some(){std::fs::write(&path,serde_json::to_string(&current).unwrap()+"\n").unwrap();}
     assert_eq!(serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(path).unwrap()).unwrap(),current);
 }
+
+// Explicitly commissioned R5 actual-value exception; do not hide it among the
+// passing admission differential. This preserves R4's pathological payload
+// input and makes its restored behavior a reproducible, ticketed counterexample.
+fn pathological_payload<H:Host>(host:&mut H) {
+    let c=hidden_payload(600);
+    let(mut e,b)=setup(&c);let pages=snapshot_pages(&mut e,"alice",1000);
+    let mut d=host.open("payload-gap",Some(b)).unwrap();
+    for(i,p)in pages.iter().enumerate(){d.apply(p,i==0).unwrap();}
+    let q=d.admit(request("burst",json!({}),1)).unwrap();
+    assert!(q.predictable && q.predicted.len()==1,"{q:?}");
+    let out=e.mutate("burst",None,ctx("alice",&[],NOW)).unwrap();
+    assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_BOUND"),"{out:?}");
+    assert!(e.store().rows("notes").unwrap().is_empty());
+    assert!(e.effects(None,1000).unwrap().is_empty());
+    eprintln!("RP documented payload gap {:?} {:?}",out.state,out.metered);
+    let corpus=json!({"label":c.label,"source":c.source,"pages":pages,"args":{},"serverCommitted":false,"predicted":true,"denied":false,"mustQueue":false});
+    let path=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/rp-effect-payload-gap.json");
+    if std::env::var_os("UPDATE_RP_WASM_CASES").is_some(){std::fs::write(&path,serde_json::to_string(&corpus).unwrap()+"\n").unwrap();}
+    let expected:serde_json::Value=serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(corpus,expected);
+}
+both!(documented_payload_gap_memory,documented_payload_gap_sqlite,pathological_payload);
