@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-03T15:59:33.150159+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.12",
+      "integrity": "sha512-u4WT3Xbw1uKVsCK5LyDc/na3fNS3DgRrI/MI6+WkFgM1DzamRpQz7fPmtbYlxICLMmlfWvA+GHcgwKO5aP202Q=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.12",
+      "integrity": "sha512-D/t3tqVxgg565ZeaEC5/TPT6laUZ0XpoutzjPv4MsZLryCHYM4creUm0IbNosv4AmG/bK3y4HiOl/6NxlVlB7w=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.12",
+      "integrity": "sha512-5VMPoOd8rn3PVMzuT4ZWg1v+m+XkDA/LWqQwjRR6QhP/yj5tEygjElaeqKSSiRpY2/QnwUK+VR9gWCw4CgG/Eg=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.12, Astra wave beside sb5's Grok wave; predictions pre-registered in LLP 3000.032 \u00a77 (484c94733c): client-contract helpers useSeen/receipt families (R), usePendingItems/usePendingState (B), readPresentation (A), screen-lifetime recipe (L); npm run export:ios proves native on a simulator (NX); N_SHAPE_METER authoring advice (UB); once-column histories stay on screen (ON2); live removals (LM); decorated search keeps its guarantees (SJ); busy groups render fast (BG 1-9); reads under contention (CT); Following ruling (FD); Xcode 27 scene plugin (X27R); startup banners before serving (DR); FDL, FIM and test fixes. Published from the M5; runs on the M1 with the backstops held. Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal29",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-10-03T15:59:33.153569+00:00"
+  },
+  "load": "8:59  up 48 days,  2:53, 3 users, load averages: 60.07 45.63 42.63",
+  "node": "v24.18.0",
+  "host": "MacBookPro"
+}

@@ -1,0 +1,54 @@
+{
+  "original": {
+    "ok": true,
+    "problems": [],
+    "output_sha256": "0605d41ba4ff1c05c9674cd849f67450c1dd53923563f4a69c0893dabba5c1bc"
+  },
+  "reverted": {
+    "ok": false,
+    "problems": [
+      {
+        "code": "E_QUARRY_TYPE",
+        "guide": "types",
+        "mechanical": false,
+        "message": "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?",
+        "rewrite": "require exists conversations[conversation] else NOT_FOUND — a membership or required reference does not prove this row exists; alternatively bind conversations[conversation] ! else NOT_FOUND",
+        "site": {
+          "col": 59,
+          "file": "schema.q",
+          "line": 264
+        }
+      },
+      {
+        "code": "E_QUARRY_TYPE",
+        "guide": "types",
+        "mechanical": false,
+        "message": "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?",
+        "rewrite": "require exists conversations[conversation] else NOT_FOUND — a membership or required reference does not prove this row exists; alternatively bind conversations[conversation] ! else NOT_FOUND",
+        "site": {
+          "col": 59,
+          "file": "schema.q",
+          "line": 296
+        }
+      },
+      {
+        "code": "E_QUARRY_TYPE",
+        "guide": "types",
+        "mechanical": false,
+        "message": "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?",
+        "rewrite": "require exists conversations[conversation] else NOT_FOUND — a membership or required reference does not prove this row exists; alternatively bind conversations[conversation] ! else NOT_FOUND",
+        "site": {
+          "col": 59,
+          "file": "schema.q",
+          "line": 344
+        }
+      }
+    ],
+    "output_sha256": "ada0f56ee144710da46fe5eab935ac887d3c2c7b3de21e2134b14d627d3bc769"
+  },
+  "guarded": {
+    "ok": true,
+    "problems": [],
+    "output_sha256": "6a9e98739a36e6ee20b17fccdc9282966324b296e47ab8d926919990a2a00746"
+  }
+}

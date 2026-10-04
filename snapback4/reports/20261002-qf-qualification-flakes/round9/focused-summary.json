@@ -1,0 +1,35 @@
+{
+  "focused-plain": {
+    "status": 0,
+    "started": "2026-10-03T13:53:33Z",
+    "finished": "2026-10-03T13:54:24Z",
+    "files": 3,
+    "expectedFiles": 3,
+    "failedFiles": 0,
+    "counts": {
+      "tests": 69,
+      "pass": 69,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "focused-shim": {
+    "status": 0,
+    "started": "2026-10-03T13:54:24Z",
+    "finished": "2026-10-03T13:55:32Z",
+    "files": 3,
+    "expectedFiles": 3,
+    "failedFiles": 0,
+    "counts": {
+      "tests": 69,
+      "pass": 69,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "shimHits": 174
+  }
+}

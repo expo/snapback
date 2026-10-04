@@ -1,0 +1,50 @@
+Static guard failures from the superseded full run (runtime tests passed):
+
+
+
+test at packages/snapback4/test/wasm-codec-census.test.mjs:6:1
+✖ web-reachable typed JSON calls all use the codec funnel (505.065806ms)
+  AssertionError [ERR_ASSERTION]: direct serde family outside json_codec.rs
+  + actual - expected
+
+  + [
+  +   'crates/snapback4-core/src/engine/qe2_allocation_tests.rs:16: crate::json_codec::from_text(&serde_json::to_string(&bound.schema).unwrap()).unwrap();',
+  +   'crates/snapback4-core/src/engine/qe2_allocation_tests.rs:18: &serde_json::to_string('
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/wasm-codec-census.test.mjs:7:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'crates/snapback4-core/src/engine/qe2_allocation_tests.rs:16: crate::json_codec::from_text(&serde_json::to_string(&bound.schema).unwrap()).unwrap();', 'crates/snapback4-core/src/engine/qe2_allocation_tests.rs:18: &serde_json::to_string(' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/wasm-codec-census.test.mjs:10:1
+✖ census kills parse, encoded, MQ components and container regressions (499.013792ms)
+  AssertionError [ERR_ASSERTION]: crates/snapback4-core/src/engine/qe2_allocation_tests.rs:16: crate::json_codec::from_text(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+  crates/snapback4-core/src/engine/qe2_allocation_tests.rs:18: &serde_json::to_string(
+  crates/snapback4-device/src/call.rs:53: serde_json::from_value(value).map_err(|e| RuntimeError::decode(e, RuntimeError::Input))
+
+  3 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qe2/snapback4/packages/snapback4/test/wasm-codec-census.test.mjs:22:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

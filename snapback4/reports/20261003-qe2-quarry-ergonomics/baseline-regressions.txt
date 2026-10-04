@@ -1,0 +1,95 @@
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling foldhash v0.2.0
+   Compiling libc v0.2.189
+   Compiling wasmparser v0.228.0
+   Compiling libsqlite3-sys v0.38.2
+   Compiling zmij v1.0.23
+   Compiling wasmi_ir v2.0.0
+   Compiling rand_core v0.6.4
+   Compiling hashbrown v0.17.1
+   Compiling base64ct v1.8.3
+   Compiling tinyvec_macros v0.1.1
+   Compiling cfg-if v1.0.4
+   Compiling cpufeatures v0.2.17
+   Compiling getrandom v0.3.4
+   Compiling serde v1.0.229
+   Compiling wasmi v2.0.0
+   Compiling serde_json v1.0.151
+   Compiling tinyvec v1.13.2
+   Compiling password-hash v0.5.0
+   Compiling hashlink v0.12.2
+   Compiling thiserror v2.0.20
+   Compiling wasmi_core v2.0.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling spin v0.9.9
+   Compiling digest v0.10.7
+   Compiling blake2 v0.10.6
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-iterator v0.3.0
+   Compiling smallvec v1.16.1
+   Compiling argon2 v0.5.3
+   Compiling sha2 v0.10.9
+   Compiling unicode-normalization v0.1.25
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.12 (/home/ccheever/sb4-intent/lane-qe2/snapback4/crates/snapback4-device)
+warning: unused import: `std::collections::BTreeMap`
+ --> crates/snapback4-lang/tests/qe2_ergonomics.rs:3:5
+  |
+3 | use std::collections::BTreeMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "qe2_ergonomics") generated 1 warning (run `cargo fix --test "qe2_ergonomics" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 44.75s
+     Running tests/qe2_ergonomics.rs (snapback4/target/debug/deps/qe2_ergonomics-2538ea0a228dad8a)
+
+running 6 tests
+
+thread 'write_rule_follows_one_authorized_reference' (570073) panicked at crates/snapback4-lang/tests/qe2_ergonomics.rs:7:5:
+[Diagnostic { site: Site { file: "schema.q", line: 20, col: 60 }, code: "E_QUARRY_UNKNOWN", message: "rules cannot traverse `.message.conversation`; dropping `.message` would change the rule", rewrite: "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values", guide: "rules", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test write_rule_follows_one_authorized_reference ... FAILED
+
+thread 'point_guards_narrow_into_helpers' (570072) panicked at crates/snapback4-lang/tests/qe2_ergonomics.rs:7:5:
+[Diagnostic { site: Site { file: "schema.q", line: 18, col: 32 }, code: "E_QUARRY_TYPE", message: "ttl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[key]).disappearing ! else NOT_FOUND — require this argument once before calling ttl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }]
+test point_guards_narrow_into_helpers ... FAILED
+
+thread 'insert_result_is_total_and_predictable' (570071) panicked at crates/snapback4-lang/tests/qe2_ergonomics.rs:23:63:
+MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_FIELD", family: "input", message: "E_FIELD: missing field photo", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }, current: None }, metered: Metered { examined: 0, index_entries: 1, rule_probes: 0, steps: 20, heap_bytes: 912, output_bytes: 0, rows_written: 1 }, tables: [], events: 0, replayed: false }
+test insert_result_is_total_and_predictable ... FAILED
+
+thread 'calibration_reverted_with_explicit_parent_guard_compiles' (570070) panicked at crates/snapback4-lang/tests/qe2_ergonomics.rs:65:5:
+[Diagnostic { site: Site { file: "schema.q", line: 324, col: 60 }, code: "E_QUARRY_UNKNOWN", message: "rules cannot traverse `.message.conversation`; dropping `.message` would change the rule", rewrite: "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 325, col: 60 }, code: "E_QUARRY_UNKNOWN", message: "rules cannot traverse `.message.conversation`; dropping `.message` would change the rule", rewrite: "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 232, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 233, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 241, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 242, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 248, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 265, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 298, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 347, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }]
+test calibration_reverted_with_explicit_parent_guard_compiles ... FAILED
+
+thread 'calibration_membership_alone_gets_exact_parent_rewrite' (570068) panicked at crates/snapback4-lang/tests/qe2_ergonomics.rs:70:5:
+assertion `left == right` failed: [Diagnostic { site: Site { file: "schema.q", line: 322, col: 60 }, code: "E_QUARRY_UNKNOWN", message: "rules cannot traverse `.message.conversation`; dropping `.message` would change the rule", rewrite: "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 323, col: 60 }, code: "E_QUARRY_UNKNOWN", message: "rules cannot traverse `.message.conversation`; dropping `.message` would change the rule", rewrite: "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 232, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 233, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 241, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 242, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 248, col: 3 }, code: "E_QUARRY_TYPE", message: "insert into members omits required column joinedOrdinal", rewrite: "insert members { conversation, deliveredOrdinal, principal, role, seenOrdinal, joinedOrdinal: <int> }", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 264, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 296, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 344, col: 59 }, code: "E_QUARRY_TYPE", message: "disappearingTtl's setting is text <=10000; got enum('off', '24h', '7d') ?", rewrite: "(conversations[conversation]).disappearing ! else NOT_FOUND — require this argument once before calling disappearingTtl; absent or hidden rows refuse NOT_FOUND", guide: "types", mechanical: false, cascade_of: None }]
+  left: 10
+ right: 3
+test calibration_membership_alone_gets_exact_parent_rewrite ... FAILED
+test calibration_original_compiles ... ok
+
+failures:
+
+failures:
+    calibration_membership_alone_gets_exact_parent_rewrite
+    calibration_reverted_with_explicit_parent_guard_compiles
+    insert_result_is_total_and_predictable
+    point_guards_narrow_into_helpers
+    write_rule_follows_one_authorized_reference
+
+test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-lang --test qe2_ergonomics`

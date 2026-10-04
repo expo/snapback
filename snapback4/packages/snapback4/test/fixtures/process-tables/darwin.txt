@@ -1,0 +1,14 @@
+    0     0     0     0 Wed Sep 30 06:38:25 2026     Rs   (kernel_task)
+  889     1   889    -2 Wed Sep 30 06:38:25 2026     S    /usr/sbin/distnoted
+ 4100     1  4100   501 Sat Oct  3 01:02:03 2026     Ss   /usr/local/bin/node
+ 4101  4100  4100   501 Sat  Oct   3  01:02:03  2026 S+   /Applications/Synthetic App.app/Contents/MacOS/Synthetic App
+ 4102  4100  4100   501 Sat Oct 3 01:02:03 2026      SN   /tmp/synthetic helper
+ 4103  4100  4100   501 Sat Oct  3 01:02:03 2026     Rs   /tmp/helper (parentheses)
+ 4104  4100  4100   501 Sat Oct  3 01:02:03 2026     S<   /tmp/helper
+ 4105  4100  4100   501 Sat Oct  3 01:02:03 2026     SNs  /tmp/helper
+ 4106  4100  4100   501 Sat Oct  3 01:02:03 2026     U    /tmp/helper
+ 4107  4100  4100   501 Sat Oct  3 01:02:03 2026     I    /tmp/helper
+ 4108  4100  4100   501 Sat Oct  3 01:02:03 2026     T    /tmp/helper
+ 4109     1  4100   501 Sat Oct  3 01:02:03 2026     Z    <defunct>
+ 4110     1  4110 -2147483648 Sat Oct  3 01:02:03 2026 S /tmp/signed-boundary
+ 4111     1  4111    -1 Sat Oct  3 01:02:03 2026     ?    (unavailable)

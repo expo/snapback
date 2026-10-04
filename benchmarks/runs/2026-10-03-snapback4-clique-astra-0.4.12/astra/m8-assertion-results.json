@@ -1,0 +1,113 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (fresh seeded instance: insights {posts:3,likesReceived:2,repostsReceived:1,repliesReceived:1,followers:4,following:2} equals an independent count over starter-m2.log; web pass rendered all six totals)"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl m8-a02-insights-like-refresh status=passed, beforeLikes=2 afterLikes=3"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (today's bucket went 3 -> 4 after one post; day ordinals are the contiguous 7 UTC days ending today)"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (7 day rows, the 6 non-today days all zero rather than omitted; web pass counted 7 sm-insights-day-row nodes)"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (3-like post ranks first ahead of two 2-like posts)"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (a 4-like post absent from Trending after a 25 h dev-clock advance)"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 (2-like tie: the newer post at index 1, the older at index 2)"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest (own 49365 instance, 120 s period, all clients closed: exactly one digest for bob with {newFollowers:1,newPostsInFollowing:2,unreadMessages:3,unreadChats:1} matching the constructed scenario; at most one per user)"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest (the inactive persona received no digest for the period; carol, who only sent, also received none)"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest (the following period had no activity and emitted 0 digests)"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest (backend restarted mid-period-1 before emission and again mid-period-2: period-1 still has exactly one digest per user and period 2 none; idempotency keys distinct)",
+      "note": "the job emits with `once [p.principal, periodEnd]`, so the key is the user+period pair"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest (4 messages in a group bob is not a member of contributed 0: his unreadMessages stayed 3; alice, who is a member, correctly counted 4)"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl m8-a13-same-account-message-live status=passed, visibleMs=4170.2"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl m8-a14-cross-device-read-state status=passed, clearVisibleMs=1822.9"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl m8-a15-dual-offline-convergence status=passed, firstFlushMs=1105.1 secondFlushMs=1741.3"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl m8-a16-dual-offline-receipts status=passed"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl segment-summary supplementalExternal ios-simulator-m8 status=\"not-recorded\"",
+      "note": "No iOS-simulator artifact exists. The frozen harness itself records choreography.supplementalExternal \"ios-simulator-m8\" status=\"not-recorded\", and the lane states no simulator claim (README, native-artifacts.json). Per the brief, missing evidence leaves native/O4 proof absent rather than passing it, so this scores not-passed in O1 denominator. The grader may not re-run the simulator."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "evidence/m8-choreo.jsonl segment-summary supplementalExternal ios-simulator-m8 status=\"not-recorded\"",
+      "note": "No iOS-simulator artifact exists. The frozen harness itself records choreography.supplementalExternal \"ios-simulator-m8\" status=\"not-recorded\", and the lane states no simulator claim (README, native-artifacts.json). Per the brief, missing evidence leaves native/O4 proof absent rather than passing it, so this scores not-passed in O1 denominator. The grader may not re-run the simulator."
+    }
+  }
+}

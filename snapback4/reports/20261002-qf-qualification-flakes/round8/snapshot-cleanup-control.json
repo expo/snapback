@@ -1,0 +1,29 @@
+{
+  "status": 1,
+  "note": "Old parser with live UID -2 PATH shim; current test fixture cleanup. Must fail natively and finish, without invoking the separate outer five-second watchdog.",
+  "result": {
+    "file": "/tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/packages/snapback4/test/test-file-runner.test.mjs",
+    "code": 1,
+    "signal": null,
+    "passed": false,
+    "reason": "TEST_PROCESS_INSPECTION",
+    "inspectionFailure": "Error: TEST_PROCESS_INSPECTION: {\"pid\":3961596,\"firstError\":\"malformed ps row\",\"rawBase64\":\"Mzk2MTU5NiAzOTYxNTg2IDM5NjE1ODYgLTIgU2F0IE9jdCAzIDE0OjI1OjM2IDIwMjYgUyBweXRob24z\"}\n    at inspectionError (file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/test-processes.mjs:6:35)\n    at metadataFailure (file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/test-processes.mjs:24:9)\n    at file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/test-processes.mjs:44:7\n    at Array.flatMap (<anonymous>)\n    at processTable (file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/test-processes.mjs:39:84)\n    at ownedProcesses (file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/test-processes.mjs:80:10)\n    at runFile (file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/scripts/run-client-tests.mjs:135:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/driver.mjs:1:69",
+    "keeperExit": {
+      "code": null,
+      "signal": "SIGKILL",
+      "cleanupAcknowledged": true
+    },
+    "elapsed": 809,
+    "counts": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stallMs": 5000,
+    "progressCount": 4,
+    "lastProgress": "test:complete: /tmp/sb4-qf-r8-cleanup-control-6bqs1hdk/packages/snapback4/test/test-file-runner.test.mjs"
+  }
+}

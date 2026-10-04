@@ -1,0 +1,66 @@
+{
+  "pass": true,
+  "at": 1791050967605,
+  "stats": {
+    "insights-u0005": {
+      "n": 20,
+      "p50": 3.071083999995608,
+      "p95": 5.007666000004974,
+      "max": 5.704417000000831
+    },
+    "insights-u0500": {
+      "n": 20,
+      "p50": 3.148417000003974,
+      "p95": 8.77675000000454,
+      "max": 9.956333000009181
+    },
+    "insights-u0900": {
+      "n": 20,
+      "p50": 5.971624999991036,
+      "p95": 15.764458999998169,
+      "max": 16.71766700000444
+    },
+    "insights-u0901": {
+      "n": 20,
+      "p50": 4.593542000002344,
+      "p95": 7.974750000008498,
+      "max": 9.132165999995777
+    },
+    "trending": {
+      "n": 20,
+      "p50": 4.777249999999185,
+      "p95": 16.956875000003492,
+      "max": 20.12933399999747
+    }
+  },
+  "namedChecks": [
+    "profile:alice",
+    "profile:bob",
+    "profile:u0005",
+    "profile:u0500",
+    "profile:u0900",
+    "profile:u0901",
+    "post:sp0001",
+    "post:sp0002",
+    "post:p000001",
+    "post:p048000",
+    "post:pr000001",
+    "post:cp000001",
+    "post:cp000200",
+    "message:sm0001",
+    "message:sm0002",
+    "message:sm0007",
+    "message:sm0008",
+    "message:mg0001-00001",
+    "message:mg0001-10000",
+    "message:md0001-001",
+    "message:md0900-100",
+    "conversation:d-alice-bob",
+    "conversation:g-starter",
+    "conversation:g0001",
+    "conversation:g0100",
+    "conversation:d0001",
+    "conversation:d0900"
+  ],
+  "note": "Final-envelope M8 reads after additive adoption on the replay corpus; not a full hidden-grader O5 assessment."
+}

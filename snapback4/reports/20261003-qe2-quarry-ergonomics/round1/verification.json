@@ -1,0 +1,59 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "start": "2026-10-03T23:17:53.693807+00:00",
+  "seconds": 1921,
+  "exit_code": 0,
+  "base": "73041ae848b64c933caeadb4586d214eac6a7ccf",
+  "host": "eb1000 (expose-builder-pixel)",
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "rust": {
+    "executions": 1003,
+    "passed": 4795,
+    "failed": 0,
+    "ignored": 34,
+    "doctests_passed": 17
+  },
+  "client_files": 304,
+  "clients": {
+    "tests": 6053,
+    "pass": 6042,
+    "fail": 0,
+    "skipped": 11
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0
+  },
+  "fixture_wrappers": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "skipped": 0
+  },
+  "input_hashes_unchanged": true,
+  "input_count": 55,
+  "wasm": {
+    "raw": 2065629,
+    "gzip": 623029,
+    "round0_gzip": 620784,
+    "delta_gzip": 2245,
+    "cap": 623659,
+    "estimated_mac_offset": 130,
+    "headroom": 500
+  },
+  "sha256": {
+    "snapback4/target/qe2-r1/full-suite.log": "2d0d32da4765295058e085869c9612cf2462d4416c1a8e4f55340d9e7ca3004d",
+    "snapback4/reports/20261003-qe2-quarry-ergonomics/round1/full-suite.log.gz": "94bc2d315f2e062752d4f62ed85fd301ce11ab3143990da99332e2b36bdc9e73",
+    "snapback4/reports/20261003-qe2-quarry-ergonomics/round1/source-sha256.json": "8ac45e42e59be6b82715c797cf9df79adeeeedf7f344c171ab81cc8ba04c8b49",
+    "snapback4/target/debug/snapback4": "24d12b4fd8c3ea2c9530c3401ea8e0e6fbc78f180bd238a2006899ec60f7ec7d",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "f86782ade520135b13183fa5bd228f5ad223e84c5acc86e37d058f794654020e"
+  }
+}

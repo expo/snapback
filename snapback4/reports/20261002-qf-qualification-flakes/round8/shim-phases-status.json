@@ -1,0 +1,8 @@
+{
+  "command": "bash reports/20261002-qf-qualification-flakes/round8/client-phases.sh shim reports/20261002-qf-qualification-flakes/round8/eb1000-shim",
+  "started": "2026-10-03T12:35:41.008885+00:00",
+  "host": "expose-builder-pixel",
+  "pid": 4189814,
+  "status": 0,
+  "finished": "2026-10-03T12:51:08.975250+00:00"
+}

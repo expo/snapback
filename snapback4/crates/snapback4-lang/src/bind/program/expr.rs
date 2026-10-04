@@ -67,7 +67,9 @@ impl Binder<'_> {
         // operator, call, key, predicate and assertion consumes its operands.
         let prior = self.returned_data;
         self.returned_data &= matches!(expr, A::Array { .. } | A::Object { .. } | A::Shape { .. } | A::ShapeUse { .. } | A::Member { .. } | A::Name { .. } | A::Focal { .. });
+        let start = out.len();
         let result = self.expr_inner(expr, out);
+        if point_facts::writes(&out[start..]) { self.invalidate_points(); }
         self.returned_data = prior;
         // Even a builtin's ordinary type refusal should explain why a whole
         // maintained value cannot be consumed. Successful calls are checked by
@@ -193,7 +195,10 @@ impl Binder<'_> {
                 Ok((value, self.call_refinement(expr).unwrap_or(ty)))
             },
             A::Read(read) if read.table == "connected" && !self.catalog.tables.contains_key("connected") => self.connected(read, out),
-            A::Read(read) => self.read(read, out),
+            A::Read(read) => {
+                let (value, ty) = self.read(read, out)?;
+                Ok((value, if self.point_present(read) { ty.required() } else { ty }))
+            },
             A::Merge(merge) => self.merge(merge, out),
             A::Exists { read, .. } if read.table == "connected" && !self.catalog.tables.contains_key("connected") => {
                 let (count, _) = self.connected(read, out)?;

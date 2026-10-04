@@ -44,6 +44,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("rule-reference", |s| s.tables.values().any(|t| [&t.rules.insert, &t.rules.update, &t.rules.delete].iter().any(|r| r.has_reference()))),
     ("declarative-receipts-v4", |s| !s.receipts.is_empty()),
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),

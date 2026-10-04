@@ -244,6 +244,19 @@ fn aggregate_source_site(schema: &Schema, table: &str, location: &str, sites: &m
 }
 
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
+    let term = |term: &snapback4_core::schema::RuleTerm, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>| {
+        if let snapback4_core::schema::RuleTerm::Reference { table, .. } = term {
+            sites.push(event_site(schema, location, table, "byId", "rule reference", &[]));
+            if seen.insert(table.clone()) { rule_sites(schema, &schema.tables[table].rules.read, location, sites, seen); }
+        }
+    };
+    match rule {
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { term(a,sites,seen); term(b,sites,seen); }
+        RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => {
+            for t in key.iter().chain(equalities.iter().map(|(_,t)|t)) { term(t,sites,seen); }
+        }
+        _ => {}
+    }
     match rule {
         RuleExpr::Exists { table, index, key, .. } => {
             let values: Vec<_> = key.iter().map(|term| match term { snapback4_core::schema::RuleTerm::Literal(value) => value.clone(), _ => snapback4_core::Value::Null }).collect();

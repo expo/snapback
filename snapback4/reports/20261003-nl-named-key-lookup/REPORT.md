@@ -2,12 +2,13 @@
 
 Exact named keys select points in any equality order. Both spellings require
 provably non-null arguments on nullable columns of the selected unique key.
-All changes are in the compiler, diagnostics, tests and docs; runtime code
-and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
+NL changes are in the compiler, diagnostics, tests and docs. Round 8 merges
+main’s runtime changes and wasm budget, including QE2; NL adds no runtime code. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
 Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
 Round 4: `1bed2b74d4`; Round 5: `c25aa1b2dc`; Round 6: `dc3484fabb`;
+Round 7: `93acf8675c`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -333,6 +334,60 @@ round are superseded by the operator's Round 1 decision below.
   Measurement: `/tmp/sb4-nl-r7-verification/wasm.json`.
 - Reference validation and whitespace checks pass. Work stayed on eb1000;
   no unrelated process was signaled, and nothing was pushed.
+
+## Round 8 — integration (2026-10-04)
+
+Merged `origin/main` **6e4967479f** (including QE2 merge `e7f9243ddb`, QF,
+LU and backstop tickets) into NL **93acf8675c** with a merge commit, not a
+rebase. Resolved `bind/schema.rs` by retaining both `hops` and `present` in
+both `RuleBindings` constructors. Retained both revision histories in LLP
+3000.013 and both append-only JOURNAL suffixes.
+
+- Write-rule guards preserve the complete `RuleTerm`, including a reference's
+  old/next selector. A guard on the old reference cannot admit the next
+  reference's nullable key. One-hop authorization and read/final-insert hop
+  restrictions remain unchanged.
+- Program guards bind and admit their probe before recording row presence.
+  `require exists` on an unguarded nullable key still gets `E_QUARRY_NULL_KEY`;
+  preceding non-null guards admit it and QE2 narrows the subsequent identical
+  point, including a required helper argument. Proving a row present makes
+  its required fields usable as keys, but does not narrow optional fields.
+- Added `nl_qe2_integration.rs`: positive and negative compiler cases plus
+  server/memory/SQLite execution with guarded nullable points, tied null rows,
+  named/reordered keys, reference guards, old/next updates, delete, and
+  null/hidden/absent parents. Existing NL repair/admission and QE2 allocation,
+  authorization and lowering tests stay intact. LLP §2.2 and the indexes,
+  types and rules cards state the composed behavior within existing budgets.
+- **365 affected Rust tests pass:** 291 language, 42 device/lookup (including
+  four new integration tests), five shared-interpreter allocation tests and
+  27 CLI repair tests. All **10 wasm/process wire** and **26 codec census**
+  checks pass. Logs: `/tmp/sb4-nl-r8-verification/affected-*.log`.
+  An initial new test used incorrect after-insert syntax; the corrected test
+  passes. Initial guide-size checks found two overruns; wording was tightened
+  without changing budgets, and the affected guide suite passes.
+
+- **Final full-suite rerun: zero failures in 1,413 s**, with the requested
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **296 binaries, 1,009 executions and workspace doctests** (459 s);
+  clients: **307 files, 6,112 passed, 11 existing skips** (606 s);
+  serial models: **79 passed** (304 s); fixture wrappers: **9 passed**.
+  All 1,257 recorded source inputs stayed unchanged across both full runs.
+  Log: `/tmp/sb4-nl-r8-verification/full-suite-rerun.log`; structured results:
+  `verification.json` in that directory. Reference and whitespace audits pass.
+- First full run: **one inspection refusal in 1,516 s**, with no test
+  assertion failures. The Unicode wrapper rejected a `ps` routing prefix
+  with PGID `4294967295` during cleanup, despite all 12 assertions passing.
+  The unchanged incoming-main parser reproduces the refusal from the captured
+  row; ownership and the row's origin remain unclassified. The focused wrapper
+  rerun passes 12/12 with cleanup. Retained the failure and opened
+  [the ps-prefix follow-up](../../../issues/20261004-snapback4-ps-unsigned-pgid-inspection-refusal.md);
+  no runner check was weakened. First-run log: `full-suite.log`; focused
+  rerun: `unicode-wrapper-rerun.log`, under the same verification directory.
+- Locked wasm: **2,065,586 B raw / 623,025 B gzip**, **630 B** below the
+  incoming **623,655 B** cap. This matches QE2 round 2’s recorded size; the
+  integration does not raise the budget. SHA-256:
+  `8fca81ca6628c036993d654c6a55c6526e9d4d5051bb97073c0af886e81dbdd3`.
+  Logs and measurement: `/tmp/sb4-nl-r8-verification/{wasm-build.log,wasm.json}`.
 
 ## Governing context
 

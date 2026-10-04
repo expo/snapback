@@ -33,7 +33,9 @@ projectId = projectId]`. Synthesized indexes never choose positional meaning.
 In either key spelling (also `exists`), arguments for nullable columns of the
 selected unique key must be provably non-null: use required types or `if x != null` guards
 (`x != null and exists ...` in rules). Otherwise `E_QUARRY_NULL_KEY` refuses
-the ambiguous null ties across replicas. To read null matches, use a bounded
+the ambiguous null ties across replicas. Guard nullable arguments before
+`require exists`: it proves row presence, not optional field presence.
+To read null matches, use a bounded
 `where` population ordered `by .id`, or address a row by id. Null for a
 required key column returns null; maintained aggregate null groups are unchanged.
 A fully pinned maintained group is unique even

@@ -1,0 +1,18 @@
+✔ wasm: empty-owned-default costs exactly 1621 heap bytes (1000.986366ms)
+✔ wasm: bound-insert costs exactly 14401017 heap bytes (364.763449ms)
+✔ wasm: discarded-insert costs exactly 12000421 heap bytes (370.911265ms)
+✔ wasm: discarded-if-absent costs exactly 16000421 heap bytes (371.768631ms)
+✔ process: empty-owned-default costs exactly 1621 heap bytes (1222.743339ms)
+✔ process: bound-insert costs exactly 14401017 heap bytes (926.006382ms)
+✔ process: discarded-insert costs exactly 12000421 heap bytes (1134.268426ms)
+✔ process: discarded-if-absent costs exactly 16000421 heap bytes (1034.070089ms)
+✔ wasm: total write images, point guards and authorized rule hops (626.548064ms)
+✔ process: total write images, point guards and authorized rule hops (226.925961ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7576.134768

@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 mod control;
 mod job_reads;
 mod pure_calls;
+mod point_facts;
 mod flow;
 mod conditional;
 mod joins;
@@ -965,6 +966,12 @@ impl<'a> Binder<'a> {
     /// Bind a write. When `valued`, the write yields its row (an insert's
     /// image, an update's or upsert's re-read row, null for a delete).
     fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
+        let result = self.write_inner(expr, out, valued);
+        self.invalidate_points();
+        result
+    }
+
+    fn write_inner(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         if self.viewer_depth.is_some() { return Err(job_reads::read_only(expr.site())); }
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
         if self.in_prelude {

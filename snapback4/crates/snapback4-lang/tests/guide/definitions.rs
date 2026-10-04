@@ -174,6 +174,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name"),
     ("E_QUARRY_SPREAD", "E_QUARRY_SPREAD refuses nullable operands and values without statically known fields"),
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),
+    ("E_QUARRY_RULE_HOP", "E_QUARRY_RULE_HOP means a known relationship cannot be traversed in this rule position"),
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
     ("E_QUARRY_JOB_SCHEDULE", "E_QUARRY_JOB_SCHEDULE separates work from its clock"),
     ("E_QUARRY_KEY_ORDER", "E_QUARRY_KEY_ORDER means a positional component followed a named one"),
