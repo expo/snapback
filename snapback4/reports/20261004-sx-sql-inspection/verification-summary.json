@@ -1,0 +1,40 @@
+{
+  "command": "bash snapback4/scripts/test.sh",
+  "exit": 1,
+  "elapsedSeconds": 2557,
+  "rustTestBinaries": 299,
+  "rustExecutions": 1012,
+  "failedStages": [
+    "cargo test"
+  ],
+  "fixtureTests": {
+    "passed": 9,
+    "failed": 0
+  },
+  "clientFiles": 313,
+  "clientTests": {
+    "passed": 6212,
+    "skipped": 11,
+    "failed": 0
+  },
+  "modelFiles": 2,
+  "modelTests": {
+    "passed": 79,
+    "failed": 0
+  },
+  "failedRustTests": [
+    "blocked_stderr_cannot_block_responses_or_later_mutations",
+    "allocation::dependencies::derived_prediction::round3::reservation_wasm_corpus_matches_engine",
+    "allocation::dependencies::derived_prediction::round3::round4::reservation_round4_wasm_corpus_matches_engine"
+  ],
+  "scopedCorrections": {
+    "receiptCorpusTestsPassed": 2,
+    "stderrIsolatedControlPassed": 1
+  },
+  "finalFocused": {
+    "catalog": 4,
+    "syncWindow": 2,
+    "guides": 112,
+    "client": 26
+  }
+}

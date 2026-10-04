@@ -387,6 +387,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),
     ("N_SHAPE_METER", "candidate population can outgrow the default 8,192-row examined meter"),
     ("N_NO_CURSOR", "N_NO_CURSOR: a returned page cannot continue"),
+    ("N_SYNC_WINDOW_SIZE", "N_SYNC_WINDOW_SIZE means a new or changed window meets a populated table at least ten times larger, across all groups; it does not prove any group exceeds its window."),
     ("N_SYNC_ORDER", "Ascending reads and other indexes have unknown coverage."),
     ("N_NO_HORIZON", "A synced table with no horizon delivers every row of every group a device holds, at every cold start, as the table grows; `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per group, or a `cap` over the group), or its whole partition supplies an eligible mutation's reads or insert proof (`guide prediction`)."),
     ("N_PUBLIC_AGGREGATE_COPY", "N_PUBLIC_AGGREGATE_COPY names a public derived column whose ordinary write rules allow arbitrary values."),

@@ -1,0 +1,8 @@
+{
+  "rawBytes": 2116457,
+  "gzipBytes": 639750,
+  "sha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1",
+  "baselineIdentical": true,
+  "budgetBytes": 639887,
+  "gzipCommand": "gzip -9c (build-wasm.sh measurement, includes artifact filename)"
+}

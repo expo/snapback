@@ -212,3 +212,10 @@ query size(id: entries):
 query countMine():
   return count(entries where .owner = viewer)
 ```
+
+Developer inspection: `snapback4 sql '\dt'` (or `'.tables'`) lists application
+tables and maintained views; `sql '\d messages'` (or `'.schema messages'`) shows
+Quarry types/nullability, indexes and unique keys. Both include the active schema
+generation and bounded stored row counts (exact through 10,000, else >=10,001;
+ephemeral unavailable). Use `--json` for structured output, `--release dir` for a
+deployment. These read-only commands keep SQLite internals private; see `guide inspect`.

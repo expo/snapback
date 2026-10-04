@@ -17,7 +17,8 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     };
     let steps = store.successor(schema).map_err(|e| e.to_string())?;
     let pause = store.adoption_estimate(schema).map_err(|e| e.to_string())?;
-    if pause.is_none() && estimates.iter().all(|e| e.sources == 0) && timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok((Vec::new(), Vec::new())); }
+    let windows = super::sql::window_populations(&path, schema).map_err(|(_, message)| message)?;
+    if windows.is_empty() && pause.is_none() && estimates.iter().all(|e| e.sources == 0) && timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok((Vec::new(), Vec::new())); }
     let mut sites = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
@@ -57,6 +58,12 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     if let Some(pause) = pause {
         notes.push(Diagnostic::new(&Site::new("schema.q", 1, 1), "N_ADOPTION_PAUSE", pause.summary(),
             "plan this atomic activation's write pause; queries retain the predecessor snapshot; the adoption line reports measured phases after commit").guide("maintains"));
+    }
+    for (name, last, count) in windows {
+        let site = sites.get(&format!("tables.{name}")).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
+        notes.push(Diagnostic::new(&site, "N_SYNC_WINDOW_SIZE",
+            format!("{name} has at least {count} stored rows across all groups; the new sync last {last} window is per group, not a server history limit (guide sync, opening sentence)"),
+            "see the opening of guide sync: cursor history pages beyond the device working set on the server; offline reads use only acquired data").guide("sync"));
     }
     Ok((diagnostics, notes))
 }

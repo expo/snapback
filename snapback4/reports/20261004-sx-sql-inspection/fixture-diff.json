@@ -1,0 +1,14 @@
+[
+  {
+    "fixture": "rp-reservation-cases.json",
+    "cases": 22,
+    "sourceCommentOnlyCases": 14,
+    "nonSourceFieldsIdentical": true
+  },
+  {
+    "fixture": "rp-runtime-reservation-cases.json",
+    "cases": 23,
+    "sourceCommentOnlyCases": 1,
+    "nonSourceFieldsIdentical": true
+  }
+]

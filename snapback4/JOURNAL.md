@@ -86596,3 +86596,44 @@ allocation probe pass (one existing ignore), including held-writer and stopped
 `check` database/WAL byte comparisons; guide budget and reference checks pass.
 No full-suite or timing rerun for this advice-only round. See the
 [Round 2 audit](./reports/20261004-ap-adoption-pause/REPORT.md#round-2--retirement-and-rewrites-inside-surviving-tables).
+
+## 2026-10-05 — SX: catalog inspection and sync-window clarity
+
+Addressed calibration 30's Grok store-inspection and history-window findings.
+`sql '\dt'` / `'.tables'` list application tables and public maintained views;
+`sql '\d messages'` / `'.schema messages'` describe Quarry types/nullability,
+indexes, unique keys and maintained columns. Both show the active generation
+and bounded stored counts: exact through 10,000, otherwise at least 10,001;
+ephemeral counts are unavailable. Catalog reads share one read-only snapshot,
+ignore broken local source and preserve the SELECT authorizer. SQLite metadata
+stays private; refusals now say “`\dt` lists tables; `\d messages` describes one”.
+
+The sync/reads openings and chat/Expo/social starter comments distinguish a
+device's working set from server history, cursor paging beyond the window,
+and offline reads within acquired data. A bounded `check` note points to that
+sentence only for new/changed windows against a populated store; its total
+spans all groups and makes no per-group overflow claim. Guide cards retain
+their line/word caps. LLP 3000.007 §8 records these decisions.
+
+Final scoped checks pass: four SQL catalog tests (populated memory and SQLite,
+10,025 messages, views, timeline privacy and keys), two sync-window tests,
+112 guide tests and 26 rebuilt-CLI client tests. The affected six-file client
+pass also covers starter, horizon and ordinary/retained history behavior.
+The complete suite finished in **2,557 s, exit 1**: all 313 client files
+(6,212 passed, 11 skipped), all 79 serial models, doctests, nine fixtures and
+all build/typecheck/docs/release stages passed. Rust covered 299 binaries /
+1,012 executions; two source-comment fixture mismatches were regenerated and
+their checks passed. The unrelated blocked-stderr recovery test failed once
+and passed an isolated control; its possible stale-record observation is
+recorded in an [open issue](../issues/20261004-snapback4-blocked-stderr-recovery-observation.md).
+That control does not replace the full-run failure. No green full suite is claimed.
+
+Wasm is byte-identical: **2,116,457 B raw / 639,750 B gzip**, SHA-256
+`de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`;
+the 639,887 B budget is unchanged. Reference audit: 527 LLPs, 10,364 refs,
+zero errors/unchecked. Own scratch and failed fixture stores were removed;
+allocation remains below **14.72 GB**, within the 40 GB limit. Work stayed
+on eb1000 in this worktree; no sibling processes or worktrees were modified.
+See the [SX report](./reports/20261004-sx-sql-inspection/REPORT.md) for final
+CLI examples, logs and caveats. Local commit with the requested co-author
+trailer; nothing pushed.

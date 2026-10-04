@@ -325,6 +325,26 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
     // A broken working copy must not replace the store's compiled columns.
     writeFileSync(join(dir, "snapback/schema.q"), "broken source\n");
     const answer = (statement, ...flags) => JSON.parse(run("sql", statement, "--json", ...flags).stdout);
+    const catalog = answer("\\dt");
+    assert.ok(catalog.generation > 0);
+    assert.equal(catalog.ruleFiltered, false);
+    assert.deepEqual(answer(".tables"), catalog);
+    const messages = catalog.tables.find(t => t.name === "messages");
+    assert.deepEqual(messages.rows, { count: 205, exact: true });
+    assert.ok(!catalog.tables.some(t => t.name.startsWith("_") || ["r", "i", "sqlite_master"].includes(t.name)));
+    const description = answer("\\d messages");
+    assert.deepEqual(answer(".schema messages"), description);
+    assert.ok(description.tables[0].columns.some(c => c.name === "body" && c.type.startsWith("text") && c.nullable === true));
+    assert.ok(description.tables[0].indexes.some(i => i.unique && i.keys.includes("id")));
+    const human = run("sql", "\\d messages");
+    assert.match(human.stdout, /Schema generation: \d+/);
+    assert.match(human.stdout, /body: text.*nullable/);
+    assert.match(run("sql", "\\dt").stdout, /messages \| table \| rows: 205/);
+    for (const statement of ["\\d sqlite_master", ".schema r", "\\dt; DELETE FROM r", ".schema messages;", "\\d", ".tables messages"]) {
+      const invalid = invoke("sql", statement, "--json");
+      assert.equal(invalid.status, 1, statement);
+      assert.ok(JSON.parse(invalid.stdout).denied.message.includes("`\\dt` lists tables; `\\d messages` describes one"));
+    }
     const rows = answer("SELECT m.body, m.at, c.title FROM messages m JOIN conversations c ON c.id = m.conversationId ORDER BY m.at");
     assert.deepEqual(rows.rows[0], ["Null", 0, "General"]);
     assert.equal(rows.rows.length, 200);
@@ -360,6 +380,7 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
       const result = invoke("sql", statement, "--json");
       assert.equal(result.status, 1, statement);
       assert.equal(JSON.parse(result.stdout).denied.code, code, statement + result.stdout);
+      if (code === "E_SQL_INTERNAL") assert.ok(JSON.parse(result.stdout).denied.message.includes("`\\dt` lists tables; `\\d messages` describes one"));
     }
     const db = new DatabaseSync(join(dir, ".snapback4/store.sqlite"));
     try {
@@ -368,6 +389,8 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
       // Even with the writer lock held, SQL finishes and sees committed rows.
       const started = performance.now();
       assert.deepEqual(answer("SELECT count(*) FROM messages").rows, [[205]]);
+      assert.deepEqual(answer("\\dt"), catalog);
+      assert.deepEqual(answer("\\d messages"), description);
       t.diagnostic(`SQL count of 205 messages with WAL writer held: ${(performance.now() - started).toFixed(2)} ms`);
       db.exec("ROLLBACK");
       assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='view'").get().n, 0);
@@ -387,6 +410,8 @@ test("SQL attaches to a release without source and never creates a missing store
   rmSync(join(dir, "snapback"), { recursive: true });
   const result = JSON.parse(run("sql", "SELECT * FROM todos", "--release", join(dir, "release"), "--json").stdout);
   assert.deepEqual(result.rows, []);
+  const catalog = JSON.parse(run("sql", "\\dt", "--release", join(dir, "release"), "--json").stdout);
+  assert.deepEqual(catalog.tables.find(t => t.name === "todos").rows, {count: 0, exact: true});
   const missing = join(dir, "missing");
   const refused = invoke("sql", "SELECT 1", "--release", missing, "--json");
   assert.equal(refused.status, 1);

@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Reads
 
-Read authorized rows; use a cursor for paging.
+Read authorized rows; `sync … last N` bounds the device's working set, not server history: cursor queries page server history beyond it, offline only within acquired device data.
 
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
@@ -17,11 +17,10 @@ query recentTotal(roomId: rooms, start: time, end: time):
   return count(messages where .roomId = roomId and .at >= start and .at <= end)
 ```
 
-`one` is a row or null; `must` refuses when it is missing or hidden.
-`roster` reads the capped room; `member` and `admin` test membership.
-`newest` filters, sorts newest first, and continues with `c`.
-`recentTotal` counts the whole matching domain under the meter.
-Repeated `where` clauses combine with `and`, in written order.
+`one` returns a row/null; `must` refuses missing/hidden rows.
+`roster` reads the capped room; `member`/`admin` test membership.
+`newest` pages newest-first; `recentTotal` counts under the meter.
+Repeated `where` clauses combine with `and` in order.
 
 ## Limits
 

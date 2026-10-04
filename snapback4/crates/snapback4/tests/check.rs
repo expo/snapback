@@ -11,6 +11,7 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
 #[path = "check/audience_bounds.rs"] mod audience_bounds;
 #[path = "check/first_paste.rs"] mod first_paste;
+#[path = "check/sync_window.rs"] mod sync_window;
 
 #[test]
 fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
