@@ -86070,3 +86070,51 @@ diagnostic paths in `cleanup.rs`, `preparation.rs`, `process_group.rs` and
 no native-export measurement was repeated. The [round-1 report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md#round-1--linux-inspection-and-review-cleanup-2026-10-04)
 and its validation record retain results and limits. Local commit only;
 nothing pushed or published.
+
+## 2026-10-04 — MS: a compiling rewrite for conversation-ordered search
+
+Reproduced calibration #30 Grok's M5 finding from its saved schema on
+`abafa9af9c`. The saved `searchChat` already orders by `.at`; restoring only
+`by byConversationOrdinal` produces E_QUARRY_UNKNOWN claiming that the plain
+index has words after zero columns and proposing another invalid read. Changing
+only to `.ordinal` already compiles on main. This is a misleading diagnostic
+and missing recipe, not a missing ordered-search execution path.
+
+The binder now distinguishes a plain index from a words index and prints a
+column-order rewrite only after compiling it in the original declaration and
+callers. The actual builder schema accepts the printed rewrite with its
+conversation, needle, descending page, cursor and decorations intact. Keep the
+unique conversation/ordinal index; the existing planner synthesizes a separate
+conversation/words/ordinal/id index. `guide search` teaches this form for
+`sequence by` and existing integer/receipt allocators, including cursor reset
+and acquired-history limits. LLP 3000.007 §18.1 clarifies the existing rules.
+No planner, runtime, IR, authorization, meter or coverage contract changes.
+The guide stays at 401 lines under its unchanged 405-line limit.
+
+New regressions cover named/positional/predicate scopes, preserved operands and
+helper shapes, withheld inadmissible rewrites, and the actual printed query on
+the server plus reopened offline memory/SQLite devices. Twelve store/ordinal/
+window combinations check order against opposing timestamps and ids, paging,
+multiple words, deduplication, denied conversations and missing older matches.
+A full partition can prove completeness; windowed word coverage stays
+conservative even when all fixture rows happen to be held. Empty-term browsing
+can use the ordinary ordinal window's coverage proof.
+
+Language/planner tests: 1,465 passed, 11 existing ignores. All 112 guide tests
+and the four diagnostic regressions pass, as do both device matrix tests.
+The first affected search run passed 106 and failed two guide directory
+witnesses: removing a duplicate schema exposed their broad first-profiles-block
+selector. Select the block containing the actual `people` query; preserve all
+original assertions. Both witnesses pass. Stopped the first owned full run
+when it found the same failure; exit 130 remains an interrupted result.
+
+Final full eb1000 suite: zero failures in 1,433 seconds; 4,963 Rust tests,
+18 doctests, 6,187 client tests across 311 files, nine fixtures and 79 serial
+models pass. There are 33 existing Rust ignores and 11 client skips. All builds,
+typechecks, release/docs/wasm gates pass; no final-run interventions. References
+and whitespace checks pass. Wasm is 2,116,457 B raw / 639,750 B gzip, SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`:
+137 B below the unchanged 639,887 B cap, retaining the recorded 130 B macOS
+allowance. No Mac measurement is claimed. All work stayed on eb1000; no other
+host, push or publication. The [MS report](./reports/20261004-ms-matching-ordered-search/REPORT.md)
+retains exact diagnostics, builder hashes, the pasted-rewrite check and validation.
