@@ -66,7 +66,15 @@ pub struct Bound {
     pub notes: Vec<Diagnostic>,
 }
 
-pub fn bind(mut documents: Vec<Document>) -> Bound {
+pub fn bind(documents: Vec<Document>) -> Bound {
+    let mut bound = bind_unverified(documents.clone());
+    crate::repair::verify_bound(&documents, &mut bound.diagnostics);
+    bound
+}
+
+// Repair checks run the same planner and admission, without recursively
+// verifying the diagnostics from a rejected candidate.
+pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     receipts::expand(&mut documents, &mut diagnostics);
     ephemeral::declarations(&documents, &mut diagnostics);

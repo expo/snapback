@@ -1,7 +1,7 @@
 //! Lowering one Quarry program to the IR: a scope of typed names, one
 //! statement list that expressions may hoist temporaries into, reads that
 //! choose their index, writes that read their target once, and shapes that
-//! become bounded loops. Every refusal carries the rewrite that would pass.
+//! become bounded loops. Refusals carry verified repairs or prose guidance.
 
 use super::catalog::{Catalog, TableInfo};
 use crate::ast::{self, Expr as A, Literal, ObjectField, ProgramKind, ReadExpr, ShapeField, Stmt as S, WriteOp};
@@ -657,7 +657,10 @@ impl<'a> Binder<'a> {
             }
             _ => {
                 let names: Vec<&str> = candidates.iter().map(|i| i.name.as_str()).collect();
-                Err(ambiguous(&read.site, format!("{} has {} indexes matching this key: {}; choose one", read.table, names.len(), names.join(", ")), format!("{} by {}", print::read_expr(read), names[0])))
+                let changes = candidates.iter().filter(|index| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
+                    .map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+                Err(ambiguous(&read.site, format!("{} has {} indexes matching this key: {}; choose an index valid for this read and its arguments", read.table, names.len(), names.join(", ")), "")
+                    .repair_read(&read.site, changes))
             }
         }
     }

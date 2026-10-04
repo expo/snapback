@@ -1,7 +1,62 @@
-//! Verify executable parser repairs in the affected declaration's context.
-//! Never recursively compile diagnostics, or print syntax to create source edits.
+//! Verify executable repairs in the affected declaration's context.
+//! Retain caller operands; never recursively verify a candidate's diagnostics.
 use crate::{ast::*, bind, parser, Bound, Diagnostic, Site};
 use std::ops::Range;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ReadChange { Index(String), Point }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ReadRepair {
+    pub site: Site,
+    pub changes: Vec<ReadChange>,
+}
+
+// @ref LLP 3000.013#2.2 — index advice is source only after the patched
+// declaration passes the real parser, planner and admission in its own scope.
+pub(crate) fn verify_bound(documents: &[Document], diagnostics: &mut [Diagnostic]) {
+    for diagnostic in diagnostics {
+        let Some(repair) = diagnostic.read_repair.take() else { continue; };
+        diagnostic.rewrite = repair.changes.iter().find_map(|change| {
+            let candidate = read_candidate(documents, &repair.site, change)?;
+            (check_context(documents, &candidate, true) == Check::Accepted).then_some(candidate.rewrite)
+        }).unwrap_or_default();
+        if diagnostic.rewrite.is_empty() { diagnostic.mechanical = false; }
+    }
+}
+
+fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> Option<Candidate> {
+    let doc = documents.iter().find(|doc| doc.file == site.file)?;
+    let (read, text, grouped, start) = doc.source.read(site)?;
+    let mut fixed = read.clone();
+    match change {
+        ReadChange::Index(index) => { fixed.index = Some(index.clone()); }
+        ReadChange::Point => {
+            // A point cannot silently discard a population predicate or cursor.
+            if read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty()
+                || !read.order_keys.is_empty() || read.range.as_ref()?.cursor.is_some() { return None; }
+            fixed.range = None;
+        }
+    }
+    // Retain the caller's operands, including grouping, literals and comments.
+    // Never invent expressions from the selected index's column names.
+    let fixed = Expr::Read(fixed);
+    let rewrite = crate::print::with_source_at(&fixed, if grouped { 8 } else { 0 }, &|expr| doc.source.get(expr));
+    let (declaration_site, source, replacement) = doc.source.declarations.iter().find_map(|(key, source)| {
+        let (key, col) = key.rsplit_once(':')?;
+        let (file, line) = key.rsplit_once(':')?;
+        let declaration_site = Site::new(file, line.parse().ok()?, col.parse().ok()?);
+        if file != site.file { return None; }
+        let line = start.line.checked_sub(declaration_site.line)? as usize;
+        let lines = source.split('\n').collect::<Vec<_>>();
+        let column = start.col.checked_sub(1)? as usize;
+        let byte = lines.get(line)?.char_indices().map(|(i, _)| i).chain([lines[line].len()]).nth(column)?;
+        let offset = lines[..line].iter().map(|s| s.len() + 1).sum::<usize>() + byte;
+        let span = offset..offset.checked_add(text.len())?;
+        (source.get(span.clone())? == text).then_some((declaration_site, source.clone(), span))
+    })?;
+    Some(Candidate { site: site.clone(), declaration_site, source, replacement, rewrite, intended: None, message: None })
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Candidate {
@@ -86,6 +141,10 @@ fn key_page(documents: &[Document], candidate: &Candidate) -> Option<Candidate> 
 }
 
 fn check(documents: &[Document], candidate: &Candidate) -> Check {
+    check_context(documents, candidate, false)
+}
+
+fn check_context(documents: &[Document], candidate: &Candidate, keep_operations: bool) -> Check {
     let Some(patched) = parser::repairs::splice(&candidate.source,
         vec![(candidate.replacement.clone(), candidate.rewrite.clone())]) else { return Check::Rejected; };
     // Retain original source sites without reparsing any other declaration.
@@ -101,7 +160,7 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
         if documents.iter().flat_map(|doc| &doc.functions).any(|old|
             affected(candidate, &old.site) && old.args.len() != function.args.len()) { return Check::Rejected; }
     }
-    let mut context = context(documents, candidate, replacement);
+    let mut context = context(documents, candidate, replacement, keep_operations);
     // Helpers are normally checked at their call sites. Check this helper with
     // its own typed arguments; do not bind unrelated operations to exercise it.
     for doc in &mut context {
@@ -114,7 +173,7 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
             doc.programs.append(&mut parsed.programs);
         }
     }
-    let actual = bind(context.clone());
+    let actual = bind::bind_unverified(context.clone());
     if !actual.diagnostics.is_empty() { return Check::Unbound; }
     let Some(intended) = &candidate.intended else { return Check::Accepted; };
     // Compile the intended read as syntax in the *same* scope. This AST is
@@ -130,7 +189,7 @@ fn check(documents: &[Document], candidate: &Candidate) -> Check {
         });
     }
     if replaced != 1 { return Check::Rejected; }
-    let expected = bind(context);
+    let expected = bind::bind_unverified(context);
     let class = |bound: &Bound| bound.programs.iter().flat_map(|program| {
         let scans = snapback4_core::ir::scans(&program.program);
         program.sources.iter().filter(|(key, (site, _))| *site == intended.site && program.selections.contains_key(*key))
@@ -145,11 +204,13 @@ fn affected(candidate: &Candidate, site: &Site) -> bool {
     site.file == candidate.site.file && (candidate.declaration_site.line..last).contains(&site.line)
 }
 
-fn context(documents: &[Document], candidate: &Candidate, replacement: Document) -> Vec<Document> {
+fn context(documents: &[Document], candidate: &Candidate, replacement: Document, keep_operations: bool) -> Vec<Document> {
     let mut context = documents.to_vec();
     for doc in &mut context {
-        // Retain declaration dependencies, but never bind another operation.
-        doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear();
+        // Parser repairs need a declaration-local proof. Index repairs retain
+        // every caller as well: switching a range to a point can change a
+        // helper's result type or violate a job's chunk/cursor contract.
+        if !keep_operations { doc.programs.clear(); doc.actions.clear(); doc.routes.clear(); doc.schedules.clear(); }
         if doc.file != candidate.site.file { continue; }
         macro_rules! replace {
             ($($field:ident),*) => { $(

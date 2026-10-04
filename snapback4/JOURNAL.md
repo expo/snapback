@@ -84961,3 +84961,42 @@ Reference validation passes (527 LLPs, 10,290 refs, zero errors or unchecked
 references), as do whitespace checks. Only this session's superseded test run
 was stopped. No other machine was used; nothing pushed or published. Commit
 trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+
+## 2026-10-04 — NL round 4: compile index repairs in caller context
+
+Closed the unchecked source-rewrite paths in point/range index mismatch and
+program/rule ambiguity diagnostics. They now submit compiler-only candidates
+to the shared repair verifier. It retains the caller's actual read operands,
+reparses the edited declaration and binds it with the original project,
+including helper callers and job chunk contracts. Candidate diagnostics do not
+recursively invoke verification. Only a clean compilation exposes a replacement
+read; independent context errors can conservatively withhold it.
+
+Removed the range template that used index columns as argument expressions and
+the non-Quarry job chunk sketches. Recovery guidance remains prose in the
+message. Required and guarded nullable alternatives still produce verified
+repairs. The point-admission diagnostics and runtime/storage behavior are
+unchanged. Job chunk headers now retain their source spans for verification.
+
+Paste-and-compile tests cover point/range mismatches, program/rule/job ambiguity,
+required and optional arguments, guards and equality order, cursors, filters,
+Unicode/grouped/commented operands, collection consumers, cross-file helper
+callers and other context errors. All 218 affected language tests and 28
+lookup/admission tests pass, with no ignores. The guide and LLP 3000.013 §2.2
+record the contract. Details: [Round 4 report](./reports/20261003-nl-named-key-lookup/REPORT.md).
+
+Final verification on eb1000: the full
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,491 seconds. All 290 Rust binaries / 1,003
+executions and workspace doctests passed (542 s), as did 6,034 client tests
+with 11 existing skips (594 s) and all 79 serial model tests (304 s). The rebuilt
+CLI confirms empty rewrites for the three reported forms. Final log:
+`/tmp/sb4-nl-r4-verification/full-suite.log`.
+
+Wasm remains byte-identical: 2,048,676 B raw / 617,398 B gzip, 642 B below the
+unchanged 618,040 B budget; SHA-256
+`09dd6a9e2619d50b2059e78d8abedfce99239b9ea27dfe6c088d856c5ef8ce3f`.
+Reference validation passes (527 LLPs, 10,291 refs, zero errors or unchecked
+references), as do whitespace checks. No other machine was used, no unrelated
+process was signaled, and nothing was pushed or published. Commit trailer:
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.

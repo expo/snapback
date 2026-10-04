@@ -659,7 +659,10 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         }
         many => {
             let names: Vec<&str> = many.iter().map(|i| i.name.as_str()).collect();
-            return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}", read.table, many.len(), names.join(", ")), format!("{} by {}", crate::print::read_expr(read), names[0])));
+            let changes = many.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
+                .map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
+            return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}; choose a unique key with admitted arguments", read.table, many.len(), names.join(", ")), "")
+                .repair_read(&read.site, changes));
         }
     };
     super::point_key::check(target, &index, read, &terms.iter().zip(&types).map(|((column, term), ty)|

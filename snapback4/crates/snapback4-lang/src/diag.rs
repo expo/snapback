@@ -37,13 +37,22 @@ pub struct Diagnostic {
     /// with no independent information. Kept for verbose and JSON reports.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cascade_of: Option<Site>,
+    /// Compiler-only candidate; source is withheld until contextual verification.
+    #[serde(skip)]
+    pub(crate) read_repair: Option<crate::repair::ReadRepair>,
 }
 
 impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None, read_repair: None }
+    }
+
+    pub(crate) fn repair_read(mut self, site: &Site, changes: Vec<crate::repair::ReadChange>) -> Self {
+        self.rewrite.clear();
+        self.read_repair = Some(crate::repair::ReadRepair { site: site.clone(), changes });
+        self
     }
 
     // @ref LLP 3000.007#8 — only explicitly mechanical rewrites may change source

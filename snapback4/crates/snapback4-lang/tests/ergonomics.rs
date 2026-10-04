@@ -98,7 +98,9 @@ fn s12_profiles_range_pins_the_whole_unique_key() {
     let job = "-- CLI-only, system job for the acceptance clock boundary. Never exposed as a client mutation.\njob ancientPost(author: principal, postId: id, timestamp: time):\n  chunk p in profiles[author] first 1 by byPrincipal:\n    return\n";
     let bound = compile(&[("schema.q".into(), schema.into()), ("test-fixtures.q".into(), job.into())]);
     println!("{}", texts(&bound).join("\n\n"));
-    assert_eq!(texts(&bound), ["test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal takes (principal: principal); supplied (author: principal) pins every key, leaving no column to range over\n  rewrite: use profiles[author] by byPrincipal for one row; in a chunk, use `chunk row in profiles first 1 by byId:` then `if row.principal != author: continue`\n  guide: indexes"]);
+    assert_eq!(bound.diagnostics.len(), 1);
+    assert!(bound.diagnostics[0].message.contains("filter inside the chunk body"));
+    assert!(bound.diagnostics[0].rewrite.is_empty());
     let fixed = compile(&[("schema.q".into(), schema.into()), ("test-fixtures.q".into(), job.replace("profiles[author] first 1 by byPrincipal:", "profiles first 1 by byId:\n    if p.principal != author:\n      continue"))]);
     assert!(fixed.diagnostics.is_empty(), "{:?}", fixed.diagnostics);
     clean("schema.q", &format!("{schema}query one(author: principal):\n  return profiles[author] by byPrincipal\n"));
@@ -112,8 +114,8 @@ fn s12_text_handle_is_not_a_conversation_id() {
     let bound = bind("chat.q", &source);
     println!("{}", texts(&bound).join("\n\n"));
     assert_eq!(bound.diagnostics.len(), 1);
-    assert_eq!(bound.diagnostics[0].message, "conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type");
-    assert_eq!(bound.diagnostics[0].rewrite, "conversations[handle] by bySlug — this index accepts the supplied key; for byId, pass a conversations reference instead of text <=100");
+    assert_eq!(bound.diagnostics[0].message, "conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type; supply compatible arguments or select a matching index");
+    assert_eq!(bound.diagnostics[0].rewrite, "conversations[handle] by bySlug");
     clean("chat.q", &source.replace("by byId", "by bySlug"));
     clean("chat.q", &source.replace("handle: text <=100", "handle: conversations"));
 }
@@ -136,9 +138,9 @@ fn alternative_point_indexes_must_pass_admission() {
             let bound = bind("schema.q", &source);
             let diagnostic = &bound.diagnostics[0];
             assert_eq!(diagnostic.code, "E_QUARRY_TYPE", "{source}\n{diagnostic:?}");
-            assert_eq!(diagnostic.rewrite.contains("this index accepts the supplied key"), offered, "{source}\n{diagnostic:?}");
+            assert_eq!(!diagnostic.rewrite.is_empty(), offered, "{source}\n{diagnostic:?}");
             if offered {
-                let replacement = diagnostic.rewrite.split(" — ").next().unwrap();
+                let replacement = &diagnostic.rewrite;
                 assert!(replacement.ends_with(" by pair"), "{diagnostic:?}");
                 clean("schema.q", &source.replace(&read, replacement));
             } else { assert!(diagnostic.rewrite.is_empty(), "{diagnostic:?}"); }
@@ -176,7 +178,8 @@ fn fully_pinned_range_only_offers_an_admitted_point() {
             if optional && !guarded {
                 assert!(diagnostic.rewrite.is_empty(), "{diagnostic:?}");
             } else {
-                let replacement = diagnostic.rewrite.strip_prefix("use ").unwrap().strip_suffix(" for one row").unwrap();
+                assert!(!diagnostic.rewrite.is_empty(), "{diagnostic:?}");
+                let replacement = &diagnostic.rewrite;
                 clean("schema.q", &source.replace(&read, replacement));
             }
         }

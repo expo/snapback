@@ -6,7 +6,7 @@ All changes are in the compiler, diagnostics, tests and docs; runtime code
 and the wasm budget are unchanged. Work stayed on eb1000; nothing pushed.
 
 Base: `9e41df69f36138fdd2570fbfd918b2b9d33294ad`; Round 0: `f5a05671ef`;
-Round 1: `42391bb340`; Round 2: `cbb4a56fb4`;
+Round 1: `42391bb340`; Round 2: `cbb4a56fb4`; Round 3: `065e1faa86`;
 branch `sb4-intent/nl-named-key-lookup`.
 
 ## Semantics and code
@@ -204,10 +204,44 @@ round are superseded by the operator's Round 1 decision below.
   **79 passed** (320 s). Final log: `full-suite-complete.log` under
   `/tmp/sb4-nl-r3-verification/`. Only eb1000 was used; nothing pushed.
 
+## Round 4 (2026-10-04)
+
+- Index mismatch (point/range) and program/rule ambiguity now submit compiler-only
+  candidates to the existing [repair verifier](../../crates/snapback4-lang/src/repair.rs).
+  The verifier uses the caller's recorded read and operands, reparses the patched
+  declaration, and binds it with the original project. Helpers' callers and job
+  chunk contracts participate. Candidate diagnostics never recursively trigger
+  verification; only a clean result exposes source in `rewrite`.
+- Removed the range fallback that invented argument names from index columns and
+  the invalid job chunk sketches. Guidance stays in the message; an offered
+  rewrite is only the replacement read. Ambiguous nullable points offer nothing
+  unless their guards/types prove admission. Required/guarded alternatives remain.
+  `E_QUARRY_NULL_KEY`, `E_QUARRY_POINT_KEY` and runtime admission are unchanged.
+- [Paste-and-compile regressions](../../crates/snapback4-lang/tests/verified_index_repairs.rs)
+  cover both equality orders, reads/exists/created, program/rule/job ambiguity,
+  point/range mismatches, required/optional job domains, cursors and filters,
+  grouped/Unicode/commented operands, helper callers in other files, and remaining
+  context errors. A range-to-point repair is withheld when a caller needs a page.
+  Multiple errors may conservatively withhold all source edits; prose remains.
+- **218 affected language tests and 28 lookup/admission tests pass**, no ignores.
+  The guide and LLP §2.2 state the verification contract. Reference validation:
+  527 LLPs, 10,291 refs, zero errors or unchecked references.
+- The rebuilt CLI also confirms empty rewrites for the three reported forms:
+  unguarded nullable ambiguity, the wrong-typed range, and the fully pinned job.
+- Wasm is byte-identical: **2,048,676 B raw / 617,398 B gzip**, **642 B** below
+  the unchanged **618,040 B** budget, with the Round 1 SHA-256.
+- **Full suite: zero failures in 1,491 seconds**, using
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`.
+  Rust: **290 binaries, 1,003 executions and workspace doctests** (542 s);
+  clients: **6,034 passed, 11 existing skips** (594 s); serial models:
+  **79 passed** (304 s). Final log: `/tmp/sb4-nl-r4-verification/full-suite.log`.
+  Work stayed on eb1000; nothing pushed.
+
 ## Governing context
 
-The `llp-orient` scope was lookup planning, null semantics and both stores:
+The `llp-orient` scope was lookup planning, null semantics, source repairs and both stores:
 [LLP 3000 §4](../../../llp/3000-snapback4.explainer.md#4-fence-numbering-routing)
 sets the Snapback 4 fence; [LLP 3000.013 §§2.1–2.2](../../../llp/3000.013-quarry-states-intent.rfc.md#2-reads-state-intent)
-governs point meaning and cursor totality; LLP 3000.007 §10 governs extra
+governs point meaning, cursor totality and verified index advice; its §13.5
+records the existing repair-verification contract. LLP 3000.007 §10 governs extra
 named predicates. No remote machine or unrelated process was touched.

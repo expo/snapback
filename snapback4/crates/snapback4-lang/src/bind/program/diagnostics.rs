@@ -64,23 +64,14 @@ impl Binder<'_> {
                 && (ty.comparable(&self.key_ty(info, index, col)) || (self.key_ty(info, index, col).is_identity() && matches!(expr, Expr::Literal(Value::String(_)))))
         });
         if mode == ReadMode::Range && keys.len() == index.columns.len() && keys_match {
-            let mut point = read.clone();
-            point.range = None;
-            point.filter = None;
-            point.seeks.clear();
-            let point = print::read_expr(&point);
-            let mut rewrite = if index.unique {
-                if point_admitted(index) { format!("use {point} for one row") } else { String::new() }
-            } else {
-                format!("add id as the final column of {} to range over this prefix", index.name)
-            };
+            let mut guidance = if index.unique { "use a point for one row if its key arguments are admitted".to_owned() }
+                else { format!("add id as the final column of {} to range over this prefix", index.name) };
             if self.kind == ProgramKind::Job {
-                let take = read.range.as_ref().map_or(50, |range| range.take);
-                let guard = index.columns.iter().zip(&read.keys).map(|(col, part)| format!("row.{} != {}", part.column.as_ref().unwrap_or(col), print::expression(&part.value))).collect::<Vec<_>>().join(" or ");
-                if !rewrite.is_empty() { rewrite.push_str("; "); }
-                rewrite.push_str(&format!("in a chunk, use `chunk row in {} first {take} by byId:` then `if {guard}: continue`", read.table));
+                guidance.push_str("; for a job chunk, scan an ordered population and filter inside the chunk body");
             }
-            return type_error(&read.site, format!("{label} pins every key, leaving no column to range over"), rewrite).guide("indexes");
+            let changes = if index.unique && point_admitted(index) { vec![crate::repair::ReadChange::Point] } else { Vec::new() };
+            return type_error(&read.site, format!("{label} pins every key, leaving no column to range over; {guidance}"), "")
+                .guide("indexes").repair_read(&read.site, changes);
         }
         let same_width = match mode {
             ReadMode::Range => keys.len() < index.columns.len(),
@@ -92,18 +83,10 @@ impl Binder<'_> {
         // alternatives must also satisfy uniqueness and the current guards.
         let alternatives: Vec<_> = info.indexes.iter().filter(|candidate| candidate.name != index.name
             && !self.catalog.synthesized.contains(&(read.table.clone(), candidate.name.clone())) && accepts(candidate)).collect();
-        let rewrite = if let [alternative] = alternatives.as_slice() {
-            let mut fixed = read.clone();
-            fixed.index = Some(alternative.name.clone());
-            let mut rewrite = format!("{} — this index accepts the supplied key", print::read_expr(&fixed));
-            if let (Some(col), Some((_, _, ty))) = (index.columns.first(), keys.first()) {
-                rewrite.push_str(&format!("; for {}, pass {} instead of {}", index.name, self.key_ty(info, index, col).name(), ty.name()));
-            }
-            rewrite
-        } else if mode == ReadMode::Range {
-            let columns = &index.columns[..index.columns.len().saturating_sub(1)];
-            format!("{}[{}] first 50 by {} — supply {} in index order", read.table, columns.join(", "), index.name, columns.iter().map(|col| format!("{col}: {}", self.key_ty(info, index, col).name())).collect::<Vec<_>>().join(", "))
-        } else { String::new() };
-        type_error(&read.site, format!("{label} {reason}"), rewrite).guide("indexes")
+        let changes = if let [alternative] = alternatives.as_slice() {
+            vec![crate::repair::ReadChange::Index(alternative.name.clone())]
+        } else { Vec::new() };
+        type_error(&read.site, format!("{label} {reason}; supply compatible arguments or select a matching index"), "")
+            .guide("indexes").repair_read(&read.site, changes)
     }
 }
