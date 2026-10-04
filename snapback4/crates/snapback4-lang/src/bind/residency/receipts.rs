@@ -3,7 +3,7 @@
 // @ref LLP 3000.022#14.3 — allocate optimistically, consume accounting on the server.
 use super::*;
 use crate::diag::Site;
-use snapback4_core::{ir::{Builtin, Read}, schema::{Constraint, RuleTerm}};
+use snapback4_core::{ir::{Builtin, Read}, schema::{Constraint, MaintainKind, RuleTerm}};
 
 type Origins = BTreeSet<String>;
 type Env = BTreeMap<String, Origins>;
@@ -307,13 +307,33 @@ impl Walk<'_> {
                 }
             }
         }
-        // Maintenance is authored code reached by the write. Internal allocation
-        // and its uniqueness/index updates are the only exempt receipt reads.
-        for maintain in &self.schema.maintains {
-            if maintain.private.is_none() && (maintain.source == table || maintain.row_key.as_ref().is_some_and(|k| k.table == table)) {
-                if self.schema.receipt_dependencies.contains_key(&maintain.target) {
-                    self.mark(table, format!("write to {table} evaluates receipt-derived maintenance {}", maintain.target));
+        if effect != "delete" {
+            for c in &t.constraints {
+                if let Constraint::Cap { by, .. } = c {
+                    for field in by { self.field(table, field); }
                 }
+            }
+        }
+        // @ref LLP 3000.022#14.3 — device counts stay settled; sums can
+        // overflow and member moves can change the cached count's domain.
+        for maintain in &self.schema.maintains {
+            if !(maintain.source == table || maintain.row_key.as_ref().is_some_and(|k| k.table == table))
+                || !self.schema.receipt_dependencies.contains_key(&maintain.target) { continue; }
+            if maintain.row_key.as_ref().is_some_and(|k| k.table == table) && effect != "delete" {
+                self.rule(table, "read");
+                self.rule(&maintain.source, "read");
+            }
+            let reason = if matches!(maintain.kind, MaintainKind::Sum { .. }) {
+                Some("can overflow")
+            } else if maintain.row_key.as_ref().is_some_and(|k| k.table == table) && effect == "update" {
+                Some("can change the member's count domain")
+            } else if self.schema.tables[&maintain.target].constraints.iter().any(|c| !matches!(c, Constraint::Unique { .. }))
+                || self.schema.tables[&maintain.target].indexes.values().any(|index| index.unique
+                    && index.columns() != ["id"] && index.columns() != maintain.group_fields()) {
+                Some("has target constraints")
+            } else { None };
+            if let Some(reason) = reason {
+                self.mark(table, format!("write to {table} evaluates receipt-derived maintenance {} which {reason}", maintain.label()));
             }
         }
         for path in t.recorded.values() { self.field(&path.table, &path.column); }

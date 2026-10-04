@@ -397,7 +397,7 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe:
 }
 
 /// The schema-derived probe allowance, independent of short-circuit answers.
-pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
+pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
     let hops = |terms: &[&RuleTerm]| terms.iter().filter(|t| matches!(t, RuleTerm::Reference { .. })).count() as u64;
     match rule {
         RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => hops(&[a,b]),

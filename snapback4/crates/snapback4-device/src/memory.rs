@@ -810,6 +810,10 @@ impl DeviceTx for MemoryTx<'_> {
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
         self.store.state.borrow().base.iter().map(|((table, id), image)| Ok((table.clone(), id.clone(), parsed("image", image)?))).collect()
     }
+    fn base_has_table(&self, table: &str) -> Result<bool, RuntimeError> {
+        Ok(self.store.state.borrow().base.range((table.into(), String::new())..)
+            .next().is_some_and(|((name, _), _)| name == table))
+    }
     fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
         let mut next = String::with_capacity(after.len() + 1);
         next.push_str(after);

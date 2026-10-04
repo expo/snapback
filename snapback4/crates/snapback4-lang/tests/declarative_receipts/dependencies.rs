@@ -304,6 +304,7 @@ mutation aggregateFollowup(member: members):
     }
     let mut d = host.open("dependencies", Some(b)).unwrap();
     publish(&mut e, &mut d, "alice");
+    let settled_counts = d.store().raw_rows("qualified");
     let first = if member_bound {
         send(&mut e, 2, NOW);
         d.admit(request(
@@ -315,8 +316,8 @@ mutation aggregateFollowup(member: members):
     } else {
         d.admit(queued("alice", 1)).unwrap()
     };
-    assert!(!first.predictable, "row-view declarations consume receipt state during maintenance");
-    assert!(first.predicted.is_empty());
+    assert!(first.predictable, "{first:?}");
+    assert_eq!(d.store().raw_rows("qualified"), settled_counts, "no provisional value enters the count");
     let member = if member_bound {
         "queued-member"
     } else {
@@ -454,7 +455,8 @@ mutation scalarFollowup(conversation: conversations):
     let mut d = host.open("dependencies", Some(b)).unwrap();
     publish(&mut e, &mut d, "alice");
     let send = d.admit(queued("alice", 1)).unwrap();
-    assert_eq!(send.predictable, view.is_empty(), "authored receipt-derived maintenance also reads accounting");
+    assert_eq!(send.predictable, !view.contains("sum messages"), "only overflow-capable maintenance blocks a clean send");
+    assert!(d.store().raw_rows("totals").is_empty(), "provisional sends never enter a receipt-derived aggregate");
     let follow = deferred(
         &mut d,
         request("scalarFollowup", json!({"conversation":"c"}), 2),
@@ -663,3 +665,6 @@ mod generated_value_taint;
 
 #[path = "static_prediction.rs"]
 mod static_prediction;
+
+#[path = "derived_prediction.rs"]
+mod derived_prediction;

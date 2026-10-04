@@ -1,7 +1,7 @@
 //! A conservative backward slice over alpha-renamed locals. All definitions of
 //! a slot are joined, including loop back edges and early exits: a shared use
 //! keeps the entire slot. Only total work ending exclusively in emits is erased.
-use snapback4_core::{ir::*, schema::{MaintainKind, Schema}, Value};
+use snapback4_core::{ir::*, schema::Schema, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod walk;
@@ -51,10 +51,18 @@ struct Slice {
 // compiler proves their whole use chain before a device omits any statement.
 pub(super) fn plan(schema: &Schema, program: &Program) -> Vec<String> {
     if program.kind != ProgramKind::Mutation { return Vec::new(); }
-    // A sum over expiring rows can overflow after a cancelling row expires.
-    // That is a semantic refusal, not the accepted server-only meter delta.
-    let fallible_reads = schema.maintains.iter().filter(|view| matches!(view.kind, MaintainKind::Sum { .. })
-        && schema.tables[&view.source].is_expiring()).map(|view| view.target.clone()).collect();
+    // @ref LLP 3000.013#12.3 — retain data-dependent reads. Payload omission
+    // is an actual-value meter exception, never a proof about expiry, private
+    // derivations, authority walks or a live maintained result.
+    let fallible_reads = schema.tables.iter().filter(|(name, table)| {
+        let mut probes = Vec::new();
+        snapback4_core::engine::rules::probe_sites(&table.rules.read, &mut probes);
+        table.is_expiring() || !table.maintained.is_empty() || table.through.is_some()
+            || !probes.is_empty()
+            || schema.maintain_for(name).is_some_and(|m| m.row_key.is_some()
+                || m.parent_key.is_some() || schema.tables[&m.source].is_expiring()
+                || schema.tables[&m.source].through.is_some())
+    }).map(|(name, _)| name.clone()).collect();
     let mut slice = Slice { fallible_reads, ..Slice::default() };
     slice.body(&program.body, &program.name);
     for (name, facts) in &slice.definitions {
@@ -114,7 +122,8 @@ impl Slice {
                 Stmt::Emit { payload, once, .. } => {
                     let mut facts = Facts::default();
                     facts.expr(payload, &self.fallible_reads);
-                    if let Some(key) = once { facts.expr(key, &self.fallible_reads); }
+                    // Payload-only slicing never erases a once-key dependency.
+                    if let Some(key) = once { self.sink(key); }
                     self.emits.push((path, facts));
                 }
                 Stmt::If { condition, then_body, else_body } => {

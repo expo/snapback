@@ -14,6 +14,12 @@ const oldBackend=JSON.parse(readFileSync(new URL('backend.json',fixture),'utf8')
 const traces=JSON.parse(readFileSync(join(root,'target/event-slots-traces.json'),'utf8'));
 const candidate=structuredClone(traces.find(t=>t.name.startsWith('ordinary event reads with sync public last')).backend);
 candidate.generation=oldBackend.generation+1;
+// Isolate the event-slot fence even though current backends also carry newer
+// reservation capabilities. The full candidate must independently be refused.
+const slotCandidate=structuredClone(candidate);
+delete slotCandidate.schema.source_reservations;
+for(const table of Object.values(slotCandidate.schema.tables))for(const c of table.constraints??[])
+ if(c.Capabilities)c.Capabilities=c.Capabilities.filter(c=>!c.startsWith('source-write-reservations-'));
 const unsupported=/E_SCHEMA_CAPABILITY.*unsupported engine capability timeline-event-slots/;
 const ok=text=>{const reply=JSON.parse(text);assert.ok(Object.hasOwn(reply,'ok'),JSON.stringify(reply));return reply.ok;};
 async function moduleAt(t,bytes){
@@ -28,15 +34,16 @@ test('pre-slot wasm refuses slot installation, adoption and persisted reopen wit
  const Old=await moduleAt(t,oldBytes);
  // This is the behavioral assertion: deleting capability derivation admits
  // the candidate and fails here, before checking its declared marker.
- assert.throws(()=>new Old(JSON.stringify(candidate),'[]'),unsupported);
+ assert.throws(()=>new Old(JSON.stringify(candidate),'[]'),/E_SCHEMA_CAPABILITY/);
+ assert.throws(()=>new Old(JSON.stringify(slotCandidate),'[]'),unsupported);
  const old=new Old(JSON.stringify(oldBackend),'[]');t.after(()=>old.free());
  const before=ok(old.call('{"op":"state"}'));const persisted=old.drain();
- const adoption=old.call(JSON.stringify({op:'adopt',backend:candidate}));assert.match(adoption,unsupported);
+ const adoption=old.call(JSON.stringify({op:'adopt',backend:slotCandidate}));assert.match(adoption,unsupported);
  assert.deepEqual(ok(old.call('{"op":"state"}')),before);
  assert.equal(old.drain(),'[]','failed adoption must not persist anything');
  const reopened=new Old(undefined,persisted);assert.deepEqual(ok(reopened.call('{"op":"state"}')),before);reopened.free();
  const Current=await moduleAt(t,readFileSync(join(root,'packages/snapback4/src/wasm/snapback4_device_bg.wasm')));
- const current=new Current(JSON.stringify(candidate),'[]');const next=current.drain();current.free();
+ const current=new Current(JSON.stringify(slotCandidate),'[]');const next=current.drain();current.free();
  assert.throws(()=>new Old(undefined,next),unsupported,'downgrade must reject the persisted slot schema');
 });
 
@@ -46,5 +53,5 @@ test('pre-slot wasm still accepts and adopts the genuine timeline-v2 backend',as
  ok(old.call(JSON.stringify({op:'adopt',backend:next})));
  assert.equal(ok(old.call('{"op":"state"}')).generation,next.generation);
  const declarations=Object.values(candidate.schema.tables).flatMap(t=>t.constraints).filter(c=>c.Capabilities).flatMap(c=>c.Capabilities);
- assert.deepEqual(declarations,['timeline-event-slots','timeline-v2']);
+ assert.deepEqual(declarations,['source-write-reservations-v1','source-write-reservations-v2','timeline-event-slots','timeline-v2']);
 });

@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 pub mod columns;
+pub mod reservations;
 pub mod through;
 mod reference;
 pub mod ephemeral;
@@ -35,6 +36,11 @@ pub struct Schema {
     pub receipts: Vec<ReceiptFamily>,
     /// Schema-time closure; retained on device projections without private derivations.
     pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
+    /// Public, schema-derived reservation prices; private maintained formulas
+    /// are omitted from device projections, but their write charge is not.
+    pub source_reservations: BTreeMap<String, reservations::WriteReservation>,
+    /// Decode-only compatibility fence; programs narrow it before admission.
+    pub legacy_receipt_prediction: bool,
     pub tables: BTreeMap<String, Table>,
     pub delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]

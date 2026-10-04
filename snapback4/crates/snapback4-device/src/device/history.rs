@@ -126,6 +126,14 @@ pub(super) struct Reading<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Reading<'_, T> {
+    fn has_provisional(&self, table: &str) -> Result<bool, RuntimeError> {
+        self.tx.base_has_table(table)
+    }
+
+    fn provisional_groups(&self, table: &str, fields: &[String]) -> Result<Option<Vec<Vec<Value>>>, RuntimeError> {
+        super::predictions::provisional_groups(self.tx, table, fields)
+    }
+
     fn provisional_row(&self, _table: &str, row: &Value) -> Result<bool, RuntimeError> {
         Ok(row.field("pending") == Ok(&Value::Bool(true)))
     }

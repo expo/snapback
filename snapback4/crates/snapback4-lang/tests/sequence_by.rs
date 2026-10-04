@@ -13,7 +13,7 @@ fn parses_binds_and_round_trips_int_sequences() {
     let json = serde_json::to_string(&bound.schema).unwrap();
     let decoded: snapback4_core::schema::Schema = serde_json::from_str(&json).unwrap();
     assert_eq!(bound.schema, decoded);
-    assert_eq!(bound.schema.required_capabilities(), ["sequence-by".into()].into());
+    assert_eq!(bound.schema.required_capabilities(), ["sequence-by".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     let mut unfenced: serde_json::Value = serde_json::from_str(&json).unwrap();
     for table in unfenced["tables"].as_object_mut().unwrap().values_mut() {
         table["constraints"].as_array_mut().unwrap().retain(|c| c.get("Capabilities").is_none());

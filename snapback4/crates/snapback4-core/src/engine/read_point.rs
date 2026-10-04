@@ -37,7 +37,7 @@ impl Runner<'_> {
         self.read_tables.insert(read.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
-        self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
+        self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site)?;
         let Some(maintain) = self.schema.maintain_for(&read.table) else {
             let (value, price) = self.get_prepared(read, &key, emitted)?;
             self.meter.heap(price)?;
@@ -112,7 +112,10 @@ impl Runner<'_> {
                 return Ok((unavailable_aggregate(), 0));
             }
             if self.device && m.parent_key.is_some() {
-                if self.beyond_horizon { return Ok((unavailable_aggregate(), 0)); }
+                // A locally synthesized total has no settled row to freeze.
+                // @ref LLP 3000.022#14.3 — never recount provisional receipt inputs.
+                let group = self.receipt_read_group(m, &read.index, key)?;
+                if self.beyond_horizon || self.receipt_maintain_pending(m, group.as_deref())? { return Ok((unavailable_aggregate(), 0)); }
                 // The parent-key view is derived locally from fully held children;
                 // its generated table need not have an invertible sync audience.
                 let fields = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));

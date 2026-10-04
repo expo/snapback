@@ -1,6 +1,6 @@
 # Snapback 4: a two-principal absence guard charges the server 6 heap bytes more than device prediction reserves — at an exact ceiling a device predicts a write the server refuses
 
-Status: Open
+Status: Closed
 Priority: P3 (only within six bytes of the heap ceiling, and the consequence is the ordinary, handled path — a predicted write refused by the server and rolled back; but it is a counterexample to an invariant the presence design states)
 Date: 2026-09-17
 Systems: `snapback4-core` `engine/presence.rs` (the dependency reservations: `grace_read`, `enter_presence_guard`, `value_presence`), `engine/local.rs` (`predict`), `engine/runner.rs` (`Builtin::Connected`)
@@ -73,3 +73,14 @@ effects. The other six fields remain unchanged. The scoped regression
 is no longer ignored and passes on SQLite and memory. This resolves only the
 rule-probe instance above. The separate six-byte heap counterexample remains
 open; its tests and the overall ticket status are unchanged.
+
+
+## 2026-10-04 — remaining heap boundary resolved by RP round 4
+
+The untaken-arm saved-binding reservation paid 64 bytes for the slot but omitted
+the cloned binding name. Charging `64 + name.len()` reserves the additional six
+bytes for this lowered conjunction. The original both-store boundary regression
+is enabled and passes unchanged; the composition/alias/conjunction cases also
+pass. The shared-payload meter golden increases by six bytes (3,857 → 3,863),
+with every admission/rollback assertion retained. The earlier rule-probe
+resolution remains green. No ceiling or test timeout was raised.

@@ -34,6 +34,7 @@ impl Schema {
         let mut schema = self.clone();
         schema.prepare_receipt_dependencies();
         schema.receipt_dependencies.retain(|name, _| self.visible(name));
+        schema.source_reservations.retain(|name, _| self.visible(name));
         schema.tables.retain(|name, _| self.visible(name));
         schema.maintains.retain(|m| self.visible(&m.target));
         schema

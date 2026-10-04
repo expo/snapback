@@ -87,11 +87,25 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     super::timeline::aggregate_sites(schema, program, &mut fact);
     for (table, kind) in ir::write_tables(program) {
         super::timeline::write_site(schema, &table, kind, &mut fact);
+        if let Some(reason) = schema.write_prediction_refusal(&table) {
+            fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: String::new(),
+                kind: "source reservation".into(), class: SiteClass::Server, reason: reason.into(),
+                rewrite: "queue this mutation for the server's complete maintenance".into() });
+        }
         if !matches!(kind, "insert" | "insert-if-absent") && schema.receipts.iter().any(|f| f.members == table || f.runs == table) {
             fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: "receipt accounting".into(), class: SiteClass::Server,
                 reason: "receipt membership changes and progress need settled state".into(), rewrite: "queue until server settlement".into() });
         }
         if schema.tables.get(&table).is_none_or(|t| t.sync.is_none()) { fact.sites.push(site(schema, &format!("{kind} {table}"), &table, "byId", "write")); }
+        for m in &schema.maintains {
+            if m.private.is_none() && schema.receipt_dependencies.contains_key(&m.target)
+                && (m.source == table || m.row_key.as_ref().is_some_and(|k| k.table == table)) {
+                fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: String::new(),
+                    kind: "deferred receipt maintenance".into(), class: SiteClass::Held,
+                    reason: format!("receipt-derived maintenance {} stays settled during prediction; affected groups report incomplete until settlement", m.target),
+                    rewrite: String::new() });
+            }
+        }
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 if let Some(parent) = &definition.through {
@@ -560,7 +574,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
     }
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.effect_payload_reads {
-        lines.push(format!("    {} (site {}); charged on the server only", site.reason, site.site));
+        lines.push(format!("    {} (site {}); payload evaluated and charged at actual values on the server only", site.reason, site.site));
     }
     for site in &fact.sites {
         // The insert explanation also names the upsert target; do not follow it

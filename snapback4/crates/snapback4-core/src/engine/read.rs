@@ -203,10 +203,14 @@ impl<'r> Runner<'r> {
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
-    pub(super) fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+    pub(super) fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) -> Result<(), RuntimeError> {
         self.aggregate_source_dependency(table);
-        if !self.device { return; }
-        let Some(maintain) = self.schema.maintain_for(table) else { return };
+        if !self.device { return Ok(()); }
+        let Some(maintain) = self.schema.maintain_for(table) else { return Ok(()); };
+        if self.defer_receipt_maintain(maintain) {
+            let group = self.receipt_read_group(maintain, index, key)?;
+            self.receipt_maintain_pending(maintain, group.as_deref())?;
+        }
         if let Some(k) = &maintain.row_key {
             // A projected view uses its member's acquisition; absence beyond that
             // horizon is unknown even though the projection has no order columns.
@@ -229,13 +233,14 @@ impl<'r> Runner<'r> {
                     if !whole { self.unknown_fact(table, index, key, site); }
                 }
             }
-            return;
+            return Ok(());
         }
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.is_expiring() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
             self.read_tables.insert(maintain.source.clone());
             self.unknown_fact(table, index, key, site);
         }
+        Ok(())
     }
 
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
@@ -875,7 +880,7 @@ impl<'r> Runner<'r> {
         if word.is_none() {
             self.read_tables.insert(scan.table.clone());
             self.rule_dependencies(&table.rules.read);
-            self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site);
+            self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site)?;
             if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); self.components.note(|frame| frame.speculative = true); }
         }
         if word.is_some_and(|w| w.metered) { self.meter.heap(word_heap::text(&scan.site))?; }
@@ -942,7 +947,7 @@ impl<'r> Runner<'r> {
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
         #[cfg(feature = "server-search")]
-        let prepaid_head = !self.device && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
+        let prepaid_head = !self.device && self.query_program && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
         // @ref LLP 3000.027#2 — a declared cursorless query needs no overflow row;
         // cursor positions, ordered merges, lane discovery and horizons still do.
         let stop_at_bound = !aborting && !scan.opaque_cursor && scan.merge_site.is_none() && word.is_none()
@@ -1295,7 +1300,7 @@ impl<'r> Runner<'r> {
     pub(super) fn merge(&mut self, merge: &Merge, charge: impl FnOnce(&mut Self, &[Value]) -> Result<(), RuntimeError>) -> Result<Vec<Value>, RuntimeError> {
         let expiry = self.next_expiry.scope();
         #[cfg(feature = "server-search")]
-        if !self.device && crate::search_plan::eligible(self.schema, merge) {
+        if !self.device && self.query_program && crate::search_plan::eligible(self.schema, merge) {
             let rows = self.merge_memberships(merge, charge)?;
             expiry.emit();
             return Ok(rows);

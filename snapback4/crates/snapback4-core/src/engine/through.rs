@@ -29,21 +29,7 @@ impl Runner<'_> {
             return Ok(());
         }
         let parent = &self.schema.tables[&through.parent];
-        let probes =
-            rules::rule_probes(&parent.rules.read) + rules::rule_probes(&table.rules.insert);
-        for (kind, amount) in [
-            (MeterKind::Examined, 1),
-            (MeterKind::RuleProbes, probes),
-            (
-                MeterKind::HeapBytes,
-                super::write_target::row_copy_ceiling(parent)
-                    .saturating_mul(2)
-                    .saturating_add(super::write_target::row_copy_ceiling(table)),
-            ),
-            (MeterKind::Steps, through.fields.len() as u64 + 2),
-        ] {
-            self.meter.charge(kind, amount)?;
-        }
+        self.charge_price(crate::schema::reservations::capture_price(self.schema, table))?;
         self.capture_prepaid = true;
         self.read_tables.insert(through.parent.clone());
         self.rule_dependencies(&parent.rules.read);
@@ -135,10 +121,7 @@ impl Runner<'_> {
             .children(parent)
             .map(|(n, _, _)| n.clone())
             .collect();
-        if self.device {
-            let occupied = self.device_work(|runner| runner.current_children(parent, id, &children))?;
-            return if occupied { Err(self.parent_has_children(parent)) } else { Ok(()) };
-        }
+        if children.is_empty() { return Ok(()); }
         let now = self
             .context
             .now
@@ -149,6 +132,10 @@ impl Runner<'_> {
             .fold(0_u64, u64::saturating_add);
         // @ref LLP 3000.015#2 — three schema-fixed seeks per child table, each drawn from the request's physical allowance.
         self.authorized_scan(&[(MeterKind::Examined, children.len() as u64 * 3), (MeterKind::Steps, children.len() as u64 * 3), (MeterKind::HeapBytes, heap)], |runner, scope| {
+            if runner.device {
+                let occupied = runner.device_work(|runner| runner.current_children(parent, id, &children))?;
+                return if occupied { Err(runner.parent_has_children(parent)) } else { Ok(()) };
+            }
             for name in &children {
                 let never = runner.tx.scan(scope, name, CHILDREN, &[id.clone(), Value::Null], &Bounds::default(), Dir::Asc, 1)?;
                 let finite = runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds { gt: Some(Value::Int(now)), ..Default::default() }, Dir::Asc, 1)?;

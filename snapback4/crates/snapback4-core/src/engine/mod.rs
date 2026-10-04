@@ -7,6 +7,7 @@
 pub mod effects;
 #[cfg(feature = "sqlite")]
 mod asset_columns;
+mod write_reservations;
 #[cfg(feature = "sqlite")]
 pub mod ephemeral;
 #[cfg(feature = "sqlite")]

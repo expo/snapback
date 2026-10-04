@@ -201,10 +201,11 @@ impl Runner<'_> {
             let key = (parent.clone(), id.clone());
             let previous = if let Some(value) = values.get(&key) {
                 *value
-            } else if self.device {
-                self.authorized_scan(&[], |runner, allowance| runner.device_work(|runner| runner.sequence_floor(allowance, parent, &id)))?
             } else {
-                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, allowance| runner.tx.sequence_value(allowance, parent, &id))?
+                self.authorized_scan(&[(MeterKind::IndexEntries, 1)], |runner, allowance| {
+                    if runner.device { runner.device_work(|runner| runner.sequence_floor(allowance, parent, &id)) }
+                    else { runner.tx.sequence_value(allowance, parent, &id) }
+                })?
             };
             let next = if previous >= crate::value::I53_MAX {
                 if self.device {
@@ -258,9 +259,6 @@ impl Runner<'_> {
 
     /// Called only after if-absent collisions and constraints have passed.
     pub(super) fn commit_sequences(&mut self, name: &str, row: &Value) -> Result<(), RuntimeError> {
-        if self.device {
-            return Ok(());
-        }
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         for (column, reference) in &table.sequences {
             let ColumnType::Ref { table: parent } = &table.columns[reference] else {
@@ -268,7 +266,7 @@ impl Runner<'_> {
             };
             let id = row.field(reference)?.as_str()?;
             self.meter.charge(MeterKind::IndexEntries, 1)?;
-            self.tx.set_sequence(parent, id, row.field(column)?.as_int()?)?;
+            if !self.device { self.tx.set_sequence(parent, id, row.field(column)?.as_int()?)?; }
         }
         Ok(())
     }
@@ -284,7 +282,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#5.4 — complete the result only after supplied-field
     // authority and defaults have run; omission is never an explicit null input.
-    fn complete_insert_result(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn complete_insert_result(&mut self, name: &str, row: Value, prepaid: bool) -> Result<Value, RuntimeError> {
         let table = &self.schema.tables[name];
         let missing = |field: &String, ty: &ColumnType| row.field(field).is_err()
             && !table.engine_field(field) && !crate::schema::timeline::is_slot(field)
@@ -297,7 +295,7 @@ impl Runner<'_> {
                     Some(crate::schema::ColumnDefault::Now) | None => 0,
                 }));
         if bytes == 0 { return Ok(row); }
-        self.meter.heap(super::runner::expression_heap(&row).saturating_add(bytes))?;
+        if !prepaid { self.meter.heap(super::runner::expression_heap(&row).saturating_add(bytes))?; }
         let now = self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?;
         let mut fields = row.as_object()?.clone();
         for (field, ty) in &table.columns {
@@ -310,7 +308,10 @@ impl Runner<'_> {
 
     /// Fill the result without making engine values caller-supplied fields.
     pub(super) fn sequence_result(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
-        let mut row = self.complete_insert_result(name, row)?;
+        // Receipt completion shares the existing full-row copy reservation in
+        // receipt_result; completing here would charge the same map twice.
+        let mut row = if self.schema.receipt_insert(name) { row }
+            else { self.complete_insert_result(name, row, false)? };
         let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
         if table.sequences.is_empty() {
             return self.receipt_result(name, row);

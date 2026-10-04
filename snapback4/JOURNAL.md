@@ -84800,6 +84800,404 @@ QF's journal entries and report stay as the record. The lane returns with
 negative-field parsing, inspection limited to the file's own group, and a
 recorded M5 process table in its regressions.
 
+## 2026-10-03 — RP: receipt-derived unread counts retain send prediction
+
+Calibration #29's receipts plus row-keyed unread view now leaves `send`,
+`sendMedia`, `createGroup` and `addMember` eligible. The exact schema's CLI
+report falls from 15 mutations that never predict on unmodified main to 11.
+Device prediction skips receipt-derived maintenance and its reservation on
+memory, SQLite and wasm; source inserts, edits and deletions leave stored
+counts settled. Pending source/member overlays mark public aggregate reads
+incomplete and row-keyed reads `recountPending`; no query recount observes a
+guessed ordinal. A parent-key aggregate without a settled cache returns
+null/incomplete. Server settlement installs exact counts.
+
+The unrestricted rule is unsafe for sums: two `I53_MAX` contributions refuse
+with E_OVERFLOW. Receipt-derived sums, constrained targets and member moves
+stay server-only. The RY static reader boundary remains: owned/derived fields,
+whole rows, helper/builtin values, loops, ordinal keys and count-dependent
+writers cannot predict. Ordinary member/source authority still runs before
+maintenance is deferred. The new receipt-derived-prediction-v1 capability
+prevents older devices from applying their old maintenance behavior.
+
+Thirteen RP regressions join the existing RY cases: receipt suite 169/169,
+guide 112/112, row-keyed views 46/46, core row-view checks 58/58, affected
+device suites 280/280, and three affected client files
+79/79. They cover pending history, frozen raw counts, restart, multiple queued
+sends, two devices of one user, reordered ordinals, refusal, expiry,
+count-dependent writers and the sum-overflow counterexample on both stores.
+The late empty-id adversary caught a provisional-count leak through a strict
+metadata cursor; a table-existence probe covers empty ids and deletions on
+both stores, with an additional wasm SDK witness.
+Final `scripts/test.sh`: **`== 0 failure(s) in 1420 s`**, exit 0. Rust:
+4,779 passed, zero failed, 34 existing ignores; clients: 6,035 passed, zero
+failed, 11 existing skips; client models: 79/79; fixture wrappers: 9/9.
+No remaining baseline-main failure was observed. The report retains the first
+run's four introduced guide-fixture/text failures and the second run stopped
+after the empty-id counterexample; all were corrected before this final run.
+The 1,829 selected source/test/build/budget hashes stayed unchanged through
+qualification. No test or timeout was weakened.
+
+Locked wasm measures 2,051,596 B raw / 618,306 B gzip. The inherited cap was
+618,040 B; raise it by exactly 266 B, with no new headroom, for shared device
+maintenance suppression, overlay-aware reads, the no-cache unavailable result
+and the capability fence. This is a whole-artifact measurement, not a rebuilt
+main delta or per-component attribution. No runtime ceiling was raised.
+
+Updated the receipts and maintains guides and LLP 3000.022's static rule and
+dated revision; LLP 3000.015 points to the specialization. The
+[RP report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md) records
+the refusal audit, development failures, exact checks and bounded evidence.
+Reference/whitespace checks pass. No new file over 256 KB, gzip or video is
+committed. Work stayed on eb1000; nothing pushed or published.
+
+## 2026-10-03 — RP round 1: existing stores, maintenance charges and affected groups
+
+Round 1 addresses both NOT READY reviews. It supersedes the preceding RP
+entry's skipped reservations, table-wide pending marks and claim that source
+writes run the member/source-group authority check. Only member writes run
+that check; ordinary write authorization remains on both paths.
+
+The compiler still stamps receipt-derived-prediction-v1 so older devices
+refuse newly eligible operations. RP accepts the authentic predecessor
+capability set when opening kept backends and server databases. Fixtures
+produced by a8c20c40e9 retain the real server incarnation, pending send and
+delivery debt. Memory and SQLite open through Kept, Initial and Install,
+adopt, preserve custody and converge to count 3 with delivery debt [1,3].
+The wasm upgrade test preserves both queued writes across restart. The actual
+predecessor wasm opens its fixture and rejects the new emitted backend.
+Each new fixture is below 256 KB; SQLite repacking preserved the entire SQL dump.
+
+Deferred row-keyed maintenance now charges its full reservation, including
+fanout × 4 written rows, before skipping its predicate/delta. A key-only live
+recipient scan retains E_VIEW_KEY. Public ordinary aggregates retain their
+reservation, with a conservative fixed charge for deferred inserts. An added
+adversary also caught private parent counts: 30 sends feeding ten counts had
+predicted despite a server E_BOUND. The public receipt_column_costs map now
+preserves the server's fixed private-maintenance prices without its formulas
+or totals. Both stores and wasm queue the burst; ordinary single sends still
+predict. No runtime ceiling or existing test was weakened.
+
+Pending source/member base and current images name the affected groups,
+including deletes, moves and empty ids. Clean groups keep live counts and
+expiry across reopen. Instrumented queries use exactly P source point reads
+for P pending rows and zero source scans, cached across three badge reads.
+Only unavailable, computed or receipt-owned group keys fall back to the whole
+target. All incomplete receipt-derived badges render a stable number with a
+quiet refreshing indication; both later L+ instructions now apply only to
+non-receipt live lower bounds. Updated both guides and LLPs 3000.022 and
+3000.007.001 with the compatibility, reservation and rendering rules.
+
+Affected receipt/RY tests: 182; guide: 112; row-keyed language: 46; core row-view:
+58; maintained-column review: 4; affected device suites/library: 340; affected
+client tests: 81. Final full suite on eb1000: **== 0 failure(s) in 1469 s**,
+exit 0. Rust unit/integration: 4,794 passed and 34 existing ignores; doctests:
+17 passed; clients: 6,037 passed and 11 existing skips; models: 79 passed;
+fixture wrappers: 9 passed. No failure required a baseline-main exception.
+Implementation/test inputs stayed unchanged through qualification; the final
+prose-only L+ clarification separately passed all 112 guide tests. Reference
+and whitespace checks pass.
+
+Same-host locked wasm: base a8c20c40e9 is 2,048,676 B raw / 617,327 B gzip;
+RP is 2,069,537 B raw / 623,434 B gzip, **+6,107 gzip bytes (+0.99%)**.
+Raise round 0's 618,306-byte cap by exactly 5,128 bytes to 623,434, with no
+headroom, for compatible schema decoding, group-key overlay reads and
+preserved public/private maintenance reservations. Compact price tuples save
+95 gzip bytes versus resource objects. No wasm, gzip, video or new oversized
+file is committed; the existing journal receives this requested append.
+
+The [Round 1 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-1--2026-10-03)
+records fixture provenance, counterexamples, measurements and qualification
+hashes. Work stayed on eb1000; no Apartment mini, office M1 or M5. Local
+commit includes Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed
+or published.
+
+
+## 2026-10-03 — RP round 2: complete reservations, conservative decode and canceled groups
+
+Round 2 fixes the six findings in both NOT READY round-1 reviews. Online-only
+row-keyed views now reserve before skipping unheld maintenance: six fanout-50
+receipt counts queue without a provisional row on memory, SQLite and wasm,
+matching the server's 1,202-row E_BOUND; one count still predicts. Every device
+source-write attempt also charges declared image/video list slots through the
+shared interpreter, including null/empty cells: per slot, 2 written rows,
+4 examined, 8 steps and 16,384 transient heap bytes. Devices never take the asset
+ledger. The existing server formula, heap lifetime and runtime ceilings stay
+unchanged. Regressions cover 480-slot unread sends, 16-insert/32-slot bursts,
+public/private counts, video lists and plain writes without receipts. Receipt
+refusals keep custody; ordinary known-input refusals keep their immediate-error
+contract. No test, timeout or runtime ceiling was weakened.
+
+A missing receipt-derived-prediction-v1 stamp no longer authorizes prediction.
+Authentic old backends still open, but every mutation fact in an unstamped
+receipt-maintenance schema is conservatively downgraded to never. A projected
+receipt parent column with missing prices receives the same downgrade, even
+when stamped; full schemas recompute prices. This also queues unrelated
+mutations until a genuine current adoption, because private write footprints
+are absent during projection decode. Queries, outbox and delivery debt survive.
+The old-version fixtures are unchanged and their six native opening modes and
+wasm upgrade tests pass. New stripped-current tests cover removing either or
+both stamp and prices on all three runtimes; current adoption restores sends.
+
+Predicted deletes save only ordinary group keys before their last image goes
+away. Canceled inserts therefore mark their own group across reopen, including
+empty ids and same-mutation insert/delete, while unrelated groups remain live
+and expire. Saved keys carry no receipt fields or guessed ordinals, and clear
+with replay/reset. One canceled entry adds at most one metadata point lookup;
+there is no source scan. Legacy no-image entries without saved keys, computed
+keys and missing fields retain the conservative fallback. LLP 3000.020 §§3.3,
+3.6 and 4 now exempt receipt-derived badges from L+: render a stable number
+with a quiet refreshing indication. Updated both guides and LLPs 3000.019 and
+3000.022 to match the shared prices, decoding and grouping rules.
+
+Affected checks: 192 receipt/RY tests, 112 guide, 46 row-keyed language,
+58 core row-view, 4 maintained-column review, 3 asset-column, 340 device, and
+84 client tests passed. Full eb1000 suite: **== 0 failure(s) in 1442 s**,
+exit 0. Rust unit/integration: 4,804 passed, 34 existing ignores; doctests: 17;
+clients: 6,040 passed, 11 existing skips; serial models: 79; fixture wrappers: 9.
+No failure needed an unmodified-main exception. All 1,841 qualification inputs
+remained unchanged during the full run. Reference and whitespace checks pass.
+
+Locked eb1000 wasm: **2,072,900 B raw / 624,929 B gzip**, +3,363 raw / +1,495
+gzip over Round 1, and +24,224 raw / +7,602 gzip (+1.23%) over the same-host
+unmodified a8c20c40e9 base rebuilt in Round 1. The shared media/online charges,
+conservative decode and durable deleted keys require this whole-artifact growth.
+Set the cap to **625,059 B = Linux measurement + 130 B macOS allowance**,
++1,625 over Round 1. The budget history records actual host differences of 108
+and 127 B and a later 110–130 B allowance; use its upper bound with no additional
+padding. No macOS build is claimed. No gzip, video, wasm or new oversized file
+is committed; this existing journal receives the requested append.
+
+The [Round 2 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-2--2026-10-03)
+records counterexamples, remaining limits, artifact/log hashes and validation.
+Work stayed on eb1000; no Apartment mini, office M1 or M5. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-10-03 — RP round 3: shared source reservations and selective legacy prediction
+
+Replaced receipt-only prices with a complete per-source reservation plan, using
+one calculation for the compiler and authoritative engine. The missing ordinary
+private-maintain prices, online-only ordinary aggregate work and receipt counter
+replacement charges predated RP; newly eligible unread-maintaining sends exposed
+them. Private formulas stay on the server. Prices cover seven meter dimensions
+and retain the existing write phases and scratch lifetimes. All-zero schemas keep
+their old wire bytes; other schemas export every source, including zero-cost ones.
+
+Devices pay every private-maintain reservation, public aggregate reservation,
+row-view fanout, declared media-list slot, receipt allocation/counter allowance
+and capture price before skipping the corresponding work. Ordinary synced public
+aggregates retain their shared delta path. Where an ordinary server insert charges
+actual delta work, a device skipping that work conservatively pays the same
+server worst-case formula; existing server charges and ceilings are preserved.
+Additional data-dependent counter hooks make their source writers server-only.
+Removed the superseded receipt-column price type and duplicate reservation code.
+
+The new source-write-reservations-v1 capability fences earlier devices. Kept
+backends still open. Decode and runtime preflight now inspect each expanded
+program, including expression blocks: receipt sources, hidden effects and writes
+without a recoverable complete price queue, while unrelated posts and title edits
+keep predicting offline. A legacy private projection without prices still queues
+its writers, since it cannot identify the hidden source footprint. Authentic
+predecessor fixtures, queued writes and delivery debt retain their upgrade path.
+
+Added 256 reproducible seeded differential cases per native store and a 22-case
+server-verified wasm corpus. Both native stores produce 58 predicted commits,
+8 conservative queues and 190 server resource refusals, with no predicted server
+refusal. All six reviewers' counterexamples queue without partial provisional
+rows on memory, SQLite and wasm. The SDK regression uses the actual offline
+opening helper with an unstamped kept backend and a new backend available.
+
+The locked eb1000 wasm is 2,096,970 B raw / 633,309 B gzip: +8,380 B gzip over
+Round 2 and +15,982 B (2.59%) over the same-host a8c20c40e9 base. Complete price
+calculation/serialization, shared admission and selective legacy program inspection
+account for this whole-artifact increase. The cap is 633,439 B, the Linux result
+plus the previously recorded 130 B macOS allowance. No Mac was used. No wasm,
+gzip, video or new file over 256 KB is committed; this existing journal receives
+the requested append. The new JSON corpus is 181,978 B.
+
+Full eb1000 suite: **== 0 failure(s) in 1489 s**, exit 0. Rust: 4,811 passed,
+34 existing ignores; doctests: 17; clients: 6,063 passed, 11 existing skips;
+serial models: 79; fixture wrappers: 9. All 199 receipt tests, every RY escape,
+the new differential, authentic upgrades and group/expiry tests passed. The
+separate affected client run passed 41 tests. No failure needs an unmodified-main
+exception. All 1,850 qualification inputs stayed unchanged during the final run.
+Post-run staging removed one terminal blank line from the IR walker; a fresh
+wasm build was byte-identical and within budget. Reference and whitespace checks pass. Earlier pre-fix runs caught compatibility
+and server-meter regressions; those were fixed before this complete qualification.
+
+The [Round 3 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-3--2026-10-03)
+records the reservation audit, conservative admission rate, compatibility limits,
+metrology and qualification hashes. Work stayed on eb1000, with no Apartment mini,
+office M1 or M5. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-10-04 — RP round 4: interpreter reservation parity and native-only pricing
+
+Closed the four round-3 review counterexamples with shared charges: runtime
+`emit … once` keys, maintained-column owner births, sequence allocation/commit
+and parent-delete child probes. All four gaps predated RP. Devices pay without
+claiming durable effect keys, reading private totals, storing sequence counters
+or performing authoritative child probes. The 1,024/1,025 once-key boundary and
+ordinary emits remain distinct; duplicate keys within an attempt share one fee.
+
+The whole-interpreter audit also found earlier omissions in effect-payload work,
+Following Work/partial-event writes and maintained-value reads. Eligible effect
+slices now share compiler/server bounded prices, with actual once keys outside
+the restoring payload scope. Unpriceable slices retain ordinary read residency.
+Following source writes pay for omitted owned writes and duplicate probes.
+Query optimizations remain available to queries, including native aborting calls;
+mutations use shared admission. The saved-binding reservation now includes the
+binding name, resolving the old six-byte presence-conjunction ticket. Its
+original regression is enabled unchanged; no existing test was removed.
+
+Complete source-price construction and effect analysis are native-only. New
+schemas explicitly export zero plans and carry source-write-reservations-v2.
+A missing legacy price permits only a structural zero proof; other affected
+writers queue. The general chat fixture receives complete current prices with
+its programs unchanged, while authentic predecessor fixtures remain frozen.
+The old wasm event-slot test still isolates and proves that specific fence.
+
+Extended the deterministic differential to 320 cases per native store, adding
+updates/deletes, parent tables, owner births, sequence indexes, once/ordinary
+emits, private payloads and Following. Each store reports 113 predicted commits,
+8 conservative queues that commit and 199 server refusals. The affected run
+completed both stores in 20.71 seconds alongside concrete regressions. The new
+23-case wasm corpus is generated by the real server and uses fixed setup ids.
+
+Locked eb1000 wasm: 2,107,138 B raw / 636,469 B gzip. The full reservation
+calculator stays out of wasm. Growth is 3,160 B over round 3 and 19,142 B (3.10%)
+over the remeasured same-host a8c20c40e9 base. The budget is 636,599 B: Linux plus
+the file's recorded 130 B macOS allowance. No Mac was used. The report contains
+the full interpreter audit table, representation choices and boundary evidence.
+
+Eligible effect payloads now reserve declared maxima on both hosts; large
+bounds can reach a server ceiling earlier than the former actual-value fees.
+Already server-only programs retain their ordinary effect-payload fees. This
+admission change is explicit in LLP 3000.013 and the report.
+
+Full eb1000 suite: **== 0 failure(s) in 1470 s**, exit 0. Rust: 4,820 passed,
+33 existing ignores; doctests: 17; clients: 6,088 passed, 11 existing skips;
+serial models: 79; fixture wrappers: 9. All 207 receipt tests, every RY escape,
+the extended differential and both wasm corpora pass. All 1,703 qualification
+inputs stayed unchanged; wasm was byte-identical. Reference and whitespace
+checks pass. No failure requires an unmodified-main exception. Earlier full
+runs found compatibility regressions and a direct JSON call rejected by the
+codec census; those were corrected before this complete successful run.
+
+The [Round 4 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-4--2026-10-04)
+contains the interpreter audit table, exact boundary results, admission tradeoff,
+size comparison and qualification hashes. No new file over 256 KB, gzip, video
+or wasm artifact is committed; this existing journal receives the requested
+append. Work stayed on eb1000, without the Apartment mini, office M1 or M5.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-10-04 — RP round 5: restore real group-send headroom
+
+Round 4's effect-payload maximum prices broke ordinary sends in both complete
+Clique calibration apps: selected fields inherited whole-row bounds, literal
+slices retained input maxima, and point reads priced rule JSON as expression
+nodes. At the 50-member cap, all six short/realistic/1,999-character sends queued
+and received a server heap refusal. A tighter-price experiment still refused
+all six. Under the author's explicit round-5 option, restore the base's
+actual-value effect fees on both hosts: the server executes and charges the
+payload, and the device omits the proven exclusive slice. Delete the analyzer,
+price representation and runtime prepaid scopes. Keep shared source prices,
+runtime once-key charging and every other R0–4 reservation repair.
+
+Both unchanged real schemas now predict pending history rows on memory, SQLite
+and wasm and commit with **exactly the round-3 meters in all seven dimensions**.
+At 50 members, 0.4.11 uses 132,571 / 140,605 / 154,023 heap bytes for hello,
+realistic and near-maximum bodies; 0.4.12 uses 224,907 / 236,535 / 341,633 B.
+The native differential compiles the complete source modules and validates the
+server acquisition/backend fixtures used by wasm. Independent base meters are
+permanent regression ceilings. No runtime ceiling increased.
+
+The explicit cost is the pre-existing pathological-payload admission gap:
+600 SHA-256 notifications over an online-only 2,000-character name predict one note,
+then the server atomically refuses at 1,001,466 steps. This reproduces identically
+on unmodified main `a8c20c40e9`, RP round 3 and this revision. The old 600-payload
+case remains an explicit counterexample test on both stores and wasm, separate
+from the passing reservation differential, with an
+[open ticket](../issues/20261004-snapback4-omitted-effect-payload-resource-gap.md).
+The same shape at 40 iterations stays in the differential. It reports
+114 predicted-and-committed / 8 conservative / 198 server-refused cases per
+store; with the six real-app cases, 326 per store report 120 / 8 / 198.
+Expiring, read-through, rule-probe and live maintained reads retain their real
+read path; once keys still execute and charge on devices without claiming the
+server ledger. LLP 3000.013 §12.3, LLP 3000.022 §14.3, `guide effects`,
+`guide prediction` and `why` state the actual-value exception. Legacy ordinary
+aggregate writers without complete source prices still queue until adoption;
+that compatibility limit is accepted, custody remains intact, and unrelated
+provably-zero writers retain Kept-first offline prediction.
+
+Wasm: **2,097,970 B raw / 634,330 B gzip**, down **2,139 B** from R4. The rebuilt
+same-host pre-RP base is 2,048,676 / 617,327: total RP delta **+17,003 B / 2.75%**.
+Ratchet the budget down to **634,460 B**, Linux plus the file's recorded 130 B
+macOS allowance. The effect analyzer was already native-only in committed R4;
+this saving is the whole-artifact runtime/representation removal, not a cfg
+attribution. The final full run passed under the stricter 634,456 B cap, then
+budget metadata alone was reconciled by 4 B to preserve the complete allowance;
+the final budget check passes. No macOS build is claimed.
+
+Full eb1000 suite: **`== 0 failure(s) in 1480 s`**, exit 0. Rust: 4,825 passed,
+33 existing ignores; doctests: 17; clients: 6,095 passed, 11 existing skips;
+serial models: 79; fixture wrappers: 9. All 209 receipt/RY tests, the extended
+differential, authentic upgrades, Kept-first writers, both reservation corpora
+and real-app wasm cases pass. Affected checks and 112 guide tests also pass.
+All 1,916 qualification inputs stayed unchanged during the full run; no test or
+implementation changed afterward. No full-suite failure needs a main exception.
+Reference and whitespace checks pass. The
+[Round 5 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-5--2026-10-04)
+records exact source hashes, comparison logs, artifact hashes and the full-run
+input/log digests. New files remain below 256 KB; gzip, video and wasm stay out
+of git. Work stayed on eb1000, without the Apartment mini, office M1 or M5.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-10-04 — Lane RP round 6: authentic profile upgrades and receipt payload rollback
+
+Kept the existing conservative legacy price proof after checking its scope.
+No private-column owner markers anywhere permits the app-wide absence proof,
+then per-source zero checks preserve unrelated offline writers. Both real
+calibration apps have private post counters, so every unpriced table writer
+(including `saveProfile`, posts, likes and title edits) queues under offline
+Kept until the first online adoption of the bundled current backend. Supplying
+the bundle alone does not replace Kept. LLP 3000.022, receipts and offline guides
+now state this whole-app one-adoption loss of optimistic UI and preserved
+custody. No unknown private price is assumed zero; runtime policy is unchanged.
+
+Preserved the authentic a8c20c40e9 calibration backends/acquired stores from
+Astra's R5 evidence. The verified old wasm predicts and persists a profile save
+in each app; a reproducible generator checks those exact records. Memory,
+SQLite (exact-record transplant) and actual SDK/wasm Kept opening cover old
+pending custody, a new offline save, offline reopen, adoption, restored
+prediction and server-confirmed convergence. Existing actual old SQLite/server
+receipt fixtures and debt checks remain intact. Split backend text keeps each
+new fixture below 134 KB without changing its metadata value.
+
+Added the receipt-shaped actual-payload exception beside the ordinary-note
+case: 490 expensive payloads commit; 495 predict then refuse at 1,000,680 steps.
+RP widens prediction exposure for pathological payload sizes because pre-RP
+queued this receipt-derived writer; the server boundary remains unchanged.
+The ticket and LLP 3000.013 state that distinction. Native tests and the wasm
+fixture prove persisted custody until terminal refusal, safe replay, durable
+provisional-row rollback, exact unread zero and no authoritative message/effect.
+The passing reservation differential does not claim to cover this exception.
+
+Affected receipt/RY (211), effect (9), guide (112), calibration/profile (4),
+and selected client (63) tests pass. Full eb1000 suite:
+`== 0 failure(s) in 1516 s` (Rust 4,829 + 17 doctests; client pool 6,098;
+serial models 79; wrappers 9; existing 33 ignored/11 skipped unchanged).
+Ref-check and docs budget pass. The sync-card length check initially caught
+where the new prose was placed; moving it to the offline guide fixed that
+without weakening any test. Wasm remains 634,330 B gzip under 634,460 B, with
+the existing 130 B macOS allowance; no new runtime bytes or ceiling change.
+All 1,932 qualified implementation/test inputs remained unchanged. Report:
+`reports/20261003-rp-receipt-derived-prediction/REPORT.md`, Round 6, with hashes
+and logs. Work stayed on eb1000; no other machine, push or publication.
 ## 2026-10-03 — QF Round 8: process-table scope and signed Darwin UIDs
 
 Merged main through 0185dfd67e (a fast-forward) and re-applied a8c20c40e9 in
@@ -85098,3 +85496,47 @@ inputs remained unchanged; reference/metadata and whitespace audits pass.
 The [Round 2 report](./reports/20261003-qe2-quarry-ergonomics/REPORT.md#round-2--2026-10-04)
 retains failing baselines, exact meter tests, full-suite output and hashes.
 All work ran on eb1000; nothing pushed or published.
+
+## 2026-10-04 — RP round 7: integrate QF, LU and QE2
+
+Merge origin/main `6e4967479f` into lane RP without rebasing. Preserve QF's
+owned-process-group test runner, LU's durable Following rotation, QE2's total
+write results/one-hop rules/guard narrowing, and RP's shared reservations,
+receipt read fence, settled count snapshots and authentic upgrades. The ticket
+now distinguishes the 1,000,632 pre-RP steps from 1,000,680 RP steps at the same
+490-commit/495-refuse payload boundary. LLP 3000.022 names `publish`,
+`configureChat` and `renameChat` as the real calibration operations.
+
+The semantic merge exposed two allocation overlaps. Following enqueue now
+prepays its private durable-tail lookup on both hosts: one examined row, one
+index entry, eight steps and bounded reusable scratch. Hidden Work output is
+priced with a maximum-width signed position; only the server reads or writes
+the private queue. Receipt result completion now shares the existing full-row
+copy reservation instead of adding QE2's ordinary completion charge twice.
+Default/null result fields remain total, and structural maintenance typing
+recognizes them without replacing existing types or dropping taint. Three new
+integration tests cover these paths and shared rule-hop/private-maintain fees.
+QE2's calibration test now asserts RP's eligible/stays-settled contract while
+keeping its replay, preview and authority checks.
+
+Both real calibration apps' six 50-member cases predict and commit, retaining
+the original headroom assertions; heap is lower than R3. The 320-case seeded
+differential on each store reports 114 predicted commits, eight conservative
+queues and 198 server refusals, with no predicted reservation refusal. The
+separately documented pathological effect-payload exception remains explicit.
+All 211 receipt/RY tests pass. Focused clients pass 94 RP/QE2/LU checks and 69
+QF ownership/process checks. The full Rust phase passes 4,877 plus 17 doctests
+(33 existing ignored). Full suite: **`== 1 failure(s) in 1509 s`**. The client
+pool passes 6,176 tests (11 existing skips), serial models pass 79, and fixture
+wrappers pass nine. The sole failure is QF cleanup inspection of a captured
+Linux PGID `4294967295` after `familiar-forms` itself passed. Replaying the
+captured row with unmodified main's byte-identical parser reproduces it; the
+isolated file rerun passes. The [inherited QF ticket](../issues/20261004-snapback4-qf-exiting-linux-pgid-inspection.md)
+retains the distinction and reproduction. All 1,966 pinned source/test/build
+inputs stayed unchanged, and reference/metadata and RP whitespace checks pass.
+
+Locked Linux wasm measures 2,116,259 B raw / 639,757 B gzip, +5,427 B versus
+RP round 6's recorded artifact. Set the cap to 639,887 B, exactly Linux plus
+the recorded 130 B macOS allowance. No runtime ceiling increase, macOS build,
+test weakening, push or publication. Full integrated qualification is recorded in
+the [Round 7 report](./reports/20261003-rp-receipt-derived-prediction/REPORT.md#round-7--integration-2026-10-04).
