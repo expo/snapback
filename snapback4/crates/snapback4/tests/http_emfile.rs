@@ -117,7 +117,8 @@ fn descriptor_exhaustion_backlog_backs_off_and_recovers() {
             let address = loop {
                 let mut line = String::new();
                 assert!(stdout.read_line(&mut line).unwrap() > 0, "child exited before publishing listener");
-                if let Some(address) = line.trim().strip_prefix("FDL_ADDRESS=") { break address.parse().unwrap(); }
+                // Libtest can prepend its unterminated banner to this record.
+                if let Some((_, address)) = line.trim().rsplit_once("FDL_ADDRESS=") { break address.parse().unwrap(); }
             };
             // A nonempty backlog exists before exhaustion begins; continuously
             // refill it, including while the child has no free descriptor.

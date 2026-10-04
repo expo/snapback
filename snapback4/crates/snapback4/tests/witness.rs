@@ -197,8 +197,10 @@ fn many_large_scene_reports_keep_constant_peak_memory() {
             .args(["--exact", "many_large_scene_reports_keep_constant_peak_memory", "--nocapture"])
             .env("SB4_SCENE_MEMORY_DIR", &dir).output().unwrap();
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        String::from_utf8(output.stdout).unwrap().lines().find_map(|line|
-            line.strip_prefix("scene-peak-bytes=").map(|n| n.parse::<u64>().unwrap())).unwrap()
+        // Libtest's unterminated test banner can share the marker's line.
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let peak = stdout.rsplit_once("scene-peak-bytes=").unwrap().1;
+        peak.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse::<u64>().unwrap()
     };
     std::fs::write(dir.join("0.ips"), &report).unwrap();
     let one = measure();

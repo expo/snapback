@@ -117,7 +117,8 @@ fn child(dir: &Path, tier: &str, target: u64) -> u64 {
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines() {
             let line = line.unwrap();
-            if line.starts_with("NA_") { send.send(line).unwrap(); }
+            // Libtest can prepend its unterminated banner to the first record.
+            if let Some(marker) = line.rfind("NA_") { send.send(line[marker..].to_owned()).unwrap(); }
         }
     });
     let line = match receive.recv_timeout(Duration::from_secs(60)) {

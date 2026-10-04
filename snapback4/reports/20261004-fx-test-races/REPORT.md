@@ -212,3 +212,22 @@ measurements supplement those samples. Mini scratch was about 1.5 GiB.
 These observed allocations stayed well below 40 GB. The local target, suite
 scratch, stress evidence directory and the mini scratch were deleted after retaining and verifying their evidence.
 No push or publication.
+
+Grok follow-up on `12b101b76b`: the witness memory parser now finds
+`scene-peak-bytes=` after libtest's unterminated banner. The Rust audit found
+and fixed the same assumption for `FDL_ADDRESS=` in `http_emfile.rs` and
+`NA_` records in `acquisition_crash.rs`. All existing assertions, including
+`many < one + 16 MiB`, remain unchanged. On eb1000, the full witness binary
+passed **30/30** (31 tests each) and `http_emfile` **30/30** (nine each),
+pinned to CPU 0 with a live busy loop. The full acquisition-crash binary
+also passed on CPU 0 with the hog, retaining all 48 process kills. Direct
+child probes reproduce the banner-sharing records that the old parsers miss.
+FY's exact 500 ms whole-refresh observation delay passes both worker cases
+on this tree; removing only the existing stream barrier fails both. Telemetry
+confirms the stderr marker and complete split record precede the delayed
+whole record. No worker edit was needed. The round-1 full suite stands, as
+requested. The [follow-up manifest](./round1-followup.json) and
+[raw evidence](./round1-followup.tar.gz) retain commands, source hashes,
+audit exclusions and controls, including an initial witness series repeated
+after correcting when the driver sampled hog affinity. The 436 MB target
+and owned scratch were removed after verification; nothing was pushed.

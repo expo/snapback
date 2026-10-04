@@ -86378,3 +86378,14 @@ tickets remain closed; the retained-history ticket remains open. The
 lists every audit fix, intermediate result, probe, disk-sampling limitation
 and cleanup. Build/scratch allocations stayed below 40 GB and were removed
 after evidence collection. Local commit only; nothing pushed or published.
+
+## 2026-10-04 — FX round 1: Grok marker follow-up
+
+Fixed libtest banner sharing in the witness memory marker and the audit's
+HTTP descriptor and acquisition-crash markers; all existing assertions stay
+unchanged. Witness and HTTP descriptor binaries each pass 30/30 under a
+CPU-0 busy loop; the full 48-kill acquisition model passes there too. FY's
+500 ms refresh control passes both cases with the existing barrier and
+fails both without it. The [Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+records the follow-up; its full-suite evidence stands. Build and scratch
+files were removed. One local follow-up commit on `12b101b76b`; no push.
