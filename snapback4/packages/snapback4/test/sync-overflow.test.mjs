@@ -67,7 +67,7 @@ async function fixture(t, empty = false) {
     let log = "", listening = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; listening = true; }
     });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
@@ -295,7 +295,7 @@ async function historyFixture(t, tier) {
   const child = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = once(child, 'exit');
   let log = '', url, client, core, offline = false, intercept;
-  child.stdout.on('data', b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on('data', b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on('data', b => { log += b; });
   t.after(async () => {
     await client?.close();

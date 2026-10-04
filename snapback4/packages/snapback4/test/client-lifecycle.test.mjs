@@ -682,7 +682,7 @@ async function fixture(t, additions = "", releases = []) {
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const clients = new Set(), children = new Set();
   t.after(async () => {

@@ -46,3 +46,8 @@ the adjacent external-adoption fixture's SIGSTOP/SQLite writer-lock race.
 Validation and the excluded 13:51Z infrastructure interruption are recorded in
 the [FX report](../../snapback4/reports/20261004-fx-test-races/REPORT.md).
 No runtime behavior or timeout ceiling changed.
+
+Round 1 retained this recovery/refusal fix after merging main and repeated the
+merged-tree audit. It completed the measured-cut and Rust cascade line
+boundaries, independent worker-stream observations and analogous fixture
+handoffs. See the report's Round 1 section for the fresh contention evidence.

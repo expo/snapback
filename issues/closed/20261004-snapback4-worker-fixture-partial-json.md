@@ -53,3 +53,9 @@ asynchronous log observations. Repetition counts, deterministic delayed-write
 probes, full-suite results and the excluded 13:51Z infrastructure interruption
 are recorded in the [FX report](../../snapback4/reports/20261004-fx-test-races/REPORT.md).
 No product code changed.
+
+Round 1 merged DG from main and applied the same sibling-temp/rename boundary
+to its 12 symlink-dependency cases. The merged-tree audit also completed
+cross-stream and partial-line observation barriers. Original package, cwd,
+module-path and environment assertions remain intact; the report's Round 1
+section records the new repetitions and full-suite evidence.

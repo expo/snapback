@@ -43,7 +43,7 @@ async function fixture(t, tier) {
   mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), source);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(server, "exit"); let log = "", url;
-  for (const stream of [server.stdout, server.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], cores = [], posts = [], replies = [], shared = new Map();
   let offline = false, held, ordered = false;
   const firstAdmission = deferred();

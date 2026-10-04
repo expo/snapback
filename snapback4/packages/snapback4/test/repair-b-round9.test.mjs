@@ -76,7 +76,7 @@ test("round 9-12 client head observations and startup installation", { timeout: 
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
+    server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
   });
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "alice" } })).json();
   assert.equal(backend.generation, 1);

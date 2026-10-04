@@ -38,7 +38,7 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
     const exited = once(child, "exit");
     let log = "", url, client, core;
     const watches=[];
-    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
     t.after(async () => { for(const watch of watches)watch.close(); await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill(); await exited; rmSync(dir,{recursive:true,force:true}); });
     await until(() => { assert.equal(child.exitCode,null,log); return url; });
     const headers = {"x-snapback-persona":"alice", "content-type":"application/json"};

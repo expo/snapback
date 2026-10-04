@@ -138,7 +138,7 @@ async function harness(t) {
     const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']}),exited=once(child,'exit');children.push({child,exited});
     let log='',stopped=false;for(const stream of [child.stdout,child.stderr])stream.on('data',d=>{log+=d;});
     const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};
-    const url = await awaitState(() => { assertAlive(); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "capability server", { diagnostics: () => log });
+    const url = await awaitState(() => { assertAlive(); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "capability server", { diagnostics: () => log });
     return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
   }
   const request=async(server,path,body,auth={'x-snapback-persona':'alice'})=>{

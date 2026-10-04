@@ -132,3 +132,29 @@ and the full timelines remain available. Run the existing
 with `process` to produce this diagnostic copy outside the suite inventory.
 The SDK query runtime, R5 assertions, timeouts and full-suite counts remain
 unchanged. This ticket stays **Open**.
+
+### Lane FX round 1 recurrence — 2026-10-04
+
+After merging main at `cee23d5619`, FX's ninth complete retained-history
+repetition failed the same `!deliveries.includes(0)` assertion in `R5 history
+wasm` (232.371 ms), on CPUs 64–67 with one busy worker. The native file result
+was 67 passes and one failure, exit 1. FX only changes this file's startup URL
+parser to require the complete port and line terminator; the R5 assertions,
+client and runtime are unchanged.
+
+A 30-run control using the byte-identical merged-baseline test, filtered to
+both R5 cases on CPUs 92–95 with one busy worker, also failed once: iteration
+12, `R5 history process`, the same assertion after 230.831 ms. The other 29
+control invocations passed. This corroborates the inherited product race;
+it is not an infrastructure result or evidence against the observation fixes.
+The assertions remain intact and this issue stays open. Raw logs and native
+statuses are retained with the [FX Round 1 report](../snapback4/reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+(`linux-retained-history-09.log.gz`, `retained-baseline-12.log.gz` in its evidence
+archive). The complete 30-run file series finished with 23 passes and seven failures
+(iterations 9, 14, 15, 21, 24, 25 and 30), all at the same R5 wasm assertion.
+`retained-failures.json` and the per-run CSV enumerate each recurrence. Later
+passing repetitions do not erase these failures.
+
+FX's subsequent full suite passed (exit 0, zero failed stages in 2,072 s),
+including this file. That passing snapshot does not repair the reproduced
+interleaving or close this ticket.

@@ -75,7 +75,7 @@ async function fixture(t) {
     let log = "", listening = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; listening = true; }
     });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");

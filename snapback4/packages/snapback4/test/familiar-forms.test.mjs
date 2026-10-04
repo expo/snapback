@@ -108,7 +108,7 @@ test('familiar forms preserve nested bindings, disclosure, helper semantics on w
     await exited;
     rmSync(directory, {recursive: true, force: true});
   });
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const deadline = performance.now() + hangBudget();
   while (!url) {
     assert.equal(server.exitCode, null, log);

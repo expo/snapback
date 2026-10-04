@@ -25,7 +25,7 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
   const server = spawn(binary, ['dev', '--port', '0', '--fresh', '--no-watch'], {cwd:directory, stdio:['ignore', 'pipe', 'pipe']});
   const exited = once(server, 'exit');
   let log = '', url, client, core, observation, offline = false, holdSync;
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   try {
     await until(() => { assert.equal(server.exitCode, null, log); return url; }, 'server startup');
     const request = async (path, args, persona = 'bob') => {

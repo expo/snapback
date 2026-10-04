@@ -106,7 +106,7 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   let output = "";
   host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   for (const stream of [host.stdout, host.stderr]) stream.on("data", bytes => { output += bytes; });
-  const url = await until(() => { assert.equal(host.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
+  const url = await until(() => { assert.equal(host.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
   const originalFetch = globalThis.fetch;
   let loseSaveReply = false, replyLost = false;
   globalThis.fetch = async (...args) => {

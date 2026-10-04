@@ -77,7 +77,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
     const exit = once(child, "exit");
     let log = "", url, client, live, stop;
     const localGate = gate(), serverGate = gate();
-    child.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+    child.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
     child.stderr.on("data", data => { log += data; });
     t.after(async () => {
       localGate.release(); serverGate.release(); stop?.(); live?.close(); await client?.close();

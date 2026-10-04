@@ -73,7 +73,7 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:(\d+)/)?.[0]; });
+  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const stop = new AbortController();
   try {
@@ -195,7 +195,7 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", stdout = "", stderr = "", url;
-  child.stdout.on("data", data => { log += data; stdout += data; url ??= stdout.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on("data", data => { log += data; stdout += data; url ??= stdout.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", data => { log += data; stderr += data; });
   const safeLog = () => log.replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>");
   const clients = [], workers = [];
@@ -325,7 +325,9 @@ const reply = await response.json();
 console.log('injected-auth:' + (reply.session?.principal === 'directory-user'));
 setInterval(() => {}, 1000);
 ` } });
-  await until(() => f.log().includes("injected-auth:true"));
+  // The two worker streams have independent readers; stdout cannot acknowledge stderr.
+  await until(() => f.log().includes("injected-auth:true") && ["stdout-token:", "stderr-token:"].every(prefix =>
+    f.stderr().split("\n").slice(0, -1).some(line => line.includes(prefix))));
   assert.equal(/^http:\/\/127\.0\.0\.1:\d+$/.test(f.stdout().trim()), true, "stdout contains only readiness, never a credential");
   assert.match(f.stderr(), /\[worker:worker\] stdout-token:\[REDACTED\]/);
   assert.match(f.stderr(), /\[worker:worker\] stderr-token:\[REDACTED\]/);
@@ -734,7 +736,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   assert.equal(minted.status, 0, minted.stderr);
   const child = spawn(binary, ["serve", release, "--port", "0", "--worker", entry], { cwd: directory, env: { ...process.env, A1_PARENT_ONLY: "must-not-reach-worker" }, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit"); let log = "", url;
-  for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   t.after(async () => { if (child.exitCode == null && child.signalCode == null) { child.kill("SIGTERM"); await Promise.race([exited, sleep(4000)]); } if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; } rmSync(directory, { recursive: true, force: true }); });
   await until(() => { if (child.exitCode != null) throw Error(log); return url; });
   const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };

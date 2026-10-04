@@ -740,7 +740,7 @@ fn nativeRead(_ctx: &Ctx, _args: &Json) -> Result<Json> { Ok(json!([])) }
   let log = '', api, spawnError;
   server.on('error', error => { spawnError = error; });
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => {
-    log += bytes; api ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+    log += bytes; api ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
   });
   await awaitState(() => {
     if (spawnError) throw spawnError;

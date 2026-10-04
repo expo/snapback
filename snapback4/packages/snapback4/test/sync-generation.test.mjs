@@ -75,7 +75,7 @@ async function fixture(t, tier = "process", serverBinary = binary) {
     let log = "", ready = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; ready = true; }
     });
     const deadline = performance.now() + hangBudget();

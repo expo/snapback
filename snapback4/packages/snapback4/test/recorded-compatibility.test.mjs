@@ -51,7 +51,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   let log = '';
   for (const stream of [child.stdout,child.stderr]) stream.on('data', data => {log += data;});
   let url;
-  url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "compatibility server", { diagnostics: () => log });
+  url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "compatibility server", { diagnostics: () => log });
   assert.ok(url, log);
   const seeded = await fetch(url+'/seed', {method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify([{table:'posts',row:{id:'p',authorId:'dev:alice'}},{table:'likes',row:{id:'l',postId:'p'}}])});
   assert.equal(seeded.status,200,await seeded.text());
@@ -101,7 +101,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
     const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']});
     const exited=once(child,'exit'); children.push({child,exited});
     let log=''; for (const stream of [child.stdout,child.stderr]) stream.on('data',data=>{log+=data;});
-    const url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "compatibility server", { diagnostics: () => log });
+    const url = await awaitState(() => { assert.equal(child.exitCode,null,log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "compatibility server", { diagnostics: () => log });
     return {child,exited,url};
   };
   const plainDev=await start(binary,['dev','--no-watch','--port','0'],plain);

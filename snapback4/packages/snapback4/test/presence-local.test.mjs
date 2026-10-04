@@ -48,8 +48,8 @@ async function bob(t, tier, plan, hold = async () => {}) {
   let log = "", client;
   host.stdout.on("data", b => { log += b; }); host.stderr.on("data", b => { log += b; });
   t.after(async () => { await client?.close(); host.kill("SIGTERM"); await exit; rmSync(directory, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen");
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(log); }, "server did not listen");
+  const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   const reads = [];
   let outage = false, entered = 0;
   const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });

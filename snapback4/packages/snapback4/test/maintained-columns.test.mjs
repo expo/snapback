@@ -35,7 +35,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   const url=await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(Error(log)),hangBudget());
     server.once("exit",()=>{clearTimeout(timer);reject(Error(log))});
-    server.stdout.on("data",chunk=>{log+=chunk;const address=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
+    server.stdout.on("data",chunk=>{log+=chunk;const address=log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
   });
   const post=async(path,body)=>{const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice","content-type":"application/json"},body:JSON.stringify(body)});const answer=await response.json();assert.equal(response.status,200,JSON.stringify(answer));publicJson(answer);return answer};
   const mutation=async(name,id,args)=>{const result=await post(`/m/${name}`,{id,args});assert.equal(result.state,"sent",JSON.stringify(result));return result};

@@ -53,7 +53,7 @@ async function fixture(t, tier) {
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), schema);
   let server = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   let exited = once(server, 'exit'); let log = '', url;
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], cores = [], gates = [], posts = [];
   let offline = false, gateWrites = true, blockSync = false;
   const persistence = memoryPersistence();
@@ -81,7 +81,7 @@ async function fixture(t, tier) {
     server.kill(); await exited;
     server = spawn(binary, ['dev', '--fresh', '--port', new URL(url).port, '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
     exited = once(server, 'exit'); let ready = false, output = '';
-    for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { output += chunk; ready ||= /http:\/\/127\.0\.0\.1:\d+/.test(output); });
+    for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { output += chunk; ready ||= /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(output); });
     await waitFor(() => { if (server.exitCode != null) throw Error(output); return ready; }, 'replacement server');
   }, offline(v) { offline = v; }, blockSync(v) { blockSync = v; }, pass() { gateWrites = false; },
     async release(index) { const gate = gates[index]; gate.resolve(await fetch(gate.input, gate.init)); } };

@@ -1,0 +1,181 @@
+{
+  "base": "cee23d5619",
+  "scope": [
+    "Rust integration and embedded unit tests",
+    "JavaScript tests and helpers",
+    "fixture and witness scripts",
+    "all merged DG cases"
+  ],
+  "patterns": [
+    "existence before content/JSON/PID reads",
+    "state or stream A used to acknowledge asynchronous log/stream B",
+    "prefix or partial numeric/line parsing"
+  ],
+  "fixed": [
+    {
+      "path": "packages/snapback4/test/worker-regressions.test.mjs",
+      "cases": "12 DG symlink-dependency variants",
+      "barrier": "write sibling data/package-result.tmp and rename to data/package-result",
+      "variants": {
+        "mode_kind": [
+          "dev named",
+          "serve named",
+          "dev conventional"
+        ],
+        "dependency_scope": [
+          "project root",
+          "snapback",
+          "snapback/workers",
+          "snapback/workers/helpers"
+        ]
+      }
+    },
+    {
+      "path": "packages/snapback4/test/worker-regressions.test.mjs",
+      "cases": "two removed-worker deletion fixtures and failed-revocation fixture",
+      "barrier": "acquire the fixture writer lock with bounded SQLITE_BUSY-only retry; worker marker/HTTP completion does not acknowledge another SQLite writer"
+    },
+    {
+      "path": "packages/snapback4/test/worker.test.mjs",
+      "cases": "dev token redaction",
+      "barrier": "bounded wait for complete stdout-token and stderr-token records before original assertions"
+    },
+    {
+      "path": "packages/snapback4/test/client-seams.test.mjs",
+      "cases": "measured cut and repeated-cut suppression",
+      "barrier": "newline-terminated diagnostic records"
+    },
+    {
+      "path": "packages/snapback4/test/upload-retry.test.mjs",
+      "cases": "worker-capacity admission fixture",
+      "barrier": "accumulate TCP data through CRLF within existing bounded wait before unchanged HTTP 100-continue assertion"
+    },
+    {
+      "path": "crates/snapback4/tests/lifecycle.rs",
+      "cases": "cascade footer",
+      "barrier": "await final line including its newline"
+    },
+    {
+      "path": "crates/snapback4/tests/lifecycle.rs",
+      "cases": "worker shutdown and killed-supervisor PID fixtures",
+      "barrier": "atomically rename worker-pid only after complete PID write"
+    },
+    {
+      "path": "packages/snapback4/test/server-e2e.test.mjs",
+      "cases": "initial watch worker, pre-provider cut, crashed workers, explicit serve restart",
+      "barrier": "bounded independent PID diagnostic observation before existing membership/count assertions"
+    },
+    {
+      "path": "packages/snapback4/test/routes.test.mjs",
+      "cases": "last registered route",
+      "barrier": "bounded initial worker PID diagnostic observation before original count assertion"
+    },
+    {
+      "path": "packages/snapback4/test/supervised-workers.test.mjs",
+      "cases": "dev and serve readiness assertions",
+      "barrier": "observe complete stdout line independently of stderr"
+    },
+    {
+      "path": "packages/snapback4/test/native-opening.test.mjs",
+      "cases": "exclusive ownership lock fixture",
+      "barrier": "readline complete locked record under existing hang budget"
+    },
+    {
+      "path": "packages/snapback4/test/test-file-runner.test.mjs",
+      "cases": "runner-death keeper group",
+      "barrier": "readline complete group PID under a 5-second bound"
+    },
+    {
+      "path": "packages/snapback4/test/helpers/live-margin-load.mjs",
+      "cases": "load-worker PID list",
+      "barrier": "readline complete comma-separated PID list under a 30-second bound"
+    },
+    {
+      "paths": [
+        "packages/snapback4/test/row-keyed-view.test.mjs",
+        "packages/snapback4/test/repair-b-round9.test.mjs",
+        "packages/snapback4/test/maintained-columns.test.mjs",
+        "packages/snapback4/test/intent-views.test.mjs",
+        "packages/snapback4/test/expiry-retry-watch.test.mjs",
+        "packages/snapback4/test/http-bounds.test.mjs",
+        "packages/snapback4/test/familiar-forms.test.mjs",
+        "packages/snapback4/test/sync-generation.test.mjs",
+        "packages/snapback4/test/keepalive-headers.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/horizon-boundary.test.mjs",
+        "packages/snapback4/test/repair-b-overflow.test.mjs",
+        "packages/snapback4/test/social-starter.test.mjs",
+        "packages/snapback4/test/transport-http.test.mjs",
+        "packages/snapback4/test/write-authority.test.mjs",
+        "packages/snapback4/test/read-admission-insert.test.mjs",
+        "packages/snapback4/test/following-unfollow.test.mjs",
+        "packages/snapback4/test/upload-retry.test.mjs",
+        "packages/snapback4/test/answer-row-authority.test.mjs",
+        "packages/snapback4/test/asset-lists.test.mjs",
+        "packages/snapback4/test/page-ready.test.mjs",
+        "packages/snapback4/test/readauth.test.mjs",
+        "packages/snapback4/test/bounded-following.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/sync-overflow.test.mjs",
+        "packages/snapback4/test/store-reset.test.mjs",
+        "packages/snapback4/test/composed-authority.test.mjs",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/maintains.test.mjs",
+        "packages/snapback4/test/admit-before-identity.test.mjs",
+        "packages/snapback4/test/witness-acquire.test.mjs",
+        "packages/snapback4/test/pending-items.test.mjs",
+        "packages/snapback4/test/presence-local.test.mjs",
+        "packages/snapback4/test/pending-writes.test.mjs",
+        "packages/snapback4/test/server-e2e.test.mjs",
+        "packages/snapback4/test/page-observation.test.mjs",
+        "packages/snapback4/test/presence-live.test.mjs",
+        "packages/snapback4/test/read-existence-integration.test.mjs",
+        "packages/snapback4/test/row-view-prediction.test.mjs",
+        "packages/snapback4/test/maintained-column-adoption.test.mjs",
+        "packages/snapback4/test/presence-composed.test.mjs",
+        "packages/snapback4/test/page-authority.test.mjs",
+        "packages/snapback4/test/answer-withdrawal.test.mjs",
+        "packages/snapback4/test/seen-devices.test.mjs",
+        "packages/snapback4/test/repair-b.test.mjs",
+        "packages/snapback4/test/store-reset-reconnect.test.mjs",
+        "packages/snapback4/test/acquisition.test.mjs",
+        "packages/snapback4/test/write-ids.test.mjs",
+        "packages/snapback4/test/keep-device.test.mjs",
+        "packages/snapback4/test/schema-capabilities.test.mjs",
+        "packages/snapback4/test/periphery.test.mjs",
+        "packages/snapback4/test/recorded-compatibility.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/worker.test.mjs",
+        "packages/snapback4/test/column-stream-recovery.test.mjs",
+        "packages/snapback4/test/residency.test.mjs",
+        "packages/snapback4/test/first-account.test.mjs",
+        "packages/snapback4/test/client-lifecycle.test.mjs",
+        "packages/snapback4/test/helpers/avatar-fixture.mjs",
+        "packages/snapback4/test/helpers/read-through-server.mjs",
+        "packages/snapback4/test/helpers/app-server.mjs",
+        "packages/snapback4/test/helpers/timeline-recovery.mjs",
+        "packages/snapback4/test/fixtures/routes.mjs"
+      ],
+      "cases": "81 readiness regex uses in 63 files (exact sites in round1-readiness.csv)",
+      "barrier": "require CRLF/LF terminator after the port while retaining URL return values and existing wait bounds"
+    }
+  ],
+  "already_safe": [
+    "DG recipe writes paths.json synchronously before its second acknowledged recordPush; parent waits for two complete JSONL rows.",
+    "DG temporary-cwd/environment cases use round-0 atomic environment-result; assertions unchanged.",
+    "Worker rows()/server jsonFile()/lines() retry JSON parsing in bounded waits; incomplete JSON is not treated as completion.",
+    "refresh-result is written before refresh-logged acknowledgement; both independent redacted refresh records already have round-0 waits.",
+    "Residency notes and worker restart messages precede their awaited successor diagnostics on the same writer.",
+    "Marker-only launch-ready, terms, worker-ready, bootstatus-waiting and runner-death pid files do not consume their contents.",
+    "Stopped worker result, publication command logs and fixture outputs read after child completion or explicit post-write acknowledgement.",
+    "Witness ready.json, descendant.pid and worker ready tokens are already atomically published; launcher.pid precedes descendant publication.",
+    "Static schema/wasm/document fixtures have no concurrent writer; fixture wrapper reads follow synchronous generation.",
+    "Remaining first-data markers in worker/process/export fixtures acknowledge earlier setup or synchronous writes; their bytes are not parsed or asserted."
+  ],
+  "search_evidence": [
+    "final-file-observation-search.txt",
+    "final-log-observation-search.txt",
+    "final-stream-assertion-search.txt",
+    "final-readiness-search.txt"
+  ]
+}

@@ -34,7 +34,7 @@ test('wasm reconstructed view preserves predicted identities, pending and member
     server.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
     server.stdout.on('data', b => {
       log += b;
-      const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (url) { clearTimeout(timer); resolve(url); }
     });
   });

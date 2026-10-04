@@ -52,7 +52,7 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   const exited = once(child,"exit");
   let url, log="";
   const clients=[];
-  for(const stream of [child.stdout,child.stderr]) stream.on("data",bytes=>{log+=bytes;url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]});
+  for(const stream of [child.stdout,child.stderr]) stream.on("data",bytes=>{log+=bytes;url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]});
   t.after(async()=>{for(const d of clients)await d.client.close();if(child.exitCode==null&&child.signalCode==null)child.kill();await exited;rmSync(dir,{recursive:true,force:true})});
   const deadline=performance.now() + hangBudget();
   while(!url){assert.equal(child.exitCode,null,log);assert.ok(performance.now()<deadline,log);await delay(20)}

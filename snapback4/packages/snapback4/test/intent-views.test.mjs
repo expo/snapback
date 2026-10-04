@@ -40,7 +40,7 @@ test("a planned union subscription reruns for either source table", { timeout: h
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(server, "exit");
   let log = "", url, client, watch;
-  for (const stream of [server.stdout, server.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   t.after(async () => { watch?.close(); await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const until = async predicate => {
     return awaitState(() => { assert.equal(server.exitCode, null, log); return predicate(); }, 'subscription update', { diagnostics: () => `${JSON.stringify(watch?.getSnapshot())}; ${log}` });

@@ -68,7 +68,7 @@ async function fixture(t, schema = source, shape = assets => assets.map(a => ({ 
     let log = ""; url = undefined;
     server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
     exited = once(server, "exit");
-    for (const stream of [server.stdout, server.stderr]) stream.on("data", b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+    for (const stream of [server.stdout, server.stderr]) stream.on("data", b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
     const deadline = performance.now() + hangBudget();
     while (!url) { if (server.exitCode != null || performance.now() > deadline) throw Error(log); await new Promise(r => setTimeout(r, 20)); }
     return url;

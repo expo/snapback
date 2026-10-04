@@ -36,7 +36,7 @@ export async function recoverTimeline() {
   const server=spawn(binary,['dev','--port','0','--fresh','--no-watch'],{cwd:directory,stdio:['ignore','pipe','pipe']});
   const exited=once(server,'exit');
   let log='',url;
-  for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];});
+  for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});
   const devices=[];
   try {
     await until(()=>{assert.equal(server.exitCode,null,log);return url;},'server startup');

@@ -192,7 +192,7 @@ mutation fill(start: int):
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(Error(log)), hangBudget());
     server.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
-    server.stdout.on('data', b => { log += b; const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (url) { clearTimeout(timer); resolve(url); } });
+    server.stdout.on('data', b => { log += b; const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (url) { clearTimeout(timer); resolve(url); } });
   });
   const response = await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'bob' } });
   assert.equal(response.status, 200);

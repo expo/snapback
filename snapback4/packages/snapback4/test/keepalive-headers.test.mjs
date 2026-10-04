@@ -28,7 +28,7 @@ async function host(t, serve) {
   const exited = once(child, "exit"); let log = "";
   child.stdout.on("data", bytes => { log += bytes; }); child.stderr.on("data", bytes => { log += bytes; });
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
-  const url = await until(() => { assert.equal(child.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  const url = await until(() => { assert.equal(child.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   return { url, dir };
 }
 

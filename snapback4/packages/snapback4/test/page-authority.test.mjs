@@ -28,8 +28,8 @@ async function fixture(t, online = false) {
   const requests = [];
   host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
   t.after(async () => { release?.(); await client?.close(); host.kill('SIGTERM'); await exited; rmSync(dir, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/); }, 'server');
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); }, 'server');
+  const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   let serial = 0;
   const post = async (path, args = {}) => (await fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-snapback-persona': 'bob' }, body: JSON.stringify({ args, id: `authority-${++serial}` }) })).json();
   assert.equal((await post('/m/setup')).state, 'sent');

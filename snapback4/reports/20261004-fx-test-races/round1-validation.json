@@ -1,0 +1,1688 @@
+{
+  "merge_base": "cee23d5619",
+  "merged_main": "cb7833c8813b616bbec5a411069b19f33de10a6d",
+  "environment": {
+    "node": "24.13.1",
+    "rust": "1.97.0",
+    "bun_eb1000": "1.3.14",
+    "bun_mini": "1.4.2",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "source_sha256": {
+    "snapback4/crates/snapback4/tests/lifecycle.rs": "b49b41b4e682e274523ddfd80d2944326a5ae8135f5071339241054cfd5dc079",
+    "snapback4/packages/snapback4/test/acquisition.test.mjs": "5629c097a42440ecfc09ba37c54f2d9919ff1623766011564e5180410ec813cf",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "40b84b81c22d67d350af2b09b1133be94b0aa28df6c81e5f7276079c8bde7bf8",
+    "snapback4/packages/snapback4/test/answer-row-authority.test.mjs": "c295f30a5c6ed99be946e3fe07d893e65aea36c3c3c01494602bc7109d916949",
+    "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs": "13a5b7817ca33f06525a322784baaeb703af9dcda32be78ea0c6e37856d9c258",
+    "snapback4/packages/snapback4/test/asset-lists.test.mjs": "51b58e25e2cd4e97e3fefca9561c76e05906ef71e571b77be74c8a406e197381",
+    "snapback4/packages/snapback4/test/bounded-following.test.mjs": "3ed7fab14ec51c745acb2e563010431c6d8b96335ce17047596c23ca26c616e2",
+    "snapback4/packages/snapback4/test/client-lifecycle.test.mjs": "c004fc6b71acc8314708b634c0382c139dd01ea519b9994c68538611c2ac1e78",
+    "snapback4/packages/snapback4/test/client-seams.test.mjs": "4fd8f42390fcb165277b2910c12e38e08e0755c95e0d9ba9262d16dcc652df07",
+    "snapback4/packages/snapback4/test/column-stream-recovery.test.mjs": "d5db3dc50003cbd738f9c6a3cba0ae663888f1d62e6ea2f030abec8e71d01ddc",
+    "snapback4/packages/snapback4/test/composed-authority.test.mjs": "192f92876b20466806c5db6267ec6b100ae11747f430f8a28b6ff1ba35efabac",
+    "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs": "1ed7a83aeaf932506e362f25a7816237d13749b3185599e9c084e9f520c576db",
+    "snapback4/packages/snapback4/test/familiar-forms.test.mjs": "ef59b0dde36f0f596a9d4453fd2211da65fb1ebb532453acbc683f938c57b21d",
+    "snapback4/packages/snapback4/test/first-account.test.mjs": "e3c8f957f3d056c5c77378e8c30cb9dddfed50517bbc1be1dbac2ac1e379691d",
+    "snapback4/packages/snapback4/test/fixtures/routes.mjs": "16e543e00e1227dba077cf4c907d93683d3c1301e2bfe4cd6d1a18b86d7aa7a4",
+    "snapback4/packages/snapback4/test/following-unfollow.test.mjs": "be52685e3fdb8c3fb90c7f2deecf086a106b1a3ae023c801aedbea066b4d8c0c",
+    "snapback4/packages/snapback4/test/helpers/app-server.mjs": "312d4f83a7955b9a12a18601f6fbfe52b9459a28c7569ec79f30baf1e192b131",
+    "snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs": "426f23044cef0d37ff8e1f60041a97c3ea65bce9a99476d7a6432d1b8c50591b",
+    "snapback4/packages/snapback4/test/helpers/live-margin-load.mjs": "a96d54ced03b238b5d4355881dccab8e3473350c9aab7da3953edbf215633135",
+    "snapback4/packages/snapback4/test/helpers/read-through-server.mjs": "865c8e978fff649b43983cad11d064f18281e93ea1fe61b6fdac89f31faf53a9",
+    "snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs": "afc48814ce8ca50a4579d8cc11437d153e27a784eac5ee49982083ecec760d76",
+    "snapback4/packages/snapback4/test/horizon-boundary.test.mjs": "043a8532683bce4891e58d41dc27cd12b97c6669be125a8b1ba93ce4b5e0ea6b",
+    "snapback4/packages/snapback4/test/http-bounds.test.mjs": "022174dc4fb914dc28a951c2420bdd66a0899f11b78f23836fb7035d35e94560",
+    "snapback4/packages/snapback4/test/intent-views.test.mjs": "fec7474c2b0e6eb3c684c6ba4f8fcc648564b29aa54abe1fe858b6b037adb94f",
+    "snapback4/packages/snapback4/test/keep-device.test.mjs": "da4d2dac82052c349b0da6bf2130f70e2e4d15978e0aec1688159bb18f561b25",
+    "snapback4/packages/snapback4/test/keepalive-headers.test.mjs": "4e256c008bef925fb948952e912c6045edabf3387ff0eab8a30a84b29ff1daf5",
+    "snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs": "3c8f5ee453d2c44d5b49247a0d834428aa092423a4b4dfe29465af6874c67821",
+    "snapback4/packages/snapback4/test/maintained-columns.test.mjs": "9b6a427f5dee800e3407e62f3b43208e5c04abf11a68aec724a49da68c78ede3",
+    "snapback4/packages/snapback4/test/maintains.test.mjs": "21b49d868f29ed199cfa00fe14fd141680d06f577333aacf40518aed8d532077",
+    "snapback4/packages/snapback4/test/native-opening.test.mjs": "336443c710ea05c4866454ac084563379c56c5bf727dd86d8ea1347273baad8a",
+    "snapback4/packages/snapback4/test/page-authority.test.mjs": "d650089b84718f53960794099d95708c436e99431acfb32b9fefbe2e937f0720",
+    "snapback4/packages/snapback4/test/page-observation.test.mjs": "6bb473948d43fc3732654fe90ab992596011a8a0139d04d88d9b98c6674683d8",
+    "snapback4/packages/snapback4/test/page-ready.test.mjs": "243286febeaa6547221fc0e010302fc907b4939a05ae0b6a71c37cc502f0c158",
+    "snapback4/packages/snapback4/test/pending-items.test.mjs": "04286666d58e43bc9fda5040f1f3f0f59104b3d3fe4394d77594ead77c68f707",
+    "snapback4/packages/snapback4/test/pending-writes.test.mjs": "888f240d0571320fc4107da77362e465b03db65039b99c26bbab1ca03951785f",
+    "snapback4/packages/snapback4/test/periphery.test.mjs": "d2258a921d7c7ac2c7da05e1ef08a295a06cb4c30a228b93e09fd047bedf0833",
+    "snapback4/packages/snapback4/test/presence-composed.test.mjs": "08f4f095e4dac29f910be767cbe7d602da123292e67c68c9cab2923cf024d4cc",
+    "snapback4/packages/snapback4/test/presence-live.test.mjs": "672bcdbb3959e1efbc9065a526db3d9b6d1dbfaff94bfc08d36c0c5c5685a584",
+    "snapback4/packages/snapback4/test/presence-local.test.mjs": "aab1d4a900443cd6ea0dc7450e383e99bdfd1cf53af599247e0f2db7846b6ab5",
+    "snapback4/packages/snapback4/test/read-admission-insert.test.mjs": "f4a8692dcf58b2700167f914082043d770b9ee13d7f9dbb6c556f80450f9484c",
+    "snapback4/packages/snapback4/test/read-existence-integration.test.mjs": "2af6641f1f0d6d906c03a99410550ca79de41b0349e9ede3bf4d1999349dd566",
+    "snapback4/packages/snapback4/test/readauth.test.mjs": "4676bc23d450e9e536efa10dafba23fc1915b6d628061e6a02ab74cbde579510",
+    "snapback4/packages/snapback4/test/recorded-compatibility.test.mjs": "5763bab7aa7a9aac274fea009c82112882386f271444a8c8f1f3687dadc14a0e",
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "71961f7c3b1094f1607b70ceaea4b0cb753cbb04939bf93bf71b2cee916ba743",
+    "snapback4/packages/snapback4/test/repair-b-overflow.test.mjs": "4081392cbf399fa572d66f6382da476f5f8ef75a5cf83ca4423c33649136b106",
+    "snapback4/packages/snapback4/test/repair-b-round9.test.mjs": "f1569672d9007d4875af86546ab728c24ae19d4fe62114cc9f8a6a5635b9eb0d",
+    "snapback4/packages/snapback4/test/repair-b.test.mjs": "a0d0fb1c5f24c4157929c5302f06f5db3a1a0e54f668a52eaafce486c2e11847",
+    "snapback4/packages/snapback4/test/residency.test.mjs": "d56c18b06956fc964e73b6b30895bc88f4b6c8c856c522be507af1702680dace",
+    "snapback4/packages/snapback4/test/retained-history.test.mjs": "bfed7afb5e9a087789e62781ada43f1657aaaa8bf102b496aae8fb57e4d0d8bc",
+    "snapback4/packages/snapback4/test/routes.test.mjs": "bc878d1c32a978f4e35530e2a56761db01267580e1a5cf181fa3be2c3896c214",
+    "snapback4/packages/snapback4/test/row-keyed-view.test.mjs": "15cb563ab6a53d0747967f7a42e085686bc792c2769bca049c8774917b2b2a8d",
+    "snapback4/packages/snapback4/test/row-view-prediction.test.mjs": "ee6259ea3fab2a7f551a3fc4b13e7ccfa050f4a8cc104c64830b002b4169a40d",
+    "snapback4/packages/snapback4/test/schema-capabilities.test.mjs": "42e7516fa2374a3c89772115e1d50ffc5ee5da46d86dbab4e86262442e49a5f1",
+    "snapback4/packages/snapback4/test/seen-devices.test.mjs": "df3cd1fd8486ef8bd587b0620d8b019f73d4765dd6b19e2bbc6b788a82967ed4",
+    "snapback4/packages/snapback4/test/server-e2e.test.mjs": "cb005f31134628b1d6e91549d2ed78e8eda850af5e8b1e4b5f9a5f695c2328d0",
+    "snapback4/packages/snapback4/test/social-starter.test.mjs": "b4aa9b3583685a421eb76a21d17a8046e00c15cfb098495c66c7541e74f48e9f",
+    "snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs": "b99ba5f1c9e9eaaaf2d69d4ffa2e334ae2133ba74d62aeeb0b2032b8ad1371b4",
+    "snapback4/packages/snapback4/test/store-reset.test.mjs": "d5dcf2af4d56343a90ff157d01a98474c2232c1e10512e0269390e255feff3e4",
+    "snapback4/packages/snapback4/test/supervised-workers.test.mjs": "e5ea910784a05efaa8044eb37be14513b4bc223b43d623985b9921dc967be0d9",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs": "2dc8c6155f213df57367bf366fd415634003164c1146690eddf7d46246dee72b",
+    "snapback4/packages/snapback4/test/sync-overflow.test.mjs": "03fa6b2538b7b7a7f6cff13190c396042dfe4307bfbece5a6892056d360c00f2",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": "e316bf3ce5f6abe2a36b2cf4657eb5de9fac03873617b5280e42bc3e59e1dbf6",
+    "snapback4/packages/snapback4/test/transport-http.test.mjs": "8fdacad8ff7cb9955d0ca62146217195d0ed778ab21a9404e53a11fb4fb546af",
+    "snapback4/packages/snapback4/test/unread-range.test.mjs": "30b6d6ebb0cbbe5e4547fee10e668877a48f5eb39e147620b39f9430af4ae6c6",
+    "snapback4/packages/snapback4/test/upload-retry.test.mjs": "36387055191271f38e76019cc222488f16a0af1b418419e593b6e73280e84aa5",
+    "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "5c9f17d32f409abeca638e379eca88421c144e867ef92ea9c702ec3924e71a5c",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "8f3d12d36d411fe43aac0f31abf8f5f85d3127045762c6cc2ff4b5da9673b70b",
+    "snapback4/packages/snapback4/test/worker.test.mjs": "918f85f75b7f50d7fdd1b1303005b9346f10fb466fea15aefe0dffa869848da9",
+    "snapback4/packages/snapback4/test/write-authority.test.mjs": "a3b724de952f949c4dc4966facb935fb265c6d373bf050b73e5d7ab2ef5c592a",
+    "snapback4/packages/snapback4/test/write-ids.test.mjs": "109fc2f91ee8a95d298a904b2b5edaf78e120a515bd09bddf1ee2896a34c5fcb"
+  },
+  "repetitions": [
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/app.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/asset-avatars.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/asset-lists.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/client-seams.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/composed-authority.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/familiar-forms.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/first-account.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/following-unfollow.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/http-bounds.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/intent-views.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/keep-device.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/maintained-columns.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/maintains.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/native-opening.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/page-authority.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/page-observation.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/page-ready.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/pending-items.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/pending-writes.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/periphery.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/presence-composed.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/presence-live.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/presence-local.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/read-through.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/readauth.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/release-activation.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/repair-b.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/residency.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "iterations": 30,
+      "passed": 23,
+      "failed": 7,
+      "failed_iterations": [
+        9,
+        14,
+        15,
+        21,
+        24,
+        25,
+        30
+      ]
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/routes.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/seen-devices.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/server-e2e.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/social-starter.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/store-reset.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/supervised-workers.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/sync-generation.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/sync-overflow.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/test-file-runner.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/transport-http.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/unread-range.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/upload-retry.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/witness-acquire.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/worker.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/write-authority.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "packages/snapback4/test/write-ids.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "rust:check",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "rust:lifecycle",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "rust:run_admission",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "eb1000",
+      "file": "rust:witness",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "Apartment mini",
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    },
+    {
+      "host": "Apartment mini",
+      "file": "packages/snapback4/test/worker.test.mjs",
+      "iterations": 30,
+      "passed": 30,
+      "failed": 0,
+      "failed_iterations": []
+    }
+  ],
+  "full_suite": {
+    "command": [
+      "bash",
+      "scripts/test.sh"
+    ],
+    "started": "2026-10-04T17:22:55.604709+00:00",
+    "exit_code": 0,
+    "finished": "2026-10-04T17:57:27.240979+00:00",
+    "log_sha256": "1d8d60fa5198002b10ff89118c784f64d1bd7b1623bd772728c8d9ba7c68220d",
+    "failed_stages": 0,
+    "seconds_reported_by_suite": 2072,
+    "rust_passed": 4972,
+    "rust_failed": 0,
+    "rust_ignored": 33,
+    "client_summaries": [
+      {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "tests": 6215,
+        "pass": 6204,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 11,
+        "todo": 0
+      },
+      {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    ],
+    "passed_stages": [
+      "cargo build (23 s)",
+      "wasm build (32 s)",
+      "docs budget (37 s)",
+      "release guard (9 s)",
+      "package typecheck (3 s)",
+      "package build (2 s)",
+      "chat app check (0 s)",
+      "cargo test (994 s)",
+      "chat app typecheck (2 s)",
+      "expo app typecheck (1 s)",
+      "fixture wrapper tests (12 s)",
+      "client tests (620 s)",
+      "client models (352 s)"
+    ],
+    "failed_stage_names": []
+  },
+  "intermediate_server_runs": {
+    "count": 30,
+    "failed": [],
+    "reason": "Replaced for final qualification by server-final.jsonl after moving PID observation before crash invocation."
+  },
+  "load_helper": {
+    "iterations": 30,
+    "failed": 0
+  },
+  "retained_history_baseline": {
+    "iterations": 30,
+    "failed_iterations": [
+      12
+    ],
+    "ticket": "issues/20260929-snapback4-retained-history-transient-empty.md"
+  },
+  "assertion_census": [
+    {
+      "path": "snapback4/packages/snapback4/test/acquisition.test.mjs",
+      "assertionsBefore": 187,
+      "assertionsAfter": 187,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/admit-before-identity.test.mjs",
+      "assertionsBefore": 216,
+      "assertionsAfter": 216,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/answer-row-authority.test.mjs",
+      "assertionsBefore": 19,
+      "assertionsAfter": 19,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs",
+      "assertionsBefore": 23,
+      "assertionsAfter": 23,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/asset-lists.test.mjs",
+      "assertionsBefore": 161,
+      "assertionsAfter": 161,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/bounded-following.test.mjs",
+      "assertionsBefore": 218,
+      "assertionsAfter": 218,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+      "assertionsBefore": 195,
+      "assertionsAfter": 195,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/client-seams.test.mjs",
+      "assertionsBefore": 315,
+      "assertionsAfter": 315,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/column-stream-recovery.test.mjs",
+      "assertionsBefore": 20,
+      "assertionsAfter": 20,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/composed-authority.test.mjs",
+      "assertionsBefore": 19,
+      "assertionsAfter": 19,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs",
+      "assertionsBefore": 55,
+      "assertionsAfter": 55,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/familiar-forms.test.mjs",
+      "assertionsBefore": 42,
+      "assertionsAfter": 42,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/first-account.test.mjs",
+      "assertionsBefore": 36,
+      "assertionsAfter": 36,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/fixtures/routes.mjs",
+      "assertionsBefore": 4,
+      "assertionsAfter": 4,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/following-unfollow.test.mjs",
+      "assertionsBefore": 23,
+      "assertionsAfter": 23,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/helpers/app-server.mjs",
+      "assertionsBefore": 1,
+      "assertionsAfter": 1,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs",
+      "assertionsBefore": 4,
+      "assertionsAfter": 4,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/helpers/live-margin-load.mjs",
+      "assertionsBefore": 0,
+      "assertionsAfter": 0,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/helpers/read-through-server.mjs",
+      "assertionsBefore": 2,
+      "assertionsAfter": 2,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs",
+      "assertionsBefore": 56,
+      "assertionsAfter": 56,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/horizon-boundary.test.mjs",
+      "assertionsBefore": 168,
+      "assertionsAfter": 168,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/http-bounds.test.mjs",
+      "assertionsBefore": 62,
+      "assertionsAfter": 62,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/intent-views.test.mjs",
+      "assertionsBefore": 5,
+      "assertionsAfter": 5,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-device.test.mjs",
+      "assertionsBefore": 29,
+      "assertionsAfter": 29,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keepalive-headers.test.mjs",
+      "assertionsBefore": 19,
+      "assertionsAfter": 19,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs",
+      "assertionsBefore": 11,
+      "assertionsAfter": 11,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+      "assertionsBefore": 60,
+      "assertionsAfter": 60,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/maintains.test.mjs",
+      "assertionsBefore": 15,
+      "assertionsAfter": 15,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/native-opening.test.mjs",
+      "assertionsBefore": 24,
+      "assertionsAfter": 24,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-authority.test.mjs",
+      "assertionsBefore": 44,
+      "assertionsAfter": 44,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-observation.test.mjs",
+      "assertionsBefore": 9,
+      "assertionsAfter": 9,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-ready.test.mjs",
+      "assertionsBefore": 37,
+      "assertionsAfter": 37,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pending-items.test.mjs",
+      "assertionsBefore": 59,
+      "assertionsAfter": 59,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pending-writes.test.mjs",
+      "assertionsBefore": 72,
+      "assertionsAfter": 72,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/periphery.test.mjs",
+      "assertionsBefore": 144,
+      "assertionsAfter": 144,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/presence-composed.test.mjs",
+      "assertionsBefore": 6,
+      "assertionsAfter": 6,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/presence-live.test.mjs",
+      "assertionsBefore": 17,
+      "assertionsAfter": 17,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/presence-local.test.mjs",
+      "assertionsBefore": 29,
+      "assertionsAfter": 29,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-admission-insert.test.mjs",
+      "assertionsBefore": 8,
+      "assertionsAfter": 8,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-existence-integration.test.mjs",
+      "assertionsBefore": 42,
+      "assertionsAfter": 42,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/readauth.test.mjs",
+      "assertionsBefore": 26,
+      "assertionsAfter": 26,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/recorded-compatibility.test.mjs",
+      "assertionsBefore": 31,
+      "assertionsAfter": 31,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/release-activation.test.mjs",
+      "assertionsBefore": 147,
+      "assertionsAfter": 147,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/repair-b-overflow.test.mjs",
+      "assertionsBefore": 34,
+      "assertionsAfter": 34,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/repair-b-round9.test.mjs",
+      "assertionsBefore": 48,
+      "assertionsAfter": 48,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/repair-b.test.mjs",
+      "assertionsBefore": 57,
+      "assertionsAfter": 57,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/residency.test.mjs",
+      "assertionsBefore": 85,
+      "assertionsAfter": 85,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/retained-history.test.mjs",
+      "assertionsBefore": 237,
+      "assertionsAfter": 237,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/routes.test.mjs",
+      "assertionsBefore": 116,
+      "assertionsAfter": 116,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/row-keyed-view.test.mjs",
+      "assertionsBefore": 58,
+      "assertionsAfter": 58,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/row-view-prediction.test.mjs",
+      "assertionsBefore": 9,
+      "assertionsAfter": 9,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+      "assertionsBefore": 124,
+      "assertionsAfter": 124,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/seen-devices.test.mjs",
+      "assertionsBefore": 16,
+      "assertionsAfter": 16,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/server-e2e.test.mjs",
+      "assertionsBefore": 161,
+      "assertionsAfter": 161,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+      "assertionsBefore": 160,
+      "assertionsAfter": 160,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "assertionsBefore": 51,
+      "assertionsAfter": 51,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/store-reset.test.mjs",
+      "assertionsBefore": 38,
+      "assertionsAfter": 38,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/supervised-workers.test.mjs",
+      "assertionsBefore": 19,
+      "assertionsAfter": 19,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/sync-generation.test.mjs",
+      "assertionsBefore": 145,
+      "assertionsAfter": 145,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/sync-overflow.test.mjs",
+      "assertionsBefore": 85,
+      "assertionsAfter": 85,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+      "assertionsBefore": 129,
+      "assertionsAfter": 129,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/transport-http.test.mjs",
+      "assertionsBefore": 51,
+      "assertionsAfter": 51,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/unread-range.test.mjs",
+      "assertionsBefore": 63,
+      "assertionsAfter": 63,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/upload-retry.test.mjs",
+      "assertionsBefore": 47,
+      "assertionsAfter": 47,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/witness-acquire.test.mjs",
+      "assertionsBefore": 143,
+      "assertionsAfter": 143,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+      "assertionsBefore": 130,
+      "assertionsAfter": 130,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/worker.test.mjs",
+      "assertionsBefore": 238,
+      "assertionsAfter": 238,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/write-authority.test.mjs",
+      "assertionsBefore": 45,
+      "assertionsAfter": 45,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/write-ids.test.mjs",
+      "assertionsBefore": 50,
+      "assertionsAfter": 50,
+      "assertionsUnchanged": true,
+      "testNamesUnchanged": true
+    }
+  ],
+  "intermediate_upload_runs": {
+    "count": 30,
+    "failed": [],
+    "reason": "The full file was repeated 30 times after the complete HTTP 100-continue status-line barrier; main-pool invocations are retained as intermediate."
+  },
+  "intermediate_worker_runs": {
+    "eb1000": {
+      "count": 15,
+      "failed": [
+        "linux-worker-regressions-09"
+      ],
+      "cutover": {
+        "completed": "2026-10-04T16:37:35.070308+00:00",
+        "sha256": "8f3d12d36d411fe43aac0f31abf8f5f85d3127045762c6cc2ff4b5da9673b70b",
+        "reason": "Bounded acquisition of the external fixture writer lock; preserves all assertions and original guards."
+      }
+    },
+    "Apartment mini": {
+      "count": 12,
+      "failed": [],
+      "cutover": {
+        "completed": "2026-10-04T16:37:44.319141+00:00",
+        "sha256": "8f3d12d36d411fe43aac0f31abf8f5f85d3127045762c6cc2ff4b5da9673b70b"
+      }
+    },
+    "reason": "Only invocations started after the bounded writer-lock setup change count toward the final 30; earlier and in-flight invocations remain intermediate evidence."
+  },
+  "controlled_probes": {
+    "controlled-probes.json": [
+      {
+        "probe": "package",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=uses symlinked dependencies",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-worker-regressions.mjs"
+        ],
+        "env": {
+          "SNAPBACK_NODE": "/tmp/fx-r1-node-delay"
+        },
+        "started": "2026-10-04T16:12:47.157705+00:00",
+        "source_sha256": "36f2d8f8c3947204b866c37c6e19637b39dc4faec0d7bcecc06964799063ebd7",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:12:49.266926+00:00",
+        "log_sha256": "2cb4b243a812669e762b92d23bbd24ab9f545067f03373e8e258f2b99fa4b581"
+      },
+      {
+        "probe": "package",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=uses symlinked dependencies",
+          "packages/snapback4/test/worker-regressions.test.mjs"
+        ],
+        "env": {
+          "SNAPBACK_NODE": "/tmp/fx-r1-node-delay"
+        },
+        "started": "2026-10-04T16:12:49.267485+00:00",
+        "source_sha256": "66c28fef24f626b53e229f56c3c574c5ce69f77a8645c91183fe87e0dc576e61",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:12:57.362143+00:00",
+        "log_sha256": "d7bcf8cb4be5f0c0aa331fda00c529e22af912347af53163a119b2fdcc4e5991"
+      },
+      {
+        "probe": "redaction",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=redacts both child log streams",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-worker.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-delay.so",
+          "FX_DELAY_STDERR": "1"
+        },
+        "started": "2026-10-04T16:12:47.158020+00:00",
+        "source_sha256": "3c4dfde8b9290793794b173edd705105da40dd780d3ffe85010ad16dca16e3d9",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:12:51.948073+00:00",
+        "log_sha256": "a0eec58037f42fcd31a6f68d69ea4ec5002cf19bd87456aa48bb3d0f94f50e29"
+      },
+      {
+        "probe": "redaction",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=redacts both child log streams",
+          "packages/snapback4/test/worker.test.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-delay.so",
+          "FX_DELAY_STDERR": "1"
+        },
+        "started": "2026-10-04T16:12:51.948962+00:00",
+        "source_sha256": "918f85f75b7f50d7fdd1b1303005b9346f10fb466fea15aefe0dffa869848da9",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:12:57.698410+00:00",
+        "log_sha256": "8eddf0e76ef423d73290b9cfde1ed1c3ff6a0d32890c445f4932ec4375fbdf11"
+      },
+      {
+        "probe": "cut",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=dev logs a measured cut",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-client-seams.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-delay.so",
+          "FX_DELAY_CUT": "1"
+        },
+        "started": "2026-10-04T16:12:47.158560+00:00",
+        "source_sha256": "795934bbc01bcc36489d7c7fbb89d1b361f0270fd7b2951b0ca8145413c09ee9",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:12:48.013496+00:00",
+        "log_sha256": "84a8fe3d5b37e66ebb857efcacff896921a27c4d270e7e2d6af980fcb70452d0"
+      },
+      {
+        "probe": "cut",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=dev logs a measured cut",
+          "packages/snapback4/test/client-seams.test.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-delay.so",
+          "FX_DELAY_CUT": "1"
+        },
+        "started": "2026-10-04T16:12:48.014243+00:00",
+        "source_sha256": "4fd8f42390fcb165277b2910c12e38e08e0755c95e0d9ba9262d16dcc652df07",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:12:49.825376+00:00",
+        "log_sha256": "7da065d6e50a67402f32f89c9ea2252da5ae16e6d4e202a9c6cd1786e5a92f3d"
+      }
+    ],
+    "split-probes.json": [
+      {
+        "probe": "url",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=redacts both child log streams",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-worker.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split.so",
+          "FX_DELAY_URL": "1"
+        },
+        "started": "2026-10-04T16:14:20.071225+00:00",
+        "source_sha256": "3c4dfde8b9290793794b173edd705105da40dd780d3ffe85010ad16dca16e3d9",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:14:24.813673+00:00",
+        "log_sha256": "5584bb0eacedc3fd3d12a925d10e4792dda38ebcbda7fc0961a4434ee50cc083"
+      },
+      {
+        "probe": "url",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=redacts both child log streams",
+          "packages/snapback4/test/worker.test.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split.so",
+          "FX_DELAY_URL": "1"
+        },
+        "started": "2026-10-04T16:14:24.814226+00:00",
+        "source_sha256": "918f85f75b7f50d7fdd1b1303005b9346f10fb466fea15aefe0dffa869848da9",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:14:29.529738+00:00",
+        "log_sha256": "471d27339526ea579ae962c159f33e943d9d1a092ab08c3c9197c3cd2fce00ed"
+      },
+      {
+        "probe": "locked",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=exclusively held ownership sidecar",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-native-opening.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split.so",
+          "FX_DELAY_LOCKED": "1"
+        },
+        "started": "2026-10-04T16:14:20.071762+00:00",
+        "source_sha256": "6066c7f89ccfe3c50d914e7fecd5ff105071ccda7bf44f1e38cc3e3000ff0f79",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:14:20.734828+00:00",
+        "log_sha256": "1c2fb68b298e4fb84f1443e3c05af4a8d0e24fdbad536bd00f4bcb6bf98ef33e"
+      },
+      {
+        "probe": "locked",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=exclusively held ownership sidecar",
+          "packages/snapback4/test/native-opening.test.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split.so",
+          "FX_DELAY_LOCKED": "1"
+        },
+        "started": "2026-10-04T16:14:20.735552+00:00",
+        "source_sha256": "336443c710ea05c4866454ac084563379c56c5bf727dd86d8ea1347273baad8a",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:14:21.407545+00:00",
+        "log_sha256": "862cc5d7e47e977578cd3b240fbf2b5e9711e9b66cc8fd5831d871acc354514b"
+      }
+    ],
+    "url-partial-port-probe.json": [
+      {
+        "probe": "url-partial-port",
+        "variant": "negative",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=dev logs a measured cut",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-client-seams.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split-corrected.so",
+          "FX_DELAY_URL": "1"
+        },
+        "started": "2026-10-04T16:17:07.308967+00:00",
+        "source_sha256": "795934bbc01bcc36489d7c7fbb89d1b361f0270fd7b2951b0ca8145413c09ee9",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:17:08.009240+00:00",
+        "log_sha256": "3ff3af725de0ce298458fa80aa360264f978ee9f5984e6731fac4c3afacea981"
+      },
+      {
+        "probe": "url-partial-port",
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--test",
+          "--test-name-pattern=dev logs a measured cut",
+          "packages/snapback4/test/client-seams.test.mjs"
+        ],
+        "env": {
+          "LD_PRELOAD": "/tmp/fx-r1-split-corrected.so",
+          "FX_DELAY_URL": "1"
+        },
+        "started": "2026-10-04T16:17:08.009752+00:00",
+        "source_sha256": "4fd8f42390fcb165277b2910c12e38e08e0755c95e0d9ba9262d16dcc652df07",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:17:09.539696+00:00",
+        "log_sha256": "8177d80752f046b78f600a3eee194e3640d40df0bebfc6c6631abb77dd2f22b6"
+      }
+    ],
+    "writer-lock-probes.json": [
+      {
+        "variant": "negative",
+        "command": [
+          "node",
+          "--import",
+          "/tmp/fx-r1-writer-lock-probe.mjs",
+          "--test",
+          "--test-name-pattern=removed worker retains|failed revocation blocks restart",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-writer-lock.mjs"
+        ],
+        "started": "2026-10-04T16:42:38.128799+00:00",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:42:44.109002+00:00",
+        "injections": 3,
+        "log_sha256": "a40efc84716ac3f97d0fbf844922697c4d33ddd30336bd9729ae73898fb85bca"
+      },
+      {
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--import",
+          "/tmp/fx-r1-writer-lock-probe.mjs",
+          "--test",
+          "--test-name-pattern=removed worker retains|failed revocation blocks restart",
+          "packages/snapback4/test/worker-regressions.test.mjs"
+        ],
+        "started": "2026-10-04T16:42:44.109721+00:00",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:43:31.230724+00:00",
+        "injections": 3,
+        "log_sha256": "29975ba63c455284e8853a1a6265558e4731d599dc66075e7c3f8cfc5dea0dff"
+      }
+    ],
+    "continue-probes.json": [
+      {
+        "variant": "negative",
+        "command": [
+          "node",
+          "--import",
+          "/tmp/fx-r1-continue-probe.mjs",
+          "--test",
+          "--test-name-pattern=fresh replay host reports worker overload",
+          "/home/ccheever/sb4-intent/lane-fx/snapback4/packages/snapback4/test/.fx-r1-continue.mjs"
+        ],
+        "started": "2026-10-04T16:48:11.722196+00:00",
+        "exit_code": 1,
+        "finished": "2026-10-04T16:48:12.405971+00:00",
+        "injections": 1,
+        "log_sha256": "4487fa20c6d6daf852aa14e9c026cb00b9e709c2f121c3977a38401ecdb4e80b"
+      },
+      {
+        "variant": "fixed",
+        "command": [
+          "node",
+          "--import",
+          "/tmp/fx-r1-continue-probe.mjs",
+          "--test",
+          "--test-name-pattern=fresh replay host reports worker overload",
+          "packages/snapback4/test/upload-retry.test.mjs"
+        ],
+        "started": "2026-10-04T16:48:12.406433+00:00",
+        "exit_code": 0,
+        "finished": "2026-10-04T16:48:16.630591+00:00",
+        "injections": 32,
+        "log_sha256": "c8a68227ef08b28fd8e6bf897f4a3518859b2365db32b3bdc2dfbace1a7b2560"
+      }
+    ]
+  },
+  "cleanup": {
+    "eb1000": {
+      "at": "2026-10-04T17:59:37.553230+00:00",
+      "pre_cleanup_bytes": {
+        "/home/ccheever/sb4-intent/lane-fx/snapback4/target": 9991401574,
+        "/tmp/fx-r1-full-scratch": 24128246,
+        "/tmp/fx-r1-evidence": 6889288,
+        "/home/ccheever/sb4-intent/lane-fx/snapback4/node_modules": 602833013
+      },
+      "sampler_note": "Periodic sampling stopped after 17:33:33Z when du returned nonzero on live full-suite scratch. Its stderr was suppressed, so the exact cause was not retained. Final stable pre-cleanup measurements supplement those samples. No test run was affected.",
+      "full_suite_log_verified": true,
+      "removed": {
+        "/home/ccheever/sb4-intent/lane-fx/snapback4/target": true,
+        "/tmp/fx-r1-full-scratch": true
+      },
+      "completed": "2026-10-04T17:59:40.742152+00:00"
+    },
+    "Apartment mini": {
+      "path": "/tmp/sb4-fx-r1.9lqr3D",
+      "deleted": true,
+      "at": "2026-10-04T18:10:25.208508+00:00",
+      "pre_cleanup_bytes": 1592299520,
+      "evidence_collected_and_verified": true
+    },
+    "local_evidence": {
+      "removed_paths": [
+        "/tmp/fx-r1-mini-verify.py",
+        "/tmp/fx-r1-load-helper.log",
+        "/tmp/fx-r1-summarize.py",
+        "/tmp/fx-r1-assertions.cjs",
+        "/tmp/fx-r1-repeat.py",
+        "/tmp/fx-r1-lock-probe.log",
+        "/tmp/fx-r1-continue-probe.log",
+        "/tmp/fx-r1-worker-final.py",
+        "/tmp/fx-r1-merge-message",
+        "/tmp/fx-r1-extra-rust.log",
+        "/tmp/fx-r1-existence.txt",
+        "/tmp/fx-r1-split.so",
+        "/tmp/fx-r1-server-final.py",
+        "/tmp/fx-r1-rust-audit.txt",
+        "/tmp/fx-r1-split-probes.py",
+        "/tmp/fx-r1-retained-control.log",
+        "/tmp/fx-r1-url-corrected.py",
+        "/tmp/fx-r1-run-one.mjs",
+        "/tmp/fx-r1-writer-lock-probe.mjs",
+        "/tmp/fx-r1-full-after.py",
+        "/tmp/fx-r1-package.log",
+        "/tmp/fx-r1-split-probes.log",
+        "/tmp/fx-r1-upload-final.py",
+        "/tmp/fx-r1-retained-control.py",
+        "/tmp/fx-r1-extra-rust.py",
+        "/tmp/fx-r1-server-final.log",
+        "/tmp/fx-r1-url-corrected.log",
+        "/tmp/fx-r1-verify-evidence.py",
+        "/tmp/fx-r1-readiness.txt",
+        "/tmp/fx-r1-url-consumer.py",
+        "/tmp/fx-r1-readiness-files.txt",
+        "/tmp/fx-r1-monitor.py",
+        "/tmp/fx-r1-repeat-driver.log",
+        "/tmp/fx-r1-url-consumer.log",
+        "/tmp/fx-r1-probes.py",
+        "/tmp/fx-r1-mini-repeat.py",
+        "/tmp/fx-r1-js-audit.txt",
+        "/tmp/fx-r1-mini-evidence.tgz",
+        "/tmp/fx-r1-mini-final.py",
+        "/tmp/fx-r1-live-waits.txt",
+        "/tmp/fx-r1-continue-probe.py",
+        "/tmp/fx-r1-load-helper.py",
+        "/tmp/fx-r1-lock-probe.py",
+        "/tmp/fx-r1-delay.so",
+        "/tmp/fx-r1-split-corrected.so",
+        "/tmp/fx-r1-evidence",
+        "/tmp/fx-r1-full-driver.log",
+        "/tmp/fx-r1-upload-final.log",
+        "/tmp/fx-r1-probes.log",
+        "/tmp/fx-r1-worker-final.log",
+        "/tmp/fx-r1-report-section.md",
+        "/tmp/fx-r1-wasm.log",
+        "/tmp/fx-r1-controls.py",
+        "/tmp/fx-r1-monitor.log",
+        "/tmp/fx-r1-node-delay",
+        "/tmp/fx-r1-controls.log",
+        "/tmp/fx-r1-warm.log",
+        "/tmp/fx-r1-continue-probe.mjs",
+        "/tmp/fx-r1-worker-audit.txt"
+      ],
+      "all_absent": true,
+      "at": "2026-10-04T18:13:13.766485+00:00",
+      "retained_archive": "round1-evidence.tar.gz"
+    }
+  },
+  "artifact_hashes": {
+    "cli_before_full": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "cli_during_full": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "same_cli": true,
+    "wasm_sha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1"
+  },
+  "hosts": {
+    "eb1000": {
+      "at": "2026-10-04T16:46:04.986207+00:00",
+      "hostname": "expose-builder-pixel",
+      "platform": "Linux x86_64",
+      "head": "cee23d5619045087df798f7ef94470bdbd3e4bab",
+      "node": "v24.13.1",
+      "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "bun": "1.3.14",
+      "cli_sha256": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+      "test_count_overrides": {}
+    },
+    "Apartment mini": {
+      "at": "2026-10-04T16:49:07.968297+00:00",
+      "platform": "Darwin arm64",
+      "node": "v24.13.1",
+      "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "bun": "1.4.2",
+      "cli_sha256": "15fba21989f217ace72c51eadcfbf3d81f374d7e3bb2c7cef7dfd2b9f452210c",
+      "scratch_bytes": "1556804\t/tmp/sb4-fx-r1.9lqr3D"
+    }
+  },
+  "evidence_archive_sha256": "95820c4ae85da16543f97cc9afa73f7c2cd42195022b5b0ceff3c63581c42330"
+}

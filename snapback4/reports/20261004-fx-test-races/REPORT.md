@@ -116,3 +116,99 @@ measurement; eb1000's target, suite scratch and stress directories were also
 removed. Only the Apartment mini was used remotely, for the two authorized
 files. No other worktree or simulator was used. Both tickets are closed;
 nothing was pushed.
+
+## Round 1 — merged audit and complete observations
+
+Merged `origin/main` (`cb7833c881`, including DG, SU, LU and MS) at
+`cee23d5619`, keeping both JOURNAL histories. The three Astra P2 findings
+are fixed without changing production code, assertions, test names or existing
+timeout values:
+
+- DG's 12 symlink-dependency cases atomically publish `data/package-result`.
+- The dev redaction test awaits complete records from both worker streams.
+- Measured-cut and suppressed-cut observations await complete lines; the Rust
+  cascade footer wait includes its final newline.
+
+The merged-tree audit also fixed worker PID diagnostic observations in
+`server-e2e` (four sites) and `routes`, independent stdout readiness in
+`supervised-workers`, two atomic worker PID files in Rust `lifecycle`, and
+complete-line reads for native lock readiness, runner group PIDs and the load
+helper's PID list. The upload-capacity fixture accumulates TCP data through
+the `100 Continue` status line before its original assertion. Readiness parsers require the line
+terminator after the port: 81 regex uses across 63 files. The exact site list is
+[round1-readiness.csv](./round1-readiness.csv); all fixes and safe exclusions
+are listed in [round1-audit.json](./round1-audit.json). DG's recipe `paths.json`
+read already follows its second acknowledged append, and its explicit-environment
+fixtures retain the earlier atomic publication. Their original lookup,
+module-path, cwd and environment assertions are unchanged.
+
+Controlled 500 ms probes reproduce the old DG JSON, cross-stream redaction,
+measured-cut, partial-port and native-lock failures and pass with the repairs.
+Splitting all 32 HTTP `100 Continue` replies likewise fails the old first-chunk
+assertion and passes the accumulated-line barrier. A real 150 ms SQLite writer
+lock fails all three direct-acquisition controls and passes their bounded retry.
+The repaired Rust cascade passes the delayed-final-newline probe. The initial
+package probe did not inject the delay into the sanitized worker environment;
+its replacement uses an explicit Node wrapper. The initial URL probe stopped
+before any port digit and did not reproduce the race; the corrected probe
+splits after the first digit. Both preliminary results are retained and are
+not counted as reproductions. AST comparison preserves all 4,999 assertion
+calls and every test name across the 69 changed JavaScript files; the Rust assertions are unchanged.
+
+A stress repetition also hit `SQLITE_BUSY` while establishing a deletion fixture's
+writer lock. The two deletion cases and the revocation case now retry only that
+setup error through the existing bounded helper. A worker marker or completed
+HTTP request cannot acknowledge another SQLite writer. Final-source worker-file
+qualification excludes earlier and in-flight runs after this change; their
+results, including the failure, remain in the evidence.
+
+Verification: the final Linux qualification is **71 complete file series ×
+30 runs = 2,130 invocations: 2,123 passes and seven failures**, all seven in
+`retained-history.test.mjs` (23/30). Every invocation ran under a four-CPU
+`taskset` with a live CPU hog; each hog was reaped. All other files passed
+30/30, including the final worker, server-e2e and upload revisions. The shared
+load helper also passed 30 full-file consumer invocations. The 75 intermediate
+Linux runs remain in the archive, including the one pre-fix writer-lock
+failure; they do not replace final-source runs.
+
+Apartment mini: both worker files passed **30/30 final-source runs** (77
+worker-regression cases and 35 worker cases per run). Twelve earlier-revision
+worker-regression invocations also passed and remain intermediate evidence.
+Only the two authorized worker files ran there, inside the owned `/tmp` scratch.
+
+The full eb1000 suite (`bash scripts/test.sh`) **passed, exit 0, zero failed
+stages in 2,072 seconds**: 4,972 Rust passes, 33 existing ignores, workspace
+doctests, all 311 client files (6,204 passes, 11 existing skips), all 79 serial
+model tests at full 5,000/3,000 histories, nine fixture tests, and all
+build/budget/typecheck stages. Its CLI hash matches the repetition binary.
+
+The stress run reproduced the already-open
+[retained-history transient-empty defect](../../../issues/20260929-snapback4-retained-history-transient-empty.md).
+The merged-baseline test also reproduces the same assertion in a 30-run
+filtered control. These are genuine product-race failures, retained as such;
+the R5 assertions and runtime are unchanged. The passing full-suite run does
+not establish that this separate defect is repaired.
+
+Round 1 uses Node 24.13.1 and Rust 1.97.0 on both hosts, the existing SQLite
+build flag, and `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`,
+`CARGO_INCREMENTAL=0` to bound build storage. These remove debug symbols and
+incremental caches; default test/debug assertions remain enabled. The full
+suite uses the same build environment as warming and repetitions. No model
+counts or hang guards are reduced. Raw compressed output, native child exits,
+source hashes, affinity/hog records, probe controls and commands are retained
+in [round1-evidence.tar.gz](./round1-evidence.tar.gz). The
+[manifest](./round1-validation.json) and [per-run CSV](./round1-repetitions.csv)
+identify every qualified invocation; driver exits alone do not decide test success.
+The surviving Round 0 full-suite log was also recovered and [retained](./round0-full-suite.log.gz); its SHA-256 matches the
+original manifest.
+
+The 13:51Z disk-full event interrupted the first Round 0 stress pass, as
+recorded above. None of that interval is reused as Round 1 test evidence.
+The local target was 9.3 GiB immediately before deletion; suite scratch was
+24 MB and dependencies about 603 MB. The disk sampler stopped on a failed
+`du` of live scratch; its
+stderr was suppressed, so the exact cause was not retained. Final stable
+measurements supplement those samples. Mini scratch was about 1.5 GiB.
+These observed allocations stayed well below 40 GB. The local target, suite
+scratch, stress evidence directory and the mini scratch were deleted after retaining and verifying their evidence.
+No push or publication.

@@ -76,8 +76,8 @@ for (const tier of ['wasm', 'process']) for (const boundary of ['watch', 'query'
     let log = '', client, core, locals = 0, remotes = 0, remoteData, deferApply = false, applyCommit, commitsAtReturn = 0;
     host.stdout.on('data', b => { log += b; }); host.stderr.on('data', b => { log += b; });
     t.after(async () => { release.resolve(); deliverApply.resolve(); await client?.close(); host.kill('SIGTERM'); await exit; rmSync(directory, { recursive: true, force: true }); });
-    await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, 'server did not listen');
-    const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
+    await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(log); }, 'server did not listen');
+    const url = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
     const post = async (path, body, persona = 'alice') => (await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona }, body: JSON.stringify(body) })).json();
     const rows = ['left', 'private'].flatMap(room => ['alice', 'bob'].map(person => ({ table: 'members', row: { id: `${person}-${room}`, room, principal: `dev:${person}` } })));
     rows.push(...['history', 'secrets'].flatMap(table => [1, 2].map(at => ({ table, row: { id: `${table}-${at}`, room: table === 'history' ? 'left' : 'private', at, body: table === 'history' ? 'retained' : 'private' } }))));

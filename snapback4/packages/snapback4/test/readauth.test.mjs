@@ -57,7 +57,7 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
     const server=spawn(binary,['dev','--port','0','--memory','--no-watch','--hold-schedules'],{cwd:directory,stdio:['ignore','pipe','pipe']});
     const exited=once(server,'exit');let log='',url,client,core,name,offline=false;
     const watches=[];
-    for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];});
+    for(const stream of [server.stdout,server.stderr])stream.on('data',chunk=>{log+=chunk;url??=log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});
     t.after(async()=>{for(const w of watches)w.close();await client?.close();if(server.exitCode==null&&server.signalCode==null)server.kill();await exited;rmSync(directory,{recursive:true,force:true});});
     await until(()=>{assert.equal(server.exitCode,null,log);return url;},'server startup');
     const post=async(path,body)=>{const r=await fetch(url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify(body)});const data=await r.json();assert.equal(r.status,200,JSON.stringify(data));return data;};

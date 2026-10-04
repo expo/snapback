@@ -17,6 +17,14 @@ const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../targ
 const workerModule = new URL('../dist/worker.js', import.meta.url).href;
 const fixtureDiagnostics = new AsyncLocalStorage();
 async function until(fn) { return awaitState(fn, fn.toString(), { diagnostics: () => fixtureDiagnostics.getStore()?.() ?? 'no worker fixture' }); }
+async function lockWriter(db) {
+  // A worker marker or HTTP reply does not release another SQLite writer.
+  // Establish the fixture's lock before testing the host's refusal/recovery.
+  await until(() => {
+    try { db.exec('BEGIN IMMEDIATE'); return true; }
+    catch (error) { if (error.errcode === 5) return false; throw error; }
+  });
+}
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -230,9 +238,10 @@ else console.log(JSON.stringify(values));`);
 for (const [mode, kind] of [['dev','named'], ['serve','named'], ['dev','conventional']]) for (const scope of ['', 'snapback', 'snapback/workers', 'snapback/workers/helpers'])
 test(`${mode} ${kind} snapshot uses symlinked dependencies at ${scope || 'project root'}`, async t => {
   const f = fixture(t, `import value from './helpers/value.mjs';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,renameSync} from 'node:fs';
 mkdirSync('data',{recursive:true});
-writeFileSync('data/package-result',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+writeFileSync('data/package-result.tmp',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+renameSync('data/package-result.tmp','data/package-result');
 setInterval(()=>{},1000);`);
   if (kind === 'conventional') {
     const named = join(f.dir,'snapback/workers/push.mjs');
@@ -334,7 +343,7 @@ for (const check of ['query fence', 'retirement custody']) test(`removed worker 
   t.after(() => db.close());
   rmSync(join(f.dir, 'snapback/workers/push.mjs'));
   await until(() => existsSync(join(f.dir, 'terms')));
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   let fenced;
   try {
     await until(() => s.log.includes("cannot close the child's session"));
@@ -502,7 +511,7 @@ test('failed revocation blocks restart until the retired bearer is refused', { t
   assert.equal((await claim(s, first.token)).status, 200);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
   t.after(() => db.close());
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   try {
     process.kill(first.pid, 'SIGKILL');
     await until(() => s.log.includes("cannot close the child's session"));

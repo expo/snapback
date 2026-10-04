@@ -86361,3 +86361,20 @@ Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
 Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
 LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
 record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+## 2026-10-04 — FX round 1: complete merged test observations
+
+Merged main at `cee23d5619`, keeping both journal histories. Fixed Astra's
+three P2s and the merged-tree audit's atomic-file, independent-stream and
+complete-line observations, including partial ports and HTTP 100-continue.
+All 4,999 existing JavaScript assertions and test names remain intact.
+Each of 71 Linux file series ran 30 times under confined CPU contention;
+70 passed 30/30, while retained-history reproduced its open product defect
+seven times (also reproduced on the merged baseline). Both worker files
+passed 30/30 final-source runs on the Apartment mini. The full Linux suite
+passed with zero failed stages in 2,072 s and full model counts. Both original
+tickets remain closed; the retained-history ticket remains open. The
+[Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+lists every audit fix, intermediate result, probe, disk-sampling limitation
+and cleanup. Build/scratch allocations stayed below 40 GB and were removed
+after evidence collection. Local commit only; nothing pushed or published.

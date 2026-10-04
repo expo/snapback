@@ -25,7 +25,7 @@ for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full 
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], {cwd:dir, stdio:["ignore","pipe","pipe"]});
   const exit = once(child, "exit");
   let log = "", url, client;
-  child.stdout.on("data", d => { log += d; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on("data", d => { log += d; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", d => { log += d; });
   t.after(async () => { await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM"); await exit; rmSync(dir, {recursive:true, force:true}); });
   await awaitState(async () => !(!url), "maintains.test.mjs: !url", { poll: async () => { assert.equal(child.exitCode, null, log); await sleep(20); } });

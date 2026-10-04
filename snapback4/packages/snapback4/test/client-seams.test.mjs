@@ -110,7 +110,7 @@ async function fixture(t, release = false, schema = source) {
   const server = spawn(binary, release ? ["serve", join(dir, "release"), "--port", "0"] : ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(server, "exit");
   let log = "", url;
-  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close(); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
@@ -1064,8 +1064,8 @@ mutation fill(start: int, count: int):
     assert.equal(read.cut, "meter"); assert.equal(read.complete, false);
     assert.equal(Object.hasOwn(read, "meter"), !release);
   }
-  // Reading the pipes is asynchronous; give the first emitted line a chance to arrive.
-  if (!release) await until(() => f.log().includes("snapback4 dev: read filtered"));
+  // A prefix can arrive before the metric/recovery suffix and terminating newline.
+  if (!release) await until(() => f.log().split("\n").slice(0, -1).some(line => line.startsWith("snapback4 dev: read filtered")));
   const lines = f.log().split("\n").filter(line => line.startsWith("snapback4 dev: read "));
   assert.equal(lines.length, release ? 0 : 1, f.log());
   if (!release) {
@@ -1073,7 +1073,7 @@ mutation fill(start: int, count: int):
     t.diagnostic(lines[0]);
     const read = await f.post("/q/filtered", { args: {} });
     assert.equal(read.cut, "meter");
-    await until(() => f.log().includes("suppressed 5 repeated read cuts"));
+    await until(() => f.log().split("\n").slice(0, -1).some(line => line.includes("suppressed 5 repeated read cuts")));
     const changed = f.log().split("\n").filter(line => line.startsWith("snapback4 dev: read "));
     assert.equal(changed.length, 2);
     assert.match(changed[1], /filtered \(dev:alice\).*; suppressed 5 repeated read cuts$/);

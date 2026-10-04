@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -549,7 +550,10 @@ test('living',()=>{writeFileSync(${JSON.stringify(pidFile)},String(process.pid))
 await runFile(${JSON.stringify(path)}, {onStart:child=>console.log(child.pid),onOutput:()=>{}});`);
   const runner = spawn(process.execPath, [driver], {env:nativeEnv,stdio:['ignore','pipe','ignore']});
   const exited = once(runner,'exit');
-  const group = Number((await once(runner.stdout,'data'))[0].toString().trim());
+  const output = createInterface({input:runner.stdout});
+  let group;
+  try { group = Number((await once(output, 'line', {signal:AbortSignal.timeout(5000)}))[0]); }
+  finally { output.close(); }
   const deadline = performance.now()+5000;
   while (!existsSync(pidFile) && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,20));
   assert.ok(existsSync(pidFile));

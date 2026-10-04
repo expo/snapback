@@ -53,7 +53,7 @@ async function fixture(t, tier, sync = "sync public last 3 by .at", configure = 
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
-  for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], releases = [];
   t.after(async () => {
     releases.forEach(release => release());

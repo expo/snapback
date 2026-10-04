@@ -52,7 +52,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`server did not start in ten minutes: ${log}`)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const reply = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -193,7 +193,7 @@ async function reviewServer(t, source = reviewSource) {
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const started = Date.now();

@@ -40,7 +40,7 @@ test("ready list reads survive account restoration, new chat acquisition and pen
     if (host.exitCode === null && host.signalCode === null) host.kill("SIGTERM");
     await exited; rmSync(dir, { recursive: true, force: true });
   });
-  const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
+  const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
   let offline = false, holdSync = false, holdWrite = false, releaseWrite;
   const replies = [], requests = [];
   const fetcher = async (input, init) => {
@@ -152,7 +152,7 @@ test("unavailable server list responses end retention in both clients", { timeou
     if (host.exitCode === null && host.signalCode === null) host.kill("SIGTERM");
     await exited; rmSync(dir, { recursive: true, force: true });
   });
-  const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "server");
+  const url = await until(() => { assert.equal(host.exitCode, null, log); return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
   authority = createApp({ url }); await authority.ready;
   const signed = await authority.auth.signup("reader@example.com", "password-reader");
   assert.equal(signed.ok, true, JSON.stringify(signed));

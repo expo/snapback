@@ -44,7 +44,7 @@ async function fixture(t, durable = false) {
     const port = url ? new URL(url).port : "0";
     child = spawn(binary, ["dev", "--port", port, ...(fresh ? ["--fresh"] : [])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
     exit = once(child, "exit"); let log = "", listening = false;
-    child.stdout.on("data", (data) => { log += data; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { url = address; listening = true; } });
+    child.stdout.on("data", (data) => { log += data; const address = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { url = address; listening = true; } });
     child.stderr.on("data", (data) => { log += data; });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not start");
   }

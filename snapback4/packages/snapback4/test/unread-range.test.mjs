@@ -38,7 +38,7 @@ async function serverFor(t, c) {
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(Error(log)), hangBudget());
     child.once('exit', () => { clearTimeout(timer); reject(Error(log)); });
-    child.stdout.on('data', b => { log += b; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    child.stdout.on('data', b => { log += b; const found = log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const r = await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona, 'content-type': 'application/json' }, body: JSON.stringify(body) });

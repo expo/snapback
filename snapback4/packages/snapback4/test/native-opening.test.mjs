@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { createInterface } from "node:readline";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 
@@ -55,7 +56,10 @@ with open(sys.argv[1], "a+b") as store:
 `, `${path}-owner`]);
   const exited = once(holder, "close");
   t.after(async () => { holder.stdin.end(); await exited; });
-  const [ready] = await once(holder.stdout, "data", { signal: AbortSignal.timeout(hangBudget()) });
+  const output = createInterface({ input: holder.stdout });
+  let ready;
+  try { [ready] = await once(output, "line", { signal: AbortSignal.timeout(hangBudget()) }); }
+  finally { output.close(); }
   assert.equal(String(ready).trim(), "locked");
 }
 

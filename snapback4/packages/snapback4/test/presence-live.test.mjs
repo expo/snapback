@@ -88,7 +88,7 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(server, "exit");
   let log = "", url;
-  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  server.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); delete globalThis[clockKey]; });

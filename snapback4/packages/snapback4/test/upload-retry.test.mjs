@@ -176,7 +176,7 @@ table photos:
     const timeout = setTimeout(() => reject(Error(`server startup timeout: ${log}`)), hangBudget());
     child.stdout.on("data", bytes => {
       output += bytes;
-      const match = output.match(/http:\/\/127\.0\.0\.1:\d+/);
+      const match = output.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/);
       if (match) { clearTimeout(timeout); resolve(match[0]); }
     });
     child.once("exit", () => { clearTimeout(timeout); reject(Error(`server exited: ${log}`)); });
@@ -190,9 +190,13 @@ table photos:
     sockets.push(socket);
     await once(socket, "connect");
     if (capacity === "worker") {
-      const ready = once(socket, "data");
+      let header = "";
+      const onData = bytes => { header += bytes; };
+      socket.on("data", onData);
+      const ready = waitFor(() => header.includes("\r\n") && [Buffer.from(header)], "complete 100-continue status line");
       socket.write("POST /m/held HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nContent-Length: 100000\r\nExpect: 100-continue\r\n\r\n");
-      assert.match(String((await ready)[0]), /HTTP\/1.1 100 Continue/);
+      try { assert.match(String((await ready)[0]), /HTTP\/1.1 100 Continue/); }
+      finally { socket.off("data", onData); }
     }
   }));
   const png = Buffer.alloc(2081);

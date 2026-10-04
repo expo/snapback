@@ -31,7 +31,7 @@ async function backend(t) {
   });
   const url = await awaitState(() => {
     assert.equal(host.exitCode, null, log);
-    return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+    return log.match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
   }, "page observation server", { diagnostics: () => log });
   return { url, dir };
 }
