@@ -86267,3 +86267,63 @@ the baseline exactly. `ref-check --verbose` passes with zero errors or unchecked
 references. Private stores and remaining scratch artifacts were removed; the
 existing adoption-pause ticket stays open for the unmet 5× target. Local commit
 only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 1: refusal order and constrained activation memory
+
+Addressed the Astra/Grok READY WITH CHANGES findings on `547c9eaa0b`.
+Ordered staging now has an immediate `(ti,k)` primary key, preserving the
+original duplicate's walk step, `E_STORE` message and charges before a later
+validation failure. Raw activation and store writes use the read-ahead
+invalidating accessor; a savepoint rollback test verifies old images return.
+
+`SNAPBACK4_ADOPTION_CACHE_MIB` controls the combined main/temp target (0–512,
+default 64 MiB, half each; 0 preserves caller settings). Larger caller settings
+are retained. Linux procfs supplies finite address-space headroom for a
+conservative reduction. A SQLite `NOMEM` after enlargement rolls back completely,
+restores both caller settings, checks predecessor identity and retries once;
+other failures and one-shot device preparation are not retried. The injected
+failure test compares the predecessor before retry and final output against an
+uninterrupted control. The failed-attempt duration is reported separately.
+
+An actual 96 MiB address-space probe exposed a Rust allocator abort before
+SQLite could return `NOMEM` in the initial main-cache-only revision. The final
+headroom policy succeeds on the full corpus at **47.54 MiB peak RSS**, with all
+rows/indexes/captures/log/commits identical; explicit 0 succeeds at 30.83 MiB.
+The retained round-0 binary reproduces SQLite NOMEM with complete rollback.
+Normal final runs peak at **93.11 MiB RSS** versus round 0's approximately
+147 MiB. LLP 3000.002 now states the sorter/cache relationship and the limits
+of this workspace policy; it is not a process or cgroup memory guarantee.
+
+Three new paired production runs on eb1000 CPU 95 (sibling 47 idle before each
+sample) give **17.871 s → 7.914 s median, 2.26× faster**. Every complete digest
+and every per-table/index/capture digest matches the original slow path. The
+325 selected tests pass, including the 12 generated sparse/capture/sum seeds,
+maintained-column/device adoption and the new CLI advice regressions. The
+original 5× target remains unmet. Online adoption remains design-only; §8.6 of
+LLP 3000.026 retains the separate snapshot/catch-up recommendation.
+
+Advice now counts retirement rows/index entries and explicitly warns that their
+additional pause is unestimated, including retirement-only changes. The modeled
+build work says “up to” at measured eb1000 rates; its subtotal is not a floor or
+an SLO. Builder advice and `guide maintains` disclose the cache control and RSS.
+The [Round 1 report](./reports/20261004-ap-adoption-pause/REPORT.md#round-1--refusal-order-memory-and-complete-pause-advice)
+retains the failed exploratory probe, accepted timing pairs and memory evidence.
+
+Round-1 qualification remains **red for the full client suite**. After fixing a
+stale guide definition/action pin (112 guide tests pass), two complete suites
+finished with client-stage failures: one worker readiness fetch in 2,038 s, then
+five transport and two assertion failures in 2,049 s. Both passed all 299 Rust
+binaries / 1,012 executions and doctests, nine fixtures, all 79 serial models,
+and every build/typecheck/docs/release stage. The worker case and its whole
+61-test file passed focused reruns. The second run's seven failing files then
+passed against both the retained pre-AP release CLI and the candidate debug CLI:
+89 tests each, including all 600 search seeds. These controls do not replace a
+green full suite or establish a cause. No retry workaround was added; the
+[follow-up ticket](../issues/20261004-snapback4-intermittent-client-suite-failures.md)
+and report preserve both complete failures and the controls separately.
+Wasm remains byte-identical at 2,116,457 B raw / 639,750 B gzip; its budget and
+recorded macOS allowance are unchanged. No macOS execution is claimed.
+
+Final reference audit: zero errors and unchecked references. Private stores and
+remaining scratch artifacts were removed; disk use is 40.06 GiB.
+Local commit only, with the requested co-author trailer; nothing pushed.

@@ -83,3 +83,11 @@ proof; replacing pending unread recounts with an unbounded exact SQL count
 would change results. LLP 3000.026 §8.6 recommends a separate online-adoption
 design with complete-journal catch-up, publication-time captures and bounded
 debt. It is not implemented or claimed by AP.
+
+AP round 1 preserves immediate physical uniqueness refusals, adds configurable
+main/temp workspace with low-memory rollback/retry, and warns about retirement
+work. Three new paired runs give **17.871 s → 7.914 s (2.26×)** with identical
+state; the default now also succeeds under a 96 MiB address-space limit. The
+report records the timing spread and memory limits. Keep this ticket open:
+5× would require **≤3.574 s** on this baseline, and writes still wait for the
+atomic transaction.

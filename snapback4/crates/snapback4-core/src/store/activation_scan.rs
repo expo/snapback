@@ -152,6 +152,34 @@ mod tests {
             .unwrap();
         assert!(tx.activation_scan.as_ref().unwrap().borrow().is_none());
     }
+
+    #[test]
+    fn raw_projection_and_savepoint_rollback_discard_buffered_images() {
+        let (mut store, schema) = fixture();
+        let mut tx = store.transaction().unwrap();
+        tx.activation_scan = Some(Default::default());
+        let t = tx.num("entries").unwrap();
+        let ti = tx.num("entries.byId").unwrap();
+        let old = tx.get("entries", "r001").unwrap().unwrap();
+        let mut changed = old.clone();
+        if let Value::Row(fields) = &mut changed {
+            fields.insert("text".into(), Value::String("temporary".into()));
+        }
+        tx.savepoint("before_projection").unwrap();
+        tx.activation_head(t, ti, &[], &[255]).unwrap();
+        // The same getter used by activation's raw projection/staging SQL.
+        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id='r001'",
+            params![canonical_json(&changed), t]).unwrap();
+        assert!(tx.activation_scan.as_ref().unwrap().borrow().is_none());
+        // Cache the changed r001 behind r000, then roll the physical write back.
+        tx.activation_head(t, ti, &[], &[255]).unwrap();
+        assert!(tx.activation_scan.as_ref().unwrap().borrow().is_some());
+        tx.rollback_to("before_projection").unwrap();
+        assert!(tx.activation_scan.as_ref().unwrap().borrow().is_none());
+        let key = crate::rows::index_key(&schema.tables["entries"].indexes["byId"], &old, "r001");
+        let (data, _) = tx.activation_head(t, ti, &key, &[255]).unwrap().unwrap().unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&data).unwrap(), old);
+    }
 }
 
 impl Tx<'_> {

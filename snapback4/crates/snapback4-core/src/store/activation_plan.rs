@@ -47,3 +47,11 @@ pub(super) fn plans(next: &Schema, previous: Option<&Schema>) -> BTreeMap<String
         })
         .collect()
 }
+
+/// Historical catalog numbers remain, but inactive names lose their rows/keys.
+pub(super) fn active_names(schema: &Schema) -> BTreeSet<String> {
+    schema.tables.iter().filter(|(_, t)| t.ephemeral.is_none())
+        .flat_map(|(name, table)| std::iter::once(name.clone())
+            .chain(table.indexes.keys().map(move |index| format!("{name}.{index}"))))
+        .collect()
+}

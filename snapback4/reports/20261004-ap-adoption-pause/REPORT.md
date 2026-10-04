@@ -2,11 +2,15 @@
 
 Date: 2026-10-04. Host: eb1000 only (AMD EPYC 9454, 48 cores / 96 threads). Baseline: `2154dc163dc42e1808f12ef32e9468b2889407a3`.
 
-**Result: 17.108 s → 6.942 s median, 2.46× faster. The requested 5× target
+**Round-0 result: 17.108 s → 6.942 s median, 2.46× faster. The requested 5× target
 is not met.** On this baseline it requires ≤3.422 s. The improvement removes
 59% of the pause without introducing an online protocol. Atomic publication,
 crash rollback, predecessor readers, logical meters, sparse images and derived
 results are preserved. The optimized web artifact is byte-identical to baseline.
+
+**Round 1:** 17.871 s → 7.914 s median (2.26×); the 96 MiB address-space probe
+now succeeds with identical derived state. **Full-suite qualification remains red:**
+two completed runs failed different client cases; affected tests pass. See the [round-1 record](#round-1--refusal-order-memory-and-complete-pause-advice).
 
 All measurements and changes belong
 to `lane-ap`; no other lane, host or process was changed. Nothing was pushed.
@@ -330,3 +334,207 @@ All private databases, tokens, profiler working directories and baseline build
 copies are removed before commit. Peak lane scratch/build use stayed below
 60 GB. Only sources, documentation, reproducible counters and non-secret
 measurement summaries are retained.
+
+## Round 1 — refusal order, memory and complete pause advice
+
+The round-0 Astra and Grok reviews were READY WITH CHANGES. This revision starts
+at `547c9eaa0b` and addresses all four required findings plus the advice wording.
+The reviews and their private evidence remain under `~/sb4-intent/reviews/`;
+no other lane was modified. The sections above are the original round-0 record.
+
+### Changes and regression evidence
+
+- **Uniqueness at staging.** `_adoption_index` now has `(ti,k)` as its primary
+  key in a `WITHOUT ROWID` table. A duplicate fails on the original walk step;
+  the native constraint error is translated to the exact predecessor public
+  message, `E_STORE: UNIQUE constraint failed: i.ti, i.k`. The clustered key
+  also supplies final insertion order without another sorter. The regression
+  injects a duplicate physical key before a later invalid source row, compares
+  the direct and staged walks' exact refusal and accumulated charges, and proves
+  the invalid row was never visited. This exercises defensive physical-key
+  uniqueness; ordinary key generation appends row IDs and deduplicates word
+  tokens. Application unique-prefix validation retains its existing final pass.
+- **Controlled workspace and recovery.** `SNAPBACK4_ADOPTION_CACHE_MIB` accepts
+  integers 0–512, default 64. Zero retains both caller cache settings. Otherwise
+  main and temp each receive half the combined target, preserving larger caller
+  settings; callers already providing the target keep both settings. On Linux,
+  readable procfs limits the target to one quarter of both the finite soft
+  address-space limit and its remaining mapped-address headroom. This heuristic
+  is not a cgroup/physical-memory bound; other platforms and missing procfs use
+  the explicit setting. A typed SQLite `NOMEM` after enlargement rolls back,
+  releases cached workspace, restores both settings, verifies autocommit and the
+  persisted predecessor identity, and retries once. All other errors retain
+  their original refusal. A successful retry reports failed-attempt time as a
+  separate phase. One-shot device preparation is never replayed.
+- **Proven rollback before retry.** The injected `NOMEM` occurs after actual
+  activation index work and a builder row/commit write. Before retry, the test
+  compares rows, indexes, log and commits to the predecessor, checks generation
+  and absence of the temp table, and verifies both original cache settings.
+  Successful output equals an uninterrupted control. Policy tests cover the
+  opt-out, larger caller settings, alternate budgets, repeated `NOMEM`, and
+  no retry for `SQLITE_FULL`, with both settings restored in each case. A failure
+  restoring a SQLite hint is diagnosed and never turns a committed success into
+  a reported activation failure; an unrestored connection is not retried.
+- **Retirement is visible.** Advice uses activation's own active catalog set
+  to count removed stored rows and index entries. A retirement-only change
+  emits an explicit unestimated write-pause warning; a mixed change appends that
+  warning to its modeled build work. Core and real `check --json` regressions
+  cover deleting a 1,000-row table with 2,000 keys and dropping a 1,000-key index;
+  core tests also cover retirement mixed with a new aggregate. Check remains
+  read-only.
+- **Raw-write invalidation.** Activation's projection, staging and bookkeeping
+  SQL now obtain the invalidating connection accessor at each write. Other
+  store write entry points do likewise (bulk put already clears at entry).
+  A regression buffers a changed raw row after a savepoint, calls `rollback_to`,
+  and proves the buffer is discarded and the next read returns the old image.
+- **Honest advice.** The former range is described as modeled work “up to” the
+  high value on a host like measured eb1000, with no host/load SLO. The subtotal
+  excludes row-view visits and explicitly is not a floor. No new per-member
+  inspection was added to tighten this advisory number. `N_ADOPTION_PAUSE`, dev,
+  deploy and `guide maintains` name the cache control, historical 147 MiB RSS,
+  and the distinction between a workspace target and process memory.
+
+### Repeated corpus pair
+
+[round1/reproduce.py](round1/reproduce.py) repeats the same supported semantic
+rollback and pinned-time generation-2 adoption described above. It copies only
+the evidence database/WAL and deletes private databases on exit, including errors.
+The baseline is unmodified `2154dc163d` core code with the measurement helper;
+its helper omits the candidate-only nested detail field. All three binaries use
+`--profile production` and `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`.
+[Binary hashes](round1/artifacts.json) bind the evidence to those artifacts.
+
+The accepted pairs use CPU 95, sibling 47. Both were at least 95% idle for the
+one-second sample immediately before each run (actual samples 98–100%). An
+initial attempt on CPU 87 was rejected before collecting a sample because its
+sibling stayed busy. This is a shared host, not a claim of whole-machine
+isolation; tests/builds from this lane used separate CPUs. The first candidate
+commit took 1.701 s versus 0.423/0.426 s on the next two. All three samples are
+retained, including that outlier; the median is not a latency guarantee.
+
+| Pair | Baseline seconds | Round 1 seconds | Speedup |
+|---|---:|---:|---:|
+| 1 | 17.871 | 10.197 | 1.75× |
+| 2 | 19.130 | 7.908 | 2.42× |
+| 3 | 17.140 | 7.914 | 2.17× |
+| Median | **17.871** | **7.914** | **2.26×** |
+
+The measured improvement survives immediate uniqueness checking and memory
+controls: **56% less pause**, still below the original **5×** objective. It does
+not assert that round 1 is faster than round 0's different shared-host slice.
+Raw samples, disjoint phases, nested captures and every view are in
+[round1/results/timings.jsonl](round1/results/timings.jsonl). Candidate phase
+medians are: advice 56 ms, key validation <1 ms, preflight 889 ms, projection and
+indexes 3,155 ms, derived rebuild 3,187 ms, final validation 238 ms, metadata 2 ms,
+and commit 426 ms. Medians of phases need not sum to the median total. `unread`
+still visits 227,989 rows and takes 2,013 ms median; its original settled/pending
+contract is unchanged.
+
+[The complete equivalence comparison](round1/results/equivalence.json) again
+matches every rebuilt table/index/capture and all five full digests in the table
+above: 392,348 row images, 3,441,029 index entries, 141 catalog entries,
+528,066 log entries and 208,742 commits. The generated slow-path oracle also
+passed on all 12 seeds, including sparse images and signed sum cancellation.
+
+### Actual constrained-address-space probe
+
+The first round-1 implementation kept a 64 MiB main cache and the small caller
+temp cache. Immediate unique staging cost a median 9.481 s in that exploratory
+slice, and under a 96 MiB `RLIMIT_AS` Rust aborted before SQLite could return
+`NOMEM`. Merely retrying SQLite errors was therefore insufficient. These failed
+exploratory results are retained in [round1/initial-probe](round1/initial-probe).
+Splitting the target across main/temp improves staging without raising the
+combined target; the address-space headroom check prevents that observed abort.
+
+The final **96 MiB address-space** run succeeds without opting out. Complete
+results and stderr are in [round1/results/memory.json](round1/results/memory.json).
+These are memory/recovery probes, not additional quiet-slice timing samples.
+
+| Binary / setting | Outcome | Adoption seconds | Peak RSS MiB |
+|---|---|---:|---:|
+| Baseline | Success, all digests equal | 18.055 | 27.75 |
+| Round 0 | `SQLITE_NOMEM`, complete rollback | — | 90.75 |
+| Round 1, configured 64 MiB | Success, all digests equal | 11.333 | 47.54 |
+| Round 1, explicit 0 | Success, all digests equal | 11.895 | 30.83 |
+
+The default's effective combined target was reduced to **20,519 KiB**. In the
+unlimited quiet-slice runs the 64 MiB combined target used **93.11 MiB RSS** peak.
+The 147 MiB round-0 observation remains documented because sorter RAM tracks
+SQLite's borrowed cache threshold, not just its page count. A process limit can
+also terminate Rust before a recoverable SQLite error; neither the heuristic
+nor the fallback claims immunity to arbitrary OS/cgroup kills or allocator
+aborts. Embeddings with large caller caches or `temp_store=MEMORY` retain those
+choices and their memory responsibility.
+
+The round-0 failure's predecessor comparison includes `r`, `i`, `_catalog`,
+`_log`, `_commits`, `_meta` and `_generations`. Every successful constrained run
+also repeats the complete table/index/capture comparison against the baseline;
+those separate digest files are beside `memory.json`. The deterministic retry
+regression establishes the retry path independently of the Linux clamp.
+
+### Round-1 verification and disposition
+
+Affected tests passed (325 selected tests, plus the nested allocation probe;
+one existing ignored test), covering core adoption/captures/generated oracles,
+maintained columns, expiring adoption, aggregates, simulator atomic narrowing,
+device activation and real CLI advice/watch recovery. Their commands and results
+are in [round1/affected-tests.txt](round1/affected-tests.txt).
+
+The first full-suite attempt caught a stale `N_ADOPTION_PAUSE` guide definition
+and action wording. It was stopped after that failure; it is not counted as a
+complete pass. The diagnostic registry, guide text and hand-reviewed definition
+pin were aligned with the new advice, and all **112 guide tests** passed before
+restarting the full suite. [The failure record](round1/initial-suite-failure.txt)
+is retained. This text correction does not change the timed adoption path.
+
+The next complete attempt finished in 2,038 s with one client failure: worker
+fixture readiness reported `fetch failed` before the symlink test's assertions.
+The fixture diagnostic showed the host/worker running and startup adoption
+finishing in under a millisecond. The exact case then passed in 2.572 s, and
+all 61 tests in that file passed in 444.360 s, with no product or test changes.
+All other 310 client files, all Rust/fixture stages and all 79 serial model tests
+passed in that attempt. Its [failure](round1/worker-readiness-failure.txt) and
+[scoped reruns](round1/worker-readiness-reruns.txt) are retained; the cause remains
+unclassified in [a follow-up ticket](../../../issues/20261004-snapback4-intermittent-client-suite-failures.md).
+That attempt is not described as a green full suite.
+
+The online recommendation in LLP 3000.026 §8.6 is unchanged: an eight-second
+pause still warrants separate snapshot/catch-up work. This revision implements
+no online protocol and does not close the original 5× performance shortfall.
+
+The second complete attempt exited **1 after 2,049 s**, again in the client stage.
+It passed all 299 Rust binaries / 1,012 executions and doctests, nine fixtures,
+all 79 serial model tests, and every build/typecheck/docs/release stage. Across
+311 client files, 6,180 tests passed, seven failed and 11 were skipped. Five were
+transport failures (one explicitly `UND_ERR_CONNECT_TIMEOUT`); two were distinct
+assertions: shifted-page retained ordering A,B,C instead of A,C,B, and a parked
+action journal containing attempt 3 instead of stopping at [1,2]. The
+[seven complete failure blocks](round1/second-suite-failures.txt) and
+[both complete stage summaries](round1/full-suite-summary.txt) are retained.
+Every newly failing file passed the preceding complete run on the same candidate.
+No client test retries or product workaround were added. These observations do
+not establish an environmental cause, and neither complete run is green.
+
+The final optimized wasm is byte-identical to the retained before artifact:
+**2,116,457 B raw / 639,750 B gzip**, SHA-256
+`de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`.
+The 639,887-byte budget and recorded 130-byte macOS allowance are unchanged.
+No macOS execution is claimed.
+
+The seven failing files were then run through the normal file runner on CPUs
+88–95, first against the retained pre-AP `2154dc163d` release CLI, then against
+the current candidate debug CLI. **Both controls passed all 89 tests**, including
+300 process and 300 wasm ordinary-search seeds each. These are correctness
+controls, not performance comparisons across build profiles. A temporary fetch
+probe only logged origin/path and the underlying error cause, then rethrew the
+same error; it did not retry or change requests. No failing transport was
+reproduced (only ordinary aborts were logged). [The command, cases, oracle
+summaries and probe observations](round1/client-controls.txt),
+[probe source](round1/fetch-cause.mjs) and [binary hashes](round1/artifacts.json)
+are retained. The cause of the complete-run failures remains unclassified;
+passing focused controls do not replace a green full suite. See the
+[verification record](round1/verification.txt) and the linked follow-up ticket.
+
+Final `ref-check --verbose` passes with zero errors and zero unchecked references.
+Private corpus stores and all remaining scratch artifacts were removed; lane disk
+use is 40.06 GiB, below 50 GiB. No store, token or binary is committed.

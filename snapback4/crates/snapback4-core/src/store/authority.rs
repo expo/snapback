@@ -89,13 +89,13 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError> {
-        self.tx
+        self.conn()
             .execute("DELETE FROM _sessions WHERE token_digest = ?1", [digest])?;
         Ok(())
     }
 
     fn invalidate_family(&self, principal: &str, family: &str) -> Result<(), RuntimeError> {
-        self.tx.execute(
+        self.conn().execute(
             "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
             params![principal, family],
         )?;

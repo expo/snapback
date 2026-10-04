@@ -4,6 +4,9 @@ use super::*;
 
 #[derive(Debug, Default)]
 pub struct AdoptionEstimate {
+    pub cache_mib: u32,
+    pub retired_rows: u64,
+    pub retired_index_entries: u64,
     pub sources: BTreeMap<String, u64>,
     pub projected_rows: u64,
     pub index_rows: u64,
@@ -34,8 +37,18 @@ impl AdoptionEstimate {
             .map(|(name, rows)| format!("{name}={rows}"))
             .collect::<Vec<_>>()
             .join(", ");
+        let pause = if hi == 0.0 {
+            "unestimated write pause for retirement".to_owned()
+        } else {
+            format!("estimated write work up to {hi:.2} s on a host like measured eb1000 (not a host/load SLO); {lo:.2} s subtotal excludes row-view visits and is not a floor")
+        };
+        let retirement = if self.retired_rows != 0 || self.retired_index_entries != 0 {
+            format!("; additional unestimated retirement pause: {} stored rows and {} index entries", self.retired_rows, self.retired_index_entries)
+        } else { String::new() };
+        let cache = if self.cache_mib == 0 { "caller cache setting".to_owned() }
+            else { format!("{} MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom)", self.cache_mib) };
         format!(
-            "estimated write pause {lo:.2}–{hi:.2} s using measured eb1000 release rates (not a host/load SLO); source rows [{sources}]; {} row projections, {} index row builds, {} capture fills, {} aggregate visits, {} members / up to {} row-view visits; payload width, token fanout, group distribution and WAL/storage affect the actual time",
+            "{pause}; source rows [{sources}]; {} row projections, {} index row builds, {} capture fills, {} aggregate visits, {} members / up to {} row-view visits{retirement}; memory: {cache}, prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time",
             self.projected_rows,
             self.index_rows,
             self.capture_rows,
@@ -78,7 +91,21 @@ impl Store {
             counts.insert(name.to_owned(), rows);
             Ok(rows)
         };
-        let mut estimate = AdoptionEstimate::default();
+        let mut estimate = AdoptionEstimate {
+            cache_mib: super::activation_cache::configured_mib()?,
+            ..Default::default()
+        };
+        // Use the same catalog retirement set as activation, including old
+        // private leaves and tables becoming ephemeral. Retained historical
+        // catalog names with no physical content contribute zero work.
+        let active = super::activation_plan::active_names(schema);
+        for (_, num) in tx.catalog.iter().filter(|(name, _)| !active.contains(*name)) {
+            let (rows, indexes): (i64, i64) = tx.tx.query_row(
+                "SELECT (SELECT count(*) FROM r WHERE t=?1), (SELECT count(*) FROM i WHERE ti=?1)",
+                [num], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            estimate.retired_rows = estimate.retired_rows.saturating_add(rows as u64);
+            estimate.retired_index_entries = estimate.retired_index_entries.saturating_add(indexes as u64);
+        }
         for (name, table) in schema.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
             let plan = &plans[name];
             let paths = table
@@ -133,6 +160,6 @@ impl Store {
             .filter(|(_, rows)| *rows != 0)
             .map(|(name, rows)| (super::adoption_report::table_label(schema, &name), rows))
             .collect();
-        Ok((!estimate.sources.is_empty()).then_some(estimate))
+        Ok((!estimate.sources.is_empty() || estimate.retired_rows != 0 || estimate.retired_index_entries != 0).then_some(estimate))
     }
 }

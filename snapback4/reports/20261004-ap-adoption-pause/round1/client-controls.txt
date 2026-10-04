@@ -1,0 +1,420 @@
+Scoped baseline/candidate controls, eb1000, 2026-10-04. Both exit 0.
+Run from snapback4/ with SNAPBACK4_BIN selecting the binary and NODE_OPTIONS importing fetch-cause.mjs.
+Baseline retained pre-AP release CLI; candidate current debug CLI; hashes in artifacts.json.
+This is correctness verification, not a cross-profile performance comparison.
+Fetch probe logs a cause and rethrows unchanged; no retry, request changes or product edits.
+The observed probe messages are aborts, not reproduced transport failures.
+Command:
+taskset -c 88-95 node scripts/run-client-tests.mjs 4 files packages/snapback4/test/read-through.test.mjs packages/snapback4/test/read-through-provenance.test.mjs packages/snapback4/test/read-through-upsert.test.mjs packages/snapback4/test/readauth.test.mjs packages/snapback4/test/server-e2e.test.mjs packages/snapback4/test/keep-app-model.test.mjs packages/snapback4/test/ordinary-search-oracle.test.mjs
+
+baseline START 1791140689.8169105
+baseline EXIT 0 1791141186.1480703
+candidate START 1791141186.1483202
+candidate EXIT 0 1791141702.749319
+
+baseline
+-- client file start: packages/snapback4/test/read-through.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through-provenance.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through-upsert.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/readauth.test.mjs; stall bound 900000 ms
+# Subtest: wasm: read-through upsert predicts both arms and server refusal rolls back
+ok 1 - wasm: read-through upsert predicts both arms and server refusal rolls back
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:36673/changes","message":"This operation was aborted"}
+# Subtest: wasm: read-through upsert horizon child coverage queues
+ok 2 - wasm: read-through upsert horizon child coverage queues
+# Subtest: wasm: read-through upsert missing child coverage queues
+ok 3 - wasm: read-through upsert missing child coverage queues
+# Subtest: process: read-through upsert predicts both arms and server refusal rolls back
+ok 4 - process: read-through upsert predicts both arms and server refusal rolls back
+# Subtest: process: read-through upsert horizon child coverage queues
+ok 5 - process: read-through upsert horizon child coverage queues
+# Subtest: process: read-through upsert missing child coverage queues
+ok 6 - process: read-through upsert missing child coverage queues
+# Subtest: wasm: held upsert queues before entering uncovered unique byEmoji: emoji
+ok 7 - wasm: held upsert queues before entering uncovered unique byEmoji: emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:45595/m/delivered","message":"This operation was aborted"}
+# Subtest: wasm: held upsert queues before entering uncovered cap 1 by emoji
+ok 8 - wasm: held upsert queues before entering uncovered cap 1 by emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:34233/m/delivered","message":"This operation was aborted"}
+# Subtest: process: held upsert queues before entering uncovered unique byEmoji: emoji
+ok 9 - process: held upsert queues before entering uncovered unique byEmoji: emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:41799/m/delivered","message":"This operation was aborted"}
+# Subtest: process: held upsert queues before entering uncovered cap 1 by emoji
+ok 10 - process: held upsert queues before entering uncovered cap 1 by emoji
+-- client file ok: packages/snapback4/test/read-through-upsert.test.mjs (3434 ms)
+-- client file start: packages/snapback4/test/server-e2e.test.mjs; stall bound 900000 ms
+# Subtest: wasm: retained nested rows follow source parents on reordered pages
+ok 1 - wasm: retained nested rows follow source parents on reordered pages
+# Subtest: wasm: retained nested rows follow source parents on shifted pages
+ok 2 - wasm: retained nested rows follow source parents on shifted pages
+# Subtest: wasm: composed tables sharing an ID keep independent retained rows
+ok 3 - wasm: composed tables sharing an ID keep independent retained rows
+# Subtest: wasm: projections without id replace a retained copy using its source envelope
+ok 4 - wasm: projections without id replace a retained copy using its source envelope
+# Subtest: process: retained nested rows follow source parents on reordered pages
+ok 5 - process: retained nested rows follow source parents on reordered pages
+# Subtest: process: retained nested rows follow source parents on shifted pages
+ok 6 - process: retained nested rows follow source parents on shifted pages
+# Subtest: process: composed tables sharing an ID keep independent retained rows
+ok 7 - process: composed tables sharing an ID keep independent retained rows
+# Subtest: process: projections without id replace a retained copy using its source envelope
+ok 8 - process: projections without id replace a retained copy using its source envelope
+# Subtest: wasm: an identityless object merges its identified child rows
+ok 9 - wasm: an identityless object merges its identified child rows
+# Subtest: wasm: an unidentified sibling preserves paired parents and drops an unpaired current row
+ok 10 - wasm: an unidentified sibling preserves paired parents and drops an unpaired current row
+# Subtest: process: an identityless object merges its identified child rows
+ok 11 - process: an identityless object merges its identified child rows
+# Subtest: process: an unidentified sibling preserves paired parents and drops an unpaired current row
+ok 12 - process: an unidentified sibling preserves paired parents and drops an unpaired current row
+# Subtest: wasm: an anonymous nested page appends only retained history after a partial rejoin
+ok 13 - wasm: an anonymous nested page appends only retained history after a partial rejoin
+# Subtest: wasm: an in-place edit under an anonymous nested page replaces its retained copy
+ok 14 - wasm: an in-place edit under an anonymous nested page replaces its retained copy
+# Subtest: process: an anonymous nested page appends only retained history after a partial rejoin
+ok 15 - process: an anonymous nested page appends only retained history after a partial rejoin
+# Subtest: process: an in-place edit under an anonymous nested page replaces its retained copy
+ok 16 - process: an in-place edit under an anonymous nested page replaces its retained copy
+-- client file ok: packages/snapback4/test/read-through-provenance.test.mjs (4311 ms)
+-- client file start: packages/snapback4/test/keep-app-model.test.mjs; stall bound 900000 ms
+# Subtest: wasm: Clique capture partitions and answers equal the flattened program
+ok 1 - wasm: Clique capture partitions and answers equal the flattened program
+# Subtest: process: Clique capture partitions and answers equal the flattened program
+ok 2 - process: Clique capture partitions and answers equal the flattened program
+# Subtest: wasm: an unheld parent falls back without losing retained rows
+ok 3 - wasm: an unheld parent falls back without losing retained rows
+# Subtest: process: an unheld parent falls back without losing retained rows
+ok 4 - process: an unheld parent falls back without losing retained rows
+# Subtest: wasm: four-level capture, covered prediction and inherited expiry
+ok 5 - wasm: four-level capture, covered prediction and inherited expiry
+# Subtest: process: four-level capture, covered prediction and inherited expiry
+ok 6 - process: four-level capture, covered prediction and inherited expiry
+# Subtest: retained fallback uses provenance identities, not projected fields
+ok 7 - retained fallback uses provenance identities, not projected fields
+# Subtest: retained fallback preserves unpaired history and prefers matching source IDs
+ok 8 - retained fallback preserves unpaired history and prefers matching source IDs
+# Subtest: wasm: retained children do not terminally refuse a reused parent delete
+ok 9 - wasm: retained children do not terminally refuse a reused parent delete
+# Subtest: process: retained children do not terminally refuse a reused parent delete
+ok 10 - process: retained children do not terminally refuse a reused parent delete
+# Subtest: wasm: an expired unswept matching child queues its parent delete
+ok 11 - wasm: an expired unswept matching child queues its parent delete
+# Subtest: process: an expired unswept matching child queues its parent delete
+ok 12 - process: an expired unswept matching child queues its parent delete
+# Subtest: retained fallback leaves local duplicate identities unpaired
+ok 13 - retained fallback leaves local duplicate identities unpaired
+# Subtest: retained fallback leaves server duplicate identities unpaired
+ok 14 - retained fallback leaves server duplicate identities unpaired
+# Subtest: retained fallback leaves both duplicate identities unpaired
+ok 15 - retained fallback leaves both duplicate identities unpaired
+# Subtest: retained fallback never attaches one object's history to a different source
+ok 16 - retained fallback never attaches one object's history to a different source
+# Subtest: anonymous retained projections use nested source identities and keep identified leftovers whole
+ok 17 - anonymous retained projections use nested source identities and keep identified leftovers whole
+# Subtest: anonymous projection preserves retained JSON fields but excludes nested current rows
+ok 18 - anonymous projection preserves retained JSON fields but excludes nested current rows
+-- client file ok: packages/snapback4/test/read-through.test.mjs (4777 ms)
+-- client file start: packages/snapback4/test/ordinary-search-oracle.test.mjs; stall bound 10740000 ms
+# Subtest: wasm-memory: revocation filters every watched read
+ok 1 - wasm-memory: revocation filters every watched read
+# Subtest: wasm-memory: retained filters every watched read
+ok 2 - wasm-memory: retained filters every watched read
+# Subtest: wasm-memory: upgrade filters every watched read
+ok 3 - wasm-memory: upgrade filters every watched read
+# Subtest: wasm-memory: report filters every watched read
+ok 4 - wasm-memory: report filters every watched read
+# Subtest: wasm-memory: grant filters every watched read
+ok 5 - wasm-memory: grant filters every watched read
+# Subtest: native-sqlite: revocation filters every watched read
+ok 6 - native-sqlite: revocation filters every watched read
+# Subtest: native-sqlite: retained filters every watched read
+ok 7 - native-sqlite: retained filters every watched read
+# Subtest: native-sqlite: upgrade filters every watched read
+ok 8 - native-sqlite: upgrade filters every watched read
+# Subtest: native-sqlite: report filters every watched read
+ok 9 - native-sqlite: report filters every watched read
+# Subtest: native-sqlite: grant filters every watched read
+ok 10 - native-sqlite: grant filters every watched read
+-- client file ok: packages/snapback4/test/readauth.test.mjs (40332 ms)
+# Subtest: check validates generated handler returns, arguments and declared secrets without executing the entry
+ok 1 - check validates generated handler returns, arguments and declared secrets without executing the entry
+# Subtest: dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+ok 2 - dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+# Subtest: dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+ok 3 - dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+# Subtest: scheduled generated action runs under its declared service seat
+ok 4 - scheduled generated action runs under its declared service seat
+# Subtest: raw HTTP settlement validates declared results terminally and never reclaims them
+ok 5 - raw HTTP settlement validates declared results terminally and never reclaims them
+# Subtest: cancellation and admitting-session revocation abort an in-flight context before later writes
+ok 6 - cancellation and admitting-session revocation abort an in-flight context before later writes
+# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+# Subtest: serve uses the same generated contract and declared environment across a supervised restart
+ok 9 - serve uses the same generated contract and declared environment across a supervised restart
+-- client file ok: packages/snapback4/test/server-e2e.test.mjs (57174 ms)
+# Subtest: createApp keep=undefined property: online, seed 23, 50ms authority
+ok 1 - createApp keep=undefined property: online, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: online, seed 44, 50ms authority
+ok 2 - createApp keep=undefined property: online, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: online, seed 445, 50ms authority
+ok 3 - createApp keep=undefined property: online, seed 445, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 23, 50ms authority
+ok 4 - createApp keep=undefined property: wasm, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 44, 50ms authority
+ok 5 - createApp keep=undefined property: wasm, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 445, 50ms authority
+ok 6 - createApp keep=undefined property: wasm, seed 445, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 23, 50ms authority
+ok 7 - createApp keep=undefined property: process, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 44, 50ms authority
+ok 8 - createApp keep=undefined property: process, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 445, 50ms authority
+ok 9 - createApp keep=undefined property: process, seed 445, 50ms authority
+# Subtest: createApp keep=true property: online, seed 23, 50ms authority
+ok 10 - createApp keep=true property: online, seed 23, 50ms authority
+# Subtest: createApp keep=true property: online, seed 44, 50ms authority
+ok 11 - createApp keep=true property: online, seed 44, 50ms authority
+# Subtest: createApp keep=true property: online, seed 445, 50ms authority
+ok 12 - createApp keep=true property: online, seed 445, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 23, 50ms authority
+ok 13 - createApp keep=true property: wasm, seed 23, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 44, 50ms authority
+ok 14 - createApp keep=true property: wasm, seed 44, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 445, 50ms authority
+ok 15 - createApp keep=true property: wasm, seed 445, 50ms authority
+# Subtest: createApp keep=true property: process, seed 23, 50ms authority
+ok 16 - createApp keep=true property: process, seed 23, 50ms authority
+# Subtest: createApp keep=true property: process, seed 44, 50ms authority
+ok 17 - createApp keep=true property: process, seed 44, 50ms authority
+# Subtest: createApp keep=true property: process, seed 445, 50ms authority
+ok 18 - createApp keep=true property: process, seed 445, 50ms authority
+-- client file ok: packages/snapback4/test/keep-app-model.test.mjs (380773 ms)
+# ORACLE_SUMMARY {"host":"process","seeds":300,"failed":[],"ms":179436,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+# Subtest: ordinary search generated oracle process: 300 seeds
+ok 1 - ordinary search generated oracle process: 300 seeds
+# ORACLE_SUMMARY {"host":"wasm","seeds":300,"failed":[],"ms":307553,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+# Subtest: ordinary search generated oracle wasm: 300 seeds
+ok 2 - ordinary search generated oracle wasm: 300 seeds
+# Subtest: ordinary search full last 86 overlaps process
+ok 3 - ordinary search full last 86 overlaps process
+# Subtest: ordinary search full last 100 overlaps process
+ok 4 - ordinary search full last 100 overlaps process
+# Subtest: ordinary search full last 86 overlaps wasm
+ok 5 - ordinary search full last 86 overlaps wasm
+# Subtest: ordinary search full last 100 overlaps wasm
+ok 6 - ordinary search full last 100 overlaps wasm
+# Subtest: expired current replacement keeps retained history process
+ok 7 - expired current replacement keeps retained history process
+# Subtest: expired current replacement keeps retained history wasm
+ok 8 - expired current replacement keeps retained history wasm
+-- client file ok: packages/snapback4/test/ordinary-search-oracle.test.mjs (491518 ms)
+-- client files: 7/7; failed 0; tests {"tests":89,"pass":89,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+
+candidate
+-- client file start: packages/snapback4/test/read-through.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through-provenance.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through-upsert.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/readauth.test.mjs; stall bound 900000 ms
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:34977/sync","message":"This operation was aborted"}
+# Subtest: wasm: read-through upsert predicts both arms and server refusal rolls back
+ok 1 - wasm: read-through upsert predicts both arms and server refusal rolls back
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:41205/changes","message":"This operation was aborted"}
+# Subtest: wasm: read-through upsert horizon child coverage queues
+ok 2 - wasm: read-through upsert horizon child coverage queues
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:44989/changes","message":"This operation was aborted"}
+# Subtest: wasm: read-through upsert missing child coverage queues
+ok 3 - wasm: read-through upsert missing child coverage queues
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:37097/sync","message":"This operation was aborted"}
+# Subtest: process: read-through upsert predicts both arms and server refusal rolls back
+ok 4 - process: read-through upsert predicts both arms and server refusal rolls back
+# Subtest: process: read-through upsert horizon child coverage queues
+ok 5 - process: read-through upsert horizon child coverage queues
+# Subtest: process: read-through upsert missing child coverage queues
+ok 6 - process: read-through upsert missing child coverage queues
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:40095/m/delivered","message":"This operation was aborted"}
+# Subtest: wasm: held upsert queues before entering uncovered unique byEmoji: emoji
+ok 7 - wasm: held upsert queues before entering uncovered unique byEmoji: emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:44857/m/delivered","message":"This operation was aborted"}
+# Subtest: wasm: held upsert queues before entering uncovered cap 1 by emoji
+ok 8 - wasm: held upsert queues before entering uncovered cap 1 by emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:45391/m/delivered","message":"This operation was aborted"}
+# Subtest: process: held upsert queues before entering uncovered unique byEmoji: emoji
+ok 9 - process: held upsert queues before entering uncovered unique byEmoji: emoji
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:46847/m/delivered","message":"This operation was aborted"}
+# Subtest: process: held upsert queues before entering uncovered cap 1 by emoji
+ok 10 - process: held upsert queues before entering uncovered cap 1 by emoji
+-- client file ok: packages/snapback4/test/read-through-upsert.test.mjs (3782 ms)
+-- client file start: packages/snapback4/test/server-e2e.test.mjs; stall bound 900000 ms
+# Subtest: wasm: retained nested rows follow source parents on reordered pages
+ok 1 - wasm: retained nested rows follow source parents on reordered pages
+# Subtest: wasm: retained nested rows follow source parents on shifted pages
+ok 2 - wasm: retained nested rows follow source parents on shifted pages
+# Subtest: wasm: composed tables sharing an ID keep independent retained rows
+ok 3 - wasm: composed tables sharing an ID keep independent retained rows
+# Subtest: wasm: projections without id replace a retained copy using its source envelope
+ok 4 - wasm: projections without id replace a retained copy using its source envelope
+# Subtest: process: retained nested rows follow source parents on reordered pages
+ok 5 - process: retained nested rows follow source parents on reordered pages
+# Subtest: process: retained nested rows follow source parents on shifted pages
+ok 6 - process: retained nested rows follow source parents on shifted pages
+# Subtest: process: composed tables sharing an ID keep independent retained rows
+ok 7 - process: composed tables sharing an ID keep independent retained rows
+# Subtest: process: projections without id replace a retained copy using its source envelope
+ok 8 - process: projections without id replace a retained copy using its source envelope
+# Subtest: wasm: an identityless object merges its identified child rows
+ok 9 - wasm: an identityless object merges its identified child rows
+# Subtest: wasm: an unidentified sibling preserves paired parents and drops an unpaired current row
+ok 10 - wasm: an unidentified sibling preserves paired parents and drops an unpaired current row
+# Subtest: process: an identityless object merges its identified child rows
+ok 11 - process: an identityless object merges its identified child rows
+# Subtest: process: an unidentified sibling preserves paired parents and drops an unpaired current row
+ok 12 - process: an unidentified sibling preserves paired parents and drops an unpaired current row
+# Subtest: wasm: an anonymous nested page appends only retained history after a partial rejoin
+ok 13 - wasm: an anonymous nested page appends only retained history after a partial rejoin
+# Subtest: wasm: an in-place edit under an anonymous nested page replaces its retained copy
+ok 14 - wasm: an in-place edit under an anonymous nested page replaces its retained copy
+# Subtest: process: an anonymous nested page appends only retained history after a partial rejoin
+ok 15 - process: an anonymous nested page appends only retained history after a partial rejoin
+# Subtest: process: an in-place edit under an anonymous nested page replaces its retained copy
+ok 16 - process: an in-place edit under an anonymous nested page replaces its retained copy
+-- client file ok: packages/snapback4/test/read-through-provenance.test.mjs (4733 ms)
+-- client file start: packages/snapback4/test/keep-app-model.test.mjs; stall bound 900000 ms
+# Subtest: wasm: Clique capture partitions and answers equal the flattened program
+ok 1 - wasm: Clique capture partitions and answers equal the flattened program
+# Subtest: process: Clique capture partitions and answers equal the flattened program
+ok 2 - process: Clique capture partitions and answers equal the flattened program
+# Subtest: wasm: an unheld parent falls back without losing retained rows
+ok 3 - wasm: an unheld parent falls back without losing retained rows
+# Subtest: process: an unheld parent falls back without losing retained rows
+ok 4 - process: an unheld parent falls back without losing retained rows
+# Subtest: wasm: four-level capture, covered prediction and inherited expiry
+ok 5 - wasm: four-level capture, covered prediction and inherited expiry
+# Subtest: process: four-level capture, covered prediction and inherited expiry
+ok 6 - process: four-level capture, covered prediction and inherited expiry
+# Subtest: retained fallback uses provenance identities, not projected fields
+ok 7 - retained fallback uses provenance identities, not projected fields
+# Subtest: retained fallback preserves unpaired history and prefers matching source IDs
+ok 8 - retained fallback preserves unpaired history and prefers matching source IDs
+# Subtest: wasm: retained children do not terminally refuse a reused parent delete
+ok 9 - wasm: retained children do not terminally refuse a reused parent delete
+# Subtest: process: retained children do not terminally refuse a reused parent delete
+ok 10 - process: retained children do not terminally refuse a reused parent delete
+# AP_FETCH_FAILURE {"destination":"http://127.0.0.1:45503/changes","message":"This operation was aborted"}
+# Subtest: wasm: an expired unswept matching child queues its parent delete
+ok 11 - wasm: an expired unswept matching child queues its parent delete
+# Subtest: process: an expired unswept matching child queues its parent delete
+ok 12 - process: an expired unswept matching child queues its parent delete
+# Subtest: retained fallback leaves local duplicate identities unpaired
+ok 13 - retained fallback leaves local duplicate identities unpaired
+# Subtest: retained fallback leaves server duplicate identities unpaired
+ok 14 - retained fallback leaves server duplicate identities unpaired
+# Subtest: retained fallback leaves both duplicate identities unpaired
+ok 15 - retained fallback leaves both duplicate identities unpaired
+# Subtest: retained fallback never attaches one object's history to a different source
+ok 16 - retained fallback never attaches one object's history to a different source
+# Subtest: anonymous retained projections use nested source identities and keep identified leftovers whole
+ok 17 - anonymous retained projections use nested source identities and keep identified leftovers whole
+# Subtest: anonymous projection preserves retained JSON fields but excludes nested current rows
+ok 18 - anonymous projection preserves retained JSON fields but excludes nested current rows
+-- client file ok: packages/snapback4/test/read-through.test.mjs (4808 ms)
+-- client file start: packages/snapback4/test/ordinary-search-oracle.test.mjs; stall bound 10740000 ms
+# Subtest: wasm-memory: revocation filters every watched read
+ok 1 - wasm-memory: revocation filters every watched read
+# Subtest: wasm-memory: retained filters every watched read
+ok 2 - wasm-memory: retained filters every watched read
+# Subtest: wasm-memory: upgrade filters every watched read
+ok 3 - wasm-memory: upgrade filters every watched read
+# Subtest: wasm-memory: report filters every watched read
+ok 4 - wasm-memory: report filters every watched read
+# Subtest: wasm-memory: grant filters every watched read
+ok 5 - wasm-memory: grant filters every watched read
+# Subtest: native-sqlite: revocation filters every watched read
+ok 6 - native-sqlite: revocation filters every watched read
+# Subtest: native-sqlite: retained filters every watched read
+ok 7 - native-sqlite: retained filters every watched read
+# Subtest: native-sqlite: upgrade filters every watched read
+ok 8 - native-sqlite: upgrade filters every watched read
+# Subtest: native-sqlite: report filters every watched read
+ok 9 - native-sqlite: report filters every watched read
+# Subtest: native-sqlite: grant filters every watched read
+ok 10 - native-sqlite: grant filters every watched read
+-- client file ok: packages/snapback4/test/readauth.test.mjs (40951 ms)
+# Subtest: check validates generated handler returns, arguments and declared secrets without executing the entry
+ok 1 - check validates generated handler returns, arguments and declared secrets without executing the entry
+# Subtest: dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+ok 2 - dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+# Subtest: dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+ok 3 - dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+# Subtest: scheduled generated action runs under its declared service seat
+ok 4 - scheduled generated action runs under its declared service seat
+# Subtest: raw HTTP settlement validates declared results terminally and never reclaims them
+ok 5 - raw HTTP settlement validates declared results terminally and never reclaims them
+# Subtest: cancellation and admitting-session revocation abort an in-flight context before later writes
+ok 6 - cancellation and admitting-session revocation abort an in-flight context before later writes
+# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+# Subtest: serve uses the same generated contract and declared environment across a supervised restart
+ok 9 - serve uses the same generated contract and declared environment across a supervised restart
+-- client file ok: packages/snapback4/test/server-e2e.test.mjs (59685 ms)
+# Subtest: createApp keep=undefined property: online, seed 23, 50ms authority
+ok 1 - createApp keep=undefined property: online, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: online, seed 44, 50ms authority
+ok 2 - createApp keep=undefined property: online, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: online, seed 445, 50ms authority
+ok 3 - createApp keep=undefined property: online, seed 445, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 23, 50ms authority
+ok 4 - createApp keep=undefined property: wasm, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 44, 50ms authority
+ok 5 - createApp keep=undefined property: wasm, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: wasm, seed 445, 50ms authority
+ok 6 - createApp keep=undefined property: wasm, seed 445, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 23, 50ms authority
+ok 7 - createApp keep=undefined property: process, seed 23, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 44, 50ms authority
+ok 8 - createApp keep=undefined property: process, seed 44, 50ms authority
+# Subtest: createApp keep=undefined property: process, seed 445, 50ms authority
+ok 9 - createApp keep=undefined property: process, seed 445, 50ms authority
+# Subtest: createApp keep=true property: online, seed 23, 50ms authority
+ok 10 - createApp keep=true property: online, seed 23, 50ms authority
+# Subtest: createApp keep=true property: online, seed 44, 50ms authority
+ok 11 - createApp keep=true property: online, seed 44, 50ms authority
+# Subtest: createApp keep=true property: online, seed 445, 50ms authority
+ok 12 - createApp keep=true property: online, seed 445, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 23, 50ms authority
+ok 13 - createApp keep=true property: wasm, seed 23, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 44, 50ms authority
+ok 14 - createApp keep=true property: wasm, seed 44, 50ms authority
+# Subtest: createApp keep=true property: wasm, seed 445, 50ms authority
+ok 15 - createApp keep=true property: wasm, seed 445, 50ms authority
+# Subtest: createApp keep=true property: process, seed 23, 50ms authority
+ok 16 - createApp keep=true property: process, seed 23, 50ms authority
+# Subtest: createApp keep=true property: process, seed 44, 50ms authority
+ok 17 - createApp keep=true property: process, seed 44, 50ms authority
+# Subtest: createApp keep=true property: process, seed 445, 50ms authority
+ok 18 - createApp keep=true property: process, seed 445, 50ms authority
+-- client file ok: packages/snapback4/test/keep-app-model.test.mjs (380689 ms)
+# ORACLE_SUMMARY {"host":"process","seeds":300,"failed":[],"ms":214476,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+# Subtest: ordinary search generated oracle process: 300 seeds
+ok 1 - ordinary search generated oracle process: 300 seeds
+# ORACLE_SUMMARY {"host":"wasm","seeds":300,"failed":[],"ms":292822,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+# Subtest: ordinary search generated oracle wasm: 300 seeds
+ok 2 - ordinary search generated oracle wasm: 300 seeds
+# Subtest: ordinary search full last 86 overlaps process
+ok 3 - ordinary search full last 86 overlaps process
+# Subtest: ordinary search full last 100 overlaps process
+ok 4 - ordinary search full last 100 overlaps process
+# Subtest: ordinary search full last 86 overlaps wasm
+ok 5 - ordinary search full last 86 overlaps wasm
+# Subtest: ordinary search full last 100 overlaps wasm
+ok 6 - ordinary search full last 100 overlaps wasm
+# Subtest: expired current replacement keeps retained history process
+ok 7 - expired current replacement keeps retained history process
+# Subtest: expired current replacement keeps retained history wasm
+ok 8 - expired current replacement keeps retained history wasm
+-- client file ok: packages/snapback4/test/ordinary-search-oracle.test.mjs (511745 ms)
+-- client files: 7/7; failed 0; tests {"tests":89,"pass":89,"fail":0,"cancelled":0,"skipped":0,"todo":0}
