@@ -86156,3 +86156,5 @@ outputs. Snapback 4's own diagnostic registry and guide census pass. The
 [Round 1 report](./reports/20261004-ms-matching-ordered-search/REPORT.md#round-1--declared-index-diagnostics-and-precise-meter-wording)
 records exact diagnostics, the compiling rewrite, both root inventory logs,
 verification results and wasm bytes.
+
+2026-10-04 — MS Round 2: qualified search meter parity by the same scanned message set; card 402/405 lines; eb1000 guide (112), compiler (7), offline memory/SQLite (2), and simulator diagnostic (1) tests pass; no full-suite rerun.
