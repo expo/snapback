@@ -1,0 +1,14 @@
+{
+  "host": "eb1000 (expose-builder-pixel)",
+  "raw_bytes": 2116457,
+  "gzip_bytes": 639750,
+  "sha256": "55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1",
+  "budget_gzip": 639887,
+  "headroom_bytes": 137,
+  "recorded_macos_allowance_bytes": 130,
+  "allowance_retained": true,
+  "macos_measured": false,
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "binaryen": "132.0.0"
+}

@@ -626,8 +626,8 @@ impl<'a> Binder<'a> {
             return Err(match known {
                 None => unknown(&read.site, format!("{} has no index {explicit}", read.table), name_rewrite(explicit, info.indexes.iter().map(|i| i.name.as_str()), None)),
                 Some(index) if index.words.is_some() && !searching => unknown(&read.site, format!("{}.{explicit} is a words index; it is read with matching", read.table), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
-                Some(index) if searching && index.words.is_none() => self.matching_plain_index(info, read, index),
-                Some(index) if searching => unknown(&read.site, format!("{}.{explicit} has its words after {} column{}; matching takes exactly those as keys", read.table, index.words.as_ref().map_or(0, |(p, _)| *p), if index.words.as_ref().map_or(0, |(p, _)| *p) == 1 { "" } else { "s" }), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
+                Some(index) if searching && index.words.is_none() => self.matching_nonwords_index(info, read, index),
+                Some(index) if searching => Diagnostic::new(&read.site, "E_QUARRY_MATCHING_INDEX", format!("{}.{explicit} has its words after {} column{}; matching takes exactly those as keys", read.table, index.words.as_ref().map_or(0, |(p, _)| *p), if index.words.as_ref().map_or(0, |(p, _)| *p) == 1 { "" } else { "s" }), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
                 Some(index) => self.index_mismatch(info, read, mode, &keys, index),
             });
         }

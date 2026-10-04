@@ -144,6 +144,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_SYNTAX", &["Fix the first bad line and rerun `check`", "a later empty-body error may be its consequence"]),
     ("E_QUARRY_TYPE", &["Narrow an optional value with `if x != null:`, `x ! else CODE` or `x ?? default`", "changing a type never converts stored values"]),
     ("E_QUARRY_UNKNOWN", &["Check the declared spelling and the diagnostic's suggested name", "declare a missing local before using it"]),
+    ("E_QUARRY_MATCHING_INDEX", &["order by columns", "no automatic column-order rewrite is offered", "pass exactly those prefix columns as scope keys", "reset the cursor when either changes"]),
     ("E_QUARRY_UNSUPPORTED", &["The reported rewrite names the accepted spelling", "`snapback4 check --fix` applies it when marked mechanical"]),
     ("E_QUERY_RETRY", &["four rounds", "30 seconds", "immediate `E_OFFLINE`"]),
     ("E_QUERY_HELD", &["Call a held query through a local client over acquired partitions", "it has no server fallback", "Use the grouped membership read for a server answer"]),

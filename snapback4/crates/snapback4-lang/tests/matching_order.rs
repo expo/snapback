@@ -18,7 +18,7 @@ fn named_plain_search_index_prints_a_compiling_order_rewrite() {
             let refused = compile(&[("schema.q".into(), source.clone())]);
             assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
             let diagnostic = &refused.diagnostics[0];
-            assert_eq!(diagnostic.code, "E_QUARRY_UNKNOWN");
+            assert_eq!(diagnostic.code, "E_QUARRY_MATCHING_INDEX");
             assert_eq!(diagnostic.guide, "search");
             assert!(diagnostic.message.contains("plain index, not a words index"));
             assert_eq!(diagnostic.rewrite, "messages where .conversation = chat matching needle last 7 by .ordinal after next");
@@ -66,6 +66,46 @@ fn words_index_with_wrong_scope_keeps_its_distinct_diagnostic() {
     let source = recipe().replace("  search body", "  search body\n  by byWords: conversation, words(body), ordinal, id")
         .replace("messages[conversation = conversation] matching q last 20 by .ordinal", "messages matching q last 20 by byWords");
     let refused = compile(&[("schema.q".into(), source)]);
-    assert!(refused.diagnostics.iter().any(|d| d.message.contains("has its words after 1 column")), "{:?}", refused.diagnostics);
+    assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
+    let diagnostic = &refused.diagnostics[0];
+    assert_eq!(diagnostic.code, "E_QUARRY_MATCHING_INDEX");
+    assert_eq!(diagnostic.guide, "search");
+    assert!(diagnostic.message.contains("has its words after 1 column"), "{diagnostic:?}");
     assert!(!refused.diagnostics.iter().any(|d| d.message.contains("plain index")));
+}
+
+#[test]
+fn computed_nonwords_index_is_known_but_incompatible_without_a_rewrite() {
+    let source = recipe().replace("  search body", "  at: time\n  search body\n  by byDay: conversation, day(at), id")
+        .replace("last 20 by .ordinal", "last 20 by byDay");
+    let refused = compile(&[("schema.q".into(), source)]);
+    assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
+    let diagnostic = &refused.diagnostics[0];
+    assert_eq!(diagnostic.code, "E_QUARRY_MATCHING_INDEX");
+    assert_eq!(diagnostic.guide, "search");
+    assert!(diagnostic.message.contains("has a computed key"), "{diagnostic:?}");
+    assert!(!diagnostic.message.contains("plain index"), "{diagnostic:?}");
+    assert!(diagnostic.rewrite.is_empty(), "{diagnostic:?}");
+}
+
+#[test]
+fn undeclared_search_index_keeps_unknown_name_code() {
+    let source = recipe().replace("last 20 by .ordinal", "last 20 by missingIndex");
+    let refused = compile(&[("schema.q".into(), source)]);
+    assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
+    assert_eq!(refused.diagnostics[0].code, "E_QUARRY_UNKNOWN");
+    assert!(refused.diagnostics[0].message.contains("has no index missingIndex"));
+}
+
+#[test]
+fn matching_index_code_has_its_own_registry_entry_explanation_and_guide() {
+    let code = "E_QUARRY_MATCHING_INDEX";
+    assert!(guide::codes().contains(&code));
+    assert_eq!(snapback4_lang::diag::guide_for(code), "search");
+    let why = guide::explain_code(code).unwrap();
+    for fact in ["the named index is declared", "computed key", "scope keys", "snapback4 guide search"] {
+        assert!(why.contains(fact), "missing {fact}: {why}");
+    }
+    let diagnostic = snapback4_lang::Diagnostic::new(&Default::default(), code, "", "");
+    assert!(diagnostic.explanation_section().is_some());
 }

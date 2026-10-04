@@ -58,7 +58,7 @@
   "final_counts": {
     "rust_passed": 4963,
     "rust_ignored": 33,
-    "doctests_passed": 18,
+    "doctests_passed": 17,
     "client_files": 311,
     "client_passed": 6187,
     "client_skipped": 11,

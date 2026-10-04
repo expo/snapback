@@ -132,7 +132,7 @@ of local completeness.
 `cargo test --locked --no-fail-fast -p snapback4-lang --tests` completed with
 **1,465 passed, zero failed, 11 existing ignores across 106 targets**. This
 includes the affected planner, search-guidance, repair and lowering checks.
-The full suite's Rust stage passed **4,963 tests and 18 doctests**, with
+The full suite's Rust stage passed **4,963 tests and 17 doctests**, with
 33 existing ignores. The pooled client stage passed **6,187 tests across
 311 files**, with 11 existing skips and no failures or cancellations. All
 nine fixture wrappers and all **79 serial client-model tests** passed.
@@ -175,3 +175,101 @@ The unchanged `metrics/wasm-budget.json` cap is **639,887 B**, leaving **137 B**
 the recorded **130 B macOS allowance** plus 7 B. No Mac measurement is claimed.
 This matches the existing NL round-10 artifact recorded in JOURNAL; the lane
 changes no device code. No ceiling or package version changes.
+
+## Round 1 — declared-index diagnostics and precise meter wording
+
+2026-10-04, on round-0 commit `98f162df87`, responding to
+`~/sb4-intent/reviews/ms-r0.astra.md` and `ms-r0.grok.md` (both
+READY WITH CHANGES). All work remains on eb1000; nothing is pushed.
+
+`E_QUARRY_MATCHING_INDEX` now identifies a **declared** index that cannot
+serve this `matching` read. Both the non-words-index refusal and the older
+“words after N columns” scope-key refusal emit it. The new entry in
+`guide::CODES`, dedicated `why` page, default `search` routing and pinned
+definition/recovery facts are covered by the guide's complete diagnostic
+census. `E_QUARRY_UNKNOWN` and its glossary remain unchanged; a negative
+control verifies that an undeclared search index still emits that code.
+Neither `E_CURSOR_INDEX` nor `E_QUARRY_UNSUPPORTED` is reused.
+
+The binder calls an index plain only when `is_plain()` is true. A declared
+`by byDay: conversation, day(at), id` instead reports that it has a computed
+key and no words key, routes to `search`, and offers no rewrite. Its regression
+checks the code, message, routing and empty rewrite. The existing contextual
+repair verifier still controls whether a plain-index rewrite may be printed.
+
+The [round-1 builder diagnostic](./round1-named.json) has the new code and the
+same intent-preserving rewrite; applying it to the entire saved builder schema
+with both decorations [passes `check --json`](./round1-rewrite.json), exit 0.
+The [actual CLI explanation](./round1-why.txt) covers plain indexes, computed
+keys, wrong words-prefix keys, the conversation recipe and cursor reset.
+
+The recipe now names only ordering and the examined-row, index-entry, step
+and output-byte counters, conditioned on the same rows. It no longer claims
+equality of all meters: rule probes and heap charges differ between server
+and device, as the Grok review demonstrates. The rendered search card is
+**402/405 lines**. No search planning, execution, coverage, completeness,
+meter or cursor semantics changed; the existing LLP clarification still applies.
+
+The first guide attempt caught missing definition/recovery census entries and
+the absent code spelling in the explanation body. These were fixed; the
+subsequent affected compiler/guide run passed **177 tests**, including all
+112 guide tests and all seven matching-order regressions. The reopened offline
+memory/SQLite matrix also passed both tests (twelve acquisition/ordinal/store
+combinations).
+
+The broader affected search run initially passed 107 tests and failed the
+simulator's `search_reads_are_checked`: two expectations still named
+`E_QUARRY_UNKNOWN`. Those expectations now name `E_QUARRY_MATCHING_INDEX`;
+the focused rerun passes. The first full run was interrupted (exit 130) when
+that stale expectation surfaced; it is not counted as a passing suite.
+
+The final Rust stage passed **4,966 tests and 17 doctests**, with 33 existing
+ignores. Recounting the retained round-0 log also gives 17 doctests; its earlier
+18-doctest summary was a reporting error, now corrected in this report and
+`verification.json` without changing the raw evidence.
+
+The final canonical `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash
+scripts/test.sh` run finished **`== 0 failure(s) in 1460 s`**, exit **0**,
+with no interventions. In addition to Rust, all **6,187 client tests across
+311 files**, all **nine fixture tests**, and all **79 serial model tests**
+passed. The client pool retains 11 existing skips and has no cancellations.
+Builds, app/package typechecks, release guard, guide and wasm budgets passed.
+The full run includes the corrected simulator expectations and all affected
+search/planner/server/device tests. The [round-1 verification record](./round1-verification.json)
+retains commands, statuses, raw local log paths and hashes, with
+[full-suite stage summaries](./round1-verification.txt). The final full log is
+`/tmp/ms-r1-full-final.log`.
+Final `./ref-check --verbose` and staged `git diff --check` both pass.
+
+The final suite's [wasm artifact](./round1-wasm.json) is byte-for-byte identical
+to round 0: **2,116,457 B raw / 639,750 B gzip**, against the unchanged
+**639,887 B** cap. The **137 B** headroom preserves the recorded **130 B**
+macOS allowance; no Mac build is claimed. The code, explanation and guide edits
+do not enter the device artifact.
+
+### Root inventory boundary
+
+The requested root `node scripts/check-inventories.mjs` was run before any
+Round 1 edits. Its [baseline failure log](./round1-inventories-before.txt)
+records an unregistered `scripts/caps.test.mjs`, six stale legacy authoring
+profile entries, missing generated examples, stale root diagnostics outputs,
+and a 63,496-byte capability page over its 63,488-byte cap. The omitted test
+already has [a shelved issue](../../../issues/shelved/20260911-scripts-inventory-omits-caps-test.md).
+
+`bun install --frozen-lockfile` and `scripts/check-generated-artifacts` both
+passed. The root diagnostics generator also succeeded, but its three output
+changes concern inherited `SNAPBACK_*` vocabulary only. The chained guide
+generator failed in symbol-registry import parity because it could not resolve
+`@expo/snapback-contract` from the legacy React implementation. Its unrelated
+generated changes were restored; no legacy source or inventory was edited.
+These root tools explicitly inventory `crates/`, `packages/` and the
+`SNAPBACK_*` namespace, excluding `snapback4/` and its `E_QUARRY_*` codes.
+Snapback 4's registry is `guide::CODES`, whose complete emission/definition/
+recovery/routing checks pass above. This is not a claim that the root inventory
+gate passes. It retains inherited failures outside the Snapback 4 fence in
+[`NOT-DOING.md`](../../NOT-DOING.md).
+
+The [final root inventory log](./round1-inventories-after.txt) confirms that
+generation cleared the missing-example errors; the unrelated registration,
+profile, diagnostics and size-budget failures remain. Root generator output
+was examined before restoring it, not silently treated as passing or omitted.

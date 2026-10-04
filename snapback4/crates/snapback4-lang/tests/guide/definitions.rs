@@ -277,6 +277,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_RETAIN", "E_QUARRY_RETAIN means a table repeats its retention declaration or uses an unknown policy."),
     ("E_QUARRY_SYNTAX", "E_QUARRY_SYNTAX means the parser could not read the form at the reported file, line and column."),
     ("E_QUARRY_TYPE", "E_QUARRY_TYPE means the expression's type does not fit its position."),
+    ("E_QUARRY_MATCHING_INDEX", "E_QUARRY_MATCHING_INDEX means the named index is declared, but cannot serve this `matching` read."),
     ("E_QUARRY_UNKNOWN", "E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local, argument, table, column, index or helper may be misspelled or undeclared."),
     ("E_QUARRY_UNSUPPORTED", "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form."),
     ("E_QUERY_RETRY", "exhaustion refuses retryable `E_QUERY_RETRY`"),

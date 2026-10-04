@@ -578,9 +578,9 @@ fn search_reads_are_checked() {
     assert_eq!(codes(&plain_read_of_words), vec!["E_QUARRY_UNKNOWN"], "{:?}", plain_read_of_words.diagnostics);
     assert!(plain_read_of_words.diagnostics[0].rewrite.contains("matching q"));
     let no_words_index = compile(SEARCH.replace("query people(q: text <=100):\n  return profiles matching q first 20 by byNameWords", "query people(q: text <=100):\n  return profiles matching q first 20 by byHandle"));
-    assert_eq!(codes(&no_words_index), vec!["E_QUARRY_UNKNOWN"], "{:?}", no_words_index.diagnostics);
+    assert_eq!(codes(&no_words_index), vec!["E_QUARRY_MATCHING_INDEX"], "{:?}", no_words_index.diagnostics);
     let wrong_scope = compile(SEARCH.replace("return messages[conversationId] matching q after c last 2 by byConvWords", "return messages matching q after c last 2 by byConvWords"));
-    assert_eq!(codes(&wrong_scope), vec!["E_QUARRY_UNKNOWN"], "{:?}", wrong_scope.diagnostics);
+    assert_eq!(codes(&wrong_scope), vec!["E_QUARRY_MATCHING_INDEX"], "{:?}", wrong_scope.diagnostics);
     let optional_text = compile(SEARCH.replace("query people(q: text <=100):", "query people(q: text <=100 ?):"));
     assert_eq!(codes(&optional_text), vec!["E_QUARRY_TYPE"], "{:?}", optional_text.diagnostics);
     assert!(optional_text.diagnostics[0].rewrite.contains("q ?? ''"));

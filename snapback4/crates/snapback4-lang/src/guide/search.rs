@@ -45,7 +45,8 @@ query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
 `by .ordinal` plans `(conversation, words(body), ordinal, id)`; keep the unique index for history and receipts.
 Existing integer ordinals work too: do not migrate to `sequence by` just to search (`guide sequences`).
 Pass `next` as `c`; reset it when the conversation or text changes. An empty needle browses in ordinal order.
-Server and offline device searches share ordering and meters. A device searches acquired history: show
+With the same rows, server and offline device searches share ordering and examined-row, index-entry,
+step and output-byte counts. A device searches acquired history: show
 `complete: false` honestly, even for an empty result beyond its horizon; follow `next` only when present.
 
 Plain `check` counts and summarizes search warnings: unscoped completeness (`N_SEARCH_UNSCOPED`), word expansion (`N_SEARCH_WORDS`), opening refusal (`N_SEARCH_OPEN`), and per-hit roster work (`N_SEARCH_SHAPE`). `--verbose` adds explanations and rewrites; `--cost` adds execution costs.

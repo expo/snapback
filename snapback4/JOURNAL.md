@@ -86118,3 +86118,41 @@ and whitespace checks pass. Wasm is 2,116,457 B raw / 639,750 B gzip, SHA-256
 allowance. No Mac measurement is claimed. All work stayed on eb1000; no other
 host, push or publication. The [MS report](./reports/20261004-ms-matching-ordered-search/REPORT.md)
 retains exact diagnostics, builder hashes, the pasted-rewrite check and validation.
+
+## 2026-10-04 — MS Round 1: incompatible matching indexes have their own code
+
+Addressed the Astra and Grok round-0 reviews. `E_QUARRY_MATCHING_INDEX` now
+means a declared index cannot serve the matching read, covering both the
+non-words index and wrong words-prefix scope arms. Registered its dedicated
+why explanation, search routing, definition and recovery facts. Kept
+`E_QUARRY_UNKNOWN` and its glossary unchanged and tested a genuinely missing
+index separately. Computed indexes now say they have a computed key; only
+`is_plain()` indexes get the plain-index explanation and a candidate rewrite.
+The actual builder schema still compiles after pasting the printed rewrite.
+
+The search recipe names only matching examined-row, index-entry, step and
+output-byte counts with the same rows; it no longer claims equal rule-probe
+or heap meters. The card is 402/405 lines. No planner or runtime semantics
+changed. All 177 affected compiler/guide tests, both offline matrix tests and
+the corrected simulator diagnostic test pass. The first broader search run
+found stale E_QUARRY_UNKNOWN expectations; they were corrected, and the first
+full run was interrupted rather than counted as green.
+
+Final full suite on eb1000: zero failures in 1,460 seconds; 4,966 Rust tests,
+17 doctests, 6,187 client tests across 311 files, nine fixtures and 79 serial
+models passed, with 33 existing Rust ignores and 11 client skips. All build,
+typecheck, release/docs/wasm stages passed. Correction to the previous MS entry:
+its retained round-0 log also shows 17 doctests, not 18; report metadata now
+reflects that count. Wasm is unchanged at 2,116,457 B raw / 639,750 B gzip,
+137 B below the 639,887 B cap, preserving the recorded 130 B macOS allowance.
+No Mac build, other host, push or publication.
+
+The explicitly requested root inventory check fails before and after this
+change on inherited Snapback 1 test registration, profile metadata, diagnostics
+and guide-size drift. Ran root dependency installation and generated-artifact
+bootstrap successfully; ran the diagnostics and guide generators, retaining
+the latter's legacy package-resolution failure. Restored their unrelated
+outputs. Snapback 4's own diagnostic registry and guide census pass. The
+[Round 1 report](./reports/20261004-ms-matching-ordered-search/REPORT.md#round-1--declared-index-diagnostics-and-precise-meter-wording)
+records exact diagnostics, the compiling rewrite, both root inventory logs,
+verification results and wasm bytes.
