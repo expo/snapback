@@ -86199,3 +86199,33 @@ calculator/export. A supplemental serde-family census rejects the same i64
 serializer on unchanged base and RPF; recorded separately without broadening
 the allowlist. No other host, NZ worktree/process or simulator was used.
 Local commit only; nothing pushed or published.
+
+## 2026-10-04 — FX: complete cross-process test observations
+
+Fixed the adoption recovery-log observation race with the existing bounded
+wait and complete diagnostic lines. Worker fixtures now publish JSON/text by
+atomic rename; append-based fixtures retain duplicate-write detection. The
+Snapback 4 test audit also fixed matching PID/path handoffs and asynchronous
+log observations. Clean stress exposed an adjacent adoption fixture race:
+SIGSTOP could freeze SQLite's writer transaction. A fixture-owned writer lock
+and stopped-child acknowledgement now establish the intended external-adoption
+setup. Every original package, environment, refusal and recovery assertion is
+retained; product code and timeout ceilings are unchanged.
+
+Each affected test file passed 30 repetitions on eb1000. The authorized `check`
+and worker-regression files also passed 30 repetitions on the Apartment mini;
+the final refresh-log delta has 30 additional filtered repetitions per host.
+Delayed-write probes distinguish the old premature JSON reads from the atomic
+fixtures. Full eb1000 suite: **zero failures in 1,616 seconds**; 4,968 Rust passes,
+33 existing ignores, 17 doctests, 6,187 client passes with 11 existing skips,
+79 serial model passes at full counts, and nine fixture passes. All build and
+typecheck stages pass. Darwin witness-driver coverage remains outside the
+mini's authorized two-file scope; its actual fixture handoffs were probed on
+Linux.
+
+The operator's 13:51Z disk-full event interrupted the first stress pass. All
+measurements overlapping 13:45–13:55Z were excluded and replaced, including
+three early mini completions. The [report](./reports/20261004-fx-test-races/REPORT.md)
+lists every audit fix and preserves the clean run records. Both tickets are
+closed. Large owned targets and scratch were removed, and no other worktree or
+simulator was used. Local commit only; nothing pushed.

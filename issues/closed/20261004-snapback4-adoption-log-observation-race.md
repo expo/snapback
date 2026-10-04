@@ -1,7 +1,7 @@
 # Snapback 4 adoption test observes recovery before its asynchronous log line
 
 Date: 2026-10-04
-Status: Open
+Status: Closed
 Scope: Snapback 4 CLI adoption regression test
 
 RPF's full Darwin suite fails
@@ -33,3 +33,16 @@ No product path, test assertion or timeout was changed by RPF to conceal it.
 Evidence: `/tmp/rpf-full.log`, `/tmp/rpf-adoption-baseline-qualified.log`,
 `/tmp/rpf-adoption-rerun.log`. Base sources are in `/tmp/rpf-census-baseline`.
 The test and `serve_adoption.rs` are byte-identical between base and RPF.
+
+## Resolution — 2026-10-04, Lane FX
+
+The fixture now uses the existing bounded `wait_adoption` helper to observe a
+newline-terminated recovery diagnostic after query version 2 and successful
+doctor. Refusal and sweep observations also wait for complete diagnostics.
+Every recovery/refusal assertion remains. The wider audit fixed the same
+observation pattern in other tests, and a clean stress run exposed and fixed
+the adjacent external-adoption fixture's SIGSTOP/SQLite writer-lock race.
+
+Validation and the excluded 13:51Z infrastructure interruption are recorded in
+the [FX report](../../snapback4/reports/20261004-fx-test-races/REPORT.md).
+No runtime behavior or timeout ceiling changed.

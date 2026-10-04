@@ -241,7 +241,7 @@ test('group cleanup reaps an unsampled orphan after its sampled parent exits', {
   writeFileSync(path, `import test from 'node:test';
 import {spawnSync} from 'node:child_process';
 test('owned helper', () => {
-  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:5000});
+  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}.tmp"; mv "${pidFile}.tmp" "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:5000});
 });`);
   let inspections = 0, output = '', orphan;
   const { existsSync } = await import('node:fs');

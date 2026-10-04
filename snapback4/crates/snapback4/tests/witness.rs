@@ -360,7 +360,7 @@ mod driver {
         let node = Command::new("node").args(["-p", "process.execPath"]).output().unwrap();
         assert!(node.status.success());
         let node = String::from_utf8(node.stdout).unwrap();
-        fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid', String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+        fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid.tmp', String(process.pid)); fs.renameSync('checker-pid.tmp', 'checker-pid'); setInterval(() => {}, 1000);\n").unwrap();
         // The real checker has its own 30-second deadline. Keep the Node
         // descendant and diagnostic pipes alive after its wrapper is reaped,
         // so only the witness's 120-second startup guard ends this scenario.

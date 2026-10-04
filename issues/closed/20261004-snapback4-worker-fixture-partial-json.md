@@ -1,7 +1,7 @@
 # Snapback 4 worker fixtures parse JSON before the writer finishes
 
 Date: 2026-10-04
-Status: Open
+Status: Closed
 Scope: `packages/snapback4/test/worker-regressions.test.mjs`
 
 RPF's full Darwin suite reports `Unexpected end of JSON input` in three cases:
@@ -38,3 +38,18 @@ package-lookup and environment assertions. RPF changed no assertion or timeout.
 Evidence: `/tmp/rpf-full.log`, `/tmp/rpf-worker-baseline.log`,
 `/tmp/rpf-worker-baseline-{2,3,4,5}.log`, `/tmp/rpf-worker-rerun.log`.
 The retained baseline CLI is `/tmp/rpf-baseline-snapback4`.
+
+## Resolution — 2026-10-04, Lane FX
+
+The fixture workers write each result to a sibling temporary file and rename
+it atomically after the write completes. Package lookup, schema-local package
+resolution, explicit environment, source-replacement and entry-copy fixtures
+use the same publication boundary. Append-based fixtures retain their append
+semantics, so duplicate writes remain observable. Package-lookup and environment
+assertions are unchanged.
+
+The repository-wide test audit also repaired analogous PID/path handoffs and
+asynchronous log observations. Repetition counts, deterministic delayed-write
+probes, full-suite results and the excluded 13:51Z infrastructure interruption
+are recorded in the [FX report](../../snapback4/reports/20261004-fx-test-races/REPORT.md).
+No product code changed.

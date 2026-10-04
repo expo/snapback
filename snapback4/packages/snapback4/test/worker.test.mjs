@@ -481,6 +481,7 @@ test("chat's real TypeScript invite worker is supervised by dev, restarts and st
   const result = await client.act(action("invite"), { email: "friend@example.com" });
   assert.equal(result.state, "done", JSON.stringify(result) + f.log());
   assert.deepEqual(result.result, { principal: "member:friend@example.com" });
+  await until(() => (f.log().match(/worker\.ts \(pid (\d+)\)/g) ?? []).length === 1);
   const before = f.log().match(/worker\.ts \(pid (\d+)\)/g) ?? [];
   assert.equal(before.length, 1);
   const pid = Number(before[0].match(/pid (\d+)/)[1]);
@@ -748,6 +749,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   assert.equal((await client.act(action("echo"), { message: "first" })).result.message, "first");
   process.kill(starts()[0].pid, "SIGKILL");
   await until(() => starts().length === 2);
+  await until(() => log.includes("restarting in 250 ms"));
   assert.match(log, /restarting in 250 ms/);
   assert.equal((await client.act(action("echo"), { message: "second" })).result.message, "second");
   assert.doesNotMatch(log, /token \(printed once\)|must-not-reach-worker/);

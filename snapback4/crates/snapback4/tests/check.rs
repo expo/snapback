@@ -938,6 +938,9 @@ impl AdoptionHost {
         Self { child, address: line.trim().trim_start_matches("http://").into(), log }
     }
     fn logs(&self) -> String { fs::read_to_string(&self.log).unwrap() }
+    fn has_log_line(&self, message: &str) -> bool {
+        self.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains(message))
+    }
     fn query(&self) -> Value {
         self.request("/q/version", "x-snapback-persona: alice\r\n", "{\"args\":{}}")
     }

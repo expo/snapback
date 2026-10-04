@@ -544,6 +544,9 @@ fn dev_default_adoption_and_check_share_the_successor_refusal() {
     let output = dir.run(&["check", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let diagnostic = serde_json::from_slice::<Value>(&output.stdout).unwrap()["problems"][0].clone();
+    host.until(|h| h.log().rsplit_once('\n').is_some_and(|(complete, _)|
+        complete.contains(diagnostic["message"].as_str().unwrap())
+        && complete.contains(diagnostic["rewrite"].as_str().unwrap())));
     assert!(host.log().contains(diagnostic["message"].as_str().unwrap()));
     assert!(host.log().contains(diagnostic["rewrite"].as_str().unwrap()));
     fs::write(path, source.replace("  read", "  tombstone: bool default false\n  read")).unwrap();

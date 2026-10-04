@@ -1,4 +1,4 @@
-import { hangBudget } from './helpers/wait.mjs';
+import { hangBudget, waitFor } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -203,7 +203,9 @@ table photos:
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);
-  assert.match(log, capacity === "connection" ? /E_RATE_LIMIT at http: all 128 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/);
+  const diagnostic = capacity === "connection" ? /E_RATE_LIMIT at http: all 128 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
+  await waitFor(() => log.split("\n").slice(0, -1).some(line => diagnostic.test(line)), "complete overload diagnostic");
+  assert.match(log, diagnostic);
   assert.equal(child.exitCode, null, "host remains alive");
   for (const socket of sockets) socket.destroy();
   const recovered = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
