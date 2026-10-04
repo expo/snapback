@@ -1,0 +1,77 @@
+{
+  "guide_and_new_regressions": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-lang --test matching_order --test guide -p snapback4-device --test matching_order",
+    "exit_code": 0,
+    "log": "/tmp/ms-focused-fourth.log",
+    "bytes": 9069,
+    "sha256": "f561493f97a224f2205997d126398546c8ebb2f5b5588182407f0a42f7d8d6cd"
+  },
+  "final_offline_matrix": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked -p snapback4-device --test matching_order",
+    "exit_code": 0,
+    "log": "/tmp/ms-device-final2.log",
+    "bytes": 508,
+    "sha256": "468122c5949a3a70f7aa21bac06e9a7250e414b148d32eb0ac432e78ecb8ed65"
+  },
+  "all_language_planner": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-lang --tests",
+    "exit_code": 0,
+    "log": "/tmp/ms-lang-all.log",
+    "bytes": 134547,
+    "sha256": "4114673f9580040a1b9238815505989d426028521b0319934ba996323be07078"
+  },
+  "initial_affected_search": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-sim --test clique --test search_merge --test ordinary_search --test decorated_search --test membership_search -p snapback4-device --test device search",
+    "exit_code": 101,
+    "log": "/tmp/ms-search-affected.log",
+    "bytes": 13102,
+    "sha256": "31de9d6c622475ec6bffb5911f2ba2d41b71e5cca3c19d602c40ef9af6462a93"
+  },
+  "corrected_directory_witnesses": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-device --test device -p snapback4-sim --test clique directory",
+    "exit_code": 0,
+    "log": "/tmp/ms-directory-final.log",
+    "bytes": 1442,
+    "sha256": "fe271fd7880289637fe1358df952f3513bb9905dfc30e95ebbaf9857366265bd"
+  },
+  "interrupted_full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "exit_code": 130,
+    "log": "/tmp/ms-full-suite.log",
+    "bytes": 10609,
+    "sha256": "14cde288122cf7f1671fa27dc12e81618c0494f85b6cd63fe6b2848fe3bd3c6a"
+  },
+  "final_full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "exit_code": 0,
+    "log": "/tmp/ms-full-suite-final.log",
+    "bytes": 1886814,
+    "sha256": "80a983a57f57e249f3edefd4fee6ab40101689d1ee60b10f05cdf8dbb10f1a2f"
+  },
+  "references": {
+    "command": "./ref-check --verbose (repository root)",
+    "exit_code": 0,
+    "log": "/tmp/ms-ref-check.log",
+    "bytes": 81,
+    "sha256": "683d389c331b605a5e126a31130ba99b77dedc16171080cd477a641bbbe59a03"
+  },
+  "final_counts": {
+    "rust_passed": 4963,
+    "rust_ignored": 33,
+    "doctests_passed": 17,
+    "client_files": 311,
+    "client_passed": 6187,
+    "client_skipped": 11,
+    "fixtures_passed": 9,
+    "serial_models_passed": 79,
+    "failures": 0,
+    "elapsed_seconds": 1433
+  },
+  "references_final": {
+    "command": "./ref-check --verbose (repository root)",
+    "exit_code": 0,
+    "log": "/tmp/ms-ref-check-final.log",
+    "bytes": 81,
+    "sha256": "e3b2e836393013afbb315d52006aab341bad81291c5320b57a5cf6155ff3ea50"
+  }
+}

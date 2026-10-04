@@ -4,7 +4,7 @@ use crate::{ast::*, bind, parser, Bound, Diagnostic, Site};
 use std::ops::Range;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ReadChange { Index(String), Point }
+pub(crate) enum ReadChange { Index(String), Point, SearchOrder { keys: Vec<String>, order: Vec<String> } }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReadRepair {
@@ -31,6 +31,12 @@ fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> O
     let mut fixed = read.clone();
     match change {
         ReadChange::Index(index) => { fixed.index = Some(index.clone()); }
+        ReadChange::SearchOrder { keys, order } => {
+            if fixed.matching.is_none() || fixed.keys.len() > keys.len() { return None; }
+            for (key, column) in fixed.keys.iter_mut().zip(keys) { key.column.get_or_insert_with(|| column.clone()); }
+            fixed.index = None;
+            fixed.order_keys = order.clone();
+        }
         ReadChange::Point => {
             // A point cannot silently discard a population predicate or cursor.
             if read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty()

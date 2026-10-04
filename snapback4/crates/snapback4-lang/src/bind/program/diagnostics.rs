@@ -2,6 +2,28 @@
 use super::*;
 
 impl Binder<'_> {
+    // @ref LLP 3000.013#2.3 — search synthesizes an index from pins and order;
+    // an explicit plain index is not a request to order a separate word scan.
+    pub(super) fn matching_nonwords_index(&self, info: &TableInfo, read: &ReadExpr, index: &ast::IndexDecl) -> Diagnostic {
+        let mut pinned: std::collections::BTreeSet<_> = read.keys.iter().enumerate()
+            .filter_map(|(n, key)| key.column.as_ref().or_else(|| index.columns.get(n))).cloned().collect();
+        let mut conjuncts = Vec::new();
+        if let Some(predicate) = &read.filter { super::super::intent::split(*predicate.clone(), &mut conjuncts); }
+        for predicate in conjuncts {
+            if let Some((column, _)) = super::super::intent::equality(&predicate, info) { pinned.insert(column); }
+        }
+        let mut order: Vec<_> = index.columns.iter().filter(|column| !pinned.contains(*column)).cloned().collect();
+        if order.is_empty() { order.push("id".into()); }
+        let (reason, changes) = if index.is_plain() {
+            ("is a plain index, not a words index; matching needs a words index. Order by columns so the planner builds the search index; keep the unique index for ordinary reads",
+                vec![crate::repair::ReadChange::SearchOrder { keys: index.columns.clone(), order }])
+        } else {
+            ("has a computed key and no words key; matching needs a words index with the requested scope and order", Vec::new())
+        };
+        Diagnostic::new(&read.site, "E_QUARRY_MATCHING_INDEX", format!("{}.{} {reason}", read.table, index.name), "")
+            .repair_read(&read.site, changes)
+    }
+
     /// Names callers, not a proof that an arbitrary job's other work is legal.
     pub(super) fn helper_job_callers(&self, helper: &str) -> Vec<String> {
         fn calls(body: &mut [S]) -> Vec<String> {

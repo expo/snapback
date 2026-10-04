@@ -1,0 +1,1 @@
+{"ok":false,"problems":[{"code":"E_QUARRY_UNKNOWN","guide":"language","mechanical":false,"message":"messages.byConversationOrdinal has its words after 0 columns; matching takes exactly those as keys","rewrite":"messages[] matching q first 50 by byConversationOrdinal","site":{"col":10,"file":"schema.q","line":339}}]}

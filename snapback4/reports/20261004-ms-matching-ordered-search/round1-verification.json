@@ -1,0 +1,131 @@
+{
+  "initial_guide": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked -p snapback4-lang --test matching_order --test guide",
+    "exit_code": 101,
+    "log": "/tmp/ms-r1-guide-matching.log",
+    "bytes": 21104,
+    "sha256": "f6c489bae1c5fdfd12a277222dc0791d43885d2d63007e9c73e8a80fd0751f84"
+  },
+  "affected_compiler_and_guide": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-lang --test matching_order --test guide --test search_guidance --test verified_index_repairs --test intent_order --test intent_predicates --test intent_variants --test intent_variants_review --test intent_review",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-affected-lang.log",
+    "bytes": 14523,
+    "sha256": "5a5e99e1f3ff594100b3e37c86c9dc839da814a4652616da9ed214ee280d2109"
+  },
+  "offline_matrix": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked -p snapback4-device --test matching_order",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-offline.log",
+    "bytes": 557,
+    "sha256": "b2a08fc0157ca088dace0f4820371ff519e00e8c3ab81f703d2a263a39fa7167"
+  },
+  "initial_affected_search": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked --no-fail-fast -p snapback4-sim --test clique --test search_merge --test ordinary_search --test decorated_search --test membership_search -p snapback4-device --test device search",
+    "exit_code": 101,
+    "log": "/tmp/ms-r1-affected-search.log",
+    "bytes": 12454,
+    "sha256": "f84501a383976ea6b41dbfe1297d56127ec490bb0d2ab5f2d7b8e2133e1497f3"
+  },
+  "corrected_simulator_diagnostics": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --locked -p snapback4-sim --test clique search_reads_are_checked",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-search-diagnostics-final.log",
+    "bytes": 732,
+    "sha256": "240e215d6aeabbc1e829e7aa9cf925442a26acba3b52f357d7833523139a8f94"
+  },
+  "interrupted_full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "exit_code": 130,
+    "log": "/tmp/ms-r1-full-suite.log",
+    "bytes": 10608,
+    "sha256": "1ff426a9057b15f94ee8628e5fac4cc048fd806adb73b324715795c59ce25f65"
+  },
+  "root_inventory_before": {
+    "command": "node scripts/check-inventories.mjs",
+    "exit_code": 1,
+    "log": "/tmp/ms-r1-inventories-before.log",
+    "bytes": 7320,
+    "sha256": "880764cf844abfa52497c74d2a3f8a3ab21923ff394060881982737041c16a15"
+  },
+  "root_install": {
+    "command": "bun install --frozen-lockfile",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-root-install.log",
+    "bytes": 398,
+    "sha256": "6c13cadcdcc5cabe6e35faeaeee2eafe4e4006de4ba1c37cd7e7244709dd3767"
+  },
+  "root_generated_artifacts": {
+    "command": "scripts/check-generated-artifacts",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-generated-artifacts.log",
+    "bytes": 60519,
+    "sha256": "c293b0d73233d901d184210b28ff762b96a9780d1427150050b51cd896f39b1a"
+  },
+  "root_diagnostics_generator": {
+    "command": "node scripts/generate-diagnostics-registry.mjs",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-diagnostics-generator.log",
+    "bytes": 176,
+    "sha256": "159df982ad3783b1989776e45232b0586b6a0204a934a2df21d12082daea4c62"
+  },
+  "root_guide_generator": {
+    "command": "node scripts/generate-guide-manifest.mjs",
+    "exit_code": 1,
+    "log": "/tmp/ms-r1-guide-generator.log",
+    "bytes": 2047,
+    "sha256": "5ca3eaa95cee63cb76ac667da8f26e9a7af5fd7a95955777415d94b8372aa1ef"
+  },
+  "root_inventory_after": {
+    "command": "node scripts/check-inventories.mjs",
+    "exit_code": 1,
+    "log": "/tmp/ms-r1-inventories-final.log",
+    "bytes": 5774,
+    "sha256": "476130166ca87a571c2308c0955b443a3cfaaab6d579d57e3c1143514c71e351"
+  },
+  "references": {
+    "command": "./ref-check --verbose",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-ref-check.log",
+    "bytes": 81,
+    "sha256": "7634748006429d9bed50afe36947152e75aee839fae597421921beb48e13e373"
+  },
+  "review_inputs": {
+    "ms-r0.astra.md": {
+      "path": "/home/ccheever/sb4-intent/reviews/ms-r0.astra.md",
+      "sha256": "15ae3f39a5f44bc1eb485c7d03407d3be140c3e2fba85fcb55667fe209e36001",
+      "verdict": "READY WITH CHANGES"
+    },
+    "ms-r0.grok.md": {
+      "path": "/home/ccheever/sb4-intent/reviews/ms-r0.grok.md",
+      "sha256": "4e312a7ea28a2d14d268f86b343d62cbc7d9ec5da4dde31c9c0ed639b5c7f955",
+      "verdict": "READY WITH CHANGES"
+    }
+  },
+  "final_full_suite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-full-final.log",
+    "bytes": 1886832,
+    "sha256": "289bdc3ad280bae6f8b40d1a5c6b84f6dd560207991c971016c93d54877b7899"
+  },
+  "final_counts": {
+    "rust_passed": 4966,
+    "rust_ignored": 33,
+    "doctests_passed": 17,
+    "client_files": 311,
+    "client_passed": 6187,
+    "client_skipped": 11,
+    "fixtures_passed": 9,
+    "serial_models_passed": 79,
+    "failures": 0,
+    "elapsed_seconds": 1460
+  },
+  "references_final": {
+    "command": "./ref-check --verbose",
+    "exit_code": 0,
+    "log": "/tmp/ms-r1-ref-check-final.log",
+    "bytes": 81,
+    "sha256": "97a31e406e324f6dd6b73a5d29b6aed4829cacad6559c63bb5facd46497e9da6"
+  }
+}

@@ -14,41 +14,40 @@ query people(q: text <=100, c: cursor ?):
 
 ## Reference
 
+### Search one conversation, newest first, paged
+
+Order by the ordinal column, not the name of its unique index:
+
 ```quarry
+table conversations:
+  read <- exists members[.id, viewer]
+  sync to members[.id]
 table members:
-  roomId: id
+  conversation: conversations
   principal: principal
-  unique roomId, principal
-  cap 100 by roomId
-  read <- exists members[.roomId, viewer]
-  insert <- allow
-
+  unique conversation, principal
+  cap 50 by conversation
+  read <- exists members[.conversation, viewer]
+  sync to members[.conversation]
 table messages:
-  immutable roomId
-  roomId: id
-  body: text <=4000 ?
-  caption: text <=200 ?
-  at: time
-  search body, caption
-  read <- exists members[.roomId, viewer]
-  insert <- allow
-
-table profiles:
-  principal: principal
-  displayName: text <=50
-  handle: text <=30 format handle
-  unique principal
-  search displayName, handle
-  public 'profiles are public'
-  insert <- .principal = viewer
-
-query inRoom(roomId: id, q: text <=100, c: cursor ?):
-  require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId = roomId] matching q after c last 50 by .at
-
-query people(q: text <=100, c: cursor ?):
-  return profiles matching q after c first 20 by .handle
+  conversation: conversations
+  ordinal: sequence by conversation
+  body: text <=2000
+  search body
+  unique byConversationOrdinal: conversation, ordinal
+  read <- exists members[.conversation, viewer]
+  sync to members[.conversation] last 500 by byConversationOrdinal
+query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
+  return messages[conversation = conversation] matching q last 20 by .ordinal after c
 ```
+
+`by byConversationOrdinal` selects a plain index, which cannot serve `matching`.
+`by .ordinal` plans `(conversation, words(body), ordinal, id)`; keep the unique index for history and receipts.
+Existing integer ordinals work too: do not migrate to `sequence by` just to search (`guide sequences`).
+Pass `next` as `c`; reset it when the conversation or text changes. An empty needle browses in ordinal order.
+When server and offline device searches scan the same set of messages, their ordering and examined-row,
+index-entry, step and output-byte counts match. A device searches acquired history: show
+`complete: false` honestly, even for an empty result beyond its horizon; follow `next` only when present.
 
 Plain `check` counts and summarizes search warnings: unscoped completeness (`N_SEARCH_UNSCOPED`), word expansion (`N_SEARCH_WORDS`), opening refusal (`N_SEARCH_OPEN`), and per-hit roster work (`N_SEARCH_SHAPE`). `--verbose` adds explanations and rewrites; `--cost` adds execution costs.
 
