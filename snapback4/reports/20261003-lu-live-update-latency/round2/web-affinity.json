@@ -1,0 +1,124 @@
+[
+  {
+    "label": "r2-main",
+    "load": "setup",
+    "at": "2026-10-04T12:21:19.525428+00:00",
+    "root": 2935560,
+    "processes": 2,
+    "thread_masks": {
+      "80-89": 17
+    },
+    "names": {
+      "MainThread": 1,
+      "lu-r2-main": 1
+    }
+  },
+  {
+    "label": "r2-main",
+    "load": "0",
+    "at": "2026-10-04T12:21:31.571424+00:00",
+    "root": 2935560,
+    "processes": 12,
+    "thread_masks": {
+      "80-89": 273
+    },
+    "names": {
+      "MainThread": 1,
+      "chrome": 10,
+      "lu-r2-main": 1
+    }
+  },
+  {
+    "label": "r2-main",
+    "load": "20",
+    "at": "2026-10-04T12:22:17.634494+00:00",
+    "root": 2935560,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 292
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r2-main": 1
+    }
+  },
+  {
+    "label": "r2-main",
+    "load": "120",
+    "at": "2026-10-04T12:23:35.722781+00:00",
+    "root": 2935560,
+    "processes": 133,
+    "thread_masks": {
+      "80-89": 396
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 121,
+      "chrome": 10,
+      "lu-r2-main": 1
+    }
+  },
+  {
+    "label": "r2-after",
+    "load": "setup",
+    "at": "2026-10-04T12:27:37.909159+00:00",
+    "root": 3079969,
+    "processes": 2,
+    "thread_masks": {
+      "80-89": 17
+    },
+    "names": {
+      "MainThread": 1,
+      "lu-r2-after": 1
+    }
+  },
+  {
+    "label": "r2-after",
+    "load": "0",
+    "at": "2026-10-04T12:27:47.976861+00:00",
+    "root": 3079969,
+    "processes": 12,
+    "thread_masks": {
+      "80-89": 276
+    },
+    "names": {
+      "MainThread": 1,
+      "chrome": 10,
+      "lu-r2-after": 1
+    }
+  },
+  {
+    "label": "r2-after",
+    "load": "20",
+    "at": "2026-10-04T12:28:32.038601+00:00",
+    "root": 3079969,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 293
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r2-after": 1
+    }
+  },
+  {
+    "label": "r2-after",
+    "load": "120",
+    "at": "2026-10-04T12:29:52.141089+00:00",
+    "root": 3079969,
+    "processes": 133,
+    "thread_masks": {
+      "80-89": 396
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 121,
+      "chrome": 10,
+      "lu-r2-after": 1
+    }
+  }
+]

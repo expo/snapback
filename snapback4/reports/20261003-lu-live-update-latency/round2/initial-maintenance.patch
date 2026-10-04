@@ -1,0 +1,59 @@
+# Historical candidate; apply to merged main with git apply --unidiff-zero.
+--- a/snapback4/crates/snapback4/src/serve_maintenance.rs
++++ b/snapback4/crates/snapback4/src/serve_maintenance.rs
+@@ -146,0 +147 @@
++    empty_pause: Duration,
+@@ -154 +155 @@
+-        Self { next: BulkKind::Delivery, serviced: now, resume_at: now,
++        Self { next: BulkKind::Delivery, serviced: now, resume_at: now, empty_pause: Duration::ZERO,
+@@ -163 +164 @@
+-    fn completed(&mut self, now: Instant, elapsed: Duration, contended: bool) {
++    fn completed(&mut self, now: Instant, elapsed: Duration, contended: bool, worked: bool) {
+@@ -168 +169,6 @@
+-        let pause = if contended { (elapsed * 7).min(Duration::from_millis(100)) } else { Duration::ZERO };
++        let charged = if contended { elapsed * 7 } else { Duration::ZERO };
++        self.empty_pause = (self.empty_pause + charged).min(Duration::from_millis(100));
++        // @ref LLP 3000#contended-read-serving — empty kinds keep their CPU
++        // charge, but repay it with the next useful slice or the empty cycle.
++        // Avoid two extra scheduler wakeups for every single delivery slice.
++        let pause = if worked { std::mem::take(&mut self.empty_pause) } else { Duration::ZERO };
+@@ -169,0 +176,6 @@
++    }
++
++    fn empty_cycle(&mut self, now: Instant) -> Duration {
++        let pause = std::mem::take(&mut self.empty_pause);
++        self.resume_at = self.resume_at.max(now + pause);
++        self.resume_at.saturating_duration_since(now)
+@@ -206 +218 @@
+-        lock(&shared.maintenance).completed(Instant::now(), started.consumed(), budget == CONTENDED_TIME || shared.engine.has_waiters());
++        lock(&shared.maintenance).completed(Instant::now(), started.consumed(), budget == CONTENDED_TIME || shared.engine.has_waiters(), result.as_ref().map_or(true, |worked| *worked));
+@@ -298,0 +311,2 @@
++            let pause = lock(&shared.maintenance).empty_cycle(Instant::now());
++            if !pause.is_zero() { std::thread::sleep(pause); }
+@@ -455 +469 @@
+-            state.completed(now, elapsed, true);
++            state.completed(now, elapsed, true, true);
+@@ -461 +475 @@
+-        state.completed(now, WORK_TIME, false);
++        state.completed(now, WORK_TIME, false, true);
+@@ -462,0 +477,20 @@
++    }
++
++    #[test]
++    fn empty_kinds_repay_cpu_with_useful_work_or_before_idle_wait() {
++        let now = Instant::now();
++        let mut state = State::default();
++        state.completed(now, Duration::from_micros(10), true, false);
++        state.completed(now, Duration::from_micros(20), true, false);
++        assert!(state.eligible(now, false));
++        state.completed(now, Duration::from_micros(250), true, true);
++        assert_eq!(state.resume_at - now, Duration::from_micros(1960));
++        assert_eq!(state.empty_pause, Duration::ZERO);
++        assert!(state.eligible(now + BULK_AGE, true));
++
++        let now = now + BULK_AGE;
++        for _ in 0..3 { state.completed(now, Duration::from_micros(10), true, false); }
++        assert_eq!(state.empty_cycle(now), Duration::from_micros(210));
++        assert!(!state.eligible(now, false));
++        assert_eq!(state.empty_pause, Duration::ZERO);
++        assert!(state.eligible(now + BULK_AGE, true));

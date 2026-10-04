@@ -51,9 +51,13 @@ impl Runner<'_> {
         mut visit: impl FnMut(&mut Self, Value) -> Result<usize, RuntimeError>,
     ) -> Result<Progress, RuntimeError> {
         let mut progress = Progress::default();
+        // @ref LLP 3000#contended-read-serving — start with one candidate and
+        // one lookahead. A short slice must not repeatedly decode 31 unused
+        // followers; grow pages only while this turn still has time to use them.
+        let mut page_size = 2;
         while progress.visited < limit as usize {
             if progress.visited > 0 && started.elapsed() >= budget { return Ok(progress); }
-            let take = 32.min(limit - progress.visited as u32);
+            let take = page_size.min(limit - progress.visited as u32);
             let (rows, keys) = self.timeline_page(table, index, prefix.clone(), take, reverse, progress.last.as_deref().or(cursor))?;
             let count = rows.len();
             for (row, key) in rows.into_iter().zip(keys) {
@@ -63,6 +67,7 @@ impl Runner<'_> {
                 progress.last = Some(key);
             }
             if count < take as usize { progress.exhausted = true; break; }
+            page_size = (page_size * 2).min(32);
         }
         if limit == 0 { progress.exhausted = true; }
         Ok(progress)

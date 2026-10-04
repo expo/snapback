@@ -1,0 +1,78 @@
+-- FAIL rust target: snapback4::snapback4 (57.3 s)
+
+running 287 tests
+..............................dev refusal: newer:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M43E5EM29N1F2RWYM1PR70SG"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1791116884611; first response 2; `snapback4 why recent --instance 01M43E5EM29N1F2RWYM1PR70SG`
+dev refusal: older:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M43E5EM29N1F2RWYM1PR70SG"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791116884611; first response 1; `snapback4 why recent --instance 01M43E5EM29N1F2RWYM1PR70SG`
+........snapback4: recovered a mutex after a request panicked
+..i.....snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+snapback4: job catchup done: 1 chunks, 0 rows written
+.......snapback4: recovered a mutex after a request panicked
+........snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+...snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+.....i.
+running 1 test
+..isnapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+.snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+.snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: adoption failure changed; suppressed 2 repeated background failures
+snapback4 dev: the new schema was not adopted: E_GENERATION: second owner; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+.snapback4 dev: the new schema was not adopted: E_STORE: expiry phase is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+.snapback4 dev: the new schema was not adopted: E_STORE: expiry phase; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+.snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116890873345682-34/worker.mjs (pid 3179210)
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116890873345682-34/worker.mjs (pid 3179537)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+.snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116893652488697-35/worker.mjs (pid 3179584)
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116893652488697-35/worker.mjs (pid 3179767)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+.snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116894224994385-36/worker.mjs (pid 3179843)
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116894224994385-36/worker.mjs (pid 3179870)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+.snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116894900218547-37/worker.mjs (pid 3179907)
+snapback4 worker: supervision window ended; replacing child
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot record status: E_STORE: database is locked
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116894900218547-37/worker.mjs (pid 3179938)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116895248968048-38/snapback/workers/push.mjs (pid 3179964)
+snapback4 worker: supervision window ended; replacing child
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: cannot record status: E_STORE: database is locked
+snapback4 worker: /tmp/sb4-reader-reuse-3174379-1791116895248968048-38/snapback/workers/push.mjs (pid 3179983)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+..... 87/287
+.........................................................i.........snapback4: cannot start request thread: Resource temporarily unavailable (os error 11)
+............dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "d4ed9c34952bf4e3cd42cd457e9608e8"; instance "01M43E67A6MTWJ9B9RMWR8FYHW"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791116910042; first response 1; `snapback4 why recent --instance 01M43E67A6MTWJ9B9RMWR8FYHW`
+.dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "256542d04518aa06ccd67605759f730d"; instance "01M43E67F6E4CJ3MW2F33G3BTS"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791116910167; first response 1; `snapback4 why recent --instance 01M43E67F6E4CJ3MW2F33G3BTS`
+dev refusal: /uninstrumented:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "256542d04518aa06ccd67605759f730d"; instance "01M43E67F6E4CJ3MW2F33G3BTS"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1791116910169; first response 2; `snapback4 why recent --instance 01M43E67F6E4CJ3MW2F33G3BTS`
+....... 174/287
+........................snapback4 dev: read costly (guest:01M43E6BKBVJK0DFFD98DBW20Y) cut by heap bytes at costly:2:1; examined=0 index_entries=0 rule_probes=0 steps=1838 heap_bytes=16808700 output_bytes=6 rows_written=0; snapback4 why costly
+.........................snapback4: setpriority nice 5 failed (thread class background-nice, errno 22, at unix ms 1791116914762); inspect doctor host.scheduling: Invalid argument (os error 22)
+.snapback4: setpriority nice 5 failed (thread class worker-nice, errno 1, at unix ms 1791116914762); inspect doctor host.scheduling: Operation not permitted (os error 1)
+............................... 255/287
+verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member --- FAILED
+..............witness: restored previous export after interrupted publication at /tmp/sb4-publish-killed-3174379-1791116940521/runs/1-123/export
+.................
+failures:
+
+---- verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member stdout ----
+witness: recovered abandoned export /tmp/sb4-node-anchor-3174379-volta-style-false
+
+thread 'verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member' (3193799) panicked at crates/snapback4/src/verbs/witness/preparation.rs:449:45:
+called `Result::unwrap()` on an `Err` value: "E_WITNESS_PROCESS: invalid /proc process group"
+
+
+failures:
+    verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member
+
+test result: FAILED. 282 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 57.28s

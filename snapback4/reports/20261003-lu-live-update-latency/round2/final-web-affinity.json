@@ -1,0 +1,46 @@
+[
+  {
+    "load": "0",
+    "at": "2026-10-04T13:05:57.467567+00:00",
+    "root": 3911143,
+    "processes": 12,
+    "thread_masks": {
+      "80-89": 268
+    },
+    "names": {
+      "MainThread": 1,
+      "chrome": 10,
+      "lu-r2-final": 1
+    }
+  },
+  {
+    "load": "20",
+    "at": "2026-10-04T13:06:33.516253+00:00",
+    "root": 3911143,
+    "processes": 33,
+    "thread_masks": {
+      "80-89": 290
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 21,
+      "chrome": 10,
+      "lu-r2-final": 1
+    }
+  },
+  {
+    "load": "120",
+    "at": "2026-10-04T13:07:57.589336+00:00",
+    "root": 3911143,
+    "processes": 133,
+    "thread_masks": {
+      "80-89": 394
+    },
+    "names": {
+      "MainThread": 1,
+      "python3": 121,
+      "chrome": 10,
+      "lu-r2-final": 1
+    }
+  }
+]
