@@ -85935,3 +85935,31 @@ merged build and 137 B under the unchanged 639,887 B cap; SHA-256
 No other machine, unrelated process signal, push or publication. Report:
 [NL Round 9](./reports/20261003-nl-named-key-lookup/REPORT.md#round-9-2026-10-04).
 Evidence: `/tmp/sb4-nl-r9-verification/`.
+
+## 2026-10-04 — NL round 10: hop equality guards across horizons
+
+Round 9 already fixes both forms in Grok's Round 8 review: a unique null
+probe returns absent and known before storage or horizon coverage. Keep
+its logical-edge admission; `ref = null or exists ...` and
+`not (ref = null) and exists ...` remain safe even when expiry accounting
+visits the probe. This round changes tests and records only, with no binder
+or runtime change. Unguarded and logically reversed guards still refuse.
+
+Add the exact composite-key horizon reproduction through server and actual
+memory/SQLite devices: the null OR predicts the allowed insert, both AND
+spellings deny with E_RULE, and a non-null key outside the horizon still
+needs evidence. Extend the zero/8,193 expired-null-tie and meter/lifetime
+matrices to negated-equality AND. Null probes touch no key-table storage;
+the non-null meter and reference/witness deadlines retain their pinned values.
+
+All 1,024 affected Rust tests pass (one existing ignore). The full eb1000
+suite exits zero in 1,398 s: 4,946 Rust tests, 17 doctests, 6,176 pooled client
+tests, 79 serial models and nine fixture tests pass; 33 Rust ignores and
+11 client skips are existing. All 1,879 pinned inputs remain unchanged.
+Wasm is byte-identical to Round 9: 2,116,457 B raw / 639,750 B gzip, 137 B
+under the unchanged 639,887 B cap; SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`.
+Reference, documentation-budget and whitespace checks pass. No other host,
+push or publication. Report:
+[NL Round 10](./reports/20261003-nl-named-key-lookup/REPORT.md#round-10-2026-10-04).
+Evidence: `/tmp/sb4-nl-r10-verification/`.

@@ -12,8 +12,12 @@ const SOURCE: &str = include_str!("null-rule.q");
 fn scenario<S: DeviceStore>(store: S) {
     let visits = Rc::new(RefCell::new(BTreeMap::new()));
     let mut store = Counted { inner: store, visits: visits.clone() };
-    for conjunction in [false, true] {
-        let source = if conjunction { SOURCE.replace(".parent.key = null or", ".parent.key != null and") } else { SOURCE.into() };
+    for (guard, conjunction) in [
+        (".parent.key = null or", false),
+        (".parent.key != null and", true),
+        ("not (.parent.key = null) and", true),
+    ] {
+        let source = SOURCE.replace(".parent.key = null or", guard);
         for key in [Value::Null, id("alice"), id("missing")] {
             let mut baseline = None;
             for count in [8193, 0] {
@@ -56,7 +60,7 @@ fn scenario<S: DeviceStore>(store: S) {
                     assert!(visits.borrow().keys().all(|(table, _)| table != "keys"), "null probe accessed storage: {:?}", visits.borrow());
                 }
                 let evidence = (sent.metered, visits.borrow().clone());
-                if let Some(previous) = &baseline { assert_eq!(&evidence, previous, "ties changed work for {key:?}/{conjunction}"); }
+                if let Some(previous) = &baseline { assert_eq!(&evidence, previous, "ties changed work for {key:?}/{guard}"); }
                 else { baseline = Some(evidence); }
 
                 for name in ["point", "probe"] {

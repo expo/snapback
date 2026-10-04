@@ -39,8 +39,12 @@ fn runtime_null_points_cover_each_composite_position_and_created_facts() {
 
 #[test]
 fn reference_guard_preserves_nonnull_rule_prices_and_lifetimes() {
-    for conjunction in [false, true] {
-        let source = if conjunction { SOURCE.replace(".parent.key = null or", ".parent.key != null and") } else { SOURCE.into() };
+    for (guard, conjunction) in [
+        (".parent.key = null or", false),
+        (".parent.key != null and", true),
+        ("not (.parent.key = null) and", true),
+    ] {
+        let source = SOURCE.replace(".parent.key = null or", guard);
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let schema: Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
@@ -67,7 +71,7 @@ fn reference_guard_preserves_nonnull_rule_prices_and_lifetimes() {
                     assert_eq!(answer, present || (!conjunction && key == Value::Null));
                     let expiry = if present { Some(if until == Value::Int(2000) { 2000 } else { 3000 }) }
                         else if answer { Some(3000) } else { None };
-                    assert_eq!(runner.next_expiry.get(), expiry, "{conjunction}/{device}/{key:?}/{until:?}");
+                    assert_eq!(runner.next_expiry.get(), expiry, "{guard}/{device}/{key:?}/{until:?}");
                     // Pinned on the unmodified merged runtime: both reference
                     // occurrences and the exists leaf pay the full static rule.
                     assert_eq!(runner.meter.used, crate::meter::Metered { rule_probes: 3, ..Default::default() });

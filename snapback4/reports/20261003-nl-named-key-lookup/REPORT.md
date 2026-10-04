@@ -448,6 +448,48 @@ Logs, hashes and structured totals are in `/tmp/sb4-nl-r9-verification/`
 (`full.log`, `verification.json`, `inputs-before.json`). Work stayed on eb1000;
 only this round's own failed suite was signalled; nothing pushed or published.
 
+## Round 10 (2026-10-04)
+
+Round 9 (`0ce62ca280`) already fixes both forms from Grok's Round 8 review.
+[`probe_witness`](../../crates/snapback4-core/src/engine/witness.rs) returns
+`(false, true)` for a unique null key: absent **and known**, before storage
+or horizon coverage. [`get_inner`](../../crates/snapback4-core/src/engine/read_point.rs)
+uses the same guard. This round changes no binder or runtime code.
+
+- Keep the Round 9 decision: `ref = null or exists ...` and
+  `not (ref = null) and exists ...` compile. Their guard facts describe the
+  logical edge; extra lifetime traversal gets a known false probe. The
+  pre-Round-9 suggestion to refuse these spellings is therefore unnecessary.
+  Unguarded probes, `ref = null and` and `not (ref = null) or` still refuse
+  `E_QUARRY_NULL_KEY`; old/next image and hop restrictions remain covered.
+- Added Grok's composite-key, `sync public last 3 by .at` reproduction through
+  the actual server and memory/SQLite `Device::predict`. Both devices omit the
+  null tie from their horizon. OR predicts the server's allowed insert;
+  negated-equality AND and the `!= null and` control deny with `E_RULE`.
+  A present non-null key predicts; a non-null key outside the horizon still
+  needs evidence (`E_PREDICT`), so null handling does not grant other coverage.
+- Extended the zero/8,193-expired-tie matrix to negated-equality AND, with
+  zero key-table storage calls for null arguments. Extended the pinned core
+  meter/deadline matrix to that spelling too, covering null, present and
+  missing keys and expiring, permanent and expired witnesses. All 11 focused
+  tests pass on the unchanged Round 9 production implementation.
+
+Affected NL/QE2/RP suites pass **1,024 Rust tests**, with one existing ignore.
+The full-suite wasm rebuild is byte-identical to Round 9: **2,116,457 B raw /
+639,750 B gzip**, **137 B** below the unchanged **639,887 B** cap; SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`.
+Evidence is under `/tmp/sb4-nl-r10-verification/`; the horizon reproduction is
+[`horizon_null.rs`](../../crates/snapback4-device/tests/nl_qe2_integration/horizon_null.rs).
+
+The full eb1000 suite exits **0: `== 0 failure(s) in 1398 s`**: **4,946 Rust
+tests / 33 existing ignores**, **17 doctests**, **6,176 pooled client tests /
+11 existing skips**, **79 serial models** and **nine fixture tests** pass.
+All **1,879** pinned implementation/test/build inputs remain unchanged.
+`full.log`, `verification.json` and `inputs-before.json` retain the results
+and hashes. Reference, documentation-budget and whitespace checks pass.
+No runtime, admission, work ceiling or wasm budget changed. Work stayed on
+eb1000; nothing pushed or published.
+
 ## Governing context
 
 The `llp-orient` scope was lookup planning, null semantics, source repairs and both stores:

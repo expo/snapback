@@ -3,6 +3,8 @@
 mod common;
 #[path = "nl_qe2_integration/null_runtime.rs"]
 mod null_runtime;
+#[path = "nl_qe2_integration/horizon_null.rs"]
+mod horizon_null;
 use common::*;
 use snapback4_core::{Value, WriteState, value::object};
 
@@ -68,6 +70,19 @@ fn rule_presence_facts_keep_reference_image_and_hop_limits() {
         "after insert <- exists conversations[.parent.low, .parent.high]",
     ] {
         refused(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  {rule}\n"), "E_QUARRY_RULE_HOP");
+    }
+}
+
+#[test]
+fn reference_null_equality_guards_keep_logical_edge_admission() {
+    // Round 9 makes a unique null probe a known miss even when reference
+    // lifetime accounting visits a logically skipped operand. Both equality
+    // spellings remain sound; admission need not require a physical skip.
+    for guard in [".parent.low = null or", "not (.parent.low = null) and", ".parent.low != null and"] {
+        checked(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  insert <- {guard} exists conversations[low = .parent.low, high = viewer]\n"));
+    }
+    for guard in ["", ".parent.low = null and", "not (.parent.low = null) or"] {
+        refused(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  insert <- {guard} exists conversations[low = .parent.low, high = viewer]\n"), "E_QUARRY_NULL_KEY");
     }
 }
 
