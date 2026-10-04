@@ -31,8 +31,11 @@ fn children(source: &str, count: usize) -> Engine {
 fn inherited_expiry_default_warns_before_retiring_one_thousand_children() {
     let mut e = children(CHILDREN, 1000);
     let next = compile(&CHILDREN.replace("default 50", "default 200"));
-    let message = preview(&mut e, &next.schema).summary();
-    assert!(message.contains("unestimated write pause") && message.contains("read-through retirement/recapture children (1000 stored rows"), "{message}");
+    let estimate = preview(&mut e, &next.schema);
+    assert_eq!(estimate.deadline_rewrite_rows, 0);
+    let message = estimate.summary();
+    assert!(message.contains("unestimated write pause") && message.contains("read-through retirement/recapture children (1000 stored rows; deletion subset depends on activation time)"), "{message}");
+    assert!(!message.contains("to recompute deadlines"), "{message}");
     e.adopt_at(next.schema, next.programs, 100).unwrap();
     assert!(e.store().rows("children").unwrap().is_empty());
     assert_eq!(e.store().conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num=i.ti WHERE c.name LIKE 'children.%'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
@@ -44,19 +47,31 @@ fn adding_and_removing_read_through_warn_about_predecessor_retirement() {
     for (old, new) in [(ordinary.as_str(), CHILDREN), (CHILDREN, ordinary.as_str())] {
         let mut e = children(old, 3);
         let next = compile(new);
-        assert!(preview(&mut e, &next.schema).summary().contains("read-through retirement/recapture children (3 stored rows"));
+        let estimate = preview(&mut e, &next.schema);
+        assert_eq!(estimate.deadline_rewrite_rows, 0);
+        let message = estimate.summary();
+        assert!(message.contains("read-through retirement/recapture children (3 stored rows; deletion subset depends on activation time)"), "{message}");
+        assert!(!message.contains("to recompute deadlines"), "{message}");
         e.adopt_at(next.schema, next.programs, 100).unwrap();
         assert!(e.store().rows("children").unwrap().is_empty());
     }
 }
 
 #[test]
-fn unchanged_read_through_tables_still_have_a_recapture_pass() {
-    let mut e = children(CHILDREN, 3);
-    let next = compile(&format!("{CHILDREN}\ntable unrelated:\n  public\n"));
-    assert!(preview(&mut e, &next.schema).summary().contains("read-through retirement/recapture children (3 stored rows"));
-    e.adopt_at(next.schema, next.programs, 10).unwrap();
-    assert_eq!(e.store().rows("children").unwrap().len(), 3);
+fn unchanged_read_through_tables_warn_about_deadline_rewrites_without_retirement() {
+    for now in [10, 100] {
+        let mut e = children(CHILDREN, 3);
+        let next = compile(&format!("{CHILDREN}\ntable unrelated:\n  public\n"));
+        let estimate = preview(&mut e, &next.schema);
+        assert_eq!(estimate.deadline_rewrite_rows, 3);
+        assert_eq!((estimate.retired_rows, estimate.retired_index_entries), (0, 0));
+        assert_eq!(estimate.seconds(), (0.0, 0.0)); // No measured rewrite rate.
+        let message = estimate.summary();
+        assert!(message.contains("unestimated write pause") && message.contains("read-through children rewrites 3 stored rows to recompute deadlines"), "{message}");
+        assert!(!message.contains("retirement/recapture") && !message.contains("deletion subset"), "{message}");
+        e.adopt_at(next.schema, next.programs, now).unwrap();
+        assert_eq!(e.store().rows("children").unwrap().len(), 3);
+    }
 }
 
 const GROUPS: &str = "table entries:\n  n: int\n  bucket: int\n  public\nview totals: count entries by .n\n";

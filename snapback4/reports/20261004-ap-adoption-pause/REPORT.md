@@ -606,3 +606,35 @@ failures remain historical evidence; this is not a new green full-suite claim.
 
 Round-2 scratch was removed; no evidence-store copies were needed. Lane disk use
 is 40.51 GiB, below 50 GiB. Nothing was pushed.
+
+## Round 3 — distinguish deadline rewrites from retirement
+
+Base: `e08d9c355a`. Grok's remaining Low was operator wording: an unchanged
+read-through table warned about time-dependent deletion even though activation
+only recomputes its deadlines. The preview now says **“read-through children
+rewrites 3 stored rows to recompute deadlines”** and counts those rows separately
+as `deadline_rewrite_rows`. This work retains an explicitly unestimated pause;
+it does not borrow the measured projection rate. Tables selected by
+`Retirement::affects`, including inherited-expiry default changes, retain the
+deletion-subset wording. Activation is unchanged, matching the existing claims
+in LLP 3000.000 and LLP 3000.019 §3.6.
+
+All **110 affected tests passed**: 23 core adoption tests and all 87 CLI `check`
+tests. The unchanged-child regression adopts at both time 10 and time 100 with
+deadline 50: all three stored rows survive, rewrite count is three, retirement
+counts are zero. Separate cases retain the deletion warning for adding/removing
+read-through and the 1,000-child inherited-expiry case. Plain and JSON checks
+cover all three advice shapes while preserving database/WAL bytes with a held
+writer transaction and a stopped store. Commands ran on eb1000, CPUs 80–87,
+from `snapback4/`, with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`,
+`CARGO_BUILD_JOBS=4`, `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`:
+
+```sh
+cargo test -p snapback4-core --lib store::adoption_tests
+cargo test -p snapback4 --test check
+```
+
+`ref-check --verbose` passes with zero errors and unchecked references;
+`git diff --check` passes. No full-suite, corpus timing or wasm remeasurement
+was needed for this advice-only correction. No corpus stores were copied.
+Round-3 scratch was removed; lane disk use is 40.54 GiB. Nothing was pushed.

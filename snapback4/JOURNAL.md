@@ -86340,3 +86340,13 @@ allocation probe pass (one existing ignore), including held-writer and stopped
 `check` database/WAL byte comparisons; guide budget and reference checks pass.
 No full-suite or timing rerun for this advice-only round. See the
 [Round 2 audit](./reports/20261004-ap-adoption-pause/REPORT.md#round-2--retirement-and-rewrites-inside-surviving-tables).
+
+## 2026-10-04 — AP round 3: deadline rewrite advice
+
+Unchanged read-through tables now say activation rewrites their stored rows to
+recompute deadlines, with a separate unpriced rewrite count. Affected tables,
+including inherited-expiry changes, keep the time-dependent deletion warning.
+Activation is unchanged. All 23 core adoption and 87 CLI check tests pass,
+including plain/JSON advice and live/stopped-store database/WAL byte checks;
+the reference audit and diff check pass. See the
+[Round 3 note](./reports/20261004-ap-adoption-pause/REPORT.md#round-3--distinguish-deadline-rewrites-from-retirement).
