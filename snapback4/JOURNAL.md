@@ -86878,3 +86878,80 @@ changed in product code, so the full suite was not repeated under the round-2
 instruction. LLP 3000.016 §2.2 and 3000.023 §10 distinguish discovery from
 state installation. Only eb1000 was used; nothing was pushed.
 [Round 2 report](./reports/20261004-op-observation-publication/REPORT.md#round-2--overtaken-queue-discovery-2026-10-05).
+
+
+## 2026-10-04 — FC: settled own Following bursts and the calibration reader
+
+On eb1000 only, traced calibration #30 d-01 to its actual reader:
+`grading/dbg3.mjs` writes as Alice and queries Bob. Published npm 0.4.12 and
+main baseline `1c18847b79` both pass three unpaced 25-write own bursts on online,
+process and wasm clients, plus immediate checks after every individual write.
+Changing only the reader to Bob fails the published control at 3/25. The
+fresh-client check in the grader occurs after 18 seconds, not simultaneously.
+No own-write fixing commit exists in this investigation: `timeline_deliver`
+already commits the actor's copy with the source, before foreign queue service
+(the mechanism predates 0.4.12, including `e3355db795` and `18c402220d`).
+
+Added six client regressions and an engine witness with all background delivery
+held, two-page count/order checks and timestamp ties. Updated LLP 3000.016 and
+referenced it at the existing own-copy path. Closed the
+[own-burst investigation](../issues/closed/20261004-snapback4-following-own-burst.md).
+Runtime behavior, slots, floors, withdrawal and follower scheduling are unchanged.
+The separate follower-throughput ticket remains open. Three-sample main follower
+completion ranges before / final-artifact run were online 87.58–146.09 /
+91.00–138.47 ms, process 58.84–143.67 / 63.29–145.34 ms and wasm 34.85–554.26 /
+30.74–309.42 ms, including preceding queries and polling on a shared host;
+these are not tail percentiles or production-profile comparisons.
+
+Affected client tests: 52/52. Language Following and whole-guide targets:
+171 passes (112 guide), two existing ignores; additional device/CLI Following
+checks and the new engine witness: 94/94. Final-source wasm is **2,116,457 B raw /
+639,751 B gzip**, below 639,887 B; the comment's line shift adds one gzip byte to
+the baseline artifact. All six own-write tests pass again on that artifact.
+Reference audit and whitespace checks pass.
+
+Ran `snapback4/scripts/test.sh` exactly once. Verbatim summary:
+`== 1 failure(s) in 3242 s` (cargo test). Rust: 4,972 passes, one failure,
+33 existing ignores, plus 17 passing doctests. All 312 client files pass
+(6,210 tests, 11 skips), as do all 79 serial model checks. The sole failure,
+`w11_why_every_registered_code_returns_its_dedicated_section`, is confirmed
+[shared-target CLI interference](../issues/20261004-snapback4-shared-target-cli-interference.md):
+the test's linked guide expects FC's card while the mutable external CLI prints
+another lane's revised search card. FC's pinned CLI still prints the expected
+card. This run remains red; no equality assertion was weakened. No other
+failure occurred.
+
+Evidence and package hashes: `~/sb5-lanes/fc-artifacts/`; operator report:
+`~/sb5-lanes/fc.report.md`. Cargo used the prescribed external target; no target
+was symlinked into this tree. Local commit only; nothing pushed or published.
+
+
+## 2026-10-05 — FC Round 1: equal-time ordering and mounted own bursts
+
+Addressed Grok's Low and Astra's reactive-coverage note on `f98d851ec1`.
+The deterministic engine witness now inserts each equal-`at` cohort
+id-ascending and still requires `(at, id)` descending. The 20-row boundary
+splits the `at = 3` cohort between `p005` and `p004`; stable time-only ordering
+cannot satisfy the oracle. Its comment and LLP 3000.016 state exactly this.
+
+Added process and wasm cases with one `home` observer mounted before a
+25-write burst. Every mutation must settle sent; the same subscription must
+then publish all 25 ids newest first, with complete cards and revalidation
+finished. Only callbacks update the asserted answer. The mounted fixture uses
+a 25-row home page; the existing pagination witnesses keep 20-row pages.
+A temporary built-client mutation delivering the initial answer but suppressing
+later callbacks failed both cases at the intended live-answer wait, retaining
+an empty answer. Restored the client artifact before the broader tests.
+No runtime code, delivery policy, floor, slot or publication rule changed.
+
+Verification: all eight own-write client tests passed five times, and the
+engine witness passed five times. Broader Following clients: 54/54. Language
+Following and guide: 172 passes, including 112 guide checks, with two existing
+ignored scale witnesses. Device: 49/49; CLI: 44/44. The declared-guard census
+passes all 315 client/fixture files. The existing pinned CLI and wasm match
+the Round 0 artifact hashes; Cargo used the prescribed external target with
+incremental compilation disabled. The complete battery was not rerun.
+
+Evidence: `~/sb5-lanes/fc-artifacts/round1/`; report: Round 1 in
+`~/sb5-lanes/fc.report.md`. Local commit only, with the requested Astra
+co-author trailer; nothing pushed or published.
