@@ -286,7 +286,12 @@
     }
     var fetch = function fetch(input, init) {
       var currentInit = copyInit(init);
-      var redirectMode = currentInit.redirect !== undefined ? String(currentInit.redirect) : "follow";
+      // Coerce caller-controlled values exactly once, before any allocation or
+      // I/O: a stateful toString() must not run again after a response handle
+      // exists, or a throw there would strand the handle before it is tracked.
+      if (currentInit.method !== undefined) currentInit.method = String(currentInit.method);
+      if (currentInit.redirect !== undefined) currentInit.redirect = String(currentInit.redirect);
+      var redirectMode = currentInit.redirect !== undefined ? currentInit.redirect : "follow";
       // Ibex treats unknown modes as follow; never let that bypass our hop rules.
       if (redirectMode !== "follow" && redirectMode !== "manual" && redirectMode !== "error") {
         return Promise.reject(new TypeError("Invalid redirect mode"));

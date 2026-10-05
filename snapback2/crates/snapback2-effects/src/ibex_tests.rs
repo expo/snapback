@@ -295,6 +295,39 @@ fn unread_fetch_response_rows_are_cancelled_at_job_settlement() {
 }
 
 #[test]
+fn fetch_coerces_a_stateful_method_exactly_once() {
+    // A method whose second toString() throws must not run again after the
+    // response handle exists; a throw there would strand an untracked row.
+    let server = TestServer::start("ok");
+    let decl = declaration(
+        r#"async (payload, { fetch }) => {
+          const results = [];
+          for (const redirect of ['follow', 'manual']) {
+            let calls = 0;
+            const method = { toString() { calls++; if (calls > 1) throw new Error('coerced twice'); return 'GET'; } };
+            const response = await fetch(payload.url, { method, redirect });
+            await response.text();
+            results.push({ redirect, calls, status: response.status });
+          }
+          return results;
+        }"#,
+        vec![server.origin()],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    let work = job(
+        "stateful-method",
+        json!({ "url": server.origin() + "/method" }),
+    );
+    assert_eq!(
+        host.run(&decl, &work, Duration::from_secs(10)),
+        sent(json!([
+            { "redirect": "follow", "calls": 1, "status": 200 },
+            { "redirect": "manual", "calls": 1, "status": 200 }
+        ]))
+    );
+}
+
+#[test]
 fn fetch_delivers_authored_headers_in_every_headers_init_form() {
     let server = TestServer::start("ok");
     for form in ["record", "pairs", "headers", "iterable"] {
