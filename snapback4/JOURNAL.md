@@ -86659,3 +86659,8 @@ and preparation deadlines remain unchanged. Reference/whitespace checks passed.
 Large logs and the tested binary stay in the external evidence archive; no new
 file over 256 KB, gzip or video is committed. Report and evidence:
 [Round 10](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-10--atomic-retention-transitions-2026-10-04).
+
+
+### 2026-10-05 — Lane NZ Round 11: retention before its first request
+
+Made the pre-Expo backstop inspect actual full/compressed evidence, pins and live owners, so publisher death before any maintenance record is repaired by the next export, including failed Expo. Twelve crash controls cover verified commit and post-cleanup handoff across both skip modes/background, with successful/failed next exports; each restores 5/20. Affected checks passed: 68 witness units, 76 integrations, 128 export/preparation tests. Full Mac suite: zero failures in 2,812 s, all 312 client files and 79 full-count model tests passed; five source hashes unchanged. LLP 3000.030 §15/guide updated; custody verified; no real device created, other session touched or push made. [Round 11 report](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-11--inventory-backstop-before-the-first-request-2026-10-05).

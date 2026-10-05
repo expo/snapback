@@ -315,9 +315,9 @@ setInterval(()=>{},1000);
 for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['before','supersede'], ['before','deadline'], ['after','SIGTERM'], ['after','SIGKILL'], ['after','supersede']]) test(`blocked retention has bounded custody: ${phase} ${mode}`, { skip: process.platform !== 'darwin', timeout: 90000 }, async () => {
   const f = fixture(); let pending;
   try {
-    // Keep automatic maintenance pending while the proof's post-driver
+    // Keep automatic maintenance pending while the proof's own
     // retention enters compression; its guardian is the intended victim.
-    if (phase === 'after') pending = await holdRetention(f, 'maintenance');
+    pending = await holdRetention(f, 'maintenance');
     if (phase === 'before') blockedRetention(f);
     assert.equal(f.invoke().status, 0);
     const first = f.latest();
@@ -441,8 +441,9 @@ test('direct export-retain has bounded custody and the inner worker rejects manu
 });
 
 test('SIGKILL overlap defers a still-held retention lock and starts the next proof', {skip:process.platform!=='darwin'},async()=>{
-  const f=fixture();let custody;
+  const f=fixture();let custody,pending;
   try {
+    pending=await holdRetention(f,'maintenance');
     const library=path.join(f.root,'r.dylib');
     const built=spawnSync('cc',['-dynamiclib',new URL('./retention-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
     assert.equal(built.status,0,built.stderr);
@@ -488,6 +489,7 @@ test('SIGKILL overlap defers a still-held retention lock and starts the next pro
   } finally {
     f.put('resume-owner-exit','');
     if(custody)await until(()=>!alive(custody.group)&&!alive(custody.guardian.pid),'paused custody drained before fixture removal');
+    if(pending){pending.child.stdin.end();await pending.exited;}
     await cleanup(f);
   }
 });
@@ -897,10 +899,11 @@ test('export initialization refuses a live stuck initializer within five seconds
 
 // Round 9: no later publication is allowed to rescue a lost maintenance claim.
 for(const victim of ['custodian','observer'])test(`SIGKILL of the sole maintenance ${victim} restores retention without another export`,{timeout:120000},async()=>{
-  const f=fixture();
+  const f=fixture();let held;
   try {
-    skipMode(f,'off');blockedRetention(f,28);
+    held=await holdRetention(f);skipMode(f,'off');blockedRetention(f,28);
     const first=f.invoke();assert.equal(first.status,0,first.stdout+first.stderr);
+    held.child.stdin.end();await held.exited;held=undefined;
     const root=path.join(f.root,'artifacts/native-smoke'), current=f.latest();
     await until(()=>read(path.join(f.root,'compression.json')),'sole maintainer is compressing');
     const compressor=read(path.join(f.root,'compression.json'));
@@ -914,7 +917,7 @@ for(const victim of ['custodian','observer'])test(`SIGKILL of the sole maintenan
     await maintenanceIdle(f);assertRetentionBound(f);
     assert.equal(f.latest().generation,current.generation,'no later export was published');
     assert.equal(read(path.join(root,'maintenance-active.json')).attempt,2,'one bounded resumption covers the surviving claim');
-  } finally {await cleanup(f);}
+  } finally {if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
 });
 
 for(const mode of ['off','non-macOS','background'])test(`failed Expo exports and dead wrapper journals never occupy keep slots (${mode})`,{timeout:120000},async()=>{
@@ -985,6 +988,48 @@ async function maintenanceFixture() {
   const result=f.invoke();assert.equal(result.status,0,result.stdout+result.stderr);
   return {f,held,root:path.join(f.root,'artifacts/native-smoke')};
 }
+// The matrix starts before the first maintenance record, at verified commit.
+// All later transition crashes below already have durable queue state.
+for(const point of ['publication-committed','publication-handoff'])for(const mode of ['off','non-macOS','background'])for(const failNext of [false,true])test(`maintenance crash matrix: ${point} (${mode}, next Expo ${failNext?'fails':'succeeds'})`,{timeout:120000},async()=>{
+  const f=fixture();let held,wrapperChild,wrapperExit;
+  try {
+    held=await holdRetention(f);await seedQueuedExports(f);
+    held.child.stdin.end();await held.exited;held=undefined;
+    await maintenanceIdle(f);assertRetentionBound(f);
+    const root=path.join(f.root,'artifacts/native-smoke');
+    // The inventory alone must be enough: no historical maintenance records.
+    for(const name of fs.readdirSync(root))if(name.startsWith('maintenance-')&&name.endsWith('.json'))fs.rmSync(path.join(root,name));
+    delete f.env.SNAPBACK4_NATIVE_SMOKE;if(mode!=='background')skipMode(f,mode);
+    f.env.SNAPBACK4_TEST_RETENTION_POINT=point;
+    wrapperChild=spawn(process.execPath,[wrapper],{cwd:f.root,env:f.env,stdio:'ignore'});wrapperExit=once(wrapperChild,'exit');
+    await until(()=>read(path.join(root,'maintenance-test-point.json')),'verified publication before request creation');
+    const stopped=read(path.join(root,'maintenance-test-point.json'));
+    assert.equal(stopped.point,point);
+    const generation=read(path.join(f.root,'dist/.snapback4-publication.json')).generation;
+    const current=retainedRuns(f).full.find(dir=>read(path.join(dir,'export/.snapback4-publication.json'))?.generation===generation);
+    assert.ok(read(path.join(current,'publication.json')),'publication has committed');
+    const queueFiles=()=>fs.readdirSync(root).filter(n=>n.startsWith('maintenance-')&&!n.endsWith('.lock')&&n!=='maintenance-test-point.json');
+    assert.deepEqual(queueFiles(),[],'no first maintenance file or background handoff yet');
+    assert.equal(read(path.join(current,'request.json')),null);
+    assert.equal(fs.existsSync(path.join(root,'publication-pending.json')),point==='publication-committed','matrix covers both sides of namespace cleanup');
+    process.kill(stopped.process.pid,'SIGKILL');await wrapperExit;
+    assert.equal(retainedRuns(f).full.length,6);assert.equal(retainedRuns(f).compressed.length,20);
+    assert.deepEqual(queueFiles(),[],'publisher death has no surviving maintainer or queue record');
+    if(failNext)f.put('node_modules/expo/bin/cli','process.exit(23)');
+    f.put('continue','');delete f.env.SNAPBACK4_TEST_RETENTION_POINT;
+    const start=Date.now(),next=f.invoke('next export inventory backstop');
+    assert.equal(next.status,failNext?23:0,next.stdout+next.stderr);
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.ok(fs.existsSync(path.join(current,'export')),'committed generation survives recovery');
+    if(failNext)assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation);
+    console.log(JSON.stringify({point,mode,nextExpo:failNext?'failed':'passed',recovery:'next export inventory',restoredMs:Date.now()-start,full:5,compressed:20}));
+  } finally {
+    f.put('artifacts/native-smoke/maintenance-test-resume','');
+    if(wrapperExit)await wrapperExit;
+    if(held){held.child.stdin.end();await held.exited;}
+    await cleanup(f);
+  }
+});
 const crashPoints=[
   ['request-created','next export'],['request-prepared','next export'],['request-committed','next export'],
   ['claim-renamed','peer'],['claim-recorded','peer'],['scan-starting','peer'],

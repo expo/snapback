@@ -181,3 +181,15 @@ bootstrap/gates do not cross this fence. Likely doc updates: dated §15, guide,
 Round 10 report/state audit and append-only JOURNAL. Risks: final-peer exit,
 concurrent dirty requests and crash retry bounds; no new device/host evidence.
 Hand-off: none. No external review is claimed; this mini only, no push.
+
+
+Round 11 (2026-10-05), base e98cf0f089. Scope: inventory-based maintenance
+backstop and earliest post-commit crash barrier. Governing context: LLP 0000
+(foundation), LLP 3000 (current fence), LLP 3000.030 §15 (current). Active
+constraints and rationale: §15 generation pins/owner custody, five-full/twenty-
+compressed quiescent bound, nonblocking export scheduling, bounded supervised
+retention, atomic queue protocol and next-export crash recovery. Risk: a crash
+before any request record exists must be discoverable from evidence; live/pending
+evidence must never become prune authority. Read current witness guide and the
+Snapback 4 AGENTS/NOT-DOING/JOURNAL. Likely updates: dated §15 clarification,
+short guide correction, Round 11 report and append-only JOURNAL. Hand-off: none.

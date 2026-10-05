@@ -1,0 +1,112 @@
+{
+  "state": "finished",
+  "status": 0,
+  "inputsUnchanged": true,
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "28651c6b9073fd1b555a9821882aadd057bf14839d196b515312d0812ec91b03"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "e5b1d1d046f5ccdda7e32e0ea24d5ad4afa4c886807ffdfd04538bd4bdfb5163"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "d2144d22d3ed3a6fe82683f6879a8d1c53ae0e0a720ff18c85833d352d9ab944"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "00cadd725d44b7b1b959ebf008b397b1270613c34c14d0d4de08b814d8a05de3"
+    }
+  ],
+  "checks": [
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 5.6685722919999995,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-build.log",
+        "sha256": "8eb32c71e9029315366470b0c648ffc75f788805d63c29b02b4095a1bdfb8e7e",
+        "bytes": 2589
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 61.294609,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-witness-unit.log",
+        "sha256": "a33c550bab1c410e6e9299dc40b0948f298eb7a2bd37a932b2bb0fad323f36be",
+        "bytes": 10684
+      }
+    },
+    {
+      "label": "witness-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 555.440099709,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-witness-integration.log",
+        "sha256": "f3eca34d02c6867a52da3abf96cca85f9b7f412cc315d3b20ce6532257b2d5f6",
+        "bytes": 9668
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 757.984965125,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-export.log",
+        "sha256": "84a7f553c6619c8dbdfbd020895c72ee7e0a53f0e8f029523bae75273e8a75ed",
+        "bytes": 18394
+      }
+    }
+  ],
+  "qualification": "Rust and guide inputs unchanged throughout. Final JavaScript test input recorded before its test process started and unchanged afterward. Original conservative whole-run changed-input record retained.",
+  "exportInputRecordedAt": 1791185205.7820601,
+  "exportLogCreatedAt": 1791185344.3415234,
+  "finishedAt": 1791186103.5465128
+}

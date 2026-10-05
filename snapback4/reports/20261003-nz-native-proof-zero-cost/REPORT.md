@@ -1494,3 +1494,75 @@ records. Large logs, including exploratory failures, and the tested binary are
 retained in the existing external content-addressed archive; no new file over
 256 KB and no gzip/video is added to git. This adds no real-native timing,
 physical-sleep or Linux qualification claim. Nothing was pushed or published.
+
+
+## Round 11 — inventory backstop before the first request (2026-10-05)
+
+Base: `e98cf0f089`. The operator supplied Astra's pre-request death finding;
+no remote host was accessed. The repair is one inventory predicate in recovery
+and its call from the existing pre-Expo backstop. It inspects actual full and
+compressed evidence, current/pending publication identities and live owners.
+Excess 5/20 history or ownerless unfinished work schedules the existing atomic,
+coalesced maintenance even when there is no request record. It performs no
+compression, deletion or blocking lease wait. Queue/custody/pruning behavior
+and all native preparation/WD deadlines remain unchanged. LLP 3000.030 §15 and
+the witness guide now state this inventory-based backstop. NZ targets 0.4.14.
+
+The crash matrix now starts at the first verified publication receipt, before
+namespace cleanup, handoff or maintenance creation (`publication-committed`).
+It also covers the post-cleanup/pre-handoff boundary (`publication-handoff`),
+where no transaction marker survives. Each boundary is crossed in opt-out,
+simulated non-macOS and background mode, followed by either a successful or
+failed Expo export: **12 controls**. Each begins with 5 full + 20 compressed,
+clears historical maintenance records only after their owners exit, kills its
+recorded publisher with 6 full + 20 compressed, and asserts no queue/claim or
+maintainer can rescue it. The next real wrapper must restore exactly 5/20;
+a failed Expo step cannot publish new evidence to hide a missed backstop. The
+committed generation survives. No surviving maintenance peer exists at these
+boundaries, so recovery is explicitly **by the next export**, not autonomous.
+Earlier pre-commit crashes leave unfinished/transaction state for the same
+inventory discovery and existing orphan recovery; every later queue boundary
+remains covered by the prior crash matrix.
+
+The inventory unit control checks an already-covered 5/20 tree, a live empty
+shell, protected current full evidence, 21 compressed runs, a dead-owner shell,
+and an ownerless transaction with no request file. Three older custody fixture
+groups now explicitly hold maintenance until publication so that their intended proof
+or sole-claim death remains isolated from the newly effective inventory backstop.
+The initial six pre-cleanup probes passed before adding the six post-cleanup
+controls.
+
+Affected checks passed: build, **68/68 serial witness units**, **76/76 serial
+witness integrations**, and **128/128 export/preparation tests**, with no skips
+or cancellations. The twelve new controls restored the bound in 1.004–4.269 s
+(fixture recovery, not native metrology); all earlier crash controls also passed.
+See [crash controls](./round11/crash-matrix.json) and
+[affected qualification](./round11/affected-qualified.json). One additional
+legacy guardian fixture was adjusted during the Rust integration run, before
+Node export tests started. Rust/guide inputs stayed unchanged; the final JS hash
+was recorded before the export log's creation time and stayed unchanged through
+its passing run. The original whole-run record conservatively reports the
+changed JS input and remains alongside the scoped qualification; its automatic
+suite waiter refused without running a suite. The final full-suite runner uses
+the qualified inputs and records them separately.
+
+
+The [full Mac suite](./round11/full-suite.json) passed with **zero failures in
+2,812 s** (2,812.336 s measured). All Rust targets/doctests passed, including
+300 CLI tests (four existing ignores) and 76 witness integrations; all nine
+fixture tests passed. The client pool passed **312/312 files**, **6,286 tests**,
+with six existing skips and no failures/cancellations. Both full-count model
+files passed **79/79**. Rust took 1,197 s, clients 1,380 s, models 192 s; builds,
+wasm/docs budgets, release guard and typechecks passed. No intervention or
+reduced work count was used. All [five input hashes](./round11/full-suite-inputs.json)
+remained unchanged throughout the full run.
+
+[Custody verification](./round11/custody-verification.json) found no remaining
+lane CLI or interposed fixture jobs. No real simulator was created; previous
+recorded NZ devices remain absent. No other session's worktree, process or
+simulator was changed or signalled. WD cleanup, process-group and preparation-
+deadline sources remain byte-identical to the base. Reference/whitespace checks
+passed. [Evidence hashes](./round11/verification-evidence.json) bind the logs and
+tested binary in the existing external archive. No new file over 256 KB, gzip
+or video is committed. These are local Mac fixture/suite results, not additional
+native timing, physical-sleep or Linux qualification. Nothing was pushed.

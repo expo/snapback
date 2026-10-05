@@ -403,7 +403,7 @@ pub(super) fn backstop(args: &[String]) -> i32 {
             let name = entry.file_name(); let name = name.to_string_lossy();
             name.starts_with("maintenance-request.") && name.ends_with(".tmp")
         }).map(|entry| entry.path()).collect::<Vec<_>>();
-        if pending(&root) || !prepared.is_empty() {
+        if recovery::maintenance_needed(&root)? || pending(&root) || !prepared.is_empty() {
             request(&root)?; kick(&root)?;
             // The replacement request is durable before removing a dead
             // producer's record. A crash before JSON is written has only the

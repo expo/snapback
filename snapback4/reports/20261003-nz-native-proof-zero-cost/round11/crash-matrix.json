@@ -1,0 +1,113 @@
+{
+  "earliestBoundary": "verified receipt before namespace cleanup, proof/status handoff or any maintenance record",
+  "controls": [
+    {
+      "point": "publication-committed",
+      "mode": "off",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 2666,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-committed",
+      "mode": "off",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1800,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-committed",
+      "mode": "non-macOS",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 3273,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-committed",
+      "mode": "non-macOS",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1284,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-committed",
+      "mode": "background",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 4014,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-committed",
+      "mode": "background",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1581,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "off",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 3040,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "off",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1358,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "non-macOS",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 2882,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "non-macOS",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1547,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "background",
+      "nextExpo": "passed",
+      "recovery": "next export inventory",
+      "restoredMs": 4269,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "publication-handoff",
+      "mode": "background",
+      "nextExpo": "failed",
+      "recovery": "next export inventory",
+      "restoredMs": 1004,
+      "full": 5,
+      "compressed": 20
+    }
+  ]
+}

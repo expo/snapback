@@ -1,0 +1,65 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "e98cf0f089254c7a6e9e6d50e8d1a55aa165d496",
+  "state": "finished",
+  "startedAt": 1791186104.151969,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r11-full-suite.log",
+  "before": {
+    "at": 1791186105.331004,
+    "load": [
+      6.0146484375,
+      8.6416015625,
+      7.6533203125
+    ],
+    "idlePercent": 78.87715397443024,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1 180.4 /usr/libexec/PerfPowerServices",
+      "45642 96593 101.4 /Users/ccheever/.local/bin/fleet",
+      "  485     1  11.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   2.3 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "30751 96189   2.1 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1164     1   2.0 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "76778     1   1.6 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+      " 1092     1   1.4 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 1160     1   0.9 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  454     1   0.8 /usr/libexec/opendirectoryd"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791188917.663102,
+  "durationSeconds": 2812.3363573330003,
+  "after": {
+    "at": 1791188918.8441322,
+    "load": [
+      6.5693359375,
+      10.64892578125,
+      15.25048828125
+    ],
+    "idlePercent": 73.34801762114537,
+    "compilers": [
+      "58019 57968   0.0 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1 196.2 /usr/libexec/PerfPowerServices",
+      "  485     1  15.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "76778     1   3.8 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+      "57968 57955   3.6 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   3.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "58443 59730   2.1 /Users/ccheever/Library/Developer/CoreSimulator/Devices/3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B/data/Containers/Bundle/Application/933393A9-98EF-4CA9-8006-652AC125AFF6/NIReference.app/NIReference",
+      " 1388  1166   1.7 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      " 1092     1   1.5 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   0.8 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r11-full-suite.log",
+    "sha256": "9c81b7794e1b13815d759c061804c50bd836dfafd286a8ac2e474f885f0ff642",
+    "bytes": 1917554
+  },
+  "inputsUnchanged": true
+}

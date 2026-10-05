@@ -251,11 +251,14 @@ fn publish_then(source: &Path, target: &Path, expected: &Value, proof_hash: &Val
         clear_pending(&marker, source)?;
         return Err(e);
     }
+    // Earliest verified commit, before namespace cleanup or proof/queue handoff.
+    retention::checkpoint(dir.parent().unwrap(), "publication-committed");
     #[cfg(test)] tests::pause(dir, "verified-before-cleanup");
     recovery::remove(source)?;
     clear_pending(&marker, source)?;
     // Publication order is also supersession order. Scheduling is downstream
     // of the verified commit and cannot roll back an already successful export.
+    retention::checkpoint(dir.parent().unwrap(), "publication-handoff");
     committed();
     Ok(())
 }

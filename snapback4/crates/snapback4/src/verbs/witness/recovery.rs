@@ -487,6 +487,31 @@ fn retention_order(runs: Vec<PathBuf>, pin: impl Fn(&Path) -> Result<Option<bool
     }
     Ok(Some(ordered))
 }
+// Inspect actual evidence even if a publisher died before its first queue
+// record. This only requests supervised work: live owners and publication pins
+// are never permission to prune, and unknown custody defers to the observer.
+pub(super) fn maintenance_needed(root: &Path) -> Result<bool> {
+    let mut full = 0; let mut compressed = 0;
+    let mut stranded = root.join("publication-pending.json").exists();
+    for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
+        let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
+        let dir = entry.path();
+        let journal = read(&dir.join("live.json"));
+        let live = alive(&journal["owner"]) || alive(&journal["wrapper"]);
+        let Some(pinned) = publication_pin(root, &dir)? else { return Ok(true); };
+        let retained = dir.join("retention.json").exists();
+        let evidence = completed_result(&dir) || !read(&dir.join("publication.json")).is_null() || retained
+            || RECEIPTS.iter().any(|n| dir.join(format!("{n}.gz")).is_file());
+        if retained { compressed += 1; }
+        if dir.join("export").is_dir() || (!retained && (evidence || pinned)) { full += 1; }
+        // Shells are repair work, never history slots. A live unfinished run
+        // may temporarily exceed the bound; readiness waits for its leases.
+        if !live && (!finished(&dir) || !evidence || dir.join("publication-pending.json").exists()) { stranded = true; }
+    }
+    Ok(full > 5 || compressed > 20 || stranded)
+}
 pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -603,6 +628,40 @@ fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn inventory_backstop_counts_evidence_and_discovers_ownerless_work_without_queue_records() {
+        let project = std::env::temp_dir().join(format!("sb4-nz-inventory-{}-{}", std::process::id(), now()));
+        let root = project.join("artifacts/native-smoke"); fs::create_dir_all(&root).unwrap();
+        for n in 1..=25 {
+            let dir = root.join(format!("{n}-1")); fs::create_dir(&dir).unwrap();
+            write(&dir.join("finished.json"), &json!({})).unwrap();
+            if n <= 5 {
+                fs::create_dir(dir.join("export")).unwrap();
+                write(&dir.join("result.json"), &json!({ "state": "skipped" })).unwrap();
+            } else { write(&dir.join("retention.json"), &json!({})).unwrap(); }
+        }
+        assert!(!maintenance_needed(&root).unwrap(), "5 full plus 20 compressed is covered");
+        let extra = root.join("26-1"); fs::create_dir(&extra).unwrap();
+        write(&extra.join("live.json"), &json!({ "wrapper": identity(std::process::id()) })).unwrap();
+        assert!(!maintenance_needed(&root).unwrap(), "live empty shell is not a history slot");
+        fs::create_dir(extra.join("export")).unwrap();
+        write(&extra.join("export/.snapback4-publication.json"), &json!({ "generation": "pending", "exportHash": "hash" })).unwrap();
+        let target = project.join("dist"); fs::create_dir(&target).unwrap();
+        write(&target.join(".snapback4-publication.json"), &json!({ "generation": "pending", "exportHash": "hash" })).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "protected live current generation counts but is never pruned here");
+        fs::remove_dir_all(extra.join("export")).unwrap();
+        write(&extra.join("retention.json"), &json!({})).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "21 compressed runs also need maintenance");
+        fs::remove_file(extra.join("retention.json")).unwrap();
+        write(&extra.join("live.json"), &json!({ "wrapper": null })).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "dead owner's shell is repair work");
+        fs::remove_dir_all(&extra).unwrap();
+        write(&root.join("publication-pending.json"), &json!({})).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "ownerless transaction is stranded work");
+        assert!(!root.join("maintenance-request.json").exists(), "inventory inspection alone creates no work records");
+        fs::remove_dir_all(project).unwrap();
+    }
+
     #[test]
     fn unknown_publication_pin_defers_the_entire_history_order() {
         // This is the exact mixed snapshot which used to promote compressed
