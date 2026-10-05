@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // Calibration #26's exact Quarry program and query/useAsset patterns, on the public package entries.
 // @ref LLP 3000.008.002.000#6 — author avatars keep profile authority across message/feed observations.
@@ -7,7 +8,6 @@ import { createRequire } from "node:module";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { processDevice } from "../dist/native.js";
 import { createClient, mintId } from "../dist/client.js";
 import { login } from "../dist/auth.js";
@@ -164,13 +164,13 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
   const fixture = await avatarFixture(t);
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+
   const temporary = mkdtempSync(join(tmpdir(), "sb4-avatar-react-"));
   let server, browser;
   t.after(async () => { await browser?.close(); await server?.close(); rmSync(temporary, { recursive: true, force: true }); });
   writeFileSync(join(temporary, "index.html"), '<!doctype html><div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(temporary, "harness.jsx"), harness);
-  server = await createServer({ root: temporary, configFile: false, logLevel: "error",
+  server = await createBrowserServer({ root: temporary, configFile: false, logLevel: "error",
     server: { host: "127.0.0.1", port: 0, fs: { allow: [root, temporary] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },

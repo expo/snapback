@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.028#7.2 — real server/device source traversal and delivery races.
 import test from 'node:test';
@@ -312,13 +313,12 @@ test('mounted React ordinary search follows departure, offline and rejoin withou
   const f=await setup(t);
   assert.equal((await f.admin.mutate(m('join'),{room:'left'})).state,'sent');
   const {createRequire}=await import('node:module');
-  const {pathToFileURL}=await import('node:url');
   const {mkdirSync,writeFileSync}=await import('node:fs');
   const {resolve}=await import('node:path');
   const {chromiumExecutable}=await import('../../../witness/lib.mjs');
   const root=resolve(import.meta.dirname,'../../..'), require=createRequire(join(root,'packages/snapback4/package.json'));
   const {chromium}=createRequire(join(root,'package.json'))('playwright-core');
-  const {createServer}=await import(pathToFileURL(createRequire(join(root,'apps/chat/package.json')).resolve('vite')).href);
+
   const temp=join(f.dir,'mounted');mkdirSync(temp);
   writeFileSync(join(temp,'index.html'),'<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(temp,'harness.jsx'),`
@@ -347,7 +347,7 @@ window.finish=async()=>{root.unmount();await client.close();};
 `);
   let vite,browser;
   t.after(async()=>{await browser?.close();await vite?.close();});
-  vite=await createServer({root:temp,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,temp]}},resolve:{alias:[
+  vite=await createBrowserServer({root:temp,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,temp]}},resolve:{alias:[
     {find:/^react$/,replacement:require.resolve('react')},{find:/^react-dom\/client$/,replacement:require.resolve('react-dom/client')},
     ...['jsx-runtime','jsx-dev-runtime'].map(name=>({find:'react/'+name,replacement:require.resolve('react/'+name)})),
     ...['react','local','web'].map(name=>({find:'snapback4/'+name,replacement:join(root,'packages/snapback4/src/'+name+(name==='react'?'.tsx':'.ts'))})),

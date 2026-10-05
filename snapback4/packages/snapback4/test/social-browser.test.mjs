@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -5,7 +6,6 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { server, binary, until } from "./helpers/app-server.mjs";
@@ -58,8 +58,8 @@ test("social recipes in React/browser: real online signals and media, controlled
   writeFileSync(join(dir, "picker.js"), "export async function launchImageLibraryAsync() { return window.pickAsset ? { canceled: false, assets: [{ uri: 'data:image/png;base64,iVBORw0KGgo=' }] } : { canceled: true }; }\n");
   writeFileSync(join(dir, "index.html"), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   const require = createRequire(join(root, "packages/snapback4/package.json"));
-  const { createServer } = await import(pathToFileURL(require.resolve("vite")).href);
-  vite = await createServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
+
+  vite = await createBrowserServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
@@ -444,8 +444,8 @@ test("social search in React/browser uses current server and retained device pag
   writeFileSync(join(dir, "device.wasm"), readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")));
   writeFileSync(join(dir, "index.html"), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   const require = createRequire(join(root, "packages/snapback4/package.json"));
-  const { createServer } = await import(pathToFileURL(require.resolve("vite")).href);
-  vite = await createServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
+
+  vite = await createBrowserServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
@@ -540,8 +540,8 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     ["index.html", '<div id="root"></div><script type="module" src="/harness.jsx"></script>']]) writeFileSync(join(dir, name), contents);
   writeFileSync(join(dir, "device.wasm"), readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")));
   const require = createRequire(join(root, "packages/snapback4/package.json"));
-  const { createServer } = await import(pathToFileURL(require.resolve("vite")).href);
-  vite = await createServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
+
+  vite = await createBrowserServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },

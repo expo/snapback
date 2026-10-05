@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 // Real React subscriptions over the server and the wasm/IndexedDB web device.
@@ -8,7 +9,6 @@ import { createRequire } from "node:module";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { chromiumExecutable, devServer, root } from "../../../witness/lib.mjs";
 
 const source = `table typing:
@@ -32,7 +32,6 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
   const require = createRequire(join(root, "packages/snapback4/package.json"));
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
   const temporary = mkdtempSync(join(tmpdir(), "sb4-typing-"));
   let server, browser, dev;
   try {
@@ -43,7 +42,7 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     assert.equal(dev.seeded, 2);
     writeFileSync(join(temporary, "index.html"), '<!doctype html><div id="app"></div><script type="module" src="/harness.jsx"></script>');
     writeFileSync(join(temporary, "harness.jsx"), harness);
-    server = await createServer({ root: temporary, configFile: false, logLevel: "error",
+    server = await createBrowserServer({ root: temporary, configFile: false, logLevel: "error",
       // Observe actual expiry callbacks, including callbacks that merely check
       // the deadline and rearm without evaluating a query. Keep the real timer,
       // callback, delay and cancellation; this instrumentation changes no clock.
@@ -53,12 +52,7 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
         assert.equal(code.split(needle).length, 2, "instrument exactly the expiry timer");
         return code.replace(needle, "watch.expiryTimer = window.observeExpiryTimer(watch, deadlines, setTimeout, ");
       } }],
-      // The temporary root has no package manifest. Prebundle its known CJS
-      // dependencies up front so late discovery cannot reload open clients.
-      optimizeDeps: { noDiscovery: true, include: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom/client"] },
-      // This fixture is immutable: development reloads must not replace the
-      // browsing context while the real deadline assertions are running.
-      server: { host: "127.0.0.1", port: 0, hmr: false, watch: null, fs: { allow: [root, temporary] } },
+      server: { host: "127.0.0.1", port: 0, fs: { allow: [root, temporary] } },
       resolve: { alias: [
         { find: /^react$/, replacement: require.resolve("react") },
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },

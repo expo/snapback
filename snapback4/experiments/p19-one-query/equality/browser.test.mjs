@@ -7,9 +7,9 @@ import { join } from 'node:path';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { mintId } from '../../../packages/snapback4/dist/client.js';
 import { host, root, sent } from './harness.mjs';
+import { createBrowserServer } from '../../../packages/snapback4/test/helpers/browser-server.mjs';
 const require = createRequire(join(root, 'package.json'));
 const { chromium } = require('playwright-core');
-const { createServer } = await import('vite');
 
 test('React/IndexedDB: original receipt hook keeps one ordinary history through delayed decorations, leave, remount, reopen and rejoin', { timeout: 90000 }, async t => {
   const h = await host(t), owner = h.online({ persona: 'eqowner' }), reader = h.online({ persona: 'eqreader' });
@@ -21,7 +21,7 @@ test('React/IndexedDB: original receipt hook keeps one ordinary history through 
   writeFileSync(join(app, 'index.html'), '<div id="root"></div><script type="module" src="/main.jsx"></script>');
   writeFileSync(join(app, 'receipts.ts'), readFileSync(join(import.meta.dirname, 'receipts.ts'), 'utf8').replace('../snapback/generated/api', 'fixture-api'));
   writeFileSync(join(app, 'main.jsx'), browserSource.replace('SERVER_CONFIG', JSON.stringify({ url: h.url, conversation })));
-  const vite = await createServer({ root: app, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root] } }, resolve: { alias: [
+  const vite = await createBrowserServer({ root: app, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root] } }, resolve: { alias: [
     { find: 'fixture-api', replacement: join(h.dir, 'snapback/generated/api.ts') },
     { find: /^react$/, replacement: require.resolve('react') },
     { find: /^react-dom\/client$/, replacement: require.resolve('react-dom/client') },

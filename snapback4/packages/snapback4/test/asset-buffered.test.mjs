@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.002.000#6 — opaque transports must allow healthy bodies to finish without replaying a view.
 import test from 'node:test';
@@ -6,7 +7,6 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 
 const root = resolve(import.meta.dirname, '../../..');
@@ -15,7 +15,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 test('real buffered HTTP downloads over five seconds reach ready and paint, ordinary and once', { timeout: hangBudget(12) }, async t => {
   const require = createRequire(join(root, 'packages/snapback4/package.json'));
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
+
   const dir = mkdtempSync(join(tmpdir(), 'sb4-buffered-'));
   const requests = [], completed = [];
   let server, browser;
@@ -45,7 +45,7 @@ test('real buffered HTTP downloads over five seconds reach ready and paint, ordi
     root.render(<SnapbackProvider client={client}>{ids.map(id => <Photo key={id} id={id} />)}</SnapbackProvider>);
     window.finish = async () => { root.unmount(); await client.close(); };
   `);
-  server = await createServer({ root: dir, configFile: false, logLevel: 'error',
+  server = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error',
     server: { host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } },
     resolve: { alias: [
       ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: require.resolve(name) })),

@@ -87785,3 +87785,43 @@ No real device was created; prior owned devices are absent and fixture custody
 is drained. Only this mini and an NZ-owned main comparison snapshot were used.
 Nothing pushed or published; 0.4.13 staging/version files were not changed.
 Details and hashes: [Round 12 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-12--integration-2026-10-05).
+
+## 2026-10-05 — PW: immutable browser fixtures and attributed reload controls
+
+A controlled late React dependency reproduces the reported per-row context-loss
+exception 60/60 under confined Linux CPU hogs and 30/30 on the Apartment mini.
+Vite logs optimization, sends a full-reload websocket message, and CDP records
+reload navigation before evaluation fails; no crash, watcher event, early
+browser disconnect or server restart precedes it. The original M5 event remains
+unattributed: no trace exists, and both current main and the pre-NZ HMR options
+pass 60 isolated target runs on each host. The report distinguishes this limit
+from the witnessed fixture mechanism. NZ's HMR suppression was already on base.
+
+Seventeen Vite fixture sites now prebundle known React entries, disable late
+optimizer discovery/HMR/watching and own their caches. The per-row fixture
+retains server, websocket and browser lifecycle diagnostics and rejects optimizer
+reload requests even when HMR would hide them. Its late-import regression fails
+without prebundling. A mini intermediate run exposed shared-cache replacement
+under package-nested TMPDIR: one invocation failed two cases with outdated-dep
+504s. A two-server control reproduces that failure; private caches pass it.
+Darwin allow lists also use canonical paths. Explicit reloads, all original
+1,000-hook/2,000-call comparisons and zero-loading assertions remain. No retry,
+clock, timeout, SDK, engine or wasm-source change.
+
+Final full-file repetitions pass 60/60 under Linux hogs and 30/30 on Darwin
+(720 subtests). Other affected checks pass 223 tests, 16 React screen-lifetime
+cases, two expiry cases and the equality browser experiment. The complete
+suite passes: `== 0 failure(s) in 2247 s`. Rust: 5,049 passes and 17 doctests,
+33 existing ignores. Client pool: all 321 files, 6,433 passes and 47 existing
+platform/opt-in skips. Both full-count model files pass all 79 tests. Reference
+and whitespace checks pass. Wasm is byte-identical at 2,117,335 B raw / 639,807 B
+gzip, below the unchanged 639,941 B cap. Observed local task disk use is 14.10 GB;
+the 1.5 GB mini scratch is deleted, and all owned hogs have exited.
+
+The [PW report](./reports/20261005-pw-per-row-navigation/REPORT.md) retains every
+phase, including failed/interrupted setup and negative controls, source hashes
+and native receipts. Closed the [fixture-mechanism ticket](../issues/closed/20261005-snapback4-browser-fixture-navigation.md)
+without claiming retrospective M5 attribution. Work stayed on eb1000 except
+for the authorized file on the mini. No other worktree, simulator or device was
+touched. Local commit with the requested Astra co-author trailer; nothing pushed
+or published.

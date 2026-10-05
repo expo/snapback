@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -8,7 +9,6 @@ import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { createApp } from "../dist/app.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { processDevice } from "../dist/native.js";
@@ -56,7 +56,7 @@ test("web IndexedDB device withdraws expired inbox data in useQuery and usePage"
   const { url, dir } = await backend(t);
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+
   writeFileSync(join(dir, "index.html"), '<!doctype html><div id="app"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(dir, "harness.jsx"), `
     import { createElement as h } from "react";
@@ -89,7 +89,7 @@ test("web IndexedDB device withdraws expired inbox data in useQuery and usePage"
       }
     });
   `);
-  const server = await createServer({ root: dir, configFile: false, logLevel: "error",
+  const server = await createBrowserServer({ root: dir, configFile: false, logLevel: "error",
     server: { host: "127.0.0.1", port: 0, fs: { allow: [root, dir] }, proxy: { "/backend": { target: url, rewrite: path => path.slice(8) } } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },

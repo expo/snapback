@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // React's actual effect/subscription replay, with controlled transport and
 // observations. Skipped only when Chromium is unavailable; no backend or
@@ -11,7 +12,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import ts from "typescript";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { journalChanges } from "../dist/journal-changes.js";
 
@@ -70,13 +71,13 @@ test("React hooks and reference-app lifetimes", async (t) => {
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
   const require = createRequire(join(root, "packages/snapback4/package.json"));
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+
   const temporary = mkdtempSync(join(tmpdir(), "sb4-react-"));
   let server, browser;
   try {
     writeFileSync(join(temporary, "index.html"), '<!doctype html><title>React witness</title><script type="module" src="/harness.jsx"></script>');
     writeFileSync(join(temporary, "harness.jsx"), harness);
-    server = await createServer({
+    server = await createBrowserServer({
       root: temporary, configFile: false, logLevel: "error",
       server: { host: "127.0.0.1", port: 0, fs: { allow: [root, temporary] } },
       resolve: { alias: [

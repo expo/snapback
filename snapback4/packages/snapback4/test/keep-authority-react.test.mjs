@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -5,7 +6,6 @@ import { createRequire } from "node:module";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -13,13 +13,13 @@ for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and
   const executablePath = chromiumExecutable();
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+
   const temporary = mkdtempSync(join(tmpdir(), "sb4-kept-authority-react-"));
   let server, browser;
   t.after(async () => { await browser?.close(); await server?.close(); rmSync(temporary, { recursive: true, force: true }); });
   writeFileSync(join(temporary, "index.html"), '<!doctype html><div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(temporary, "harness.jsx"), harness.replace("const options = KEEP_OPTIONS;", `const options = ${keep === undefined ? "undefined" : "{ keep: true }"};`));
-  server = await createServer({ root: temporary, configFile: false, logLevel: "error",
+  server = await createBrowserServer({ root: temporary, configFile: false, logLevel: "error",
     server: { host: "127.0.0.1", port: 0, fs: { allow: [root, temporary] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve("react") },

@@ -1,3 +1,4 @@
+import { createBrowserServer } from './helpers/browser-server.mjs';
 // @ref LLP 3000.031#7 — execute the published screen; shell state survives, protected data does not.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,6 @@ import { readyRead } from '../dist/read-existence.js';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -20,7 +20,7 @@ test('published Expo recipe: Strict Mode, withdrawal, denied membership, and acc
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')));
+
   const dir = mkdtempSync(join(tmpdir(), 'sb4-read-presentation-'));
   let browser, vite;
   t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
@@ -69,7 +69,7 @@ window.releaseAdmission = async state => {await act(async()=>submissions.at(-1).
 window.settle = async state => {await act(async()=>{for(const fn of writeListeners)fn(outcome(state));});};
 window.finish = async()=>{await act(async()=>root.unmount());return {records:records.size,authListeners:authListeners.size,writeListeners:writeListeners.size};};
 `);
-  vite = await createServer({ root: dir, configFile: false, logLevel: 'error',
+  vite = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error',
     server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } },
     resolve: { alias: [
       ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })),
