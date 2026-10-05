@@ -42,7 +42,7 @@ for (const field of ['valueDevice', 'valueServer']) {
   ]) rejects(`${file} omitting ${field}`, file, before, before.replace(`, ${field}: null`, ''));
 }
 // Astra's exact final-publication mutation used to compile and disable refreshes.
-const publication = 'if (watch || (revision === incarnation && authority === answers.revision) || closed) return { ...result, incarnation: revision, authority };';
+const publication = 'if (watch || (revision === incarnation && (authority === answers.revision || result.publicationCurrent?.())) || closed) return { ...result, incarnation: revision, authority };';
 rejects('Astra final local publication with undefined deadlines', 'local.ts', publication,
   publication.replace('...result,', '...result, valueDevice: undefined, valueServer: undefined,'));
 rejects('runLocal forwarding undefined deadlines', 'local.ts',

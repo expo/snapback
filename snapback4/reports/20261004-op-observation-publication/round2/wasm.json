@@ -1,0 +1,9 @@
+{
+  "raw": 2117335,
+  "gzip": 639810,
+  "budget": 639940,
+  "macos_allowance": 130,
+  "round1_identical": true,
+  "sha256": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+  "command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+}

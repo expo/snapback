@@ -86779,3 +86779,102 @@ metadata-only adoption keeps generation 1. Both starter censuses remain exact.
 operator's rerun. Wasm is unchanged from round 2; disk below 16 GB. See the
 [Round 3 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-3--restore-the-published-engine-compatibility-fence).
 Local commit only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-05 — OP: live publication through covered evidence
+
+Implemented in the client on eb1000, based on main `ed327e5dc7`. A matching
+server reply was repeatedly rejected after decoding because notification,
+change and published-apply evidence advanced authority/change versions; it
+finally published in an evidence-free interval. Current-main traces retain
++16.9 → +799.6 ms and +41.6 → +1,123.7 ms examples.
+
+LLP 3000.023 §10 now permits a whole-server reply to cover repeated sequenced
+evidence, with a separate unchanged-input proof for local components. Every
+external component independently covers server evidence. Prediction admission
+is fenced before its first await; scope removal still withdraws immediately.
+Store/session changes, unpublished cuts, retained routing, expiry, remembered
+recovery and unaccounted watch-version advances keep their fences. No new
+await, network request, queue capacity, retry timer or retention budget.
+LLP 3000.016 §2.2 and 3000.028 §3.2 record the routing boundary.
+
+LU's three-browser 1,000-history/refollow fixture, 30 trials per cell: final
+idle repost p95 is **105.5 ms**, and an adjacent baseline/final repeat is
+**709.4 → 81.0 ms**. Repost and message improve across the measured loads;
+reaction and ordinary browser tails vary, with the full tables retained.
+A paired ordinary-client control measures 600 same-mutation samples per
+host/mode; the largest p95 increase is 0.832 ms, while server-only p95 improves
+by about 2 ms. This is fixture evidence, not a calibration rescore.
+
+Thirty four-CPU hog repetitions pass: **16,950 cases**, zero failures,
+cancellations or skips; all owned hogs are reaped. Focused checks pass
+**697/697**. The first full suite caught twelve callback-boundary failures:
+a covering cut had wrongly excused direct watch-version changes. The final
+accounting fence and two negative controls correct that gap. An existing
+compiler mutation's source anchor was updated without relaxing its assertion.
+The full suite passes in **2,264 seconds**: 5,002 Rust tests + 17 doctests, 6,315 client passes (318 files), 9 fixture tests and 79 model cases. Existing 33 Rust ignores and 11 client skips remain; no counts or timeouts were reduced.
+
+Wasm remains **2,117,335 B raw / 639,810 B gzip** under the unchanged
+**639,940 B** ratchet, preserving **130 B** for macOS; no macOS host was used.
+Measured and qualified SDKs match all 240 frozen files. Sampled worktree peak
+was **16.89 GB**, below 40 GB. The publication ticket is resolved; no push
+or publication was performed. [Report](./reports/20261004-op-observation-publication/REPORT.md).
+
+
+## 2026-10-05 — OP round 1: retained publication and queued prediction fences
+
+Follow-up to c43a86a440 after Astra READY and Grok READY WITH CHANGES. A
+retained composition could choose provisional routing before an empty-footprint
+catch-up, then publish it afterward because its local inputs were unchanged and
+its server cut already covered the apply. The client now records published
+watermark progress at the commit callback and sync publication, and rejects a
+retained route whose evaluation watermark is behind that floor. Repeated equal
+watermarks coalesce. Every apply also schedules retained-sensitive watches,
+including local watches without server provenance or a pending change cut.
+The existing shared-store transaction checks, scope withdrawals and separate
+local/server proofs remain; this adds no query await or new server authority.
+
+Queue discovery now fences earlier candidates when predictable, unobserved
+write identities/footprints change, including unknown footprints and another
+write to the same table. Identical queue reads coalesce. This covers nonempty
+local answers between their pending check and prediction admission; fresh local
+evaluations of admitted predictions remain publishable. LLP 3000.016 §2.2,
+3000.023 §10 and 3000.028 §3.2 state the final behavior, including advancing
+empty notifications and the separate retained-routing watermark floor.
+
+Five deterministic cases and two process/wasm controls fail against round 0.
+The final publication file passes 43 cases; four new real-device regressions
+cover late catch-up and empty-apply retained resumption on both hosts. Ten
+confined four-CPU repetitions with owned hogs pass **6,620 cases**, no failures,
+cancellations or skips. All hogs were reaped before the full suite, which passes
+in **2,292 seconds**: 5,002 Rust tests + 17 doctests, 6,326 client passes across
+318 files, nine fixture checks and 79 final model cases. Existing 33 Rust ignores
+and 11 client skips remain; no test count or timeout was reduced.
+
+Three alternating round-0/round-1 browser pairs, 30 writes per idle cell per
+SDK, retain the 1,000-history/refollow starvation fix. Round-1 repost p95 is
+121.0, 113.8 and 96.0 ms; pooled **106.2 ms**, versus **105.3 ms** at round 0.
+Message p95 improves; reaction p95 rises about 5 ms. This short repeat does not
+establish universal browser-tail nonregression or repeat the heavy controls.
+
+Wasm is unchanged at **2,117,335 B raw / 639,810 B gzip** under the **639,940 B**
+cap, preserving the **130 B macOS allowance**. All 238 rebuilt SDK files match
+the frozen measurement input. Sampled disk peak is **18.83 GB**, below 40 GB.
+Only eb1000 and this worktree were used. The original ticket remains resolved;
+nothing was pushed. [Round 1 report](./reports/20261004-op-observation-publication/REPORT.md#round-1--review-corrections-2026-10-05).
+
+## 2026-10-05 — OP round 2: fence overtaken queue discovery
+
+Fixed Astra's remaining Low on a759ded99a: every completed queue read now
+fences newly discovered predictions, even when disjoint evidence overtook it;
+the revision guard still prevents stale snapshots from replacing cached state.
+This restores pre-OP main's protection for the six reported interleavings,
+which its unconditional authority check rejected. Added all six on both process
+and wasm, plus expiry-retry, final-callback and coalescing/state controls.
+Ten confined hog repetitions pass **7,610 cases**, no failures, cancellations
+or skips. One 30-trial idle browser run retains **104.7 ms repost p95**.
+Wasm remains byte-identical at **639,810 B gzip**, with the **130 B macOS
+allowance** intact; disk peaked at **18.87 GB**. Only the prediction fence
+changed in product code, so the full suite was not repeated under the round-2
+instruction. LLP 3000.016 §2.2 and 3000.023 §10 distinguish discovery from
+state installation. Only eb1000 was used; nothing was pushed.
+[Round 2 report](./reports/20261004-op-observation-publication/REPORT.md#round-2--overtaken-queue-discovery-2026-10-05).

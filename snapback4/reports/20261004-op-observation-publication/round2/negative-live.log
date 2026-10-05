@@ -1,0 +1,202 @@
+✖ process: known prediction discovered after disjoint notification fences local publication (223.673882ms)
+✖ process: opaque prediction discovered after disjoint notification fences local publication (184.012393ms)
+✖ process: known prediction discovered after disjoint commit fences local publication (184.717249ms)
+✖ process: opaque prediction discovered after disjoint commit fences local publication (181.571615ms)
+✖ process: known prediction discovered after disjoint applied fences local publication (194.134402ms)
+✖ process: opaque prediction discovered after disjoint applied fences local publication (182.882089ms)
+✖ wasm: known prediction discovered after disjoint notification fences local publication (410.543095ms)
+✖ wasm: opaque prediction discovered after disjoint notification fences local publication (58.49183ms)
+✖ wasm: known prediction discovered after disjoint commit fences local publication (57.669106ms)
+✖ wasm: opaque prediction discovered after disjoint commit fences local publication (56.398963ms)
+✖ wasm: known prediction discovered after disjoint applied fences local publication (57.652351ms)
+✖ wasm: opaque prediction discovered after disjoint applied fences local publication (54.186016ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 0
+ℹ fail 12
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1983.744984
+
+✖ failing tests:
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: known prediction discovered after disjoint notification fences local publication (223.673882ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: opaque prediction discovered after disjoint notification fences local publication (184.012393ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: known prediction discovered after disjoint commit fences local publication (184.717249ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: opaque prediction discovered after disjoint commit fences local publication (181.571615ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: known prediction discovered after disjoint applied fences local publication (194.134402ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ process: opaque prediction discovered after disjoint applied fences local publication (182.882089ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: known prediction discovered after disjoint notification fences local publication (410.543095ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: opaque prediction discovered after disjoint notification fences local publication (58.49183ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: known prediction discovered after disjoint commit fences local publication (57.669106ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: opaque prediction discovered after disjoint commit fences local publication (56.398963ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: known prediction discovered after disjoint applied fences local publication (57.652351ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication-live.test.mjs:51:3
+✖ wasm: opaque prediction discovered after disjoint applied fences local publication (54.186016ms)
+  AssertionError [ERR_ASSERTION]: new queue evidence must retire the earlier non-empty local answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication-live.test.mjs:103:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

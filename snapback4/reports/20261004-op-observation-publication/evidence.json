@@ -1,0 +1,5838 @@
+{
+  "baseline": "ed327e5dc715bca1c3df098b794219c1e07ff028",
+  "collected": 1791163675.166395,
+  "files": {
+    "packages/snapback4/src/local.ts": "a9ce0758c9cbb3ac3280a941b8ca9910927f8f3693984198e20aece04ee607ac",
+    "packages/snapback4/src/local-query.ts": "45235a3884e3c41d9cbd11fc24f9fc6b4bcffa28134ba8796bd8a47838f0d37f",
+    "packages/snapback4/src/local-reads.ts": "39143f35144fa21c88bebf64849da8f50b1b5d63674ce4b83dae46c3638e7718",
+    "packages/snapback4/test/observation-publication.test.mjs": "9c72dc88e09b26210a5eddaaab99619609c21c6e4837103e9bb3e3c88877459c",
+    "packages/snapback4/test/observation-publication-live.test.mjs": "355e16a3648ed1f5cd666acf5cd9471461986516ee297b540eefdd6463b484f1",
+    "packages/snapback4/test/value-deadline-types.test.mjs": "3da50f7ec9907598d1b1c86fda98637401a2af47317ae0dcf0771826732853dc",
+    "target/lu-op": "4fd92f25d267ae3be1cb5463e0c7a0c33006b00cee1462eb91894a739e4d0f06",
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+    "target/op/before.json": {
+      "bytes": 4617836,
+      "sha256": "68c7ab12a8305502c5d069fa28c965a5d750219d59ff019530e3020a90deb073"
+    },
+    "target/op/before.json.jsonl": {
+      "bytes": 114381015,
+      "sha256": "23d05dd6f0865302b3b7c49a8a7f8f2305f03828ae835150fea748f2d93e822c"
+    },
+    "target/op/before.log": {
+      "bytes": 16893,
+      "sha256": "f6be0cbe89236bf70d7abf537cf8a760e2e12b53f7702262d63c053407890e95"
+    },
+    "target/op/before.summary.json": {
+      "bytes": 32026,
+      "sha256": "0237976e81de373a62d6466ec689d08235f14907735ca94a4002c552a0d882aa"
+    },
+    "target/op/before.stamps.csv": {
+      "bytes": 103432,
+      "sha256": "ec42bdfca5ea3c46e949706762c7eb6e97a356cb8a6a315ef0edfd8c08256a54"
+    },
+    "target/op/after.json": {
+      "bytes": 4451641,
+      "sha256": "a1bd8e6914b81410bdce67ee3d6189001e0192f6b2ad974fe6e5d355665e9f1e"
+    },
+    "target/op/after.json.jsonl": {
+      "bytes": 120882802,
+      "sha256": "5d8199f5cbc4edd0d9e65b7f2b7eb7fc396920a380546e3a0a40cb5fcf610dde"
+    },
+    "target/op/after.log": {
+      "bytes": 16590,
+      "sha256": "bfeecfee87732bbe7a77c1d92c8c1019690aacda895cafc08e3f9e4ce99425a9"
+    },
+    "target/op/after.summary.json": {
+      "bytes": 31705,
+      "sha256": "3b1432b2b52c07d921632c84de15e637299dcad0e27cf10049a4dff5b5b130e2"
+    },
+    "target/op/after.stamps.csv": {
+      "bytes": 103398,
+      "sha256": "29dd615192d6a2ac51298902ba694e1137793a38f1ee36f04c23efc119c9673b"
+    },
+    "target/op/final.json": {
+      "bytes": 4233775,
+      "sha256": "c29622776dfcfca71f48dbcbe564bbe3c962d0435c4ad596c773df72c76d1096"
+    },
+    "target/op/final.json.jsonl": {
+      "bytes": 97608255,
+      "sha256": "216c43a8b9f70f71d9cb28e8d28f0e10fa0d4d966b8ee672b27995c64c61c390"
+    },
+    "target/op/final.log": {
+      "bytes": 16574,
+      "sha256": "0cb97999dc8fc3a8c9c2d5760dd99e27065305db4982742d6ef839822938b250"
+    },
+    "target/op/final.summary.json": {
+      "bytes": 31885,
+      "sha256": "eaaaeffd79c6d53f0b8436a20c33fbda274b0f6fb6670395f3850f898692f9c8"
+    },
+    "target/op/final.stamps.csv": {
+      "bytes": 103704,
+      "sha256": "a9a77a3a3ad529671aa6eb8dce4ab927f9ef26a3ba4b7f19b5325089877f3c3d"
+    },
+    "target/op/repeat-final.json": {
+      "bytes": 1737021,
+      "sha256": "578919fd503b4e8ca6cb6c2d4e22392ecf5bca66c584085f5bd536cc0b9f1f56"
+    },
+    "target/op/repeat-final.json.jsonl": {
+      "bytes": 31963549,
+      "sha256": "b66bf66f436942f9e314a51b0199d4e0c2e3047d85421ab18a6ecf8e5f7521f6"
+    },
+    "target/op/repeat-final.log": {
+      "bytes": 5688,
+      "sha256": "5e20c203dc1def0a5ea4da8ddca9686c3642d5af9798ab4fadbf8ca7135d9562"
+    },
+    "target/op/repeat-final.summary.json": {
+      "bytes": 10921,
+      "sha256": "b58d5b94ef2f2b0e65fdbbfe2786f9abfcd10eb8bb9f0084b21c1188520ad3c9"
+    },
+    "target/op/repeat-final.stamps.csv": {
+      "bytes": 34940,
+      "sha256": "8513e45a19b9d6741bdeeb3291ac3ce31734bc5b8feec5c0ca17b4d1ca67f533"
+    },
+    "target/op/repeat-before.json": {
+      "bytes": 2129682,
+      "sha256": "812bf3649b8fb18651b1aed0c3462291c460328488de122e81e4f6f3cdb615f7"
+    },
+    "target/op/repeat-before.json.jsonl": {
+      "bytes": 37665870,
+      "sha256": "629520b49901b7b8b1e8feafd5d746910c1d206dde1af31e03646f39475e9e3c"
+    },
+    "target/op/repeat-before.log": {
+      "bytes": 6487,
+      "sha256": "f0af84b24e3831fa285d1078dce73a793ace4dfc5ac59e52c9084ab86452ce02"
+    },
+    "target/op/repeat-before.summary.json": {
+      "bytes": 10985,
+      "sha256": "6aed86430dfa3fe621723e271d965fd1663d1585d972d60720f81acfb290f87e"
+    },
+    "target/op/repeat-before.stamps.csv": {
+      "bytes": 35059,
+      "sha256": "524f29e49970081cb92ce6e749b57cb5b5f4056d7a77f50fcdd1b6a55855dcc5"
+    },
+    "target/op/steady-final.json": {
+      "bytes": 1972324,
+      "sha256": "a12169180c93d77bad74837781a3f0db3d6bae2736aa3a54874c47461470b595"
+    },
+    "target/op/steady-final.json.jsonl": {
+      "bytes": 17988319,
+      "sha256": "b5a82b2c339139627794a42a00cde723f3393a77d5d851413a87634abcdd2dd1"
+    },
+    "target/op/steady-final.log": {
+      "bytes": 16505,
+      "sha256": "0e0329c64f3ec14e2c6613a95698bb0c8d171106740ab0ae829370f1a6ab959f"
+    },
+    "target/op/steady-final.summary.json": {
+      "bytes": 31462,
+      "sha256": "f61d536719a56b2c42e47740d351f419187fb76f4e17d3f32491715fcef1a40d"
+    },
+    "target/op/steady-final.stamps.csv": {
+      "bytes": 103517,
+      "sha256": "934346d4d91f90cd24a025821a7bc766374a39fc5e5c00cfb3df46af5222ef25"
+    },
+    "target/op/steady-before.json": {
+      "bytes": 1957073,
+      "sha256": "dc7b36974d59ec8b7236ba459c504c50f75876f265967323c347decb8b1ab267"
+    },
+    "target/op/steady-before.json.jsonl": {
+      "bytes": 18646305,
+      "sha256": "f053f00881e8e1bd955bd1a09ace9b12d6000259f3b3b486a2d4896fd0028165"
+    },
+    "target/op/steady-before.log": {
+      "bytes": 16503,
+      "sha256": "2a818d9e34a8a398822ec1bb88da6fc435db245d02034de7d934ba68dc5b9993"
+    },
+    "target/op/steady-before.summary.json": {
+      "bytes": 31654,
+      "sha256": "c70e9537cc8adb336985eb962329963d0f1ffe23b1f5c340e13ca45e19cd7a0e"
+    },
+    "target/op/steady-before.stamps.csv": {
+      "bytes": 103483,
+      "sha256": "cd07d377852c4262c9a9f04b3db1dae58b10a9368741d8cbd92791255df4391b"
+    },
+    "target/op/final3.json": {
+      "bytes": 3992626,
+      "sha256": "70a88e70ac6dbba58a4f0c38e71aced73265bf438750b42415e74e4c5ce8a38e"
+    },
+    "target/op/final3.json.jsonl": {
+      "bytes": 97012770,
+      "sha256": "33976b95c3bc4eca6e79cd560b96be82705fb37956a02e492ea4d1ec7878b925"
+    },
+    "target/op/final3.log": {
+      "bytes": 16524,
+      "sha256": "c5612f48da6776b9c6be77ea66664a72e41b94393fa59d3e49f869a730bbd0c2"
+    },
+    "target/op/final3.summary.json": {
+      "bytes": 31892,
+      "sha256": "02599b45120899243170f289ac2e20e6a70e89584d499ae526490f1bfc1b5acf"
+    },
+    "target/op/final3.stamps.csv": {
+      "bytes": 103432,
+      "sha256": "5cb1d058f5c82e346b6a210ca046fd43fea6e23483c7be9a037f29e0315b3528"
+    },
+    "target/op/paired-before.json": {
+      "bytes": 4359343,
+      "sha256": "d74451b8601a6a966b175d2ca46d7038f3728643a62462e011eb1ca7ec3cce9a"
+    },
+    "target/op/paired-before.json.jsonl": {
+      "bytes": 128182121,
+      "sha256": "fc95886484f531fea63408412f010a852f2a71f0b06f697cacbeff911ed961db"
+    },
+    "target/op/paired-before.log": {
+      "bytes": 16609,
+      "sha256": "a3392b5fc6640ae8adf9c5f31f92d566e6d4800ec7859356c04aec53ee1433b4"
+    },
+    "target/op/paired-before.summary.json": {
+      "bytes": 31759,
+      "sha256": "f2b065b97b52d0e1cd0c8334dba8f5b6fe22b1724a36976236fd0bddc569e8c8"
+    },
+    "target/op/paired-before.stamps.csv": {
+      "bytes": 103772,
+      "sha256": "968550fdf4802ddfb37a00264eab0b022c1d0f5481f9cb8f5a089fe4e71a1168"
+    },
+    "target/op/steady-final3.json": {
+      "bytes": 1943065,
+      "sha256": "de56072752e95b2fe2772d4546eca066ce4bd95a67e8e99ca643ba0a98183192"
+    },
+    "target/op/steady-final3.json.jsonl": {
+      "bytes": 17894709,
+      "sha256": "c7329e2d2834ae07ce9e93a4796a6d05d2c21c289de494fc0d5152399c21ee8e"
+    },
+    "target/op/steady-final3.log": {
+      "bytes": 16463,
+      "sha256": "ab092019f65c04fd507e874d3f21cf83de7d3064f87cf37a5028eff5785d46e7"
+    },
+    "target/op/steady-final3.summary.json": {
+      "bytes": 31466,
+      "sha256": "5c73c8598e8efd50f34c4788ed6a9f184daf5c30ef9f37c96cc8e5741369cefc"
+    },
+    "target/op/steady-final3.stamps.csv": {
+      "bytes": 103704,
+      "sha256": "780bae787a7ea3a208578ac2621e931a7d426351d0d6ea600a7516d6a1ed71da"
+    },
+    "target/op/steady-before-repeat.json": {
+      "bytes": 1948959,
+      "sha256": "93fc200d7d7d85a3e864ad3525a801ff83f702d181ac17341216e7f59604ba43"
+    },
+    "target/op/steady-before-repeat.json.jsonl": {
+      "bytes": 18475542,
+      "sha256": "8beb0f06083f8116f641be121e0021dc37ded1641e8c9b08317e4cb04bd53e3b"
+    },
+    "target/op/steady-before-repeat.log": {
+      "bytes": 16491,
+      "sha256": "aac6b95b0d6715ec22bd2ff4cea7339f5dbcb5e8b31eee1c7f4146d78c6d9927"
+    },
+    "target/op/steady-before-repeat.summary.json": {
+      "bytes": 31560,
+      "sha256": "38ace0ac79eb0a25be89bcf07f88d8ee23b84d9768ac5de02783cbd5a934d309"
+    },
+    "target/op/steady-before-repeat.stamps.csv": {
+      "bytes": 103721,
+      "sha256": "b1188018e78d17b1185c645ee9dd7f869351e0ee20d36dad23304eaf7fc408e7"
+    },
+    "target/op/final4.json": {
+      "bytes": 4172169,
+      "sha256": "06793f4fd29c19b1d04d314e75af60412d5bb55800bd18116cac8367baf633fb"
+    },
+    "target/op/final4.json.jsonl": {
+      "bytes": 99295935,
+      "sha256": "177ec67e73ae2f21a6f3a0b9a65b1a6a5df4d14eae457670d0eabbce5feb03fd"
+    },
+    "target/op/final4.log": {
+      "bytes": 16582,
+      "sha256": "af12f90c5d289bc1226da6ee8989390c620d783dac92d072134757bb4ac7a961"
+    },
+    "target/op/final4.summary.json": {
+      "bytes": 31872,
+      "sha256": "4d6c7a343683e0c672facfd92179f512f9fecde26b7691a70aea0aa2e8e0b16d"
+    },
+    "target/op/final4.stamps.csv": {
+      "bytes": 104027,
+      "sha256": "a40e95433d806acb05a19e238882ecb3834f54d7726d280adb307489d151df94"
+    },
+    "target/op/steady-final4.json": {
+      "bytes": 1950128,
+      "sha256": "39db8bb71fe075282e305ee7331a722791916851a1bccc6f7e0e062cb90a53f5"
+    },
+    "target/op/steady-final4.json.jsonl": {
+      "bytes": 17860265,
+      "sha256": "c7a1e14e31712056f59eefbc61da17e06081b836c037296041a1e36e5678b29b"
+    },
+    "target/op/steady-final4.log": {
+      "bytes": 16467,
+      "sha256": "11b8cfc8af129aecd7dc7eafef9aba48e5840f822e4bdd2b5dabf7c9d90714ef"
+    },
+    "target/op/steady-final4.summary.json": {
+      "bytes": 31459,
+      "sha256": "f0dee7bd9c0ab9398a97f298d319d580d1d6f315ea9911ceb29af4c86644f5b4"
+    },
+    "target/op/steady-final4.stamps.csv": {
+      "bytes": 103602,
+      "sha256": "7567aeec0253e59f4d6254c898d0859e31ff86c53ee14f6714e73795f6168292"
+    },
+    "target/op/paired-final4-before.json": {
+      "bytes": 4614368,
+      "sha256": "7e7301b3be5d74c50dc2d3f311a285051bad7e92584f12a178169d636c006027"
+    },
+    "target/op/paired-final4-before.json.jsonl": {
+      "bytes": 133084524,
+      "sha256": "4ead177ff80c98d00a0561867bdad9bc471221077e29a5d03d7cf612e484bd9b"
+    },
+    "target/op/paired-final4-before.log": {
+      "bytes": 16642,
+      "sha256": "98992133ead4fa51acd29022c2493d719c32ee14943ff3dff011f67ac06b7a7c"
+    },
+    "target/op/paired-final4-before.summary.json": {
+      "bytes": 31877,
+      "sha256": "5a01b2163eebe96ece08125cc09285006ece80d606932a6577cb2159a17d8305"
+    },
+    "target/op/paired-final4-before.stamps.csv": {
+      "bytes": 103925,
+      "sha256": "9ceca4dd9342d6a8cdb618ae86c6f5fdf948f06ed4209390ab8803fe975e1e23"
+    },
+    "target/op/paired-final4-after.json": {
+      "bytes": 4207056,
+      "sha256": "87e12fac295ca1630c0e078c46ad6ddccf42620ba66f16b2f0bb1c019f1c200f"
+    },
+    "target/op/paired-final4-after.json.jsonl": {
+      "bytes": 96998264,
+      "sha256": "97ff2eb1e97c48e0867a1b494e3974ce8a29636cadd7c6622b0883f56a415862"
+    },
+    "target/op/paired-final4-after.log": {
+      "bytes": 16550,
+      "sha256": "0c78dcc1fe54075c3be7b325edd0cd1ce2abc626f850a7e89543ddd5e700f1f6"
+    },
+    "target/op/paired-final4-after.summary.json": {
+      "bytes": 31744,
+      "sha256": "2b8453674dcaed8b6694839826e0f298b84daeedb22c8204ab56883533555819"
+    },
+    "target/op/paired-final4-after.stamps.csv": {
+      "bytes": 102956,
+      "sha256": "fde05dc88a1fba6af2024768c8f95b3a9885b5e56a8f3ee6652b7c712f7014df"
+    },
+    "target/op/full-suite.log": {
+      "bytes": 1927954,
+      "sha256": "f3c50266f2b191c606c2c8360b532cdda0d4498cda933ac6140d7d691b976575"
+    },
+    "target/op/wasm-build.log": {
+      "bytes": 8709,
+      "sha256": "d6f47e55563e823e8f38d9d2ad01c54175c0020b9aff62f92ae88f3fa569a781"
+    },
+    "target/op/wasm-final.log": {
+      "bytes": 8709,
+      "sha256": "d6f47e55563e823e8f38d9d2ad01c54175c0020b9aff62f92ae88f3fa569a781"
+    },
+    "target/op/typecheck-final.log": {
+      "bytes": 32,
+      "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+    },
+    "target/op/ref-check.log": {
+      "bytes": 81,
+      "sha256": "d86dec6818e2a6597a634cb25b7993301b3897482af56072a500d3148763c941"
+    },
+    "target/op/initial-full-suite.log": {
+      "bytes": 1935444,
+      "sha256": "1a901c2bc6d4a02a0baf24f6516e7f7616ce143fe104b2134d08e1b341952deb"
+    },
+    "target/op/requalify-final4-driver.log": {
+      "bytes": 314,
+      "sha256": "4a6d7520682097da4c504ab37330a9811389adc86158120e98af9b53dc31c406"
+    },
+    "target/op/ordinary-paired.json": {
+      "bytes": 124303,
+      "sha256": "25865f465ba719d09a605bfeb7302d306a42c13e82c59e5abf10b0275416d27c"
+    },
+    "target/op/ordinary-paired-reverse.json": {
+      "bytes": 124216,
+      "sha256": "67e8f3b637d37068bc76fc42224375be9f19ec7a60dd83c83a92f11cc46c2019"
+    },
+    "target/op/ordinary-paired.log": {
+      "bytes": 2929,
+      "sha256": "a2cd40fcddde41f2ce8320ec58cfd8eb9acb814248cb4a449b4ed4e2e23490a3"
+    },
+    "target/op/ordinary-paired-reverse.log": {
+      "bytes": 2923,
+      "sha256": "3625f22130a669683a616ad0b5a29d72cd5fbc869092e3d4e6a38ea3851d8df0"
+    }
+  },
+  "runs": {
+    "before": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 74.219970703125,
+          "p95": 156.360107421875,
+          "max": 197.285888671875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 52.154052734375,
+          "p95": 82.194091796875,
+          "max": 120.89697265625
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 40.5400390625,
+          "p95": 61.092041015625,
+          "max": 62.336181640625
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 157.27783203125,
+          "p95": 869.893798828125,
+          "max": 1295.026123046875
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 222.86279296875,
+          "p95": 477.570068359375,
+          "max": 621.47314453125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 171.23095703125,
+          "p95": 237.662109375,
+          "max": 266.201904296875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 460.859130859375,
+          "p95": 1121.169189453125,
+          "max": 1462.993896484375
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 866.31494140625,
+          "p95": 1276.700927734375,
+          "max": 1492.866943359375
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 587.97607421875,
+          "p95": 843.993896484375,
+          "max": 919.123046875
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "affinity.json": {
+        "at": "2026-10-04T22:42:45.204641+00:00",
+        "root": 837966,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 272
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "after": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 32.516845703125,
+          "p95": 67.294189453125,
+          "max": 75.013916015625
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 165.963134765625,
+          "p95": 478.927001953125,
+          "max": 800.180908203125
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 32.48583984375,
+          "p95": 44.81396484375,
+          "max": 48.123046875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 80.544921875,
+          "p95": 130.2080078125,
+          "max": 133.828857421875
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 200.680908203125,
+          "p95": 639.70703125,
+          "max": 865.9580078125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 115.722900390625,
+          "p95": 195.8681640625,
+          "max": 196.3671875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 232.8759765625,
+          "p95": 496.690185546875,
+          "max": 560.2958984375
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 588.5771484375,
+          "p95": 1842.56787109375,
+          "max": 1844.635986328125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 447.929931640625,
+          "p95": 680.76904296875,
+          "max": 716.01611328125
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "affinity.json": {
+        "at": "2026-10-04T22:51:39.393950+00:00",
+        "root": 878475,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 293
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "final": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 50.212158203125,
+          "p95": 96.662841796875,
+          "max": 112.72607421875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 42.77587890625,
+          "p95": 76.254150390625,
+          "max": 133.296142578125
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 42.9619140625,
+          "p95": 56.927001953125,
+          "max": 58.47705078125
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 93.160888671875,
+          "p95": 166.704833984375,
+          "max": 197.87109375
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 200.864013671875,
+          "p95": 275.577880859375,
+          "max": 284.488037109375
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 141.194091796875,
+          "p95": 221.97705078125,
+          "max": 256.302001953125
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 227.38720703125,
+          "p95": 424.992919921875,
+          "max": 636.201904296875
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 583.368896484375,
+          "p95": 909.681884765625,
+          "max": 973.077880859375
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 514.97705078125,
+          "p95": 910.571044921875,
+          "max": 912.138916015625
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "affinity.json": {
+        "at": "2026-10-04T23:04:44.760209+00:00",
+        "root": 983563,
+        "processes": 133,
+        "thread_masks": {
+          "80-89": 393
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 121,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "repeat-final": {
+      "csv_recomputed": {
+        "120:repost": {
+          "n": 30,
+          "p50": 143.113037109375,
+          "p95": 333.9169921875,
+          "max": 486.112060546875
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 255.93896484375,
+          "p95": 401.875,
+          "max": 542.177001953125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 246.948974609375,
+          "p95": 340.529052734375,
+          "max": 362.385986328125
+        }
+      },
+      "rows": 180,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final/dist",
+          "LU_LABEL": "op-repeat-final",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "120",
+          "LU_OUT": "target/op/repeat-final.json"
+        },
+        "cpu_busy_before": {
+          "0": 8.621,
+          "1": 0.336,
+          "2": 0.334,
+          "3": 2.0,
+          "4": 0.0,
+          "5": 2.333,
+          "6": 2.676,
+          "7": 0.0,
+          "8": 0.669,
+          "9": 0.0,
+          "10": 0.333,
+          "11": 1.672,
+          "12": 0.0,
+          "13": 1.333,
+          "14": 0.334,
+          "15": 0.667,
+          "16": 5.333,
+          "17": 0.0,
+          "18": 0.667,
+          "19": 1.333,
+          "20": 0.997,
+          "21": 1.003,
+          "22": 0.333,
+          "23": 1.329,
+          "24": 0.0,
+          "25": 2.349,
+          "26": 0.664,
+          "27": 0.673,
+          "28": 1.003,
+          "29": 0.0,
+          "30": 7.023,
+          "31": 0.669,
+          "32": 0.333,
+          "33": 0.333,
+          "34": 0.0,
+          "35": 0.334,
+          "36": 3.654,
+          "37": 1.338,
+          "38": 0.997,
+          "39": 0.0,
+          "40": 0.0,
+          "41": 0.0,
+          "42": 3.667,
+          "43": 0.667,
+          "44": 1.01,
+          "45": 0.334,
+          "46": 0.667,
+          "47": 0.333,
+          "48": 0.0,
+          "49": 0.664,
+          "50": 0.0,
+          "51": 0.0,
+          "52": 16.279,
+          "53": 1.672,
+          "54": 0.0,
+          "55": 100.0,
+          "56": 0.0,
+          "57": 5.667,
+          "58": 0.0,
+          "59": 0.333,
+          "60": 0.334,
+          "61": 0.0,
+          "62": 6.689,
+          "63": 0.997,
+          "64": 0.997,
+          "65": 0.0,
+          "66": 0.667,
+          "67": 0.667,
+          "68": 15.05,
+          "69": 1.333,
+          "70": 1.987,
+          "71": 0.333,
+          "72": 0.667,
+          "73": 0.667,
+          "74": 0.334,
+          "75": 1.0,
+          "76": 0.0,
+          "77": 0.333,
+          "78": 15.719,
+          "79": 0.0,
+          "80": 0.333,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.333,
+          "84": 0.0,
+          "85": 1.329,
+          "86": 1.333,
+          "87": 0.334,
+          "88": 0.667,
+          "89": 9.302,
+          "90": 5.0,
+          "91": 0.0,
+          "92": 0.0,
+          "93": 0.0,
+          "94": 0.333,
+          "95": 0.0
+        },
+        "start": 1791155603.448491,
+        "pid": 1059409,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 199.322
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:13:43.500581+00:00",
+        "root": 1059409,
+        "processes": 133,
+        "thread_masks": {
+          "80-89": 390
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 121,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "repeat-before": {
+      "csv_recomputed": {
+        "120:repost": {
+          "n": 30,
+          "p50": 461.305908203125,
+          "p95": 1407.98583984375,
+          "max": 1623.074951171875
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 499.009033203125,
+          "p95": 1086.677001953125,
+          "max": 1583.577880859375
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 269.3701171875,
+          "p95": 474.535888671875,
+          "max": 477.676025390625
+        }
+      },
+      "rows": 180,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-before/dist",
+          "LU_LABEL": "op-repeat-before",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "120",
+          "LU_OUT": "target/op/repeat-before.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.345,
+          "1": 1.003,
+          "2": 0.997,
+          "3": 0.333,
+          "4": 1.333,
+          "5": 0.667,
+          "6": 0.0,
+          "7": 0.0,
+          "8": 0.0,
+          "9": 0.0,
+          "10": 1.003,
+          "11": 0.0,
+          "12": 1.672,
+          "13": 0.997,
+          "14": 2.667,
+          "15": 1.0,
+          "16": 2.99,
+          "17": 2.341,
+          "18": 0.334,
+          "19": 0.667,
+          "20": 0.333,
+          "21": 1.338,
+          "22": 1.329,
+          "23": 1.003,
+          "24": 0.667,
+          "25": 0.667,
+          "26": 0.333,
+          "27": 0.667,
+          "28": 0.334,
+          "29": 7.383,
+          "30": 0.0,
+          "31": 0.332,
+          "32": 0.0,
+          "33": 0.333,
+          "34": 0.0,
+          "35": 0.0,
+          "36": 0.333,
+          "37": 0.0,
+          "38": 0.667,
+          "39": 0.669,
+          "40": 0.997,
+          "41": 0.0,
+          "42": 0.334,
+          "43": 1.003,
+          "44": 1.333,
+          "45": 0.333,
+          "46": 0.334,
+          "47": 1.338,
+          "48": 0.0,
+          "49": 1.0,
+          "50": 0.333,
+          "51": 1.0,
+          "52": 10.033,
+          "53": 0.333,
+          "54": 0.332,
+          "55": 2.667,
+          "56": 0.0,
+          "57": 100.0,
+          "58": 0.0,
+          "59": 0.667,
+          "60": 0.334,
+          "61": 2.333,
+          "62": 2.99,
+          "63": 0.997,
+          "64": 0.334,
+          "65": 2.341,
+          "66": 2.0,
+          "67": 1.0,
+          "68": 0.333,
+          "69": 0.334,
+          "70": 0.667,
+          "71": 0.667,
+          "72": 3.642,
+          "73": 5.034,
+          "74": 1.672,
+          "75": 1.667,
+          "76": 1.0,
+          "77": 1.0,
+          "78": 9.365,
+          "79": 0.0,
+          "80": 0.334,
+          "81": 0.0,
+          "82": 0.667,
+          "83": 1.0,
+          "84": 0.334,
+          "85": 2.333,
+          "86": 1.003,
+          "87": 2.0,
+          "88": 0.0,
+          "89": 0.667,
+          "90": 1.333,
+          "91": 1.338,
+          "92": 1.0,
+          "93": 1.003,
+          "94": 0.667,
+          "95": 3.322
+        },
+        "start": 1791155872.091121,
+        "pid": 1088797,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 259.278
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:18:12.140549+00:00",
+        "root": 1088797,
+        "processes": 133,
+        "thread_masks": {
+          "80-89": 386
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 121,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "steady-final": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 46.94384765625,
+          "p95": 66.6669921875,
+          "max": 75.616943359375
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 33.090087890625,
+          "p95": 47.1630859375,
+          "max": 49.156005859375
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 27.264892578125,
+          "p95": 34.89697265625,
+          "max": 38.178955078125
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 58.762939453125,
+          "p95": 74.531982421875,
+          "max": 116.3330078125
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 76.7509765625,
+          "p95": 108.248046875,
+          "max": 109.902099609375
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 47.291015625,
+          "p95": 64.155029296875,
+          "max": 90.39208984375
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 194.98193359375,
+          "p95": 240.994873046875,
+          "max": 296.091064453125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 221.458984375,
+          "p95": 268.41796875,
+          "max": 280.177978515625
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 132.575927734375,
+          "p95": 178.3681640625,
+          "max": 188.964111328125
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final/dist",
+          "LU_LABEL": "op-steady-final",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "0",
+          "LU_REFOLLOW": "0",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/steady-final.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 0.332,
+          "2": 0.0,
+          "3": 0.332,
+          "4": 0.0,
+          "5": 0.667,
+          "6": 4.0,
+          "7": 1.678,
+          "8": 0.0,
+          "9": 0.0,
+          "10": 0.0,
+          "11": 0.0,
+          "12": 100.0,
+          "13": 0.333,
+          "14": 0.0,
+          "15": 0.0,
+          "16": 0.0,
+          "17": 0.0,
+          "18": 2.333,
+          "19": 0.0,
+          "20": 0.333,
+          "21": 0.0,
+          "22": 0.333,
+          "23": 0.334,
+          "24": 1.0,
+          "25": 0.0,
+          "26": 0.0,
+          "27": 1.342,
+          "28": 0.333,
+          "29": 0.0,
+          "30": 0.0,
+          "31": 0.662,
+          "32": 0.0,
+          "33": 0.0,
+          "34": 0.0,
+          "35": 0.0,
+          "36": 0.332,
+          "37": 0.333,
+          "38": 0.333,
+          "39": 0.0,
+          "40": 0.0,
+          "41": 0.332,
+          "42": 0.333,
+          "43": 0.0,
+          "44": 0.0,
+          "45": 0.333,
+          "46": 0.0,
+          "47": 0.333,
+          "48": 0.0,
+          "49": 0.0,
+          "50": 0.662,
+          "51": 0.334,
+          "52": 6.02,
+          "53": 0.332,
+          "54": 0.0,
+          "55": 4.013,
+          "56": 0.0,
+          "57": 3.987,
+          "58": 0.0,
+          "59": 0.333,
+          "60": 0.0,
+          "61": 0.0,
+          "62": 0.0,
+          "63": 0.0,
+          "64": 0.664,
+          "65": 0.0,
+          "66": 2.341,
+          "67": 0.667,
+          "68": 0.332,
+          "69": 0.0,
+          "70": 3.0,
+          "71": 3.667,
+          "72": 0.333,
+          "73": 0.667,
+          "74": 100.0,
+          "75": 0.667,
+          "76": 0.0,
+          "77": 0.0,
+          "78": 100.0,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 0.333,
+          "85": 1.0,
+          "86": 0.0,
+          "87": 0.0,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 0.0,
+          "91": 0.333,
+          "92": 0.0,
+          "93": 0.332,
+          "94": 1.0,
+          "95": 0.0
+        },
+        "start": 1791156200.7537756,
+        "pid": 1140201,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 107.185
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:23:40.794735+00:00",
+        "root": 1140201,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 284
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "steady-before": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 49.761962890625,
+          "p95": 71.275146484375,
+          "max": 98.93994140625
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 34.48486328125,
+          "p95": 42.89794921875,
+          "max": 52.01806640625
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 29.160888671875,
+          "p95": 38.251953125,
+          "max": 40.9921875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 67.56201171875,
+          "p95": 100.7919921875,
+          "max": 125.59521484375
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 79.580078125,
+          "p95": 97.31396484375,
+          "max": 98.41796875
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 55.1708984375,
+          "p95": 77.2001953125,
+          "max": 100.77392578125
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 172.806884765625,
+          "p95": 261.318115234375,
+          "max": 276.918212890625
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 189.4541015625,
+          "p95": 278.968994140625,
+          "max": 391.47607421875
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 134.176025390625,
+          "p95": 218.264892578125,
+          "max": 265.27880859375
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-before/dist",
+          "LU_LABEL": "op-steady-before",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "0",
+          "LU_REFOLLOW": "0",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/steady-before.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 0.332,
+          "2": 0.333,
+          "3": 0.0,
+          "4": 1.003,
+          "5": 1.672,
+          "6": 0.667,
+          "7": 4.333,
+          "8": 5.98,
+          "9": 1.333,
+          "10": 0.0,
+          "11": 0.662,
+          "12": 1.672,
+          "13": 0.667,
+          "14": 0.0,
+          "15": 0.667,
+          "16": 1.329,
+          "17": 5.648,
+          "18": 0.669,
+          "19": 0.333,
+          "20": 0.664,
+          "21": 0.662,
+          "22": 0.0,
+          "23": 2.667,
+          "24": 6.333,
+          "25": 1.0,
+          "26": 1.0,
+          "27": 0.664,
+          "28": 2.326,
+          "29": 0.664,
+          "30": 0.662,
+          "31": 0.0,
+          "32": 0.0,
+          "33": 0.332,
+          "34": 0.997,
+          "35": 1.0,
+          "36": 3.333,
+          "37": 1.0,
+          "38": 1.0,
+          "39": 1.333,
+          "40": 3.333,
+          "41": 2.326,
+          "42": 1.003,
+          "43": 7.023,
+          "44": 0.997,
+          "45": 0.332,
+          "46": 0.334,
+          "47": 25.667,
+          "48": 0.333,
+          "49": 0.334,
+          "50": 0.0,
+          "51": 0.667,
+          "52": 16.498,
+          "53": 0.333,
+          "54": 4.362,
+          "55": 3.0,
+          "56": 0.667,
+          "57": 100.0,
+          "58": 0.667,
+          "59": 0.0,
+          "60": 1.329,
+          "61": 1.672,
+          "62": 3.344,
+          "63": 0.333,
+          "64": 0.0,
+          "65": 0.334,
+          "66": 2.0,
+          "67": 5.686,
+          "68": 0.667,
+          "69": 15.0,
+          "70": 3.01,
+          "71": 1.667,
+          "72": 2.99,
+          "73": 76.0,
+          "74": 0.334,
+          "75": 4.0,
+          "76": 1.678,
+          "77": 0.669,
+          "78": 18.0,
+          "79": 0.334,
+          "80": 1.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 1.0,
+          "85": 0.0,
+          "86": 1.672,
+          "87": 0.332,
+          "88": 0.337,
+          "89": 0.0,
+          "90": 0.336,
+          "91": 1.003,
+          "92": 0.334,
+          "93": 2.341,
+          "94": 8.027,
+          "95": 5.686
+        },
+        "start": 1791156311.1372757,
+        "pid": 1155569,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 98.079
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:25:31.177815+00:00",
+        "root": 1155569,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 281
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "final3": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 29.838134765625,
+          "p95": 48.552978515625,
+          "max": 115.280029296875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 37.85498046875,
+          "p95": 76.693115234375,
+          "max": 77.031005859375
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 33.20703125,
+          "p95": 44.205078125,
+          "max": 58.22705078125
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 84.56787109375,
+          "p95": 140.719970703125,
+          "max": 166.3251953125
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 129.0390625,
+          "p95": 207.8671875,
+          "max": 244.675048828125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 134.571044921875,
+          "p95": 191.875,
+          "max": 215.576904296875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 162.506103515625,
+          "p95": 324.761962890625,
+          "max": 362.779052734375
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 350.466064453125,
+          "p95": 629.928955078125,
+          "max": 655.2470703125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 386.536865234375,
+          "p95": 516.573974609375,
+          "max": 563.9990234375
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final3/dist",
+          "LU_LABEL": "op-final3",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/final3.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 0.333,
+          "2": 0.0,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.0,
+          "6": 0.667,
+          "7": 0.0,
+          "8": 0.669,
+          "9": 0.0,
+          "10": 0.0,
+          "11": 1.0,
+          "12": 0.0,
+          "13": 6.689,
+          "14": 2.341,
+          "15": 0.333,
+          "16": 0.0,
+          "17": 0.0,
+          "18": 2.333,
+          "19": 0.333,
+          "20": 0.0,
+          "21": 0.0,
+          "22": 0.0,
+          "23": 1.007,
+          "24": 0.0,
+          "25": 3.667,
+          "26": 0.332,
+          "27": 0.0,
+          "28": 1.333,
+          "29": 2.98,
+          "30": 5.686,
+          "31": 0.0,
+          "32": 0.333,
+          "33": 0.0,
+          "34": 5.667,
+          "35": 1.0,
+          "36": 2.333,
+          "37": 2.667,
+          "38": 0.0,
+          "39": 0.667,
+          "40": 0.0,
+          "41": 0.0,
+          "42": 0.334,
+          "43": 0.0,
+          "44": 3.0,
+          "45": 6.689,
+          "46": 1.672,
+          "47": 0.333,
+          "48": 0.667,
+          "49": 6.645,
+          "50": 0.667,
+          "51": 0.334,
+          "52": 16.107,
+          "53": 0.0,
+          "54": 0.0,
+          "55": 62.0,
+          "56": 0.0,
+          "57": 44.147,
+          "58": 0.333,
+          "59": 0.0,
+          "60": 0.0,
+          "61": 0.0,
+          "62": 0.667,
+          "63": 0.333,
+          "64": 0.334,
+          "65": 0.0,
+          "66": 2.341,
+          "67": 2.658,
+          "68": 2.667,
+          "69": 0.0,
+          "70": 0.0,
+          "71": 0.0,
+          "72": 0.667,
+          "73": 4.319,
+          "74": 16.722,
+          "75": 0.669,
+          "76": 0.0,
+          "77": 0.0,
+          "78": 27.759,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 2.333,
+          "83": 0.0,
+          "84": 0.669,
+          "85": 0.334,
+          "86": 0.0,
+          "87": 1.003,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 0.0,
+          "91": 0.0,
+          "92": 2.0,
+          "93": 0.333,
+          "94": 0.0,
+          "95": 0.0
+        },
+        "start": 1791156580.274873,
+        "pid": 1175056,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 300.065
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:30:00.315061+00:00",
+        "root": 1175056,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 270
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "paired-before": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 219.111083984375,
+          "p95": 483.761962890625,
+          "max": 799.967041015625
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 100.94091796875,
+          "p95": 347.718994140625,
+          "max": 432.242919921875
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 34.424072265625,
+          "p95": 48.2099609375,
+          "max": 51.246826171875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 218.632080078125,
+          "p95": 750.72119140625,
+          "max": 1140.302978515625
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 173.06396484375,
+          "p95": 478.239990234375,
+          "max": 741.680908203125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 122.422119140625,
+          "p95": 191.2138671875,
+          "max": 211.156982421875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 248.001953125,
+          "p95": 918.2890625,
+          "max": 1096.922119140625
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 453.153076171875,
+          "p95": 834.213134765625,
+          "max": 910.614013671875
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 367.81396484375,
+          "p95": 512.362060546875,
+          "max": 577.572998046875
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-before/dist",
+          "LU_LABEL": "op-paired-before",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/paired-before.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 1.0,
+          "2": 0.333,
+          "3": 0.0,
+          "4": 18.792,
+          "5": 0.0,
+          "6": 0.333,
+          "7": 0.334,
+          "8": 0.0,
+          "9": 100.0,
+          "10": 0.664,
+          "11": 0.333,
+          "12": 0.0,
+          "13": 0.664,
+          "14": 5.667,
+          "15": 0.332,
+          "16": 16.835,
+          "17": 0.0,
+          "18": 100.0,
+          "19": 0.0,
+          "20": 10.0,
+          "21": 0.332,
+          "22": 0.0,
+          "23": 10.667,
+          "24": 0.333,
+          "25": 0.0,
+          "26": 10.333,
+          "27": 0.0,
+          "28": 0.0,
+          "29": 44.781,
+          "30": 0.333,
+          "31": 17.333,
+          "32": 0.332,
+          "33": 0.0,
+          "34": 0.0,
+          "35": 0.662,
+          "36": 0.0,
+          "37": 2.013,
+          "38": 0.669,
+          "39": 0.664,
+          "40": 0.332,
+          "41": 0.0,
+          "42": 0.664,
+          "43": 100.0,
+          "44": 1.007,
+          "45": 10.702,
+          "46": 6.02,
+          "47": 0.333,
+          "48": 0.0,
+          "49": 0.333,
+          "50": 2.333,
+          "51": 0.0,
+          "52": 0.0,
+          "53": 0.0,
+          "54": 1.667,
+          "55": 0.0,
+          "56": 0.0,
+          "57": 0.0,
+          "58": 0.333,
+          "59": 1.333,
+          "60": 0.0,
+          "61": 0.0,
+          "62": 0.333,
+          "63": 0.0,
+          "64": 0.333,
+          "65": 0.0,
+          "66": 0.0,
+          "67": 0.332,
+          "68": 0.0,
+          "69": 0.0,
+          "70": 0.332,
+          "71": 0.0,
+          "72": 0.334,
+          "73": 0.0,
+          "74": 0.664,
+          "75": 0.334,
+          "76": 0.667,
+          "77": 0.333,
+          "78": 2.667,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 0.0,
+          "85": 0.0,
+          "86": 0.0,
+          "87": 0.0,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 35.0,
+          "91": 0.667,
+          "92": 0.0,
+          "93": 0.0,
+          "94": 0.0,
+          "95": 0.0
+        },
+        "start": 1791156884.1706207,
+        "pid": 1218152,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 325.892
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:35:04.209201+00:00",
+        "root": 1218152,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 269
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "steady-final3": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 49.447998046875,
+          "p95": 77.14892578125,
+          "max": 98.576904296875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 34.26904296875,
+          "p95": 42.52197265625,
+          "max": 42.8798828125
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 28.31201171875,
+          "p95": 34.43701171875,
+          "max": 36.550048828125
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 58.3720703125,
+          "p95": 115.68310546875,
+          "max": 127.399169921875
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 73.296142578125,
+          "p95": 89.149169921875,
+          "max": 93.594970703125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 46.861083984375,
+          "p95": 63.59912109375,
+          "max": 66.173828125
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 158.31103515625,
+          "p95": 229.080078125,
+          "max": 324.463134765625
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 189.070068359375,
+          "p95": 263.177001953125,
+          "max": 394.95703125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 117.367919921875,
+          "p95": 185.321044921875,
+          "max": 188.012939453125
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final3/dist",
+          "LU_LABEL": "op-steady-final3",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "0",
+          "LU_REFOLLOW": "0",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/steady-final3.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.341,
+          "1": 0.0,
+          "2": 0.671,
+          "3": 0.0,
+          "4": 15.719,
+          "5": 0.332,
+          "6": 0.0,
+          "7": 1.0,
+          "8": 0.0,
+          "9": 2.99,
+          "10": 0.0,
+          "11": 100.0,
+          "12": 1.338,
+          "13": 0.664,
+          "14": 0.664,
+          "15": 0.0,
+          "16": 19.932,
+          "17": 2.99,
+          "18": 100.0,
+          "19": 0.0,
+          "20": 0.332,
+          "21": 0.0,
+          "22": 0.0,
+          "23": 0.332,
+          "24": 0.0,
+          "25": 0.0,
+          "26": 0.0,
+          "27": 0.0,
+          "28": 0.0,
+          "29": 4.682,
+          "30": 0.332,
+          "31": 23.826,
+          "32": 0.0,
+          "33": 0.0,
+          "34": 1.0,
+          "35": 0.333,
+          "36": 0.0,
+          "37": 0.0,
+          "38": 0.669,
+          "39": 0.0,
+          "40": 1.0,
+          "41": 0.0,
+          "42": 0.332,
+          "43": 100.0,
+          "44": 0.0,
+          "45": 3.356,
+          "46": 4.0,
+          "47": 1.684,
+          "48": 0.333,
+          "49": 0.333,
+          "50": 0.333,
+          "51": 0.0,
+          "52": 1.661,
+          "53": 0.0,
+          "54": 0.662,
+          "55": 0.664,
+          "56": 0.0,
+          "57": 0.0,
+          "58": 0.333,
+          "59": 0.0,
+          "60": 0.0,
+          "61": 2.341,
+          "62": 0.333,
+          "63": 0.332,
+          "64": 0.0,
+          "65": 0.332,
+          "66": 0.0,
+          "67": 0.333,
+          "68": 0.0,
+          "69": 0.0,
+          "70": 0.333,
+          "71": 0.0,
+          "72": 0.0,
+          "73": 0.667,
+          "74": 0.333,
+          "75": 0.667,
+          "76": 0.0,
+          "77": 6.667,
+          "78": 0.0,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 0.332,
+          "85": 0.0,
+          "86": 0.0,
+          "87": 0.0,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 0.0,
+          "91": 0.0,
+          "92": 0.0,
+          "93": 0.0,
+          "94": 1.342,
+          "95": 0.0
+        },
+        "start": 1791157214.1657596,
+        "pid": 1268770,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 93.903
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:40:34.207073+00:00",
+        "root": 1268770,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 283
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "steady-before-repeat": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 47.72998046875,
+          "p95": 71.387939453125,
+          "max": 93.43310546875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 28.885009765625,
+          "p95": 41.3759765625,
+          "max": 46.009033203125
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 25.508056640625,
+          "p95": 34.946044921875,
+          "max": 35.531982421875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 60.56298828125,
+          "p95": 125.43603515625,
+          "max": 133.0439453125
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 74.375,
+          "p95": 88.62890625,
+          "max": 89.155029296875
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 51.098876953125,
+          "p95": 68.76611328125,
+          "max": 77.126953125
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 178.681884765625,
+          "p95": 285.927978515625,
+          "max": 323.684814453125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 176.9580078125,
+          "p95": 392.27587890625,
+          "max": 463.072998046875
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 118.446044921875,
+          "p95": 173.97607421875,
+          "max": 175.373046875
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-before/dist",
+          "LU_LABEL": "op-steady-before-repeat",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "0",
+          "LU_REFOLLOW": "0",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/steady-before-repeat.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 2.007,
+          "2": 0.332,
+          "3": 0.667,
+          "4": 0.669,
+          "5": 0.669,
+          "6": 0.0,
+          "7": 0.0,
+          "8": 0.0,
+          "9": 2.0,
+          "10": 1.329,
+          "11": 100.0,
+          "12": 3.0,
+          "13": 0.0,
+          "14": 0.664,
+          "15": 0.333,
+          "16": 0.332,
+          "17": 0.333,
+          "18": 12.081,
+          "19": 0.0,
+          "20": 7.309,
+          "21": 0.0,
+          "22": 0.0,
+          "23": 94.0,
+          "24": 0.0,
+          "25": 1.003,
+          "26": 0.0,
+          "27": 0.333,
+          "28": 0.0,
+          "29": 33.557,
+          "30": 1.003,
+          "31": 4.667,
+          "32": 0.333,
+          "33": 0.332,
+          "34": 0.0,
+          "35": 0.0,
+          "36": 0.0,
+          "37": 0.667,
+          "38": 0.334,
+          "39": 0.0,
+          "40": 0.333,
+          "41": 0.333,
+          "42": 0.0,
+          "43": 2.333,
+          "44": 0.0,
+          "45": 2.341,
+          "46": 100.0,
+          "47": 0.0,
+          "48": 4.013,
+          "49": 0.334,
+          "50": 0.334,
+          "51": 0.333,
+          "52": 0.0,
+          "53": 0.334,
+          "54": 0.333,
+          "55": 100.0,
+          "56": 0.333,
+          "57": 2.667,
+          "58": 0.0,
+          "59": 0.0,
+          "60": 4.667,
+          "61": 0.667,
+          "62": 0.332,
+          "63": 4.348,
+          "64": 0.667,
+          "65": 0.0,
+          "66": 0.0,
+          "67": 0.333,
+          "68": 0.0,
+          "69": 0.333,
+          "70": 0.0,
+          "71": 0.0,
+          "72": 0.664,
+          "73": 0.333,
+          "74": 0.667,
+          "75": 0.667,
+          "76": 0.0,
+          "77": 0.0,
+          "78": 0.0,
+          "79": 0.0,
+          "80": 0.334,
+          "81": 0.334,
+          "82": 0.0,
+          "83": 1.0,
+          "84": 1.0,
+          "85": 1.333,
+          "86": 0.669,
+          "87": 0.0,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 0.333,
+          "91": 0.0,
+          "92": 0.0,
+          "93": 0.0,
+          "94": 1.003,
+          "95": 0.0
+        },
+        "start": 1791157395.3414264,
+        "pid": 1298238,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 95.5
+      },
+      "affinity.json": {
+        "at": "2026-10-04T23:43:35.382229+00:00",
+        "root": 1298238,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 284
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "final4": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 48.40283203125,
+          "p95": 105.546142578125,
+          "max": 118.56591796875
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 49.8740234375,
+          "p95": 74.927001953125,
+          "max": 77.75
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 41.117919921875,
+          "p95": 58.68115234375,
+          "max": 63.52294921875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 79.22900390625,
+          "p95": 154.712158203125,
+          "max": 223.31201171875
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 184.123046875,
+          "p95": 264.175048828125,
+          "max": 409.83203125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 155.219970703125,
+          "p95": 216.100830078125,
+          "max": 220.076904296875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 256.900146484375,
+          "p95": 446.31884765625,
+          "max": 451.384033203125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 504.366943359375,
+          "p95": 878.39697265625,
+          "max": 1035.445068359375
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 527.671142578125,
+          "p95": 910.97314453125,
+          "max": 929.916015625
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final4/dist",
+          "LU_LABEL": "op-final4",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/final4.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 0.669,
+          "2": 3.679,
+          "3": 0.334,
+          "4": 0.667,
+          "5": 0.0,
+          "6": 0.0,
+          "7": 0.669,
+          "8": 3.667,
+          "9": 1.003,
+          "10": 13.712,
+          "11": 2.667,
+          "12": 0.0,
+          "13": 0.669,
+          "14": 2.341,
+          "15": 0.671,
+          "16": 1.667,
+          "17": 0.0,
+          "18": 4.333,
+          "19": 5.0,
+          "20": 1.329,
+          "21": 0.0,
+          "22": 0.667,
+          "23": 3.679,
+          "24": 0.0,
+          "25": 0.0,
+          "26": 0.664,
+          "27": 1.333,
+          "28": 1.003,
+          "29": 1.007,
+          "30": 0.0,
+          "31": 0.0,
+          "32": 2.99,
+          "33": 0.0,
+          "34": 0.667,
+          "35": 1.333,
+          "36": 1.661,
+          "37": 0.0,
+          "38": 0.0,
+          "39": 0.667,
+          "40": 1.338,
+          "41": 2.667,
+          "42": 1.0,
+          "43": 2.0,
+          "44": 3.333,
+          "45": 1.333,
+          "46": 1.007,
+          "47": 0.667,
+          "48": 1.329,
+          "49": 5.667,
+          "50": 0.0,
+          "51": 0.667,
+          "52": 1.0,
+          "53": 2.326,
+          "54": 1.667,
+          "55": 13.621,
+          "56": 0.671,
+          "57": 0.334,
+          "58": 0.0,
+          "59": 0.0,
+          "60": 0.0,
+          "61": 0.332,
+          "62": 0.0,
+          "63": 84.333,
+          "64": 1.329,
+          "65": 0.0,
+          "66": 1.0,
+          "67": 0.0,
+          "68": 2.0,
+          "69": 0.334,
+          "70": 2.007,
+          "71": 0.334,
+          "72": 2.333,
+          "73": 4.0,
+          "74": 0.667,
+          "75": 7.333,
+          "76": 0.333,
+          "77": 0.0,
+          "78": 0.0,
+          "79": 0.334,
+          "80": 0.0,
+          "81": 1.003,
+          "82": 2.667,
+          "83": 0.0,
+          "84": 0.0,
+          "85": 0.0,
+          "86": 3.322,
+          "87": 2.676,
+          "88": 1.667,
+          "89": 0.0,
+          "90": 0.0,
+          "91": 0.997,
+          "92": 4.013,
+          "93": 1.333,
+          "94": 3.0,
+          "95": 0.332
+        },
+        "start": 1791159582.8819351,
+        "pid": 1636763,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 349.005
+      },
+      "affinity.json": {
+        "at": "2026-10-05T00:20:02.920798+00:00",
+        "root": 1636763,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 270
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "steady-final4": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 49.89990234375,
+          "p95": 78.842041015625,
+          "max": 78.877197265625
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 34.303955078125,
+          "p95": 51.590087890625,
+          "max": 52.36083984375
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 28.906005859375,
+          "p95": 39.177978515625,
+          "max": 39.52685546875
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 62.534912109375,
+          "p95": 117.897216796875,
+          "max": 151.39111328125
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 73.927978515625,
+          "p95": 95.052001953125,
+          "max": 106.850830078125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 46.946044921875,
+          "p95": 59.68505859375,
+          "max": 81.764892578125
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 160.095947265625,
+          "p95": 233.884033203125,
+          "max": 269.010986328125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 180.967041015625,
+          "p95": 273.077880859375,
+          "max": 308.97509765625
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 121.698974609375,
+          "p95": 158.823974609375,
+          "max": 241.97607421875
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final4/dist",
+          "LU_LABEL": "op-steady-final4",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "0",
+          "LU_REFOLLOW": "0",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/steady-final4.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.356,
+          "1": 0.338,
+          "2": 0.333,
+          "3": 27.0,
+          "4": 41.0,
+          "5": 55.482,
+          "6": 2.341,
+          "7": 2.333,
+          "8": 0.332,
+          "9": 0.0,
+          "10": 93.0,
+          "11": 2.007,
+          "12": 0.0,
+          "13": 0.333,
+          "14": 61.333,
+          "15": 0.0,
+          "16": 0.334,
+          "17": 41.472,
+          "18": 2.0,
+          "19": 3.0,
+          "20": 2.341,
+          "21": 100.0,
+          "22": 0.333,
+          "23": 2.0,
+          "24": 0.667,
+          "25": 0.334,
+          "26": 12.04,
+          "27": 0.997,
+          "28": 3.333,
+          "29": 0.667,
+          "30": 74.667,
+          "31": 22.408,
+          "32": 0.0,
+          "33": 0.667,
+          "34": 0.0,
+          "35": 2.333,
+          "36": 0.0,
+          "37": 2.341,
+          "38": 0.664,
+          "39": 1.993,
+          "40": 1.0,
+          "41": 3.01,
+          "42": 0.333,
+          "43": 1.667,
+          "44": 2.667,
+          "45": 0.0,
+          "46": 0.669,
+          "47": 0.664,
+          "48": 5.686,
+          "49": 6.312,
+          "50": 0.662,
+          "51": 0.333,
+          "52": 0.0,
+          "53": 0.332,
+          "54": 0.332,
+          "55": 0.333,
+          "56": 22.408,
+          "57": 1.333,
+          "58": 0.333,
+          "59": 1.338,
+          "60": 57.86,
+          "61": 0.669,
+          "62": 0.664,
+          "63": 0.0,
+          "64": 0.0,
+          "65": 0.664,
+          "66": 11.667,
+          "67": 0.0,
+          "68": 0.0,
+          "69": 0.0,
+          "70": 3.356,
+          "71": 1.0,
+          "72": 1.672,
+          "73": 1.0,
+          "74": 1.333,
+          "75": 7.333,
+          "76": 0.0,
+          "77": 0.0,
+          "78": 0.334,
+          "79": 15.282,
+          "80": 3.333,
+          "81": 0.332,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 0.664,
+          "85": 0.332,
+          "86": 1.333,
+          "87": 1.0,
+          "88": 6.0,
+          "89": 0.0,
+          "90": 0.667,
+          "91": 0.333,
+          "92": 0.669,
+          "93": 0.669,
+          "94": 0.0,
+          "95": 99.336
+        },
+        "start": 1791159935.7297347,
+        "pid": 1664580,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 95.138
+      },
+      "affinity.json": {
+        "at": "2026-10-05T00:25:55.770786+00:00",
+        "root": 1664580,
+        "processes": 33,
+        "thread_masks": {
+          "80-89": 280
+        },
+        "names": {
+          "MainThread": 1,
+          "python3": 21,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "paired-final4-before": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 246.391845703125,
+          "p95": 709.4208984375,
+          "max": 1124.339111328125
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 83.4521484375,
+          "p95": 366.837158203125,
+          "max": 407.470947265625
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 31.149169921875,
+          "p95": 43.51318359375,
+          "max": 50.868896484375
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 203.6259765625,
+          "p95": 598.802978515625,
+          "max": 1584.921875
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 171.181884765625,
+          "p95": 493.2509765625,
+          "max": 1002.248046875
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 118.662109375,
+          "p95": 174.161865234375,
+          "max": 215.232177734375
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 316.636962890625,
+          "p95": 771.2587890625,
+          "max": 869.343017578125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 590.9111328125,
+          "p95": 1034.22705078125,
+          "max": 1269.3330078125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 463.27587890625,
+          "p95": 710.72998046875,
+          "max": 810.577880859375
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-before/dist",
+          "LU_LABEL": "op-paired-final4-before",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/paired-final4-before.json"
+        },
+        "cpu_busy_before": {
+          "0": 0.0,
+          "1": 3.679,
+          "2": 0.0,
+          "3": 25.667,
+          "4": 74.419,
+          "5": 1.993,
+          "6": 0.0,
+          "7": 0.0,
+          "8": 0.0,
+          "9": 0.662,
+          "10": 100.0,
+          "11": 0.0,
+          "12": 0.0,
+          "13": 0.333,
+          "14": 6.333,
+          "15": 0.333,
+          "16": 0.0,
+          "17": 100.0,
+          "18": 0.332,
+          "19": 0.0,
+          "20": 0.0,
+          "21": 0.0,
+          "22": 0.662,
+          "23": 0.332,
+          "24": 0.332,
+          "25": 0.667,
+          "26": 0.0,
+          "27": 0.0,
+          "28": 0.664,
+          "29": 0.0,
+          "30": 12.709,
+          "31": 93.667,
+          "32": 0.0,
+          "33": 0.0,
+          "34": 1.667,
+          "35": 0.332,
+          "36": 1.333,
+          "37": 1.003,
+          "38": 0.332,
+          "39": 1.0,
+          "40": 0.332,
+          "41": 0.0,
+          "42": 0.333,
+          "43": 0.0,
+          "44": 0.0,
+          "45": 0.332,
+          "46": 0.0,
+          "47": 0.0,
+          "48": 0.0,
+          "49": 0.0,
+          "50": 0.0,
+          "51": 0.0,
+          "52": 0.0,
+          "53": 0.0,
+          "54": 1.333,
+          "55": 0.0,
+          "56": 56.0,
+          "57": 1.661,
+          "58": 0.332,
+          "59": 0.0,
+          "60": 4.983,
+          "61": 0.0,
+          "62": 0.0,
+          "63": 0.0,
+          "64": 0.0,
+          "65": 0.0,
+          "66": 100.0,
+          "67": 0.0,
+          "68": 0.0,
+          "69": 0.0,
+          "70": 0.667,
+          "71": 0.332,
+          "72": 2.676,
+          "73": 13.333,
+          "74": 1.338,
+          "75": 1.667,
+          "76": 0.332,
+          "77": 0.0,
+          "78": 0.0,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 1.0,
+          "85": 0.667,
+          "86": 1.0,
+          "87": 0.333,
+          "88": 0.0,
+          "89": 0.0,
+          "90": 0.333,
+          "91": 0.0,
+          "92": 2.0,
+          "93": 0.0,
+          "94": 1.0,
+          "95": 97.333
+        },
+        "start": 1791160045.648625,
+        "pid": 1672605,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 391.038
+      },
+      "affinity.json": {
+        "at": "2026-10-05T00:27:45.687557+00:00",
+        "root": 1672605,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 271
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    },
+    "paired-final4-after": {
+      "csv_recomputed": {
+        "0:repost": {
+          "n": 30,
+          "p50": 33.851806640625,
+          "p95": 80.971923828125,
+          "max": 90.43603515625
+        },
+        "0:message": {
+          "n": 30,
+          "p50": 41.708984375,
+          "p95": 55.630859375,
+          "max": 57.56103515625
+        },
+        "0:reaction": {
+          "n": 30,
+          "p50": 28.5048828125,
+          "p95": 49.758056640625,
+          "max": 55.827880859375
+        },
+        "20:repost": {
+          "n": 30,
+          "p50": 86.870849609375,
+          "p95": 139.52001953125,
+          "max": 169.425048828125
+        },
+        "20:message": {
+          "n": 30,
+          "p50": 142.14794921875,
+          "p95": 206.717041015625,
+          "max": 353.296142578125
+        },
+        "20:reaction": {
+          "n": 30,
+          "p50": 120.29296875,
+          "p95": 169.6689453125,
+          "max": 195.18310546875
+        },
+        "120:repost": {
+          "n": 30,
+          "p50": 225.992919921875,
+          "p95": 449.777099609375,
+          "max": 450.39501953125
+        },
+        "120:message": {
+          "n": 30,
+          "p50": 488.85888671875,
+          "p95": 824.13916015625,
+          "max": 851.966064453125
+        },
+        "120:reaction": {
+          "n": 30,
+          "p50": 514.574951171875,
+          "p95": 694.35205078125,
+          "max": 788.0400390625
+        }
+      },
+      "rows": 540,
+      "errors": [],
+      "run.json": {
+        "command": [
+          "taskset",
+          "-c",
+          "80-89",
+          "python3",
+          "reports/20261003-lu-live-update-latency/tools/confine.py",
+          "node",
+          "reports/20261003-lu-live-update-latency/tools/measure.mjs"
+        ],
+        "environment": {
+          "SNAPBACK4_BIN": "target/lu-op",
+          "LU_SDK": "target/op/sdk-final4/dist",
+          "LU_LABEL": "op-paired-final4-after",
+          "LU_RUNS": "30",
+          "LU_HISTORY": "1000",
+          "LU_REFOLLOW": "1",
+          "LU_LEVELS": "0,20,120",
+          "LU_OUT": "target/op/paired-final4-after.json"
+        },
+        "cpu_busy_before": {
+          "0": 1.064,
+          "1": 0.0,
+          "2": 1.0,
+          "3": 77.409,
+          "4": 36.667,
+          "5": 8.667,
+          "6": 0.333,
+          "7": 5.686,
+          "8": 0.0,
+          "9": 0.667,
+          "10": 54.333,
+          "11": 100.0,
+          "12": 0.667,
+          "13": 0.0,
+          "14": 70.333,
+          "15": 0.0,
+          "16": 6.0,
+          "17": 35.667,
+          "18": 0.0,
+          "19": 0.669,
+          "20": 0.667,
+          "21": 5.98,
+          "22": 0.667,
+          "23": 0.0,
+          "24": 1.007,
+          "25": 0.667,
+          "26": 1.667,
+          "27": 0.667,
+          "28": 2.341,
+          "29": 15.385,
+          "30": 98.0,
+          "31": 100.0,
+          "32": 1.003,
+          "33": 0.0,
+          "34": 0.0,
+          "35": 0.0,
+          "36": 1.0,
+          "37": 2.667,
+          "38": 5.667,
+          "39": 5.667,
+          "40": 1.338,
+          "41": 3.02,
+          "42": 0.0,
+          "43": 1.667,
+          "44": 0.334,
+          "45": 1.993,
+          "46": 100.0,
+          "47": 0.0,
+          "48": 1.003,
+          "49": 4.333,
+          "50": 6.333,
+          "51": 9.667,
+          "52": 2.007,
+          "53": 0.669,
+          "54": 0.332,
+          "55": 0.0,
+          "56": 40.532,
+          "57": 0.664,
+          "58": 0.0,
+          "59": 1.0,
+          "60": 28.667,
+          "61": 0.0,
+          "62": 0.0,
+          "63": 0.669,
+          "64": 3.0,
+          "65": 0.0,
+          "66": 99.336,
+          "67": 0.333,
+          "68": 5.0,
+          "69": 0.0,
+          "70": 15.667,
+          "71": 1.0,
+          "72": 0.336,
+          "73": 1.007,
+          "74": 1.993,
+          "75": 1.342,
+          "76": 1.0,
+          "77": 0.0,
+          "78": 0.0,
+          "79": 0.0,
+          "80": 0.0,
+          "81": 0.0,
+          "82": 0.0,
+          "83": 0.0,
+          "84": 4.333,
+          "85": 3.0,
+          "86": 2.676,
+          "87": 0.334,
+          "88": 4.682,
+          "89": 0.334,
+          "90": 0.332,
+          "91": 1.667,
+          "92": 1.0,
+          "93": 1.333,
+          "94": 0.0,
+          "95": 47.508
+        },
+        "start": 1791160473.7504523,
+        "pid": 1744465,
+        "audit_exit": 0,
+        "exit": 0,
+        "seconds": 381.425
+      },
+      "affinity.json": {
+        "at": "2026-10-05T00:34:53.790736+00:00",
+        "root": 1744465,
+        "processes": 12,
+        "thread_masks": {
+          "80-89": 272
+        },
+        "names": {
+          "MainThread": 1,
+          "chrome": 10,
+          "lu-op": 1
+        }
+      }
+    }
+  },
+  "tests": {
+    "affected-final4": {
+      "tests": 697,
+      "pass": 697,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "a73638fb618951737bbc43beae1f96d507d293ad0e136a50131eaa0f7f1e1ce4"
+    },
+    "progress-negative": {
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "ce3873b765ac531007850318b6807700b0d5eefbf02cfd1f5205d3e4fd201dd9"
+    },
+    "disjoint-negative": {
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "3d633c086d747726a4ef31440f480a95e22832cc20300540ec59e8aad041ee7a"
+    },
+    "external-negative": {
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "811dc76804debeeba4eddbb484187397989566756bcd475ef6e9cb5c72aace86"
+    },
+    "watch-negative": {
+      "tests": 36,
+      "pass": 34,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "b38c6f446715eac03218e68a9bff8efe604d73123b6c525f1d6e5066a49b6d24"
+    },
+    "callback-final4": {
+      "tests": 86,
+      "pass": 86,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "867f78cb260c07be27d00545903281268717475623fe783536bad7269a4fce64"
+    },
+    "value-deadline-final4": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "sha256": "10b12094ed2eaabe4eadc9e835749664193825edb14717d8487f7e793143f3de"
+    },
+    "stress": {
+      "cohorts": [
+        {
+          "cpus": [
+            9,
+            22,
+            30,
+            31
+          ],
+          "pid": 1688663,
+          "command": [
+            "taskset",
+            "-c",
+            "9,22,30,31",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-1",
+          "first": 1,
+          "last": 10,
+          "started": 1791160194.3210936,
+          "exit": 0,
+          "result": {
+            "cpus": [
+              9,
+              22,
+              30,
+              31
+            ],
+            "command": [
+              "node",
+              "--test",
+              "--test-concurrency=3",
+              "packages/snapback4/test/local-reads.test.mjs",
+              "packages/snapback4/test/read-observation.test.mjs",
+              "packages/snapback4/test/prediction-routing.test.mjs",
+              "packages/snapback4/test/following-routing.test.mjs",
+              "packages/snapback4/test/ephemeral-routing.test.mjs",
+              "packages/snapback4/test/observation-publication.test.mjs",
+              "packages/snapback4/test/observation-publication-live.test.mjs",
+              "packages/snapback4/test/retained-history.test.mjs",
+              "packages/snapback4/test/retained-history-cut.test.mjs",
+              "packages/snapback4/test/retained-history-order.test.mjs",
+              "packages/snapback4/test/retained-search-order.test.mjs",
+              "packages/snapback4/test/live-propagation.test.mjs",
+              "packages/snapback4/test/live-propagation-fallback.test.mjs",
+              "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+              "packages/snapback4/test/answers-stay-round2.test.mjs",
+              "packages/snapback4/test/answers-stay-round3.test.mjs",
+              "packages/snapback4/test/per-row-inflight.test.mjs",
+              "packages/snapback4/test/per-row-boundaries.test.mjs"
+            ],
+            "hog_pid": 1688679,
+            "seconds": 1083.808,
+            "runs": [
+              {
+                "run": 1,
+                "exit": 0,
+                "seconds": 110.326,
+                "hog_alive": true
+              },
+              {
+                "run": 2,
+                "exit": 0,
+                "seconds": 107.583,
+                "hog_alive": true
+              },
+              {
+                "run": 3,
+                "exit": 0,
+                "seconds": 106.311,
+                "hog_alive": true
+              },
+              {
+                "run": 4,
+                "exit": 0,
+                "seconds": 108.453,
+                "hog_alive": true
+              },
+              {
+                "run": 5,
+                "exit": 0,
+                "seconds": 111.769,
+                "hog_alive": true
+              },
+              {
+                "run": 6,
+                "exit": 0,
+                "seconds": 113.836,
+                "hog_alive": true
+              },
+              {
+                "run": 7,
+                "exit": 0,
+                "seconds": 107.199,
+                "hog_alive": true
+              },
+              {
+                "run": 8,
+                "exit": 0,
+                "seconds": 104.39,
+                "hog_alive": true
+              },
+              {
+                "run": 9,
+                "exit": 0,
+                "seconds": 107.416,
+                "hog_alive": true
+              },
+              {
+                "run": 10,
+                "exit": 0,
+                "seconds": 106.517,
+                "hog_alive": true
+              }
+            ]
+          }
+        },
+        {
+          "cpus": [
+            1,
+            43,
+            45,
+            46
+          ],
+          "pid": 1688664,
+          "command": [
+            "taskset",
+            "-c",
+            "1,43,45,46",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-2",
+          "first": 11,
+          "last": 20,
+          "started": 1791160194.321837,
+          "exit": 0,
+          "result": {
+            "cpus": [
+              1,
+              43,
+              45,
+              46
+            ],
+            "command": [
+              "node",
+              "--test",
+              "--test-concurrency=3",
+              "packages/snapback4/test/local-reads.test.mjs",
+              "packages/snapback4/test/read-observation.test.mjs",
+              "packages/snapback4/test/prediction-routing.test.mjs",
+              "packages/snapback4/test/following-routing.test.mjs",
+              "packages/snapback4/test/ephemeral-routing.test.mjs",
+              "packages/snapback4/test/observation-publication.test.mjs",
+              "packages/snapback4/test/observation-publication-live.test.mjs",
+              "packages/snapback4/test/retained-history.test.mjs",
+              "packages/snapback4/test/retained-history-cut.test.mjs",
+              "packages/snapback4/test/retained-history-order.test.mjs",
+              "packages/snapback4/test/retained-search-order.test.mjs",
+              "packages/snapback4/test/live-propagation.test.mjs",
+              "packages/snapback4/test/live-propagation-fallback.test.mjs",
+              "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+              "packages/snapback4/test/answers-stay-round2.test.mjs",
+              "packages/snapback4/test/answers-stay-round3.test.mjs",
+              "packages/snapback4/test/per-row-inflight.test.mjs",
+              "packages/snapback4/test/per-row-boundaries.test.mjs"
+            ],
+            "hog_pid": 1688681,
+            "seconds": 1079.037,
+            "runs": [
+              {
+                "run": 11,
+                "exit": 0,
+                "seconds": 110.484,
+                "hog_alive": true
+              },
+              {
+                "run": 12,
+                "exit": 0,
+                "seconds": 111.047,
+                "hog_alive": true
+              },
+              {
+                "run": 13,
+                "exit": 0,
+                "seconds": 106.523,
+                "hog_alive": true
+              },
+              {
+                "run": 14,
+                "exit": 0,
+                "seconds": 107.739,
+                "hog_alive": true
+              },
+              {
+                "run": 15,
+                "exit": 0,
+                "seconds": 109.775,
+                "hog_alive": true
+              },
+              {
+                "run": 16,
+                "exit": 0,
+                "seconds": 108.346,
+                "hog_alive": true
+              },
+              {
+                "run": 17,
+                "exit": 0,
+                "seconds": 107.407,
+                "hog_alive": true
+              },
+              {
+                "run": 18,
+                "exit": 0,
+                "seconds": 106.655,
+                "hog_alive": true
+              },
+              {
+                "run": 19,
+                "exit": 0,
+                "seconds": 105.961,
+                "hog_alive": true
+              },
+              {
+                "run": 20,
+                "exit": 0,
+                "seconds": 105.094,
+                "hog_alive": true
+              }
+            ]
+          }
+        },
+        {
+          "cpus": [
+            7,
+            11,
+            16,
+            21
+          ],
+          "pid": 1688665,
+          "command": [
+            "taskset",
+            "-c",
+            "7,11,16,21",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-3",
+          "first": 21,
+          "last": 30,
+          "started": 1791160194.322532,
+          "exit": 0,
+          "result": {
+            "cpus": [
+              7,
+              11,
+              16,
+              21
+            ],
+            "command": [
+              "node",
+              "--test",
+              "--test-concurrency=3",
+              "packages/snapback4/test/local-reads.test.mjs",
+              "packages/snapback4/test/read-observation.test.mjs",
+              "packages/snapback4/test/prediction-routing.test.mjs",
+              "packages/snapback4/test/following-routing.test.mjs",
+              "packages/snapback4/test/ephemeral-routing.test.mjs",
+              "packages/snapback4/test/observation-publication.test.mjs",
+              "packages/snapback4/test/observation-publication-live.test.mjs",
+              "packages/snapback4/test/retained-history.test.mjs",
+              "packages/snapback4/test/retained-history-cut.test.mjs",
+              "packages/snapback4/test/retained-history-order.test.mjs",
+              "packages/snapback4/test/retained-search-order.test.mjs",
+              "packages/snapback4/test/live-propagation.test.mjs",
+              "packages/snapback4/test/live-propagation-fallback.test.mjs",
+              "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+              "packages/snapback4/test/answers-stay-round2.test.mjs",
+              "packages/snapback4/test/answers-stay-round3.test.mjs",
+              "packages/snapback4/test/per-row-inflight.test.mjs",
+              "packages/snapback4/test/per-row-boundaries.test.mjs"
+            ],
+            "hog_pid": 1688678,
+            "seconds": 1068.618,
+            "runs": [
+              {
+                "run": 21,
+                "exit": 0,
+                "seconds": 107.72,
+                "hog_alive": true
+              },
+              {
+                "run": 22,
+                "exit": 0,
+                "seconds": 108.17,
+                "hog_alive": true
+              },
+              {
+                "run": 23,
+                "exit": 0,
+                "seconds": 106.727,
+                "hog_alive": true
+              },
+              {
+                "run": 24,
+                "exit": 0,
+                "seconds": 105.67,
+                "hog_alive": true
+              },
+              {
+                "run": 25,
+                "exit": 0,
+                "seconds": 107.521,
+                "hog_alive": true
+              },
+              {
+                "run": 26,
+                "exit": 0,
+                "seconds": 108.843,
+                "hog_alive": true
+              },
+              {
+                "run": 27,
+                "exit": 0,
+                "seconds": 107.228,
+                "hog_alive": true
+              },
+              {
+                "run": 28,
+                "exit": 0,
+                "seconds": 105.218,
+                "hog_alive": true
+              },
+              {
+                "run": 29,
+                "exit": 0,
+                "seconds": 104.509,
+                "hog_alive": true
+              },
+              {
+                "run": 30,
+                "exit": 0,
+                "seconds": 107.005,
+                "hog_alive": true
+              }
+            ]
+          }
+        }
+      ],
+      "runs": [
+        {
+          "run": 1,
+          "exit": 0,
+          "seconds": 110.326,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "93548776cc0588391456963fd53111c2848805717e3280cbb9e6318a42e57799"
+        },
+        {
+          "run": 2,
+          "exit": 0,
+          "seconds": 107.583,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "7887d8d6488ac039957362dd7afd9e227305079e1511bd47851e977b7319cbef"
+        },
+        {
+          "run": 3,
+          "exit": 0,
+          "seconds": 106.311,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "67334f0823ff1b8815a0382ace62f657a2ec7c754950db3f1bae3eae3f4aea1d"
+        },
+        {
+          "run": 4,
+          "exit": 0,
+          "seconds": 108.453,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "2467d28a277c2aff4ada3266fd3e3821da0b00062bba15c5f1b0392034cef32b"
+        },
+        {
+          "run": 5,
+          "exit": 0,
+          "seconds": 111.769,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "8ba673c0dbe3f07147c099d15dead2214a22abd650e9cdaa6d4883bac0b4a0ec"
+        },
+        {
+          "run": 6,
+          "exit": 0,
+          "seconds": 113.836,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "4c0427e21ba859d8d1dcc493bee91363e8c1904701b5c43f36c21543cddc54dc"
+        },
+        {
+          "run": 7,
+          "exit": 0,
+          "seconds": 107.199,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "92016cfc08ec6291b0e5f6c6c06a26076d5e0c417ad43c2c8b3f28c1857fc8bb"
+        },
+        {
+          "run": 8,
+          "exit": 0,
+          "seconds": 104.39,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "73c41dfe86501178fc01de6c3c749a4b7487d65ece32d2b676143ee7e7625be3"
+        },
+        {
+          "run": 9,
+          "exit": 0,
+          "seconds": 107.416,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "f1b2253458e9b5df4fc43d403c186d88efa74ef0ccd0fdb909adfa622060dedd"
+        },
+        {
+          "run": 10,
+          "exit": 0,
+          "seconds": 106.517,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "28409a090892469627973ce259ed7a305b3f2995932ad161c7ddd170fa93f45b"
+        },
+        {
+          "run": 11,
+          "exit": 0,
+          "seconds": 110.484,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "4ca718983bb962e904c515e1bc4f62e2b2bd58d095642b9cd0edb5411f9a853e"
+        },
+        {
+          "run": 12,
+          "exit": 0,
+          "seconds": 111.047,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "1ffe2edeacc28af80cfc637624c7fe70c5b927eef28edd8136c883a3c171527b"
+        },
+        {
+          "run": 13,
+          "exit": 0,
+          "seconds": 106.523,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "875fd4611cdb888d6c4dcbcb6569bbb0dcdcc39c8ccb42aa9c78ba9fb85915aa"
+        },
+        {
+          "run": 14,
+          "exit": 0,
+          "seconds": 107.739,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "d3de38c3886f62d9e086e01f71a065275e5706b2586fcc09ea9c4d96aecc07e1"
+        },
+        {
+          "run": 15,
+          "exit": 0,
+          "seconds": 109.775,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "547861eef76274627bd0359e4feae4a7809e7af80399901be65baf57fcb68483"
+        },
+        {
+          "run": 16,
+          "exit": 0,
+          "seconds": 108.346,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "8c11c937dc405398700f951490e8113f47f07e24f13256ddf9fa52fb5ab975bf"
+        },
+        {
+          "run": 17,
+          "exit": 0,
+          "seconds": 107.407,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "0fc93e55b2df9a8a34cfd428bc7f4468bd8d3449f383b116b8e206b4e9189a92"
+        },
+        {
+          "run": 18,
+          "exit": 0,
+          "seconds": 106.655,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "2e70f09a9efb05bf16b76c90e2b620f527f2cf6cfc81f2ae803c1418998efa80"
+        },
+        {
+          "run": 19,
+          "exit": 0,
+          "seconds": 105.961,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "3f394f6e2f2e5a336f6651f94ff360935254082023b52371ab84fb8ba78124ad"
+        },
+        {
+          "run": 20,
+          "exit": 0,
+          "seconds": 105.094,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "4857832fe275d1ce556c203fcc620d985af55f69c41db23391567158d8788d3c"
+        },
+        {
+          "run": 21,
+          "exit": 0,
+          "seconds": 107.72,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "795965ce54ae4e64a7b17e38e0c0ac1594347db293a719b6be2a52a004017e7a"
+        },
+        {
+          "run": 22,
+          "exit": 0,
+          "seconds": 108.17,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "604f80b3e2191d883eb44a6de95ca09bbc22eff2c4751526038d1151a4f670b6"
+        },
+        {
+          "run": 23,
+          "exit": 0,
+          "seconds": 106.727,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "633430d585f45ed0e5f03a82b88d224942e9c35cefbbde334c2b1da199fa6efd"
+        },
+        {
+          "run": 24,
+          "exit": 0,
+          "seconds": 105.67,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "4e589291962358edd3162214a449782fb5b84496bf2a91dfd00c667b707a3a6a"
+        },
+        {
+          "run": 25,
+          "exit": 0,
+          "seconds": 107.521,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "0ab30c99780f5702dba4f4ea34201bb03e053003ab2f2d3dd30c6988f3571e60"
+        },
+        {
+          "run": 26,
+          "exit": 0,
+          "seconds": 108.843,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "914f084d7ffb1d20ee7a7e31faafdf14988b61843d14ab1175f6a48a66f6df92"
+        },
+        {
+          "run": 27,
+          "exit": 0,
+          "seconds": 107.228,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "6e9c123b1a0d293614f58d5a483309731e7ad86b972223a7dd904c1b289c6342"
+        },
+        {
+          "run": 28,
+          "exit": 0,
+          "seconds": 105.218,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "7b975bb81da3d63ed52ec5cf6c9fce716864a37810d8900930a5a3d65e3d31b5"
+        },
+        {
+          "run": 29,
+          "exit": 0,
+          "seconds": 104.509,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "1a74f80b501414c5fd01e98cb99b0b6699aba9da991fcd264889fa122f60e89d"
+        },
+        {
+          "run": 30,
+          "exit": 0,
+          "seconds": 107.005,
+          "hog_alive": true,
+          "tests": 565,
+          "pass": 565,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "sha256": "796ce487aeda0991e504bd6ddbc0f2036743c16c1b67146aef19b81698964708"
+        }
+      ]
+    },
+    "stress_cleanup": {
+      "pids": [
+        1688663,
+        1688679,
+        1688664,
+        1688681,
+        1688665,
+        1688678
+      ],
+      "all_exited": true,
+      "runs": 30,
+      "cases": 16950
+    },
+    "full_suite": {
+      "command": [
+        "taskset",
+        "-c",
+        "0,1,2,6,7,9,11,13,15,16,20,21,22,23,24,25,26,28,29,42,43,44,45,46",
+        "bash",
+        "scripts/test.sh"
+      ],
+      "cpus": [
+        0,
+        1,
+        2,
+        6,
+        7,
+        9,
+        11,
+        13,
+        15,
+        16,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "busy_before": {
+        "0": 0.3401360544217691,
+        "1": 0.33222591362126463,
+        "2": 0.6644518272425293,
+        "3": 3.0100334448160515,
+        "4": 3.6666666666666625,
+        "5": 3.0000000000000027,
+        "6": 0.33222591362126463,
+        "7": 0.33222591362126463,
+        "8": 0.33222591362126463,
+        "9": 0.0,
+        "10": 8.666666666666668,
+        "11": 0.6644518272425293,
+        "12": 0.33333333333332993,
+        "13": 0.33444816053511683,
+        "14": 3.0201342281879207,
+        "15": 0.33333333333332993,
+        "16": 0.33333333333332993,
+        "17": 29.194630872483216,
+        "18": 8.026755852842804,
+        "19": 0.666666666666671,
+        "20": 0.33333333333332993,
+        "21": 0.6688963210702337,
+        "22": 1.9933554817275767,
+        "23": 0.33444816053511683,
+        "24": 0.666666666666671,
+        "25": 1.0000000000000009,
+        "26": 0.6688963210702337,
+        "27": 0.666666666666671,
+        "28": 0.0,
+        "29": 0.33333333333332993,
+        "30": 6.000000000000005,
+        "31": 5.666666666666664,
+        "32": 0.0,
+        "33": 0.666666666666671,
+        "34": 0.0,
+        "35": 0.33333333333332993,
+        "36": 0.3355704697986628,
+        "37": 0.33444816053511683,
+        "38": 0.0,
+        "39": 0.0,
+        "40": 0.33444816053511683,
+        "41": 0.33333333333332993,
+        "42": 0.666666666666671,
+        "43": 0.33333333333332993,
+        "44": 0.0,
+        "45": 0.33333333333332993,
+        "46": 0.0,
+        "47": 0.33222591362126463,
+        "48": 0.0,
+        "49": 0.0,
+        "50": 0.0,
+        "51": 0.0,
+        "52": 0.33333333333332993,
+        "53": 0.33333333333332993,
+        "54": 0.0,
+        "55": 0.0,
+        "56": 11.371237458193983,
+        "57": 0.666666666666671,
+        "58": 0.33333333333332993,
+        "59": 0.0,
+        "60": 72.0,
+        "61": 0.0,
+        "62": 1.0000000000000009,
+        "63": 0.0,
+        "64": 0.33222591362126463,
+        "65": 0.0,
+        "66": 3.322259136212624,
+        "67": 3.678929765886285,
+        "68": 0.0,
+        "69": 0.0,
+        "70": 0.33333333333332993,
+        "71": 0.0,
+        "72": 0.9966777408637828,
+        "73": 0.33444816053511683,
+        "74": 0.6711409395973145,
+        "75": 2.341137123745818,
+        "76": 0.0,
+        "77": 0.666666666666671,
+        "78": 0.0,
+        "79": 0.33333333333332993,
+        "80": 0.6644518272425293,
+        "81": 0.666666666666671,
+        "82": 3.678929765886285,
+        "83": 0.33444816053511683,
+        "84": 0.0,
+        "85": 0.33333333333332993,
+        "86": 0.0,
+        "87": 0.0,
+        "88": 0.6688963210702337,
+        "89": 0.6644518272425293,
+        "90": 0.0,
+        "91": 0.33222591362126463,
+        "92": 0.33333333333332993,
+        "93": 0.33333333333332993,
+        "94": 0.0,
+        "95": 9.364548494983282
+      },
+      "environment": {
+        "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+        "CARGO_BUILD_JOBS": "12",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "LU_TEST_CPUS": "0,1"
+      },
+      "start": 1791161281.7694397,
+      "pid": 1934890,
+      "disk_scope": "whole worktree",
+      "max_disk_bytes": 16885831912,
+      "exit": 0,
+      "seconds": 2285.345
+    },
+    "initial_full_suite": {
+      "command": [
+        "taskset",
+        "-c",
+        "0,2,3,4,5,8,9,14,15,18,19,20,21,23,26,27,28,29,30,31,42,43,44,46",
+        "bash",
+        "scripts/test.sh"
+      ],
+      "cpus": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        8,
+        9,
+        14,
+        15,
+        18,
+        19,
+        20,
+        21,
+        23,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        42,
+        43,
+        44,
+        46
+      ],
+      "busy_before": {
+        "0": 0.35211267605633756,
+        "1": 4.026845637583898,
+        "2": 0.0,
+        "3": 1.0000000000000009,
+        "4": 0.33333333333332993,
+        "5": 0.6644518272425293,
+        "6": 2.3333333333333317,
+        "7": 1.6722408026755842,
+        "8": 0.6711409395973145,
+        "9": 0.33333333333332993,
+        "10": 3.3333333333333326,
+        "11": 0.0,
+        "12": 1.3333333333333308,
+        "13": 5.666666666666664,
+        "14": 0.666666666666671,
+        "15": 0.33444816053511683,
+        "16": 1.0000000000000009,
+        "17": 1.3377926421404673,
+        "18": 0.666666666666671,
+        "19": 0.6622516556291425,
+        "20": 0.6644518272425293,
+        "21": 0.6644518272425293,
+        "22": 0.0,
+        "23": 0.0,
+        "24": 3.0000000000000027,
+        "25": 0.33333333333332993,
+        "26": 0.33333333333332993,
+        "27": 0.33333333333332993,
+        "28": 0.33333333333332993,
+        "29": 1.0000000000000009,
+        "30": 0.0,
+        "31": 0.6756756756756799,
+        "32": 0.0,
+        "33": 0.0,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 6.666666666666665,
+        "37": 0.33333333333332993,
+        "38": 1.3377926421404673,
+        "39": 4.333333333333334,
+        "40": 0.6688963210702337,
+        "41": 6.312292358803983,
+        "42": 0.666666666666671,
+        "43": 0.6688963210702337,
+        "44": 0.6688963210702337,
+        "45": 1.6666666666666718,
+        "46": 0.0,
+        "47": 0.0,
+        "48": 1.3377926421404673,
+        "49": 0.0,
+        "50": 0.666666666666671,
+        "51": 0.0,
+        "52": 0.0,
+        "53": 0.33444816053511683,
+        "54": 0.33333333333332993,
+        "55": 0.0,
+        "56": 0.0,
+        "57": 0.33333333333332993,
+        "58": 1.661129568106312,
+        "59": 2.0000000000000018,
+        "60": 8.278145695364236,
+        "61": 0.0,
+        "62": 0.33222591362126463,
+        "63": 0.0,
+        "64": 1.6722408026755842,
+        "65": 5.980066445182719,
+        "66": 1.342281879194629,
+        "67": 0.0,
+        "68": 0.0,
+        "69": 0.33333333333332993,
+        "70": 4.333333333333334,
+        "71": 0.33444816053511683,
+        "72": 1.3377926421404673,
+        "73": 7.666666666666666,
+        "74": 0.6688963210702337,
+        "75": 0.33444816053511683,
+        "76": 0.0,
+        "77": 0.33333333333332993,
+        "78": 0.0,
+        "79": 0.33222591362126463,
+        "80": 34.013605442176875,
+        "81": 34.89932885906041,
+        "82": 35.25423728813559,
+        "83": 37.16216216216216,
+        "84": 0.666666666666671,
+        "85": 0.6644518272425293,
+        "86": 0.3355704697986628,
+        "87": 4.013377926421402,
+        "88": 0.0,
+        "89": 3.678929765886285,
+        "90": 0.0,
+        "91": 0.0,
+        "92": 0.0,
+        "93": 0.33333333333332993,
+        "94": 0.33444816053511683,
+        "95": 14.66666666666666
+      },
+      "environment": {
+        "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+        "CARGO_BUILD_JOBS": "12",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "LU_TEST_CPUS": "0,2"
+      },
+      "start": 1791157747.2773666,
+      "max_disk_bytes": 14258205992,
+      "exit": 1,
+      "seconds": 2306.98
+    }
+  },
+  "cpus": {
+    "after-affinity.json": {
+      "at": "2026-10-04T22:51:39.393950+00:00",
+      "root": 878475,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 293
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "after-heavy-affinity.json": {
+      "at": "2026-10-04T22:53:35.430639+00:00",
+      "root": 878475,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 391
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "before-affinity.json": {
+      "at": "2026-10-04T22:42:45.204641+00:00",
+      "root": 837966,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 272
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "before-heavy-affinity.json": {
+      "at": "2026-10-04T22:48:40.077050+00:00",
+      "root": 837966,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 392
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "final-affinity.json": {
+      "at": "2026-10-04T23:04:44.760209+00:00",
+      "root": 983563,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 393
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "final-stress-affinity.json": {
+      "at": "2026-10-04T23:04:44.788344+00:00",
+      "root": 999634,
+      "processes": 8,
+      "thread_masks": {
+        "52,55,57,78": 62
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 2
+      }
+    },
+    "final3-affinity.json": {
+      "at": "2026-10-04T23:30:00.315061+00:00",
+      "root": 1175056,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 270
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "final3-heavy-affinity.json": {
+      "at": "2026-10-04T23:33:21.188446+00:00",
+      "root": 1175056,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 394
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "final4-affinity.json": {
+      "at": "2026-10-05T00:20:02.920798+00:00",
+      "root": 1636763,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 270
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "ordinary-paired-affinity.json": {
+      "at": "2026-10-05T00:41:10.893088+00:00",
+      "root": 1836018,
+      "processes": 1,
+      "thread_masks": {
+        "80-83": 11
+      },
+      "names": {
+        "MainThread": 1
+      }
+    },
+    "ordinary-paired-reverse-affinity.json": {
+      "at": "2026-10-05T00:41:56.914908+00:00",
+      "root": 1865354,
+      "processes": 1,
+      "thread_masks": {
+        "80-83": 11
+      },
+      "names": {
+        "MainThread": 1
+      }
+    },
+    "paired-before-affinity.json": {
+      "at": "2026-10-04T23:35:04.209201+00:00",
+      "root": 1218152,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 269
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "paired-final4-after-affinity.json": {
+      "at": "2026-10-05T00:34:53.790736+00:00",
+      "root": 1744465,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 272
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "paired-final4-before-affinity.json": {
+      "at": "2026-10-05T00:27:45.687557+00:00",
+      "root": 1672605,
+      "processes": 12,
+      "thread_masks": {
+        "80-89": 271
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "repeat-before-affinity.json": {
+      "at": "2026-10-04T23:18:12.140549+00:00",
+      "root": 1088797,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 386
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "repeat-before-heavy-affinity.json": {
+      "at": "2026-10-04T23:21:54.714595+00:00",
+      "root": 1088797,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 392
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "repeat-final-affinity.json": {
+      "at": "2026-10-04T23:13:43.500581+00:00",
+      "root": 1059409,
+      "processes": 133,
+      "thread_masks": {
+        "80-89": 390
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 121,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "steady-before-affinity.json": {
+      "at": "2026-10-04T23:25:31.177815+00:00",
+      "root": 1155569,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 281
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "steady-before-repeat-affinity.json": {
+      "at": "2026-10-04T23:43:35.382229+00:00",
+      "root": 1298238,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 284
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "steady-final-affinity.json": {
+      "at": "2026-10-04T23:23:40.794735+00:00",
+      "root": 1140201,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 284
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "steady-final3-affinity.json": {
+      "at": "2026-10-04T23:40:34.207073+00:00",
+      "root": 1268770,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 283
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "steady-final4-affinity.json": {
+      "at": "2026-10-05T00:25:55.770786+00:00",
+      "root": 1664580,
+      "processes": 33,
+      "thread_masks": {
+        "80-89": 280
+      },
+      "names": {
+        "MainThread": 1,
+        "python3": 21,
+        "chrome": 10,
+        "lu-op": 1
+      }
+    },
+    "stress-1-affinity.json": {
+      "at": "2026-10-05T00:32:55.219286+00:00",
+      "root": 1688663,
+      "processes": 5,
+      "thread_masks": {
+        "9,22,30-31": 41
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 1
+      }
+    },
+    "stress-2-affinity.json": {
+      "at": "2026-10-05T00:32:55.246162+00:00",
+      "root": 1688664,
+      "processes": 5,
+      "thread_masks": {
+        "1,43,45-46": 41
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 1
+      }
+    },
+    "stress-3-affinity.json": {
+      "at": "2026-10-05T00:32:30.471426+00:00",
+      "root": 1688665,
+      "processes": 8,
+      "thread_masks": {
+        "7,11,16,21": 51
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 2
+      }
+    },
+    "stress-affinity.json": {
+      "at": "2026-10-04T22:54:53.441939+00:00",
+      "root": 891738,
+      "processes": 10,
+      "thread_masks": {
+        "72-75": 84
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 4
+      }
+    },
+    "stress-cohort1-affinity.json": {
+      "at": "2026-10-04T23:33:21.025090+00:00",
+      "root": 1195570,
+      "processes": 5,
+      "thread_masks": {
+        "4,9,11,16": 39
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 1
+      }
+    },
+    "stress-cohort2-affinity.json": {
+      "at": "2026-10-04T23:33:21.052338+00:00",
+      "root": 1195571,
+      "processes": 5,
+      "thread_masks": {
+        "18,20,23,29": 39
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 1
+      }
+    },
+    "stress-cohort3-affinity.json": {
+      "at": "2026-10-04T23:33:33.127206+00:00",
+      "root": 1195572,
+      "processes": 5,
+      "thread_masks": {
+        "31,43,45-46": 42
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 1
+      }
+    },
+    "stress-mid-affinity.json": {
+      "at": "2026-10-04T23:21:54.664261+00:00",
+      "root": 999634,
+      "processes": 6,
+      "thread_masks": {
+        "52,55,57,78": 39
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 3,
+        "snapback4": 2
+      }
+    },
+    "cpu-after-launch.json": {
+      "at": 1791154200.7731502,
+      "usage": {
+        "80": 1.5,
+        "81": 0.5,
+        "82": 0.0,
+        "83": 0.5,
+        "84": 0.0,
+        "85": 0.0,
+        "86": 0.5,
+        "87": 0.0,
+        "88": 1.5,
+        "89": 0.0,
+        "32": 0.5,
+        "33": 0.5,
+        "34": 1.5,
+        "35": 10.5,
+        "36": 6.0,
+        "37": 0.5,
+        "38": 0.5,
+        "39": 0.0,
+        "40": 0.5,
+        "41": 0.0
+      }
+    },
+    "cpu-before.json": {
+      "at": 1791153649.4497616,
+      "cpus": [
+        4,
+        5,
+        7,
+        8,
+        13,
+        18,
+        20,
+        22,
+        23,
+        26
+      ],
+      "busy_pct": {
+        "4": 0.5,
+        "5": 0.5,
+        "7": 0.0,
+        "8": 0.5,
+        "13": 0.0,
+        "18": 18.4,
+        "20": 0.0,
+        "22": 1.5,
+        "23": 59.8,
+        "26": 1.5,
+        "52": 54.7,
+        "53": 0.0,
+        "55": 3.5,
+        "56": 0.0,
+        "61": 0.0,
+        "66": 1.0,
+        "68": 55.7,
+        "70": 0.0,
+        "71": 0.0,
+        "74": 0.5
+      }
+    },
+    "cpu-final-launch.json": {
+      "at": 1791154938.5084755,
+      "usage": {
+        "80": 0.5,
+        "81": 0.0,
+        "82": 0.0,
+        "83": 0.0,
+        "84": 10.0,
+        "85": 0.0,
+        "86": 0.0,
+        "87": 0.0,
+        "88": 0.0,
+        "89": 0.5,
+        "32": 0.0,
+        "33": 0.0,
+        "34": 4.0,
+        "35": 1.0,
+        "36": 0.0,
+        "37": 1.5,
+        "38": 4.0,
+        "39": 4.0,
+        "40": 0.0,
+        "41": 0.0
+      }
+    },
+    "cpu-final-stress-launch.json": {
+      "at": 1791155003.9149783,
+      "usage": {
+        "72": 0.5,
+        "73": 0.5,
+        "74": 0.5,
+        "75": 100.0,
+        "24": 100.0,
+        "25": 8.0,
+        "26": 8.6,
+        "27": 2.0
+      }
+    },
+    "cpu-final3-stress-launch.json": {
+      "at": 1791156503.5871198,
+      "usage": {
+        "0": 0.0,
+        "1": 0.337,
+        "2": 2.007,
+        "3": 0.669,
+        "4": 0.0,
+        "5": 0.667,
+        "6": 0.333,
+        "7": 0.0,
+        "8": 2.007,
+        "9": 1.338,
+        "10": 1.342,
+        "11": 0.667,
+        "12": 100.0,
+        "13": 4.333,
+        "14": 0.667,
+        "15": 0.0,
+        "16": 0.0,
+        "17": 0.0,
+        "18": 0.667,
+        "19": 3.0,
+        "20": 0.997,
+        "21": 0.332,
+        "22": 0.334,
+        "23": 0.669,
+        "24": 0.0,
+        "25": 3.333,
+        "26": 14.716,
+        "27": 1.0,
+        "28": 0.334,
+        "29": 1.01,
+        "30": 1.0,
+        "31": 0.333,
+        "32": 5.686,
+        "33": 3.667,
+        "34": 0.669,
+        "35": 2.349,
+        "36": 0.0,
+        "37": 0.332,
+        "38": 0.0,
+        "39": 0.334,
+        "40": 1.007,
+        "41": 0.0,
+        "42": 0.0,
+        "43": 2.658,
+        "44": 0.0,
+        "45": 0.667,
+        "46": 0.333,
+        "47": 5.705,
+        "48": 3.333,
+        "49": 0.667,
+        "50": 6.689,
+        "51": 0.671,
+        "52": 3.322,
+        "53": 0.664,
+        "54": 0.669,
+        "55": 1.003,
+        "56": 1.007,
+        "57": 1.678,
+        "58": 0.667,
+        "59": 3.691,
+        "60": 0.0,
+        "61": 0.333,
+        "62": 0.0,
+        "63": 0.667,
+        "64": 0.333,
+        "65": 0.669,
+        "66": 0.334,
+        "67": 4.0,
+        "68": 2.349,
+        "69": 1.329,
+        "70": 0.332,
+        "71": 0.0,
+        "72": 1.338,
+        "73": 1.0,
+        "74": 2.0,
+        "75": 0.664,
+        "76": 5.333,
+        "77": 9.699,
+        "78": 2.0,
+        "79": 1.338,
+        "80": 0.334,
+        "81": 0.334,
+        "82": 0.669,
+        "83": 0.667,
+        "84": 1.333,
+        "85": 1.003,
+        "86": 2.333,
+        "87": 0.333,
+        "88": 0.0,
+        "89": 1.0,
+        "90": 0.667,
+        "91": 1.338,
+        "92": 0.669,
+        "93": 0.0,
+        "94": 0.0,
+        "95": 0.0
+      }
+    },
+    "cpu-focused-final4.json": {
+      "at": 1791160099.1410813,
+      "cpus": [
+        1,
+        6,
+        11,
+        16,
+        21,
+        22,
+        30,
+        31
+      ],
+      "busy": {
+        "0": 4.240282685512364,
+        "1": 0.0,
+        "2": 0.0,
+        "3": 76.92307692307692,
+        "4": 24.080267558528423,
+        "5": 7.333333333333336,
+        "6": 0.0,
+        "7": 0.33444816053511683,
+        "8": 0.0,
+        "9": 0.33333333333332993,
+        "10": 61.0,
+        "11": 0.0,
+        "12": 0.0,
+        "13": 0.0,
+        "14": 30.333333333333336,
+        "15": 1.0000000000000009,
+        "16": 0.0,
+        "17": 66.66666666666667,
+        "18": 0.0,
+        "19": 0.0,
+        "20": 0.0,
+        "21": 0.0,
+        "22": 0.0,
+        "23": 0.3355704697986628,
+        "24": 0.6644518272425293,
+        "25": 2.0134228187919434,
+        "26": 0.6644518272425293,
+        "27": 0.0,
+        "28": 3.0100334448160515,
+        "29": 0.0,
+        "30": 0.0,
+        "31": 0.0,
+        "32": 0.0,
+        "33": 1.342281879194629,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 0.0,
+        "37": 0.0,
+        "38": 0.0,
+        "39": 0.0,
+        "40": 0.33222591362126463,
+        "41": 0.0,
+        "42": 0.666666666666671,
+        "43": 0.0,
+        "44": 5.000000000000004,
+        "45": 1.0033444816053505,
+        "46": 0.33333333333332993,
+        "47": 0.0,
+        "48": 0.0,
+        "49": 0.33333333333332993,
+        "50": 2.6755852842809347,
+        "51": 0.33333333333332993,
+        "52": 12.040133779264217,
+        "53": 0.33444816053511683,
+        "54": 0.33333333333332993,
+        "55": 0.0,
+        "56": 75.0,
+        "57": 0.0,
+        "58": 0.0,
+        "59": 0.0,
+        "60": 7.666666666666666,
+        "61": 4.682274247491636,
+        "62": 0.0,
+        "63": 4.966887417218546,
+        "64": 0.0,
+        "65": 0.0,
+        "66": 99.33110367892976,
+        "67": 0.33333333333332993,
+        "68": 0.33333333333332993,
+        "69": 0.0,
+        "70": 0.0,
+        "71": 0.0,
+        "72": 5.3156146179402,
+        "73": 2.3333333333333317,
+        "74": 1.0000000000000009,
+        "75": 1.6722408026755842,
+        "76": 2.3333333333333317,
+        "77": 0.33333333333332993,
+        "78": 0.0,
+        "79": 0.33222591362126463,
+        "80": 65.76271186440678,
+        "81": 69.28327645051195,
+        "82": 71.42857142857143,
+        "83": 66.21621621621621,
+        "84": 68.47457627118644,
+        "85": 65.97938144329896,
+        "86": 69.36026936026936,
+        "87": 68.22742474916387,
+        "88": 68.01346801346801,
+        "89": 69.96587030716724,
+        "90": 0.0,
+        "91": 5.0167224080267525,
+        "92": 0.0,
+        "93": 0.0,
+        "94": 0.33333333333332993,
+        "95": 94.31438127090301
+      }
+    },
+    "cpu-launch.json": {
+      "at": 1791153729.3605602,
+      "usage": {
+        "0": 0.0,
+        "1": 0.0,
+        "2": 0.0,
+        "3": 0.0,
+        "4": 0.0,
+        "5": 0.0,
+        "6": 2.0,
+        "7": 0.3,
+        "8": 1.7,
+        "9": 0.0,
+        "10": 0.7,
+        "11": 0.7,
+        "12": 0.3,
+        "13": 0.0,
+        "14": 0.3,
+        "15": 0.0,
+        "16": 0.7,
+        "17": 0.3,
+        "18": 0.0,
+        "19": 0.0,
+        "20": 0.0,
+        "21": 0.0,
+        "22": 0.0,
+        "23": 0.3,
+        "24": 0.0,
+        "25": 0.7,
+        "26": 0.3,
+        "27": 1.0,
+        "28": 0.0,
+        "29": 1.0,
+        "30": 0.0,
+        "31": 0.0,
+        "32": 0.0,
+        "33": 0.0,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 0.3,
+        "37": 0.3,
+        "38": 0.0,
+        "39": 0.0,
+        "40": 0.3,
+        "41": 0.0,
+        "42": 0.0,
+        "43": 0.7,
+        "44": 0.0,
+        "45": 0.0,
+        "46": 0.0,
+        "47": 0.0,
+        "48": 0.0,
+        "49": 0.7,
+        "50": 0.0,
+        "51": 0.0,
+        "52": 0.0,
+        "53": 0.0,
+        "54": 1.0,
+        "55": 0.0,
+        "56": 0.3,
+        "57": 0.0,
+        "58": 0.3,
+        "59": 0.0,
+        "60": 0.3,
+        "61": 2.7,
+        "62": 3.0,
+        "63": 0.3,
+        "64": 3.3,
+        "65": 1.3,
+        "66": 0.0,
+        "67": 0.0,
+        "68": 0.0,
+        "69": 0.3,
+        "70": 0.0,
+        "71": 0.7,
+        "72": 2.3,
+        "73": 0.0,
+        "74": 0.7,
+        "75": 0.0,
+        "76": 0.0,
+        "77": 0.0,
+        "78": 0.3,
+        "79": 0.0,
+        "80": 0.0,
+        "81": 0.3,
+        "82": 0.0,
+        "83": 0.0,
+        "84": 0.0,
+        "85": 0.0,
+        "86": 0.0,
+        "87": 0.0,
+        "88": 0.0,
+        "89": 0.3,
+        "90": 0.3,
+        "91": 0.0,
+        "92": 0.0,
+        "93": 0.0,
+        "94": 0.3,
+        "95": 0.0
+      },
+      "pairs": [
+        [
+          0.0,
+          0,
+          48
+        ],
+        [
+          0.0,
+          2,
+          50
+        ],
+        [
+          0.0,
+          3,
+          51
+        ],
+        [
+          0.0,
+          4,
+          52
+        ],
+        [
+          0.0,
+          5,
+          53
+        ],
+        [
+          0.0,
+          9,
+          57
+        ],
+        [
+          0.0,
+          18,
+          66
+        ],
+        [
+          0.0,
+          19,
+          67
+        ],
+        [
+          0.0,
+          20,
+          68
+        ],
+        [
+          0.0,
+          22,
+          70
+        ],
+        [
+          0.0,
+          28,
+          76
+        ],
+        [
+          0.0,
+          31,
+          79
+        ],
+        [
+          0.0,
+          32,
+          80
+        ],
+        [
+          0.0,
+          34,
+          82
+        ],
+        [
+          0.0,
+          35,
+          83
+        ],
+        [
+          0.0,
+          38,
+          86
+        ],
+        [
+          0.0,
+          39,
+          87
+        ],
+        [
+          0.0,
+          44,
+          92
+        ],
+        [
+          0.0,
+          45,
+          93
+        ],
+        [
+          0.0,
+          47,
+          95
+        ],
+        [
+          0.3,
+          7,
+          55
+        ],
+        [
+          0.3,
+          12,
+          60
+        ],
+        [
+          0.3,
+          15,
+          63
+        ],
+        [
+          0.3,
+          21,
+          69
+        ],
+        [
+          0.3,
+          30,
+          78
+        ],
+        [
+          0.3,
+          33,
+          81
+        ],
+        [
+          0.3,
+          36,
+          84
+        ],
+        [
+          0.3,
+          37,
+          85
+        ],
+        [
+          0.3,
+          40,
+          88
+        ],
+        [
+          0.3,
+          41,
+          89
+        ],
+        [
+          0.3,
+          42,
+          90
+        ],
+        [
+          0.3,
+          46,
+          94
+        ],
+        [
+          0.7,
+          1,
+          49
+        ],
+        [
+          0.7,
+          10,
+          58
+        ],
+        [
+          0.7,
+          11,
+          59
+        ],
+        [
+          0.7,
+          23,
+          71
+        ],
+        [
+          0.7,
+          25,
+          73
+        ],
+        [
+          0.7,
+          26,
+          74
+        ],
+        [
+          0.7,
+          43,
+          91
+        ],
+        [
+          1.0,
+          27,
+          75
+        ],
+        [
+          1.0,
+          29,
+          77
+        ],
+        [
+          1.3,
+          17,
+          65
+        ],
+        [
+          1.7,
+          8,
+          56
+        ],
+        [
+          2.0,
+          6,
+          54
+        ],
+        [
+          2.3,
+          24,
+          72
+        ],
+        [
+          2.7,
+          13,
+          61
+        ],
+        [
+          3.0,
+          14,
+          62
+        ],
+        [
+          3.3,
+          16,
+          64
+        ]
+      ]
+    },
+    "cpu-ordinary-paired-reverse.json": {
+      "at": 1791160906.892459,
+      "cpus": [
+        80,
+        81,
+        82,
+        83
+      ],
+      "busy": {
+        "0": 8.833922261484094,
+        "1": 4.054054054054057,
+        "2": 3.691275167785235,
+        "3": 1.0033444816053505,
+        "4": 1.3377926421404673,
+        "5": 1.0000000000000009,
+        "6": 0.0,
+        "7": 100.0,
+        "8": 5.423728813559325,
+        "9": 25.913621262458474,
+        "10": 0.666666666666671,
+        "11": 7.38255033557047,
+        "12": 0.0,
+        "13": 0.33333333333332993,
+        "14": 86.5979381443299,
+        "15": 5.685618729096986,
+        "16": 5.685618729096986,
+        "17": 92.85714285714286,
+        "18": 0.0,
+        "19": 0.33444816053511683,
+        "20": 0.33444816053511683,
+        "21": 19.39799331103679,
+        "22": 23.0,
+        "23": 0.0,
+        "24": 23.745819397993305,
+        "25": 1.3333333333333308,
+        "26": 7.931034482758625,
+        "27": 2.348993288590606,
+        "28": 1.0000000000000009,
+        "29": 2.0000000000000018,
+        "30": 100.0,
+        "31": 23.48993288590604,
+        "32": 0.0,
+        "33": 1.3289036544850474,
+        "34": 0.33333333333332993,
+        "35": 0.0,
+        "36": 3.0100334448160515,
+        "37": 1.6722408026755842,
+        "38": 1.0033444816053505,
+        "39": 8.026755852842804,
+        "40": 2.006688963210701,
+        "41": 1.3377926421404673,
+        "42": 0.0,
+        "43": 2.0000000000000018,
+        "44": 0.0,
+        "45": 100.0,
+        "46": 2.341137123745818,
+        "47": 0.33333333333332993,
+        "48": 2.341137123745818,
+        "49": 0.9966777408637828,
+        "50": 6.976744186046513,
+        "51": 4.697986577181212,
+        "52": 10.999999999999998,
+        "53": 8.361204013377932,
+        "54": 0.6644518272425293,
+        "55": 0.0,
+        "56": 0.33222591362126463,
+        "57": 0.9966777408637828,
+        "58": 0.0,
+        "59": 1.3377926421404673,
+        "60": 92.56756756756756,
+        "61": 0.33444816053511683,
+        "62": 0.6688963210702337,
+        "63": 0.6734006734006703,
+        "64": 0.33333333333332993,
+        "65": 0.0,
+        "66": 45.666666666666664,
+        "67": 0.666666666666671,
+        "68": 1.0033444816053505,
+        "69": 0.0,
+        "70": 0.33333333333332993,
+        "71": 0.33333333333332993,
+        "72": 12.794612794612792,
+        "73": 1.342281879194629,
+        "74": 2.341137123745818,
+        "75": 2.6755852842809347,
+        "76": 1.661129568106312,
+        "77": 4.7138047138047146,
+        "78": 0.0,
+        "79": 0.0,
+        "80": 0.0,
+        "81": 0.0,
+        "82": 0.0,
+        "83": 0.0,
+        "84": 6.020066889632103,
+        "85": 1.6722408026755842,
+        "86": 0.6688963210702337,
+        "87": 1.3289036544850474,
+        "88": 0.6711409395973145,
+        "89": 1.3289036544850474,
+        "90": 0.0,
+        "91": 0.0,
+        "92": 1.3333333333333308,
+        "93": 0.33222591362126463,
+        "94": 0.666666666666671,
+        "95": 0.0
+      }
+    },
+    "cpu-ordinary-paired.json": {
+      "at": 1791160860.8682058,
+      "cpus": [
+        80,
+        81,
+        82,
+        83
+      ],
+      "busy": {
+        "0": 0.7117437722419906,
+        "1": 9.395973154362414,
+        "2": 2.0000000000000018,
+        "3": 78.76712328767124,
+        "4": 100.0,
+        "5": 93.35548172757476,
+        "6": 0.0,
+        "7": 9.364548494983282,
+        "8": 0.0,
+        "9": 7.718120805369133,
+        "10": 98.3221476510067,
+        "11": 100.0,
+        "12": 1.661129568106312,
+        "13": 0.3355704697986628,
+        "14": 95.63758389261746,
+        "15": 1.0000000000000009,
+        "16": 10.067114093959727,
+        "17": 98.32775919732441,
+        "18": 0.33333333333332993,
+        "19": 0.666666666666671,
+        "20": 3.703703703703709,
+        "21": 21.07023411371237,
+        "22": 27.333333333333332,
+        "23": 0.0,
+        "24": 0.0,
+        "25": 0.3355704697986628,
+        "26": 5.666666666666664,
+        "27": 2.006688963210701,
+        "28": 5.3156146179402,
+        "29": 16.312056737588655,
+        "30": 98.32775919732441,
+        "31": 96.30872483221476,
+        "32": 0.33333333333332993,
+        "33": 0.0,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 0.666666666666671,
+        "37": 0.33333333333332993,
+        "38": 1.0101010101010055,
+        "39": 0.0,
+        "40": 0.6688963210702337,
+        "41": 7.333333333333336,
+        "42": 0.0,
+        "43": 8.080808080808078,
+        "44": 0.3355704697986628,
+        "45": 100.0,
+        "46": 9.764309764309765,
+        "47": 0.33444816053511683,
+        "48": 0.0,
+        "49": 4.013377926421402,
+        "50": 10.273972602739722,
+        "51": 0.9933774834437137,
+        "52": 0.0,
+        "53": 0.33222591362126463,
+        "54": 0.0,
+        "55": 0.33222591362126463,
+        "56": 89.72602739726028,
+        "57": 0.0,
+        "58": 0.0,
+        "59": 0.0,
+        "60": 81.09965635738831,
+        "61": 0.33444816053511683,
+        "62": 1.6666666666666718,
+        "63": 2.0134228187919434,
+        "64": 5.0167224080267525,
+        "65": 0.0,
+        "66": 90.87837837837837,
+        "67": 0.33333333333332993,
+        "68": 0.0,
+        "69": 0.9966777408637828,
+        "70": 4.013377926421402,
+        "71": 0.33333333333332993,
+        "72": 1.3468013468013518,
+        "73": 1.6891891891891886,
+        "74": 2.0134228187919434,
+        "75": 1.3333333333333308,
+        "76": 0.666666666666671,
+        "77": 0.666666666666671,
+        "78": 0.0,
+        "79": 0.0,
+        "80": 1.6722408026755842,
+        "81": 0.0,
+        "82": 0.0,
+        "83": 0.0,
+        "84": 1.0067114093959773,
+        "85": 1.0067114093959773,
+        "86": 0.33444816053511683,
+        "87": 0.33444816053511683,
+        "88": 3.0000000000000027,
+        "89": 0.6734006734006703,
+        "90": 1.9933554817275767,
+        "91": 0.6622516556291425,
+        "92": 8.637873754152825,
+        "93": 0.33333333333332993,
+        "94": 0.0,
+        "95": 80.33898305084746
+      }
+    },
+    "cpu-stress-final.json": {
+      "at": 1791155019.4465387,
+      "usage": {
+        "64": 6.5,
+        "65": 4.5,
+        "66": 6.1,
+        "67": 7.6,
+        "16": 10.1,
+        "17": 19.7,
+        "18": 1.0,
+        "19": 0.0
+      }
+    },
+    "cpu-stress-launch.json": {
+      "at": 1791154353.295732,
+      "usage": {
+        "72": 0.5,
+        "73": 0.5,
+        "74": 0.0,
+        "75": 0.0,
+        "24": 0.0,
+        "25": 1.0,
+        "26": 3.0,
+        "27": 0.5
+      }
+    },
+    "cpu-stress-selected.json": {
+      "at": 1791155042.145751,
+      "usage": {
+        "0": 1.1,
+        "1": 4.0,
+        "2": 3.3,
+        "3": 0.7,
+        "4": 1.0,
+        "5": 0.7,
+        "6": 5.3,
+        "7": 0.7,
+        "8": 3.3,
+        "9": 1.0,
+        "10": 2.3,
+        "11": 100.0,
+        "12": 0.3,
+        "13": 0.0,
+        "14": 2.7,
+        "15": 3.7,
+        "16": 4.7,
+        "17": 1.3,
+        "18": 3.3,
+        "19": 3.7,
+        "20": 1.7,
+        "21": 15.1,
+        "22": 3.7,
+        "23": 6.7,
+        "24": 0.7,
+        "25": 3.3,
+        "26": 2.0,
+        "27": 3.7,
+        "28": 6.4,
+        "29": 10.3,
+        "30": 1.0,
+        "31": 6.0,
+        "32": 6.3,
+        "33": 1.3,
+        "34": 0.0,
+        "35": 13.3,
+        "36": 0.3,
+        "37": 0.7,
+        "38": 1.0,
+        "39": 0.0,
+        "40": 0.3,
+        "41": 0.3,
+        "42": 1.3,
+        "43": 97.7,
+        "44": 2.3,
+        "45": 3.0,
+        "46": 2.3,
+        "47": 3.0,
+        "48": 6.0,
+        "49": 9.0,
+        "50": 1.3,
+        "51": 5.0,
+        "52": 0.7,
+        "53": 2.0,
+        "54": 0.7,
+        "55": 0.7,
+        "56": 1.3,
+        "57": 1.0,
+        "58": 1.7,
+        "59": 0.7,
+        "60": 4.7,
+        "61": 5.7,
+        "62": 5.3,
+        "63": 1.0,
+        "64": 1.7,
+        "65": 3.0,
+        "66": 3.3,
+        "67": 1.3,
+        "68": 0.7,
+        "69": 0.0,
+        "70": 0.3,
+        "71": 4.3,
+        "72": 5.3,
+        "73": 5.3,
+        "74": 0.3,
+        "75": 0.7,
+        "76": 1.7,
+        "77": 0.3,
+        "78": 1.0,
+        "79": 2.0,
+        "80": 100.0,
+        "81": 100.0,
+        "82": 100.0,
+        "83": 100.0,
+        "84": 99.3,
+        "85": 100.0,
+        "86": 99.7,
+        "87": 100.0,
+        "88": 99.7,
+        "89": 100.0,
+        "90": 0.0,
+        "91": 0.0,
+        "92": 0.3,
+        "93": 0.7,
+        "94": 0.0,
+        "95": 2.7
+      },
+      "selected": [
+        52,
+        55,
+        57,
+        78
+      ],
+      "pairs": [
+        [
+          0.7,
+          7,
+          55
+        ],
+        [
+          1.0,
+          4,
+          52
+        ],
+        [
+          1.0,
+          9,
+          57
+        ],
+        [
+          1.0,
+          30,
+          78
+        ]
+      ]
+    },
+    "cpu-watch-negative.json": {
+      "cpu": 42,
+      "busy": {
+        "0": 0.3597122302158251,
+        "1": 39.73063973063973,
+        "2": 1.0033444816053505,
+        "3": 68.89632107023411,
+        "4": 87.29096989966555,
+        "5": 53.84615384615385,
+        "6": 2.341137123745818,
+        "7": 24.080267558528423,
+        "8": 2.3333333333333317,
+        "9": 99.66777408637874,
+        "10": 50.498338870431894,
+        "11": 100.0,
+        "12": 0.666666666666671,
+        "13": 0.33333333333332993,
+        "14": 82.66666666666667,
+        "15": 0.0,
+        "16": 29.35153583617748,
+        "17": 66.44295302013423,
+        "18": 0.0,
+        "19": 2.3569023569023573,
+        "20": 0.6644518272425293,
+        "21": 49.66216216216216,
+        "22": 46.97986577181208,
+        "23": 0.666666666666671,
+        "24": 2.3255813953488413,
+        "25": 4.666666666666663,
+        "26": 1.6722408026755842,
+        "27": 4.347826086956519,
+        "28": 3.3444816053511683,
+        "29": 5.6478405315614655,
+        "30": 0.0,
+        "31": 0.0,
+        "32": 0.0,
+        "33": 0.33222591362126463,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 1.3333333333333308,
+        "37": 1.0000000000000009,
+        "38": 0.6644518272425293,
+        "39": 0.33222591362126463,
+        "40": 0.0,
+        "41": 0.0,
+        "42": 0.666666666666671,
+        "43": 48.66666666666667,
+        "44": 1.661129568106312,
+        "45": 29.054054054054056,
+        "46": 85.85858585858585,
+        "47": 0.666666666666671,
+        "48": 0.0,
+        "49": 0.33333333333332993,
+        "50": 3.3333333333333326,
+        "51": 0.666666666666671,
+        "52": 0.0,
+        "53": 1.3377926421404673,
+        "54": 6.000000000000005,
+        "55": 1.3377926421404673,
+        "56": 19.666666666666664,
+        "57": 0.666666666666671,
+        "58": 1.3333333333333308,
+        "59": 6.020066889632103,
+        "60": 63.0,
+        "61": 6.020066889632103,
+        "62": 0.33333333333332993,
+        "63": 1.0000000000000009,
+        "64": 0.666666666666671,
+        "65": 0.33444816053511683,
+        "66": 94.33333333333334,
+        "67": 2.006688963210701,
+        "68": 1.3289036544850474,
+        "69": 2.0270270270270285,
+        "70": 0.666666666666671,
+        "71": 16.05351170568562,
+        "72": 18.06020066889632,
+        "73": 0.666666666666671,
+        "74": 1.3377926421404673,
+        "75": 2.6666666666666616,
+        "76": 2.006688963210701,
+        "77": 0.6688963210702337,
+        "78": 0.0,
+        "79": 0.0,
+        "80": 100.0,
+        "81": 100.0,
+        "82": 100.0,
+        "83": 100.0,
+        "84": 100.0,
+        "85": 100.0,
+        "86": 100.0,
+        "87": 100.0,
+        "88": 100.0,
+        "89": 100.0,
+        "90": 0.666666666666671,
+        "91": 1.0000000000000009,
+        "92": 13.666666666666671,
+        "93": 5.0167224080267525,
+        "94": 0.0,
+        "95": 81.66666666666667
+      }
+    },
+    "stress-cohorts.json": {
+      "busy_before": {
+        "0": 0.719,
+        "1": 0.334,
+        "2": 0.333,
+        "3": 29.431,
+        "4": 45.302,
+        "5": 40.0,
+        "6": 0.333,
+        "7": 1.0,
+        "8": 2.667,
+        "9": 0.667,
+        "10": 72.575,
+        "11": 0.333,
+        "12": 14.95,
+        "13": 1.007,
+        "14": 46.0,
+        "15": 1.333,
+        "16": 1.003,
+        "17": 45.667,
+        "18": 0.669,
+        "19": 0.667,
+        "20": 0.667,
+        "21": 0.667,
+        "22": 0.333,
+        "23": 3.01,
+        "24": 2.667,
+        "25": 1.0,
+        "26": 1.333,
+        "27": 1.333,
+        "28": 1.007,
+        "29": 0.333,
+        "30": 0.332,
+        "31": 0.0,
+        "32": 0.0,
+        "33": 0.334,
+        "34": 0.0,
+        "35": 0.0,
+        "36": 0.332,
+        "37": 0.0,
+        "38": 0.0,
+        "39": 0.0,
+        "40": 0.0,
+        "41": 0.0,
+        "42": 0.664,
+        "43": 0.664,
+        "44": 2.0,
+        "45": 0.334,
+        "46": 0.333,
+        "47": 0.332,
+        "48": 0.0,
+        "49": 0.669,
+        "50": 2.341,
+        "51": 0.671,
+        "52": 6.333,
+        "53": 1.007,
+        "54": 13.712,
+        "55": 1.0,
+        "56": 85.667,
+        "57": 0.333,
+        "58": 0.0,
+        "59": 1.0,
+        "60": 48.829,
+        "61": 0.0,
+        "62": 0.0,
+        "63": 4.0,
+        "64": 0.669,
+        "65": 1.0,
+        "66": 96.0,
+        "67": 6.0,
+        "68": 5.017,
+        "69": 0.997,
+        "70": 0.334,
+        "71": 0.669,
+        "72": 2.667,
+        "73": 4.333,
+        "74": 3.01,
+        "75": 11.037,
+        "76": 1.333,
+        "77": 2.0,
+        "78": 0.0,
+        "79": 0.0,
+        "80": 100.0,
+        "81": 100.0,
+        "82": 100.0,
+        "83": 100.0,
+        "84": 100.0,
+        "85": 100.0,
+        "86": 100.0,
+        "87": 99.667,
+        "88": 100.0,
+        "89": 100.0,
+        "90": 1.678,
+        "91": 0.667,
+        "92": 0.667,
+        "93": 0.667,
+        "94": 0.667,
+        "95": 99.0
+      },
+      "cohorts": [
+        {
+          "cpus": [
+            9,
+            22,
+            30,
+            31
+          ],
+          "pid": 1688663,
+          "command": [
+            "taskset",
+            "-c",
+            "9,22,30,31",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-1",
+          "first": 1,
+          "last": 10,
+          "started": 1791160194.3210936
+        },
+        {
+          "cpus": [
+            1,
+            43,
+            45,
+            46
+          ],
+          "pid": 1688664,
+          "command": [
+            "taskset",
+            "-c",
+            "1,43,45,46",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-2",
+          "first": 11,
+          "last": 20,
+          "started": 1791160194.321837
+        },
+        {
+          "cpus": [
+            7,
+            11,
+            16,
+            21
+          ],
+          "pid": 1688665,
+          "command": [
+            "taskset",
+            "-c",
+            "7,11,16,21",
+            "python3",
+            "reports/20261003-lu-live-update-latency/tools/confine.py",
+            "python3",
+            "reports/20261004-op-observation-publication/stress.py"
+          ],
+          "folder": "target/op/stress-3",
+          "first": 21,
+          "last": 30,
+          "started": 1791160194.322532
+        }
+      ]
+    }
+  },
+  "artifacts": {
+    "target/op/sdk-after": {
+      "file_count": 240,
+      "manifest_sha256": "6531045b37c9fc1fabb7742dad0120ab75f1ca8329e387472b18329afaf0c31b",
+      "modules": {
+        "dist/local-query.js": "f24c0e5672021c0d016f016ca6c1665e245183b9f58426cd4d495859d9ddb0fd",
+        "dist/local-reads.js": "2ea0854609a8774d7297c5e10867720f052cfec857bd9c2a567f16cdf7e58ee8",
+        "dist/local.js": "947462f08e2ef1af0da0a757f2188b7b04e779e966f1f238e17feb3de0b7ba35",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-before": {
+      "file_count": 240,
+      "manifest_sha256": "8f9a12ed5a3ff79e935525e77f33d8e455268b7566ea4a4a5ce20113544283eb",
+      "modules": {
+        "dist/local-query.js": "afb7f55769fea4a9e72ff6a00248094e1cd0fa44b209352dacb092c6b84fa449",
+        "dist/local-reads.js": "5bcadfdce39ceab0c3df8f8d78328a891453c7b3d6c16df153877fa75c735275",
+        "dist/local.js": "fe10cef02a4f3c35132e5cfe5abd70b8ef88a31bfb016e48b6311df06762621e",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-disjoint": {
+      "file_count": 240,
+      "manifest_sha256": "09632860b7e548d6fbc1049172cb8701b6f2d2469f895476157d54cc8a3ba1f1",
+      "modules": {
+        "dist/local-query.js": "53faad8fd12f982888c0f83ff3d40ac52cadb58875ea8aacfa9d2518a3a6bd07",
+        "dist/local-reads.js": "f6e553cc1e0156e3626e6e511f0f08e82b3123961804afcdd104aac8a394c62d",
+        "dist/local.js": "b092ca8d2f8d6b314acd25bfea41e537e620e376c1cd1ed6724c254764556aab",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final": {
+      "file_count": 240,
+      "manifest_sha256": "09632860b7e548d6fbc1049172cb8701b6f2d2469f895476157d54cc8a3ba1f1",
+      "modules": {
+        "dist/local-query.js": "53faad8fd12f982888c0f83ff3d40ac52cadb58875ea8aacfa9d2518a3a6bd07",
+        "dist/local-reads.js": "f6e553cc1e0156e3626e6e511f0f08e82b3123961804afcdd104aac8a394c62d",
+        "dist/local.js": "b092ca8d2f8d6b314acd25bfea41e537e620e376c1cd1ed6724c254764556aab",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final-check": {
+      "file_count": 240,
+      "manifest_sha256": "6acebe52b3d3273aac4bd6a5360c24d2a8a03061fcac6ab27cdec77a2e955668",
+      "modules": {
+        "dist/local-query.js": "f24c0e5672021c0d016f016ca6c1665e245183b9f58426cd4d495859d9ddb0fd",
+        "dist/local-reads.js": "2ea0854609a8774d7297c5e10867720f052cfec857bd9c2a567f16cdf7e58ee8",
+        "dist/local.js": "16b0421707651339811d4aef809950b2bbda2bed3f952547b41c7cb006042d7e",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final3": {
+      "file_count": 240,
+      "manifest_sha256": "3621177e270085c9b6f05bd21667533d010b5e0825df02971b55a1a0ceb19a13",
+      "modules": {
+        "dist/local-query.js": "a4e55e2d4d7b8bee1858927ba346abc1a4646214a3b18fbe57fd635f77314890",
+        "dist/local-reads.js": "f6e553cc1e0156e3626e6e511f0f08e82b3123961804afcdd104aac8a394c62d",
+        "dist/local.js": "b092ca8d2f8d6b314acd25bfea41e537e620e376c1cd1ed6724c254764556aab",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final4": {
+      "file_count": 240,
+      "manifest_sha256": "befe4d41c6c6414b47b8014ea53236f1d462b9494018506ed3799f9ad894d688",
+      "modules": {
+        "dist/local-query.js": "a4e55e2d4d7b8bee1858927ba346abc1a4646214a3b18fbe57fd635f77314890",
+        "dist/local-reads.js": "87a55357ee9e5b5ef74b1d0a23971de2b22c190e524aa7083deb7f938a709776",
+        "dist/local.js": "91918367acf005467b2a3bd0abec08ce3ec58e27031f7627448b3ee32e27d3cf",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final4-full-build": {
+      "file_count": 240,
+      "manifest_sha256": "befe4d41c6c6414b47b8014ea53236f1d462b9494018506ed3799f9ad894d688",
+      "modules": {
+        "dist/local-query.js": "a4e55e2d4d7b8bee1858927ba346abc1a4646214a3b18fbe57fd635f77314890",
+        "dist/local-reads.js": "87a55357ee9e5b5ef74b1d0a23971de2b22c190e524aa7083deb7f938a709776",
+        "dist/local.js": "91918367acf005467b2a3bd0abec08ce3ec58e27031f7627448b3ee32e27d3cf",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final4-plain": {
+      "file_count": 239,
+      "manifest_sha256": "7e996c900f85a478e304085af32f2197714f2c9ef78772ea075de5eba0f06215",
+      "modules": {
+        "dist/local-query.js": "ec0eec2a6fa8bd5894485a976a612b04a6f989fa746ce236a2d43c568b81ce33",
+        "dist/local-reads.js": "37ded393272c7eabe9e13fe56b57313b704e281bf19e82388c8971daf4620ec7",
+        "dist/local.js": "d0ac57e3aedd27d6d70d557ca1de299e9a3a1b0c736311d2870ce2a22d67aa5e",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-final4-qualified": {
+      "file_count": 240,
+      "manifest_sha256": "befe4d41c6c6414b47b8014ea53236f1d462b9494018506ed3799f9ad894d688",
+      "modules": {
+        "dist/local-query.js": "a4e55e2d4d7b8bee1858927ba346abc1a4646214a3b18fbe57fd635f77314890",
+        "dist/local-reads.js": "87a55357ee9e5b5ef74b1d0a23971de2b22c190e524aa7083deb7f938a709776",
+        "dist/local.js": "91918367acf005467b2a3bd0abec08ce3ec58e27031f7627448b3ee32e27d3cf",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    },
+    "target/op/sdk-input-negative": {
+      "file_count": 239,
+      "manifest_sha256": "1696253e148519f7207870193f118503473aeed7accf0249b8c315a651483735",
+      "modules": {
+        "dist/local-query.js": "086bf1aa321b3092ec77c2b8a9d75c44ccf316ee3c7103542a923e9848e5143b",
+        "dist/local-reads.js": "65967ffee113c9bcd28f5aaf100a0573b3fef81dd71cf53d343da53f73f5eef5",
+        "dist/local.js": "faab237fe1d15df61f6ed65a99882418c5b42dc4813009c9b72d7e7294be2fa0",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c",
+        "package.json": "6bd316e965da102c46f7ef35c35d68d4ffd32cba8f2b629b2e37590ec00c8769"
+      }
+    }
+  },
+  "measured_qualified_sdk": {
+    "files": 240,
+    "equal": true,
+    "different": [],
+    "compared": [
+      "sdk-final4",
+      "sdk-final4-qualified",
+      "sdk-final4-full-build"
+    ]
+  },
+  "disk_bytes_at_collection": 16885839585,
+  "disk-samples.jsonl": {
+    "samples": 111,
+    "peak_bytes": 16888888167,
+    "sha256": "eb718d9e9745334e810aacc290284c96de2105ca7a0fb3d748050634f099a158"
+  },
+  "initial-disk-samples.jsonl": {
+    "samples": 14,
+    "peak_bytes": 14435725810,
+    "sha256": "2bbe36de0a5f97606adc2557c7e0b217bbab9519757716f5ce1ee9fe2ba23abd"
+  }
+}

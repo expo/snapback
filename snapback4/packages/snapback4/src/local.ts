@@ -32,7 +32,7 @@ import { evaluateLocal } from "./local-query.ts";
 import { FollowingIntents } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, retainedWatch, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, publishedApplyCut, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
@@ -57,9 +57,7 @@ export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 // @ref LLP 3000.028#3.3.1 — publication preserves the evaluator's required value deadlines.
-type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & {
-  incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined;
-};
+type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & { incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined };
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
@@ -263,11 +261,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown) {
+  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number) {
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
-    const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup) || (touched.length > 0
+    const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup || retainedWatch(backend!, watch)) || (touched.length > 0
       && evidenceTouches(watch, touched)));
-    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved));
+    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved, publishedCut));
     // Warm applies return every invalidated owner for sync's resumption set; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return affected;
@@ -301,9 +299,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (observed) return;
       observed = true;
       terminalCommit?.(result);
+      if (!result.denied && request.op === "apply" && (result.ok as { published?: boolean })?.published === true) answers.published(Number((request.page as { watermark?: number }).watermark));
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched, (result as { preserved?: unknown }).preserved)) committedTables?.resumed.add(watch);
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched, (result as { preserved?: unknown }).preserved,
+        request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
@@ -869,22 +869,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = { current: () => !owner || owner.changeVersion === changeVersion,
+      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : {}),
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
       get backend() { return backend!; },
-      get partitionDenied() { return changesStopped ?? partitionDenied; },
-      get credentialRevision() { return credentialRevision; },
-      get incarnation() { return incarnation; },
-      get authority() { return answers.revision; },
-      get refreshing() { return refreshing; },
-      get link() { return link; },
-      get linkRevision() { return linkRevision; },
-      get caughtUp() { return caughtUp; },
-      get identityChecked() { return identityChecked; },
-      get lastSyncAt() { return lastSyncAt; },
-      get partitionCurrent() { return partitionCurrent; },
-      get nativeReady() { return nativeReady; },
+      get partitionDenied() { return changesStopped ?? partitionDenied; }, get credentialRevision() { return credentialRevision; },
+      get incarnation() { return incarnation; }, get authority() { return answers.revision; },
+      get refreshing() { return refreshing; }, get link() { return link; },
+      get linkRevision() { return linkRevision; }, get caughtUp() { return caughtUp; },
+      get identityChecked() { return identityChecked; }, get lastSyncAt() { return lastSyncAt; },
+      get partitionCurrent() { return partitionCurrent; }, get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
       principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify, followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined, undefined, signal),
@@ -908,7 +903,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           answerCache = answers.serverAnswers.view();
           continue;
         }
-        if (watch || (revision === incarnation && authority === answers.revision) || closed) return { ...result, incarnation: revision, authority };
+        if (watch || (revision === incarnation && (authority === answers.revision || result.publicationCurrent?.())) || closed) return { ...result, incarnation: revision, authority };
         // A mixed page never retries its server invocation after a delivery race.
         if (result.searchAttempt) return { ...result, read: { loading: true } as Read<R>, incarnation, authority: answers.revision };
         answerCache = answers.serverAnswers.view();
@@ -919,7 +914,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
     result.read = currentDecorations(result.read);
     return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
-      && result.incarnation === incarnation && result.authority === answers.revision
+      && result.incarnation === incarnation && (result.authority === answers.revision || result.publicationCurrent?.() === true)
       && (result.credential === undefined || result.credential === credentialRevision) && (!result.controlCurrent || result.controlCurrent())
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
       && (!("data" in result.read) || ((result.serverExpiry == null || result.serverExpiry > clock.estimatedServerNow())
@@ -951,10 +946,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (withdrawnLocalResult(watches.values(), watch, result)) { armPresence(watch); return; }
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
-      if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion) return;
-      if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
+      if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.()) return;
+      if (served && revision === incarnation && (authority === answers.revision || result.publicationCurrent?.()) && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion || !answers.current(watch, result)) return false;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
@@ -998,7 +993,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
       const { read, tables, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
-      if (revision !== incarnation || authority !== answers.revision || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) { watch.dirty = true; return; }
+      if (revision !== incarnation || resetVersion !== watch.resetVersion || (authority !== answers.revision || changeVersion !== watch.changeVersion) && !result.publicationCurrent?.()) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
@@ -1006,7 +1001,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!answers.current(watch, result)) { if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); } watch.dirty = true; retryExpired = true; return; }
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
-        if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) return false;
+        if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion && !result.publicationCurrent?.()) return false;
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;

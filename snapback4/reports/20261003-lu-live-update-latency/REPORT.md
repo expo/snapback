@@ -161,7 +161,7 @@ Each cell pools forty receiver observations. Publication is the server notificat
 
 The original repost spends nearly all its long tail before delivery: delivery p95 is 16.65 / 28.42 / 35.98 seconds at 0 / 20 / 120 workers. Candidate delivery p95 is 34.4 / 29.4 / 45.0 ms. The p95 number of earlier delivery chunks falls from 1,611 / 1,576 / 1,370 to 3 / 2 / 0. A finite queue of long items was being drained serially; rotating bounded slices removes that wait.
 
-The remaining candidate idle delay occurs after the query can return the fresh row. Idle repost trial 5 delivers at +1.3 ms, decodes a matching query reply at +21.3 ms and renders at +992.6 ms. Query replies continue throughout. Its observation queue p95 is only 0.5 ms. The traces and the existing change-version/authority checkpoints point to repeated invalidation before publication, rather than observation capacity or an expensive single wasm query. That attribution is an inference from the event sequence and guards, not a new internal discard-reason trace. The [follow-up issue](../../../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md) records the residual target miss. A sound change must distinguish revocation, predictions and mixed local/server cuts; changing those guards is not a cheap retry tweak. No client change is included.
+The remaining candidate idle delay occurs after the query can return the fresh row. Idle repost trial 5 delivers at +1.3 ms, decodes a matching query reply at +21.3 ms and renders at +992.6 ms. Query replies continue throughout. Its observation queue p95 is only 0.5 ms. The traces and the existing change-version/authority checkpoints point to repeated invalidation before publication, rather than observation capacity or an expensive single wasm query. That attribution is an inference from the event sequence and guards, not a new internal discard-reason trace. The [follow-up issue](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md) records the residual target miss. A sound change must distinguish revocation, predictions and mixed local/server cuts; changing those guards is not a cheap retry tweak. No client change is included.
 
 Read protection remains structurally unchanged and the observed HTTP query round-trip tails do not regress in this workload. Heavy-load p95 is 83.4→80.6 ms for home, 106.5→73.3 ms for message trials and 101.1→75.8 ms for reaction trials. These include transport/browser scheduling and pool all query operations during the named trial; they are not a replay of CT's whole read benchmark. The complete suite exercises CT's existing maintenance/admission regressions.
 
@@ -534,7 +534,7 @@ attempt p95 15.7 ms. The interval between evaluation and observation publication
 is 736.4 ms. Overlapping wasm/device/IndexedDB spans are retained in the summary;
 they must not be summed. This remains consistent with repeated invalidation
 before observation publication, not proof of a particular internal discard
-reason. The existing [publication follow-up](../../../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
+reason. The existing [publication follow-up](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
 now carries this guarded reproduction. No retention, withdrawal or authority
 bound was weakened to hide the residual.
 
@@ -915,7 +915,7 @@ the data do not support a universal message win. Reaction heavy-load p95 also ri
 The no-burner repost p95 is 605.3 ms (main 925.8 ms), still above the 500 ms
 target. This shared-host condition is not globally idle. Its final-copy p95
 is 65.8 ms, so the remaining tail is after delivery. The existing
-[observation-publication follow-up](../../../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
+[observation-publication follow-up](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
 remains open. No retention, authority, withdrawal or observation bound changed.
 
 An independent [CSV validation](./round2/web-validation.json) reproduces every

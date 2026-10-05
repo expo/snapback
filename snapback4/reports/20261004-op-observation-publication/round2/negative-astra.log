@@ -1,0 +1,110 @@
+REVIEW_DISCOVERY {"boundary":"none","predicted":["rows/own"],"read":{"loading":true},"predictions":["rows"]}
+REVIEW_DISCOVERY {"boundary":"none","read":{"loading":true},"predictions":null}
+REVIEW_DISCOVERY {"boundary":"disjoint-notification","predicted":["rows/own"],"read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"disjoint-notification","read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"published-empty-commit","predicted":["rows/own"],"read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":null}
+REVIEW_DISCOVERY {"boundary":"published-empty-commit","read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":null}
+REVIEW_DISCOVERY {"boundary":"applied","predicted":["rows/own"],"read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"applied","read":{"data":["before-prediction"],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"proof":true,"predictions":[]}
+✔ new known prediction with none (3.411503ms)
+✔ new opaque prediction with none (0.321322ms)
+✖ new known prediction with disjoint-notification (0.7475ms)
+✖ new opaque prediction with disjoint-notification (0.333ms)
+✖ new known prediction with published-empty-commit (0.510696ms)
+✖ new opaque prediction with published-empty-commit (0.294862ms)
+✖ new known prediction with applied (3.594137ms)
+✖ new opaque prediction with applied (0.304216ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 2
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68.446037
+
+✖ failing tests:
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new known prediction with disjoint-notification (0.7475ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new opaque prediction with disjoint-notification (0.333ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new known prediction with published-empty-commit (0.510696ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new opaque prediction with published-empty-commit (0.294862ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new known prediction with applied (3.594137ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:42:2
+✖ new opaque prediction with applied (0.304216ms)
+  AssertionError [ERR_ASSERTION]: newly discovered prediction must fence the earlier non-empty local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/op-r1.astra.evidence/overtaken-queue.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

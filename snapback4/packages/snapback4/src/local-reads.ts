@@ -4,13 +4,20 @@ import type { Queued } from "./local-types.ts";
 import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
-import type { BackendJson } from "./backend.ts";
+import { operationTables, type BackendJson } from "./backend.ts";
 
 
 export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
   const program = backend.programs.find(program => program.name === op.name);
   if (program?.native) return !nativeReady;
   return (backend.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
+}
+
+// @ref LLP 3000.028#3.2 — routing can change on a watermark-only apply.
+export function retainedWatch(backend: BackendJson, watch: LocalWatch): boolean {
+  const program = backend.programs.find(p => p.name === watch.op.name);
+  const tables = program && !program.native ? [...operationTables(program, backend.schema), ...watch.tables] : Object.keys(backend.schema.tables);
+  return tables.some(name => backend.schema.tables[name]?.sync && backend.schema.tables[name]?.leave === "delivered-history");
 }
 
 export function predictedTables(predicted: readonly string[]): Set<string> {
@@ -190,8 +197,48 @@ export function queuedPredictions(entries: readonly Queued[]): readonly string[]
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
+  private serverBarrier = 0;
+  private serverCut = 0;
+  private inputBarrier = 0;
+  private publishedWatermark = 0;
+  private predictionInputs = "[]";
+  private readonly inputVersions = new Map<string, number>();
+  private readonly watchChanges = new WeakMap<LocalWatch, number>();
+  // @ref LLP 3000.023#10 — only versions accounted for by evidence can be covered.
+  private watchCurrent(watch: LocalWatch): () => boolean {
+    const version = watch.changeVersion ?? 0, changes = this.watchChanges.get(watch) ?? 0;
+    return () => (watch.changeVersion ?? 0) - version === (this.watchChanges.get(watch) ?? 0) - changes;
+  }
   // @ref LLP 3000.023#10 — detached answers and pending results share one fence.
-  evidence(): void { this.revision++; }
+  evidence(cut?: number, tables?: readonly string[]): void {
+    this.revision++;
+    if (validCut(cut)) this.serverCut = Math.max(this.serverCut, cut);
+    else this.serverBarrier++;
+    if (validCut(cut) && tables !== undefined) {
+      for (const table of tables) this.inputVersions.set(table, this.revision);
+    } else this.inputBarrier++;
+  }
+  // @ref LLP 3000.023#10 — only a whole server reply can cover repeated cut evidence.
+  // Capture before evaluation; an unsequenced change can never be discharged
+  // by a later server sequence. Local/composed answers still use revision.
+  serverCurrent(watch: LocalWatch): (cut: number) => boolean {
+    const barrier = this.serverBarrier, current = this.watchCurrent(watch);
+    return cut => current() && barrier === this.serverBarrier && this.admissions === 0 && validCut(cut) && cut >= this.serverCut;
+  }
+  // @ref LLP 3000.023#10 — disjoint sequenced evidence does not change a local
+  // input. This is independent of the server cut; unknown footprints widen.
+  inputsCurrent(watch: LocalWatch): (tables: ReadonlySet<string>) => boolean {
+    const revision = this.revision, barrier = this.inputBarrier, current = this.watchCurrent(watch);
+    return tables => current() && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
+  }
+  // @ref LLP 3000.028#3.2 — a covering server cut cannot renew an older route.
+  published(watermark: number): void {
+    if (validCut(watermark)) this.publishedWatermark = Math.max(this.publishedWatermark, watermark);
+  }
+  retainedCurrent(): (watermark: number | undefined) => boolean {
+    const before = this.publishedWatermark;
+    return watermark => validCut(watermark) ? watermark >= this.publishedWatermark : before === this.publishedWatermark;
+  }
   detach(watch: LocalWatch): void { watch.detachedEpoch = this.revision; }
   predictions: readonly string[] | null = null;
   admissions = 0;
@@ -202,7 +249,7 @@ export class LocalReads {
   notified(tables: readonly string[] | undefined, cut: number, advanced = true): readonly string[] | undefined {
     if (!advanced && tables?.length === 0) return tables;
     if (advanced && !tables?.length) tables = undefined;
-    this.evidence();
+    this.evidence(cut, tables);
     this.serverAnswers.clear(tables);
     for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
     return tables;
@@ -215,6 +262,7 @@ export class LocalReads {
   }
   // @ref LLP 3000.031#1.1 — one-shot and observed reads share the admission fence.
   admitting(watches: () => Iterable<LocalWatch>): () => void {
+    this.evidence(); // Fence before the asynchronous prediction admission.
     const notify = () => { for (const watch of watches()) if (watch.updateExistence()) notifyLocalWatch(watch); };
     this.admissions++; notify();
     return () => { this.admissions--; notify(); };
@@ -224,23 +272,38 @@ export class LocalReads {
   }
   async readQueued(run: () => Promise<Queued[]>, watches: Iterable<LocalWatch>): Promise<Queued[]> {
     const revision = this.revision, entries = await run();
-    if (revision === this.revision) {
-      this.queued(entries);
+    const current = revision === this.revision;
+    // Disjoint evidence may preserve a local candidate while this read waits.
+    // Always fence discovery, but never install an overtaken queue snapshot.
+    this.fencePredictions(entries);
+    if (current) {
+      this.predictions = queuedPredictions(entries);
       for (const watch of watches) if (watch.updateExistence()) notifyLocalWatch(watch);
     }
     return entries;
   }
   queued(entries: readonly Queued[]): void {
+    this.fencePredictions(entries);
     this.predictions = queuedPredictions(entries);
+  }
+  private fencePredictions(entries: readonly Queued[]): void {
+    // @ref LLP 3000.016#2.2 — queue discovery can precede admission. Fence a
+    // changed prediction set once, including a second write to the same table.
+    const inputs = entries.filter(e => e.observed_seq == null && e.predictable === true)
+      .map(e => JSON.stringify([e.id, e.predicted])).sort();
+    const signature = JSON.stringify(inputs);
+    if (inputs.length && signature !== this.predictionInputs) this.evidence();
+    this.predictionInputs = signature;
   }
   readonly serverAnswers = new RememberedAnswers();
 
   // @ref LLP 3000.023#10 — change evidence retires recovery memory and
   // pre-change evaluations without resetting the displayed answer.
   changed(watch: LocalWatch, cut?: number): void {
-    this.evidence();
+    this.evidence(cut, watch.tables?.size ? [...watch.tables] : undefined);
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
     watch.changeVersion = (watch.changeVersion ?? 0) + 1;
+    this.watchChanges.set(watch, (this.watchChanges.get(watch) ?? 0) + 1);
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
@@ -264,7 +327,8 @@ export class LocalReads {
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
-    this.evidence();
+    this.published(watermark);
+    this.evidence(watermark, []); // The commit recorded its footprint before publication.
     this.serverAnswers.clear();
     for (const [table, cut] of this.notifiedCuts) if (cut <= watermark) this.notifiedCuts.delete(table);
     this.scopeCuts = this.scopeCuts.filter(loss => loss.watermark > watermark);
@@ -358,14 +422,15 @@ export class LocalReads {
   }
 
   // @ref LLP 3000.023#12 — commits revalidate; only possible revocation bounds the replacement attempt.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], preserved?: unknown): void {
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number): void {
     // A partition footprint cannot certify server-only authorization, including recovery/no-op publication.
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation, preserved);
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation, preserved,
+      operation === "apply" && this.predictions?.length === 0 ? publishedCut : undefined, touched);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown): void {
-    this.evidence();
-    if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); }
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown, publishedCut?: number, inputTables?: readonly string[]): void {
+    this.evidence(reset ? undefined : publishedCut, inputTables);
+    if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); this.publishedWatermark = 0; }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
@@ -382,6 +447,15 @@ export class LocalReads {
       watch.presenceEvery = undefined;
     }
   }
+}
+
+function validCut(cut: unknown): cut is number { return Number.isSafeInteger(cut) && Number(cut) >= 0; }
+
+/** Images can be newer than the streamed log watermark. Missing publication
+ * or image evidence, snapshots and staged cuts keep the hard commit fence. */
+export function publishedApplyCut(page: Record<string, unknown>, published: unknown): number | undefined {
+  return published === true && !page.snapshot && !page.stage_snapshot && !page.snapshot_catchup
+    && validCut(page.watermark) && validCut(page.images_at) && page.images_at >= page.watermark ? page.images_at : undefined;
 }
 
 // @ref LLP 3000.031#1.1 — an unknown footprint blocks even a read of no tables.
