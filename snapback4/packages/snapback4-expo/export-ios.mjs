@@ -136,7 +136,7 @@ export async function main() {
   } finally {
     // After a publication attempt this path may be the displaced last good
     // export. Only the publisher, under its destination lock, may remove it.
-    try { if (created && !publicationAttempted) fs.rmSync(privateExport, { recursive: true, force: true }); }
+    try { if (created && !publicationAttempted) fs.rmSync(artifacts, { recursive: true, force: true }); }
     finally {
       try {
         if (lease !== undefined) fs.closeSync(lease);

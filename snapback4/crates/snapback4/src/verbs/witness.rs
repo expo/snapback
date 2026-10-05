@@ -532,6 +532,7 @@ pub fn run(args: &[String]) -> i32 {
     if args.first().is_some_and(|arg| arg == "export-lease") { return publication::lease_command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-retain") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-retain-worker") { return retention::worker(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "export-maintain-scan") { return retention::scan(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-maintain") { return retention::maintain(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }

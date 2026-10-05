@@ -86557,3 +86557,55 @@ Other worktrees, processes and simulators untouched. Large evidence stays outsid
 git with hashes. Earlier qualification limits and intermittent issues remain.
 NZ is for 0.4.14. Nothing pushed or published.
 [Round 8 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-8--bounded-live-owner-waits-and-ownerless-repair).
+
+
+## 2026-10-04 — Lane NZ round 9: durable retention claims and state audit
+
+On 7e03a5cea9, fix the operator's remaining Astra/Grok retention findings and
+audit the complete state machine under LLP 3000.030 §15. A pending request is
+atomically renamed to a durable claim only after both the observer and a separate
+scan custodian exist. Successful work acknowledges only that claim; concurrent
+publications and deferred discoveries keep their own pending slot. Custodian
+SIGKILL leaves a surviving observer to resume after native custody drains. If the
+observer dies during a scan, the custodian cancels/drains and resumes observation
+with the original expiry. Neither repair needs a later export. Interrupted claims
+and failed starts are bounded; known work errors park with diagnostics.
+
+Readiness probes the exclusive publication lease that reconciliation actually
+needs, so shared holders also wait passively. Failed Expo wrappers remove their
+own uncommitted attempt under their export lease. Discovery uses recorded process
+birth/liveness, owned-child recovery, run/export leases and publication pins;
+journal-only dead attempts and empty completion markers do not consume history
+slots. Terminal receipts, published history and interrupted compressed receipts
+remain evidence. No directory-name PID authorizes a signal or simulator action.
+
+The audit covers queue creation, launch, claim, native work, acknowledgement,
+deferral, peer death, errors, deadlines, exit races, namespace repair and history.
+It also repaired partially written dirty-bit claiming, distinguished contention
+from lock I/O errors, and made custodian waiting bounded polling. A further
+control reproduced handled busy deferrals consuming the failed-start budget.
+The internal custodian now exits successfully after durably handling a pending
+or parked outcome; the error remains explicit in its journal/log. Only an
+unhandled/startup failure or process death spends that budget. Four forced
+post-readiness lock refusals preserve one observer and restore 5 full / 20
+compressed on release. Sole-peer SIGKILL controls restore the same bound with
+no later export. Failed Expo/dead-journal controls cover all three modes.
+
+Initial qualification exposed incomplete older retention fixtures and a real
+nonterminal-smoke-receipt classification gap; terminal receipts are now required,
+and all custody/namespace assertions remain. Earlier failed runs are retained.
+The first full suite was stopped through its directly owned shell at 953.93 s for
+the additional busy-deferral correction; its processes drained and its incomplete
+record is separate. Final affected checks passed: build, 66 serial witness units,
+and all 95 export/preparation tests with no skips or cancellations. The fresh
+complete Mac suite passed with **zero failures in 2,658 seconds**: all Rust targets
+and doctests, 298 CLI units (four existing ignores), 76 witness integrations,
+nine fixture wrappers, all 312 client files (6,253 passes / six existing skips),
+and 79 full-count model cases. All nine recorded inputs stayed unchanged; no
+intervention or reduced counts in the qualifying run. Reference/whitespace and
+custody checks passed. WD cleanup/group custody and preparation deadlines remain
+unchanged. No real devices created, prior NZ devices absent, and no lane CLI jobs
+remaining. Other worktrees, processes and simulators untouched. Large evidence
+stays outside git with hashes; no new native timing, Linux or physical-sleep
+qualification is claimed. NZ targets 0.4.14. Nothing pushed or published.
+[Round 9 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-9--crash-safe-claims-and-retention-state-audit).

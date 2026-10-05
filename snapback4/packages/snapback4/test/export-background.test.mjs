@@ -566,7 +566,7 @@ for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','de
 // observer which was launched by the preceding custodian rather than a wrapper.
 async function maintenanceIdle(f, allowParked = false) {
   const root=path.join(f.root,'artifacts/native-smoke');
-  await until(()=>(allowParked || !fs.existsSync(path.join(root,'maintenance-request.json'))) &&
+  await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
     ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
     'coalesced maintenance queue drained',90000);
 }
@@ -689,11 +689,11 @@ fs.closeSync=function(fd){if(held.has(fd)){fs.mkdirSync('wrapper-held',{recursiv
   } finally {f.put('release-wrapper-leases','');for(const run of wrappers)await run.exited;await cleanup(f);}
 });
 
-test('a held publication lock pauses one observer without starting retention workers',{timeout:120000},async()=>{
+for(const lease of ['exclusive','shared'])test(`a held ${lease} publication lock pauses one observer without starting retention workers`,{timeout:120000},async()=>{
   const f=fixture();let retention, publication;
   const hold=async(name)=>{
     const root=path.join(f.root,'artifacts/native-smoke');fs.mkdirSync(root,{recursive:true});
-    const child=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,name+'.lock'),path.join(f.root,name+'-held')],{stdio:['pipe','ignore','inherit']});
+    const child=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_SH if sys.argv[3]=='shared' else fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,name+'.lock'),path.join(f.root,name+'-held'),name==='publication'?lease:'exclusive'],{stdio:['pipe','ignore','inherit']});
     const held={child,exited:once(child,'exit')};await until(()=>fs.existsSync(path.join(f.root,name+'-held')),name+' lock held by our fixture');return held;
   };
   try {
@@ -730,7 +730,7 @@ test('failed maintenance retains a parked request and a later export retries it'
     holder.stdin.end();await exited;holder=null;
     await until(()=>read(path.join(root,'maintenance-result.json'))?.error,'failed maintenance is recorded');
     await maintenanceIdle(f,true);
-    assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')),'failure preserves deferred work');
+    assert.ok(fs.existsSync(path.join(root,'maintenance-parked.json')),'failure preserves deferred work without a retry loop');
     const attempted=read(path.join(root,'maintenance-active.json')).attempt;assert.equal(attempted,1);
     for(let i=0;i<10;i++){await pause();assert.equal(read(path.join(root,'maintenance-active.json')).attempt,attempted,'persistent failure stays parked');}
     assert.equal(retainedRuns(f).full.length,6);
@@ -893,4 +893,83 @@ test('export initialization refuses a live stuck initializer within five seconds
     holder.stdin.end();await exited;holder=null;
     assert.equal(f.invoke().status,0);await maintenanceIdle(f);
   } finally {if(holder){holder.stdin.end();await exited;}await cleanup(f);}
+});
+
+// Round 9: no later publication is allowed to rescue a lost maintenance claim.
+for(const victim of ['custodian','observer'])test(`SIGKILL of the sole maintenance ${victim} restores retention without another export`,{timeout:120000},async()=>{
+  const f=fixture();
+  try {
+    skipMode(f,'off');blockedRetention(f,28);
+    const first=f.invoke();assert.equal(first.status,0,first.stdout+first.stderr);
+    const root=path.join(f.root,'artifacts/native-smoke'), current=f.latest();
+    await until(()=>read(path.join(f.root,'compression.json')),'sole maintainer is compressing');
+    const compressor=read(path.join(f.root,'compression.json'));
+    const custody=fs.readdirSync(root).filter(n=>n.startsWith('.retention-')).map(n=>read(path.join(root,n,'retention-group.json'))).find(Boolean);
+    for(const pid of [compressor.pid,compressor.child])assert.equal(Number(spawnSync('ps',['-o','pgid=','-p',String(pid)],{encoding:'utf8'}).stdout.trim()),custody.group);
+    assert.ok(fs.existsSync(path.join(root,'maintenance-claimed.json')),'work stays durably claimed during compression');
+    assert.ok(!fs.existsSync(path.join(root,'maintenance-request.json')),'no later publication or queued request can rescue this claim');
+    const record=victim==='custodian'?'maintenance-active.json':'maintenance-next.json';
+    process.kill(read(path.join(root,record)).process.pid,'SIGKILL');
+    await until(()=>!alive(compressor.pid)&&!alive(compressor.child)&&!alive(custody.group)&&!alive(custody.guardian.pid),'sole maintainer native group drained',45000);
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.equal(f.latest().generation,current.generation,'no later export was published');
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,2,'one bounded resumption covers the surviving claim');
+  } finally {await cleanup(f);}
+});
+
+for(const mode of ['off','non-macOS','background'])test(`failed Expo exports and dead wrapper journals never occupy keep slots (${mode})`,{timeout:120000},async()=>{
+  const f=fixture();let held;
+  try {
+    held=await holdRetention(f);await seedQueuedExports(f);
+    if(mode!=='background')skipMode(f,mode);
+    const expo=fs.readFileSync(path.join(f.root,'node_modules/expo/bin/cli'),'utf8');
+    f.put('node_modules/expo/bin/cli',expo+'process.exit(23);');
+    const originalOptions=f.env.NODE_OPTIONS;
+    for(let i=0;i<5;i++){const r=f.invoke('failed expo');assert.equal(r.status,23,r.stdout+r.stderr);}
+    assert.equal(retainedRuns(f).dirs.length,28,'ordinary failed Expo wrappers remove their own attempt under the lease');
+    // Model pre-round-9 wrappers: leave their actual birth-recorded journal
+    // after Expo failure, and prove liveness rather than JSON presence decides.
+    f.put('legacy-shell.cjs',`const fs=require('fs'),path=require('path'),remove=fs.rmSync;fs.rmSync=function(p,...args){if(/native-smoke\\/\\d+-\\d+$/.test(String(p))){return remove.call(this,path.join(p,'export'),{recursive:true,force:true});}return remove.call(this,p,...args);};`);
+    f.env.NODE_OPTIONS=[originalOptions,'--require='+path.join(f.root,'legacy-shell.cjs')].filter(Boolean).join(' ');
+    const before=new Set(retainedRuns(f).dirs);
+    for(let i=0;i<5;i++){const r=f.invoke('legacy failed expo');assert.equal(r.status,23,r.stdout+r.stderr);}
+    const shells=retainedRuns(f).dirs.filter(d=>!before.has(d));assert.equal(shells.length,5);
+    for(const dir of shells){assert.ok(read(path.join(dir,'live.json'))?.wrapper?.pid);assert.ok(!alive(read(path.join(dir,'live.json')).wrapper.pid));assert.ok(!fs.existsSync(path.join(dir,'export')));}
+    if(originalOptions===undefined)delete f.env.NODE_OPTIONS;else f.env.NODE_OPTIONS=originalOptions;
+    f.put('node_modules/expo/bin/cli',expo);f.put('continue','');
+    const success=f.invoke('after failed attempts');assert.equal(success.status,0,success.stdout+success.stderr);
+    if(mode==='background')assert.equal(f.status('--wait').status,2);
+    held.child.stdin.end();await held.exited;held=null;
+    await maintenanceIdle(f);assertRetentionBound(f);
+    for(const shell of shells)assert.ok(!fs.existsSync(shell),'dead journal-only shell repaired and excluded');
+  } finally {if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+// Force the race *after* readiness: a real supervised worker sees the held
+// retention lease. Handled deferrals must not consume the startup-crash budget.
+test('repeated raced retention-lock deferrals stay pending and restore the bound after release',{timeout:120000},async()=>{
+  const f=fixture();let held;
+  try {
+    skipMode(f,'off');held=await holdRetention(f);await seedQueuedExports(f);
+    const root=path.join(f.root,'artifacts/native-smoke');
+    const observer=read(path.join(root,'maintenance-next.json'));
+    for(let i=0;i<4;i++) {
+      const scan=spawnSync('python3',['-c',`import fcntl,os,subprocess,sys
+f=open(sys.argv[1]+'/maintenance.lock','a')
+fcntl.flock(f,fcntl.LOCK_EX)
+os.dup2(f.fileno(),3)
+r=subprocess.run([sys.argv[2],'witness','export-maintain-scan',sys.argv[1],sys.argv[3]],pass_fds=(3,))
+sys.exit(r.returncode)
+`,root,binary,String(observer.expiresAt)],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
+      assert.equal(scan.status,0,`handled deferral is not a failed custodian start: ${scan.stderr}`);
+      assert.match(read(path.join(root,'maintenance-result.json')).error,/retention lock busy/);
+      assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')));
+      assert.ok(!fs.existsSync(path.join(root,'maintenance-claimed.json')));
+      assert.ok(alive(observer.process.pid),'same passive observer survives every handled race');
+    }
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,4);
+    held.child.stdin.end();await held.exited;held=null;
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,5,'one successful scan after the four deferred workers');
+  } finally {if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
 });

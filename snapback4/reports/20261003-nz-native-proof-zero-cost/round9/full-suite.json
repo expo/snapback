@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "7e03a5cea9409a87823ec5a96ebc6e7bfb43d69f",
+  "state": "finished",
+  "startedAt": 1791169148.312566,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r9-full-suite.log",
+  "before": {
+    "at": 1791169149.4889758,
+    "load": [
+      4.37548828125,
+      5.01806640625,
+      5.07958984375
+    ],
+    "idlePercent": 61.40939597315436,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 177.8 /usr/libexec/PerfPowerServices",
+      "  485     1  13.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "34465  8101   6.6 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1164     1   2.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1083     1   2.3 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1165     1   1.9 /Applications/cmux.app/Contents/MacOS/cmux",
+      " 1092     1   1.4 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 8101  8094   1.3 codex",
+      " 1980     1   1.1 /Applications/Dropbox.app/Contents/PlugIns/DropboxFileProvider.appex/Contents/MacOS/DropboxFileProvider",
+      "34383     1   1.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared"
+    ]
+  },
+  "status": 143,
+  "finishedAt": 1791170103.4229372,
+  "durationSeconds": 953.927050417,
+  "after": {
+    "at": 1791170104.589877,
+    "load": [
+      3.90625,
+      16.01953125,
+      22.1083984375
+    ],
+    "idlePercent": 77.11442786069652,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 192.0 /usr/libexec/PerfPowerServices",
+      "48793  1160  84.2 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "  738     1  37.3 /usr/libexec/searchpartyd",
+      " 1160     1  22.8 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  485     1  19.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1083     1   4.3 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   3.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   2.4 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   1.6 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 8101  8094   1.6 codex"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r9-full-suite.log",
+    "sha256": "42e46ce2ee56a8de953744cf39c46761120a3f291ddd35bcb4a8fef37d742f30",
+    "bytes": 12645
+  },
+  "inputsUnchanged": true
+}

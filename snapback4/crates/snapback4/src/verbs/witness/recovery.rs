@@ -439,6 +439,13 @@ pub(super) fn finished(dir: &Path) -> bool {
     let run = read(&dir.join("smoke-ios-run.json"));
     dir.join("finished.json").exists() || dir.join("retention.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
 }
+fn completed_result(dir: &Path) -> bool {
+    let result = read(&dir.join("result.json"));
+    let run = read(&dir.join("smoke-ios-run.json"));
+    result["state"].as_str().is_some_and(|state| ["passed", "failed", "skipped", "superseded"].contains(&state))
+        || (run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
+        || !read(&dir.join("preparation-failure.json")).is_null()
+}
 // The caller keeps the candidate's export lease through deletion. A candidate
 // cannot become a publication after this decision without acquiring that lease.
 // Publication locking protects both sides of a swap, including rollback custody;
@@ -472,7 +479,11 @@ fn publication_pin(root: &Path, dir: &Path) -> Result<Option<bool>> {
 pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    lock.try_lock().map_err(|e| error("E_WITNESS_ARTIFACT", format!("retention lock busy or unavailable: {e}")))?;
+    match lock.try_lock() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => return Err(error("E_WITNESS_ARTIFACT", "retention lock busy")),
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
     // A wrapper reporting driver exit does not establish cleanup. In particular
     // SIGKILL leaves owned backend/compilers and app copies behind.
     if let Some(dir) = completed { if !recover(dir)? { retention::request(root)?; } }
@@ -483,20 +494,29 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
         if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
         let dir = entry.path();
         let finished = finished(&dir);
-        // A bare/legacy unfinished directory is not a live owner. Repair only
-        // under both leases, after transaction recovery and generation pinning.
-        // Never infer process or simulator ownership from its directory name.
-        if !finished && read(&dir.join("live.json")).is_null() {
-            // Claim both per-run leases before releasing initialization custody.
-            // No recovery, compression or recursive removal holds this lease.
+        // A journal records identity, not liveness or a completed result. A
+        // dead wrapper's failed Expo attempt must not occupy a history slot.
+        let journal = read(&dir.join("live.json"));
+        let evidence = completed_result(&dir) || !read(&dir.join("publication.json")).is_null() || dir.join("retention.json").exists()
+            || RECEIPTS.iter().any(|n| dir.join(format!("{n}.gz")).is_file());
+        if !finished || !evidence {
+            if alive(&journal["owner"]) || alive(&journal["wrapper"]) { retention::request(root)?; continue; }
+            // Existing recovery drains only recorded, birth-matched ownership.
+            // Do this before removing a journal which may still own children.
+            if !journal.is_null() && !recover(&dir)? { retention::request(root)?; continue; }
             let Ok(initializing) = preparation::lease(&root.join("initialization.lock")) else { retention::request(root)?; continue; };
             let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
             let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
-            if !read(&dir.join("live.json")).is_null() { retention::request(root)?; continue; }
+            let journal = read(&dir.join("live.json"));
+            if alive(&journal["owner"]) || alive(&journal["wrapper"]) { retention::request(root)?; continue; }
             drop(initializing);
             if !publication::reconcile_orphan(&dir)? { retention::request(root)?; continue; }
             let Some(pinned) = publication_pin(root, &dir)? else { continue; };
-            if pinned {
+            // A committed export with a failed handoff is history, even without
+            // result.json. A failed/partial export has no publication receipt.
+            let published = !read(&dir.join("publication.json")).is_null();
+            let completed = completed_result(&dir);
+            if pinned || published || completed {
                 write(&dir.join("finished.json"), &json!({ "finishedAt": now(), "abandoned": true, "recovered": true, "missingOwner": true }))?;
                 runs.push(dir);
             } else {
@@ -599,7 +619,8 @@ mod tests {
         for n in 1..=8 {
             let dir = root.join(format!("{n}-1")); fs::create_dir_all(dir.join("export")).unwrap();
             fs::write(dir.join("export/bundle.hbc"), "snapshot").unwrap();
-            write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": identity(std::process::id()), "children": {} })).unwrap();
+            write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": null, "children": {} })).unwrap();
+            write(&dir.join("publication.json"), &json!({ "verifiedAt": now() })).unwrap();
             if n > 1 { write(&dir.join("finished.json"), &json!({})).unwrap(); }
         }
         let lease = preparation::lease(&root.join("1-1/export.lock")).unwrap();
@@ -660,7 +681,7 @@ mod tests {
         drop(lease);
         cleanup(&root, None).unwrap();
         assert!(!dir.join("export.app").exists()); assert!(!dir.join("build.xcresult").exists()); assert!(!dir.join("preparation-tmp").exists());
-        assert_eq!(read(&dir.join("finished.json"))["abandoned"], true);
+        assert!(!dir.exists(), "recovered ownerless attempt without a result is not evidence");
         assert!(backend.status().unwrap().is_some());
         fs::remove_dir_all(root).unwrap();
     }
@@ -733,6 +754,7 @@ mod tests {
         for i in 2..=6 {
             let newer = root.join(format!("{i}-123")); fs::create_dir_all(&newer).unwrap();
             write(&newer.join("finished.json"), &json!({ "finishedAt": now() })).unwrap();
+            write(&newer.join("result.json"), &json!({ "state": "skipped" })).unwrap();
         }
         cleanup(&root, Some(&dir)).unwrap();
         assert_eq!(fs::read(dir.join("live.json")).unwrap(), before);
@@ -743,6 +765,10 @@ mod tests {
         cleanup(&root, None).unwrap();
         assert!(dir.join("export/bundle").exists());
         drop(lease);
+        // Model the wrapper's exit with the already-dead driver's real birth
+        // identity; a journal's live wrapper must still defer discovery.
+        let mut exited = journal.clone(); exited["wrapper"] = exited["owner"].clone();
+        write(&dir.join("live.json"), &exited).unwrap();
         cleanup(&root, None).unwrap();
         assert!(!dir.join("export").exists());
         fs::remove_dir_all(root).unwrap();

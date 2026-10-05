@@ -1,0 +1,38 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "c1552eca497711108d524dbdaf087b9050eebe43ea077db302f3e4fa310bd986"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "2979874f3642cdca8838d2031021ed2cf10cf2eaa63a34c82f1ee1592f87d81d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "85cc551bc15b55d434eb4c2ae2a10fbd7d4bb805e5f4b73cc0a2263f03d908a5"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "abdafa2d718bb1361976a24daaba8d6567368dddefb60b5c64fb9a2f6417f63e"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "91ec30b2990ffa40986e8db1e99daeb53ab93ff98ef0bbf981aa1cb33b1b20ad"
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "5e58d5922483ad9d6f753f27b3dc8913c762b09393d583dd07a7a1942b8fc315"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "6d476102f2214a052f26f51c502553df72b36347ec81d3a60932ed63cdb1ac0f"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-native-round2.test.mjs",
+    "sha256": "6ed815d5a95d06564f7d11a3a259d632751390b094bfcea389b4350b8f98459c"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-publication.test.mjs",
+    "sha256": "fcdb7257e37b0629bda1543385564bdce7cf8a6b4f3674d000cced484fd9f4bb"
+  }
+]

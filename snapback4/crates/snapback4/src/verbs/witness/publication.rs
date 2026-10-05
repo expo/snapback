@@ -315,10 +315,14 @@ mod tests {
         fs::create_dir_all(&source).unwrap(); fs::create_dir(root.join("dist")).unwrap();
         fs::write(root.join("dist/old"), "old export").unwrap();
         fs::write(source.join("bundle"), "proved bundle").unwrap();
-        fs::write(dir.join("live.json"), serde_json::to_vec(&json!({ "owner": null, "wrapper": recovery::identity(std::process::id()), "children": {} })).unwrap()).unwrap();
+        fs::write(dir.join("live.json"), serde_json::to_vec(&json!({ "owner": null, "wrapper": null, "children": {} })).unwrap()).unwrap();
+        // Namespace tests retain a completed attempt; journal-only failed Expo
+        // shells are now removed rather than counted as evidence.
+        save(&dir.join("result.json"), &json!({ "state": "failed", "reason": "publication fixture" })).unwrap();
         for i in 2..=6 {
             let newer = root.join(format!("runs/{i}-123")); fs::create_dir_all(&newer).unwrap();
             fs::write(newer.join("finished.json"), "{}").unwrap();
+            save(&newer.join("result.json"), &json!({ "state": "skipped" })).unwrap();
         }
         (root, dir, source)
     }
@@ -507,6 +511,7 @@ mod tests {
                 for i in 10..=40 {
                     let newer = root.join(format!("runs/{i}-123")); fs::create_dir_all(&newer).unwrap();
                     fs::write(newer.join("finished.json"), "{}").unwrap();
+                    save(&newer.join("result.json"), &json!({ "state": "skipped" })).unwrap();
                 }
                 recovery::cleanup_inner(&root.join("runs"), None).unwrap();
                 assert!(!dir.exists(), "orphan is eligible for ordinary oldest-run pruning");

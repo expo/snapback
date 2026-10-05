@@ -1217,3 +1217,122 @@ Large logs, including the initial failures, and the tested binary stay in the
 external content-addressed archive. No gzip/video or new files over 256 KB are
 committed. Earlier qualification limits and intermittent-test issues remain.
 NZ targets 0.4.14. Nothing pushed or published.
+
+
+## Round 9 — crash-safe claims and retention state audit
+
+2026-10-04, based on `7e03a5cea9`. This round implements the operator's supplied
+Astra/Grok findings. No additional independent review, new native timing, Linux
+qualification or physical host-sleep experiment is claimed. NZ targets 0.4.14.
+
+A request is claimed by atomic rename, not deletion. The claim survives until a
+successful scan acknowledges it. A separate pending observer survives a killed
+scan custodian; the existing native watchdog drains the compressor and the
+observer resumes after custody releases. If the observer dies during a scan, the
+custodian detects its recorded identity's death, drains and resumes observation.
+The scan claims only after both peers exist. Success removes only the claim;
+newer requests and deferred discoveries remain separate. Interrupted attempts
+have a durable three-attempt cap, while known work failures park without a loop.
+All successor observers inherit the original 60-minute observation expiry.
+
+Failed Expo wrappers remove their private attempt under their own export lease.
+Discovery repairs old journal-only attempts using actual process birth/liveness,
+owned-child recovery, both run/export leases and publication pins. It excludes
+shells even when previous recovery wrote a completion marker. Completed failure
+receipts, published history and partially compressed receipts remain evidence.
+Readiness now probes the exclusive publication lease needed by reconciliation.
+The audit also separated actual lock contention from I/O failures, protected the
+partially written dirty-bit/claim race, and replaced the custodian's potentially
+blocking process wait with bounded polling.
+
+### State and transition audit
+
+The invariant is: **every wait is on live custody and bounded; every recoverable
+ownerless state is repaired; nothing spins; no claimed request is lost.** A loud
+parked error is a durable refusal, not successful maintenance or an indefinite
+wait. The audit covered scheduling, both peers, native custody, discovery,
+namespace repair and retention—not only the three reported interleavings.
+
+| State / transition | Ownership, bound and outcome |
+| --- | --- |
+| No work → pending | Publication requests maintenance only after releasing its lock. `create_new` coalesces all producers into one dirty bit. No scan or compression enters export's wait. |
+| Pending → observer launch | `maintenance-next.lock` admits one observer. The fork-inherited descriptor closes the parent/child lease gap. The stdin gate and passive observations share the absolute 60-minute expiry, monotonic check and sleep guard. Spawn/gate failure leaves durable work and a diagnostic. |
+| Dirty bit visible before its JSON write | Atomic rename authorizes a fresh claim by its name. A producer's old descriptor cannot overwrite the atomically replaced claim; the claim test exercises this boundary. |
+| Pending → passive wait | Probe initialization, maintenance, retention, **exclusive** publication and run/export leases; inspect birth-matched owner/wrapper identities. Only an actual live holder/identity delays a scan. Poll at 100 ms; never create native groups while held; expire within the original observation budget. |
+| Directory disappears after enumeration | Treat absence as already repaired, without recreating it. A malformed lock in a surviving directory fails explicitly. |
+| Ready → scan launch | Observer retains its pending lease and passes the active lease to a separate direct child. The child validates root and inherited inode before claiming. A death before claim leaves pending work and the other live peer. |
+| Scan launch → claimed | Rename pending to claimed under the active lease. Resume a surviving claim if no newer request exists. Claim is never deleted before native work. Three interrupted attempts are persisted; repeated failed starts are also capped. |
+| Claimed → native work | Existing native supervisor, unreaped group anchor and kernel owner-death watcher own the worker and gzip descendants. Work deadline is 30 s, with cancellation/sleep checks; unchanged WD drain is 5 s idle / 60 s hard. |
+| Observer waits for scan | Poll only its unreaped direct child. Signal cancellation to that child, not discovered PIDs. At 100 s force its exit; after another 5 s fail explicitly with claim preserved. No blocking `wait()` remains in this path. |
+| Live lock acquired after readiness | Worker records deferred work; a raced retention lock refusal requeues. Observer sleeps/probes before another scan. Actual WouldBlock is separated from I/O errors. A durably handled busy outcome returns a healthy internal-custodian exit; it must not consume the failed-start budget. Four forced raced refusals preserve observation and restore 5/20 after release. Shared-holder and exclusive-holder tests show zero native starts while held. |
+| Ownerless publication transaction | Existing matching inode/intents recovery rolls back an unverified exchange or preserves a verified commit. Reconcile under exclusive destination and run/export custody. Detach old tree under the lock, delete privately after release. Conflicting identities park; no ownerless marker causes a respawn chain. |
+| Unfinished run with live owner | Birth identity or kernel lease causes deferred pending work. The observer waits passively within the same expiry. Journal presence alone never establishes liveness. |
+| Ownerless unfinished or journal-only shell | Drain only recorded owned children/simulators using existing recovery, acquire per-run custody, recheck liveness and publication pins, then remove/exclude empty or partial failed attempts. Current/pending publication evidence stays full. No directory-name PID authorizes signalling. |
+| Failed Expo command | Wrapper's finally removes its own uncommitted attempt before closing its export lease. Failed lease initialization also removes the attempt. Legacy dead journals are repaired by the scan. |
+| Dead-custodian native journal | Kernel custody drains the owned group; the surviving peer resumes the durable claim. A small `.retention-*` diagnostic journal may remain after SIGKILL. It is not a work request, a live owner, or one of the retained proof slots; its presence never delays observation. |
+| Completed / partially compressed history | Completed native result or preparation diagnostic, publication receipt, compressed receipt and retention marker are history. Pin current/pending generations before start ordering; recheck pins while holding export custody before compression/deletion. Empty completion markers without evidence do not occupy keep slots. |
+| Work succeeds → acknowledgement | Remove only `maintenance-claimed.json`, after native drain. Separate requests raised by concurrent publications or deferred discoveries survive. No request means no deferred discovery from that scan. |
+| Custodian SIGKILL → resume | Native custody drains the owned group; the surviving observer preserves the claim, waits for actual leases and retries. Sole-maintainer test permits no later export and requires exact 5/20 restoration. |
+| Observer SIGKILL during claim → resume | Custodian detects the recorded observer's death, cancels/drains native work, preserves the claim and launches one successor with the original expiry. The reciprocal death test also requires exact 5/20 restoration without another export. |
+| Known work error → parked | Move claim to `maintenance-parked.json`; leave any genuinely newer request intact. Log the diagnostic. No automatic retry of the same compressor/I/O/identity failure. New publication may supersede parked work. |
+| Repeated interruption / startup failure → parked | At most three attempts for the same interrupted claim; repeated failed starts stop after three. Persist unresolved work and diagnose; no endless crash/restart chain. |
+| Idle cancellation, sleep or observation expiry | Exit with durable unresolved work and diagnostic; a later schedule may resume it. No process remains indefinitely waiting. Expiry is inherited, never silently refreshed by a successor. |
+| Queue empty → exit | Drop pending lease, then recheck/kick. A concurrent scheduler either sees this observer or acquires the released lease. Request/claim/park records live outside retained run trees. |
+| Peer pair or host lost together | Durable state survives for a later scheduler; automatic resumption assumes one peer survives an active scan. No new host daemon or stronger power-loss guarantee is claimed. This is the existing simultaneous-custody-loss limit. |
+
+The normal idle/contended case still has exactly one pending process. Active
+maintenance adds one scan custodian and its existing bounded native group; exports
+do not accumulate custodians. The 5-full / 20-compressed bound applies after
+leases quiesce and successful maintenance. A pinned generation or loud parked
+failure cannot be discarded merely to satisfy that bound.
+
+### Verification
+
+The first six new JavaScript controls passed. Initial broad qualification found
+five Rust fixtures which relied on empty completion markers/live fake wrappers,
+and two JavaScript failures (92/94). Retention/history fixtures now provide actual
+terminal receipts; their custody, namespace and compression assertions remain.
+The JavaScript run also caught a real classification gap: a smoke manifest without
+an end timestamp was being treated as completed. Discovery now requires terminal
+result state or a terminated smoke receipt; incomplete ownerless attempts are
+removed. The 14 receipt/publication controls passed after that correction. Earlier
+logs remain archived and are not represented as final qualification.
+
+A subsequent final affected run passed 66 witness units, 76 integrations and
+93/94 export tests; the remaining older pruning fixture needed terminal timestamps
+on its seeded completed receipts. Its entire three-test file then passed. The
+first full-suite attempt was stopped through its directly owned shell's canonical
+cleanup at 953.93 s for a further audit correction: handled busy-lock deferrals
+were counted as failed custodian starts and could exhaust that budget. A real
+supervised-worker control reproduced exit 1 for a handled busy outcome. The
+internal custodian now exits 0 after durably recording/logging a handled outcome;
+startup/unhandled errors still fail. The new four-refusal control requires a live
+observer and exact 5/20 restoration on release. The incomplete suite, reproduction
+and earlier failed runs remain separate evidence; only the final complete suite
+will qualify.
+
+The final affected run passed: build; **66/66 serial witness units** (59.41 s
+including Cargo work); and **95/95 export/preparation tests** (467.48 s), with no
+skips or cancellations. All nine recorded inputs stayed unchanged. The
+[final affected record](./round9/focused-final.json) is separate from the earlier
+failed and corrected-fixture records. The [complete final Mac suite](./round9/full-suite-final.json) passed with **zero
+failures in 2,658 s** (2,657.996 s measured wall time), exercising all final inputs.
+All Rust targets and doctests passed, including **298 CLI units** (four existing
+ignores) and **76 witness integrations**. Nine fixture wrappers passed. All
+**312 client files** passed: **6,253 passed / six existing skips / zero failures
+or cancellations**. Both full-count model files passed **79/79**. Builds, wasm,
+documentation budget, release guard and typechecks passed. No intervention or
+reduced counts occurred in this qualifying run. Its
+[nine-input manifest](./round9/full-suite-final-inputs.json) remained unchanged.
+
+Final custody verification found no lane CLI or interposed fixture jobs, and
+confirmed the previously recorded NZ devices absent. No real devices were created
+this round; all new fault controls used owned fixtures on this mini. Other
+worktrees, processes and simulators were untouched. WD cleanup, group custody and
+preparation-deadline sources remain byte-identical to the base. Reference and
+whitespace checks passed. The result records, cancellation record, hashes and
+custody checks are in `round9/`; large logs (including earlier failures and the
+incomplete attempt) and the tested binary remain in the external content-addressed
+archive. No gzip/video or new files over 256 KB are committed. Earlier native,
+Linux and physical-sleep qualification limits remain. NZ targets 0.4.14.
+Nothing was pushed or published.

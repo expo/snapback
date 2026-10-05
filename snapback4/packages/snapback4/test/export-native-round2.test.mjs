@@ -96,7 +96,7 @@ test('concurrent pruning defers on a busy lock, compressed sets are bounded and 
     for (let i = 1; i <= 35; i++) {
       const dir = path.join(root, `${i}-123`); fs.mkdirSync(dir);
       fs.writeFileSync(path.join(dir, 'finished.json'), '{}');
-      fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), '{"exitStatus":0}');
+      fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), '{"exitStatus":0,"endedAt":1}');
       fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
       fs.mkdirSync(path.join(dir, 'export.app')); fs.writeFileSync(path.join(dir, 'export.app/main'), 'bulk');
     }

@@ -149,3 +149,17 @@ require preserving outcomes and real notification ordering. The neighboring
 that same immutable-page policy changes no client behavior or assertion. A
 forced reload reproduces the observed execution-context error; the original
 intermittent navigation was not instrumented and its exact trigger is unconfirmed.
+
+
+Round 9 (2026-10-04), base 7e03a5cea9: LLP 3000.030 §15 governs bounded live
+ownership, ownerless repair and durable maintenance. Keep publication generation
+pins, atomic namespace recovery, no foreground retention wait, one pending
+observer and one active custodian, 30-second native work and unchanged WD drain.
+The operator's supplied reviews require crash-safe claimed requests, actual
+process liveness for failed Expo journals, and exclusive publication readiness.
+Audit launch/claim/acknowledgement, peer death, deferral, normal errors, retry caps,
+expiry/sleep, exit/request races, recovery and compression. Scope: retention,
+recovery, wrapper cleanup, internal dispatch, deterministic tests, dated §15 and
+guide, Round 9 report and append-only JOURNAL. No independent review or new native
+measurement is claimed. This mini only; no other worktree/process/device, no push.
+Hand-off: none.

@@ -31,7 +31,33 @@ pub(super) fn request(root: &Path) -> Result<()> {
         Err(e) => Err(error("E_WITNESS_ARTIFACT", e)),
     }
 }
-fn pending(root: &Path) -> bool { root.join("maintenance-request.json").exists() }
+fn runnable(root: &Path) -> bool { ["maintenance-request.json", "maintenance-claimed.json"].iter().any(|n| root.join(n).exists()) }
+fn pending(root: &Path) -> bool { runnable(root) || root.join("maintenance-parked.json").exists() }
+fn park(root: &Path) -> Result<()> {
+    fs::rename(root.join("maintenance-claimed.json"), root.join("maintenance-parked.json")).map_err(|e| error("E_WITNESS_ARTIFACT", e))
+}
+// Claim by rename, not deletion: a killed custodian cannot acknowledge work.
+// New requests have a separate name and cannot be erased by this scan's ack.
+fn claim(root: &Path) -> Result<()> {
+    let fresh = match fs::rename(root.join("maintenance-request.json"), root.join("maintenance-claimed.json")) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    };
+    let previous = recovery::read(&root.join("maintenance-claimed.json"));
+    if !fresh && previous.is_null() { return Err(error("E_WITNESS_ARTIFACT", "missing maintenance claim")); }
+    // A producer may still be writing its dirty-bit descriptor after rename.
+    // A fresh request is authorized by the name, never its partially read JSON.
+    let attempts = if fresh { 0 } else { previous["attempts"].as_u64().unwrap_or(0) };
+    // Persist the retry bound across either peer's death. A fresh publication
+    // supersedes the old claim and can authorize a new attempt.
+    if attempts >= 3 {
+        park(root)?;
+        return Err(error("E_WITNESS_ARTIFACT", "maintenance claim interrupted three times; request parked for a later export"));
+    }
+    recovery::write(&root.join("maintenance-claimed.json"), &json!({ "state": "claimed", "attempts": attempts + 1 }))?;
+    recovery::remove(&root.join("maintenance-parked.json"))
+}
 fn lock_file(root: &Path, name: &str) -> Result<File> {
     OpenOptions::new().create(true).read(true).write(true).truncate(false).open(root.join(name)).map_err(|e| error("E_WITNESS_ARTIFACT", e))
 }
@@ -45,11 +71,7 @@ fn ready(root: &Path) -> Result<bool> {
     if !try_lock(&initializing)? { return Ok(false); }
     drop(initializing);
     let publication = lock_file(root, "publication.lock")?;
-    match publication.try_lock_shared() {
-        Ok(()) => {},
-        Err(std::fs::TryLockError::WouldBlock) => return Ok(false),
-        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
-    }
+    if !try_lock(&publication)? { return Ok(false); }
     drop(publication);
     for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -70,17 +92,18 @@ fn ready_run(dir: &Path) -> Result<bool> {
         };
         if !try_lock(&file)? { return Ok(false); }
     }
-    Ok(!recovery::alive(&recovery::read(&dir.join("live.json"))["owner"]))
+    let journal = recovery::read(&dir.join("live.json"));
+    Ok(!recovery::alive(&journal["owner"]) && !recovery::alive(&journal["wrapper"]))
 }
 fn kick(root: &Path) -> Result<Value> { kick_until(root, now() + OBSERVER_BUDGET.as_millis()) }
 fn kick_until(root: &Path, expires: u128) -> Result<Value> {
-    if !pending(root) { return Ok(Value::Null); }
+    if !runnable(root) { return Ok(Value::Null); }
     if now() >= expires {
         return Err(error("E_WITNESS_ARTIFACT", "retention observation exceeded its 60-minute deadline; request parked for a later export"));
     }
     let queued = lock_file(root, "maintenance-next.lock")?;
     if !try_lock(&queued)? { return Ok(recovery::read(&root.join("maintenance-next.json"))); }
-    if !pending(root) { return Ok(Value::Null); }
+    if !runnable(root) { return Ok(Value::Null); }
     let log = OpenOptions::new().create(true).append(true).open(root.join("maintenance.log")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     #[cfg(target_os = "macos")]
     let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(background::executable()); c };
@@ -143,12 +166,13 @@ pub(super) fn maintain(args: &[String]) -> i32 {
         let mut start = [0];
         std::io::stdin().read_exact(&mut start).map_err(|e| error("E_WITNESS_PROCESS", e))?;
         if start != [b's'] { return Err(error("E_WITNESS_PROCESS", "missing maintenance launch gate")); }
+        let mut failed_starts = 0;
         loop {
             observation_guard(started, expires, awake)?;
-            if !pending(&root) {
+            if !runnable(&root) {
                 drop(queued);
-                // Close the ordinary exit/request race without holding a lock
-                // across process exit. A contender either owns next or sees us.
+                // Close the ordinary exit/request race. A contender either
+                // owns next or sees us; recheck after releasing our lease.
                 kick_until(&root, expires)?;
                 return Ok(());
             }
@@ -158,19 +182,94 @@ pub(super) fn maintain(args: &[String]) -> i32 {
             if !try_lock(&available)? { drop(active); sleep(Duration::from_millis(100)); continue; }
             if !ready(&root)? { drop(available); drop(active); sleep(Duration::from_millis(100)); continue; }
             drop(available);
-            recovery::remove(&root.join("maintenance-request.json"))?;
-            let count = recovery::read(&root.join("maintenance-active.json"))["attempt"].as_u64().unwrap_or(0).saturating_add(1);
-            recovery::write(&root.join("maintenance-active.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "attempt": count }))?;
-            drop(queued);
-            // No native work group waits for the retention lock. The probe can
-            // race a proof's maintenance, so a refused claim just requeues.
-            let result = attempt(&root, None, || Ok(()));
-            let busy = result.as_ref().err().is_some_and(|e| e.contains("retention lock busy"));
-            recovery::write(&root.join("maintenance-result.json"), &json!({ "finishedAt": now(), "error": result.as_ref().err(), "pending": pending(&root) }))?;
+            let mut command = Command::new(background::executable());
+            command.args(["witness", "export-maintain-scan"]).arg(&root).arg(expires.to_string());
+            // Keep the pending lease here. The separate scan custodian owns
+            // native work; either peer survives the other's unexpected death.
+            let mut child = background::spawn_owned(command, &active, None, false)?;
             drop(active);
-            if result.is_ok() || busy { kick_until(&root, expires)?; }
-            return result;
+            let scan_started = Instant::now();
+            let mut cancellation = None;
+            let mut forced = false;
+            loop {
+                if let Some(status) = child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))? {
+                    failed_starts = if status.success() { 0 } else { failed_starts + 1 };
+                    break;
+                }
+                if cancellation.is_none() {
+                    cancellation = observation_guard(started, expires, awake).err();
+                    if cancellation.is_some() { unsafe { libc::kill(child.id() as i32, libc::SIGTERM); } }
+                }
+                // 30 s work + existing 60 s maximum group drain + launch slack.
+                // This is our unreaped direct child, never a discovered PID.
+                if scan_started.elapsed() >= Duration::from_secs(105) {
+                    return Err(error("E_WITNESS_PROCESS", "maintenance custodian did not exit after bounded cancellation; claim preserved"));
+                }
+                if !forced && scan_started.elapsed() >= Duration::from_secs(100) {
+                    child.kill().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+                    forced = true;
+                }
+                sleep(Duration::from_millis(100));
+            }
+            if let Some(e) = cancellation {
+                drop(queued);
+                if !e.contains("host slept") { let _ = kick_until(&root, expires); }
+                return Err(e);
+            }
+            if failed_starts >= 3 {
+                if root.join("maintenance-claimed.json").exists() { park(&root)?; }
+                return Err(error("E_WITNESS_ARTIFACT", "maintenance custodian failed three times; request parked for a later export"));
+            }
+            // Even a lock acquired after readiness cannot create a hot loop.
+            sleep(Duration::from_millis(100));
         }
+    })();
+    match result { Ok(()) => 0, Err(e) => { eprintln!("witness: evidence cleanup deferred: {e}"); 1 } }
+}
+
+// Internal scan custodian. Its parent owns the pending lease. If the parent
+// dies, this bounded scan finishes and resumes observation; if this process
+// dies, the parent resumes its still-durable claim after native custody drains.
+pub(super) fn scan(args: &[String]) -> i32 {
+    background::signals();
+    let result = (|| -> Result<()> {
+        if args.len() != 2 { return Err(error("E_WITNESS_INPUT", "maintenance scan requires its leased claim and deadline")); }
+        let root = fs::canonicalize(&args[0]).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let expires = args[1].parse::<u128>().map_err(|e| error("E_WITNESS_INPUT", e))?;
+        if root != fs::canonicalize(".").map_err(|e| error("E_WITNESS_ARTIFACT", e))?.join("artifacts/native-smoke") {
+            return Err(error("E_WITNESS_INPUT", "maintenance is not this project's queue"));
+        }
+        let active = background::inherited(3)?;
+        let held = active.metadata().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let named = fs::metadata(root.join("maintenance.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        if held.dev() != named.dev() || held.ino() != named.ino() || !try_lock(&active)? {
+            return Err(error("E_WITNESS_PROCESS", "maintenance scan does not own its claim lease"));
+        }
+        // Claim only AFTER both peers exist; death in the launch gap leaves
+        // the observer able to retry, never a claimed request without a peer.
+        claim(&root)?;
+        let count = recovery::read(&root.join("maintenance-active.json"))["attempt"].as_u64().unwrap_or(0).saturating_add(1);
+        recovery::write(&root.join("maintenance-active.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "attempt": count }))?;
+        let observer = recovery::read(&root.join("maintenance-next.json"))["process"].clone();
+        let result = run_with_budget(&root, None, || {
+            if !recovery::alive(&observer) { return Err(error("E_WITNESS_INTERRUPTED", "maintenance observer exited; resuming claim after drain")); }
+            if now() >= expires { Err(error("E_WITNESS_ARTIFACT", "retention observation deadline expired")) } else { Ok(()) }
+        }, BUDGET);
+        let busy = result.as_ref().err().is_some_and(|e| e.contains("retention lock busy"));
+        if result.is_ok() { recovery::remove(&root.join("maintenance-claimed.json"))?; }
+        else if busy { request(&root)?; recovery::remove(&root.join("maintenance-claimed.json"))?; }
+        else if recovery::alive(&observer) && !INTERRUPTED.load(Ordering::Relaxed) { park(&root)?; }
+        recovery::write(&root.join("maintenance-result.json"), &json!({ "finishedAt": now(), "error": result.as_ref().err(), "pending": pending(&root) }))?;
+        drop(active);
+        // Usually the observer is still alive. If it died, we take its free
+        // queue lease and restore the one observer, with the original deadline.
+        if let Err(e) = kick_until(&root, expires) { eprintln!("witness: evidence cleanup deferred: {e}"); }
+        // This internal custodian has handled the outcome durably. Busy work
+        // remains pending and ordinary failures are parked/logged; neither is
+        // a failed process start. Only unhandled/startup errors (or signals)
+        // consume the observer's failed-start budget.
+        if let Err(e) = result { eprintln!("witness: evidence cleanup deferred: {e}"); }
+        Ok(())
     })();
     match result { Ok(()) => 0, Err(e) => { eprintln!("witness: evidence cleanup deferred: {e}"); 1 } }
 }
@@ -238,6 +337,29 @@ pub(super) fn worker(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn claim_ack_never_erases_a_new_request_and_crash_retries_are_bounded() {
+        let root = std::env::temp_dir().join(format!("sb4-retention-claim-{}-{}", std::process::id(), now()));
+        fs::create_dir_all(&root).unwrap();
+        // create_new can become visible before the producer writes its JSON.
+        let mut producer = File::create(root.join("maintenance-request.json")).unwrap();
+        claim(&root).unwrap();
+        producer.write_all(b"{\"state\":\"pending\"}").unwrap();
+        assert_eq!(recovery::read(&root.join("maintenance-claimed.json"))["attempts"], 1);
+        request(&root).unwrap(); // newer export arrives before acknowledgement
+        recovery::remove(&root.join("maintenance-claimed.json")).unwrap();
+        assert!(runnable(&root));
+        for attempt in 1..=3 { claim(&root).unwrap(); assert_eq!(recovery::read(&root.join("maintenance-claimed.json"))["attempts"], attempt); }
+        assert!(claim(&root).unwrap_err().contains("interrupted three times"));
+        assert!(pending(&root)); assert!(!runnable(&root));
+        request(&root).unwrap(); claim(&root).unwrap();
+        assert_eq!(recovery::read(&root.join("maintenance-claimed.json"))["attempts"], 1);
+        assert!(!root.join("maintenance-parked.json").exists());
+        recovery::remove(&root.join("maintenance-claimed.json")).unwrap();
+        assert!(!pending(&root));
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn observer_covers_a_discovery_removed_by_its_failed_initializer() {
         let root = std::env::temp_dir().join(format!("sb4-retention-discovery-{}-{}", std::process::id(), now()));
