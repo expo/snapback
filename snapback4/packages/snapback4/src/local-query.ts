@@ -29,7 +29,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = ValueDeadlines & { heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = ValueDeadlines & { publicationCurrent?: () => boolean; heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { watermark?: number; decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -37,6 +37,9 @@ class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
   current?(): boolean;
+  /** Captured hard evidence fence; only the whole-server route may use it. */
+  serverCurrent?(cut: number): boolean;
+  inputsCurrent?(tables: ReadonlySet<string>): boolean;
   revalidate?: boolean;
   serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
   coldRead?: ColdReadControl | undefined;
@@ -102,23 +105,32 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
+  let serverCut: number | undefined;
+  const serverCurrent = env.serverCurrent;
+  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut) === true;
+  const inputsCurrent = env.inputsCurrent;
+  // Keep static and observed authorization dependencies, including branches
+  // not taken. This proof never uses the server cut to validate local rows.
+  const unchanged = () => !searchAttempt && !ephemeral && possible !== null && inputsCurrent?.(tables) === true;
+  const publicationCurrent = () => covered() || unchanged();
+  let publishingCurrent: (() => boolean) | undefined;
   // The wire omits false provenance, including replies from older devices.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
     && latest.outcome.speculative === true;
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
   const fallback = (): Result<R> => placeholder() ? loading : latest?.result ?? loading;
-  const localCandidate = (): Candidate<R> => ({
+  const localCandidate = (): Candidate<R> => { serverCut = undefined; return {
     // Rule 4 can withhold a value without removing its next expiry wakeup.
     result: { ...fallback(), nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
-  });
+  }; };
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
     const denied = env.unavailable() ?? env.partitionDenied;
     if (denied) throw new Interrupted<R>({ ...loading, read: { denied } });
     checkRead(env.signal);
-    if (env.current && !env.current()) throw new Interrupted<R>(loading);
-    if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
+    if (revision !== env.incarnation) throw new Interrupted<R>(loading);
+    if ((env.current && !env.current() || authority !== env.authority) && !(publishingCurrent ?? publicationCurrent)()) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
   let pendingResult = false;
@@ -135,6 +147,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
+    serverCut = undefined; // Recovery cannot borrow a current server cut.
     if (ephemeral) return { result: { ...loading, transportOffline: env.link === "offline" && !held && !await pending() }, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
@@ -153,6 +166,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     return { origin: "remembered", result: { scopes: last?.scopes, transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null, valueDevice: null, valueServer: last ? valueDeadline(last.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null } };
   };
   const local = async (): Promise<{ outcome: Outcome; result: Result<R> }> => {
+    serverCut = undefined;
     checkpoint();
     const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: env.deviceNow() }); checkpoint();
     const outcome = (answer.ok ?? {}) as Outcome;
@@ -183,7 +197,15 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         checkpoint();
         const credentials = env.credentialRevision;
         const eph = ephemeral ? env.ephemeralReads.request() : undefined;
-        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
+        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph);
+        // @ref LLP 3000.023#10 — repeated evidence may already be covered by
+        // this reply. Never promote an old local component or retention route.
+        if (response.ok && !provenance && !ephemeral && !held && !searchAttempt && !mayRetain()
+          && !latest?.outcome.retained && !Object.values(latest?.outcome.components ?? {}).some(c => c.retained)
+          && !hasRetainedRows(latest?.outcome.retainedRows)) {
+          serverCut = [response.json.seq, response.json.head].find(value => Number.isSafeInteger(value) && Number(value) >= 0) as number | undefined;
+        }
+        checkpoint();
         // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
         if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
@@ -364,6 +386,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const publish = async (initial: Candidate<R>): Promise<Result<R>> => {
     let candidate = initial;
+    // A device footprint proves only local inputs. Every external component
+    // also needs its own covering cut; recovery cannot renew an old cache ticket.
+    publishingCurrent = () => candidate.origin === "server" && covered() || unchanged()
+      && (candidate.origin === "local" || (candidate.origin === "server" || candidate.origin === "composed")
+        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true);
     for (let attempt = 0; ; attempt++) {
       checkpoint();
       // Rules 1/5: the same delivery fence applies after retry routing, including
@@ -455,7 +482,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const result = await publish(candidate); checkpoint();
     withDecorations(result.read, env.backend.schema.operations?.[op.name]?.search_decoration ? decorationPaths(program) : [],
       result.valueDevice, result.valueServer, env.deviceNow, env.serverNow);
-    return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };
+    return { ...result, ...((serverCurrent || inputsCurrent) && publishingCurrent ? { publicationCurrent: publishingCurrent } : {}), ...(searchAttempt ? { searchAttempt: true } : {}) };
   } catch (error) {
     if (error instanceof Interrupted) return { ...error.result as Result<R>, ...(searchAttempt ? { searchAttempt: true } : {}) };
     // An await that rejects still crosses a session/incarnation boundary.

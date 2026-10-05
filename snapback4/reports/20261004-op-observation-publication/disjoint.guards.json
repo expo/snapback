@@ -1,0 +1,1201 @@
+{
+  "samples": [
+    {
+      "run": 0,
+      "viewer": 0,
+      "commit": 1791154957349.2173,
+      "evaluated": 31.78271484375,
+      "published": 41.482666015625,
+      "render": 42.482666015625,
+      "guards": {
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 0,
+      "viewer": 1,
+      "commit": 1791154957349.2173,
+      "evaluated": 49.082763671875,
+      "published": 50.3828125,
+      "render": 51.48291015625,
+      "guards": {
+        "changed": 2,
+        "candidate": 4,
+        "cut-reject": 2,
+        "decoded": 1
+      }
+    },
+    {
+      "run": 1,
+      "viewer": 0,
+      "commit": 1791154958116.629,
+      "evaluated": 62.071044921875,
+      "published": 63.97119140625,
+      "render": 64.771240234375,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "candidate": 4
+      }
+    },
+    {
+      "run": 1,
+      "viewer": 1,
+      "commit": 1791154958116.629,
+      "evaluated": 63.5712890625,
+      "published": 68.87109375,
+      "render": 69.47119140625,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 2,
+      "viewer": 0,
+      "commit": 1791154958976.73,
+      "evaluated": 65.8701171875,
+      "published": 74.570068359375,
+      "render": 75.170166015625,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "candidate": 4
+      }
+    },
+    {
+      "run": 2,
+      "viewer": 1,
+      "commit": 1791154958976.73,
+      "evaluated": 64.47021484375,
+      "published": 69.47021484375,
+      "render": 69.97021484375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 3,
+      "viewer": 0,
+      "commit": 1791154959833.2905,
+      "evaluated": 22.509521484375,
+      "published": 23.8095703125,
+      "render": 24.3095703125,
+      "guards": {
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 3,
+      "viewer": 1,
+      "commit": 1791154959833.2905,
+      "evaluated": 29.40966796875,
+      "published": 32.8095703125,
+      "render": 33.40966796875,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 2
+      }
+    },
+    {
+      "run": 4,
+      "viewer": 0,
+      "commit": 1791154960593.3435,
+      "evaluated": 47.656494140625,
+      "published": 48.156494140625,
+      "render": 48.756591796875,
+      "guards": {
+        "changed": 2,
+        "decoded": 3,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 4,
+      "viewer": 1,
+      "commit": 1791154960593.3435,
+      "evaluated": 47.756591796875,
+      "published": 54.056640625,
+      "render": 54.656494140625,
+      "guards": {
+        "decoded": 5,
+        "candidate": 5,
+        "changed": 2
+      }
+    },
+    {
+      "run": 5,
+      "viewer": 0,
+      "commit": 1791154961549.5137,
+      "evaluated": 67.886474609375,
+      "published": 70.186279296875,
+      "render": 70.786376953125,
+      "guards": {
+        "changed": 3,
+        "decoded": 5,
+        "candidate": 5
+      }
+    },
+    {
+      "run": 5,
+      "viewer": 1,
+      "commit": 1791154961549.5137,
+      "evaluated": 69.08642578125,
+      "published": 76.786376953125,
+      "render": 77.386474609375,
+      "guards": {
+        "changed": 3,
+        "checkpoint-uncovered": 1,
+        "rerun-reject": 1,
+        "decoded": 5,
+        "candidate": 5
+      }
+    },
+    {
+      "run": 6,
+      "viewer": 0,
+      "commit": 1791154962401.7153,
+      "evaluated": 56.984619140625,
+      "published": 60.684814453125,
+      "render": 61.28466796875,
+      "guards": {
+        "changed": 3,
+        "decoded": 5,
+        "candidate": 5
+      }
+    },
+    {
+      "run": 6,
+      "viewer": 1,
+      "commit": 1791154962401.7153,
+      "evaluated": 54.48486328125,
+      "published": 61.684814453125,
+      "render": 62.184814453125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 7,
+      "viewer": 0,
+      "commit": 1791154963191.5742,
+      "evaluated": 107.52587890625,
+      "published": 108.725830078125,
+      "render": 109.42578125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 7,
+      "viewer": 1,
+      "commit": 1791154963191.5742,
+      "evaluated": 105.42578125,
+      "published": 112.1259765625,
+      "render": 112.725830078125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 8,
+      "viewer": 0,
+      "commit": 1791154964073.9214,
+      "evaluated": 32.478759765625,
+      "published": 50.1787109375,
+      "render": 50.6787109375,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 8,
+      "viewer": 1,
+      "commit": 1791154964073.9214,
+      "evaluated": 33.07861328125,
+      "published": 47.27880859375,
+      "render": 47.77880859375,
+      "guards": {
+        "candidate": 4,
+        "changed": 2,
+        "decoded": 3
+      }
+    },
+    {
+      "run": 9,
+      "viewer": 0,
+      "commit": 1791154964897.7705,
+      "evaluated": 23.429443359375,
+      "published": 31.929443359375,
+      "render": 32.529541015625,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 9,
+      "viewer": 1,
+      "commit": 1791154964897.7705,
+      "evaluated": 22.9296875,
+      "published": 30.029541015625,
+      "render": 30.629638671875,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 10,
+      "viewer": 0,
+      "commit": 1791154965672.0078,
+      "evaluated": 26.792236328125,
+      "published": 27.292236328125,
+      "render": 27.892333984375,
+      "guards": {
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 10,
+      "viewer": 1,
+      "commit": 1791154965672.0078,
+      "evaluated": 12.1923828125,
+      "published": 24.9921875,
+      "render": 25.59228515625,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 11,
+      "viewer": 0,
+      "commit": 1791154966445.4148,
+      "evaluated": 57.085205078125,
+      "published": 61.88525390625,
+      "render": 62.4853515625,
+      "guards": {
+        "decoded": 3,
+        "changed": 2,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 11,
+      "viewer": 1,
+      "commit": 1791154966445.4148,
+      "evaluated": 58.38525390625,
+      "published": 66.285400390625,
+      "render": 66.9853515625,
+      "guards": {
+        "decoded": 7,
+        "candidate": 6,
+        "changed": 3,
+        "checkpoint-uncovered": 1,
+        "rerun-reject": 1
+      }
+    },
+    {
+      "run": 12,
+      "viewer": 0,
+      "commit": 1791154967288.981,
+      "evaluated": 32.718994140625,
+      "published": 35.119140625,
+      "render": 35.619140625,
+      "guards": {
+        "decoded": 2,
+        "candidate": 2,
+        "changed": 1
+      }
+    },
+    {
+      "run": 12,
+      "viewer": 1,
+      "commit": 1791154967288.981,
+      "evaluated": 37.919189453125,
+      "published": 41.119140625,
+      "render": 41.919189453125,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 2
+      }
+    },
+    {
+      "run": 13,
+      "viewer": 0,
+      "commit": 1791154968045.8877,
+      "evaluated": 48.312255859375,
+      "published": 49.6123046875,
+      "render": 50.21240234375,
+      "guards": {
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 13,
+      "viewer": 1,
+      "commit": 1791154968045.8877,
+      "evaluated": 36.512451171875,
+      "published": 48.6123046875,
+      "render": 49.1123046875,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 2
+      }
+    },
+    {
+      "run": 14,
+      "viewer": 0,
+      "commit": 1791154968850.632,
+      "evaluated": 43.06787109375,
+      "published": 44.76806640625,
+      "render": 45.367919921875,
+      "guards": {
+        "changed": 2,
+        "decoded": 3,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 14,
+      "viewer": 1,
+      "commit": 1791154968850.632,
+      "evaluated": 27.367919921875,
+      "published": 36.367919921875,
+      "render": 37.068115234375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 15,
+      "viewer": 0,
+      "commit": 1791154969696.0312,
+      "evaluated": 26.56884765625,
+      "published": 28.868896484375,
+      "render": 29.46875,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 15,
+      "viewer": 1,
+      "commit": 1791154969696.0312,
+      "evaluated": 26.06884765625,
+      "published": 34.268798828125,
+      "render": 34.96875,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 16,
+      "viewer": 0,
+      "commit": 1791154970594.614,
+      "evaluated": 57.18603515625,
+      "published": 59.885986328125,
+      "render": 60.486083984375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 2
+      }
+    },
+    {
+      "run": 16,
+      "viewer": 1,
+      "commit": 1791154970594.614,
+      "evaluated": 56.486083984375,
+      "published": 64.7861328125,
+      "render": 65.486083984375,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 17,
+      "viewer": 0,
+      "commit": 1791154971545.3047,
+      "evaluated": 60.79541015625,
+      "published": 61.595458984375,
+      "render": 62.095458984375,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 1
+      }
+    },
+    {
+      "run": 17,
+      "viewer": 1,
+      "commit": 1791154971545.3047,
+      "evaluated": 61.3955078125,
+      "published": 68.29541015625,
+      "render": 68.8955078125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "candidate": 4
+      }
+    },
+    {
+      "run": 18,
+      "viewer": 0,
+      "commit": 1791154972448.2996,
+      "evaluated": 35.900390625,
+      "published": 36.50048828125,
+      "render": 37.200439453125,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 18,
+      "viewer": 1,
+      "commit": 1791154972448.2996,
+      "evaluated": 29.800537109375,
+      "published": 37.200439453125,
+      "render": 37.900634765625,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 19,
+      "viewer": 0,
+      "commit": 1791154973289.946,
+      "evaluated": 61.9541015625,
+      "published": 64.9541015625,
+      "render": 65.654052734375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 2
+      }
+    },
+    {
+      "run": 19,
+      "viewer": 1,
+      "commit": 1791154973289.946,
+      "evaluated": 61.553955078125,
+      "published": 67.754150390625,
+      "render": 68.553955078125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 20,
+      "viewer": 0,
+      "commit": 1791154974206.67,
+      "evaluated": 43.030029296875,
+      "published": 45.130126953125,
+      "render": 45.830078125,
+      "guards": {
+        "changed": 2,
+        "decoded": 3,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 20,
+      "viewer": 1,
+      "commit": 1791154974206.67,
+      "evaluated": 28.730224609375,
+      "published": 34.730224609375,
+      "render": 35.130126953125,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 21,
+      "viewer": 0,
+      "commit": 1791154975048.9648,
+      "evaluated": 40.735107421875,
+      "published": 41.435302734375,
+      "render": 41.935302734375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 2,
+        "changed": 1,
+        "checkpoint-uncovered": 1,
+        "rerun-reject": 1
+      }
+    },
+    {
+      "run": 21,
+      "viewer": 1,
+      "commit": 1791154975048.9648,
+      "evaluated": 33.435302734375,
+      "published": 38.835205078125,
+      "render": 39.13525390625,
+      "guards": {
+        "changed": 2,
+        "candidate": 4,
+        "decoded": 3
+      }
+    },
+    {
+      "run": 22,
+      "viewer": 0,
+      "commit": 1791154975808.2327,
+      "evaluated": 82.267333984375,
+      "published": 83.267333984375,
+      "render": 84.0673828125,
+      "guards": {
+        "decoded": 4,
+        "changed": 2,
+        "candidate": 4
+      }
+    },
+    {
+      "run": 22,
+      "viewer": 1,
+      "commit": 1791154975808.2327,
+      "evaluated": 82.16748046875,
+      "published": 90.16748046875,
+      "render": 90.967529296875,
+      "guards": {
+        "decoded": 5,
+        "candidate": 5,
+        "changed": 2
+      }
+    },
+    {
+      "run": 23,
+      "viewer": 0,
+      "commit": 1791154976841.768,
+      "evaluated": 67.632080078125,
+      "published": 69.132080078125,
+      "render": 69.83203125,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "candidate": 5
+      }
+    },
+    {
+      "run": 23,
+      "viewer": 1,
+      "commit": 1791154976841.768,
+      "evaluated": 57.73193359375,
+      "published": 65.23193359375,
+      "render": 65.83203125,
+      "guards": {
+        "candidate": 6,
+        "changed": 3,
+        "checkpoint-uncovered": 1,
+        "rerun-reject": 1,
+        "decoded": 5
+      }
+    },
+    {
+      "run": 24,
+      "viewer": 0,
+      "commit": 1791154977813.2373,
+      "evaluated": 90.162841796875,
+      "published": 93.7626953125,
+      "render": 94.562744140625,
+      "guards": {
+        "changed": 3,
+        "decoded": 5,
+        "candidate": 5
+      }
+    },
+    {
+      "run": 24,
+      "viewer": 1,
+      "commit": 1791154977813.2373,
+      "evaluated": 90.062744140625,
+      "published": 96.062744140625,
+      "render": 96.662841796875,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    {
+      "run": 25,
+      "viewer": 0,
+      "commit": 1791154978841.482,
+      "evaluated": 21.318115234375,
+      "published": 22.318115234375,
+      "render": 23.01806640625,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 25,
+      "viewer": 1,
+      "commit": 1791154978841.482,
+      "evaluated": 19.918212890625,
+      "published": 26.1181640625,
+      "render": 26.818115234375,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 26,
+      "viewer": 0,
+      "commit": 1791154979811.653,
+      "evaluated": 34.447021484375,
+      "published": 38.2470703125,
+      "render": 38.846923828125,
+      "guards": {
+        "changed": 1,
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 26,
+      "viewer": 1,
+      "commit": 1791154979811.653,
+      "evaluated": 33.64697265625,
+      "published": 40.547119140625,
+      "render": 41.14697265625,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "candidate": 4
+      }
+    },
+    {
+      "run": 27,
+      "viewer": 0,
+      "commit": 1791154980695.3103,
+      "evaluated": 33.48974609375,
+      "published": 36.289794921875,
+      "render": 36.98974609375,
+      "guards": {
+        "changed": 1,
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 27,
+      "viewer": 1,
+      "commit": 1791154980695.3103,
+      "evaluated": 31.08984375,
+      "published": 35.689697265625,
+      "render": 36.289794921875,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 2
+      }
+    },
+    {
+      "run": 28,
+      "viewer": 0,
+      "commit": 1791154981509.2664,
+      "evaluated": 20.43359375,
+      "published": 22.733642578125,
+      "render": 23.333740234375,
+      "guards": {
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 28,
+      "viewer": 1,
+      "commit": 1791154981509.2664,
+      "evaluated": 20.6337890625,
+      "published": 26.833740234375,
+      "render": 27.53369140625,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 29,
+      "viewer": 0,
+      "commit": 1791154982309.3213,
+      "evaluated": 27.27880859375,
+      "published": 28.578857421875,
+      "render": 29.27880859375,
+      "guards": {
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 29,
+      "viewer": 1,
+      "commit": 1791154982309.3213,
+      "evaluated": 30.87890625,
+      "published": 34.37890625,
+      "render": 34.6787109375,
+      "guards": {
+        "decoded": 4,
+        "candidate": 4,
+        "changed": 2
+      }
+    }
+  ],
+  "worst": {
+    "sample": {
+      "run": 7,
+      "viewer": 1,
+      "commit": 1791154963191.5742,
+      "evaluated": 105.42578125,
+      "published": 112.1259765625,
+      "render": 112.725830078125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "candidate": 6
+      }
+    },
+    "events": [
+      {
+        "stage": "response",
+        "at": 4.026,
+        "id": 19166,
+        "path": "/changes",
+        "request": null,
+        "seq": 2804,
+        "tables": [
+          "$ownKeys:reposts",
+          "followingFeed",
+          "followingPosts",
+          "followingWork",
+          "reposts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 5.726,
+        "event": "notified",
+        "before": 845,
+        "after": 846,
+        "cut": 2804
+      },
+      {
+        "stage": "op",
+        "at": 5.726,
+        "event": "changed",
+        "before": 846,
+        "after": 847,
+        "name": "home",
+        "cut": 2804
+      },
+      {
+        "stage": "response",
+        "at": 6.426,
+        "id": 19183,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2804,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 8.426,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2804,
+        "authority": 845,
+        "current": 847
+      },
+      {
+        "stage": "op",
+        "at": 8.926,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2804,
+        "authority": 845,
+        "current": 847
+      },
+      {
+        "stage": "response",
+        "at": 11.926,
+        "id": 19204,
+        "path": "/sync",
+        "request": null,
+        "watermark": 2804
+      },
+      {
+        "stage": "response",
+        "at": 13.526,
+        "id": 19225,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2804,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 15.126,
+        "event": "clear",
+        "before": 847,
+        "after": 848,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 15.126,
+        "event": "withdrawScopes",
+        "before": 848,
+        "after": 848
+      },
+      {
+        "stage": "op",
+        "at": 16.026,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2804,
+        "authority": 847,
+        "current": 848
+      },
+      {
+        "stage": "op",
+        "at": 16.126,
+        "event": "applied",
+        "before": 848,
+        "after": 849,
+        "cut": 2804
+      },
+      {
+        "stage": "op",
+        "at": 16.226,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2804,
+        "authority": 847,
+        "current": 849
+      },
+      {
+        "stage": "response",
+        "at": 23.526,
+        "id": 19274,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2804,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 24.126,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2804,
+        "authority": 849,
+        "current": 849
+      },
+      {
+        "stage": "op",
+        "at": 24.126,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2804,
+        "authority": 849,
+        "current": 849
+      },
+      {
+        "stage": "response",
+        "at": 25.426,
+        "id": 19257,
+        "path": "/changes",
+        "request": null,
+        "seq": 2805,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 25.926,
+        "event": "notified",
+        "before": 849,
+        "after": 850,
+        "cut": 2805
+      },
+      {
+        "stage": "op",
+        "at": 25.926,
+        "event": "changed",
+        "before": 850,
+        "after": 851,
+        "name": "home",
+        "cut": 2805
+      },
+      {
+        "stage": "response",
+        "at": 32.026,
+        "id": 19311,
+        "path": "/sync",
+        "request": null,
+        "watermark": 2806
+      },
+      {
+        "stage": "response",
+        "at": 32.826,
+        "id": 19314,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2806,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 33.726,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2806,
+        "authority": 851,
+        "current": 851
+      },
+      {
+        "stage": "op",
+        "at": 35.426,
+        "event": "clear",
+        "before": 851,
+        "after": 852,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 35.426,
+        "event": "withdrawScopes",
+        "before": 852,
+        "after": 852
+      },
+      {
+        "stage": "op",
+        "at": 36.526,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2806,
+        "authority": 851,
+        "current": 852
+      },
+      {
+        "stage": "op",
+        "at": 36.526,
+        "event": "applied",
+        "before": 852,
+        "after": 853,
+        "cut": 2806
+      },
+      {
+        "stage": "response",
+        "at": 43.026,
+        "id": 19365,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2806,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 60.926,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2806,
+        "authority": 853,
+        "current": 853
+      },
+      {
+        "stage": "op",
+        "at": 61.026,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2806,
+        "authority": 853,
+        "current": 853
+      },
+      {
+        "stage": "response",
+        "at": 96.226,
+        "id": 19351,
+        "path": "/changes",
+        "request": null,
+        "seq": 2807,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 97.026,
+        "event": "notified",
+        "before": 853,
+        "after": 854,
+        "cut": 2807
+      },
+      {
+        "stage": "op",
+        "at": 97.026,
+        "event": "changed",
+        "before": 854,
+        "after": 855,
+        "name": "home",
+        "cut": 2807
+      },
+      {
+        "stage": "server-evaluated",
+        "at": 105.426,
+        "name": "home"
+      },
+      {
+        "stage": "response",
+        "at": 105.426,
+        "id": 19406,
+        "path": "/q/home",
+        "request": null,
+        "seq": 2808,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 105.926,
+        "id": 19403,
+        "path": "/sync",
+        "request": null,
+        "watermark": 2808
+      },
+      {
+        "stage": "op",
+        "at": 106.126,
+        "event": "decoded",
+        "name": "home",
+        "seq": 2808,
+        "authority": 855,
+        "current": 855
+      },
+      {
+        "stage": "op",
+        "at": 106.826,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 2808,
+        "authority": 855,
+        "current": 855
+      },
+      {
+        "stage": "op",
+        "at": 110.826,
+        "event": "clear",
+        "before": 855,
+        "after": 856,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 110.826,
+        "event": "withdrawScopes",
+        "before": 856,
+        "after": 856
+      },
+      {
+        "stage": "op",
+        "at": 112.026,
+        "event": "applied",
+        "before": 856,
+        "after": 857,
+        "cut": 2808
+      },
+      {
+        "stage": "published",
+        "at": 112.126,
+        "name": "home"
+      }
+    ]
+  }
+}
