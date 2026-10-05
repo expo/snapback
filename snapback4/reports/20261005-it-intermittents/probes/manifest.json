@@ -1,0 +1,227 @@
+[
+  {
+    "name": "worker-delay",
+    "base": "server-e2e",
+    "exit_code": 1,
+    "source_sha256": "26c08c9ec13d9ad8e1acb4c1d9b85f6e58e35db38da5bfb3f810add798d957e9",
+    "log_sha256": "dcfe3cf56b4731b2ced60e30dc027db08c75aea48319baf561b3e5a681defc99"
+  },
+  {
+    "name": "worker-fixed-delay",
+    "base": "server-e2e",
+    "exit_code": 0,
+    "source_sha256": "70bf636b398c9add2c7d7e7c17626c407242f0f13585b9529d2dea59b521826c",
+    "log_sha256": "f0bf14ac71a79f60ae7f9196a626ba82d70bf61f21b971e346021195fdc2da2e"
+  },
+  {
+    "name": "ephemeral-delay",
+    "base": "ephemeral-e2e",
+    "exit_code": 1,
+    "source_sha256": "0bb8182eb6d97d2ddac2353e8505d4956e9b82b6eb47e47ce09a3126780da981",
+    "log_sha256": "b3969ea1de4ea80a8dca15d98b194da0f32e8bd8417d01d4bfbfc2b254bce9fb"
+  },
+  {
+    "name": "ephemeral-fixed-delay",
+    "base": "ephemeral-e2e",
+    "exit_code": 0,
+    "source_sha256": "78bb9f463b58da02fceab3d3d8ea5a7e879caa59d9551eb53bee4d16c0798882",
+    "log_sha256": "7c0ee043ce1b00a197016743fc9396ec1bb570285fc2e7d82e402bc65c7f353a"
+  },
+  {
+    "name": "ephemeral-lingering",
+    "base": "ephemeral-e2e",
+    "exit_code": 1,
+    "source_sha256": "29ecedc213cb23c3c3cfc0b42a15e98c2997f4839149500fb1e2157844541574",
+    "log_sha256": "bb0d64e5fb0828aa44537ea42046a052ac92e898959d1d24d10566d9756636f6"
+  },
+  {
+    "name": "provenance-timeout",
+    "base": "read-through-provenance",
+    "exit_code": 1,
+    "source_sha256": "12c5a37c53ddec4f7b6d9048af1f7cd6707add80e9e2824a8119276805b854bf",
+    "log_sha256": "5acbad6b494a092eb2e809adc9723d4cd4e3303bb64f0d456e0f602052b99fd8"
+  },
+  {
+    "name": "overflow-timeout",
+    "base": "sync-overflow",
+    "exit_code": 1,
+    "source_sha256": "9d7719c69500d043f09f2c5afc325dcb8c83569cb203da9e6631995f7d01d5b8",
+    "log_sha256": "0b8c2523f054ce2bc6374c3a01472b63cdec430198bed79d25b018e7d29f4762"
+  },
+  {
+    "name": "existence-repeats",
+    "base": "read-existence-integration",
+    "exit_code": 0,
+    "source_sha256": "bae5f294856a45550be2d5df87aa0f62db0ecc3b0b1c6efb0d7e802a04e67696",
+    "log_sha256": "d759c4bd3dc3fe9ed67316b0c3109bcf89939105d51f7f671f65de6e33bc8882"
+  },
+  {
+    "name": "existence-delayed",
+    "base": "read-existence-integration",
+    "exit_code": 0,
+    "source_sha256": "053968da4f8312393931c29344bdc3c56adf3974a75fbe665f9f28c97b0ff4fc",
+    "log_sha256": "dfcaf12473c9b9a453e8d604a7cede5357b87faa6a82da8634b36f90dccc6dbf"
+  },
+  {
+    "name": "mq-old-feed",
+    "base": "retained-history",
+    "exit_code": 0,
+    "source_sha256": "e41269f9c02942dc138f09f6dd1fcce97f017e40264d5e4c0d0e2418f7ef53d7",
+    "log_sha256": "99a592f5b999204090414cdeb41b8cb0421c4bfb2681112ce3a45292a46529bf"
+  },
+  {
+    "name": "mq-current",
+    "base": "retained-history",
+    "exit_code": 0,
+    "source_sha256": "bed4de6e3003708e7eaaa6f334214eebd5b0aef49806074c3c6ac0a6e0ada9d4",
+    "log_sha256": "8a8b99488bf661b471baedd8c3fcb5e5bc694a4a8bba54eb7b4ff099f102a9ca"
+  },
+  {
+    "name": "existence-order",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 1,
+    "source_sha256": "d81696dfca330b35ea1f0b567271a1fa49319c5890795089ec47325b084a1b9d",
+    "log_sha256": "2424e2ee7430202819bc82f9dae4f72676851c814a29e995da805ed6f29648ef"
+  },
+  {
+    "name": "existence-trace",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "a8b8b4eed00c813b510f902b175048420166ed4c3e6c17b996115dd12553df73",
+    "log_sha256": "35112e296bdb305ae2ed739cfdbdd846418ed4d7a6919bfe16e5689dbc79ba22"
+  },
+  {
+    "name": "existence-answers",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "6b734a6c1b62b524af54d911f3284e93f666fc047c7c8a8e0ca8221eb7347cac",
+    "log_sha256": "3aae713db92d140218e7fc987c5674d45e9498b1c40f99f4585914f0ef03f906"
+  },
+  {
+    "name": "existence-snapshots",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "d3dcf00823180428fae935eb932d7fdb6723a388f3d89bface12b17fa64de63f",
+    "log_sha256": "6d600ae5ae27df78eb9cd3189cd724aa16b2e41ce6a884b915480aca32892d3e"
+  },
+  {
+    "name": "existence-fullreads",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "bd831574c1110ca9e0b469f9f61930b0b0ba8b591e237ab2265455ad5007bc44",
+    "log_sha256": "ea83256915dacd6d123affc504b20da7d8a1452f2dc1741de2ecee11e8237cd5"
+  },
+  {
+    "name": "existence-stale-poll",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "996aa7266f3a10eaa8498de3a36ecf37190038799596640d8c06074c052021e1",
+    "log_sha256": "5589d99124837510b74b701cf5f57fd668d37776fa7514fed947764fb4156216"
+  },
+  {
+    "name": "existence-noop",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 1,
+    "source_sha256": "58f6e374d22f0418be0a8bae0639c5756cafb001d583ea3a40393ed0861b9618",
+    "log_sha256": "80249aa9c3fa0daa997484b65b403b33ff861dd40f5e4ad689efe7d57e9621f5"
+  },
+  {
+    "name": "existence-noop-guard",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 0,
+    "source_sha256": "f4ace756091c44fa18393d25fa8ae1c74d109bf131852b2d8c6f2979258ea8cb",
+    "log_sha256": "74417eea6d1cd87cdd9fe50af5ceb0a0592245f4257b28581df027c1c0eb3753"
+  },
+  {
+    "name": "existence-regression-before",
+    "base": "read-existence-integration",
+    "runtime": "baseline",
+    "exit_code": 1,
+    "source_sha256": "196df53e290d3584e99bb5cf5f2e724f6926850625482e26000abe1b80a4522a",
+    "log_sha256": "932fdf3b3e5525d03dce32e3dfea3b5b334428fa180c704e9406855db927ed12"
+  },
+  {
+    "name": "existence-order-fixed",
+    "base": "read-existence-integration",
+    "runtime": "candidate",
+    "exit_code": 0,
+    "source_sha256": "d81696dfca330b35ea1f0b567271a1fa49319c5890795089ec47325b084a1b9d",
+    "log_sha256": "d1872b34437528bac8d57af778305b0601b903c44e26f5481c05ce40df4266b2"
+  },
+  {
+    "name": "backlog",
+    "exit_code": 0,
+    "log_sha256": "1178bd597fed8dfe69c4196aa2b6c41a13996c8915693059b4a8df7eb7e28e97"
+  },
+  {
+    "name": "loop-stall",
+    "exit_code": 0,
+    "log_sha256": "012524da5cde98453c34e1005d90e9de53a64aa6ce7921146858fe7caa9a5bbb"
+  },
+  {
+    "name": "candidate-affected",
+    "exit_code": 0,
+    "log_sha256": "da9c98e87ff0b908b04b4b3cd71c39dddb91625b6e2d178a3d533da576d73b53"
+  },
+  {
+    "name": "pending-fault",
+    "exit_code": 0,
+    "log_sha256": "a267ca51cc8091a6263308b9b8feff27cbf909b1bfeea47d20bb660b5c5943a3"
+  },
+  {
+    "name": "final-jsbuild",
+    "exit_code": 0,
+    "log_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  {
+    "name": "final-typecheck",
+    "exit_code": 0,
+    "log_sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+  },
+  {
+    "name": "ref-check",
+    "exit_code": 0,
+    "log_sha256": "da2888876c135299ee93ddec0f7341555ba117ad3874a00a99be1df0cfbf5c4a"
+  },
+  {
+    "name": "test-build",
+    "exit_code": 0,
+    "log_sha256": "018b361070de3adeb1e85d4e06288d9ec52911ccae5d6fa613daa03d91400a20"
+  },
+  {
+    "name": "final-jsbuild-compact",
+    "exit_code": 0,
+    "log_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+  },
+  {
+    "name": "ref-check-final",
+    "exit_code": 0,
+    "log_sha256": "90266305d38ea6f4cf7d29e527679da506b083510e78b35b4a9fe46c8ac0df72"
+  },
+  {
+    "name": "worker-ddl-before",
+    "base": "worker-regressions",
+    "source_sha256": "80923d1c41ad8d57241232f4f8e289b2b605e475d3dcbd22cde8ba092ec49671",
+    "sourceRoot": "/tmp/sb4-it-baseline",
+    "selectedTrials": 1,
+    "exit_code": 1,
+    "log_sha256": "8ba59c4dfba7aeecfae40719568ea39463561926ae367546fb31210937c8c194"
+  },
+  {
+    "name": "worker-ddl-final",
+    "base": "worker-regressions",
+    "source_sha256": "c976e0dd9d95683405a45d277a1bf3ba53be59f3f70f8cae578d63469c025c00",
+    "sourceRoot": "/tmp/sb4-it-worker-final",
+    "selectedTrials": 60,
+    "exit_code": 0,
+    "log_sha256": "d0e2e2baf0cf3cfc6e508a42e368e22186af76692d823c1dfcd65a8d1fa91590"
+  }
+]

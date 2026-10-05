@@ -1,0 +1,6 @@
+{
+  "at": 1791190977.2887695,
+  "removed": "snapback4/target/debug/deps",
+  "reason": "Completed private Cargo test/build intermediates; retain the main executable and all stress snapshots. Other worktrees and files are untouched.",
+  "bytesAvailableAfter": 20004446208
+}

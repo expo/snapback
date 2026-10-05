@@ -1,0 +1,12 @@
+{
+  "phase": "candidate",
+  "verified": 180,
+  "passed": 180,
+  "failed": [],
+  "perFile": {
+    "packages/snapback4/test/server-e2e.test.mjs": 60,
+    "packages/snapback4/test/ephemeral-e2e.test.mjs": 60,
+    "packages/snapback4/test/read-existence-integration.test.mjs": 60
+  },
+  "archiveSha256": "a6f1ce425ea31d96d9e484e14ace68d8681c34d9fbd0aaa1a13a5d2df57633f2"
+}

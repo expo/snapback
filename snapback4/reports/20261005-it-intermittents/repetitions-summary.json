@@ -1,0 +1,284 @@
+{
+  "baseline": {
+    "completed": 1020,
+    "expected": 1020,
+    "files": {
+      "admit-before-identity.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 3540,
+          "pass": 3540
+        },
+        "seconds": 4341.281
+      },
+      "asset-lists.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 2520,
+          "pass": 2520
+        },
+        "seconds": 7387.342
+      },
+      "ephemeral-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 60,
+          "pass": 60
+        },
+        "seconds": 3574.405
+      },
+      "keep-app-model.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 1080,
+          "pass": 1080
+        },
+        "seconds": 21956.853
+      },
+      "ordinary-search-oracle.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 480,
+          "pass": 480
+        },
+        "seconds": 29049.429
+      },
+      "read-existence-integration.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 420,
+          "pass": 420
+        },
+        "seconds": 288.609
+      },
+      "read-through-provenance.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 960,
+          "pass": 960
+        },
+        "seconds": 316.992
+      },
+      "read-through-upsert.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 600,
+          "pass": 600
+        },
+        "seconds": 301.007
+      },
+      "read-through.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 1080,
+          "pass": 1080
+        },
+        "seconds": 321.587
+      },
+      "readauth.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 600,
+          "pass": 600
+        },
+        "seconds": 2475.043
+      },
+      "retained-history.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 4440,
+          "pass": 4440
+        },
+        "seconds": 4064.986
+      },
+      "server-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 540,
+          "pass": 540
+        },
+        "seconds": 3893.161
+      },
+      "social-starter.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 780,
+          "pass": 780
+        },
+        "seconds": 1232.149
+      },
+      "store-reset-reconnect.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 720,
+          "pass": 720
+        },
+        "seconds": 1257.868
+      },
+      "sync-overflow.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 1380,
+          "pass": 1380
+        },
+        "seconds": 16594.388
+      },
+      "witness-acquire.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 2580,
+          "pass": 2580
+        },
+        "seconds": 5614.007
+      },
+      "worker-regressions.test.mjs": {
+        "runs": 60,
+        "passed": 57,
+        "failed": [
+          "worker-regressions-59",
+          "worker-regressions-60",
+          "worker-regressions-44"
+        ],
+        "counts": {
+          "tests": 4620,
+          "pass": 4602,
+          "fail": 18
+        },
+        "seconds": 27153.719
+      }
+    }
+  },
+  "fixed": {
+    "completed": 120,
+    "expected": 120,
+    "files": {
+      "ephemeral-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 60,
+          "pass": 60
+        },
+        "seconds": 3565.837
+      },
+      "server-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 540,
+          "pass": 540
+        },
+        "seconds": 3829.886
+      }
+    }
+  },
+  "candidate": {
+    "completed": 180,
+    "expected": 180,
+    "files": {
+      "ephemeral-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 60,
+          "pass": 60
+        },
+        "seconds": 3533.317
+      },
+      "read-existence-integration.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 540,
+          "pass": 540
+        },
+        "seconds": 344.509
+      },
+      "server-e2e.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 540,
+          "pass": 540
+        },
+        "seconds": 4046.242
+      }
+    }
+  },
+  "worker-fixed": {
+    "completed": 60,
+    "expected": 60,
+    "files": {
+      "worker-regressions.test.mjs": {
+        "runs": 60,
+        "passed": 55,
+        "failed": [
+          "worker-regressions-57",
+          "worker-regressions-58",
+          "worker-regressions-03",
+          "worker-regressions-59",
+          "worker-regressions-60"
+        ],
+        "counts": {
+          "tests": 4620,
+          "pass": 4538,
+          "fail": 82
+        },
+        "seconds": 27252.897
+      }
+    }
+  },
+  "worker-final": {
+    "completed": 60,
+    "expected": 60,
+    "files": {
+      "worker-regressions.test.mjs": {
+        "runs": 60,
+        "passed": 60,
+        "failed": [],
+        "counts": {
+          "tests": 4620,
+          "pass": 4620
+        },
+        "seconds": 27147.804
+      }
+    }
+  }
+}

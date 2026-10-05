@@ -1,0 +1,14 @@
+[
+  {
+    "sourceCommit": "7f0ef58712",
+    "sourcePath": "snapback4/reports/20261003-nz-native-proof-zero-cost/round4/ephemeral-expiry-failure.json",
+    "file": "nz-ephemeral-expiry-failure.json",
+    "sha256": "07795a2d1fe973241037d018199dc5dcfbdcb07eeaefdf36e3ad80d2591b274d"
+  },
+  {
+    "sourceCommit": "7f0ef58712",
+    "sourcePath": "issues/20261004-snapback4-ephemeral-expiry-bound-intermittent.md",
+    "file": "nz-20261004-snapback4-ephemeral-expiry-bound-intermittent.md",
+    "sha256": "5147d16534bdf752c39b8eaa2c641944e0288d1528e4cb3d9844e4417018dd47"
+  }
+]

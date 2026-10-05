@@ -1,7 +1,7 @@
 // Each recipe selects a real host operation below the named awaited call.
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
-  ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154],
+  ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
   lookup: [1,87,88,89,90,91,100,101],
   media: [7,50,107,108,109,110,111,112,113,114,155],
   postcommit: [6],
@@ -29,6 +29,10 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  // IT: sync refreshes pending facts after apply, including a no-op page.
+  // Its read-only queue lookup is optional to already durable write custody.
+  if (index === 31) return 162;
+  if (index > 31) index -= 1;
   // RH round 1: the provisional search fallback reads on the shared ledger.
   if (index === 150) return 161;
   if (index > 150) index -= 1;

@@ -1,0 +1,30 @@
+[
+  {
+    "file": "worker-regressions",
+    "iteration": 8
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 16
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 24
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 32
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 40
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 48
+  },
+  {
+    "file": "worker-regressions",
+    "iteration": 56
+  }
+]

@@ -1,0 +1,118 @@
+[
+  {
+    "phase": "baseline",
+    "verified": 1020,
+    "passed": 1017,
+    "failed": [
+      "worker-regressions-59",
+      "worker-regressions-60",
+      "worker-regressions-44"
+    ],
+    "perFile": {
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs": 60,
+      "packages/snapback4/test/read-through.test.mjs": 60,
+      "packages/snapback4/test/sync-overflow.test.mjs": 60,
+      "packages/snapback4/test/store-reset-reconnect.test.mjs": 60,
+      "packages/snapback4/test/read-through-provenance.test.mjs": 60,
+      "packages/snapback4/test/worker-regressions.test.mjs": 60,
+      "packages/snapback4/test/witness-acquire.test.mjs": 60,
+      "packages/snapback4/test/read-existence-integration.test.mjs": 60,
+      "packages/snapback4/test/retained-history.test.mjs": 60,
+      "packages/snapback4/test/keep-app-model.test.mjs": 60,
+      "packages/snapback4/test/admit-before-identity.test.mjs": 60,
+      "packages/snapback4/test/ephemeral-e2e.test.mjs": 60,
+      "packages/snapback4/test/readauth.test.mjs": 60,
+      "packages/snapback4/test/social-starter.test.mjs": 60,
+      "packages/snapback4/test/server-e2e.test.mjs": 60,
+      "packages/snapback4/test/read-through-upsert.test.mjs": 60,
+      "packages/snapback4/test/asset-lists.test.mjs": 60
+    },
+    "archiveSha256": "e68d6aa6e92f8a5b5cb97e1f33c4c9842571d91eb85d64b80e587aa4e8d0367f"
+  },
+  {
+    "phase": "fixed",
+    "verified": 120,
+    "passed": 120,
+    "failed": [],
+    "perFile": {
+      "packages/snapback4/test/server-e2e.test.mjs": 60,
+      "packages/snapback4/test/ephemeral-e2e.test.mjs": 60
+    },
+    "archiveSha256": "e37864e2a88c9b0544db3fbe14e887bb96ac11f2f225b143a2de655e24bb919b"
+  },
+  {
+    "phase": "candidate",
+    "verified": 180,
+    "passed": 180,
+    "failed": [],
+    "perFile": {
+      "packages/snapback4/test/server-e2e.test.mjs": 60,
+      "packages/snapback4/test/ephemeral-e2e.test.mjs": 60,
+      "packages/snapback4/test/read-existence-integration.test.mjs": 60
+    },
+    "archiveSha256": "a6f1ce425ea31d96d9e484e14ace68d8681c34d9fbd0aaa1a13a5d2df57633f2"
+  },
+  {
+    "phase": "burst",
+    "verified": 26,
+    "passed": 26,
+    "failed": [],
+    "perFile": {
+      "packages/snapback4/test/read-through.test.mjs": 2,
+      "packages/snapback4/test/read-through-provenance.test.mjs": 2,
+      "packages/snapback4/test/read-through-upsert.test.mjs": 2,
+      "packages/snapback4/test/store-reset-reconnect.test.mjs": 2,
+      "packages/snapback4/test/social-starter.test.mjs": 2,
+      "packages/snapback4/test/readauth.test.mjs": 2,
+      "packages/snapback4/test/retained-history.test.mjs": 2,
+      "packages/snapback4/test/admit-before-identity.test.mjs": 2,
+      "packages/snapback4/test/asset-lists.test.mjs": 2,
+      "packages/snapback4/test/witness-acquire.test.mjs": 2,
+      "packages/snapback4/test/keep-app-model.test.mjs": 2,
+      "packages/snapback4/test/worker-regressions.test.mjs": 2,
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs": 2
+    },
+    "archiveSha256": "e20ac42fc9f4788678086e5ac4a5409dfe0b635413d150abfaaaa0a4ece17f26"
+  },
+  {
+    "phase": "pressure",
+    "verified": 120,
+    "passed": 120,
+    "failed": [],
+    "perFile": {
+      "packages/snapback4/test/read-through.test.mjs": 20,
+      "packages/snapback4/test/read-through-upsert.test.mjs": 20,
+      "packages/snapback4/test/read-through-provenance.test.mjs": 20,
+      "packages/snapback4/test/readauth.test.mjs": 20,
+      "packages/snapback4/test/social-starter.test.mjs": 20,
+      "packages/snapback4/test/admit-before-identity.test.mjs": 20
+    },
+    "archiveSha256": "6049ff792c1e993a66b6222987a224b5e27f3cd55b52498460c094c43b0317d7"
+  },
+  {
+    "phase": "worker-fixed",
+    "verified": 60,
+    "passed": 55,
+    "failed": [
+      "worker-regressions-57",
+      "worker-regressions-58",
+      "worker-regressions-03",
+      "worker-regressions-59",
+      "worker-regressions-60"
+    ],
+    "perFile": {
+      "packages/snapback4/test/worker-regressions.test.mjs": 60
+    },
+    "archiveSha256": "e3ba59c883e3365cf4773c749f448d01b1bf06b1130d1f03e598a8b8acd78882"
+  },
+  {
+    "phase": "worker-final",
+    "verified": 60,
+    "passed": 60,
+    "failed": [],
+    "perFile": {
+      "packages/snapback4/test/worker-regressions.test.mjs": 60
+    },
+    "archiveSha256": "4f903e1e2502d68bb6b1b19922dcb4454f857cdf2b97e2bc99f24976679fcb8e"
+  }
+]

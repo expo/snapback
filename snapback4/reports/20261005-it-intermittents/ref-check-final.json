@@ -1,0 +1,8 @@
+{
+  "at": 1791191723.122015,
+  "command": "./ref-check --verbose",
+  "exit_code": 0,
+  "log": "probes/ref-check-final.log.gz",
+  "logSha256": "679d11fc27051842c918a03b3959855fc521a6d70fccdb02c6331a2cdc4a1864",
+  "summary": "ref-check: ok \u2014 527 LLP docs, 10392 refs in 35025 files, 0 errors, 0 unchecked"
+}
