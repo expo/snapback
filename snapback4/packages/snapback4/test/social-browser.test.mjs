@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage, reloadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -89,7 +89,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     assert.equal(write.state, "sent", JSON.stringify(write)); return write;
   });
   page.on("pageerror", error => errors.push(String(error)));
-  await page.goto(vite.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);
   await page.waitForFunction(() => window.fixtureReady);
   const composer = page.getByTestId("composer");
   await composer.fill("my draft"); await composer.focus();
@@ -472,7 +472,7 @@ test("social search in React/browser uses current server and retained device pag
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
       page.on("pageerror", error => errors.push(String(error)));
       try {
-        await page.goto(vite.resolvedUrls.local[0]);
+        await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);
         await page.waitForFunction(() => window.fixtureReady);
         assert.equal((await page.evaluate(() => window.searchResidency())).tables.messages.rows, 525, "20 old live matches are outside the replica window");
         if (scenario === "leave followed by a search") {
@@ -559,7 +559,8 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   const page = await browser.newPage(), errors = [];
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   page.on("pageerror", error => errors.push(String(error)));
-  await page.goto(vite.resolvedUrls.local[0]);
+  // The direct-message router deliberately replaces history on screen transitions.
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0], { allowSameDocumentNavigation: true });
   await page.waitForFunction(() => window.fixtureReady);
   await page.getByRole("textbox", { name: "Account to follow" }).fill(bob.principal);
   await page.getByRole("button", { name: "Message Bob", exact: true }).waitFor();
@@ -634,7 +635,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.waitForFunction(id => window.routeDM().id === id, raced.result);
     await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
     assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
-    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await reloadBrowserPage(page); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => window.navigateDM({ id }), raced.result);
     await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
     assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, original, "admitted arguments never change");
@@ -735,7 +736,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(() => window.profileDM());
     await page.evaluate(() => window.connectDM());
     await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
-    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await reloadBrowserPage(page); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => window.navigateDM({ id }), winner.result);
     const failed = page.getByTestId(`send-${queued.id}`);
     await failed.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: hangBudget() });
@@ -779,7 +780,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     const proposals = intents.map((intent, n) => ({ proposed: intent.args.conversation,
       other: n === 100 ? bob.principal : `unknown-peer-${n}` }));
     await page.evaluate(saved => window.seedSavedDM(saved), { intents, proposals });
-    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await reloadBrowserPage(page); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => { window.dmLookups = []; window.navigateDM({ id }); }, canonical);
     const recovery = page.getByTestId("send-unknown-send-100");
     await recovery.getByRole("button", { name: "Dismiss", exact: true }).waitFor();

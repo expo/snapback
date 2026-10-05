@@ -1,0 +1,20 @@
+[
+{"file":"snapback4/experiments/p19-one-query/equality/browser.test.mjs","before":7,"after":7,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/answers-stay-react.test.mjs","before":11,"after":11,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/asset-avatars.test.mjs","before":54,"after":54,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/asset-buffered.test.mjs","before":4,"after":4,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/browser-navigation.test.mjs","before":0,"after":10,"missing":[],"added":["assert.match(output, /readiness assertions passed/)","assert.equal(result.reason, undefined, output)","assert.equal(result.code, fails ? 1 : 0, output)","assert.equal(result.passed, !fails, output)","assert.equal(result.counts.fail, fails ? 1 : 0, output)","assert.match(output, /unexpected main-frame navigation in immutable browser fixture/)","assert.ok(probed > 0, 'the control must occupy the concrete port selected by Vite')","assert.notEqual(server.httpServer.address().port, probed)","assert.equal(Number(new URL(url).port), server.httpServer.address().port)","assert.match(await (await fetch(url)).text(), /private fixture/)"]},
+{"file":"snapback4/packages/snapback4/test/helpers/browser-server.mjs","before":0,"after":5,"missing":[],"added":["assert.ok(!navigations.has(page), 'a fixture page has only one initial load')","assert.deepEqual(state.unexpected, [], 'unexpected main-frame navigation in immutable browser fixture')","assert.ok(state, 'loadBrowserPage must install the navigation guard first')","assert.equal(state.allowance, undefined, 'fixture navigations must not overlap')","assert.equal(config.server.port, 0, 'immutable fixtures require a kernel-assigned port')"]},
+{"file":"snapback4/packages/snapback4/test/helpers/screen-lifetimes.mjs","before":0,"after":0,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/keep-authority-react.test.mjs","before":9,"after":9,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/live-margin-browser.test.mjs","before":11,"after":11,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/ordinary-search.test.mjs","before":159,"after":159,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/page-observation.test.mjs","before":9,"after":9,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/per-row-react.test.mjs","before":19,"after":19,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/react.test.mjs","before":17,"after":17,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/read-presentation-react.test.mjs","before":47,"after":47,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/social-browser.test.mjs","before":160,"after":160,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/subscription-pressure-e2e.test.mjs","before":13,"after":13,"missing":[],"added":[]},
+{"file":"snapback4/packages/snapback4/test/typing-expiry.test.mjs","before":17,"after":17,"missing":[],"added":[]},
+{"file":"snapback4/scripts/qualify-revocation-retention.mjs","before":4,"after":4,"missing":[],"added":[]}
+]

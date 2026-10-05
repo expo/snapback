@@ -184,3 +184,132 @@ Raw evidence: [Linux runs](evidence/linux-runs.tar.gz),
 - **Open risk:** absent telemetry prevents exact attribution of the original M5 event; controlled reproduction establishes the matching fixture mechanism only.
 - **Documentation:** the existing root's contention section records immutable fixture/cache ownership; JOURNAL is append-only. Existing per-row `@ref` remains applicable. No new LLP number, authoring surface, guide claim or wasm budget change.
 - **Hand-off:** none. Repository reference audit and delta whitespace checks pass; canonical suite result is separately reported above.
+
+## Round 1 — navigation failures and the live qualifier (2026-10-05)
+
+Addresses Astra's P2 and P3 review of `0819aca76a..859a1fc68e`. A page-code
+reload could replace the document between evaluations and still satisfy the
+old readiness and render assertions. Logging `framenavigated` did not make that
+an error. The shared `loadBrowserPage` now installs a navigation guard before
+the initial load and remembers violations for a teardown assertion. All 17
+previously converted Vite sites use it, including peer tabs. Each intentional
+process/persistence reload uses `reloadBrowserPage`: its allowance covers one
+main-frame navigation and expires when the action settles, including rejection.
+Extra navigation during the action remains an error. There is no retry.
+
+The first expanded guard run exposed six intentional history/hash transitions
+in the React reference-app tests. Chromium distinguishes document replacement
+(`Page.frameNavigated`) from history/hash changes (`Page.navigatedWithinDocument`);
+Playwright's generic frame event combines them. The reference-app fixture and
+the social direct-message router explicitly allow same-document navigation.
+Every other fixture rejects it too. A same-document allowance cannot permit
+a reload or other document replacement. These are fixture allowances for
+existing routing tests; no application behavior or assertion was changed.
+
+`browser-navigation.test.mjs` runs real Chromium cases as native child tests.
+It proves that an injected reload fails **after the replacement document's
+readiness assertions have passed**, an intentional reload passes, a later
+unexpected reload still fails, undeclared history navigation fails, declared
+history navigation passes, and that history allowance cannot excuse a reload.
+It checks native exit status, the guard diagnostic, and failure counts, so an
+unrelated browser launch or timeout failure cannot supply a passing regression.
+Astra's exact in-memory 1,000-hook reload injection is also retained and now
+fails 3/3 with the navigation guard diagnostic, while its original test body
+still passes ([control receipt](round1/review-control.json)).
+
+The missed live `scripts/qualify-revocation-retention.mjs` is the eighteenth
+Vite fixture site. It now uses the same explicit React optimization, disabled
+discovery/watching/HMR, private cache and guarded initial navigation. Its manual
+cleanup runs every callback even if the guard assertion fails. Its zero-loading,
+convergence and revocation-latency assertions are unchanged. The renewed
+[live-server audit](round1/live-server-audit.txt) finds no remaining live Vite
+`createServer` fixture outside the shared helper; static `vite.build`/HTTP
+witnesses do not have the dependency-discovery mechanism.
+
+The AST [assertion audit](round1/assertion-audit.json) preserves all **541**
+existing assertion calls in the affected files: the round-0 calls plus the
+qualifier's four assertions. No SDK, engine, wasm, workload, time budget or
+product assertion changed. LLP 3000's existing contention paragraph records
+the guard and allowances. The full suite is not repeated in this fixture-only
+round, as instructed; round 0's full-suite evidence above remains historical.
+
+The expanded stress run also found a startup race outside the navigation guard:
+`screen-lifetimes-react` run 8 failed with `Port 45081 is already in use`.
+Vite 8.3.0's `httpServerStart` probes and closes an ephemeral socket, then binds
+that concrete port after environment initialization. The fixture now forwards
+port zero to the real listen operation, so the kernel assigns and binds it
+atomically. It retains Vite initialization and `resolvedUrls`, which come from
+the actual socket address. This is scoped to immutable port-zero fixtures;
+they never restart or use Vite's remembered probe port. A seventh regression
+deliberately occupies the probed port before the real bind: it fails with the
+same error before the fix and passes afterwards, checks the resolved URL's
+port, and fetches the served page. No server or whole-test retry was added.
+
+Preliminary runs remain in the evidence, not in the final qualification counts:
+the first batch stopped after 10 invocations on the undeclared intentional
+history navigation; the next batch completed 145 invocations (144 passed) and
+stopped on the port race. The final batch starts afresh after the fixture fix.
+The first diagnostic launcher also continued after a stricter CPU resample
+assertion failed; its earlier CPU sample is not a final qualification receipt.
+The corrected launcher uses `set -e`, persists the sample and selects idle CPU
+cores and siblings before starting any hogs. A later selection rejection
+correctly started no work. Two port-control setup attempts matched no outer
+test because the new test was initially placed inside a generated child string;
+only the corrected red/green controls count as evidence.
+
+In the final-source batch, live-margin invocation 4 passed its browser subtest
+and teardown hooks, then its isolated Node subprocess died with `SIGSEGV`.
+The native runner correctly failed the file. The batch paused after 59
+invocations; it resumed the **451 previously unrun invocation numbers**,
+without repeating the failure or changing source. The [open crash ticket](../../../issues/20261005-snapback4-live-margin-node-sigsegv.md)
+records the exact evidence and unresolved attribution. No native backtrace
+was captured, so this report does not claim the fixture changes are exonerated
+or that the crash predates them.
+
+Final verification on eb1000: **30 invocations of each of 17 changed browser
+files/qualifiers**, with 24 busy-loop hogs and eight concurrent file slots on
+24 sampled idle physical CPUs. The two final-source phases used the sets in
+[idle sample 1](round1/idle-sample-phase1.json) and
+[idle sample 2](round1/idle-sample-phase2.json); maximum sampled utilization of
+any selected CPU or its SMT sibling was 0.7% and 3.0%, respectively. `taskset`
+confined the driver, every test descendant and all hogs to the selected set.
+All 96 owned hog processes across diagnostic and final phases were terminated,
+reaped and checked absent. Worktree disk use was 13.71 GB; no other host,
+worktree or simulator was used in this round.
+
+| Scope | Final native file results |
+| --- | --- |
+| Complete per-row file (eight subtests) | 30/30 pass; 240 subtests |
+| Navigation/startup regression file (seven cases) | 30/30 pass; 210 cases |
+| Revocation-retention qualifier | 30/30 pass |
+| Other changed browser files | 419/420 pass; live-margin run 4 is the recorded SIGSEGV |
+| Total | **509/510 pass; 7,590 reported test passes, one file failure, zero skips/cancellations** |
+
+The final batch is **not entirely green**. Per-row logs each contain exactly
+nine main-frame navigations: eight initial loads and the intentional process
+reload. No unexpected navigation or port collision occurs on the final source.
+No whole-test retry, skip, force-exit, lowered work count or assertion relaxation
+was used. The [per-file summary](round1/summary.json) and
+[all native receipts](round1/receipts.jsonl.gz) preserve invocation numbers,
+exit codes, failure counts and cleanup diagnostics. Syntax, whitespace and
+repository reference checks pass. All 18 [tested source hashes](round1/source-sha256.json)
+remain unchanged through completion; wasm retains the round-0 SHA-256 and its
+unchanged budget.
+
+Commands from `snapback4/` (the second phase filters already completed
+`(file, run)` pairs, including the failure, out of the original 30-run queue):
+
+```sh
+set -e
+python3 reports/20261005-pw-per-row-navigation/round1/sample-cpus.py
+pw_cpus=$(cat reports/20261005-pw-per-row-navigation/round1/cpus.txt)
+taskset -c "$pw_cpus" node reports/20261005-pw-per-row-navigation/round1/stress.mjs 2
+```
+
+The [log archive](round1/logs.tar.gz) contains every raw invocation, prior
+failed batches, exact reload injections, port red/green controls and setup-only
+attempts. To rerun the summary or inspect the stopped/resumed driver state, extract
+`logs.tar.gz` in `round1/` first. Scripts and metadata accompany it; the
+[checksum manifest](round1/SHA256.json) binds them. JOURNAL and the closed
+fixture ticket record the change, while the native-crash follow-up stays open.
+This round is a local commit on top of `859a1fc68e`; nothing is pushed.

@@ -1,0 +1,69 @@
+snapback4/floors/idb.mjs:4:import { createServer } from "node:http";
+snapback4/floors/idb.mjs:12:const server = createServer((_, res) => { res.setHeader("content-type", "text/html"); res.end("<!doctype html><title>floor</title>"); });
+snapback4/witness/web-shell.mjs:6:import { createServer } from "node:http";
+snapback4/witness/web-shell.mjs:19:const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")));
+snapback4/witness/web-shell.mjs:64:  server = createServer(async (req, res) => {
+snapback4/witness/lib.mjs:6:import { createServer } from "node:http";
+snapback4/witness/lib.mjs:98:  const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+snapback4/witness/lib.mjs:115:  const pageServer = createServer((req, res) => {
+snapback4/witness/starter.mjs:5:import { createServer } from "node:http";
+snapback4/witness/starter.mjs:20:const { build } = await import(pathToFileURL(appRequire.resolve("vite")).href);
+snapback4/witness/starter.mjs:131:  pageServer = createServer((request, response) => {
+snapback4/witness/clique-scale-browser.mjs:4:import {createServer} from 'node:http';
+snapback4/witness/clique-scale-browser.mjs:11:const server=createServer((req,res)=>{
+snapback4/witness/sync-scale-browser.mjs:4:import { createServer } from 'node:http';
+snapback4/witness/sync-scale-browser.mjs:29:const { build } = await import(require.resolve('vite'));
+snapback4/witness/sync-scale-browser.mjs:31:const server = createServer((req, res) => {
+snapback4/witness/worker-protocol.mjs:4:import { createServer } from 'node:http';
+snapback4/witness/worker-protocol.mjs:290:const { build } = await import(require.resolve('vite'));
+snapback4/witness/worker-protocol.mjs:294:const server = createServer((req, res) => {
+snapback4/scripts/measure-client.mjs:18:const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+snapback4/witness/app-sessions.mjs:7:import { createServer } from "node:http";
+snapback4/witness/app-sessions.mjs:15:const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")));
+snapback4/witness/app-sessions.mjs:50:  server = createServer(async (req, res) => {
+snapback4/experiments/p19-one-query/owner-browser.mjs:3:import {createServer} from 'node:http';
+snapback4/experiments/p19-one-query/owner-browser.mjs:24:const server=createServer((req,res)=>{
+snapback4/loopbar/ceremony-process.mjs:3:import { createServer } from "node:net";
+snapback4/loopbar/ceremony-process.mjs:51:    const server = createServer();
+snapback4/packages/snapback4/test/keepalive-retry.test.mjs:3:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/keepalive-retry.test.mjs:13:  const host = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/keepalive-retry.test.mjs:171:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/upload-retry.test.mjs:4:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/upload-retry.test.mjs:27:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/social-starter.test.mjs:10:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/social-starter.test.mjs:274:  const gate = createServer(async (req, res) => {
+snapback4/packages/snapback4/test/keepalive-headers.test.mjs:8:import { createServer as httpsServer } from "node:https";
+snapback4/packages/snapback4/test/transport-http.test.mjs:9:import { createServer, request as httpRequest } from "node:http";
+snapback4/packages/snapback4/test/transport-http.test.mjs:204:  const proxy = createServer((request, response) => {
+snapback4/packages/snapback4/test/identity.test.mjs:6:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/identity.test.mjs:62:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/server-e2e.test.mjs:8:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/server-e2e.test.mjs:408:  const host = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/helpers/browser-server.mjs:10:const vite = () => import(pathToFileURL(createRequire(resolve(root, 'apps/chat/package.json')).resolve('vite')).href);
+snapback4/packages/snapback4/test/helpers/browser-server.mjs:62:  const { createServer } = await vite();
+snapback4/packages/snapback4/test/helpers/browser-server.mjs:63:  return createServer({
+snapback4/packages/snapback4/test/overload-browser.test.mjs:4:import { createServer, request } from 'node:http';
+snapback4/packages/snapback4/test/overload-browser.test.mjs:21:  const proxy = createServer((req, res) => {
+snapback4/packages/snapback4/test/overload-browser.test.mjs:34:  const front = createServer((req, res) => {
+snapback4/packages/snapback4/test/witness-acquire.test.mjs:7:import { createServer } from 'node:http';
+snapback4/packages/snapback4/test/witness-acquire.test.mjs:166:    const proxy = createServer(async (req, res) => {
+snapback4/packages/snapback4/test/witness-acquire.test.mjs:237:  const server = createServer((req, res) => {
+snapback4/packages/snapback4/test/witness-acquire.test.mjs:321:  const proxy = createServer(async (req, res) => {
+snapback4/packages/snapback4/test/witness-acquire.test.mjs:375:  const proxy = createServer(async (req, res) => {
+snapback4/packages/snapback4/test/node-transport.test.mjs:9:  import { createServer } from 'node:http';
+snapback4/packages/snapback4/test/node-transport.test.mjs:17:  const server = createServer((request, response) => response.end('acknowledged')).listen(0, '127.0.0.1');
+snapback4/packages/snapback4/test/worker.test.mjs:11:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/worker.test.mjs:227:  const provider = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/asset-retry.test.mjs:5:import { createServer } from 'node:http';
+snapback4/packages/snapback4/test/asset-retry.test.mjs:65:  const server = createServer((_request, response) => {
+snapback4/packages/snapback4/test/effectful-cancellation.test.mjs:4:import { createServer } from 'node:http';
+snapback4/packages/snapback4/test/effectful-cancellation.test.mjs:20:  const server = createServer(async (req, res) => {
+snapback4/packages/snapback4/test/fixtures/routes.mjs:6:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/fixtures/routes.mjs:148:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs:3:import { createServer, get } from "node:http";
+snapback4/packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs:11:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs:7:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs:8:import { createServer as createSocket } from "node:net";
+snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs:264:  const server = createServer(async (request, response) => {
+snapback4/packages/snapback4/test/fixtures/workroom-routes.mjs:4:import { createServer } from "node:http";
+snapback4/packages/snapback4/test/fixtures/workroom-routes.mjs:76:  const proxy = createServer(async (request, response) => {

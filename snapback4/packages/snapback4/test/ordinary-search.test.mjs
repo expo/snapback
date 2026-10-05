@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.028#7.2 — real server/device source traversal and delivery races.
 import test from 'node:test';
@@ -356,7 +356,7 @@ window.finish=async()=>{root.unmount();await client.close();};
   browser=await chromium.launch({ timeout: hangBudget(),executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
   const page=await browser.newPage(),errors=[];
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());page.on('pageerror',e=>errors.push(String(e)));
-  await page.goto(vite.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);
   try {
     await page.waitForFunction(()=>window.read?.data?.length===20&&window.read.fresh===true);
     assert.equal(await page.locator('#coverage').textContent(),'Complete');

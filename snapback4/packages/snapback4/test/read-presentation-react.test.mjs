@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 // @ref LLP 3000.031#7 — execute the published screen; shell state survives, protected data does not.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -84,7 +84,7 @@ window.finish = async()=>{await act(async()=>root.unmount());return {records:rec
   browser = await chromium.launch({ timeout: hangBudget(), executablePath, headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage(); page.setDefaultTimeout(hangBudget());
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.start);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.start);
   await page.evaluate(() => window.start());
   const input = page.locator('input');
   await input.fill('unsent draft'); await input.focus();

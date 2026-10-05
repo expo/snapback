@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { mintId } from '../../../packages/snapback4/dist/client.js';
 import { host, root, sent } from './harness.mjs';
-import { createBrowserServer } from '../../../packages/snapback4/test/helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage, reloadBrowserPage } from '../../../packages/snapback4/test/helpers/browser-server.mjs';
 const require = createRequire(join(root, 'package.json'));
 const { chromium } = require('playwright-core');
 
@@ -30,7 +30,7 @@ test('React/IndexedDB: original receipt hook keeps one ordinary history through 
   await vite.listen(); const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   t.after(async () => { await browser.close(); await vite.close(); });
   const page = await browser.newPage(), errors = []; page.on('pageerror', error => errors.push(String(error)));
-  await page.goto(vite.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);
   const ready = async expected => {
     try { await page.waitForFunction(expected => window.latest?.ids?.join() === expected.join(), expected); }
     catch (error) { h.record('browser-failure', { errors, snapshots: await page.evaluate(() => window.snapshots), error: String(error) }); throw error; }
@@ -53,7 +53,7 @@ test('React/IndexedDB: original receipt hook keeps one ordinary history through 
   for (const snapshot of observations.snapshots.filter(s => s.ids.length)) assert.deepEqual(snapshot.ids, [before]);
   assert.ok(!observations.requests.includes('/q/history'), 'retained history never falls back');
   await page.evaluate(() => { localStorage.setItem('eq-offline', '1'); window.offline = true; });
-  await page.reload(); await ready([before]);
+  await reloadBrowserPage(page); await ready([before]);
   assert.equal(await page.evaluate(() => window.latest.read.fresh), false);
   await sent(owner, 'addMember', { conversation, principal: 'dev:eqreader' });
   await page.evaluate(async () => { localStorage.removeItem('eq-offline'); window.offline = false; await window.client.sync(); });

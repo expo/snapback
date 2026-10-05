@@ -1,4 +1,4 @@
-import { createBrowserServer } from './browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './browser-server.mjs';
 // @ref LLP 3000.023#13 — complete recipe and Cal29 composition, with controlled client/UI boundaries.
 import {createRequire} from 'node:module';
 import {mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
@@ -109,6 +109,6 @@ window.finish=async()=>{await act(async()=>root.unmount());await realClient?.clo
  browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox'],timeout:hangBudget()});
  const page=await browser.newPage();page.setDefaultTimeout(hangBudget());
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(vite.resolvedUrls.local[0]);await page.waitForFunction(()=>window.start);await page.evaluate(()=>window.start());
+ await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);await page.waitForFunction(()=>window.start);await page.evaluate(()=>window.start());
  return {page,errors,counts:()=>page.evaluate(()=>window.counts()),text:()=>page.locator('body').innerText()};
 }

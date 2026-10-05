@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 // @ref LLP 3000.023#12 — same-schema set/delete and offline settlement on React/IndexedDB.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -54,7 +54,7 @@ test('React/IndexedDB live margin and two-device offline settlement', { timeout:
   const page = await browser.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
-  await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.lmOpen);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.lmOpen);
   const calibration = [];
   for (let i = 0; i < 9; i++) {
     const before = Number(process.hrtime.bigint()) / 1e6;

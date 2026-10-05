@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.002.000#6 — opaque transports must allow healthy bodies to finish without replaying a view.
 import test from 'node:test';
@@ -82,7 +82,7 @@ test('real buffered HTTP downloads over five seconds reach ready and paint, ordi
   browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
-  await page.goto(server.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
   await page.waitForFunction(() => Object.keys(window.states ?? {}).length === 4 && Object.values(window.states).every(s => s.status !== 'loading'));
   const states = await page.evaluate(() => window.states);
   assert.ok(Object.values(states).every(s => s.status === 'ready'), JSON.stringify(states));

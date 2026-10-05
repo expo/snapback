@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,7 +34,7 @@ for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   const errors = [];
   page.on("pageerror", error => errors.push(String(error)));
-  await page.goto(server.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
   try { await page.waitForFunction(() => window.latest?.query?.data?.[0] === 0 && window.latest?.page?.data?.[0] === 0); }
   catch (error) { assert.fail(JSON.stringify({ errors, latest: await page.evaluate(() => window.latest), error: String(error) })); }
   await page.evaluate(() => window.more());

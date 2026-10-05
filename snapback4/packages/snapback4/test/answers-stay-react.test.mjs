@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — render every real host notification, without batching away loading.
 import test from 'node:test';
@@ -55,7 +55,7 @@ window.replay = (input) => {
   t.after(async () => { await browser.close(); await vite.close(); rmSync(dir, { recursive: true, force: true }); });
   const page = await browser.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
-  await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
   return async (kind, reads, scopeWithdrawal = false) => {
     const result = await page.evaluate(input => window.replay(input), { kind, reads });
     if (scopeWithdrawal) {

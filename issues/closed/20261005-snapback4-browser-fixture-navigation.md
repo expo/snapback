@@ -39,3 +39,18 @@ checks and the canonical suite, commands, controls and raw evidence are in the
 No SDK/engine/wasm source change or timeout increase. A future navigation now
 has direct lifecycle, server, websocket and CDP evidence; this resolution does
 not assert retrospective attribution of the uninstrumented M5 event.
+
+Round 1 adds a shared navigation failure guard to all migrated fixtures and
+the previously missed live revocation-retention qualifier (18 migrated sites).
+Astra's injected page-code reload now fails 3/3 after the 1,000-hook test body
+passes. Intentional reloads have scoped one-navigation allowances; two routing
+fixtures explicitly allow history/hash changes, with a regression proving
+that this cannot excuse document replacement. Existing assertions are intact.
+
+Stress also exposed Vite 8's probe-close-bind ephemeral-port race. The shared
+fixture now binds the real socket with port zero, and a deterministic occupied
+probe-port regression distinguishes the old failure from the fixed behavior.
+A later Node subprocess SIGSEGV after a live-margin subtest passed is retained
+as a failed invocation and tracked separately in the [open native-crash ticket](../20261005-snapback4-live-margin-node-sigsegv.md);
+its cause is not established. Round-1 commands and complete results are in the
+report. Neither fix retries a test or suppresses a recorded failure.

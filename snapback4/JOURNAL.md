@@ -87825,3 +87825,24 @@ without claiming retrospective M5 attribution. Work stayed on eb1000 except
 for the authorized file on the mini. No other worktree, simulator or device was
 touched. Local commit with the requested Astra co-author trailer; nothing pushed
 or published.
+
+## 2026-10-05 — PW round 1: fail unexpected browser navigation
+
+The shared fixture now rejects main-frame navigation after initial load, with
+one-navigation allowances for intentional reloads and explicit same-document
+allowances for two routing fixtures. Seven native Chromium regressions cover
+injected reload failures, allowed reload/history behavior, and a Vite 8
+probe-close-bind port race discovered under stress. The real socket now binds
+port zero atomically. Migrated the missed revocation-retention qualifier to the
+same private optimizer cache and navigation guard. All 541 existing assertions
+remain unchanged; no SDK, engine, wasm, workload or timeout change.
+
+Thirty loaded invocations of each of 17 affected files/qualifiers completed:
+per-row 30/30, guard regressions 30/30, qualifier 30/30; overall 509/510 passed
+(7,590 test passes, one failure, zero skips). Live-margin invocation 4 passed
+its subtest then its isolated Node process exited with SIGSEGV; it was retained,
+not retried, and has an [open follow-up](../issues/20261005-snapback4-live-margin-node-sigsegv.md).
+Its cause remains unproven. Reference/syntax/whitespace checks pass; all owned
+hogs are reaped and worktree disk use is 13.71 GB. Full suite not repeated for
+this fixture-only round. The [Round 1 report](./reports/20261005-pw-per-row-navigation/REPORT.md#round-1--navigation-failures-and-the-live-qualifier-2026-10-05)
+holds complete receipts and controls. Local commit only; nothing pushed.

@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — two independent offline writers converge without queue-only history gaps.
 import test from 'node:test';
@@ -51,7 +51,7 @@ window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, 
     const context = await browser.newContext(), page = await context.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget()); pages.push(page);
     page.on('pageerror', error => t.diagnostic(error.stack));
-    await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.openPressure);
+    await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.openPressure);
     if (tier === 'wasm') {
       await page.evaluate(options => window.openPressure(options), { url, persona, holdMs: Number(process.env.PR_HOLD_MS ?? 0) });
       drivers.push(Object.fromEntries(['offline','send','reconnect','sync','releaseHistory','settle','result','close'].map(method => [method, (...args) => page.evaluate(({method,args}) => window.driver[method](...args), {method,args})])));

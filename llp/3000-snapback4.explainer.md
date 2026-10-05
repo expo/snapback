@@ -2342,10 +2342,22 @@ not stop the optimizer invalidating already-served modules. Use the shared
 `test/helpers/browser-server.mjs` for immutable fixtures, retaining each test's
 aliases, plugins, routes and explicit reloads. Each root owns its optimizer
 cache, including when TMPDIR sits below a package. Canonicalize the filesystem
-allow list on Darwin. The per-row fixture records server, websocket, navigation,
+allow list on Darwin. Bind the real fixture socket with port zero: Vite 8's
+probe-close-bind startup can lose its selected port while initializing. Retain
+Vite initialization and use its resolved URLs from the real listening socket;
+these immutable fixtures do not restart or rely on its remembered probe port.
+The per-row fixture records server, websocket, navigation,
 crash and closure events and rejects optimizer reload requests even when HMR
-would suppress them. A late-entry regression exercises the real optimizer;
-no whole-test retry or weaker render assertion is permitted. See the
+would suppress them. Every converted fixture also guards main-frame navigation
+from its initial load through teardown. Intentional reloads declare a single
+navigation allowance scoped to that reload; violations remain failures even
+if readiness succeeds in the replacement document. Reference-app history/hash
+routes have an explicit same-document allowance, distinguished through Chromium
+navigation events so it cannot excuse a document replacement. A native child-test
+regression verifies the failure exit as well as the allowed reload/route cases.
+The revocation-retention qualifier shares these fixtures and private caches.
+A late-entry regression exercises the real optimizer; no whole-test retry or
+weaker render assertion is permitted. See the
 [PW report](../snapback4/reports/20261005-pw-per-row-navigation/REPORT.md), including
 the distinction between controlled attribution and the uninstrumented 0.4.13
 failure.

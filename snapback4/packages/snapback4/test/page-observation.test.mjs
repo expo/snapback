@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -106,7 +106,7 @@ test("web IndexedDB device withdraws expired inbox data in useQuery and usePage"
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(server.resolvedUrls.local[0]);
+    await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
     await page.waitForFunction(() => typeof window.run === "function");
     const result = await page.evaluate(() => window.run());
     assert.equal(result.initialUnread, 3);

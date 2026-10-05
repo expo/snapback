@@ -1,4 +1,4 @@
-import { createBrowserServer, browserLogger } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage, reloadBrowserPage, browserLogger } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — key-order-only React renders preserve the observation and page chain.
 import test from 'node:test';
@@ -66,7 +66,7 @@ async function browserFixture(t, harness, setup = async () => {}) {
   cdp.on('Page.frameRequestedNavigation', event => trace('cdp:requestedNavigation', event));
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await setup(page);
-  await page.goto(server.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
   return page;
 }
 
@@ -320,7 +320,7 @@ for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row h
   await page.waitForFunction(() => window.pq?.ready);
   if (tier === 'process') {
     const opened = cores.length;
-    await page.reload();
+    await reloadBrowserPage(page);
     await page.waitForFunction(() => window.pq?.ready);
     assert.ok(cores.length > opened, 'a reload owns a new process handle');
   }

@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // React's actual effect/subscription replay, with controlled transport and
 // observations. Skipped only when Chromium is unavailable; no backend or
@@ -151,7 +151,8 @@ test("React hooks and reference-app lifetimes", async (t) => {
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(server.resolvedUrls.local[0]);
+    // Reference-app account switches and room routes deliberately update history/hash.
+    await loadBrowserPage(t, page, server.resolvedUrls.local[0], { allowSameDocumentNavigation: true });
     await page.waitForFunction(() => typeof window.reactCases === "object");
     for (const name of await page.evaluate(() => Object.keys(window.reactCases))) {
       await t.test(name, async () => {
@@ -166,7 +167,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
       const peer = await page.context().newPage();
   peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
-        await peer.goto(server.resolvedUrls.local[0]);
+        await loadBrowserPage(t, peer, server.resolvedUrls.local[0]);
         await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
         await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); });
         await peer.evaluate(async () => { window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.submit(); });
@@ -191,7 +192,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
       const peer = await page.context().newPage();
   peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
-        await peer.goto(server.resolvedUrls.local[0]);
+        await loadBrowserPage(t, peer, server.resolvedUrls.local[0]);
         await peer.waitForFunction(() => typeof window.openPendingPeer === "function");
         await page.evaluate(async () => { localStorage.clear(); window.pendingPeer = await window.openPendingPeer(); await window.pendingPeer.mount(); window.pendingPeer.holdStorage(); });
         const admitted = await peer.evaluate(async () => {
@@ -214,7 +215,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
       const peer = await page.context().newPage();
   peer.setDefaultTimeout(hangBudget()); peer.setDefaultNavigationTimeout(hangBudget());
       try {
-        await peer.goto(server.resolvedUrls.local[0]);
+        await loadBrowserPage(t, peer, server.resolvedUrls.local[0]);
         const admitted = await page.evaluate(async () => {
           localStorage.clear();
           window.pendingPeer = await window.openPendingPeer();

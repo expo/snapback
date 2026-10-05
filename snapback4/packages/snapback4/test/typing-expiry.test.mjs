@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000#publication-suite-under-contention — preserve semantics independently of host scheduling.
 // Real React subscriptions over the server and the wasm/IndexedDB web device.
@@ -72,7 +72,7 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     // after the pre-expiry assertions, with its supported dev clock control.
     const start = Date.now() + 3_600_000;
     await page.clock.install({ time: start - 60_000 });
-    await page.goto(server.resolvedUrls.local[0]);
+    await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
     await page.waitForFunction(() => typeof window.openClients === "function");
     await page.clock.pauseAt(start);
     const until = async predicate => {

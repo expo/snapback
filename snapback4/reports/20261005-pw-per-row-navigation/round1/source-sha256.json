@@ -1,0 +1,20 @@
+{
+  "snapback4/experiments/p19-one-query/equality/browser.test.mjs": "e6fc6d65c9f43e0938f6972a9b917e677e80d8463f536f5be38eecc3a20e464e",
+  "snapback4/packages/snapback4/test/answers-stay-react.test.mjs": "1ec75777e37dc14f1d472b8a8c57ff1986686269dd5601e63714039e12d0bd8a",
+  "snapback4/packages/snapback4/test/asset-avatars.test.mjs": "f162ee8e31e28deb250d9eb67e6095d3804cdd7d9c7d698bde3044e4f593d065",
+  "snapback4/packages/snapback4/test/asset-buffered.test.mjs": "8131ce3c08f284c1d442c600aa559ad0aa3cc01e5633925841e05e738471cf8e",
+  "snapback4/packages/snapback4/test/helpers/browser-server.mjs": "dccaa65a5091eb186ab73b8280fe541450cc07ed4b7b9c692d2866f36d82adb2",
+  "snapback4/packages/snapback4/test/helpers/screen-lifetimes.mjs": "382dbb1b0bc36691f46ed5e35e4aebdcf87aec395f8b6d19f7285fffec8e0bf7",
+  "snapback4/packages/snapback4/test/keep-authority-react.test.mjs": "90aee6fd82ec1158046710dfa0db44d3218f116ec160e0628e5446dc122b580d",
+  "snapback4/packages/snapback4/test/live-margin-browser.test.mjs": "578eac58e1ee7e9684c1b9057152254b0ea2b7a2538a87f84b3d872ce0da3754",
+  "snapback4/packages/snapback4/test/ordinary-search.test.mjs": "f56093dc995745d137e39f3b509921687e00b0bce3ff6885629556f1abf54612",
+  "snapback4/packages/snapback4/test/page-observation.test.mjs": "dbc3cf3a839baccc31627d2692f40b536f8d6dbe62f9151e4616fcdb2301d31c",
+  "snapback4/packages/snapback4/test/per-row-react.test.mjs": "bd5dccc7551f2a834c001dc80e79101377f49fce4df392243e10d4e628cbf0a4",
+  "snapback4/packages/snapback4/test/react.test.mjs": "3804cc023f1e47359534c91f5000168c44d45c46a6067b50a8e353dc1c50d9d8",
+  "snapback4/packages/snapback4/test/read-presentation-react.test.mjs": "462c767f24335960c1d1b6e825d7df3c20224e9ed69878e5cadca6964b7c6b98",
+  "snapback4/packages/snapback4/test/social-browser.test.mjs": "d8de45f16c39afdcd9a6e74b7671698bad154cacf2e4f81d7373292c7a64d724",
+  "snapback4/packages/snapback4/test/subscription-pressure-e2e.test.mjs": "a91837fc7c10dfd0e84231e4e629587bbfb925478fb784be6e02c985d149351f",
+  "snapback4/packages/snapback4/test/typing-expiry.test.mjs": "1fb2c74c108aa824fda1880c62d2a40118539bbd5bbbdaf538d9591fb54bba31",
+  "snapback4/scripts/qualify-revocation-retention.mjs": "d3f8ee4b886eaefbf9cd6bd93e28c465d9a4128f033b3329e6b91ed743a90c0a",
+  "snapback4/packages/snapback4/test/browser-navigation.test.mjs": "6a30cb02ac87d984f8e153e6f55c43a762b601e0f992ec5cf3c39db9bc747e12"
+}

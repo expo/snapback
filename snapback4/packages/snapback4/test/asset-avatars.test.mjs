@@ -1,4 +1,4 @@
-import { createBrowserServer } from './helpers/browser-server.mjs';
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // Calibration #26's exact Quarry program and query/useAsset patterns, on the public package entries.
 // @ref LLP 3000.008.002.000#6 — author avatars keep profile authority across message/feed observations.
@@ -192,7 +192,7 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
     await page.exposeFunction("deviceOpen", async (name, backend) => { devices.push(await opener.open(name, backend)); return devices.length - 1; });
     await page.exposeFunction("deviceCall", (index, request) => devices[index].call(request));
     await page.exposeFunction("deviceClose", index => devices[index].close());
-    await page.goto(server.resolvedUrls.local[0]);
+    await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
     await page.waitForFunction(() => window.start);
     const signedIn = await login(fixture.url, "bob@avatars.test", "password-avatars"); assert.equal(signedIn.ok, true);
     await page.evaluate(options => window.start(options), { tier, url: fixture.url, session: signedIn.session, dm: fixture.dm, group: fixture.group, faultControl: !!process.env.AV_FAULT_CONTROL });
