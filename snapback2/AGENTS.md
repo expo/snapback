@@ -14,7 +14,7 @@ cargo test --workspace --doc --no-fail-fast  # workspace doctests omitted by nex
 scripts/test.sh                      # everything blocking (~84 s warm on EPYC; 60 s total budget)
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; fails on regression
 node scripts/publish.mjs --dry-run   # production build WITH the engine + npm pack; drop --dry-run to ship
-scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla Hermes); never blocking
+scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + verified Hermes); never blocking
 node scripts/scheduled.mjs install --checks web  # browser/simulator witnesses on launchd; a red keeps one ticket
 (cd packages/snapback2 && node build.mjs)  # bundle the compiler worker, client, react, test runner
 ./target/debug/snapback2 doctor      # boot-to-ready proof: certifies programs, finds the compiler worker
@@ -35,8 +35,9 @@ Gotchas you cannot derive from the code:
 - No file over 1,500 lines — `caps` (root `node scripts/caps.mjs`) refuses it. Split on the way in.
 - The corpus under `corpus/` is shared by the Rust engine, the TS evaluator, and the TS compiler;
   regenerate with `cargo run -p snapback2-core --bin export_corpus`.
-- `effects` is off by default; `hermes` needs `IBEX2_VANILLA_HERMES_DIR` + `IBEX2_HERMESC` (see
-  `scripts/hermes`). The blocking checks never depend on it; the published binary carries it.
+- `effects` is off by default; `hermes` acquires the pinned, signed engine through
+  `hermes-lean-sys` (`HERMES_LEAN_SYS_DIR` overrides with a local install). The
+  blocking checks never depend on it; the published binary carries it.
 - Backends use `snapback/schema.q`; TypeScript under `snapback/` is reserved for effects, seeds, and journeys.
 - The binary needs the bundled compiler worker (`packages/snapback2/dist/compiler.mjs`) for any verb
   that compiles; run `node build.mjs` in `packages/snapback2` after touching the compiler.
