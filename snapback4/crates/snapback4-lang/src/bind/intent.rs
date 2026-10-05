@@ -18,6 +18,15 @@ pub(super) struct Requests {
 // must retain later keys because different branches can carry the same id.
 pub(super) fn table_order(catalog: &mut Catalog) {
     let mut normalize = |value: &mut Expr| {
+        if let Expr::Read(read) = value && read.matching.is_some() && read.index.is_some()
+            && let Some(table) = catalog.tables.get(&read.table) {
+            let original = read.clone();
+            if super::intent_search::named_order(table, read) {
+                let source = catalog.source.expression(&Expr::Read(original));
+                catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| source.clone());
+                catalog.canonical_read_origins.entry(read.site.to_string()).or_insert(source);
+            }
+        }
         if let Expr::Read(read) | Expr::Exists { read, .. } = value
             && catalog.tables.contains_key(&read.table)
             && let Some(id) = read.order_keys.iter().position(|column| column == "id")
@@ -72,6 +81,11 @@ impl Requests {
             *column = row_column(table, column).into();
         }
         if super::validate_key_names(read).is_err() { return; }
+        // @ref LLP 3000.007#18.1 — normalized named search orders keep their
+        // explicit choice for a compatible browse plan; words use normal planning.
+        let preferred = read.index.as_ref().filter(|name| !read.order_keys.is_empty()
+            && table.indexes.iter().any(|index| &index.name == *name && index.unique && index.is_plain())).cloned();
+        if preferred.is_some() { read.index = None; }
         if read.index.is_some() {
             if !rule { self.selected_prefix(table, read); }
             return;
@@ -181,11 +195,12 @@ impl Requests {
             (index.unique || index.columns.len() > read.keys.len())
                 && (!cursor || table.total_cursor(index)) && ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
         }).collect();
-        if candidates.len() > 1 {
+        let selected = candidates.iter().copied().find(|index| Some(&index.name) == preferred.as_ref());
+        if candidates.len() > 1 && selected.is_none() {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),
                 format!("choose `by {}` explicitly or keep one definition", candidates[0].name)));
         }
-        read.index = Some(if let Some(index) = extremum_index.or_else(|| candidates.first().copied()) { index.name.clone() }
+        read.index = Some(if let Some(index) = selected.or(extremum_index).or_else(|| candidates.first().copied()) { index.name.clone() }
             else { self.index_computed(table, columns, words, read.computed.clone(), &read.site, true) });
     }
     // @ref LLP 3000.028#3.2 — an explicit index has the same coverage as

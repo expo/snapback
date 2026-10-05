@@ -2,9 +2,21 @@
 use super::*;
 
 impl Binder<'_> {
-    // @ref LLP 3000.013#2.3 — search synthesizes an index from pins and order;
-    // an explicit plain index is not a request to order a separate word scan.
+    // @ref LLP 3000.007#18.1 — valid unique orders normalize before binding;
+    // other explicit indexes explain the column-ordered search alternative.
     pub(super) fn matching_nonwords_index(&self, info: &TableInfo, read: &ReadExpr, index: &ast::IndexDecl) -> Diagnostic {
+        if index.is_plain() && index.unique {
+            let prefix = &index.columns[..read.keys.len().min(index.columns.len())];
+            let missing: Vec<_> = prefix.iter().filter(|column| !read.keys.iter().enumerate()
+                .any(|(n, key)| key.column.as_ref().or_else(|| index.columns.get(n)) == Some(*column))).cloned().collect();
+            let reason = if missing.is_empty() {
+                format!("matching scope supplies {} keys for {} index columns", read.keys.len(), index.columns.len())
+            } else {
+                format!("matching scope keys must name its leading columns; missing leading column{}: {}", if missing.len() == 1 { "" } else { "s" }, missing.join(", "))
+            };
+            // Never turn a refused prefix into a scan of the unpinned complement.
+            return Diagnostic::new(&read.site, "E_QUARRY_MATCHING_INDEX", format!("{}.{} is a plain unique index; {reason}", read.table, index.name), "");
+        }
         let mut pinned: std::collections::BTreeSet<_> = read.keys.iter().enumerate()
             .filter_map(|(n, key)| key.column.as_ref().or_else(|| index.columns.get(n))).cloned().collect();
         let mut conjuncts = Vec::new();
@@ -15,7 +27,7 @@ impl Binder<'_> {
         let mut order: Vec<_> = index.columns.iter().filter(|column| !pinned.contains(*column)).cloned().collect();
         if order.is_empty() { order.push("id".into()); }
         let (reason, changes) = if index.is_plain() {
-            ("is a plain index, not a words index; matching needs a words index. Order by columns so the planner builds the search index; keep the unique index for ordinary reads",
+            ("is a plain index, not a words index; matching needs a words index. Order by columns so the planner builds the search index, or name a plain unique index with the desired order",
                 vec![crate::repair::ReadChange::SearchOrder { keys: index.columns.clone(), order }])
         } else {
             ("has a computed key and no words key; matching needs a words index with the requested scope and order", Vec::new())

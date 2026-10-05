@@ -16,7 +16,7 @@ query people(q: text <=100, c: cursor ?):
 
 ### Search one conversation, newest first, paged
 
-Order by the ordinal column, not the name of its unique index:
+Use the conversation's unique index order (or equivalently `by .ordinal`):
 
 ```quarry
 table conversations:
@@ -38,13 +38,14 @@ table messages:
   read <- exists members[.conversation, viewer]
   sync to members[.conversation] last 500 by byConversationOrdinal
 query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
-  return messages[conversation = conversation] matching q last 20 by .ordinal after c
+  return messages[conversation = conversation] matching q last 20 by byConversationOrdinal after c
 ```
 
-`by byConversationOrdinal` selects a plain index, which cannot serve `matching`.
-`by .ordinal` plans `(conversation, words(body), ordinal, id)`; keep the unique index for history and receipts.
+Both forms plan `(conversation, words(body), ordinal, id)`; the unique index still serves history and receipts.
+A named plain unique index supplies its order; named bracket keys must sit inside its leading prefix. Omitting keys orders by the whole index. Other plain indexes use column order.
 Existing integer ordinals work too: do not migrate to `sequence by` just to search (`guide sequences`).
 Pass `next` as `c`; reset it when the conversation or text changes. An empty needle browses in ordinal order.
+Keep ordinals stable while paging; refresh to include new matches before the cursor. Point decorations preserve the bare page (below).
 When server and offline device searches scan the same set of messages, their ordering and examined-row,
 index-entry, step and output-byte counts match. A device searches acquired history: show
 `complete: false` honestly, even for an empty result beyond its horizon; follow `next` only when present.

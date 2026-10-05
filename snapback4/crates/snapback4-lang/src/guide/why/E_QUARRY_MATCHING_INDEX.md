@@ -4,13 +4,15 @@ E_QUARRY_MATCHING_INDEX means the named index is declared, but cannot serve
 this `matching` read. This is an index compatibility error, not an unresolved
 name or an invalid cursor.
 
-A plain index has no words key. For in-chat search, declare `search body`
-on messages, pin the conversation, and order by columns:
+A plain unique index supplies its column order to the search planner when
+named scope keys sit inside its leading prefix; omitting keys orders by the
+whole index. Other plain indexes have no words key.
+For in-chat search, declare `search body`, pin the conversation, and use
+`by byConversationOrdinal` for `unique byConversationOrdinal: conversation, ordinal`, or order by columns:
 `messages[conversation = chat] matching needle last 20 by .ordinal after next`.
 The planner supplies `(conversation, words(body), ordinal, id)`. Keep the
-unique conversation/ordinal index for history and receipts. The diagnostic's
-rewrite preserves the original scope, needle, direction, page size and cursor,
-and is printed only when it compiles in the original context.
+unique conversation/ordinal index for history and receipts. A refused unique
+index prefix names the missing leading column and offers no rewrite.
 
 A computed index without a words key cannot serve `matching` either. It is
 not a plain index; no automatic column-order rewrite is offered, because
