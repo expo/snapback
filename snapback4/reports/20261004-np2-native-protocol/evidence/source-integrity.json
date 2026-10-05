@@ -1,0 +1,479 @@
+{
+  "files": [
+    {
+      "path": "app/(tabs)/_layout.tsx",
+      "eb1000Copy": "5a579729f43a79624f8facf330ce2968c60c9f108fd23ac5278a0848d197758c",
+      "custody": "5a579729f43a79624f8facf330ce2968c60c9f108fd23ac5278a0848d197758c",
+      "scratch": "5a579729f43a79624f8facf330ce2968c60c9f108fd23ac5278a0848d197758c",
+      "match": true
+    },
+    {
+      "path": "app/(tabs)/chats.tsx",
+      "eb1000Copy": "c50d9a4e86bb565bb949ba87e494f0107d6840f4324d195787ce8f7949bddc96",
+      "custody": "c50d9a4e86bb565bb949ba87e494f0107d6840f4324d195787ce8f7949bddc96",
+      "scratch": "c50d9a4e86bb565bb949ba87e494f0107d6840f4324d195787ce8f7949bddc96",
+      "match": true
+    },
+    {
+      "path": "app/(tabs)/index.tsx",
+      "eb1000Copy": "d3dcd9b2739dfab3163e25ae0a3144e87945b113630c802f53f4a9772f605bab",
+      "custody": "d3dcd9b2739dfab3163e25ae0a3144e87945b113630c802f53f4a9772f605bab",
+      "scratch": "d3dcd9b2739dfab3163e25ae0a3144e87945b113630c802f53f4a9772f605bab",
+      "match": true
+    },
+    {
+      "path": "app/(tabs)/profile.tsx",
+      "eb1000Copy": "d5c2a086d5fad8a0145cd0803d307b06242c079cabfa3dc65d9e3c2aed0d9252",
+      "custody": "d5c2a086d5fad8a0145cd0803d307b06242c079cabfa3dc65d9e3c2aed0d9252",
+      "scratch": "d5c2a086d5fad8a0145cd0803d307b06242c079cabfa3dc65d9e3c2aed0d9252",
+      "match": true
+    },
+    {
+      "path": "app/(tabs)/search.tsx",
+      "eb1000Copy": "00dc0a1377389d5e1ce0abd686e3ec25e9aaba2d665c2b4adc01725e6ed042ce",
+      "custody": "00dc0a1377389d5e1ce0abd686e3ec25e9aaba2d665c2b4adc01725e6ed042ce",
+      "scratch": "00dc0a1377389d5e1ce0abd686e3ec25e9aaba2d665c2b4adc01725e6ed042ce",
+      "match": true
+    },
+    {
+      "path": "app/_layout.tsx",
+      "eb1000Copy": "f0a36d41258d17b25c27d013e376ea873215b2e4f795ffa7e404590736192a94",
+      "custody": "f0a36d41258d17b25c27d013e376ea873215b2e4f795ffa7e404590736192a94",
+      "scratch": "f0a36d41258d17b25c27d013e376ea873215b2e4f795ffa7e404590736192a94",
+      "match": true
+    },
+    {
+      "path": "app/conversation/[handle]/settings.tsx",
+      "eb1000Copy": "e46ce8732bf3647abedd93d83696c9d956efdb3e0f51ab1a6eafe968eb2865f7",
+      "custody": "e46ce8732bf3647abedd93d83696c9d956efdb3e0f51ab1a6eafe968eb2865f7",
+      "scratch": "e46ce8732bf3647abedd93d83696c9d956efdb3e0f51ab1a6eafe968eb2865f7",
+      "match": true
+    },
+    {
+      "path": "app/conversation/[handle].tsx",
+      "eb1000Copy": "a2aaaf649de2cb0e6bf6bb60c2025fb2ed3eb841fd83884e2bfe4e0907d7b6a4",
+      "custody": "a2aaaf649de2cb0e6bf6bb60c2025fb2ed3eb841fd83884e2bfe4e0907d7b6a4",
+      "scratch": "a2aaaf649de2cb0e6bf6bb60c2025fb2ed3eb841fd83884e2bfe4e0907d7b6a4",
+      "match": true
+    },
+    {
+      "path": "app/conversation/group/[group]/index.tsx",
+      "eb1000Copy": "5e3e1b727f1f5cbbdaca66d278da324eb0311fcd979c76f45c502ef8b4f99899",
+      "custody": "5e3e1b727f1f5cbbdaca66d278da324eb0311fcd979c76f45c502ef8b4f99899",
+      "scratch": "5e3e1b727f1f5cbbdaca66d278da324eb0311fcd979c76f45c502ef8b4f99899",
+      "match": true
+    },
+    {
+      "path": "app/conversation/group/[group]/settings.tsx",
+      "eb1000Copy": "a1a1e14f6dd893dd33284767235552ff1badcad71534b28efcf2da1932b413a8",
+      "custody": "a1a1e14f6dd893dd33284767235552ff1badcad71534b28efcf2da1932b413a8",
+      "scratch": "a1a1e14f6dd893dd33284767235552ff1badcad71534b28efcf2da1932b413a8",
+      "match": true
+    },
+    {
+      "path": "app/dm/[other].tsx",
+      "eb1000Copy": "d46bd9bd350cd9bbe3d55a8c4ccc3a29644cf744578d675c87cd6291461e9f99",
+      "custody": "d46bd9bd350cd9bbe3d55a8c4ccc3a29644cf744578d675c87cd6291461e9f99",
+      "scratch": "d46bd9bd350cd9bbe3d55a8c4ccc3a29644cf744578d675c87cd6291461e9f99",
+      "match": true
+    },
+    {
+      "path": "app/insights.tsx",
+      "eb1000Copy": "1f74db7be83d39ab6aac7d6a8257ddbe3ca700a29ce6b8b4b6eb508e693cae9b",
+      "custody": "1f74db7be83d39ab6aac7d6a8257ddbe3ca700a29ce6b8b4b6eb508e693cae9b",
+      "scratch": "1f74db7be83d39ab6aac7d6a8257ddbe3ca700a29ce6b8b4b6eb508e693cae9b",
+      "match": true
+    },
+    {
+      "path": "app/post/[id].tsx",
+      "eb1000Copy": "9cc4474fcd361fee367452b8a7ef34b715dc798d2f7a3a2ffd6f3c4df7e342d0",
+      "custody": "9cc4474fcd361fee367452b8a7ef34b715dc798d2f7a3a2ffd6f3c4df7e342d0",
+      "scratch": "9cc4474fcd361fee367452b8a7ef34b715dc798d2f7a3a2ffd6f3c4df7e342d0",
+      "match": true
+    },
+    {
+      "path": "app/profile/[handle].tsx",
+      "eb1000Copy": "2b4854a972e72bbf0bdfa5084db39dd585542ee379c9a28f97f3d87ab2f23771",
+      "custody": "2b4854a972e72bbf0bdfa5084db39dd585542ee379c9a28f97f3d87ab2f23771",
+      "scratch": "2b4854a972e72bbf0bdfa5084db39dd585542ee379c9a28f97f3d87ab2f23771",
+      "match": true
+    },
+    {
+      "path": "app/profile/edit.tsx",
+      "eb1000Copy": "664b69971fd9b31d2a29d4477af08afd35958d2a23829c71c21f55a3254baa0d",
+      "custody": "664b69971fd9b31d2a29d4477af08afd35958d2a23829c71c21f55a3254baa0d",
+      "scratch": "664b69971fd9b31d2a29d4477af08afd35958d2a23829c71c21f55a3254baa0d",
+      "match": true
+    },
+    {
+      "path": "app/search-chat/[id].tsx",
+      "eb1000Copy": "dfd92798880468233a165dfb745a7c5fc0b2881991ecc75335e4a2012c7a824f",
+      "custody": "dfd92798880468233a165dfb745a7c5fc0b2881991ecc75335e4a2012c7a824f",
+      "scratch": "dfd92798880468233a165dfb745a7c5fc0b2881991ecc75335e4a2012c7a824f",
+      "match": true
+    },
+    {
+      "path": "app/settings.tsx",
+      "eb1000Copy": "dca29037d894b25a0d09a588e462eb8aac17b094cdd8b8d6439ee6f3902be881",
+      "custody": "dca29037d894b25a0d09a588e462eb8aac17b094cdd8b8d6439ee6f3902be881",
+      "scratch": "dca29037d894b25a0d09a588e462eb8aac17b094cdd8b8d6439ee6f3902be881",
+      "match": true
+    },
+    {
+      "path": "src/BoundedConversation.tsx",
+      "eb1000Copy": "a46418dadb37dd2ba445eef9b02f73a2d23e8a3c5b5f5ddd6f05613dcab64508",
+      "custody": "a46418dadb37dd2ba445eef9b02f73a2d23e8a3c5b5f5ddd6f05613dcab64508",
+      "scratch": "a46418dadb37dd2ba445eef9b02f73a2d23e8a3c5b5f5ddd6f05613dcab64508",
+      "match": true
+    },
+    {
+      "path": "src/ChatSettingsScreen.tsx",
+      "eb1000Copy": "e573e0aec7b0693bd9513ce889447816f44714a531dbb65c7538eafa3fb33581",
+      "custody": "e573e0aec7b0693bd9513ce889447816f44714a531dbb65c7538eafa3fb33581",
+      "scratch": "e573e0aec7b0693bd9513ce889447816f44714a531dbb65c7538eafa3fb33581",
+      "match": true
+    },
+    {
+      "path": "src/Chats.tsx",
+      "eb1000Copy": "8c885b75daf62f8beb82e4f6f4de74ee99b95a56a17ba022d26a7819f6366f83",
+      "custody": "8c885b75daf62f8beb82e4f6f4de74ee99b95a56a17ba022d26a7819f6366f83",
+      "scratch": "8c885b75daf62f8beb82e4f6f4de74ee99b95a56a17ba022d26a7819f6366f83",
+      "match": true
+    },
+    {
+      "path": "src/Conversation.tsx",
+      "eb1000Copy": "6915146b3b2b5519c841e03285c47e7e368b4ca1e743a34edc15fb6f09b557cc",
+      "custody": "6915146b3b2b5519c841e03285c47e7e368b4ca1e743a34edc15fb6f09b557cc",
+      "scratch": "6915146b3b2b5519c841e03285c47e7e368b4ca1e743a34edc15fb6f09b557cc",
+      "match": true
+    },
+    {
+      "path": "src/Direct.tsx",
+      "eb1000Copy": "e429abaa9fc489450b5d9d5989a4f4d08857178aa901c8e0f9a4a2adbb59574e",
+      "custody": "e429abaa9fc489450b5d9d5989a4f4d08857178aa901c8e0f9a4a2adbb59574e",
+      "scratch": "e429abaa9fc489450b5d9d5989a4f4d08857178aa901c8e0f9a4a2adbb59574e",
+      "match": true
+    },
+    {
+      "path": "src/Feed.tsx",
+      "eb1000Copy": "f8697d62d10312973bad546da4893db5cf907a4cd5076ddabed3ebb936e2fb26",
+      "custody": "f8697d62d10312973bad546da4893db5cf907a4cd5076ddabed3ebb936e2fb26",
+      "scratch": "f8697d62d10312973bad546da4893db5cf907a4cd5076ddabed3ebb936e2fb26",
+      "match": true
+    },
+    {
+      "path": "src/InsightsScreen.tsx",
+      "eb1000Copy": "068d1044792d00f22028c90169e22d5e79884df867c160fbcb7237dc3b0f992b",
+      "custody": "068d1044792d00f22028c90169e22d5e79884df867c160fbcb7237dc3b0f992b",
+      "scratch": "068d1044792d00f22028c90169e22d5e79884df867c160fbcb7237dc3b0f992b",
+      "match": true
+    },
+    {
+      "path": "src/PageLifetime.ts",
+      "eb1000Copy": "ab2961da7501c7e2dc6f3fe31127878ce685da715fb238683f549edd1ba67001",
+      "custody": "ab2961da7501c7e2dc6f3fe31127878ce685da715fb238683f549edd1ba67001",
+      "scratch": "ab2961da7501c7e2dc6f3fe31127878ce685da715fb238683f549edd1ba67001",
+      "match": true
+    },
+    {
+      "path": "src/PersistentFeedTabs.tsx",
+      "eb1000Copy": "aa24f326475a82083a6dafeef1c9a089e35381b9e30919e7def8fb77d59e3889",
+      "custody": "aa24f326475a82083a6dafeef1c9a089e35381b9e30919e7def8fb77d59e3889",
+      "scratch": "aa24f326475a82083a6dafeef1c9a089e35381b9e30919e7def8fb77d59e3889",
+      "match": true
+    },
+    {
+      "path": "src/PostCard.tsx",
+      "eb1000Copy": "1ba6539537dea688e3a51db5f15bfede6da5c8de27f9f72ac81906ccfe27e70a",
+      "custody": "1ba6539537dea688e3a51db5f15bfede6da5c8de27f9f72ac81906ccfe27e70a",
+      "scratch": "1ba6539537dea688e3a51db5f15bfede6da5c8de27f9f72ac81906ccfe27e70a",
+      "match": true
+    },
+    {
+      "path": "src/Profile.tsx",
+      "eb1000Copy": "74a8304c45f115a605093a31e1bdc3ef02f5a18d6d8fa9882a3616edae3c8895",
+      "custody": "74a8304c45f115a605093a31e1bdc3ef02f5a18d6d8fa9882a3616edae3c8895",
+      "scratch": "74a8304c45f115a605093a31e1bdc3ef02f5a18d6d8fa9882a3616edae3c8895",
+      "match": true
+    },
+    {
+      "path": "src/ProfileEdit.tsx",
+      "eb1000Copy": "1f8a7372bcfc0ea8e290f5125ebab9497bc2e3b8154927581cad728b3eb73fd1",
+      "custody": "1f8a7372bcfc0ea8e290f5125ebab9497bc2e3b8154927581cad728b3eb73fd1",
+      "scratch": "1f8a7372bcfc0ea8e290f5125ebab9497bc2e3b8154927581cad728b3eb73fd1",
+      "match": true
+    },
+    {
+      "path": "src/ProfileScreen.tsx",
+      "eb1000Copy": "f9ac0220ec777be819aa027da69f8ce89d5daea2184d4450dba47bfb3f52b47f",
+      "custody": "f9ac0220ec777be819aa027da69f8ce89d5daea2184d4450dba47bfb3f52b47f",
+      "scratch": "f9ac0220ec777be819aa027da69f8ce89d5daea2184d4450dba47bfb3f52b47f",
+      "match": true
+    },
+    {
+      "path": "src/ResolveConversation.tsx",
+      "eb1000Copy": "abc832ebfbc72fb62a50844e1f697d097f1d67aa46cdeef839f30caa3eae61d5",
+      "custody": "abc832ebfbc72fb62a50844e1f697d097f1d67aa46cdeef839f30caa3eae61d5",
+      "scratch": "abc832ebfbc72fb62a50844e1f697d097f1d67aa46cdeef839f30caa3eae61d5",
+      "match": true
+    },
+    {
+      "path": "src/Search.tsx",
+      "eb1000Copy": "a5f68243544760a05f6b0a7b62d61f41989e1675e23a85079dcf063cb4926681",
+      "custody": "a5f68243544760a05f6b0a7b62d61f41989e1675e23a85079dcf063cb4926681",
+      "scratch": "a5f68243544760a05f6b0a7b62d61f41989e1675e23a85079dcf063cb4926681",
+      "match": true
+    },
+    {
+      "path": "src/SearchScreen.tsx",
+      "eb1000Copy": "02d0774ff28d6fc702aafbcae586aa9749bd1f7038485cd272add116531bc236",
+      "custody": "02d0774ff28d6fc702aafbcae586aa9749bd1f7038485cd272add116531bc236",
+      "scratch": "02d0774ff28d6fc702aafbcae586aa9749bd1f7038485cd272add116531bc236",
+      "match": true
+    },
+    {
+      "path": "src/client.ts",
+      "eb1000Copy": "e183dd8c31585fa375a6da6727490e9e740bd3f9654a3d659798304cac36b9e4",
+      "custody": "e183dd8c31585fa375a6da6727490e9e740bd3f9654a3d659798304cac36b9e4",
+      "scratch": "e183dd8c31585fa375a6da6727490e9e740bd3f9654a3d659798304cac36b9e4",
+      "match": true
+    },
+    {
+      "path": "src/feed-tab.ts",
+      "eb1000Copy": "1965d947ea639becf69255f40e42ddf8ea2acd89f2a533edfa15cc98dd986a1a",
+      "custody": "1965d947ea639becf69255f40e42ddf8ea2acd89f2a533edfa15cc98dd986a1a",
+      "scratch": "1965d947ea639becf69255f40e42ddf8ea2acd89f2a533edfa15cc98dd986a1a",
+      "match": true
+    },
+    {
+      "path": "src/intent-store.native.ts",
+      "eb1000Copy": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850",
+      "custody": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850",
+      "scratch": "4ab5bdeeeb3de3d3d86ea02deaf3ed68cd4592578260fe1df63981d26bebe850",
+      "match": true
+    },
+    {
+      "path": "src/intent-store.ts",
+      "eb1000Copy": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4",
+      "custody": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4",
+      "scratch": "d88eadf6a0d477ba2b4b0beac3277fc9ffa5f86d9ec7a70bead1267c366442d4",
+      "match": true
+    },
+    {
+      "path": "src/intent-store.web.ts",
+      "eb1000Copy": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e",
+      "custody": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e",
+      "scratch": "8d17c1ac81c3925767581a5d39962e9c7652ffb97e9efc16f139a1c3d9a8098e",
+      "match": true
+    },
+    {
+      "path": "src/intents.ts",
+      "eb1000Copy": "06f1de4d302d33aec1ee1abb3f6ffb04e689e385aa848dec024551d634785178",
+      "custody": "06f1de4d302d33aec1ee1abb3f6ffb04e689e385aa848dec024551d634785178",
+      "scratch": "06f1de4d302d33aec1ee1abb3f6ffb04e689e385aa848dec024551d634785178",
+      "match": true
+    },
+    {
+      "path": "src/media.tsx",
+      "eb1000Copy": "9e5e8e4722a5654733cc3079183402dd8a9d9f9b36a23479878c3d4740ca4f7e",
+      "custody": "9e5e8e4722a5654733cc3079183402dd8a9d9f9b36a23479878c3d4740ca4f7e",
+      "scratch": "9e5e8e4722a5654733cc3079183402dd8a9d9f9b36a23479878c3d4740ca4f7e",
+      "match": true
+    },
+    {
+      "path": "src/native-smoke.ts",
+      "eb1000Copy": "cfc79958fcc6b6643ef2aced08fe660951d53c40e576263a195859d9b691c745",
+      "custody": "cfc79958fcc6b6643ef2aced08fe660951d53c40e576263a195859d9b691c745",
+      "scratch": "cfc79958fcc6b6643ef2aced08fe660951d53c40e576263a195859d9b691c745",
+      "match": true
+    },
+    {
+      "path": "src/ui.tsx",
+      "eb1000Copy": "9d798eeec79e6e7fdc376eb40281a7c1853c53a01762b1f29ac620b701e32655",
+      "custody": "9d798eeec79e6e7fdc376eb40281a7c1853c53a01762b1f29ac620b701e32655",
+      "scratch": "9d798eeec79e6e7fdc376eb40281a7c1853c53a01762b1f29ac620b701e32655",
+      "match": true
+    },
+    {
+      "path": "src/useOnceMedia.ts",
+      "eb1000Copy": "5fb984a22c8964ca68f899026974558709c10d2b200d8750e14e63edf1fa3cf0",
+      "custody": "5fb984a22c8964ca68f899026974558709c10d2b200d8750e14e63edf1fa3cf0",
+      "scratch": "5fb984a22c8964ca68f899026974558709c10d2b200d8750e14e63edf1fa3cf0",
+      "match": true
+    },
+    {
+      "path": "src/useOnlineArm.ts",
+      "eb1000Copy": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b",
+      "custody": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b",
+      "scratch": "e9587fae916e217acf9203b4c9917fcfd5757410a7373157d27152bcd532d25b",
+      "match": true
+    },
+    {
+      "path": "src/useTyping.ts",
+      "eb1000Copy": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35",
+      "custody": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35",
+      "scratch": "101b4641b7c78097bca41956b193c0bdc7082d2c2bc68ca8ea6f59acdf9c4f35",
+      "match": true
+    },
+    {
+      "path": "ui/src/AuthForm.tsx",
+      "eb1000Copy": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "custody": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "scratch": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "match": true
+    },
+    {
+      "path": "ui/src/Avatar.tsx",
+      "eb1000Copy": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "custody": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "scratch": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "match": true
+    },
+    {
+      "path": "ui/src/ChatListRow.tsx",
+      "eb1000Copy": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "custody": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "scratch": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "match": true
+    },
+    {
+      "path": "ui/src/ChatSettingsForm.tsx",
+      "eb1000Copy": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "custody": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "scratch": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "match": true
+    },
+    {
+      "path": "ui/src/Composer.tsx",
+      "eb1000Copy": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "custody": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "scratch": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "match": true
+    },
+    {
+      "path": "ui/src/FeedCard.tsx",
+      "eb1000Copy": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "custody": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "scratch": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "match": true
+    },
+    {
+      "path": "ui/src/FeedTabs.tsx",
+      "eb1000Copy": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "custody": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "scratch": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "match": true
+    },
+    {
+      "path": "ui/src/InsightsBarList.tsx",
+      "eb1000Copy": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "custody": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "scratch": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "match": true
+    },
+    {
+      "path": "ui/src/InsightsSummary.tsx",
+      "eb1000Copy": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "custody": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "scratch": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "match": true
+    },
+    {
+      "path": "ui/src/MessageBubble.tsx",
+      "eb1000Copy": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d",
+      "custody": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d",
+      "scratch": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d",
+      "match": true
+    },
+    {
+      "path": "ui/src/PollCompose.tsx",
+      "eb1000Copy": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "custody": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "scratch": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "match": true
+    },
+    {
+      "path": "ui/src/PollDisplay.tsx",
+      "eb1000Copy": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "custody": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "scratch": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "match": true
+    },
+    {
+      "path": "ui/src/ProfileForm.tsx",
+      "eb1000Copy": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "custody": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "scratch": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "match": true
+    },
+    {
+      "path": "ui/src/QuotedReply.tsx",
+      "eb1000Copy": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "custody": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "scratch": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "match": true
+    },
+    {
+      "path": "ui/src/ReactionPicker.tsx",
+      "eb1000Copy": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "custody": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "scratch": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "match": true
+    },
+    {
+      "path": "ui/src/ReceiptTicks.tsx",
+      "eb1000Copy": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "custody": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "scratch": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "match": true
+    },
+    {
+      "path": "ui/src/SearchBar.tsx",
+      "eb1000Copy": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420",
+      "custody": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420",
+      "scratch": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420",
+      "match": true
+    },
+    {
+      "path": "ui/src/TrendingRow.tsx",
+      "eb1000Copy": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "custody": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "scratch": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "match": true
+    },
+    {
+      "path": "ui/src/TypingIndicator.tsx",
+      "eb1000Copy": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "custody": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "scratch": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "match": true
+    },
+    {
+      "path": "ui/src/linkify.tsx",
+      "eb1000Copy": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "custody": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "scratch": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "match": true
+    },
+    {
+      "path": "ui/src/tokens.ts",
+      "eb1000Copy": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "custody": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "scratch": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "match": true
+    },
+    {
+      "path": "ui/src/webSemantics.ts",
+      "eb1000Copy": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "custody": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "scratch": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "match": true
+    }
+  ],
+  "allMatch": true,
+  "packageLock": {
+    "custody": "484c8fe44918db731006e172c90831e66c1db0b858c7e70f3b06b65050cb30a7",
+    "scratch": "484c8fe44918db731006e172c90831e66c1db0b858c7e70f3b06b65050cb30a7"
+  },
+  "custodyRecordSha256": "db29f4d6ee40fb42b7c1f821b3593e0d6d9fc8b24f71b4e851ac4f3daa8a2e3c"
+}

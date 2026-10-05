@@ -1,0 +1,82 @@
+{
+  "source": "Grok cal30 grader-report.json",
+  "assertions": {
+    "m6-a01": {
+      "result": "not-run"
+    },
+    "m6-a02": {
+      "result": "not-run"
+    },
+    "m6-a03": {
+      "result": "not-run"
+    },
+    "m6-a04": {
+      "result": "not-run"
+    },
+    "m6-a05": {
+      "result": "not-run"
+    },
+    "m6-a06": {
+      "result": "not-run"
+    },
+    "m6-a07": {
+      "result": "not-run"
+    },
+    "m6-a08": {
+      "result": "pass"
+    },
+    "m6-a09": {
+      "result": "pass"
+    },
+    "m6-a10": {
+      "result": "pass"
+    },
+    "m6-a11": {
+      "result": "pass"
+    },
+    "m6-a12": {
+      "result": "pass"
+    },
+    "m6-a13": {
+      "result": "pass"
+    },
+    "m7-a01": {
+      "result": "not-run"
+    },
+    "m7-a02": {
+      "result": "not-run"
+    },
+    "m7-a03": {
+      "result": "not-run"
+    },
+    "m7-a04": {
+      "result": "not-run"
+    },
+    "m7-a05": {
+      "result": "not-run"
+    },
+    "m7-a06": {
+      "result": "not-run"
+    },
+    "m7-a07": {
+      "result": "not-run"
+    },
+    "m7-a08": {
+      "result": "not-run"
+    },
+    "m7-a09": {
+      "result": "not-run"
+    }
+  },
+  "nativeAssertionIds": [
+    "m6-a01",
+    "m6-a02",
+    "m6-a03",
+    "m6-a04",
+    "m6-a05",
+    "m6-a06",
+    "m6-a07",
+    "m8-a17",
+    "m8-a18"
+  ]
+}

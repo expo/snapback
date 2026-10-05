@@ -1,0 +1,18 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-04 10:36:57.708 E  Clique[10764:18e8783] [com.facebook.react.log:javascript] [Error: Unsupported top level event type "topContentSizeChange" dispatched]
+2026-10-04 10:36:57.708 E  Clique[10764:18e877c] [com.facebook.react.log:native] Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched
+2026-10-04 10:36:57.710 Df Clique[10764:18e877c] (CoreFoundation) *** Terminating app due to uncaught exception 'RCTFatalException: Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched', reason: 'Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched, stack:
+extractEvents@122941:73
+anonymous@122999:72
+batchedUpdatesImpl@128425:15
+batchedUpdates$1@122967:31
+dispatchEvent@122989:20
+'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001c0287f24 __exceptionPreprocess + 172
+	1   libobjc.A.dylib                     0x00000001c008194c objc_exception_throw + 72
+	2   React                               0x0000000106f13814 RCTGetFatalHandler + 0
+	3   React                               0x000000010718cbb4 -[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:] + 512
+	4   React                               0x000000010718d5f0 -[RCTExceptionsManager reportException:] + 2292
+	5   CoreFoundation                      0x00000001c028e840 __invoking___ + <…>
