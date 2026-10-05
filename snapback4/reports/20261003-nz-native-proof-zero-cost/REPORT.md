@@ -1336,3 +1336,161 @@ incomplete attempt) and the tested binary remain in the external content-address
 archive. No gzip/video or new files over 256 KB are committed. Earlier native,
 Linux and physical-sleep qualification limits remain. NZ targets 0.4.14.
 Nothing was pushed or published.
+
+
+## Round 10 — atomic retention transitions (2026-10-04)
+
+Base: `7a1899daa8`, on the Apartment mini only. The operator supplied Astra's two
+crash-window findings and Grok's READY verdict; this section does not claim an
+independent review or access to the eb1000 evidence files. NZ remains for 0.4.14.
+No real simulator was created and no new native timing is claimed.
+
+### Changes and protocol audit
+
+The final handoff now keeps a live backup. After its native group drains, the
+custodian atomically records `handoff` **before** dropping the active lease. Its
+observer recognizes that record and can launch a successor without waiting for
+the finishing custodian to exit. While work remains, the finishing custodian
+polls every 100 ms until the queue is covered or a birth-matched live successor
+has recorded its claimed scan. Seeing a busy observer lease does not let it exit.
+If that observer dies in the gap, the custodian starts another observer itself.
+Both handoff sides share the original observation expiry. There remains one
+observer and one active scan; a finishing backup can overlap a successor briefly,
+without a native group or held scan/publication lease. Three interrupted/startup
+attempts and the 60-minute observation cap bound unsuccessful restart chains.
+
+A pending request is fully written and synced at a unique temporary pathname,
+then atomically renamed into its slot. Claiming renames the complete request;
+claim metadata updates also use complete-record renames. The claim pathname is
+authority, so an older empty or partially written claim can be upgraded by any
+live custodian. Completion renames only that claim to the done slot. A separate
+new pending request cannot be erased by acknowledgement. Deferral publishes
+pending before acknowledging, and parking renames claim to parked. A crash at
+any of these boundaries leaves either an intact record or an idempotently
+redoable operation; no later write requires its original writer to survive.
+
+Every wrapper first checks for stranded pending/claimed/parked or prepared
+request state and re-arms it, without waiting for a maintenance lease or scan.
+It performs this before Expo: even a failed next export repairs earlier work.
+The ordinary post-publication schedule remains outside the publication lock.
+A repaired prepared request is made durable before an old, birth-recorded dead
+producer's temporary file is removed. A crash before JSON exists is recognized
+by the exact private temporary filename and absence of a live writer PID. That
+permits unlinking the temporary file only; it never authorizes a signal or any
+process/simulator operation. A live writer is left alone. Unknown foreign names
+remain diagnostics and are not proof slots. Host-wide daemon/power-loss recovery is not
+claimed. Persistent filesystem, compressor or recorded-ownership errors still
+need their underlying condition resolved and remain loud.
+
+The matrix additionally exposed a history-ranking bug under publication
+contention: unknown pins could be treated as high-priority rows, placing
+compressed history ahead of full history, then compressing too many full rows
+after the lock cleared. The entire ranking pass now defers on any unknown pin.
+A focused mixed-observation regression refuses a partial ranking. Current/pending
+pins and per-candidate export leases and rechecks are unchanged.
+
+| State / transition | Atomicity, owner and bounded recovery |
+| --- | --- |
+| Export backstop | Before Expo, complete-record request publication re-arms stranded/parked/prepared work; queue acquisition is nonblocking. Maintenance never becomes a foreground wait. |
+| Request preparation → pending | Unique temporary file, complete JSON and sync, atomic rename. Death before rename leaves an older request or prepared record for the next export; after rename any party may arm observation. |
+| Pending → observer launch/gate | Queue lease prevents duplicate observers; launch record is complete before opening the gate. A lone launcher/observer crash before a peer exists leaves durable work for the next export. Gate and observation share the 60-minute expiry. |
+| Passive readiness | Initialization, active, retention, exclusive publication and per-run leases plus birth-matched owners are probed every 100 ms. Shared publication holders are busy too. No native worker respawns while waiting. |
+| Vanished / ownerless run | Vanished discoveries are already covered. Dead-journal shells and unresolved ownerless publication transactions use existing scoped recovery; empty shells do not consume slots. Conflicting identities park loudly. |
+| Observer → custodian | Observer retains the queue lease and passes the active lease to its direct child. Claim happens only after both exist. Launch failure retains pending state and is attempt-bounded. |
+| Request → claim | Atomic rename; metadata upgrade is repeatable for complete, partial and legacy empty records. The three-attempt count is persisted; fresh work may supersede an old claim. |
+| Claimed → scan/native custody | Claim remains durable. Existing supervisor/anchor/kernel watcher own all native work, gzip and descendants. Thirty seconds of work plus unchanged WD drain; cancellation and sleep checks remain. |
+| Observer waits for native work | Poll unreaped direct child; cancellation signals only that child. Existing 100-second force / 105-second failure bound applies until the custodian records completed handoff. |
+| Discovery deferred / raced lock | Publish a separate pending request, then acknowledge only the old claim. Passive readiness precedes another scan; handled deferrals do not spend failed-start attempts. |
+| History ranking | Only known pins enter the ordering. Any unknown pin defers the whole pass; no partial ranking can displace full history. |
+| Compression → receipt commit | Compression stays inside native custody. Receipt writes a temporary file then renames; source removal follows. Interrupted stages are repeatable and compressed receipts remain evidence. Worker failure parks for next-export repair. |
+| History deletion | Under candidate custody after pin check; recursive work is outside the publication lock. Interrupted deletion is repeatable; worker failure parks rather than spinning. |
+| Scan → done | Only after native completion/drain, rename claim to done. A concurrent pending request survives. Death before ack retries the claim; death after ack has no unfinished work from that scan. |
+| Known error → parked | Atomic claim-to-parked rename, diagnostic, no automatic retry of the same error. The next wrapper publishes fresh pending work before Expo. |
+| Custodian → handoff | Complete atomic handoff record while active lease is held, then release lease. Observer may advance; custodian remains backup while runnable work exists. A busy observer lease is never acknowledgement. |
+| Handoff → live successor | Retire only for no runnable work or a birth-matched successor's claimed-scan record. If the observer dies after a busy probe, the backup re-arms it; if the backup dies, the observer retains responsibility. |
+| Sole custodian death during scan | Kernel custody drains native descendants; observer retries the durable claim. No later export is needed. |
+| Observer death during scan | Custodian cancels/drains and preserves claim, then backs up its replacement observer until a successor claims. No later export is needed. |
+| Queue covered → exit | Release queue lease then recheck. Concurrent new requests retain their own record. Requester/last-peer crashes outside a paired scan use the next-export backstop. |
+| Retry cap / sleep / expiry / both peers lost | Preserve unresolved record and diagnose. All live waits remain bounded; next export re-arms durable work. No unbounded restart chain or new host daemon. |
+
+### Crash-point matrix
+
+The debug build has one-shot, per-fixture transition barriers that expire after
+20 seconds if the harness dies. Release execution contains no barrier behavior.
+Tests signal only the recorded process identities they started. All history
+fixtures contain full export trees and actual terminal receipts; every row
+requires exactly **five full plus twenty compressed** runs after recovery and
+preserves the current publication. No helper/manual cleanup supplies recovery.
+
+| Injection | Recovery required and asserted |
+| --- | --- |
+| Temporary request created before JSON, and complete request prepared before rename | Next export. Remove the older dirty bit too; the next Expo command deliberately fails, proving recovery came from the first maintenance step and the surviving prepared record. |
+| Pending rename committed, before observer launch | Next real export re-arms the stranded request. |
+| Claim renamed, before metadata upgrade | Surviving observer, no later export; repeated with an **empty legacy request**, reproducing Astra's partial-claim window. |
+| Claim metadata committed | Surviving observer, no later export. |
+| Before scan start | Surviving observer, no later export. |
+| Before gzip / after compressed receipt rename | Worker death is a known failed scan; next real export re-arms parked maintenance. |
+| Before / after history deletion | Worker death parks; next real export restores the bound. |
+| Scan complete, before acknowledgement | Surviving observer repeats the durable claim. |
+| Immediately before claim-to-done rename | Surviving observer repeats the durable claim. |
+| Immediately after claim-to-done rename | Work is already complete; no later export. |
+| Before final re-arm and after busy queue probe, kill observer | Finishing custodian survives, re-arms and waits for a successor; no later export. The busy-probe case reproduces Astra's final handoff window. |
+| Same two handoff points, kill custodian | Observer survives and completes pending work; no later export. |
+| Parked work, next export fails, each of opt-out / non-macOS / background | The wrapper's first maintenance step restores the bound before any new successful publication. No native tool launches. |
+
+The earlier sole-custodian and sole-observer SIGKILL tests still verify native
+compression-group custody and automatic recovery without another export. The
+four forced raced-lock refusals now wait for the durable handoff record rather
+than assuming the finishing custodian must exit before its successor can start.
+
+### Verification and evidence
+
+Exploratory crash subsets recorded 15/17, then 22/23, then 23/23 passes. The
+first run exposed an ordering change introduced by the initial backstop: it
+started brand-new maintenance before publication. The backstop now repairs only
+existing unresolved/prepared work; ordinary new work is still scheduled after
+publication. The second run exposed the mixed-history ranking failure described
+above. Earlier failed probes remain archived and are not final qualification.
+
+The first broad affected run passed 67 witness units, 76 serial witness
+integrations and 115 export/preparation tests. During that run, the audit added
+the empty pre-write temporary-record repair and its 21st new crash/backstop case,
+and corrected the new non-macOS failure fixture to clear its inherited opt-out.
+The harness therefore marked that run's inputs changed and did **not** start the
+full suite. A separate qualification-waiter startup raced creation of the new
+record file; the report helper now waits for a readable completed record. Neither
+helper refusal ran a partial full suite.
+
+The **final affected run passed**: build; **67/67 serial witness unit tests**
+(59.895 s including Cargo); and **116/116 export/preparation tests** (566.034 s),
+with no skipped or cancelled cases and all **six inputs unchanged**. See
+[the final affected record](./round10/focused-final.json) and
+[the 21 new crash/backstop checks](./round10/crash-matrix.json). The final matrix
+includes both requested reproducers, both peer deaths at each handoff barrier,
+and recovery before a deliberately failing Expo command in all three modes.
+The pre-write and pre-rename crash cases restored 5/20 in 1.610 s and 1.617 s
+respectively through that next-export backstop. These are fixture recovery times,
+not new native export metrology.
+
+The [complete final Mac suite](./round10/full-suite.json) passed with **zero
+failures in 2,800 s** (2,800.394 s measured wall time). All Rust targets and
+doctests passed, including **299 CLI tests** (four existing ignores) and **76
+witness integrations**. All nine fixture-wrapper tests passed. All **312 client
+files** passed: **6,274 passed / six existing skips / zero failures or
+cancellations**. Both full-count model files passed **79/79**. The Rust stage
+was 1,202 s, the client pool 1,357 s and the full-count models 198 s. Builds,
+wasm, documentation budget, release guard and typechecks passed. There were no
+interventions or reduced counts in this qualifying run. All
+[six input hashes](./round10/full-suite-inputs.json) remained unchanged.
+
+Final custody verification found no remaining lane CLI or interposed fixture
+jobs. No real devices were created this round; the previously recorded NZ
+devices are absent. No other session's worktree, process or simulator was
+changed or signalled. WD cleanup, group custody and preparation-deadline sources
+remain byte-identical to the base. Reference and whitespace checks passed.
+[Custody verification](./round10/custody-verification.json) and
+[artifact hashes](./round10/verification-evidence.json) accompany the result
+records. Large logs, including exploratory failures, and the tested binary are
+retained in the existing external content-addressed archive; no new file over
+256 KB and no gzip/video is added to git. This adds no real-native timing,
+physical-sleep or Linux qualification claim. Nothing was pushed or published.

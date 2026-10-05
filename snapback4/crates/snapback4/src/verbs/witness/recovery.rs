@@ -476,6 +476,17 @@ fn publication_pin(root: &Path, dir: &Path) -> Result<Option<bool>> {
     let pending = transaction["source"].as_str().map(|source| read(&Path::new(source).join(".snapback4-publication.json"))).unwrap_or(Value::Null);
     Ok(Some(matches(&current) || matches(&pending)))
 }
+// Do not rank unknown custody as a history pin: a mixed observation could
+// otherwise promote compressed rows and evict full history after contention.
+fn retention_order(runs: Vec<PathBuf>, pin: impl Fn(&Path) -> Result<Option<bool>>) -> Result<Option<Vec<(std::cmp::Reverse<(bool, u128)>, PathBuf)>>> {
+    let mut ordered = Vec::new();
+    for dir in runs {
+        let Some(pinned) = pin(&dir)? else { return Ok(None); };
+        let started = dir.file_name().unwrap().to_string_lossy().split('-').next().unwrap().parse::<u128>().unwrap();
+        ordered.push((std::cmp::Reverse((pinned, started)), dir));
+    }
+    Ok(Some(ordered))
+}
 pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -537,11 +548,7 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
         if finished || recover(&dir)? { runs.push(dir); }
         else { retention::request(root)?; }
     }
-    let mut ordered = runs.into_iter().map(|dir| {
-        let pinned = publication_pinned(root, &dir)?;
-        let started = dir.file_name().unwrap().to_string_lossy().split('-').next().unwrap().parse::<u128>().unwrap();
-        Ok((std::cmp::Reverse((pinned, started)), dir))
-    }).collect::<Result<Vec<_>>>()?;
+    let Some(mut ordered) = retention_order(runs, |dir| publication_pin(root, dir))? else { return Ok(()); };
     ordered.sort_by_key(|(key, _)| *key);
     // Five full runs plus at most twenty compressed receipt sets. Pin the
     // current native producer separately in the cache (saveBase owns its copy).
@@ -550,7 +557,7 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
         let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
         if dir.join("publication-pending.json").exists() { retention::request(root)?; continue; }
         if publication_pinned(root, dir)? { continue; }
-        if index >= 25 { remove(dir)?; continue; }
+        if index >= 25 { retention::checkpoint(root, "delete-before"); remove(dir)?; retention::checkpoint(root, "delete-after"); continue; }
         if dir.join("retention.json").exists() { continue; }
         // Legacy completed receipts may lack a completion marker. Persist one
         // before compressing away their only uncompressed terminal receipt.
@@ -564,11 +571,13 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
             if RECEIPTS.contains(&name.as_str()) && entry.file_type().is_ok_and(|t| t.is_file()) {
                 // This worker and gzip share the retained native anchor group.
                 // retention::run owns the deadline; owner death drains both.
+                retention::checkpoint(root, "compress-before");
                 let compressed = Command::new("gzip").args(["-n", "-c"]).arg(entry.path()).output().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
                 if !compressed.status.success() { return Err(error("E_WITNESS_ARTIFACT", "receipt compression failed")); }
                 let target = dir.join(format!("{name}.gz"));
                 let temporary = dir.join(format!("{name}.gz.tmp"));
                 fs::write(&temporary, compressed.stdout).and_then(|_| fs::rename(temporary, target)).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+                retention::checkpoint(root, "compress-committed");
                 retained.push(format!("{name}.gz"));
             } else { removed.push(name); }
             remove(&entry.path())?;
@@ -594,6 +603,17 @@ fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unknown_publication_pin_defers_the_entire_history_order() {
+        // This is the exact mixed snapshot which used to promote compressed
+        // history ahead of unpinned full rows. No partial ranking is usable.
+        let runs = vec![PathBuf::from("28-1"), PathBuf::from("24-1"), PathBuf::from("27-1")];
+        assert!(retention_order(runs.clone(), |dir| Ok(if dir == Path::new("24-1") { None } else { Some(false) })).unwrap().is_none());
+        let mut stable = retention_order(runs, |_| Ok(Some(false))).unwrap().unwrap();
+        stable.sort_by_key(|(key, _)| *key);
+        assert_eq!(stable.iter().map(|(_, dir)| dir.to_str().unwrap()).collect::<Vec<_>>(), ["28-1", "27-1", "24-1"]);
+    }
+
     #[test]
     fn ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence() {
         let project = std::env::temp_dir().join(format!("sb4-ownerless-{}-{}", std::process::id(), now()));

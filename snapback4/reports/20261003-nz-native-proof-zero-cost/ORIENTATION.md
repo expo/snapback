@@ -163,3 +163,21 @@ recovery, wrapper cleanup, internal dispatch, deterministic tests, dated §15 an
 guide, Round 9 report and append-only JOURNAL. No independent review or new native
 measurement is claimed. This mini only; no other worktree/process/device, no push.
 Hand-off: none.
+
+
+Round 10 (2026-10-04), base 7a1899daa8. Scope: retention protocol records, peer
+handoff, wrapper maintenance backstop, crash injection and evidence. Governing
+LLPs: root LLP 0000 (foundation), Snapback 4 fence LLP 3000 (current), and
+LLP 3000.030 §15 (current/native-proof custody). Its §15 invariant preserves
+atomic generation-bound publication, pinned current/pending evidence, supervised
+30-second work plus unchanged WD drain, passive bounded owner/lease probes,
+coalescing and no foreground maintenance wait. The round-9 audit omitted the
+final busy handoff and the empty renamed claim. Scope the repair to atomic
+complete records and redoable transitions, with explicit next-export recovery
+for lost peer pairs or parked errors. A crash matrix must distinguish automatic
+peer recovery from that backstop. Read current guide witness, package READMEs,
+Snapback 4 AGENTS/NOT-DOING/JOURNAL and existing report; the root Snapback 1
+bootstrap/gates do not cross this fence. Likely doc updates: dated §15, guide,
+Round 10 report/state audit and append-only JOURNAL. Risks: final-peer exit,
+concurrent dirty requests and crash retry bounds; no new device/host evidence.
+Hand-off: none. No external review is claimed; this mini only, no push.

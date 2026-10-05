@@ -1,0 +1,65 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "7a1899daa813fab1dd4cb147029043dfb9f10c19",
+  "state": "finished",
+  "startedAt": 1791179090.86478,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r10-full-suite.log",
+  "before": {
+    "at": 1791179092.0278752,
+    "load": [
+      5.3779296875,
+      5.474609375,
+      5.67236328125
+    ],
+    "idlePercent": 81.9899944413563,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 186.4 /usr/libexec/PerfPowerServices",
+      "  485     1  15.6 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "20320 20316   3.0 /Users/ccheever/.local/bin/claude",
+      " 1083     1   2.8 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.3 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "18428     1   1.9 /usr/libexec/diagnosticd",
+      " 1092     1   1.8 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "60509 60455   1.4 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "85282     1   1.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "60485 60455   0.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/dasd"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791181892.4294431,
+  "durationSeconds": 2800.394167542,
+  "after": {
+    "at": 1791181893.617887,
+    "load": [
+      9.26513671875,
+      7.75732421875,
+      10.58984375
+    ],
+    "idlePercent": 72.20055710306407,
+    "compilers": [
+      "57871 57829   3.7 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 190.9 /usr/libexec/PerfPowerServices",
+      "75168 75141  36.0 /Users/ccheever/.cache/convex/binaries/precompiled-2026-09-28-5c7cb5b/convex-local-backend",
+      " 1165     1  20.4 /Applications/cmux.app/Contents/MacOS/cmux",
+      "  485     1  16.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "59726     1  13.4 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimRenderServer.xpc/Contents/MacOS/SimRenderServer",
+      "58791 59730  10.1 /Users/ccheever/Library/Developer/CoreSimulator/Devices/3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B/data/Containers/Bundle/Application/C4E7741A-0CE3-48B9-B98D-87D90A552C49/NIReference.app/NIReference",
+      "59754 59730   5.9 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd",
+      "57871 57829   3.7 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "58968 58962   3.7 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.97/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+      "57882 59730   3.5 /Users/ccheever/Library/Developer/CoreSimulator/Devices/3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B/data/Containers/Bundle/Application/863571CC-8CDC-4FFC-B1DF-67AB916C3218/CliqueDriver-Runner.app/CliqueDriver-Runner"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r10-full-suite.log",
+    "sha256": "64192142ce468befd27920ae5ff475670c25b7917eaa7e5e195dc485bf72a1e5",
+    "bytes": 1913787
+  },
+  "inputsUnchanged": true
+}

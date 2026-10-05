@@ -948,20 +948,22 @@ for(const mode of ['off','non-macOS','background'])test(`failed Expo exports and
 // Force the race *after* readiness: a real supervised worker sees the held
 // retention lease. Handled deferrals must not consume the startup-crash budget.
 test('repeated raced retention-lock deferrals stay pending and restore the bound after release',{timeout:120000},async()=>{
-  const f=fixture();let held;
+  const f=fixture();let held;const scans=[];
   try {
     skipMode(f,'off');held=await holdRetention(f);await seedQueuedExports(f);
     const root=path.join(f.root,'artifacts/native-smoke');
     const observer=read(path.join(root,'maintenance-next.json'));
     for(let i=0;i<4;i++) {
-      const scan=spawnSync('python3',['-c',`import fcntl,os,subprocess,sys
+      const scan=spawn('python3',['-c',`import fcntl,os,sys
 f=open(sys.argv[1]+'/maintenance.lock','a')
 fcntl.flock(f,fcntl.LOCK_EX)
 os.dup2(f.fileno(),3)
-r=subprocess.run([sys.argv[2],'witness','export-maintain-scan',sys.argv[1],sys.argv[3]],pass_fds=(3,))
-sys.exit(r.returncode)
-`,root,binary,String(observer.expiresAt)],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
-      assert.equal(scan.status,0,`handled deferral is not a failed custodian start: ${scan.stderr}`);
+os.set_inheritable(3,True)
+os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain-scan',sys.argv[1],sys.argv[3]],os.environ)
+`,root,binary,String(observer.expiresAt)],{cwd:f.root,env:f.env,stdio:'ignore'});
+      const exited=once(scan,'exit');
+      scans.push({scan,exited});
+      await until(()=>read(path.join(root,'maintenance-active.json'))?.process?.pid===scan.pid && read(path.join(root,'maintenance-active.json'))?.state==='handoff','handled deferral reaches durable handoff');
       assert.match(read(path.join(root,'maintenance-result.json')).error,/retention lock busy/);
       assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')));
       assert.ok(!fs.existsSync(path.join(root,'maintenance-claimed.json')));
@@ -969,7 +971,109 @@ sys.exit(r.returncode)
     }
     assert.equal(read(path.join(root,'maintenance-active.json')).attempt,4);
     held.child.stdin.end();await held.exited;held=null;
-    await maintenanceIdle(f);assertRetentionBound(f);
+    await maintenanceIdle(f);for(const {exited} of scans)assert.equal((await exited)[0],0);assertRetentionBound(f);
     assert.equal(read(path.join(root,'maintenance-active.json')).attempt,5,'one successful scan after the four deferred workers');
   } finally {if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+// Round 10: one-shot debug barriers stop the actual process at a protocol
+// boundary; signals target only identities this fixture created and recorded.
+async function maintenanceFixture() {
+  const f=fixture();skipMode(f,'off');
+  const held=await holdRetention(f);blockedRetention(f,28);
+  fs.rmSync(path.join(f.root,'bin/gzip')); // ordinary real compression
+  const result=f.invoke();assert.equal(result.status,0,result.stdout+result.stderr);
+  return {f,held,root:path.join(f.root,'artifacts/native-smoke')};
+}
+const crashPoints=[
+  ['request-created','next export'],['request-prepared','next export'],['request-committed','next export'],
+  ['claim-renamed','peer'],['claim-recorded','peer'],['scan-starting','peer'],
+  ['compress-before','next export'],['compress-committed','next export'],
+  ['delete-before','next export'],['delete-after','next export'],
+  ['scan-complete','peer'],['done-before','peer'],['done-after','already complete'],
+];
+for(const [point,recovery] of crashPoints)test(`maintenance crash matrix: ${point} (${recovery})`,{timeout:120000},async()=>{
+  const {f,root,held}=await maintenanceFixture();let released=false,launcher,launcherExit;
+  try {
+    const observer=read(path.join(root,'maintenance-next.json')).process.pid;
+    process.kill(observer,'SIGKILL');await until(()=>!alive(observer),'owned idle observer exited');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT=point;
+    launcher=spawn(binary,['witness','export-maintenance',root],{cwd:f.root,env:f.env,stdio:'ignore'});launcherExit=once(launcher,'exit');
+    if(!point.startsWith('request-')){assert.equal((await launcherExit)[0],0);held.child.stdin.end();await held.exited;released=true;}
+    await until(()=>read(path.join(root,'maintenance-test-point.json')),'crash transition entered');
+    const stopped=read(path.join(root,'maintenance-test-point.json'));assert.equal(stopped.point,point);
+    if(['request-created','request-prepared'].includes(point))fs.rmSync(path.join(root,'maintenance-request.json')); // first publication of this request has no older dirty bit
+    const before=Date.now();process.kill(stopped.process.pid,'SIGKILL');
+    if(!released){await launcherExit;held.child.stdin.end();await held.exited;released=true;}
+    if(recovery==='next export') {
+      await maintenanceIdle(f,true);
+      // No helper repair: the next real wrapper is the documented backstop.
+      if(['request-created','request-prepared'].includes(point))f.put('node_modules/expo/bin/cli','process.exit(23)');
+      const resumed=f.invoke('next export repairs stranded or parked maintenance');assert.equal(resumed.status,['request-created','request-prepared'].includes(point)?23:0,resumed.stdout+resumed.stderr);
+    }
+    await maintenanceIdle(f);
+    assertRetentionBound(f);
+    assert.ok(!fs.existsSync(path.join(root,'maintenance-parked.json')));
+    assert.ok(!fs.readdirSync(root).some(n=>n.startsWith('maintenance-request.')&&n.endsWith('.tmp')),'dead producer temporary state is repaired');
+    console.log(JSON.stringify({point,recovery,restoredMs:Date.now()-before,full:5,compressed:20,attempt:read(path.join(root,'maintenance-active.json'))?.attempt}));
+  } finally {
+    f.put('artifacts/native-smoke/maintenance-test-resume','');
+    if(!released){held.child.stdin.end();await held.exited;}
+    if(launcherExit)await launcherExit;
+    await cleanup(f);
+  }
+});
+
+test('a custodian killed after claiming an empty legacy request resumes without a later export',{timeout:120000},async()=>{
+  const {f,root,held}=await maintenanceFixture();let released=false;
+  try {
+    process.kill(read(path.join(root,'maintenance-next.json')).process.pid,'SIGKILL');
+    await until(()=>!alive(read(path.join(root,'maintenance-next.json')).process.pid),'old owned observer exited');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT='claim-renamed';
+    const armed=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(armed.status,0,armed.stderr);
+    fs.writeFileSync(path.join(root,'maintenance-request.json'),'');
+    held.child.stdin.end();await held.exited;released=true;
+    await until(()=>read(path.join(root,'maintenance-test-point.json')),'empty claim renamed');
+    assert.equal(fs.readFileSync(path.join(root,'maintenance-claimed.json'),'utf8'),'');
+    process.kill(read(path.join(root,'maintenance-test-point.json')).process.pid,'SIGKILL');
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.doesNotMatch(fs.readFileSync(path.join(root,'maintenance.log'),'utf8'),/missing maintenance claim/);
+  } finally {f.put('artifacts/native-smoke/maintenance-test-resume','');if(!released){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+for(const point of ['handoff-pending','handoff-busy'])for(const victim of ['observer','custodian'])test(`maintenance handoff crash matrix: ${point} kills ${victim}`,{timeout:120000},async()=>{
+  const {f,root,held}=await maintenanceFixture();let released=false,scan,ended;
+  try {
+    const observer=read(path.join(root,'maintenance-next.json'));
+    scan=spawn('python3',['-c',`import fcntl,os,sys
+f=open(sys.argv[1]+'/maintenance.lock','a');fcntl.flock(f,fcntl.LOCK_EX)
+os.dup2(f.fileno(),3);os.set_inheritable(3,True)
+os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain-scan',sys.argv[1],sys.argv[3]],os.environ)
+`,root,binary,String(observer.expiresAt)],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:point},stdio:'ignore'});ended=once(scan,'exit');
+    await until(()=>read(path.join(root,'maintenance-test-point.json')),'custodian saw busy observer lease');
+    assert.equal(read(path.join(root,'maintenance-test-point.json')).process.pid,scan.pid);
+    const pid=victim==='observer'?observer.process.pid:scan.pid;
+    process.kill(pid,'SIGKILL');await until(()=>!alive(pid),'owned victim exited in handoff gap');
+    f.put('artifacts/native-smoke/maintenance-test-resume','');
+    held.child.stdin.end();await held.exited;released=true;
+    await maintenanceIdle(f);const [code,signal]=await ended;
+    if(victim==='observer')assert.equal(code,0);else assert.equal(signal,'SIGKILL');
+    assertRetentionBound(f);console.log(JSON.stringify({point,victim,recovery:'peer',full:5,compressed:20}));
+  } finally {f.put('artifacts/native-smoke/maintenance-test-resume','');if(!released){held.child.stdin.end();await held.exited;}if(ended)await ended;await cleanup(f);}
+});
+
+for(const mode of ['off','non-macOS','background'])test(`next export repairs parked maintenance even when Expo fails (${mode})`,{timeout:120000},async()=>{
+  const {f,root,held}=await maintenanceFixture();let released=false;
+  try {
+    const observer=read(path.join(root,'maintenance-next.json')).process.pid;
+    process.kill(observer,'SIGKILL');await until(()=>!alive(observer),'owned observer exited');
+    fs.renameSync(path.join(root,'maintenance-request.json'),path.join(root,'maintenance-parked.json'));
+    assert.ok(!fs.existsSync(path.join(root,'maintenance-claimed.json')));
+    held.child.stdin.end();await held.exited;released=true;
+    delete f.env.SNAPBACK4_NATIVE_SMOKE;if(mode!=='background')skipMode(f,mode);
+    f.put('node_modules/expo/bin/cli','process.exit(23)');
+    const failure=f.invoke('no new publication can rescue maintenance');assert.equal(failure.status,23,failure.stdout+failure.stderr);
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.equal(f.events().length,0,'maintenance backstop starts no simulator tools');
+  } finally {if(!released){held.child.stdin.end();await held.exited;}await cleanup(f);}
 });

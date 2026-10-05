@@ -1,0 +1,162 @@
+{
+  "scope": "all",
+  "base": "7a1899daa813fab1dd4cb147029043dfb9f10c19",
+  "state": "finished",
+  "startedAt": 1791177252.439379,
+  "before": {
+    "at": 1791177253.618502,
+    "load": [
+      4.87158203125,
+      6.451171875,
+      6.703125
+    ],
+    "idlePercent": 81.93832599118943,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 189.2 /usr/libexec/PerfPowerServices",
+      "  485     1  13.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "19891 72050   4.4 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1164     1   2.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  489     1   2.2 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      " 1083     1   2.2 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 9872  9871   1.9 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "  793     1   1.5 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1092     1   1.5 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "72050 72043   1.4 codex"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "ed50ca4d80edf93cd63b69b90eecf1104942af6e37b39e935d22363a8056a4bb"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "sha256": "82db9ffa40c0b16684360769c5000fefc36893c2d249ef8b58d8680bf078d1dd"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "371335e5765533b830fc453de7ede2245f1816b8b10d3d4147c351e9f63e6229"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "f473693abbe24efbf54a16958ff9513f74866ceab1a0b39f38726d7b31851cc6"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "80d03cf2f794131605d4b8458510b952c2e11d2420e908f3e855f2303fff33ac"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "d838ff53d249cfacf555cb5e2507d65e0fa97c33c252fb74da32d9df69a66118"
+    }
+  ],
+  "checks": [
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 2.7976397090000003,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-build.log",
+        "sha256": "44a78757a2fe27b2e73db286c7f60c72e9c42e0593c03cc3d83463671af7cd9c",
+        "bytes": 2383
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 62.186522749999995,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-witness-unit.log",
+        "sha256": "cdf900948297ed7da2a464eb9be18b6613b45f61d53836df8c691c81ecf9f4d7",
+        "bytes": 10553
+      }
+    },
+    {
+      "label": "witness-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 555.008897667,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-witness-integration.log",
+        "sha256": "9f37c758b8b1b8988eb20f54efda977ba44cfec4007274824a0fd141845b15e0",
+        "bytes": 9668
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 569.621623583,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-export.log",
+        "sha256": "eb3db20953592be75f5b8ae030c11d9ad6b979d995ff546bfa70458bedc999bc",
+        "bytes": 15271
+      }
+    }
+  ],
+  "finishedAt": 1791178443.248072,
+  "after": {
+    "at": 1791178444.430475,
+    "load": [
+      5.3076171875,
+      5.46630859375,
+      5.857421875
+    ],
+    "idlePercent": 74.93036211699165,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 186.0 /usr/libexec/PerfPowerServices",
+      " 1165     1  29.9 /Applications/cmux.app/Contents/MacOS/cmux",
+      "  485     1  23.1 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  541     1   8.0 /usr/libexec/airportd",
+      "  461     1   6.9 /usr/libexec/locationd",
+      " 1083     1   4.4 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   4.4 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  793     1   4.1 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "  862     1   3.5 /usr/libexec/rapportd",
+      " 1059     1   3.3 /System/Library/CoreServices/UniversalControl.app/Contents/MacOS/UniversalControl"
+    ]
+  },
+  "inputsUnchanged": false,
+  "status": 1
+}

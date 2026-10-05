@@ -1,0 +1,161 @@
+{
+  "sourceLog": "/tmp/sb4-nz-r10-focused-final-export.log",
+  "newChecks": [
+    "\u2714 maintenance crash matrix: request-created (next export) (2148.584792ms)",
+    "\u2714 maintenance crash matrix: request-prepared (next export) (2586.383125ms)",
+    "\u2714 maintenance crash matrix: request-committed (next export) (3888.993375ms)",
+    "\u2714 maintenance crash matrix: claim-renamed (peer) (2606.23175ms)",
+    "\u2714 maintenance crash matrix: claim-recorded (peer) (2766.889459ms)",
+    "\u2714 maintenance crash matrix: scan-starting (peer) (3285.052375ms)",
+    "\u2714 maintenance crash matrix: compress-before (next export) (5112.515167ms)",
+    "\u2714 maintenance crash matrix: compress-committed (next export) (5258.896958ms)",
+    "\u2714 maintenance crash matrix: delete-before (next export) (5387.82125ms)",
+    "\u2714 maintenance crash matrix: delete-after (next export) (5121.374416ms)",
+    "\u2714 maintenance crash matrix: scan-complete (peer) (3520.757208ms)",
+    "\u2714 maintenance crash matrix: done-before (peer) (3415.979833ms)",
+    "\u2714 maintenance crash matrix: done-after (already complete) (2163.764417ms)",
+    "\u2714 a custodian killed after claiming an empty legacy request resumes without a later export (3085.246958ms)",
+    "\u2714 maintenance handoff crash matrix: handoff-pending kills observer (2559.833292ms)",
+    "\u2714 maintenance handoff crash matrix: handoff-pending kills custodian (2504.344833ms)",
+    "\u2714 maintenance handoff crash matrix: handoff-busy kills observer (3769.469666ms)",
+    "\u2714 maintenance handoff crash matrix: handoff-busy kills custodian (2735.200709ms)",
+    "\u2714 next export repairs parked maintenance even when Expo fails (off) (1848.932083ms)",
+    "\u2714 next export repairs parked maintenance even when Expo fails (non-macOS) (2479.820791ms)",
+    "\u2714 next export repairs parked maintenance even when Expo fails (background) (2310.798917ms)"
+  ],
+  "transitions": [
+    {
+      "point": "request-created",
+      "recovery": "next export",
+      "restoredMs": 1610,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "request-prepared",
+      "recovery": "next export",
+      "restoredMs": 1617,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "request-committed",
+      "recovery": "next export",
+      "restoredMs": 3130,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 2
+    },
+    {
+      "point": "claim-renamed",
+      "recovery": "peer",
+      "restoredMs": 2029,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "claim-recorded",
+      "recovery": "peer",
+      "restoredMs": 1820,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "scan-starting",
+      "recovery": "peer",
+      "restoredMs": 2401,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "compress-before",
+      "recovery": "next export",
+      "restoredMs": 4126,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 3
+    },
+    {
+      "point": "compress-committed",
+      "recovery": "next export",
+      "restoredMs": 4206,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 3
+    },
+    {
+      "point": "delete-before",
+      "recovery": "next export",
+      "restoredMs": 4266,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 3
+    },
+    {
+      "point": "delete-after",
+      "recovery": "next export",
+      "restoredMs": 3989,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 3
+    },
+    {
+      "point": "scan-complete",
+      "recovery": "peer",
+      "restoredMs": 1505,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 2
+    },
+    {
+      "point": "done-before",
+      "recovery": "peer",
+      "restoredMs": 1718,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 2
+    },
+    {
+      "point": "done-after",
+      "recovery": "already complete",
+      "restoredMs": 370,
+      "full": 5,
+      "compressed": 20,
+      "attempt": 1
+    },
+    {
+      "point": "handoff-pending",
+      "victim": "observer",
+      "recovery": "peer",
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "handoff-pending",
+      "victim": "custodian",
+      "recovery": "peer",
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "handoff-busy",
+      "victim": "observer",
+      "recovery": "peer",
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "point": "handoff-busy",
+      "victim": "custodian",
+      "recovery": "peer",
+      "full": 5,
+      "compressed": 20
+    }
+  ],
+  "note": "Fixture execution times, not native export performance measurements. The remaining new checks have their named outcomes in the source log."
+}

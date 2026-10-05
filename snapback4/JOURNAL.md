@@ -86609,3 +86609,53 @@ remaining. Other worktrees, processes and simulators untouched. Large evidence
 stays outside git with hashes; no new native timing, Linux or physical-sleep
 qualification is claimed. NZ targets 0.4.14. Nothing pushed or published.
 [Round 9 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-9--crash-safe-claims-and-retention-state-audit).
+
+
+## 2026-10-04 — Lane NZ round 10: atomic maintenance transitions and export backstop
+
+On `sb4-intent/nz-native-proof-zero-cost`, based on `7a1899daa8`, on the
+Apartment mini only. Fixed both operator-supplied Astra round-9 crash windows.
+NZ targets 0.4.14; no publication or push was performed.
+
+Pending requests and metadata updates now publish complete, synced records by
+atomic rename. A claim is name-authorized and its metadata upgrade is redoable,
+including an empty legacy claim. Acknowledgement renames only that claim to done,
+leaving a separate newer request intact. A finishing custodian publishes a
+handoff record before releasing its active lease, then remains a passive backup
+until the queue is covered or a live successor has claimed. A busy observer
+lease is not an acknowledgement; killing that observer no longer strands work.
+The original observation expiry, 100 ms probes, native 30-second work budget,
+three-attempt bounds and unchanged WD drain still apply.
+
+Every wrapper first re-arms stranded or parked work, before Expo and without
+waiting for maintenance. This also repairs a request killed before its JSON
+write or rename, even when the next Expo command fails. Dead temporary-file
+writer checks authorize unlinking only that private file, never a process signal.
+A matrix-discovered mixed pin-ordering defect was also fixed: an unknown pin now
+defers the whole ranking pass instead of displacing full history with compressed
+rows. Current/pending evidence pinning and final per-candidate checks remain.
+
+Added 21 deterministic crash/backstop controls spanning request creation through
+claim, scan, compression, deletion, done and both final-handoff sides, plus a Rust
+mixed-ordering control. The two reported reproducers and single-peer scan deaths
+restore five full plus twenty compressed without another export. Pre-peer/worker
+failures use the tested next-export backstop. LLP 3000.030 §15 and guide witness
+state the atomicity/recovery contract; the Round 10 report lists every state,
+transition, bound and recovery trigger. No host daemon or power-loss claim.
+
+Final affected checks: build; 67/67 serial witness unit tests; 116/116 export and
+preparation tests, no skips/cancellations. The final full Mac suite passed with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`:
+zero failures in 2,800 s (2,800.394 s measured). All Rust targets/doctests,
+299 CLI tests (four existing ignores), 76 witness integrations, nine fixture
+wrapper tests, all 312 client files (6,274 passed, six existing skips), and both
+full-count models (79/79) passed. All six recorded inputs stayed unchanged.
+Earlier exploratory failures and the input-changed intermediate run remain
+separate evidence; they are not the final qualification.
+
+Final custody checks found no remaining lane CLI/fixture jobs; no real device
+was created and prior recorded NZ devices are absent. WD cleanup, group custody
+and preparation deadlines remain unchanged. Reference/whitespace checks passed.
+Large logs and the tested binary stay in the external evidence archive; no new
+file over 256 KB, gzip or video is committed. Report and evidence:
+[Round 10](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-10--atomic-retention-transitions-2026-10-04).

@@ -111,6 +111,8 @@ export async function main() {
   let lease, initialization, created = false, publicationAttempted = false;
   try {
     fs.mkdirSync(root, { recursive: true });
+    const maintenance = spawnSync('snapback4', ['witness', 'export-maintenance', root], { stdio: 'inherit', timeout: 5000 });
+    if (maintenance.status !== 0) console.error('native smoke evidence cleanup deferred; the next export will retry maintenance');
     initialization = acquireExportLease(root, 'snapback4', true);
     fs.mkdirSync(artifacts); created = true;
     lease = acquireExportLease(artifacts);
