@@ -40,6 +40,7 @@ export interface QueryEnvironment {
   /** Captured hard evidence fence; only the whole-server route may use it. */
   serverCurrent?(cut: number): boolean;
   inputsCurrent?(tables: ReadonlySet<string>): boolean;
+  retainedCurrent?(watermark: number | undefined): boolean;
   revalidate?: boolean;
   serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
   coldRead?: ColdReadControl | undefined;
@@ -113,6 +114,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // not taken. This proof never uses the server cut to validate local rows.
   const unchanged = () => !searchAttempt && !ephemeral && possible !== null && inputsCurrent?.(tables) === true;
   const publicationCurrent = () => covered() || unchanged();
+  const retainedRoute = () => !searchAttempt && !!latest && (mayRetain() || latest.outcome.retained
+    || Object.values(latest.outcome.components ?? {}).some(c => c.retained) || hasRetainedRows(latest.outcome.retainedRows));
+  const routeCurrent = () => !retainedRoute() || env.retainedCurrent?.(latest?.outcome.watermark) !== false;
   let publishingCurrent: (() => boolean) | undefined;
   // The wire omits false provenance, including replies from older devices.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
@@ -130,6 +134,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (denied) throw new Interrupted<R>({ ...loading, read: { denied } });
     checkRead(env.signal);
     if (revision !== env.incarnation) throw new Interrupted<R>(loading);
+    if (!routeCurrent()) { if (watch) watch.dirty = true; throw new Interrupted<R>(loading); }
     if ((env.current && !env.current() || authority !== env.authority) && !(publishingCurrent ?? publicationCurrent)()) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
@@ -388,9 +393,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     let candidate = initial;
     // A device footprint proves only local inputs. Every external component
     // also needs its own covering cut; recovery cannot renew an old cache ticket.
-    publishingCurrent = () => candidate.origin === "server" && covered() || unchanged()
+    publishingCurrent = () => routeCurrent() && (candidate.origin === "server" && covered() || unchanged()
       && (candidate.origin === "local" || (candidate.origin === "server" || candidate.origin === "composed")
-        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true);
+        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true));
     for (let attempt = 0; ; attempt++) {
       checkpoint();
       // Rules 1/5: the same delivery fence applies after retry routing, including

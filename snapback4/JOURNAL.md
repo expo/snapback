@@ -86746,3 +86746,46 @@ Wasm remains **2,117,335 B raw / 639,810 B gzip** under the unchanged
 Measured and qualified SDKs match all 240 frozen files. Sampled worktree peak
 was **16.89 GB**, below 40 GB. The publication ticket is resolved; no push
 or publication was performed. [Report](./reports/20261004-op-observation-publication/REPORT.md).
+
+
+## 2026-10-05 — OP round 1: retained publication and queued prediction fences
+
+Follow-up to c43a86a440 after Astra READY and Grok READY WITH CHANGES. A
+retained composition could choose provisional routing before an empty-footprint
+catch-up, then publish it afterward because its local inputs were unchanged and
+its server cut already covered the apply. The client now records published
+watermark progress at the commit callback and sync publication, and rejects a
+retained route whose evaluation watermark is behind that floor. Repeated equal
+watermarks coalesce. Every apply also schedules retained-sensitive watches,
+including local watches without server provenance or a pending change cut.
+The existing shared-store transaction checks, scope withdrawals and separate
+local/server proofs remain; this adds no query await or new server authority.
+
+Queue discovery now fences earlier candidates when predictable, unobserved
+write identities/footprints change, including unknown footprints and another
+write to the same table. Identical queue reads coalesce. This covers nonempty
+local answers between their pending check and prediction admission; fresh local
+evaluations of admitted predictions remain publishable. LLP 3000.016 §2.2,
+3000.023 §10 and 3000.028 §3.2 state the final behavior, including advancing
+empty notifications and the separate retained-routing watermark floor.
+
+Five deterministic cases and two process/wasm controls fail against round 0.
+The final publication file passes 43 cases; four new real-device regressions
+cover late catch-up and empty-apply retained resumption on both hosts. Ten
+confined four-CPU repetitions with owned hogs pass **6,620 cases**, no failures,
+cancellations or skips. All hogs were reaped before the full suite, which passes
+in **2,292 seconds**: 5,002 Rust tests + 17 doctests, 6,326 client passes across
+318 files, nine fixture checks and 79 final model cases. Existing 33 Rust ignores
+and 11 client skips remain; no test count or timeout was reduced.
+
+Three alternating round-0/round-1 browser pairs, 30 writes per idle cell per
+SDK, retain the 1,000-history/refollow starvation fix. Round-1 repost p95 is
+121.0, 113.8 and 96.0 ms; pooled **106.2 ms**, versus **105.3 ms** at round 0.
+Message p95 improves; reaction p95 rises about 5 ms. This short repeat does not
+establish universal browser-tail nonregression or repeat the heavy controls.
+
+Wasm is unchanged at **2,117,335 B raw / 639,810 B gzip** under the **639,940 B**
+cap, preserving the **130 B macOS allowance**. All 238 rebuilt SDK files match
+the frozen measurement input. Sampled disk peak is **18.83 GB**, below 40 GB.
+Only eb1000 and this worktree were used. The original ticket remains resolved;
+nothing was pushed. [Round 1 report](./reports/20261004-op-observation-publication/REPORT.md#round-1--review-corrections-2026-10-05).

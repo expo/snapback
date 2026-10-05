@@ -65,3 +65,15 @@ allowance under the unchanged cap. This resolves the repeated-evidence
 publication problem, not the independent replay-throughput ticket or a frozen
 calibration result. See the [OP report](../../snapback4/reports/20261004-op-observation-publication/REPORT.md)
 for all stage stamps, negative controls, full qualification and limitations.
+
+### OP round 1 — 2026-10-05
+
+The review follow-up fences retained candidates when a published watermark
+overtakes their evaluation cut, schedules retained watches on empty-footprint
+applies, and fences nonempty local candidates when queued predictions change.
+Three paired idle repeats retain the starvation improvement: pooled repost p95
+is 105.3 ms at round 0 and 106.2 ms at round 1 (90 writes per revision).
+The report's Round 1 section records deterministic negative controls, all
+qualification and the remaining browser-tail caveat. The ticket stays resolved.
+Ten confined hog repetitions pass (6,620 cases), followed by the full suite
+with zero failures. Wasm and the 130 B macOS allowance are unchanged.

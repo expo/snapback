@@ -443,3 +443,145 @@ frozen SDKs and binaries stay ignored under `target/op/`. [evidence.json](./evid
 hashes, raw-log digests, CPU samples/audits and qualification results.
 The original disk sampler stopped when a temporary test database vanished during `du`; the final waiting coordinator was replaced before any full-suite test started, so that race cannot interrupt qualification. The product result is the completed `full-suite-result.json`, independent of the replaced wrapper. Compact evidence is retained in this report directory. No raw artifact above 256 KB is
 committed. No push or publication is authorized or performed.
+
+## Round 1 — review corrections (2026-10-05)
+
+Based on **c43a86a440**. Astra's round-0 verdict was READY; Grok's was READY
+WITH CHANGES. This round addresses Grok's one Medium and two Lows without
+removing either round-0 publication proof. The review remains at
+`~/sb4-intent/reviews/op-r0.grok.md`; it was read without changing that review
+worktree or its processes.
+
+### Findings and final rules
+
+1. **Late watermark-only catch-up.** Round 0 could choose a provisional
+   retained route at watermark 1, receive a server page at 40, then publish
+   that route after an empty-footprint apply reached 40. Neither the table
+   stamps nor the covering server cut rejected it. The new process-local
+   publication floor records the watermark in the committed apply callback,
+   before fallible follow-up work, and at `LocalReads.applied`. Every ordinary retained
+   checkpoint and final publication proof requires the evaluation watermark
+   to cover that floor. Missing evaluation metadata requires no floor advance
+   since capture. Equal-watermark repeats coalesce. Store reset clears the
+   floor under its existing hard barrier. No extra query await is added.
+
+   Applies also select retained-sensitive watches through their static and
+   actual dependencies, including purely local watches with no `changeCut` or
+   `serverRead`. Opaque programs widen to all tables. These watches enter the
+   existing resumption set even for an empty footprint, so catch-up reruns the
+   route. The floor cannot bless rows or detect another process's unreported
+   commit; the existing shared-store transaction checks remain intact.
+
+2. **Queued prediction before admission.** Discovering a changed nonempty
+   set of predictable, unobserved write identities/footprints now advances the
+   hard evidence barrier. This includes unknown footprints and a second write
+   to the same table, and retires a nonempty local candidate that reused an
+   earlier pending check. Repeated reads of the identical queue do not advance
+   evidence. A new evaluation of already predicted rows remains allowed.
+   Admission and settlement retain their existing unconditional fences.
+
+3. **LLP alignment.** LLP 3000.016 §2.2, 3000.023 §10 and 3000.028 §3.2 now
+   state these exact rules. The stale explicit-empty-notification sentence
+   now distinguishes an advancing empty list (unknown) from a quiet empty
+   poll (no evidence). The apply rule names staged snapshots explicitly, and
+   older claims about no tracked publication watermark are scoped to memory
+   and detached-owner reconciliation rather than the new routing fence.
+
+Immediate scope withdrawal, membership loss, revocation, prediction admission,
+store replacement, unpublished cuts, independent local/server composition
+proofs and unaccounted watch-version fences remain in place.
+
+### Deterministic evidence
+
+Five new cases failed against round 0: positive, empty and structured retained
+routes with catch-up inside final publication; and known/opaque queued
+predictions against nonempty local data. The original 36 publication cases
+passed in that negative control. Two real-device negative controls (process
+and wasm, round-0 SDK) also published the pre-catch-up provisional route after
+catch-up; both fail the added assertion. Logs are in `round1/`.
+
+The final publication file has **43 cases**, including continuation after
+publication, repeated equal watermarks, repeated identical queues and a second
+prediction to the same table. Four real-device regressions cover the late
+route/delivery interleaving and the purely local retained watch's empty-apply
+wakeup on both hosts. The late test parks the first queue read after
+`pendingRoute` has read device state, applies an actual published page with
+`touched: []`, then releases publication. Its first delivered page must use
+the new route and all post-catch-up pages must be complete.
+
+### Three paired idle remeasurements
+
+Same LU three-browser fixture, **1,000 historical posts**, unfollow/refollow
+before every measured write, 30 writes per cell per SDK run. Pairs alternate
+**R0→R1, R1→R0, R0→R1**. R0 uses the frozen qualified round-0 SDK; R1 uses
+the current compiled SDK. Both have the same diagnostic instrumentation and
+unchanged native server/wasm. Each write measures the slower of two remote
+React renders from the server commit. All six runs completed without browser
+errors. These are loopback fixture measurements, not a service guarantee.
+
+| Pair | Round-0 idle repost p95 | Round-1 idle repost p95 |
+| --- | ---: | ---: |
+| 1 | 105.3 ms | 121.0 ms |
+| 2 | 126.5 ms | 113.8 ms |
+| 3 | 84.0 ms | 96.0 ms |
+| Pooled, 90 writes per revision | 105.3 ms | **106.2 ms** |
+
+The final pooled median is **52.7 ms** and maximum **147.3 ms**. The
+starvation fix remains comfortably below the 500 ms target. Pooled idle
+message p95 is 91.4→87.4 ms; reaction is 70.1→75.3 ms. This short round does
+not establish zero tail regression, or repeat round 0's heavy and ordinary
+controls. Astra's browser-tail caveat and the round-0 report's limits stand.
+Per-update stage stamps and each cell's summary are retained under `round1/`.
+
+### Qualification and custody
+
+Ten confined hog repetitions pass: **6,620 cases (662 each)**, zero failures,
+cancellations or skips. All three owned hogs were reaped before starting the
+full suite. The 23-file selection adds the five authority files to round 0's
+18-file observation/publication/routing/RH/live/boundary set. The full suite passes in **2,292 seconds**, with **zero failures**: 5,002 Rust
+tests + 17 doctests, nine fixture checks, 6,326 client passes across 318 files,
+and 79 final model cases. Existing 33 Rust ignores and 11 client skips are
+unchanged. The supervising disk sampler records 2,315.8 seconds because its
+final completion poll runs on a 30-second cadence. No test count, timeout or
+workload was reduced. `round1/qualification.json` contains the per-repetition
+counts, full-suite phase results, log hashes and CPU records.
+
+The full build reproduces **2,117,335 B raw / 639,810 B gzip** wasm under the
+unchanged **639,940 B** ratchet, preserving the **130 B macOS allowance**.
+All **238 compiled SDK files** match the frozen uninstrumented measurement
+input. Product source hashes also match those recorded before measurement.
+The sampled whole-worktree disk peak is **18.83 GB**, below 40 GB. Each
+committed round-1 artifact is below 256 KiB. The final LLP reference check
+passes with 527 documents, 10,379 references and zero errors. Nothing was
+pushed or published.
+
+Only eb1000 (`expose-builder-pixel`) and this worktree were used. The browser
+mask was `17-19,23-24,65-67,71-72`, five idle physical pairs; stress groups
+use `2-3,50-51`, `29-30,77-78`, and `38-39,86-87`, each with its own hog.
+All pairs, including SMT siblings, were checked idle before launch. LU's
+seccomp affinity wrapper confines descendants, including Chromium threads.
+Each browser run and the two later stress groups have sampled thread-mask
+audits; the first stress group's sample occurred after exit, so its custody
+is the enforced affinity plus the driver's per-repetition hog checks.
+
+Reproduce from `snapback4/` after building the package:
+
+```sh
+python3 reports/20261004-op-observation-publication/trace-sdk.py r1-final
+python3 reports/20261004-op-observation-publication/round1/measure-pairs.py
+OP_STRESS_FIRST=1 OP_STRESS_LAST=10 taskset -c <four-idle-CPUs> \
+  python3 reports/20261003-lu-live-update-latency/tools/confine.py \
+  python3 reports/20261004-op-observation-publication/round1-stress.py
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=12 \
+  CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+  LU_TEST_CPUS=<two-CPUs-within-mask> taskset -c <checked-idle-mask> \
+  bash scripts/test.sh
+```
+
+The measurement replay requires the recorded round-0 frozen SDK and native
+instrumented server under `target/op` / `target/lu-op`; update its fixed CPU
+mask only after checking the selected CPUs and their siblings are idle.
+Raw traces, logs and frozen SDKs remain under `target/op/round1` and
+`target/op/sdk-r1-final`. `round1/evidence.json` records their hashes and
+recomputes pooled browser statistics. The original round-0 evidence was not
+rewritten.

@@ -16,6 +16,7 @@ function fixture() {
       schema: { tables: { rows: { sync: {}, leave: 'until-revoked' } } } },
     incarnation: 0, get authority() { return reads.revision; },
     current: () => watch.changeVersion === version, serverCurrent: reads.serverCurrent(watch),
+    retainedCurrent: reads.retainedCurrent?.(),
     credentialRevision: 0, partitionCurrent: true, nativeReady: true,
     principal: 'bob', link: 'online', caughtUp: true, identityChecked: true,
     signal: new AbortController().signal, unavailable: () => null,
@@ -118,7 +119,7 @@ test('a published apply with existing predictions keeps its hard boundary', asyn
 for (const retained of [false, true]) test(`disjoint evidence preserves the actual local evaluation (retained: ${retained})`, async () => {
   const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
   if (retained) f.env.backend.schema.tables.rows.leave = 'delivered-history';
-  f.outcome = { data: ['local'], complete: true, unknown: false, retained, tables: ['rows'], watermark: 1 };
+  f.outcome = { data: ['local'], complete: true, unknown: false, retained, tables: ['rows'], watermark: 80 };
   const disjoint = () => {
     f.reads.notified(['other'], 80); f.reads.queued([]);
     f.reads.committed([], 'apply', ['other'], [], 80); f.reads.applied([], 80);
@@ -193,6 +194,57 @@ test('remembered recovery cannot use a disjoint replica footprint to renew exter
     at: 1, nextExpiry: null, tables: new Set(['rows']) }, 1);
   f.env.followingPending = async () => { f.reads.queued([]); f.reads.committed([], 'apply', ['other'], [], 40); return false; };
   assert.ok(!('data' in (await f.run()).read));
+});
+
+for (const shape of ['positive', 'empty', 'structured']) test(`retained ${shape} route rejects watermark-only catch-up after routing`, async () => {
+  const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
+  f.env.retainedCurrent = f.reads.retainedCurrent?.();
+  f.env.backend.schema.tables.rows.leave = 'delivered-history';
+  f.outcome = { data: ['local'], unknown: true, speculative: false, tables: ['rows'], watermark: 1 };
+  let watermark = 1, routed = false;
+  f.env.call = async r => r.op === 'state' ? { ok: { watermark } } : { ok: f.outcome };
+  f.env.post = async () => ({ ok: true, obsoleteAuth: false, json: {
+    data: shape === 'positive' ? ['new'] : shape === 'empty' ? [] : { rows: [] }, seq: 40, complete: true,
+  } });
+  f.env.followingPending = async () => {
+    routed = true; watermark = 40;
+    f.reads.queued([]); f.reads.committed([], 'apply', [], [], 40);
+    f.reads.applied([], watermark);
+    return false;
+  };
+  const result = await f.run();
+  assert.equal(routed, true, 'apply lands in publication, after the provisional route was chosen');
+  assert.ok(!('data' in result.read), 'must reevaluate the route at the new watermark');
+});
+
+for (const prediction of [['rows/own'], undefined]) test(`queued ${prediction ? 'known' : 'opaque'} prediction fences non-empty local publication`, async () => {
+  const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
+  f.outcome = { data: ['local'], unknown: false, complete: true, tables: ['rows'] };
+  f.env.followingPending = async () => {
+    f.reads.committed([], 'apply', [], [], 40);
+    f.reads.queued([{ predictable: true, predicted: prediction }]);
+    return false;
+  };
+  assert.ok(!('data' in (await f.run()).read), 'the non-empty local page cannot reuse its earlier pending result');
+});
+
+test('retained routing proof spans caller delivery and coalesces equal watermarks', async () => {
+  const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
+  f.env.backend.schema.tables.rows.leave = 'delivered-history';
+  f.outcome = { data: ['local'], unknown: false, complete: true, retained: true, tables: ['rows'], watermark: 40 };
+  const result = await f.run(); assert.deepEqual(result.read.data, ['local']);
+  for (let i = 0; i < 40; i++) { f.reads.applied([], 40); assert.equal(result.publicationCurrent(), true); }
+  f.reads.published(41);
+  assert.equal(result.publicationCurrent(), false, 'commit fences even before the later applied callback');
+});
+
+test('unchanged queued predictions coalesce but a second prediction to the same table fences', () => {
+  const f = fixture(), first = { id: 'a', predictable: true, predicted: ['rows/own'] };
+  f.reads.queued([first]); const current = f.reads.inputsCurrent(f.watch), revision = f.reads.revision;
+  for (let i = 0; i < 40; i++) f.reads.queued([first]);
+  assert.equal(f.reads.revision, revision); assert.equal(current(new Set(['rows'])), true);
+  f.reads.queued([first, { ...first, id: 'b' }]);
+  assert.equal(current(new Set(['rows'])), false);
 });
 
 for (const local of [false, true]) test(`unaccounted watch versions cannot borrow later cut evidence (local: ${local})`, async () => {

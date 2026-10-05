@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import {fixture,source,opener,q,parked,until} from './helpers/answers-stay.mjs';
-import {createLocalClient} from '../dist/local.js';
+import {fixture,source,opener,q,parked,until,sdk} from './helpers/answers-stay.mjs';
+const {createLocalClient} = await import(new URL('local.js', sdk));
 const program=source.replace('  sync to members[.room]\ntable profiles:', '  retain delivered-history\n  sync to members[.room] last 1 by byRoom\ntable profiles:').replace("return messages['room'] first 100", "return messages['room'] last 100");
 for(const host of ['wasm','process']) for(const owner of ['same','other']) test(`${host} commit between evaluation and capture: ${owner} owner`,{timeout:30000},async t=>{
   const f=await fixture(t,program);
@@ -122,4 +122,69 @@ mutation rejoinLeft():
   console.log(JSON.stringify({ host, rejoin, firstCut: first.watermark, secondCut: second.watermark, actual: (await core.call({ op: 'state' })).ok.watermark, result }));
   assert.equal(result.data.current.length, 1, 'newly retained component must survive a shared commit after the second evaluation');
   assert.equal(result.complete, false); assert.equal(result.fresh, false);
+});
+
+for (const host of ['wasm', 'process']) test(`${host}: watermark-only catch-up after provisional route reruns before delivery`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, program.replace("  online only", "  update <- allow\n  online only") + "\nmutation rename():\n  update profiles['bob'] { name: 'Bob 2' }\n");
+  await f.post('/seed', [{ table: 'messages', row: { id: 'older', room: 'room', body: 'older', at: 0 } }]);
+  const entered = Promise.withResolvers(), release = Promise.withResolvers();
+  let armed = false, routed = false, held = false, published = false, queries = 0, apply;
+  const inner = opener(host, join(f.dir, 'late-publication'));
+  const client = await createLocalClient({ url: f.url, persona: 'bob',
+    fetch: (url, init) => new URL(url).pathname === '/changes' ? parked(init.signal) : fetch(url, init),
+    device: { open: async (...args) => {
+      const core = await inner.open(...args);
+      return { close: () => core.close(), call: async (request, ...rest) => {
+        const reply = await core.call(request, ...rest);
+        if (armed && request.op === 'query' && request.name === 'history') queries++;
+        if (armed && request.op === 'state') routed = true;
+        if (armed && routed && !held && request.op === 'queued') {
+          held = true; entered.resolve(); await release.promise;
+        }
+        if (armed && request.op === 'apply') { apply = reply.ok; published = true; }
+        return reply;
+      } };
+    } },
+  });
+  t.after(async () => { release.resolve(); await client.close(); });
+  await client.sync();
+  assert.equal((await f.post('/m/rename', { id: 'rename', args: {} })).state, 'sent');
+  armed = true;
+  const watch = client.observe(q('history'), { c: null }), seen = [];
+  const stop = watch.subscribe(() => { const r = watch.getSnapshot(); if (published && r.data) seen.push(r); });
+  t.after(() => { stop(); watch.close(); });
+  await entered.promise;
+  await client.sync();
+  assert.equal(apply.published, true); assert.deepEqual(apply.touched, []);
+  release.resolve();
+  await until(() => watch.getSnapshot().data, 'rerouted history');
+  assert.equal(watch.getSnapshot().complete, true, 'first post-catch-up publication uses the new route');
+  assert.ok(queries >= 2, 'catch-up reevaluates the device route');
+  assert.equal(watch.getSnapshot().data.length, 2);
+  assert.ok(seen.every(r => r.complete), 'no provisional route chosen before catch-up publishes afterward');
+});
+
+for (const host of ['wasm', 'process']) test(`${host}: published empty footprint wakes a local retained watch`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, program.replace("  online only", "  update <- allow\n  online only") + "\nmutation rename():\n  update profiles['bob'] { name: 'Bob 2' }\n");
+  let queries = 0;
+  const inner = opener(host, join(f.dir, 'local-wakeup'));
+  const client = await createLocalClient({ url: f.url, persona: 'bob',
+    fetch: (url, init) => new URL(url).pathname === '/changes' ? parked(init.signal) : fetch(url, init),
+    device: { open: async (...args) => {
+      const core = await inner.open(...args);
+      return { close: () => core.close(), call: async (r, ...rest) => {
+        if (r.op === 'query' && r.name === 'history') queries++;
+        return core.call(r, ...rest);
+      } };
+    } },
+  });
+  t.after(() => client.close()); await client.sync();
+  await f.post('/m/remove', { id: 'leave', args: {} }); await client.sync();
+  const watch = client.observe(q('history'), { c: null }), stop = watch.subscribe(() => {});
+  t.after(() => { stop(); watch.close(); });
+  await until(() => watch.getSnapshot().data?.length === 1, 'local retained history');
+  const before = queries;
+  await f.post('/m/rename', { id: 'rename', args: {} }); await client.sync();
+  await until(() => queries > before, 'empty-footprint retained wakeup');
+  assert.equal(watch.getSnapshot().data.length, 1);
 });

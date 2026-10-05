@@ -4,13 +4,20 @@ import type { Queued } from "./local-types.ts";
 import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
-import type { BackendJson } from "./backend.ts";
+import { operationTables, type BackendJson } from "./backend.ts";
 
 
 export function runsOnServer(backend: BackendJson, op: Query<unknown, unknown>, nativeReady: boolean): boolean {
   const program = backend.programs.find(program => program.name === op.name);
   if (program?.native) return !nativeReady;
   return (backend.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
+}
+
+// @ref LLP 3000.028#3.2 — routing can change on a watermark-only apply.
+export function retainedWatch(backend: BackendJson, watch: LocalWatch): boolean {
+  const program = backend.programs.find(p => p.name === watch.op.name);
+  const tables = program && !program.native ? [...operationTables(program, backend.schema), ...watch.tables] : Object.keys(backend.schema.tables);
+  return tables.some(name => backend.schema.tables[name]?.sync && backend.schema.tables[name]?.leave === "delivered-history");
 }
 
 export function predictedTables(predicted: readonly string[]): Set<string> {
@@ -193,6 +200,8 @@ export class LocalReads {
   private serverBarrier = 0;
   private serverCut = 0;
   private inputBarrier = 0;
+  private publishedWatermark = 0;
+  private predictionInputs = "[]";
   private readonly inputVersions = new Map<string, number>();
   private readonly watchChanges = new WeakMap<LocalWatch, number>();
   // @ref LLP 3000.023#10 — only versions accounted for by evidence can be covered.
@@ -221,6 +230,14 @@ export class LocalReads {
   inputsCurrent(watch: LocalWatch): (tables: ReadonlySet<string>) => boolean {
     const revision = this.revision, barrier = this.inputBarrier, current = this.watchCurrent(watch);
     return tables => current() && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
+  }
+  // @ref LLP 3000.028#3.2 — a covering server cut cannot renew an older route.
+  published(watermark: number): void {
+    if (validCut(watermark)) this.publishedWatermark = Math.max(this.publishedWatermark, watermark);
+  }
+  retainedCurrent(): (watermark: number | undefined) => boolean {
+    const before = this.publishedWatermark;
+    return watermark => validCut(watermark) ? watermark >= this.publishedWatermark : before === this.publishedWatermark;
   }
   detach(watch: LocalWatch): void { watch.detachedEpoch = this.revision; }
   predictions: readonly string[] | null = null;
@@ -262,6 +279,13 @@ export class LocalReads {
     return entries;
   }
   queued(entries: readonly Queued[]): void {
+    // @ref LLP 3000.016#2.2 — queue discovery can precede admission. Fence a
+    // changed prediction set once, including a second write to the same table.
+    const inputs = entries.filter(e => e.observed_seq == null && e.predictable === true)
+      .map(e => JSON.stringify([e.id, e.predicted])).sort();
+    const signature = JSON.stringify(inputs);
+    if (inputs.length && signature !== this.predictionInputs) this.evidence();
+    this.predictionInputs = signature;
     this.predictions = queuedPredictions(entries);
   }
   readonly serverAnswers = new RememberedAnswers();
@@ -296,6 +320,7 @@ export class LocalReads {
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    this.published(watermark);
     this.evidence(watermark, []); // The commit recorded its footprint before publication.
     this.serverAnswers.clear();
     for (const [table, cut] of this.notifiedCuts) if (cut <= watermark) this.notifiedCuts.delete(table);
@@ -398,7 +423,7 @@ export class LocalReads {
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown, publishedCut?: number, inputTables?: readonly string[]): void {
     this.evidence(reset ? undefined : publishedCut, inputTables);
-    if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); }
+    if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); this.publishedWatermark = 0; }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
