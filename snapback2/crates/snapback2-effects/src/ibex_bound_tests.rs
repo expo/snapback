@@ -124,6 +124,71 @@ const FETCH_TEXT: &str = "async (payload, { fetch, meta }) => (await fetch(paylo
 const FETCH_CATCH: &str = "async (payload, { fetch }) => { try { const r = await fetch(payload.url); return { status: r.status, redirected: r.redirected, text: await r.text() }; } catch (error) { return { code: error.code || 'missing', origin: error.origin || 'missing', message: error.message || String(error) }; } }";
 
 #[test]
+fn bound_refusals_leave_header_handles_at_baseline_and_the_runtime_idle() {
+    const ROUNDS: usize = 128;
+    let logical = "http://granted.example";
+    let decl = declaration(
+        r#"async (payload, { fetch }) => {
+          if (!payload.exercise) return { baseline: true };
+          const counts = { denied: 0, unbound: 0, invalid: 0 };
+          for (let i = 0; i < payload.rounds; i++) {
+            try { await fetch('http://denied.example/path'); }
+            catch (error) { if (error.code === 'E_EFFECT_GRANT') counts.denied++; }
+            try { await fetch('http://granted.example/path'); }
+            catch (error) { if (error.code === 'E_EFFECT_UNBOUND') counts.unbound++; }
+            try { await fetch('http://['); }
+            catch (error) { if (error instanceof TypeError) counts.invalid++; }
+          }
+          return counts;
+        }"#,
+        vec![logical.to_owned()],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    let baseline = host.run(
+        &decl,
+        &bound_job("refusal-baseline", json!({ "exercise": false }), &[]),
+        Duration::from_secs(5),
+    );
+    assert_eq!(
+        baseline,
+        Outcome::Sent {
+            result: json!({ "baseline": true }),
+            leftover: false,
+        }
+    );
+    let header_baseline = host
+        .runtimes
+        .values()
+        .next()
+        .unwrap()
+        .runtime
+        .live_header_handles_for_test();
+
+    let outcome = host.run(
+        &decl,
+        &bound_job(
+            "refusal-loop",
+            json!({ "exercise": true, "rounds": ROUNDS }),
+            &[],
+        ),
+        Duration::from_secs(10),
+    );
+    assert_eq!(
+        outcome,
+        Outcome::Sent {
+            result: json!({ "denied": ROUNDS, "unbound": ROUNDS, "invalid": ROUNDS }),
+            leftover: false,
+        }
+    );
+    let runtime = host.runtimes.values().next().unwrap();
+    assert_eq!(
+        runtime.runtime.live_header_handles_for_test(),
+        header_baseline,
+        "bound refusals must not allocate an unadoptable Headers snapshot"
+    );
+}
+
+#[test]
 fn bound_transport_substitutes_the_loopback_after_admitting_the_logical_origin() {
     let logical = Listener::start("the logical origin must never be reached", None);
     let provider = Listener::start("provider answered", None);

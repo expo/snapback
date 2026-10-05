@@ -28,22 +28,16 @@
     try { targets[new URL(names[j]).origin] = String(bindings[names[j]]); } catch (_) {}
   }
   var evidence;
-  var unclaimedHeaders = new WeakSet();
   globalThis.__sb_provider = function (reset) {
     if (reset) evidence = { origins: [], requests: 0, refused: {} };
     return evidence;
   };
   function refuse(code) { evidence.refused[code] = (evidence.refused[code] || 0) + 1; }
-  function rejectBeforeRaw(error) {
-    unclaimedHeaders.add(error);
-    return Promise.reject(error);
-  }
-  var fetch = function (target) {
-    var url;
-    try { url = new URL(String(target)); } catch (error) { return rejectBeforeRaw(error); }
+  var prepare = function (target) {
+    var url = new URL(String(target));
     if (granted.indexOf(url.origin) === -1) {
       refuse("E_EFFECT_GRANT");
-      return rejectBeforeRaw(new Error("denied: net.fetch"));
+      throw new Error("denied: net.fetch");
     }
     var to = targets[url.origin];
     if (to === undefined) {
@@ -54,16 +48,17 @@
       );
       unbound.code = "E_EFFECT_UNBOUND";
       unbound.origin = url.origin;
-      return rejectBeforeRaw(unbound);
+      throw unbound;
     }
-    var args = Array.prototype.slice.call(arguments);
-    args[0] = to + url.pathname + url.search;
-    evidence.requests++;
-    if (evidence.origins.indexOf(url.origin) === -1) evidence.origins.push(url.origin);
-    return raw.apply(undefined, args);
+    var substituted = to + url.pathname + url.search;
+    var origin = url.origin;
+    return Object.freeze(function (method, body, redirect, headers, control) {
+      evidence.requests++;
+      if (evidence.origins.indexOf(origin) === -1) evidence.origins.push(origin);
+      return raw(substituted, method, body, redirect, headers, control);
+    });
   };
   return Object.freeze({
-    fetch: Object.freeze(fetch),
-    headersClaimed: Object.freeze(function (error) { return !unclaimedHeaders.has(error); }),
+    prepare: Object.freeze(prepare),
   });
 })(globalThis.__snapback_ibex2_fetch_primitives.fetch, __SNAPBACK_GRANTS__, __SNAPBACK_BINDINGS__, __SNAPBACK_EFFECT_NAME__);

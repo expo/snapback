@@ -22,13 +22,13 @@
   const provider = globalThis.__sb_provider;
   delete globalThis.__sb_provider;
   const boundTransport = globalThis.__snapback_bound_transport;
-  const rawFetch = boundTransport ? boundTransport.fetch : fetchPrimitives.fetch;
-  const headersClaimed = boundTransport ? boundTransport.headersClaimed : null;
+  const rawFetch = fetchPrimitives.fetch;
+  const prepareRaw = boundTransport ? boundTransport.prepare : null;
   delete globalThis.__snapback_bound_transport;
   const makeFetch = __SNAPBACK_FETCH_FACTORY__;
   delete globalThis.__snapback_ibex2_fetch_primitives;
   const trackBodyRead = function (delta) { state.pendingFetches += delta; };
-  const grantedFetch = makeFetch(rawFetch, tagRawGrantError, trackBodyRead, !!provider, headersClaimed);
+  const grantedFetch = makeFetch(rawFetch, tagRawGrantError, trackBodyRead, !!provider, prepareRaw);
 
   const state = {
     status: "idle",

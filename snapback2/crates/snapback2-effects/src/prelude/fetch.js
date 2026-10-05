@@ -156,41 +156,73 @@
     return init.method === undefined ? "GET" : String(init.method).toUpperCase();
   }
 
-  function invokeRaw(raw, url, init, redirectMode, tagRawError, headersClaimed) {
+  function invokeRaw(raw, url, init, redirectMode, tagRawError, prepareRaw) {
     var headers;
     var token;
     var rawCalled = false;
-    function releaseHeaders(error) {
-      if (!headers || !rawCalled || (headersClaimed && !headersClaimed(error))) return;
+    function releaseHeaders() {
+      if (!headers || !rawCalled) return;
       freeHeaders(headers._handle);
       headers = null;
+    }
+    function releaseRequestResources() {
+      try {
+        releaseHeaders();
+      } finally {
+        if (token !== undefined) {
+          control(2, token);
+          token = undefined;
+        }
+      }
     }
     try {
       var method = init.method !== undefined ? String(init.method) : "";
       var body = init.body;
       var target = String(url);
+      var invoke;
+      try {
+        invoke = prepareRaw
+          ? prepareRaw(target)
+          : function (method, body, redirect, headers, token) {
+              return raw(target, method, body, redirect, headers, token);
+            };
+      } catch (error) {
+        return Promise.reject(tagRawError(error, target));
+      }
+      var stringBody = typeof body === "string";
+      if (stringBody) body = new TextEncoder().encode(body);
+      // A bound refusal or caller conversion above allocates nothing. Once a
+      // control token exists, every subsequent failure releases it; once the
+      // Headers constructor succeeds, the next capability operation adopts
+      // that snapshot through the primitive fetch.
+      token = control(0);
       // @ref LLP 1003#3-the-runtime-snapback2-effects — each hop owns a validated snapshot; only raw rejections can carry a grant denial.
       headers = new Headers(init.headers);
-      if (typeof body === "string") {
+      if (stringBody) {
         if (!headers.has("content-type")) headers.set("content-type", "text/plain;charset=UTF-8");
-        body = new TextEncoder().encode(body);
       }
-      // Lowercase pairs survive redirects independently of the caller's record,
-      // iterable, or Headers. The fifth raw argument is Ibex's validated handle;
-      // the sixth is a control token, which is what lets the engine abort a
-      // request still waiting for headers when the runtime is destroyed. It
-      // is released once the request settles; the response record carries the
-      // body's own control from there.
-      init.headers = Array.from(headers);
-      token = control(0);
+      // The fifth raw argument is Ibex's validated handle; the sixth is a
+      // control token, which is what lets the engine abort a request still
+      // waiting for headers when the runtime is destroyed. Lowercase pairs
+      // are retained for redirects after the primitive has adopted the
+      // snapshot, so even a later iteration failure has a valid free path.
       rawCalled = true;
-      return raw(target, method, body, redirectMode, headers._handle, token).then(
-        function (handle) { releaseHeaders(); control(2, token); return handle; },
-        function (error) { releaseHeaders(error); control(2, token); throw tagRawError(error, target); }
+      return invoke(method, body, redirectMode, headers._handle, token).then(
+        function (handle) {
+          try {
+            init.headers = Array.from(headers);
+          } catch (error) {
+            field(handle, 8);
+            releaseRequestResources();
+            throw error;
+          }
+          releaseRequestResources();
+          return handle;
+        },
+        function (error) { releaseRequestResources(); throw tagRawError(error, target); }
       );
     } catch (error) {
-      releaseHeaders(error);
-      if (token !== undefined) control(2, token);
+      releaseRequestResources();
       return Promise.reject(error);
     }
   }
@@ -204,7 +236,7 @@
   // object. `track` is the host's count of the job's in-flight network I/O.
   // Default redirect following is kept on this side of the binding so each
   // denied hop remains attributable without widening Ibex's capability.
-  return function makeFetch(raw, tagRawError, track, bound, headersClaimed) {
+  return function makeFetch(raw, tagRawError, track, bound, prepareRaw) {
     function logicalUrl(input) {
       if (!bound) return undefined;
       var url = new URL(String(input));
@@ -220,7 +252,7 @@
       }
       if (redirectMode !== "follow") {
         var requestedUrl = String(input);
-        return invokeRaw(raw, requestedUrl, currentInit, redirectMode, tagRawError, headersClaimed)
+        return invokeRaw(raw, requestedUrl, currentInit, redirectMode, tagRawError, prepareRaw)
           .then(function (handle) { return response(handle, undefined, methodOf(currentInit), track, logicalUrl(requestedUrl)); });
       }
 
@@ -229,7 +261,7 @@
       var redirects = 0;
 
       function next() {
-        return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError, headersClaimed).then(function (handle) {
+        return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError, prepareRaw).then(function (handle) {
           var method = methodOf(currentInit);
           var value = response(handle, redirects > 0, method, track, logicalUrl(currentUrl));
           if (!isRedirect(value.status)) return value;
