@@ -101,7 +101,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
-    schema.authored_indexes = Some(authored_indexes);
+    schema.authored_indexes = snapback4_core::schema::inspection::AuthoredIndexes(Some(authored_indexes));
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
     receipts::bind(&catalog, &mut schema, &mut diagnostics);

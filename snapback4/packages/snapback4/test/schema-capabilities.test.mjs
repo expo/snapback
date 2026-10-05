@@ -303,6 +303,11 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   t.diagnostic(`${f.name}: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed`);
 });
 
+test('Linux schema-byte fixture is the published capability-free control source', () => {
+  assert.equal(readFileSync(join(root,'crates/snapback4-core/tests/fixtures/capability-free.q'),'utf8'),
+    'use identity guests\n'+ordinary);
+});
+
 test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
   skip:fenceSkip,timeout:hangBudget(9),
 },async t=>{

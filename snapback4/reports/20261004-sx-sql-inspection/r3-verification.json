@@ -1,0 +1,100 @@
+{
+  "base_commit": "6ee1a55f9e",
+  "tests": [
+    {
+      "check": "guide",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide"
+      ],
+      "exit_code": 0
+    },
+    {
+      "check": "core-schema",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "schema::"
+      ],
+      "exit_code": 0
+    },
+    {
+      "check": "ephemeral-compat",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "ephemeral_compat"
+      ],
+      "exit_code": 0
+    },
+    {
+      "check": "capability-client",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/schema-capabilities.test.mjs"
+      ],
+      "exit_code": 0
+    },
+    {
+      "check": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4"
+      ],
+      "exit_code": 0
+    },
+    {
+      "check": "sql",
+      "command": "cargo test -p snapback4 --bin snapback4 verbs::sql",
+      "exit_code": 0
+    },
+    {
+      "check": "check",
+      "command": "cargo test -p snapback4 --test check",
+      "exit_code": 0
+    },
+    {
+      "check": "schema-capabilities",
+      "command": "cargo test -p snapback4-core --test schema_capabilities --test schema_capabilities_legacy",
+      "exit_code": 0
+    },
+    {
+      "check": "core-store",
+      "command": "cargo test -p snapback4-core --lib store::",
+      "exit_code": 0
+    },
+    {
+      "check": "wasm",
+      "command": "bash scripts/build-wasm.sh",
+      "exit_code": 0
+    },
+    {
+      "check": "references",
+      "command": "./ref-check --verbose",
+      "exit_code": 0
+    }
+  ],
+  "wasm": {
+    "sha256": "a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26",
+    "raw_bytes": 2116457,
+    "gzip_bytes": 639751,
+    "budget": 639887,
+    "identical_to_round_2": true
+  },
+  "disk_bytes_sampled": 15083380499,
+  "darwin_fence": "not run: 4 platform skips on Linux; operator will rerun on mini",
+  "full_suite": "not rerun in round 3"
+}

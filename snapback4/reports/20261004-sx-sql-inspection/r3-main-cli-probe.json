@@ -1,0 +1,125 @@
+{
+  "store_sha256_before": "450a8a15b3b0dcb3310778c892ec5a17d339d067fae9a8a9a10089f3289e14f0",
+  "store_sha256_after_read_only_inspection": "450a8a15b3b0dcb3310778c892ec5a17d339d067fae9a8a9a10089f3289e14f0",
+  "binary_sha256": "556e84962b778de668f43942e33cde26e5d553fc2187e7775fadbe728a333f08",
+  "results": [
+    {
+      "statement": "\\dt",
+      "reply": {
+        "generation": 1,
+        "header": "sql: developer's own store /home/ccheever/sb4-intent/lane-sx/snapback4/target/sx-r3-main-probe-chb8672v/store.sqlite \u2014 read-only, not rule-filtered",
+        "ruleFiltered": false,
+        "tables": [
+          {
+            "kind": "table",
+            "name": "likes",
+            "rows": {
+              "count": 1,
+              "exact": true
+            }
+          },
+          {
+            "kind": "table",
+            "name": "posts",
+            "rows": {
+              "count": 1,
+              "exact": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "statement": "\\d posts",
+      "reply": {
+        "generation": 1,
+        "header": "sql: developer's own store /home/ccheever/sb4-intent/lane-sx/snapback4/target/sx-r3-main-probe-chb8672v/store.sqlite \u2014 read-only, not rule-filtered",
+        "ruleFiltered": false,
+        "tables": [
+          {
+            "columns": [
+              {
+                "name": "id",
+                "nullable": false,
+                "type": "id"
+              },
+              {
+                "maintained": false,
+                "name": "authorId",
+                "nullable": false,
+                "type": "principal"
+              }
+            ],
+            "indexProvenance": "unavailable for this generation; adopt the schema with a current compiler to record it",
+            "indexes": [
+              {
+                "generated": null,
+                "keys": [
+                  "id"
+                ],
+                "name": null,
+                "primary": true,
+                "unique": true
+              }
+            ],
+            "kind": "table",
+            "name": "posts",
+            "rows": {
+              "count": 1,
+              "exact": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "statement": ".schema likes",
+      "reply": {
+        "generation": 1,
+        "header": "sql: developer's own store /home/ccheever/sb4-intent/lane-sx/snapback4/target/sx-r3-main-probe-chb8672v/store.sqlite \u2014 read-only, not rule-filtered",
+        "ruleFiltered": false,
+        "tables": [
+          {
+            "columns": [
+              {
+                "name": "id",
+                "nullable": false,
+                "type": "id"
+              },
+              {
+                "maintained": false,
+                "name": "postId",
+                "nullable": false,
+                "type": "posts"
+              },
+              {
+                "maintained": false,
+                "name": "principal",
+                "nullable": false,
+                "type": "principal"
+              }
+            ],
+            "indexProvenance": "unavailable for this generation; adopt the schema with a current compiler to record it",
+            "indexes": [
+              {
+                "generated": null,
+                "keys": [
+                  "id"
+                ],
+                "name": null,
+                "primary": true,
+                "unique": true
+              }
+            ],
+            "kind": "table",
+            "name": "likes",
+            "rows": {
+              "count": 1,
+              "exact": true
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

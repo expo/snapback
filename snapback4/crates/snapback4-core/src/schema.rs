@@ -42,10 +42,10 @@ pub struct Schema {
     /// Decode-only compatibility fence; programs narrow it before admission.
     pub legacy_receipt_prediction: bool,
     pub tables: BTreeMap<String, Table>,
-    /// Source-declared index identities, captured before compiler expansion.
-    /// None on older generations; inspection must not guess their provenance.
+    /// Nonsemantic inspection input; only the catalog side record persists it.
+    /// Never part of schema equality, hashes, generation bytes or device input.
     #[cfg(feature = "sqlite")]
-    pub authored_indexes: Option<BTreeMap<String, BTreeSet<String>>>,
+    pub authored_indexes: inspection::AuthoredIndexes,
     pub delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]
     pub delivery_lookup: crate::engine::delivery::Lookup,
@@ -1474,7 +1474,6 @@ pub fn row_image<'a>(row: &'a Value, table: &Table) -> std::borrow::Cow<'a, Valu
 
 #[cfg(test)]
 mod tests;
-
 /// The type an argument declares as a column type, for value validation.
 pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
     Some(match kind {
@@ -1497,3 +1496,4 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
         ArgType::Money { currency, scale } => ColumnType::Money { currency: currency.clone(), scale: *scale },
     })
 }
+#[cfg(feature = "sqlite")] pub mod inspection;

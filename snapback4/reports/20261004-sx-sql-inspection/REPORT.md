@@ -33,7 +33,7 @@ Descriptions add `columns`, `indexes` and, for a maintained view,
 `maintainedFrom`. Displayed compiler-owned indexes keep their complete public
 keys with `name: null` and `generated: true`; authored names remain intact.
 Authored unnamed unique keys have `name: null` and `generated: false`.
-Generations predating the authored-index record report `generated: null`, hide
+Generations without a matching catalog side record report `generated: null`, hide
 unverified names and explain that provenance is unavailable until adoption
 with a current compiler; inspection itself never adopts or recompiles source.
 Indexes depending on hidden bookkeeping columns are omitted as a whole.
@@ -41,8 +41,8 @@ The implicit id key is
 listed once, and calendar keys include duration/offset arguments. This is a
 CLI inspection result, not a client wire change.
 
-The catalog comes from the persisted compiled schema and Snapback's row
-keys in one deferred read-only snapshot. It never compiles/adopts the local
+The catalog comes from the persisted compiled schema, its optional provenance
+side record and Snapback's row keys in one deferred read-only snapshot. It never compiles/adopts the local
 source, reserves a writer lock, exposes SQLite metadata or lists private
 maintained targets. Meta-command arguments are matched against application
 schema names, not executed as SQL. SELECT's existing authorizer and bounds
@@ -303,3 +303,80 @@ format change is introduced.
 removed; final sampled allocation is **15.09 GB**, below **40 GB**. All work
 remained on eb1000 in this worktree. Local commit with the requested co-author
 trailer; nothing pushed. Round 0's full-suite red remains recorded separately.
+
+
+## Round 3 — restore the published-engine compatibility fence
+
+Round 2's compatibility claim was wrong: its `authored_indexes` field changed
+stored generation bytes even for capability-free schemas. The operator's
+published 0.2.33 Darwin control exposed it. This round supersedes round 2's
+persistence design and removes its metadata-stripping compatibility exception.
+
+Provenance is now transient compiler input, completely skipped by schema
+serialization and deserialization, including when the source-declared set is
+empty. Like the existing delivery lookup, it is nonsemantic for schema equality;
+it cannot affect schema hashes, backend bytes or generation identity. Successful
+server activation writes a separate `_meta` record, `catalog:index-provenance`,
+in the same transaction as the activation. This record contains the declarations,
+generation and schema hash; it is never part of a stored schema or device input.
+Metadata-only adoption refreshes it without creating a generation. Failed
+adoption preserves the prior record. Older engines ignore the side record;
+catalog reads reject records whose generation or schema hash no longer matches.
+
+The catalog still classifies every index by the pre-expansion source record.
+Both unmodified starters retain the complete physical-index census, including
+`followingFeed.byReaderPage` and `$ownKeys:likes.byGroup`. Generated names stay
+hidden and hidden bookkeeping keys stay omitted. Missing/stale records produce
+`generated: null` and the existing explanation rather than a guessed origin.
+Inspection remains read-only, uses the active snapshot, and works with broken
+local source. LLP 3000.007 §8 now states this side-record policy, subject to
+LLP 3000.022 §14.3's capability-free compatibility fence.
+
+### Linux compatibility evidence
+
+An isolated source export of main **a8762e05564148ed3b0e0e5427c17641da083f80**
+(the lane's original main baseline) built its unmodified compiler and engine
+with a small retained fixture driver. No other worktree or machine was used.
+The driver created a real SQLite store with one post and one like. Its exact
+schema is **1,359 bytes**, SHA-256
+`3332755018a4eee39994e3e431051a39dc54fcfd0d7af5e37e9c671418f19745`.
+The new compiler's canonical bytes equal this capture exactly, without stripping
+or normalizing anything. Its decoded schema also equals the existing pinned
+`capability-free-0.4.backend.json` schema. A Linux-runnable assertion ties the
+Quarry fixture to the Darwin fence's actual control source.
+
+The SQL regression restores the complete main-produced store dump, reopens it
+through `Engine::open`, describes both populated tables, then adopts and reopens
+with provenance while preserving generation **1** and the exact stored schema
+bytes. Separately, three CLI catalog probes on the original SQLite file's copy
+succeed without changing a database byte. The existing populated-memory and
+SQLite tests, unique/maintained keys, private refusals and starter census remain.
+
+Reproduction evidence: `r3-main-producer.rs`, `r3-main-capture.json`, the complete
+`r3-main-store.sqlite.gz`, `r3-main-cli-probe.json`, and the source/schema/SQL
+fixtures under `crates/snapback4-core/tests/fixtures/capability-free*`. The capture
+records the main commit, toolchain and artifact hashes. To regenerate, export
+that main revision's Snapback 4 workspace, place the driver in the core crate's
+`examples/`, and run `cargo run -p snapback4-core --example sx_catalog_fixture --
+SOURCE STORE SCHEMA_OUTPUT`; the SQL fixture is the resulting store's complete
+Python `sqlite3.Connection.iterdump()` after the driver's WAL checkpoint.
+
+### Validation
+
+All requested Linux checks pass: **11 SQL, 89 check, 112 guide, 5 core schema,
+11 core capability and 3 client capability tests**. The client capability file
+explicitly skips its **4 Darwin-only witnesses** on Linux; the published 0.2.33
+fence still needs the operator's mini rerun. Additional checks pass: **41 core
+store/adoption tests**, the durable-schema compatibility test with the round-2
+exception removed, CLI build, reference audit and whitespace check. No full
+suite or Darwin result is claimed for round 3.
+
+Wasm is byte-identical to round 2:
+`a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26`,
+**2,116,457 B raw / 639,751 B gzip**, within the unchanged **639,887 B** cap.
+The earlier round-2 source-location-only difference from round 0 remains as
+recorded above; this round adds no wasm difference.
+
+`r3-*.log.gz` and `r3-verification.json` retain validation. Disk usage stayed
+below **16 GB**, under the **40 GB** limit. All work stayed on eb1000. Local
+commit with the requested co-author trailer; nothing pushed.

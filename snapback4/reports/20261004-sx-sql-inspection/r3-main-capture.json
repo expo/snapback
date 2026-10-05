@@ -1,0 +1,31 @@
+{
+  "main_commit": "a8762e05564148ed3b0e0e5427c17641da083f80",
+  "description": "Unmodified main compiler and engine with the retained fixture driver; canonical schema bytes and complete populated store, never stripped or reconstructed from current output. SQL dump made by Python sqlite3 iterdump after a successful WAL checkpoint.",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "artifacts": {
+    "crates/snapback4-core/tests/fixtures/capability-free.q": {
+      "bytes": 426,
+      "sha256": "cd4b14c93ec49267345ba6295c0095eb91469c2093a4fecfbd4d17d888f2d2b8"
+    },
+    "crates/snapback4-core/tests/fixtures/capability-free.schema.json": {
+      "bytes": 1359,
+      "sha256": "3332755018a4eee39994e3e431051a39dc54fcfd0d7af5e37e9c671418f19745"
+    },
+    "crates/snapback4-core/tests/fixtures/capability-free-main.sql": {
+      "bytes": 9648,
+      "sha256": "7ca398933a959a1e1a37ad56e48d927da59f4fb9718dc36636c607ccb2969475"
+    },
+    "target/sx-r3-main.sqlite": {
+      "bytes": 188416,
+      "sha256": "450a8a15b3b0dcb3310778c892ec5a17d339d067fae9a8a9a10089f3289e14f0"
+    },
+    "target/sx-r3-main-build/debug/examples/sx_catalog_fixture": {
+      "bytes": 39605216,
+      "sha256": "4a1517f1eda9991370fc6982c38a6b84e4b2b8ad594d4b9499bbba522e2f42ee"
+    },
+    "reports/20261004-sx-sql-inspection/r3-main-producer.rs": {
+      "bytes": 1224,
+      "sha256": "6c0bd751f86b38c6a1cdf9a09c583607c8567a1a7e77c02ce8ef9d01d71ab66d"
+    }
+  }
+}

@@ -61,6 +61,25 @@ fn no_capabilities_keeps_the_exact_legacy_bytes() {
 }
 
 #[test]
+fn compiled_capability_free_schema_keeps_mains_exact_bytes() {
+    // Captured by main's compiler and engine at a8762e055641, not by
+    // deleting metadata from a new encoding. Also used by the Darwin fence.
+    let schema = compile(include_str!("fixtures/capability-free.q"));
+    let expected = include_str!("fixtures/capability-free.schema.json");
+    assert!(schema.required_capabilities().is_empty());
+    assert!(schema.authored_indexes.0.is_some());
+    assert_eq!(serde_json::to_string(&schema).unwrap(), expected);
+    assert_eq!(snapback4_core::value::canonical_json(&schema), expected);
+    let decoded: Schema = serde_json::from_str(expected).unwrap();
+    assert!(decoded.authored_indexes.0.is_none());
+    assert_eq!(schema, decoded);
+    assert_eq!(schema.hash(), decoded.hash());
+    let pinned: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../packages/snapback4/test/fixtures/capability-free-0.4.backend.json")).unwrap();
+    assert_eq!(serde_json::to_value(&schema).unwrap(), pinned["schema"]);
+}
+
+#[test]
 fn nonzero_schema_exports_every_source_including_unrelated_zero_plans() {
     let source = "table plain:\n  public\n  sync public\ntable media:\n  photos: [image <=1000] <=0 ?\n  public\n  sync public\n";
     let zero = compile(source);

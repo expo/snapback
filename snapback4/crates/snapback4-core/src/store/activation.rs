@@ -326,6 +326,14 @@ impl Store {
             if changed {
                 tx.conn().execute("INSERT INTO _generations(generation, schema, programs, at) VALUES (?1, ?2, ?3, ?4)", params![i64::try_from(generation).map_err(|_| RuntimeError::Generation("generation overflow".into()))?, canonical_json(schema), canonical_json(programs), crate::now_ms()])?;
             }
+            // Inspection-only metadata shares the successful activation's
+            // transaction, but never its schema bytes, hash or generation.
+            if let Some(indexes) = &schema.authored_indexes.0 {
+                let record = crate::schema::inspection::Record {
+                    generation, schema_hash, indexes: indexes.clone(),
+                };
+                tx.set_meta(crate::schema::inspection::META_KEY, &canonical_json(&record))?;
+            }
         }
         let after = identity(tx.conn())?;
         report.phase("metadata", &mut phase);

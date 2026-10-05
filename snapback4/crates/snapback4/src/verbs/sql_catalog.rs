@@ -1,7 +1,8 @@
 //! Application catalog inspection; never prepare caller-supplied SQL here.
 // @ref LLP 3000.007#8 — catalog commands share SQL inspection's active read-only snapshot.
 use super::{CATALOG_HINT, Connection, Result, Schema, internal, json, store_error};
-use snapback4_core::schema::IndexComponent;
+use snapback4_core::schema::{IndexComponent, inspection::{Declarations, Record, META_KEY}};
+use rusqlite::OptionalExtension;
 use serde_json::Value;
 
 pub(super) enum Command<'a> { Tables, Describe(&'a str) }
@@ -33,9 +34,18 @@ pub(super) fn row_count(conn: &Connection, name: &str, limit: u64) -> Result<u64
         rusqlite::params![name, limit as i64], |r| r.get::<_, i64>(0)).map(|n| n as u64).map_err(store_error)
 }
 
-fn index_generated(schema: &Schema, table: &str, index: &str) -> Option<bool> {
-    schema.authored_indexes.as_ref().map(|declared|
+fn index_generated(declared: Option<&Declarations>, table: &str, index: &str) -> Option<bool> {
+    declared.map(|declared|
         !declared.get(table).is_some_and(|indexes| indexes.contains(index)))
+}
+
+fn provenance(conn: &Connection, schema: &Schema) -> Result<Option<Declarations>> {
+    let encoded: Option<(i64, String)> = conn.query_row(
+        "SELECT CAST(g.value AS INTEGER), p.value FROM _meta g JOIN _meta p ON p.key = ?1 WHERE g.key = 'generation'",
+        [META_KEY], |row| Ok((row.get(0)?, row.get(1)?))).optional().map_err(store_error)?;
+    let Some((generation, encoded)) = encoded else { return Ok(None); };
+    let record: Record = serde_json::from_str(&encoded).map_err(|e| ("E_SCHEMA", e.to_string()))?;
+    Ok((i64::try_from(record.generation).ok() == Some(generation) && record.schema_hash == schema.hash()).then_some(record.indexes))
 }
 
 pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) -> Result<Vec<Value>> {
@@ -48,6 +58,7 @@ pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) 
     if requested.is_some_and(internal) {
         return Err(("E_SQL_INTERNAL", format!("internal tables are refused; {CATALOG_HINT}")));
     }
+    let declared = if requested.is_some() { provenance(conn, schema)? } else { None };
     let mut tables = Vec::new();
     for (name, table) in schema.visible_tables().filter(|(name, _)| !internal(name)) {
         if requested.is_some_and(|wanted| !name.eq_ignore_ascii_case(wanted)) { continue; }
@@ -64,7 +75,7 @@ pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) 
         };
         let mut description = json!({"name": name, "kind": kind, "rows": rows});
         if requested.is_some() {
-            let generated = |index: &str| index_generated(schema, name, index);
+            let generated = |index: &str| index_generated(declared.as_ref(), name, index);
             let public_column = |name: &str| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name);
             let mut columns = vec![json!({"name": "id", "type": "id", "nullable": false})];
             // Match the generated Rows surface: captures, expiry bookkeeping
@@ -102,7 +113,7 @@ pub(super) fn inspect(conn: &Connection, schema: &Schema, command: Command<'_>) 
                     "unique": index.unique, "primary": false, "generated": generated})
             }));
             description["indexes"] = json!(indexes);
-            if schema.authored_indexes.is_none() {
+            if declared.is_none() {
                 description["indexProvenance"] = json!("unavailable for this generation; adopt the schema with a current compiler to record it");
             }
             if let Some(maintain) = maintain {
@@ -149,20 +160,20 @@ mod tests {
 
     const SOURCE: &str = "table messages:\n  body: text <=100\n  note: text ?\n  owner: principal\n  at: time default 0\n  unique body\n  search body\n  by byOwner: owner, id\n  by byBucket: bucket(at, 2h, 30m), at, id\n  by id: owner\n  public\n  online only\nmaintain counts: count messages by owner\n  read <- allow\n  online only\ntable typing:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  ephemeral 4s\nquery find(q: text <=20, c: cursor ?):\n  return messages matching q last 10 by .id after c\n";
 
-    fn assert_source_provenance(schema: &Schema, source: &str) {
+    fn assert_source_provenance(schema: &Schema, declared: Option<&Declarations>, source: &str) {
         let (document, diagnostics) = snapback4_lang::parse_document("schema.q", source);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let declared: std::collections::BTreeSet<_> = document.tables.iter().map(|t| (&t.name, &t.indexes))
+        let source_declared: std::collections::BTreeSet<_> = document.tables.iter().map(|t| (&t.name, &t.indexes))
             .chain(document.maintains.iter().map(|m| (&m.name, &m.indexes)))
             .flat_map(|(table, indexes)| indexes.iter().map(move |index| (table.as_str(), index.name.as_str()))).collect();
         // Walk every physical index, including intrinsic, hidden and private
         // ones. No name prefix or generated-table family decides provenance.
         for (table, definition) in &schema.tables {
             for index in definition.indexes.keys() {
-                assert_eq!(index_generated(schema, table, index), Some(!declared.contains(&(table.as_str(), index.as_str()))), "{table}.{index}");
+                assert_eq!(index_generated(declared, table, index), Some(!source_declared.contains(&(table.as_str(), index.as_str()))), "{table}.{index}");
             }
         }
-        for (table, index) in declared { assert!(schema.tables[table].indexes.contains_key(index), "{table}.{index}"); }
+        for (table, index) in source_declared { assert!(schema.tables[table].indexes.contains_key(index), "{table}.{index}"); }
     }
 
     fn exercise(store: Store) {
@@ -243,7 +254,7 @@ mod tests {
         let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let conn = engine.store().conn();
         let (_, schema) = active_schema(conn).unwrap();
-        assert_source_provenance(&schema, &source);
+        assert_source_provenance(&schema, provenance(conn, &schema).unwrap().as_ref(), &source);
         let describe = |name| inspect(conn, &schema, Command::Describe(name)).unwrap().remove(0);
         let sequence = describe("catalogSequence");
         assert!(schema.tables["catalogSequence"].indexes.contains_key("$sequence:ordinal"));
@@ -275,7 +286,7 @@ mod tests {
             // verify provenance against the compiled starter, including $intent.
             for (identity, index) in &table.indexes {
                 if !index.is_plain() || index.columns().iter().any(|c| c.starts_with('$')) { continue; }
-                let generated = index_generated(&schema, name, identity).unwrap();
+                let generated = index_generated(provenance(conn, &schema).unwrap().as_ref(), name, identity).unwrap();
                 let public_name = if generated || identity.starts_with('$') { None } else { Some(identity) };
                 assert!(description["indexes"].as_array().unwrap().iter().any(|i|
                     i["keys"] == json!(index.columns()) && i["unique"] == index.unique && i["name"] == json!(public_name) && i["generated"] == generated), "{identity}: {description}");
@@ -296,11 +307,14 @@ mod tests {
             let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
             assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
             let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
-            assert_source_provenance(&schema, source);
-            let engine = Engine::new(Store::memory().unwrap(), schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            assert_source_provenance(&schema, bound.schema.authored_indexes.0.as_ref(), source);
+            assert!(schema.authored_indexes.0.is_none());
+            assert_eq!(schema, bound.schema);
+            assert_eq!(schema.hash(), bound.schema.hash());
+            let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
             let (generation, schema) = active_schema(engine.store().conn()).unwrap();
             assert!(generation > 0);
-            assert_source_provenance(&schema, source);
+            assert_source_provenance(&schema, provenance(engine.store().conn(), &schema).unwrap().as_ref(), source);
             for (table, index) in [("followingFeed", "byReaderPage"), ("$ownKeys:likes", "byGroup"), ("messageCounts", "byGroup")] {
                 let Some(definition) = schema.tables.get(table) else { continue; };
                 let described = inspect(engine.store().conn(), &schema, Command::Describe(table)).unwrap();
@@ -315,9 +329,9 @@ mod tests {
         let source = SOURCE.replace("maintain counts: count messages by owner\n", "maintain counts: count messages by owner\n  by byValue: value, id\n");
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        assert_source_provenance(&bound.schema, &source);
+        assert_source_provenance(&bound.schema, bound.schema.authored_indexes.0.as_ref(), &source);
         let projection = bound.schema.public_projection();
-        assert!(projection.authored_indexes.is_none());
+        assert!(projection.authored_indexes.0.is_none());
         assert!(serde_json::to_value(&projection).unwrap().get("authored_indexes").is_none());
         let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let conn = engine.store().conn();
@@ -326,11 +340,10 @@ mod tests {
         assert!(declared[0]["indexes"].as_array().unwrap().iter().any(|i| i["name"] == "byValue" && i["generated"] == false));
         let declared = inspect(conn, &schema, Command::Describe("messages")).unwrap();
         assert!(declared[0]["indexes"].as_array().unwrap().iter().any(|i| i["keys"] == json!(["body"]) && i["generated"] == false && i["name"].is_null()));
-        let mut old = serde_json::to_value(&schema).unwrap();
-        old.as_object_mut().unwrap().remove("authored_indexes");
-        let old: Schema = serde_json::from_value(old).unwrap();
-        assert!(old.authored_indexes.is_none());
-        let unknown = inspect(conn, &old, Command::Describe("messages")).unwrap();
+        assert!(serde_json::to_value(&schema).unwrap().get("authored_indexes").is_none());
+        assert!(schema.authored_indexes.0.is_none());
+        conn.execute("DELETE FROM _meta WHERE key = ?1", [META_KEY]).unwrap();
+        let unknown = inspect(conn, &schema, Command::Describe("messages")).unwrap();
         assert!(unknown[0]["indexProvenance"].as_str().unwrap().contains("unavailable"));
         assert!(unknown[0]["indexes"].as_array().unwrap().iter().all(|i| i["generated"].is_null() && i["name"].is_null()));
     }
@@ -354,6 +367,76 @@ mod tests {
                     assert!(!message.to_lowercase().contains(&maintain.target));
                 }
             }
+        }
+    }
+
+    #[test]
+    fn main_store_reopens_and_describes_before_and_after_metadata_only_adoption() {
+        // Exact SQL dump of a populated store made by main a8762e055641.
+        // No schema reconstruction or field stripping on either side.
+        let directory = std::env::temp_dir().join(format!("sb4-sx-main-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("store.sqlite");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(include_str!("../../../snapback4-core/tests/fixtures/capability-free-main.sql")).unwrap();
+        drop(conn);
+        let mut engine = Engine::open(Store::open(&path).unwrap()).unwrap();
+        let conn = engine.store().conn();
+        let (generation, schema) = active_schema(conn).unwrap();
+        assert_eq!(generation, 1);
+        assert_eq!(serde_json::to_string(&schema).unwrap(), include_str!("../../../snapback4-core/tests/fixtures/capability-free.schema.json"));
+        assert_eq!(inspect(conn, &schema, Command::Tables).unwrap().len(), 2);
+        for table in ["likes", "posts"] {
+            let description = inspect(conn, &schema, Command::Describe(table)).unwrap();
+            assert_eq!(description[0]["rows"], json!({"count":1,"exact":true}));
+            assert!(description[0]["indexProvenance"].as_str().unwrap().contains("unavailable"));
+            assert!(description[0]["indexes"].as_array().unwrap().iter().all(|i| i["generated"].is_null()));
+        }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../snapback4-core/tests/fixtures/capability-free.q").into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert_eq!(engine.adopt(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap(), generation);
+        drop(engine);
+        let engine = Engine::open(Store::open(&path).unwrap()).unwrap();
+        let conn = engine.store().conn();
+        let (after, schema) = active_schema(conn).unwrap();
+        assert_eq!(after, generation);
+        let bytes: String = conn.query_row("SELECT schema FROM _generations WHERE generation = ?1", [generation as i64], |r| r.get(0)).unwrap();
+        assert_eq!(bytes, include_str!("../../../snapback4-core/tests/fixtures/capability-free.schema.json"));
+        let before = conn.total_changes();
+        conn.execute_batch("PRAGMA query_only = ON; BEGIN DEFERRED").unwrap();
+        for table in ["likes", "posts"] {
+            let description = inspect(conn, &schema, Command::Describe(table)).unwrap();
+            assert!(description[0].get("indexProvenance").is_none());
+            assert!(description[0]["indexes"].as_array().unwrap().iter().all(|i| i["generated"] == true && i["name"].is_null()));
+        }
+        assert_eq!(conn.total_changes(), before);
+        conn.execute_batch("ROLLBACK").unwrap();
+        drop(engine);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn catalog_side_record_is_atomic_and_rejects_stale_identity() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+        let mut engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let table = engine.schema().tables["messages"].clone();
+        engine.seed((0..2).map(|n| ("messages".into(), wire::row_from_json(&table,
+            &json!({"id":format!("m{n}"), "body":format!("b{n}"), "owner":"alice"})).unwrap()))).unwrap();
+        let previous = engine.store().meta(META_KEY).unwrap().unwrap();
+        let generation = engine.generation();
+        let next = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("by byOwner: owner, id", "unique owner"))]);
+        assert!(next.diagnostics.is_empty(), "{:?}", next.diagnostics);
+        assert!(engine.adopt(next.schema, next.programs.into_iter().map(|p| p.program)).is_err());
+        assert_eq!(engine.generation(), generation);
+        assert_eq!(engine.store().meta(META_KEY).unwrap().unwrap(), previous);
+        let conn = engine.store().conn();
+        let (_, schema) = active_schema(conn).unwrap();
+        for stale_generation in [true, false] {
+            let mut record: Record = serde_json::from_str(&previous).unwrap();
+            if stale_generation { record.generation += 1; } else { record.schema_hash = "obsolete".into(); }
+            conn.execute("UPDATE _meta SET value = ?1 WHERE key = ?2", [serde_json::to_string(&record).unwrap(), META_KEY.into()]).unwrap();
+            let description = inspect(conn, &schema, Command::Describe("messages")).unwrap();
+            assert!(description[0]["indexes"].as_array().unwrap().iter().all(|i| i["generated"].is_null() && i["name"].is_null()));
         }
     }
 

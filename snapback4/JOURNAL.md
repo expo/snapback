@@ -86656,3 +86656,16 @@ schemas have a complete index census. All 9 SQL, 89 check, 112 guide and 13
 schema/corpus compatibility tests pass. Wasm differs only in three panic-line
 bytes (+1 B gzip), within the unchanged budget. See the [Round 2 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-2--source-provenance-for-every-index).
 Scratch removed, disk 15.09 GB. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — SX round 3: preserve legacy schema bytes
+
+Move index provenance to an atomic catalog side record; exclude its transient
+compiler input from schema serialization, equality and hashes. Main-produced
+capability-free bytes and populated-store reopen now have Linux regressions;
+metadata-only adoption keeps generation 1. Both starter censuses remain exact.
+11 SQL, 89 check, 112 guide, 5 core schema, 11 core capability, 41 store/adoption,
+1 durable-byte and 3 client capability tests pass; 4 Darwin witnesses await the
+operator's rerun. Wasm is unchanged from round 2; disk below 16 GB. See the
+[Round 3 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-3--restore-the-published-engine-compatibility-fence).
+Local commit only, with the requested co-author trailer; nothing pushed.
