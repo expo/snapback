@@ -1,0 +1,9 @@
+{
+  "path": "/tmp/ni-r4-work",
+  "deleted": true,
+  "firstAttempt": "Stopped on read-only materialized historical web packet directory while unlinking failure.mjs.",
+  "recovery": "Enabled owner write only on owned scratch directories, then removed the remaining tree.",
+  "remainingFilesBeforeRetry": 13202,
+  "retainedArchive": "/home/ccheever/sb5-evidence-archive/20261005-ni/round4",
+  "preexistingReviewEnvironmentRemoved": false
+}

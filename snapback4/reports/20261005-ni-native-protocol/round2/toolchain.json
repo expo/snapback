@@ -1,0 +1,24 @@
+{
+  "host": "MacMini-Apt101-M5-A",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.9.6",
+  "node": "v24.18.0",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "dependencies": {
+    "expo": "57.0.22",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "playwright": "1.62.1"
+  },
+  "pythonPackages": [
+    "attrs==26.1.0",
+    "jsonschema==4.25.1",
+    "jsonschema-specifications==2025.9.1",
+    "pillow==11.3.0",
+    "referencing==0.36.2",
+    "rpds-py==0.27.1",
+    "typing_extensions==4.16.0"
+  ],
+  "simulator": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+  "decoder": "AVFoundation; trusted driver/video.swift compiled on validating host"
+}

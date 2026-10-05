@@ -1,0 +1,462 @@
+[
+  {
+    "segment": "m6",
+    "control": "baseline",
+    "expected": "accepted",
+    "reason": "accepted",
+    "matched": true,
+    "wallSeconds": 7.121,
+    "stale": false,
+    "score": 0.748323
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-098-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.597,
+    "stale": true,
+    "score": 0.999809
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-090-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.657,
+    "stale": true,
+    "score": 0.999872
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-050-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.469,
+    "stale": true,
+    "score": 0.999989
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-025-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.289,
+    "stale": true,
+    "score": 0.995184
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-125-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.528,
+    "stale": true,
+    "score": 0.999925
+  },
+  {
+    "segment": "m6",
+    "control": "scaled-0733-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.366,
+    "stale": true,
+    "score": 0.999927
+  },
+  {
+    "segment": "m6",
+    "control": "matted-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.861,
+    "stale": true,
+    "score": 0.999913
+  },
+  {
+    "segment": "m6",
+    "control": "framed-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.621,
+    "stale": true,
+    "score": 0.999835
+  },
+  {
+    "segment": "m6",
+    "control": "clipped-bright-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 7.055,
+    "stale": true,
+    "score": 0.94967
+  },
+  {
+    "segment": "m6",
+    "control": "pre-reopen-viewonce-load",
+    "expected": "viewonce-reloaded-in-cold-process",
+    "reason": "viewonce-reloaded-in-cold-process",
+    "matched": true,
+    "wallSeconds": 7.174
+  },
+  {
+    "segment": "m6",
+    "control": "online-viewonce-load",
+    "expected": "viewonce-reloaded-in-cold-process",
+    "reason": "viewonce-reloaded-in-cold-process",
+    "matched": true,
+    "wallSeconds": 7.349
+  },
+  {
+    "segment": "m6",
+    "control": "elsewhere-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.441,
+    "stale": true,
+    "score": 0.999872
+  },
+  {
+    "segment": "m6",
+    "control": "bright-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.548,
+    "stale": true,
+    "score": 0.997945
+  },
+  {
+    "segment": "m6",
+    "control": "contrast-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.471,
+    "stale": true,
+    "score": 0.999913
+  },
+  {
+    "segment": "m6",
+    "control": "invented-video-sample",
+    "expected": "video-sample-count-mismatch",
+    "reason": "video-sample-count-mismatch",
+    "matched": true,
+    "wallSeconds": 0.093
+  },
+  {
+    "segment": "m6",
+    "control": "extended-video-endpoint",
+    "expected": "video-endpoint-uncovered",
+    "reason": "video-endpoint-uncovered",
+    "matched": true,
+    "wallSeconds": 0.096
+  },
+  {
+    "segment": "m6",
+    "control": "undecodable-video",
+    "expected": "invalid-video",
+    "reason": "invalid-video-timing",
+    "matched": true,
+    "wallSeconds": 0.059
+  },
+  {
+    "segment": "m6",
+    "control": "retargeted-viewonce",
+    "expected": "viewonce-frame-mismatch",
+    "reason": "viewonce-frame-mismatch",
+    "matched": true,
+    "wallSeconds": 1.359
+  },
+  {
+    "segment": "m6",
+    "control": "stale-viewonce-pixels",
+    "expected": "stale-viewonce-pixels",
+    "reason": "stale-viewonce-pixels",
+    "matched": true,
+    "wallSeconds": 4.484,
+    "stale": true,
+    "score": 0.999912
+  },
+  {
+    "segment": "m6",
+    "control": "wrong-prime-pixels",
+    "expected": "prime-viewonce-pixel-mismatch",
+    "reason": "prime-viewonce-pixel-mismatch",
+    "matched": true,
+    "wallSeconds": 1.347
+  },
+  {
+    "segment": "m6",
+    "control": "buffered-viewonce-load",
+    "expected": "viewonce-reloaded-in-cold-process",
+    "reason": "viewonce-reloaded-in-cold-process",
+    "matched": true,
+    "wallSeconds": 7.426
+  },
+  {
+    "segment": "m6",
+    "control": "async-viewonce-load",
+    "expected": "viewonce-reloaded-in-cold-process",
+    "reason": "viewonce-reloaded-in-cold-process",
+    "matched": true,
+    "wallSeconds": 7.186
+  },
+  {
+    "segment": "m6",
+    "control": "old-viewonce-refusal",
+    "expected": "viewonce-refusal-missing",
+    "reason": "viewonce-refusal-missing",
+    "matched": true,
+    "wallSeconds": 7.145
+  },
+  {
+    "segment": "m6",
+    "control": "sent-native-a05",
+    "expected": "receipt-accessibility:read",
+    "reason": "receipt-accessibility:read",
+    "matched": true,
+    "wallSeconds": 6.97
+  },
+  {
+    "segment": "m6",
+    "control": "sent-screen-receipts",
+    "expected": "read-render-event",
+    "reason": "read-render-event",
+    "matched": true,
+    "wallSeconds": 7.188
+  },
+  {
+    "segment": "m6",
+    "control": "late-native-snapshot",
+    "expected": "receipt-native-outside-window",
+    "reason": "receipt-native-outside-window",
+    "matched": true,
+    "wallSeconds": 7.106
+  },
+  {
+    "segment": "m6",
+    "control": "short-duplicate-window",
+    "expected": "duplicate-window-too-short",
+    "reason": "duplicate-window-too-short",
+    "matched": true,
+    "wallSeconds": 1.237
+  },
+  {
+    "segment": "m6",
+    "control": "short-duplicate-samples",
+    "expected": "duplicate-sample-span-too-short",
+    "reason": "duplicate-sample-span-too-short",
+    "matched": true,
+    "wallSeconds": 1.349
+  },
+  {
+    "segment": "m6",
+    "control": "stale-nonce",
+    "expected": "stale-or-unsupported-observation",
+    "reason": "stale-or-unsupported-observation",
+    "matched": true,
+    "wallSeconds": 0.853
+  },
+  {
+    "segment": "m6",
+    "control": "replayed-events",
+    "expected": "observation-sequence-gap-or-replay",
+    "reason": "observation-sequence-gap-or-replay",
+    "matched": true,
+    "wallSeconds": 0.947
+  },
+  {
+    "segment": "m6",
+    "control": "missing-video",
+    "expected": "evidence-missing:",
+    "reason": "evidence-missing:m6-ios-screen.mp4",
+    "matched": true,
+    "wallSeconds": 0.05
+  },
+  {
+    "segment": "m6",
+    "control": "hash-mismatched-video",
+    "expected": "evidence-hash-mismatch:",
+    "reason": "evidence-hash-mismatch:m6-ios-screen.mp4",
+    "matched": true,
+    "wallSeconds": 0.055
+  },
+  {
+    "segment": "m6",
+    "control": "truncated-video-rebound",
+    "expected": "truncated-video-box",
+    "reason": "truncated-video-box",
+    "matched": true,
+    "wallSeconds": 0.06
+  },
+  {
+    "segment": "m6",
+    "control": "wrong-receipts",
+    "expected": "server-receipt-state:read",
+    "reason": "server-receipt-state:read",
+    "matched": true,
+    "wallSeconds": 6.972
+  },
+  {
+    "segment": "m6",
+    "control": "one-wrong-receipt",
+    "expected": "server-receipt-state:read",
+    "reason": "server-receipt-state:read",
+    "matched": true,
+    "wallSeconds": 6.916
+  },
+  {
+    "segment": "m6",
+    "control": "empty-search",
+    "expected": "native-conversation-identity",
+    "reason": "native-conversation-identity",
+    "matched": true,
+    "wallSeconds": 7.067
+  },
+  {
+    "segment": "m6",
+    "control": "signin-search",
+    "expected": "native-conversation-identity",
+    "reason": "native-conversation-identity",
+    "matched": true,
+    "wallSeconds": 7.083
+  },
+  {
+    "segment": "m6",
+    "control": "wrong-search-body",
+    "expected": "conversation-history-body",
+    "reason": "conversation-history-body",
+    "matched": true,
+    "wallSeconds": 7.005
+  },
+  {
+    "segment": "m6",
+    "control": "search-claim-only",
+    "expected": "conversation-screen-missing",
+    "reason": "conversation-screen-missing",
+    "matched": true,
+    "wallSeconds": 6.959
+  },
+  {
+    "segment": "m6",
+    "control": "wrong-conversation",
+    "expected": "screen-conversation",
+    "reason": "screen-conversation",
+    "matched": true,
+    "wallSeconds": 1.32
+  },
+  {
+    "segment": "m6",
+    "control": "instrument-commit",
+    "expected": "instrument-identity-mismatch",
+    "reason": "instrument-identity-mismatch",
+    "matched": true,
+    "wallSeconds": 0.017
+  },
+  {
+    "segment": "m6",
+    "control": "instrument-inventory",
+    "expected": "instrument-identity-mismatch",
+    "reason": "instrument-identity-mismatch",
+    "matched": true,
+    "wallSeconds": 0.016
+  },
+  {
+    "segment": "m6",
+    "control": "driver-source",
+    "expected": "driver-source-mismatch",
+    "reason": "driver-source-mismatch",
+    "matched": true,
+    "wallSeconds": 0.039
+  },
+  {
+    "segment": "m6",
+    "control": "driver-binary",
+    "expected": "driver-binary-mismatch",
+    "reason": "driver-binary-mismatch",
+    "matched": true,
+    "wallSeconds": 0.039
+  },
+  {
+    "segment": "m6",
+    "control": "late-read",
+    "expected": "receipt-deadline-exceeded",
+    "reason": "receipt-deadline-exceeded",
+    "matched": true,
+    "wallSeconds": 7.125
+  },
+  {
+    "segment": "m6",
+    "control": "search-retry",
+    "expected": "accepted",
+    "reason": "accepted",
+    "matched": true,
+    "wallSeconds": 7.075
+  },
+  {
+    "segment": "m6",
+    "control": "missing-post-scroll-screen",
+    "expected": "accepted",
+    "reason": "accepted",
+    "matched": true,
+    "wallSeconds": 6.921
+  },
+  {
+    "segment": "m8",
+    "control": "baseline",
+    "expected": "accepted",
+    "reason": "accepted",
+    "matched": true,
+    "wallSeconds": 1.299
+  },
+  {
+    "segment": "m8",
+    "control": "wrong-receipts",
+    "expected": "server-receipt-state:read",
+    "reason": "server-receipt-state:read",
+    "matched": true,
+    "wallSeconds": 1.17
+  },
+  {
+    "segment": "m8",
+    "control": "one-wrong-receipt",
+    "expected": "server-receipt-state:read",
+    "reason": "server-receipt-state:read",
+    "matched": true,
+    "wallSeconds": 1.212
+  },
+  {
+    "segment": "m8",
+    "control": "late-read",
+    "expected": "receipt-deadline-exceeded",
+    "reason": "receipt-deadline-exceeded",
+    "matched": true,
+    "wallSeconds": 1.193
+  },
+  {
+    "segment": "m8",
+    "control": "stale-restart-capture",
+    "expected": "restart-capture-before-relaunch",
+    "reason": "restart-capture-before-relaunch",
+    "matched": true,
+    "wallSeconds": 1.125
+  },
+  {
+    "segment": "m8",
+    "control": "missing-restart-screen",
+    "expected": "restart-pending-screen-missing",
+    "reason": "restart-pending-screen-missing",
+    "matched": true,
+    "wallSeconds": 1.12
+  }
+]

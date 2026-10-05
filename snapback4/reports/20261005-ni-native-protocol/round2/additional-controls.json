@@ -1,0 +1,10 @@
+[
+  {
+    "control": "early-committed-read",
+    "source": "none-m6-043846",
+    "changedScreens": 1,
+    "hashRebound": true,
+    "pass": true,
+    "reason": "retained-read-screen-corroborated-inside-window"
+  }
+]

@@ -1,0 +1,135 @@
+[
+  {
+    "run": "navigation-claim-m6-013847",
+    "control": "navigation-claim",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "screen-conversation",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 62.684,
+        "nativeCommands": 64,
+        "enteredSteps": 5,
+        "operatorInvocations": 1
+      }
+    },
+    "fixtureConversationId": "2d824805-9304-4cb6-b5cc-2f91d2d765c6",
+    "nativeConversations": [],
+    "authInputs": 1,
+    "searchClaim": {
+      "openedConversationId": "2d824805-9304-4cb6-b5cc-2f91d2d765c6",
+      "resultIds": [
+        "24c0aafe-1d14-4ad2-9164-543e4355585f"
+      ],
+      "token": "needle"
+    },
+    "finalScreen": {
+      "conversationId": null,
+      "route": "auth",
+      "rows": []
+    }
+  },
+  {
+    "run": "wrong-conversation-m6-013951",
+    "control": "wrong-conversation",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "screen-conversation",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 43.486,
+        "nativeCommands": 26,
+        "enteredSteps": 2,
+        "operatorInvocations": 1
+      }
+    },
+    "fixtureConversationId": "23c525ac-30ae-4a10-bf57-45ce8dc03bc3",
+    "reportedConversations": [
+      "wrong-conversation"
+    ]
+  },
+  {
+    "run": "wrong-receipts-m6-013334",
+    "control": "wrong-receipts",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-receipt-state:read",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 155.012,
+        "nativeCommands": 165,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "fixtureConversationId": "a4802722-cf5f-4c3e-96ce-1a17502b9e8c",
+    "nativeReceipts": [
+      "read",
+      "read"
+    ],
+    "authoritativeRows": [
+      {
+        "messageId": "local-muuzunpq-dmvin9oc8cp",
+        "body": "c9d1b12b-6f9d-4726-b2b3-97cfab05e2e6:first",
+        "orderKey": [
+          18
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "local-muuzv0ko-bx7a26dit2h",
+        "body": "c9d1b12b-6f9d-4726-b2b3-97cfab05e2e6:second",
+        "orderKey": [
+          19
+        ],
+        "receiptState": "sent"
+      }
+    ]
+  },
+  {
+    "run": "wrong-receipts-m8-013610",
+    "control": "wrong-receipts",
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": false,
+      "receipt": "m8-ios-run.json",
+      "reason": "server-receipt-state:read",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 157.416,
+        "nativeCommands": 172,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "fixtureConversationId": "a0ca3c4c-e52a-4983-b13f-63141b1e2c7a",
+    "nativeReceipts": [
+      "read",
+      "read"
+    ],
+    "authoritativeRows": [
+      {
+        "messageId": "local-muuzxm9u-nx46kujyfqr",
+        "body": "7eac70bb-82b6-4228-9090-b7f1ab89d9c5:first",
+        "orderKey": [
+          18
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "local-muuzxz59-imnkxy1ssv",
+        "body": "7eac70bb-82b6-4228-9090-b7f1ab89d9c5:second",
+        "orderKey": [
+          19
+        ],
+        "receiptState": "sent"
+      }
+    ]
+  }
+]

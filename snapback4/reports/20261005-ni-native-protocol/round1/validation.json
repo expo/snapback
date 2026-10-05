@@ -1,0 +1,133 @@
+[
+  {
+    "run": "bob-wrong-conversation-m6-013159",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "requiredForGreen": false
+  },
+  {
+    "run": "collapsed-receipt-m6-012951",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "receipt-accessibility:pending",
+    "requiredForGreen": false
+  },
+  {
+    "run": "duplicate-sends-m6-012413",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "server-occurrence-count:2",
+    "requiredForGreen": false
+  },
+  {
+    "run": "navigation-claim-m6-013847",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "screen-conversation",
+    "requiredForGreen": false
+  },
+  {
+    "run": "none-m6-011546",
+    "historical": true,
+    "reason": "retained pre-correction attempt; source identity differs"
+  },
+  {
+    "run": "none-m6-011810",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "none-m8-012013",
+    "segment": "m8",
+    "exitCode": 0,
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "placeholder-m6-012150",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "placeholder-or-wrong-media-pixels",
+    "requiredForGreen": false
+  },
+  {
+    "run": "reversed-sends-m6-012639",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "server-send-order",
+    "requiredForGreen": false
+  },
+  {
+    "run": "stale-viewonce-m6-012904",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "stale-viewonce-pixels",
+    "requiredForGreen": false
+  },
+  {
+    "run": "volatile-outbox-m8-012234",
+    "segment": "m8",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "fixture-row-not-found:local-muuzghei-ut6ekfjsepg",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-conversation-m6-013951",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "screen-conversation",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-fixture-m6-013110",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": null,
+    "reason": "fixture-row-not-found:fffb783b-2b85-490c-9003-388721397b59",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-receipts-m6-013334",
+    "segment": "m6",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-receipts-m8-013610",
+    "segment": "m8",
+    "exitCode": 0,
+    "valid": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "requiredForGreen": false
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "pythonTests": 35,
+  "pythonPass": true,
+  "kitTests": 3,
+  "kitPass": true,
+  "kitTypecheck": true,
+  "swiftJournalTests": true,
+  "refCheck": true,
+  "freeze": true,
+  "packetMaterialization": true,
+  "inventoryCheck": "inherited red; tracked inputs unchanged from 3d37ce3aef",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261005-ni/round1",
+  "qualification": {
+    "instrument": {
+      "commit": "ece785d94f2ab7c34a581ca6cba231eb6eca663f",
+      "inventorySha256": "feb50d3967667a6583f5d09c297b66fab9353728f6da2992ce02c0292472e77c",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    },
+    "driverSourceSha256": "1a12e18e991590b93ee17f366ca4a3ff9bc763a86bc7770d564cd49ec1192109",
+    "driverBinarySha256": "4c2186d0143ad7d3c4679a905fed8104b3ab98a67d1be53914abc42a0c3c36da"
+  },
+  "warmBuild": {
+    "exit": 0,
+    "wallSeconds": 9.44331375
+  },
+  "helperFiles": 6,
+  "helperBytes": 7475
+}

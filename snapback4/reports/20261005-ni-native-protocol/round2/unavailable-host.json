@@ -1,0 +1,7 @@
+{
+  "pass": null,
+  "reason": "unavailable-host:ssh",
+  "requiredForGreen": false,
+  "wallSeconds": 0.005,
+  "operatorSteps": 1
+}

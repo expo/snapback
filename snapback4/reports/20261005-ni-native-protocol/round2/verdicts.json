@@ -1,0 +1,1098 @@
+[
+  {
+    "run": "async-viewonce-m6-025654",
+    "control": "async-viewonce",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "viewonce-reloaded-before-reconnect",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 55.74,
+    "outerWallSeconds": 57.422,
+    "nativeCommands": 36,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "async-viewonce-m6-032007",
+    "control": "async-viewonce",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "viewonce-reloaded-before-reconnect",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 51.26,
+    "outerWallSeconds": 52.607,
+    "nativeCommands": 36,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "async-viewonce-m6-044213",
+    "control": "async-viewonce",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "viewonce-reloaded-before-reconnect",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 52.467,
+    "outerWallSeconds": 54.196,
+    "nativeCommands": 37,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "bob-wrong-conversation-m6-031355",
+    "control": "bob-wrong-conversation",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 101.343,
+    "outerWallSeconds": 102.82,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "bob-wrong-conversation-m6-033644",
+    "control": "bob-wrong-conversation",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 101.189,
+    "outerWallSeconds": 102.301,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "bob-wrong-conversation-m6-045942",
+    "control": "bob-wrong-conversation",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 105.196,
+    "outerWallSeconds": 108.747,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "collapsed-receipt-m6-033826",
+    "control": "collapsed-receipt",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "receipt-accessibility:pending",
+    "failedAssertions": [
+      "m6-a05"
+    ],
+    "driverWallSeconds": 78.62,
+    "outerWallSeconds": 79.95,
+    "nativeCommands": 66,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "collapsed-receipt-m6-050131",
+    "control": "collapsed-receipt",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "receipt-accessibility:pending",
+    "failedAssertions": [
+      "m6-a05"
+    ],
+    "driverWallSeconds": 80.844,
+    "outerWallSeconds": 83.986,
+    "nativeCommands": 66,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "delayed-bob-m6-025931",
+    "control": "delayed-bob",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.674,
+    "outerWallSeconds": 96.11,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "delayed-bob-m6-032232",
+    "control": "delayed-bob",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 93.072,
+    "outerWallSeconds": 94.479,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "delayed-bob-m6-044442",
+    "control": "delayed-bob",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 98.525,
+    "outerWallSeconds": 102.379,
+    "nativeCommands": 47,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "duplicate-sends-m6-033946",
+    "control": "duplicate-sends",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "server-occurrence-count:2",
+    "failedAssertions": [
+      "m6-a06"
+    ],
+    "driverWallSeconds": 145.552,
+    "outerWallSeconds": 146.977,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "duplicate-sends-m6-050255",
+    "control": "duplicate-sends",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "server-occurrence-count:2",
+    "failedAssertions": [
+      "m6-a06"
+    ],
+    "driverWallSeconds": 151.198,
+    "outerWallSeconds": 155.35,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "late-bob-m6-030246",
+    "control": "late-bob",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 101.845,
+    "outerWallSeconds": 103.068,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "late-bob-m6-032545",
+    "control": "late-bob",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 102.457,
+    "outerWallSeconds": 103.617,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "late-bob-m6-044811",
+    "control": "late-bob",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "failedAssertions": [
+      "m6-a07"
+    ],
+    "driverWallSeconds": 105.051,
+    "outerWallSeconds": 109.766,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "navigation-claim-m6-031205",
+    "control": "navigation-claim",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "native-conversation-identity",
+    "failedAssertions": [
+      "m6-a03"
+    ],
+    "driverWallSeconds": 65.111,
+    "outerWallSeconds": 66.259,
+    "nativeCommands": 71,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "navigation-claim-m6-033458",
+    "control": "navigation-claim",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "native-conversation-identity",
+    "failedAssertions": [
+      "m6-a03"
+    ],
+    "driverWallSeconds": 61.9,
+    "outerWallSeconds": 63.062,
+    "nativeCommands": 71,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "navigation-claim-m6-045752",
+    "control": "navigation-claim",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "native-conversation-identity",
+    "failedAssertions": [
+      "m6-a03"
+    ],
+    "driverWallSeconds": 63.342,
+    "outerWallSeconds": 65.404,
+    "nativeCommands": 72,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "newest-first-m6-030107",
+    "control": "newest-first",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 98.174,
+    "outerWallSeconds": 99.419,
+    "nativeCommands": 52,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "newest-first-m6-032407",
+    "control": "newest-first",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 96.766,
+    "outerWallSeconds": 97.953,
+    "nativeCommands": 51,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "newest-first-m6-044625",
+    "control": "newest-first",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 101.241,
+    "outerWallSeconds": 105.9,
+    "nativeCommands": 53,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-024952",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.658,
+    "outerWallSeconds": 96.173,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "04c8c1ce9aed8d6c048dd65ab844c907a78c9b06",
+      "inventorySha256": "21d3d8a3befabfc745de99c9fc7abef14abaa9fd413bfcffdadb687fb40bd720",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-025343",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.191,
+    "outerWallSeconds": 95.384,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-031700",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 90.704,
+    "outerWallSeconds": 91.94,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-041344",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": null,
+    "reason": "artifact-validation:video-endpoint-uncovered",
+    "failedAssertions": [],
+    "driverWallSeconds": 95.669,
+    "outerWallSeconds": 96.391,
+    "nativeCommands": 47,
+    "instrument": {
+      "commit": "48a5a5fba9973f4e79ac152ec1808ecb6a5334db",
+      "inventorySha256": "c3284befa5d5d989a4717b15f24d51fb42531b66a1fbe1bf132f88a50747ff4f",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-042822",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.048,
+    "outerWallSeconds": 96.465,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "ed30bced26cb39eb3269d195319fe9723ed22cec",
+      "inventorySha256": "c8eb0a5e248d040962294754f212ce4f0d97111823bcad40624c886ab1c512a6",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m6-043846",
+    "control": "none",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 96.332,
+    "outerWallSeconds": 100.233,
+    "nativeCommands": 47,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m8-025519",
+    "control": "none",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.734,
+    "outerWallSeconds": 95.671,
+    "nativeCommands": 54,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m8-031832",
+    "control": "none",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 94.102,
+    "outerWallSeconds": 94.948,
+    "nativeCommands": 53,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m8-042958",
+    "control": "none",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": null,
+    "reason": "artifact-validation:video-decoded-sample-count-mismatch",
+    "failedAssertions": [],
+    "driverWallSeconds": 98.196,
+    "outerWallSeconds": 100.916,
+    "nativeCommands": 55,
+    "instrument": {
+      "commit": "ed30bced26cb39eb3269d195319fe9723ed22cec",
+      "inventorySha256": "c8eb0a5e248d040962294754f212ce4f0d97111823bcad40624c886ab1c512a6",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "none-m8-044027",
+    "control": "none",
+    "segment": "m8",
+    "preliminary": false,
+    "pass": true,
+    "reason": null,
+    "failedAssertions": [],
+    "driverWallSeconds": 100.089,
+    "outerWallSeconds": 106.024,
+    "nativeCommands": 55,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "placeholder-m6-030429",
+    "control": "placeholder",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "placeholder-or-wrong-media-pixels",
+    "failedAssertions": [
+      "m6-a02"
+    ],
+    "driverWallSeconds": 43.471,
+    "outerWallSeconds": 44.541,
+    "nativeCommands": 29,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "placeholder-m6-032728",
+    "control": "placeholder",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "placeholder-or-wrong-media-pixels",
+    "failedAssertions": [
+      "m6-a02"
+    ],
+    "driverWallSeconds": 42.957,
+    "outerWallSeconds": 44.279,
+    "nativeCommands": 29,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "placeholder-m6-045001",
+    "control": "placeholder",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "placeholder-or-wrong-media-pixels",
+    "failedAssertions": [
+      "m6-a02"
+    ],
+    "driverWallSeconds": 44.043,
+    "outerWallSeconds": 45.429,
+    "nativeCommands": 30,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "reversed-sends-m6-034213",
+    "control": "reversed-sends",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "server-send-order",
+    "failedAssertions": [
+      "m6-a06"
+    ],
+    "driverWallSeconds": 145.337,
+    "outerWallSeconds": 146.6,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "reversed-sends-m6-050530",
+    "control": "reversed-sends",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "server-send-order",
+    "failedAssertions": [
+      "m6-a06"
+    ],
+    "driverWallSeconds": 148.834,
+    "outerWallSeconds": 153.187,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "stale-viewonce-m6-030514",
+    "control": "stale-viewonce",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "stale-viewonce-pixels",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 46.964,
+    "outerWallSeconds": 48.059,
+    "nativeCommands": 34,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "stale-viewonce-m6-032813",
+    "control": "stale-viewonce",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "stale-viewonce-pixels",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 46.437,
+    "outerWallSeconds": 47.605,
+    "nativeCommands": 34,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "stale-viewonce-m6-045046",
+    "control": "stale-viewonce",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "stale-viewonce-pixels",
+    "failedAssertions": [
+      "m6-a04"
+    ],
+    "driverWallSeconds": 47.23,
+    "outerWallSeconds": 48.72,
+    "nativeCommands": 35,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "undecodable-video-m6-025752",
+    "control": "undecodable-video",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": null,
+    "reason": "artifact-validation:invalid-video",
+    "failedAssertions": [],
+    "driverWallSeconds": 97.701,
+    "outerWallSeconds": 98.558,
+    "nativeCommands": 46,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "undecodable-video-m6-032100",
+    "control": "undecodable-video",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": null,
+    "reason": "artifact-validation:invalid-video",
+    "failedAssertions": [],
+    "driverWallSeconds": 90.922,
+    "outerWallSeconds": 91.79,
+    "nativeCommands": 45,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "undecodable-video-m6-044307",
+    "control": "undecodable-video",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": null,
+    "reason": "artifact-validation:invalid-video-timing",
+    "failedAssertions": [],
+    "driverWallSeconds": 94.754,
+    "outerWallSeconds": 95.369,
+    "nativeCommands": 47,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "volatile-outbox-m8-034440",
+    "control": "volatile-outbox",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": false,
+    "reason": "fixture-row-not-found:local-muv4j6og-h0kbdnhmle",
+    "failedAssertions": [
+      "m8-a17"
+    ],
+    "driverWallSeconds": 96.413,
+    "outerWallSeconds": 97.758,
+    "nativeCommands": 69,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "volatile-outbox-m8-050803",
+    "control": "volatile-outbox",
+    "segment": "m8",
+    "preliminary": false,
+    "pass": false,
+    "reason": "fixture-row-not-found:local-muv7ifkh-84zwviq6apu",
+    "failedAssertions": [
+      "m8-a17"
+    ],
+    "driverWallSeconds": 102.213,
+    "outerWallSeconds": 108.443,
+    "nativeCommands": 70,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-conversation-m6-031312",
+    "control": "wrong-conversation",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "screen-conversation",
+    "failedAssertions": [
+      "m6-a01"
+    ],
+    "driverWallSeconds": 41.757,
+    "outerWallSeconds": 42.885,
+    "nativeCommands": 26,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-conversation-m6-033601",
+    "control": "wrong-conversation",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "screen-conversation",
+    "failedAssertions": [
+      "m6-a01"
+    ],
+    "driverWallSeconds": 41.031,
+    "outerWallSeconds": 42.189,
+    "nativeCommands": 26,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-conversation-m6-045858",
+    "control": "wrong-conversation",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "screen-conversation",
+    "failedAssertions": [
+      "m6-a01"
+    ],
+    "driverWallSeconds": 42.244,
+    "outerWallSeconds": 44.019,
+    "nativeCommands": 27,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-fixture-m6-030602",
+    "control": "wrong-fixture",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": null,
+    "reason": "fixture-row-not-found:b4300686-012b-4586-b3cd-64e9dc694367",
+    "failedAssertions": [],
+    "driverWallSeconds": 48.938,
+    "outerWallSeconds": 49.312,
+    "nativeCommands": 48,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-fixture-m6-032900",
+    "control": "wrong-fixture",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": null,
+    "reason": "fixture-row-not-found:8117406d-7fb2-491c-bb93-ed91a14dd6dd",
+    "failedAssertions": [],
+    "driverWallSeconds": 48.623,
+    "outerWallSeconds": 48.938,
+    "nativeCommands": 48,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-fixture-m6-045135",
+    "control": "wrong-fixture",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": null,
+    "reason": "fixture-row-not-found:bd755d67-1ac8-4039-be59-3a562e3d2baa",
+    "failedAssertions": [],
+    "driverWallSeconds": 50.765,
+    "outerWallSeconds": 51.096,
+    "nativeCommands": 48,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m6-030652",
+    "control": "wrong-receipts",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "read-render-event",
+    "failedAssertions": [
+      "m6-a05"
+    ],
+    "driverWallSeconds": 153.795,
+    "outerWallSeconds": 155.28,
+    "nativeCommands": 191,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m6-032949",
+    "control": "wrong-receipts",
+    "segment": "m6",
+    "preliminary": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "failedAssertions": [
+      "m6-a05"
+    ],
+    "driverWallSeconds": 151.832,
+    "outerWallSeconds": 153.071,
+    "nativeCommands": 167,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m6-045226",
+    "control": "wrong-receipts",
+    "segment": "m6",
+    "preliminary": false,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "failedAssertions": [
+      "m6-a05"
+    ],
+    "driverWallSeconds": 155.723,
+    "outerWallSeconds": 159.956,
+    "nativeCommands": 168,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m8-030927",
+    "control": "wrong-receipts",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": false,
+    "reason": "read-render-event",
+    "failedAssertions": [
+      "m8-a18"
+    ],
+    "driverWallSeconds": 157.19,
+    "outerWallSeconds": 158.238,
+    "nativeCommands": 196,
+    "instrument": {
+      "commit": "65153829185e86a2c3d45d05ba5349ad5efd2286",
+      "inventorySha256": "3d145a9a7755de13e773ae6939ec1029dc29723b3caa877c920999735f14086d",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m8-033222",
+    "control": "wrong-receipts",
+    "segment": "m8",
+    "preliminary": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "failedAssertions": [
+      "m8-a18"
+    ],
+    "driverWallSeconds": 154.558,
+    "outerWallSeconds": 155.723,
+    "nativeCommands": 173,
+    "instrument": {
+      "commit": "152f7c182b26ee925033e7e7100c707df5aea6bb",
+      "inventorySha256": "195737b36842335f219389dd3482473acf585cd247b8ba907694004d8612b5ff",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  },
+  {
+    "run": "wrong-receipts-m8-045506",
+    "control": "wrong-receipts",
+    "segment": "m8",
+    "preliminary": false,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "failedAssertions": [
+      "m8-a18"
+    ],
+    "driverWallSeconds": 160.258,
+    "outerWallSeconds": 165.499,
+    "nativeCommands": 175,
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    }
+  }
+]

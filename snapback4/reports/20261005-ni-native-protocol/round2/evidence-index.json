@@ -1,0 +1,38 @@
+{
+  "archiveHost": "expose-builder-pixel (Linux)",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261005-ni/round2",
+  "files": 12955,
+  "bytes": 2470083420,
+  "parts": [
+    {
+      "path": "evidence-index-000.jsonl",
+      "bytes": 649939,
+      "sha256": "3e604464076a05c98635c56d241e152a1c96d4861cc1d4dba601e11f3eda405b"
+    },
+    {
+      "path": "evidence-index-001.jsonl",
+      "bytes": 649979,
+      "sha256": "8eb37802cf9a253ffa12b213a9eaaf9352ef4c70515e643a7a16532b98e894ad"
+    },
+    {
+      "path": "evidence-index-002.jsonl",
+      "bytes": 649807,
+      "sha256": "14b91e37211defbbd56367042c902d713664db3e94a9ff90e84dacc4807b1955"
+    },
+    {
+      "path": "evidence-index-003.jsonl",
+      "bytes": 649783,
+      "sha256": "170c89e095f4d36f5266616ddb1a3e3ad3a39af64537b62507d26efdbb6ea60f"
+    },
+    {
+      "path": "evidence-index-004.jsonl",
+      "bytes": 649812,
+      "sha256": "0df076735e98a8cc6535fc57e03c4ff4b344c0b7b56717c663580fddf0d11c6a"
+    },
+    {
+      "path": "evidence-index-005.jsonl",
+      "bytes": 488446,
+      "sha256": "efcee2497664f69270901e728940e0d4a96d3031b05013df805b1e5d02ef29fe"
+    }
+  ]
+}

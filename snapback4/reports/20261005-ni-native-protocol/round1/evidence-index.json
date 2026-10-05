@@ -1,0 +1,13 @@
+{
+  "archiveHost": "eb1000 (expo-build-1000)",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261005-ni/round1",
+  "files": 1945,
+  "bytes": 398889854,
+  "parts": [
+    {
+      "path": "evidence-index-000.jsonl",
+      "bytes": 572569,
+      "sha256": "93426ba29929b4fbf4a103b4d90f8d40e44264f2c268ef40fe1527fa04f71504"
+    }
+  ]
+}

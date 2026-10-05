@@ -1,0 +1,16 @@
+{
+  "verifiedFiles": 3288,
+  "verifiedBytes": 641857569,
+  "manifestSha256": "b9dcd14b5cca8d7a35f73d6cef3821ea66c368b7965bc4f3a6617c0c04a287ca",
+  "verification": "Every remote exported relative path, byte size and SHA-256 matches its archived copy.",
+  "excluded": [
+    "private server stores",
+    "XCTest result bundles",
+    "installed apps",
+    "node_modules",
+    "DerivedData"
+  ],
+  "supplementalVerifiedFiles": 7,
+  "supplementalManifest": "continuation/supplemental-export-manifest.json",
+  "supplementalVerification": "Original source audits, qualification identities and timing diagnostics also matched remote size and SHA-256."
+}

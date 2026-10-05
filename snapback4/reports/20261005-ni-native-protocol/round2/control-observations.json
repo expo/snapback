@@ -1,0 +1,42 @@
+{
+  "asyncViewOnce": {
+    "run": "async-viewonce-m6-044213",
+    "snapshotAt": 1791200577.4999712,
+    "loadAt": 1791200582.7017658,
+    "loadAfterSnapshotSeconds": 5.202,
+    "loadSequence": 12,
+    "provenance": "cache",
+    "assertion": "m6-a04",
+    "pass": false,
+    "reason": "viewonce-reloaded-before-reconnect"
+  },
+  "newestFirst": {
+    "run": "newest-first-m6-044625",
+    "searchScrolls": 1,
+    "lastScrollAt": 1791200839.513599,
+    "freshScreenAt": 1791200841.017761,
+    "captureAt": 1791200841.2612412,
+    "pass": true
+  },
+  "delayedBob": {
+    "run": "delayed-bob-m6-044442",
+    "injectedRenderDelayMs": 1500,
+    "uiBoundMs": 10000,
+    "receiptWindowSeconds": 2.588,
+    "pass": true
+  },
+  "undecodableVideo": {
+    "run": "undecodable-video-m6-044307",
+    "videoBytes": 24,
+    "pass": null,
+    "reason": "artifact-validation:invalid-video-timing"
+  },
+  "lateBob": {
+    "run": "late-bob-m6-044811",
+    "injectedRenderDelayMs": 12000,
+    "uiBoundMs": 10000,
+    "receiptStartToFailureSeconds": 10.669,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal"
+  }
+}

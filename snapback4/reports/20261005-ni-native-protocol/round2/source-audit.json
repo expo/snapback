@@ -1,0 +1,229 @@
+{
+  "frozenSourceFilesVerified": 83,
+  "files": [
+    {
+      "source": "helper/expo-module.config.json",
+      "sha256": "7583f08bfcfce113a826725527cf880e355f75d7cd5bc9c87491695294f6a5d8",
+      "builtInputSha256": "7583f08bfcfce113a826725527cf880e355f75d7cd5bc9c87491695294f6a5d8"
+    },
+    {
+      "source": "helper/index.ts",
+      "sha256": "ba4aad7353032d0ec1bb3d64b753127d42c03a394eca5985926e757de3b11ae9",
+      "builtInputSha256": "ba4aad7353032d0ec1bb3d64b753127d42c03a394eca5985926e757de3b11ae9"
+    },
+    {
+      "source": "helper/ios/CliqueNativeObserver.podspec",
+      "sha256": "767cb1e38a6cbe6662625f830a98eeac5aade4d8b5b4f5d47ddc5bb9a07c1009",
+      "builtInputSha256": "767cb1e38a6cbe6662625f830a98eeac5aade4d8b5b4f5d47ddc5bb9a07c1009"
+    },
+    {
+      "source": "helper/ios/CliqueNativeObserverModule.swift",
+      "sha256": "19fa6c89612b486915aa2491cdf746775632b1db39c1461ca26766ca8a9fa879",
+      "builtInputSha256": "19fa6c89612b486915aa2491cdf746775632b1db39c1461ca26766ca8a9fa879"
+    },
+    {
+      "source": "helper/ios/ObservationJournal.swift",
+      "sha256": "6471e54380130c0d3ec0fe645f7367c1bb840c9db677fdf605d0ed3fccedc5ce",
+      "builtInputSha256": "6471e54380130c0d3ec0fe645f7367c1bb840c9db677fdf605d0ed3fccedc5ce"
+    },
+    {
+      "source": "helper/package.json",
+      "sha256": "d512db3bd1913f895eda6da2697692fe9d0016e744373b5b66bab1ca104bd61d",
+      "builtInputSha256": "d512db3bd1913f895eda6da2697692fe9d0016e744373b5b66bab1ca104bd61d"
+    },
+    {
+      "source": "reference/App.tsx",
+      "sha256": "07969a2e42a8dd5cdb1e0272f6f76335e913932c504abff48b424b6a16f078e2",
+      "builtInputSha256": "07969a2e42a8dd5cdb1e0272f6f76335e913932c504abff48b424b6a16f078e2"
+    },
+    {
+      "source": "reference/scene-plugin.cjs",
+      "sha256": "53a54c0417883f584855f7a58d861b0588f84977eaa87a1e133519998fd43185",
+      "builtInputSha256": "53a54c0417883f584855f7a58d861b0588f84977eaa87a1e133519998fd43185"
+    },
+    {
+      "source": "ui/NEUTRALITY.md",
+      "sha256": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385",
+      "builtInputSha256": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385"
+    },
+    {
+      "source": "ui/README.md",
+      "sha256": "e42e2269954fca81c0eaf4a66e8a7b3565df693c5dd50bbdb037b4ef8546f98e",
+      "builtInputSha256": "e42e2269954fca81c0eaf4a66e8a7b3565df693c5dd50bbdb037b4ef8546f98e"
+    },
+    {
+      "source": "ui/VERSION",
+      "sha256": "94422c48a57eca3352f723579f27aa06a074926833f5a76cdebcdb6dac676eb5",
+      "builtInputSha256": "94422c48a57eca3352f723579f27aa06a074926833f5a76cdebcdb6dac676eb5"
+    },
+    {
+      "source": "ui/assets/clique-logo.png",
+      "sha256": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05",
+      "builtInputSha256": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05"
+    },
+    {
+      "source": "ui/index.ts",
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b",
+      "builtInputSha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "source": "ui/package-lock.json",
+      "sha256": "9b10963823868c799502bc80cbc7aac8136caf538f462911439bfa9f4698ceaa",
+      "builtInputSha256": "9b10963823868c799502bc80cbc7aac8136caf538f462911439bfa9f4698ceaa"
+    },
+    {
+      "source": "ui/package.json",
+      "sha256": "e74908f5bfa47eda72fca2194c5fbf67fc27c9cfad5fcbc4c0e1091add27d70f",
+      "builtInputSha256": "e74908f5bfa47eda72fca2194c5fbf67fc27c9cfad5fcbc4c0e1091add27d70f"
+    },
+    {
+      "source": "ui/screens.md",
+      "sha256": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7",
+      "builtInputSha256": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7"
+    },
+    {
+      "source": "ui/src/AuthForm.tsx",
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "builtInputSha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "source": "ui/src/Avatar.tsx",
+      "sha256": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "builtInputSha256": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f"
+    },
+    {
+      "source": "ui/src/ChatListRow.tsx",
+      "sha256": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "builtInputSha256": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d"
+    },
+    {
+      "source": "ui/src/ChatSettingsForm.tsx",
+      "sha256": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "builtInputSha256": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e"
+    },
+    {
+      "source": "ui/src/Composer.tsx",
+      "sha256": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "builtInputSha256": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767"
+    },
+    {
+      "source": "ui/src/FeedCard.tsx",
+      "sha256": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "builtInputSha256": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2"
+    },
+    {
+      "source": "ui/src/FeedTabs.tsx",
+      "sha256": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "builtInputSha256": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e"
+    },
+    {
+      "source": "ui/src/InsightsBarList.tsx",
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "builtInputSha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "source": "ui/src/InsightsSummary.tsx",
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "builtInputSha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "source": "ui/src/MessageBubble.tsx",
+      "sha256": "0acbb100270151001760e0a491e85358307c06dadf198d4b5e178d97076a450e",
+      "builtInputSha256": "0acbb100270151001760e0a491e85358307c06dadf198d4b5e178d97076a450e"
+    },
+    {
+      "source": "ui/src/PollCompose.tsx",
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "builtInputSha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "source": "ui/src/PollDisplay.tsx",
+      "sha256": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "builtInputSha256": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec"
+    },
+    {
+      "source": "ui/src/ProfileForm.tsx",
+      "sha256": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "builtInputSha256": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272"
+    },
+    {
+      "source": "ui/src/QuotedReply.tsx",
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "builtInputSha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "source": "ui/src/ReactionPicker.tsx",
+      "sha256": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "builtInputSha256": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95"
+    },
+    {
+      "source": "ui/src/ReceiptTicks.tsx",
+      "sha256": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "builtInputSha256": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae"
+    },
+    {
+      "source": "ui/src/SearchBar.tsx",
+      "sha256": "bf3f5288fa247f08588081e7d9fa2197b965ee2e032a8327064404d99d2ce90a",
+      "builtInputSha256": "bf3f5288fa247f08588081e7d9fa2197b965ee2e032a8327064404d99d2ce90a"
+    },
+    {
+      "source": "ui/src/TrendingRow.tsx",
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "builtInputSha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "source": "ui/src/TypingIndicator.tsx",
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "builtInputSha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "source": "ui/src/linkify.tsx",
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "builtInputSha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "source": "ui/src/tokens.ts",
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "builtInputSha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "source": "ui/src/webSemantics.ts",
+      "sha256": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "builtInputSha256": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379"
+    },
+    {
+      "source": "ui/test/observability-contract.test.mjs",
+      "sha256": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7",
+      "builtInputSha256": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7"
+    },
+    {
+      "source": "ui/test/quoted-reply.test.mjs",
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20",
+      "builtInputSha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "source": "ui/test/rn-web-consumer.test.mjs",
+      "sha256": "cbcf2d7be9c61572e7c4c22b5f4120239b64b3406e50e158c32abf0a0e8ce0b3",
+      "builtInputSha256": "cbcf2d7be9c61572e7c4c22b5f4120239b64b3406e50e158c32abf0a0e8ce0b3"
+    },
+    {
+      "source": "ui/test/rn-web-consumer.tsx",
+      "sha256": "c283126bcebdcdeb5876e23ad2d4867cb56455d2b22a98094c554ac41a9e54de",
+      "builtInputSha256": "c283126bcebdcdeb5876e23ad2d4867cb56455d2b22a98094c554ac41a9e54de"
+    },
+    {
+      "source": "ui/tsconfig.json",
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52",
+      "builtInputSha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    }
+  ],
+  "nativeSha256": "415321733c09d13a2d49ac6e3d9a439237307291e51bb216fcfd34fed4be8462",
+  "hermesSha256": "094b22dc7ff3919ba81b7b9d678c3dba86a89cfb6be7dcfc7598281c1de426c8",
+  "runnerSha256": "879a0d4cdc4141b2f503862db3530e9896f430645222ef12c916c853d8d144d8",
+  "instrument": {
+    "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+    "instrumentPin": "social-messenger@0.4.0-native.1",
+    "scoredUse": false
+  }
+}

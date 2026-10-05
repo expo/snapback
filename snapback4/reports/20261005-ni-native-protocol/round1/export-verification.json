@@ -1,0 +1,78 @@
+{
+  "verifiedFiles": 1926,
+  "verifiedBytes": 398517674,
+  "liveRunsRevalidated": [
+    {
+      "run": "bob-wrong-conversation-m6-013159",
+      "pass": false,
+      "reason": "bob-wrong-conversation-or-principal"
+    },
+    {
+      "run": "collapsed-receipt-m6-012951",
+      "pass": false,
+      "reason": "receipt-accessibility:pending"
+    },
+    {
+      "run": "duplicate-sends-m6-012413",
+      "pass": false,
+      "reason": "server-occurrence-count:2"
+    },
+    {
+      "run": "navigation-claim-m6-013847",
+      "pass": false,
+      "reason": "screen-conversation"
+    },
+    {
+      "run": "none-m6-011810",
+      "pass": true,
+      "reason": null
+    },
+    {
+      "run": "none-m8-012013",
+      "pass": true,
+      "reason": null
+    },
+    {
+      "run": "placeholder-m6-012150",
+      "pass": false,
+      "reason": "placeholder-or-wrong-media-pixels"
+    },
+    {
+      "run": "reversed-sends-m6-012639",
+      "pass": false,
+      "reason": "server-send-order"
+    },
+    {
+      "run": "stale-viewonce-m6-012904",
+      "pass": false,
+      "reason": "stale-viewonce-pixels"
+    },
+    {
+      "run": "volatile-outbox-m8-012234",
+      "pass": false,
+      "reason": "fixture-row-not-found:local-muuzghei-ut6ekfjsepg"
+    },
+    {
+      "run": "wrong-conversation-m6-013951",
+      "pass": false,
+      "reason": "screen-conversation"
+    },
+    {
+      "run": "wrong-fixture-m6-013110",
+      "pass": null,
+      "reason": "fixture-row-not-found:fffb783b-2b85-490c-9003-388721397b59"
+    },
+    {
+      "run": "wrong-receipts-m6-013334",
+      "pass": false,
+      "reason": "server-receipt-state:read"
+    },
+    {
+      "run": "wrong-receipts-m8-013610",
+      "pass": false,
+      "reason": "server-receipt-state:read"
+    }
+  ],
+  "artifactControlsRevalidated": 20,
+  "exportSha256": "d537e1a2367e547fa443c3300afb9ae71bbeee9d75e663f0722d155a2ce64b94"
+}

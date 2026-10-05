@@ -1,0 +1,17 @@
+✔ chat prebuild adopts Expo scenes and retains linking and status bar configuration (1596.190734ms)
+✔ prepared launch requires a native observation and preserves its hashes in the strict envelope (37.65022ms)
+✔ witness is inert without a launch; a fake container preserves receipts and gates reconnect (102.682338ms)
+✔ witness refuses malformed receipts, failed and overlapping steps, and missing signals (101.665725ms)
+✔ Expo package exports the witness and its types (0.526429ms)
+✔ receipt serialization cannot replace the witness envelope (0.525728ms)
+✔ only empty launcher/update manifests permit prepared startup (0.268212ms)
+✔ starter scene plugin migrates the installed Expo template, keeps its providers and refuses custom lifecycle (10.687622ms)
+✔ starter unattended guest waits for restoration and runs once only during smoke prime (3.189721ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1665.119473

@@ -1,11 +1,11 @@
 # Snapback 4: the calibration's native proof needs a cross-lane app protocol before it can be run by an operator
 
 **Opened:** 2026-09-30, after calibration #27 on 0.4.9 again scored native as unverified
-**Severity:** Medium: 16 of the grader's 101 assertions (M6 and M7 simulator) have never been run in nine calibrations, and every scorer note repeats "native runtime remains unverified"
+**Severity:** Medium: nine native M6/M8 assertions await scored admission of the new instrument; the nine M7 day-two obligations are separate
 **Area:** `benchmarks/tools/social-messenger/choreography/simulator.md` (the frozen M6/M8 iOS-simulator artifact spec), `choreography.mjs --simulator-status`, `snapback4 witness ios --build` (lane NP, 0.4.9)
-**Status:** Open; a design question for the instrument's owner, not a lane
+**Status:** Open; full contract accepted, NI Phase 1 qualified; independent two-app/two-backend pilot and scored admission remain
 
-## What is true today
+## What was true when opened (2026-09-30)
 
 - `snapback4 witness ios --build` (0.4.9) builds a Release app and runs the
   SDK's installed-app smoke on a simulator in minutes. It proves the SDK's
@@ -67,3 +67,15 @@ simulator), and **two** M8 simulator assertions (`m8-a17`, `m8-a18`). Grok
 cal30's sixteen M6/M7 `not-run` results combine those first two categories.
 The proposed native protocol addresses nine assertions including M8; it does
 not remedy the separate missing M7 session.
+
+## 2026-10-05 — accepted contract, NI Phase 1 qualified
+
+Charlie accepted option 1 in LLP 0201.000, gated on qualification. Lane NI
+implemented the parallel `0.4.0-native.1` instrument with an explicit series
+break and disabled scoring, preserving the old instrument and all calibration
+packets. The [NI report](../snapback4/reports/20261005-ni-native-protocol/REPORT.md)
+retains known-good M6/M8 passes, every required negative control, earlier failed
+attempts, source/build identities and actual operator cost. No calibration or
+score ran. The [independent Snapback 4/Convex pilot plan](../snapback4/reports/20261005-ni-native-protocol/PHASE-2.md)
+is unexecuted; this ticket stays open through that pilot and the owner's scored
+admission ruling. The SDK witness remains a separate lifecycle proof.

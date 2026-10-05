@@ -87846,3 +87846,106 @@ Its cause remains unproven. Reference/syntax/whitespace checks pass; all owned
 hogs are reaped and worktree disk use is 13.71 GB. Full suite not repeated for
 this fixture-only round. The [Round 1 report](./reports/20261005-pw-per-row-navigation/REPORT.md#round-1--navigation-failures-and-the-live-qualifier-2026-10-05)
 holds complete receipts and controls. Local commit only; nothing pushed.
+
+## 2026-10-05 — NI: accepted native protocol implementation candidate
+
+Implemented the separate `benchmarks/native/0.4.0-native.1` component under
+[LLP 0201.000](../llp/0201.000-cross-lane-native-app-protocol.rfc.md): copied kit
+identity/accessibility changes, a passive local Expo observer, external XCTest
+UI driver, fixture/oracle boundary, M6/M8 orchestration, artifact validation,
+prompt and grader policy. The existing calibration instrument is untouched.
+The new manifest declares its series break and disables scored use pending the
+independent two-app/two-backend pilot. Its inherited web component materializes
+from the original manifest commit: current source had two later self-contained
+harness edits without a matching old manifest refresh; NI does not rewrite it.
+
+An explicitly diagnostic Expo reference chat on a real local Node backend
+passed the eight-step M6 proof (94.178 s, 43 native commands) and separate M8
+restart proof (94.550 s, 53 commands) on the Apartment mini's dedicated simulator.
+These are development qualification runs, not backend scores. Earlier retained
+attempts exposed bulk-typing loss, first-launch container relocation, a Volta
+child-process leak, a transient offline TCP probe and an obstructed Send button.
+The driver/setup and reference fixes are recorded rather than hiding those runs.
+Unavailable SSH reports null. Replayed/stale observations and missing, mismatched
+or rebound-truncated video are rejected. Full native negative-control runs and
+final inventory-bound qualification are ongoing; the Phase-2 plan is written
+and unrun. No calibration, score, push or publication.
+
+### NI passivity audit before closing qualification
+
+The observer now stays inert outside protocol launches and when its module is
+absent on web. The reference mints operation/message IDs independently of the
+observer nonce. Malformed event schemas are instrument errors with value-free
+diagnostics; a fixture/setup failure before native measurement is unmeasured.
+The driver refuses to replace an existing installation and verifies its frozen
+source inventory before starting. These are unscored candidate corrections;
+remaining controls were held, and the actual native paths will be requalified
+on the new source/binary. The pre-audit placeholder and volatile-outbox controls
+already failed for pixels and lost restart rows, respectively. All attempts
+remain in the report. The repository-wide inventory check found inherited
+Snapback-1 inventory/guide drift; no affected file was changed by NI.
+
+### NI negative-control attribution correction
+
+The inventory-bound batch passed known-good M6/M8 and rejected placeholder,
+volatile outbox, duplicate/reversed sends and stale view-once pixels. The first
+collapsed-receipt variant instead detached its body from the row in the actual
+native tree, so that attempt is retained but cannot qualify the intended receipt
+control. Its replacement preserves the identified body and deliberately hides
+the receipt subtree beneath a generic status. Wrong fixture IDs correctly
+prevented priming, but the wrapper labeled that setup rejection as a product
+failure; pre-prime application exceptions now remain unmeasured. Cost records
+call entered steps `enteredSteps`, and the outer run clock now includes the
+pre-run uninstall. Candidate bytes are re-frozen and the full matrix is rerun;
+no previous attempt or current-series instrument is rewritten.
+
+### NI Phase-1 qualification complete; Phase 2 remains unrun
+
+Qualified `0.4.0-native.1` source `99a9b2c9ba`, inventory
+`5cba78fe9313ce300c9f72fa5b8a51b373d50f5ba723ecad21e67263ee0e9b44`,
+on the Apartment mini's dedicated simulator. Known-good M6 passed all eight
+steps/seven assertions (91.011 s driver wall, 43 commands); M8 passed both
+restart assertions (94.098 s, 53 commands). Placeholder/false-load, erased
+outbox, duplicate sends, reversed sends, stale view-once pixels, collapsed
+receipt accessibility and wrong Bob conversation each failed for the intended
+behavior. Wrong fixture IDs rejected online priming with native null. Stale and
+replayed events, missing/mismatched video and rebound-truncated video were
+rejected; unavailable SSH returned null with exit zero. No control qualified
+by crashing the app. Independent validation confirms the good and behavioral
+failure packets; the unprimed fixture packet is invalid/unmeasured.
+
+The report retains 33 live attempts and verbatim final results, with measured
+wall/command/operator-step costs. The last warm Release build took 8.103 s;
+no cold-build median or attention measurement is invented. Twelve instrument
+tests, three copied-kit tests, the kit typecheck and nine affected Snapback 4
+witness/scene tests passed. Freeze and packet-materialization checks passed.
+The old current-series files remain unchanged. An initial XCTest invocation
+created a task-specific global DerivedData directory; that scratch-boundary
+deviation is explicitly recorded for cleanup rather than omitted. The independent
+Snapback 4/Convex pilot is planned only. No calibration, score, push or publication.
+
+NI closeout: the 1,050-file exported archive verified, and all ten final
+artifact-validation results reproduced locally. The cleanup receipt checks 132
+recorded process groups, absent backend/controller listeners, both NI app bundles
+removed, task scratch and the identified accidental global DerivedData removed,
+and the dedicated simulator still Booted. The first cleanup guard stopped before
+mutation on a legacy event lacking `pgid`; the corrected guard records its known
+session-leader PID explicitly. No other app or simulator was touched.
+
+### 2026-10-05 — NI Round 4: sticky disclosure and scaled pixels
+
+Refusal polling now retries only missing refusal evidence. A stale image or
+visible viewer latches `m6-a04` failure and retains its screenshot and pixel
+record. The detector searches the opened aspect-fit content across 0.25–1.25×,
+then refines scale rounding and modest mat-induced aspect changes. The 0.90
+correlation threshold keeps brightness/contrast robustness; prime matching is
+unchanged. Round 4 adds the transient-stale reproduction, scale/mat/frame controls
+and a detailed image that defeats trivial quadrant matching.
+
+All 62 Python tests, two Bob browser tests, three copied-kit tests, TypeScript
+and the mini's Swift journal test pass. Reverting the old polling or detector
+causes the corresponding regression to fail. All 65 archived cold captures keep
+their prior pixel verdict. The Round 4 report binds final source, control results,
+score margins and evidence custody; historical runs retain their source pins.
+No simulator segment was rerun because no archived detector verdict changed.
+Phase 2, scores and publication remain disabled. No push.

@@ -1,0 +1,192 @@
+[
+  {
+    "run": "async-viewonce-m6-044213",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "viewonce-reloaded-before-reconnect",
+    "requiredForGreen": false
+  },
+  {
+    "run": "bob-wrong-conversation-m6-045942",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "requiredForGreen": false
+  },
+  {
+    "run": "collapsed-receipt-m6-050131",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "receipt-accessibility:pending",
+    "requiredForGreen": false
+  },
+  {
+    "run": "delayed-bob-m6-044442",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "duplicate-sends-m6-050255",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "server-occurrence-count:2",
+    "requiredForGreen": false
+  },
+  {
+    "run": "late-bob-m6-044811",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "bob-wrong-conversation-or-principal",
+    "requiredForGreen": false
+  },
+  {
+    "run": "navigation-claim-m6-045752",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "native-conversation-identity",
+    "requiredForGreen": false
+  },
+  {
+    "run": "newest-first-m6-044625",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "none-m6-043846",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "none-m8-044027",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": true,
+    "reason": null,
+    "requiredForGreen": false
+  },
+  {
+    "run": "placeholder-m6-045001",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "placeholder-or-wrong-media-pixels",
+    "requiredForGreen": false
+  },
+  {
+    "run": "reversed-sends-m6-050530",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "server-send-order",
+    "requiredForGreen": false
+  },
+  {
+    "run": "stale-viewonce-m6-045046",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "stale-viewonce-pixels",
+    "requiredForGreen": false
+  },
+  {
+    "run": "undecodable-video-m6-044307",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": null,
+    "reason": "artifact-validation:invalid-video-timing",
+    "requiredForGreen": false
+  },
+  {
+    "run": "volatile-outbox-m8-050803",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "fixture-row-not-found:local-muv7ifkh-84zwviq6apu",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-conversation-m6-045858",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "screen-conversation",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-fixture-m6-045135",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": null,
+    "reason": "fixture-row-not-found:bd755d67-1ac8-4039-be59-3a562e3d2baa",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-receipts-m6-045226",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "requiredForGreen": false
+  },
+  {
+    "run": "wrong-receipts-m8-045506",
+    "exitCode": 0,
+    "hostPlatform": "darwin",
+    "trustedCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+    "valid": true,
+    "pass": false,
+    "reason": "server-receipt-state:read",
+    "requiredForGreen": false
+  }
+]

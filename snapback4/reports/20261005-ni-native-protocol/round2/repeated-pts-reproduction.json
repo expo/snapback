@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+  "originalRun": "none-m8-042958",
+  "originalVerdict": null,
+  "originalReason": "artifact-validation:video-decoded-sample-count-mismatch",
+  "retainedVideoSha256": "8a3d46d9d4252e46767460a70c571776b736be3513236346067f1265f26ec4d4",
+  "encodedSamples": 1344,
+  "repeatedTimestamps": 7,
+  "presentationOrderImages": 1337,
+  "ffmpegDecodedFrames": 1344,
+  "perSampleVideoToolboxImages": 1344,
+  "fixture": {
+    "file": "tests/fixtures/repeated-pts.mp4",
+    "bytes": 3106,
+    "sha256": "9ffb6c056baaefeaf019d12f3830a4ab7a97433b61e73f7eea996708db8e6bfa",
+    "encodedSamples": 10,
+    "repeatedTimestamps": 1,
+    "oldImages": 9,
+    "newImages": 10
+  },
+  "originalPacketModified": false
+}

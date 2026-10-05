@@ -1,0 +1,363 @@
+{
+  "m6": [
+    {
+      "control": "invented-video-sample",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "video-sample-count-mismatch",
+      "expectedReason": "video-sample-count-mismatch",
+      "matched": true,
+      "wallSeconds": 0.093,
+      "operatorSteps": 1
+    },
+    {
+      "control": "extended-video-endpoint",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "video-endpoint-uncovered",
+      "expectedReason": "video-endpoint-uncovered",
+      "matched": true,
+      "wallSeconds": 0.097,
+      "operatorSteps": 1
+    },
+    {
+      "control": "undecodable-video",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "invalid-video-timing",
+      "expectedReason": "invalid-video",
+      "matched": true,
+      "wallSeconds": 0.06,
+      "operatorSteps": 1
+    },
+    {
+      "control": "retargeted-viewonce",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "viewonce-frame-mismatch",
+      "expectedReason": "viewonce-frame-mismatch",
+      "matched": true,
+      "wallSeconds": 1.46,
+      "operatorSteps": 1
+    },
+    {
+      "control": "stale-viewonce-pixels",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "stale-viewonce-pixels",
+      "expectedReason": "stale-viewonce-pixels",
+      "matched": true,
+      "wallSeconds": 1.796,
+      "operatorSteps": 1
+    },
+    {
+      "control": "wrong-prime-pixels",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "prime-viewonce-pixel-mismatch",
+      "expectedReason": "prime-viewonce-pixel-mismatch",
+      "matched": true,
+      "wallSeconds": 1.62,
+      "operatorSteps": 1
+    },
+    {
+      "control": "buffered-viewonce-load",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "viewonce-reloaded-before-reconnect",
+      "expectedReason": "viewonce-reloaded-before-reconnect",
+      "matched": true,
+      "wallSeconds": 1.555,
+      "operatorSteps": 1
+    },
+    {
+      "control": "async-viewonce-load",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "viewonce-reloaded-before-reconnect",
+      "expectedReason": "viewonce-reloaded-before-reconnect",
+      "matched": true,
+      "wallSeconds": 1.45,
+      "operatorSteps": 1
+    },
+    {
+      "control": "old-viewonce-refusal",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "viewonce-refusal-missing",
+      "expectedReason": "viewonce-refusal-missing",
+      "matched": true,
+      "wallSeconds": 1.363,
+      "operatorSteps": 1
+    },
+    {
+      "control": "sent-native-a05",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "receipt-accessibility:read",
+      "expectedReason": "receipt-accessibility:read",
+      "matched": true,
+      "wallSeconds": 1.634,
+      "operatorSteps": 1
+    },
+    {
+      "control": "sent-screen-receipts",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "read-render-event",
+      "expectedReason": "read-render-event",
+      "matched": true,
+      "wallSeconds": 1.67,
+      "operatorSteps": 1
+    },
+    {
+      "control": "late-native-snapshot",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "receipt-native-outside-window",
+      "expectedReason": "receipt-native-outside-window",
+      "matched": true,
+      "wallSeconds": 1.619,
+      "operatorSteps": 1
+    },
+    {
+      "control": "short-duplicate-window",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "duplicate-window-too-short",
+      "expectedReason": "duplicate-window-too-short",
+      "matched": true,
+      "wallSeconds": 1.489,
+      "operatorSteps": 1
+    },
+    {
+      "control": "short-duplicate-samples",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "duplicate-sample-span-too-short",
+      "expectedReason": "duplicate-sample-span-too-short",
+      "matched": true,
+      "wallSeconds": 1.489,
+      "operatorSteps": 1
+    },
+    {
+      "control": "missing-post-scroll-screen",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "search-post-scroll-screen-missing",
+      "expectedReason": "search-post-scroll-screen-missing",
+      "matched": true,
+      "wallSeconds": 1.652,
+      "operatorSteps": 1
+    },
+    {
+      "control": "stale-nonce",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "stale-or-unsupported-observation",
+      "expectedReason": "stale-or-unsupported-observation",
+      "matched": true,
+      "wallSeconds": 1.127,
+      "operatorSteps": 1
+    },
+    {
+      "control": "replayed-events",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "observation-sequence-gap-or-replay",
+      "expectedReason": "observation-sequence-gap-or-replay",
+      "matched": true,
+      "wallSeconds": 1.161,
+      "operatorSteps": 1
+    },
+    {
+      "control": "missing-video",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "evidence-missing:m6-ios-screen.mp4",
+      "expectedReason": "evidence-missing:",
+      "matched": true,
+      "wallSeconds": 0.066,
+      "operatorSteps": 1
+    },
+    {
+      "control": "hash-mismatched-video",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "evidence-hash-mismatch:m6-ios-screen.mp4",
+      "expectedReason": "evidence-hash-mismatch:",
+      "matched": true,
+      "wallSeconds": 0.053,
+      "operatorSteps": 1
+    },
+    {
+      "control": "truncated-video-rebound",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "truncated-video-box",
+      "expectedReason": "truncated-video-box",
+      "matched": true,
+      "wallSeconds": 0.06,
+      "operatorSteps": 1
+    },
+    {
+      "control": "wrong-receipts",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "server-receipt-state:read",
+      "expectedReason": "server-receipt-state:read",
+      "matched": true,
+      "wallSeconds": 1.627,
+      "operatorSteps": 1
+    },
+    {
+      "control": "one-wrong-receipt",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "server-receipt-state:read",
+      "expectedReason": "server-receipt-state:read",
+      "matched": true,
+      "wallSeconds": 1.632,
+      "operatorSteps": 1
+    },
+    {
+      "control": "empty-search",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "native-conversation-identity",
+      "expectedReason": "native-conversation-identity",
+      "matched": true,
+      "wallSeconds": 1.663,
+      "operatorSteps": 1
+    },
+    {
+      "control": "signin-search",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "native-conversation-identity",
+      "expectedReason": "native-conversation-identity",
+      "matched": true,
+      "wallSeconds": 1.538,
+      "operatorSteps": 1
+    },
+    {
+      "control": "wrong-search-body",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "conversation-history-body",
+      "expectedReason": "conversation-history-body",
+      "matched": true,
+      "wallSeconds": 1.613,
+      "operatorSteps": 1
+    },
+    {
+      "control": "search-claim-only",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "conversation-screen-missing",
+      "expectedReason": "conversation-screen-missing",
+      "matched": true,
+      "wallSeconds": 1.616,
+      "operatorSteps": 1
+    },
+    {
+      "control": "wrong-conversation",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "screen-conversation",
+      "expectedReason": "screen-conversation",
+      "matched": true,
+      "wallSeconds": 1.522,
+      "operatorSteps": 1
+    },
+    {
+      "control": "instrument-commit",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "instrument-identity-mismatch",
+      "expectedReason": "instrument-identity-mismatch",
+      "matched": true,
+      "wallSeconds": 0.015,
+      "operatorSteps": 1
+    },
+    {
+      "control": "instrument-inventory",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "instrument-identity-mismatch",
+      "expectedReason": "instrument-identity-mismatch",
+      "matched": true,
+      "wallSeconds": 0.015,
+      "operatorSteps": 1
+    },
+    {
+      "control": "driver-source",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "driver-source-mismatch",
+      "expectedReason": "driver-source-mismatch",
+      "matched": true,
+      "wallSeconds": 0.036,
+      "operatorSteps": 1
+    },
+    {
+      "control": "driver-binary",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "driver-binary-mismatch",
+      "expectedReason": "driver-binary-mismatch",
+      "matched": true,
+      "wallSeconds": 0.037,
+      "operatorSteps": 1
+    },
+    {
+      "control": "late-read",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "receipt-deadline-exceeded",
+      "expectedReason": "receipt-deadline-exceeded",
+      "matched": true,
+      "wallSeconds": 1.602,
+      "operatorSteps": 1
+    },
+    {
+      "control": "search-retry",
+      "rejected": false,
+      "matched": true,
+      "reason": "successful-last-capture",
+      "expectedReason": "successful-last-capture"
+    }
+  ],
+  "m8": [
+    {
+      "control": "wrong-receipts",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "server-receipt-state:read",
+      "expectedReason": "server-receipt-state:read",
+      "matched": true,
+      "wallSeconds": 1.189,
+      "operatorSteps": 1
+    },
+    {
+      "control": "one-wrong-receipt",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "server-receipt-state:read",
+      "expectedReason": "server-receipt-state:read",
+      "matched": true,
+      "wallSeconds": 1.146,
+      "operatorSteps": 1
+    },
+    {
+      "control": "late-read",
+      "rejected": true,
+      "nativePass": null,
+      "reason": "receipt-deadline-exceeded",
+      "expectedReason": "receipt-deadline-exceeded",
+      "matched": true,
+      "wallSeconds": 1.143,
+      "operatorSteps": 1
+    }
+  ]
+}

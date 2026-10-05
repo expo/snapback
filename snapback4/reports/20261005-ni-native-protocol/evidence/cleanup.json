@@ -1,0 +1,45 @@
+{
+  "at": 1791185028.639812,
+  "simulator": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+  "verifiedArchiveSha256": "a6d54479ce1bbb3b3f0a956320c5379d8ba8e37b4c46ef1d5b580bb58a7b55d6",
+  "stateBefore": "Booted",
+  "listeners": {
+    "49491": "absent",
+    "49492": "absent"
+  },
+  "recordedGroupsChecked": 132,
+  "legacySessionLeaders": [
+    {
+      "pid": 20156,
+      "role": "xctest",
+      "source": "runs/none-m6-225820/evidence/host.jsonl"
+    },
+    {
+      "pid": 20240,
+      "role": "backend",
+      "source": "runs/none-m6-225820/evidence/host.jsonl"
+    }
+  ],
+  "activeTaskGroups": [],
+  "apps": {
+    "dev.clique.ni.reference": {
+      "wasInstalled": false,
+      "absentAfter": true
+    },
+    "dev.clique.ni.driver.xctrunner": {
+      "wasInstalled": true,
+      "absentAfter": true
+    }
+  },
+  "accidentalGlobalDerivedData": {
+    "path": "/Users/ccheever/Library/Developer/Xcode/DerivedData/NIReference-anepqaeqxpguqdacnwsuuhjpqsaz",
+    "custody": "/private/tmp/ni-native-20261005/runs/none-m6-225820/evidence/xctest.log",
+    "absentAfter": true
+  },
+  "scratch": {
+    "path": "/private/tmp/ni-native-20261005",
+    "absentAfter": true
+  },
+  "leaseFileAbsent": true,
+  "stateAfter": "Booted"
+}

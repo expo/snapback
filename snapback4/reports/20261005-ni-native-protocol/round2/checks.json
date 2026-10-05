@@ -1,0 +1,31 @@
+{
+  "pythonTests": 47,
+  "pythonPassLinux": true,
+  "pythonPassMini": true,
+  "bobBrowserTests": 2,
+  "bobBrowserPass": true,
+  "kitTests": 3,
+  "kitPass": true,
+  "kitTypecheck": true,
+  "swiftJournalTests": true,
+  "ordinaryAfterProtocol": true,
+  "reconnectNoOpMutationKilled": true,
+  "refCheck": true,
+  "freeze": true,
+  "packetMaterialization": true,
+  "inventoryCheck": "inherited red; relevant tracked inputs unchanged from 16fde56b53",
+  "qualification": {
+    "instrument": {
+      "commit": "66763bd85845c35664d983b4e3a52de4e5355c09",
+      "inventorySha256": "1449c6c38d5f1338831501f17b10666c57f27f79e64ce3e089d9504688a04012",
+      "instrumentPin": "social-messenger@0.4.0-native.1",
+      "scoredUse": false
+    },
+    "driverSourceSha256": "5e09af012976732101c28ecd3378a8741783b224a2b3b655a241e541a63b1fa3",
+    "driverBinarySha256": "879a0d4cdc4141b2f503862db3530e9896f430645222ef12c916c853d8d144d8"
+  },
+  "liveFinalMatrix": 19,
+  "priorRetainedLiveAttempts": 38,
+  "artifactControls": 37,
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261005-ni/round2"
+}

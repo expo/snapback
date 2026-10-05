@@ -1,0 +1,226 @@
+[
+  {
+    "run": "none-m6-062459",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.974,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "none-m6-062854",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 2.0,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "none-m8-063034",
+    "segment": "m8",
+    "exit": 0,
+    "wallSeconds": 1.222,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "pre-reopen-viewonce-m6-063218",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 0.983,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"viewonce-reloaded-in-cold-process\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "elsewhere-viewonce-m6-063259",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.035,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"stale-viewonce-pixels\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "bright-viewonce-m6-063357",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.027,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"stale-viewonce-pixels\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "delayed-refusal-m6-063454",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 2.072,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "scroll-no-screen-m6-063637",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.852,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "stale-restart-capture-m8-063822",
+    "segment": "m8",
+    "exit": 0,
+    "wallSeconds": 0.155,
+    "stdout": "{\"valid\": true, \"pass\": null, \"reason\": \"artifact-validation:restart-capture-before-relaunch\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "async-viewonce-m6-064007",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.066,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"viewonce-reloaded-in-cold-process\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "newest-first-m6-064102",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.794,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "placeholder-m6-064337",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 0.988,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"placeholder-or-wrong-media-pixels\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "stale-viewonce-m6-064249",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.022,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"viewonce-reloaded-in-cold-process\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "volatile-outbox-m8-064423",
+    "segment": "m8",
+    "exit": 0,
+    "wallSeconds": 1.339,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"fixture-row-not-found:local-muvaybbf-t34k4xgz5eq\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "duplicate-sends-m6-064612",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.935,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"server-occurrence-count:2\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "reversed-sends-m6-064846",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.955,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"server-send-order\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "navigation-claim-m6-065203",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.528,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"native-conversation-identity\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "wrong-conversation-m6-065120",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 0.95,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"screen-conversation\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "collapsed-receipt-m6-065309",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.718,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"receipt-accessibility:pending\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "bob-wrong-conversation-m6-065434",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.783,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"bob-wrong-conversation-or-principal\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "delayed-bob-m6-065624",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 2.008,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "late-bob-m6-065807",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.703,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"bob-wrong-conversation-or-principal\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "wrong-receipts-m6-065956",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 2.089,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"server-receipt-state:read\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "wrong-receipts-m8-070236",
+    "segment": "m8",
+    "exit": 0,
+    "wallSeconds": 1.314,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": \"server-receipt-state:read\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "undecodable-video-m6-070521",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 0.138,
+    "stdout": "{\"valid\": true, \"pass\": null, \"reason\": \"artifact-validation:invalid-video-timing\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "wrong-fixture-m6-070654",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 0.128,
+    "stdout": "{\"valid\": true, \"pass\": null, \"reason\": \"fixture-row-not-found:b2a7286c-66bc-4804-b391-9ef895a3ef02\", \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "none-m6-071102",
+    "segment": "m6",
+    "exit": 0,
+    "wallSeconds": 1.926,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  },
+  {
+    "run": "none-m8-071244",
+    "segment": "m8",
+    "exit": 0,
+    "wallSeconds": 1.273,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n",
+    "stderr": ""
+  }
+]

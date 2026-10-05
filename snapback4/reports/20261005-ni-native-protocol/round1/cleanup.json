@@ -1,0 +1,26 @@
+{
+  "host": "Apartment mini",
+  "simulator": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+  "simulatorState": "Booted",
+  "recordedProcessGroups": 65,
+  "liveOwnedGroups": [],
+  "listeningPorts": {
+    "49491": false,
+    "49492": false
+  },
+  "apps": {
+    "dev.clique.ni.reference": {
+      "absent": true,
+      "probeExit": 2
+    },
+    "dev.clique.ni.driver.xctrunner": {
+      "absent": true,
+      "probeExit": 2
+    }
+  },
+  "scratch": "/tmp/ni-round1-20261005",
+  "scratchDeleted": true,
+  "rawEvidenceExportVerified": true,
+  "usedBlackM5": false,
+  "usedOfficeM1": false
+}

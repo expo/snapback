@@ -1,0 +1,8 @@
+[
+  {
+    "attempt": 1,
+    "result": "preflight stopped before cleanup mutations",
+    "reason": "KeyError: 'pgid' in legacy development host events",
+    "fix": "Use the recorded session-leader pid for legacy entries and retain that distinction."
+  }
+]

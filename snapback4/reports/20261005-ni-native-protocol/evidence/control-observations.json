@@ -1,0 +1,383 @@
+[
+  {
+    "run": "collapsed-receipt-m6-235204",
+    "control": "collapsed-receipt",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "receipt-accessibility:pending",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 77.663,
+        "nativeCommands": 64,
+        "enteredSteps": 6,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "identifiedBodies": [
+      {
+        "id": "local-muuw82a6-libbj6nfaga",
+        "receiptNodes": []
+      }
+    ]
+  },
+  {
+    "run": "none-m6-235322",
+    "control": "none",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": true,
+      "receipt": "m6-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 91.011,
+        "nativeCommands": 43,
+        "enteredSteps": 8,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": true,
+      "m6-a06": true,
+      "m6-a07": true
+    }
+  },
+  {
+    "run": "none-m8-235453",
+    "control": "none",
+    "segment": "m8",
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": true,
+      "receipt": "m8-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 94.098,
+        "nativeCommands": 53,
+        "enteredSteps": 5,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m8-a17": true,
+      "m8-a18": true
+    }
+  },
+  {
+    "run": "placeholder-m6-235628",
+    "control": "placeholder",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "placeholder-or-wrong-media-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 42.888,
+        "nativeCommands": 29,
+        "enteredSteps": 3,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "falseLoadEvents": [
+      {
+        "elapsedMs": 19883.21224998799,
+        "kind": "media",
+        "payload": {
+          "assetId": "8606c47c-0de9-43a9-8aa6-5f81c860257f",
+          "event": "load",
+          "height": 128,
+          "messageId": "94085d5b-82aa-452c-88ff-3ecc44fb5722",
+          "provenance": null,
+          "width": 192
+        },
+        "processNonce": "80234f7c-5098-4cdc-9d30-e9b9bbc84907",
+        "protocol": "clique-native/1",
+        "runId": "ac8cdedc-d1e9-4b7c-bcd1-7220ff85a877",
+        "sequence": 7,
+        "receivedAt": 1791183414.984473
+      },
+      {
+        "elapsedMs": 5431.157083337894,
+        "kind": "media",
+        "payload": {
+          "assetId": "8606c47c-0de9-43a9-8aa6-5f81c860257f",
+          "event": "load",
+          "height": 128,
+          "messageId": "94085d5b-82aa-452c-88ff-3ecc44fb5722",
+          "provenance": null,
+          "width": 192
+        },
+        "processNonce": "29948b71-8e5e-443c-9c22-dc33ab020f9d",
+        "protocol": "clique-native/1",
+        "runId": "ac8cdedc-d1e9-4b7c-bcd1-7220ff85a877",
+        "sequence": 7,
+        "receivedAt": 1791183429.430519
+      }
+    ],
+    "pixels": {
+      "matched": false,
+      "meanAbsoluteError": 87.972,
+      "frame": {
+        "y": 190,
+        "width": 288,
+        "x": 30,
+        "height": 192,
+        "screenWidth": 390
+      },
+      "fixtureSha256": "f4cbef03b67426086e78d23f2d13054d08217e7cec4f74d0cec65e627b6564a8"
+    }
+  },
+  {
+    "run": "volatile-outbox-m8-235711",
+    "control": "volatile-outbox",
+    "segment": "m8",
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": false,
+      "receipt": "m8-ios-run.json",
+      "reason": "fixture-row-not-found:local-muuweoxe-amwotbn99k",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 97.902,
+        "nativeCommands": 69,
+        "enteredSteps": 3,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "pendingIds": [
+      "local-muuwec7z-7bok25th2qf",
+      "local-muuweoxe-amwotbn99k"
+    ],
+    "matchingRowsAfterTermination": []
+  },
+  {
+    "run": "duplicate-sends-m6-235850",
+    "control": "duplicate-sends",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-occurrence-count:2",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 144.528,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "rawOracleRows": [
+      {
+        "messageId": "local-muuwgrld-rz6lnnh9q4",
+        "body": "1b19a184-0568-4e4b-904c-e49f9ba9eb70:first",
+        "orderKey": [
+          18
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "11ea5821-88ee-4bf3-8ffb-8bc9983e48c7",
+        "body": "1b19a184-0568-4e4b-904c-e49f9ba9eb70:first",
+        "orderKey": [
+          19
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "local-muuwh46l-6ywa4eax2nd",
+        "body": "1b19a184-0568-4e4b-904c-e49f9ba9eb70:second",
+        "orderKey": [
+          20
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "0f9317da-ea60-442a-ae9e-1faaa8023fce",
+        "body": "1b19a184-0568-4e4b-904c-e49f9ba9eb70:second",
+        "orderKey": [
+          21
+        ],
+        "receiptState": "sent"
+      }
+    ]
+  },
+  {
+    "run": "reversed-sends-m6-000114",
+    "control": "reversed-sends",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-send-order",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 144.553,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "rawOracleRows": [
+      {
+        "messageId": "local-muuwk7vg-pbd7kmagrvo",
+        "body": "7f21e480-d8ed-40a5-ba0b-5eb2db8dbca9:second",
+        "orderKey": [
+          -19
+        ],
+        "receiptState": "sent"
+      },
+      {
+        "messageId": "local-muuwjvbl-7uprikixg4",
+        "body": "7f21e480-d8ed-40a5-ba0b-5eb2db8dbca9:first",
+        "orderKey": [
+          -18
+        ],
+        "receiptState": "sent"
+      }
+    ]
+  },
+  {
+    "run": "stale-viewonce-m6-000339",
+    "control": "stale-viewonce",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "stale-viewonce-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 46.272,
+        "nativeCommands": 34,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "deniedEvents": [
+      {
+        "elapsedMs": 8517.599666665774,
+        "kind": "media",
+        "payload": {
+          "assetId": "30f657ad-3ad9-4b45-a0f8-5446317b176c",
+          "event": "denied",
+          "height": 0,
+          "messageId": "8e77bb91-6172-4b19-bc0c-216b15c9ba4c",
+          "provenance": null,
+          "width": 0
+        },
+        "processNonce": "10a19e32-5b1e-41d1-914e-a2a87626c4ec",
+        "protocol": "clique-native/1",
+        "runId": "ddbe6d8e-e051-4df1-ae2f-d2e2c26f21ef",
+        "sequence": 9,
+        "receivedAt": 1791183864.2521
+      }
+    ],
+    "staleImageNodes": [
+      {
+        "frame": {
+          "y": 190,
+          "height": 192,
+          "x": 30,
+          "width": 288
+        },
+        "id": "sm-media-viewer-image",
+        "type": 43,
+        "enabled": true,
+        "hittable": true,
+        "children": [],
+        "value": "",
+        "label": ""
+      }
+    ]
+  },
+  {
+    "run": "wrong-fixture-m6-000426",
+    "control": "wrong-fixture",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": null,
+      "receipt": "m6-ios-run.json",
+      "reason": "fixture-row-not-found:5076b9b6-6a2c-4d24-b0b7-c372e2cb7664",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 48.707,
+        "nativeCommands": 48,
+        "enteredSteps": 0,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "declaredHistoryId": "5076b9b6-6a2c-4d24-b0b7-c372e2cb7664",
+    "actualHistoryRows": [
+      "4014f8dc-cc99-4edb-970b-e5b92beaad45"
+    ],
+    "prime": {
+      "complete": false
+    }
+  },
+  {
+    "run": "bob-wrong-conversation-m6-000515",
+    "control": "bob-wrong-conversation",
+    "segment": "m6",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "bob-wrong-conversation-or-principal",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 91.674,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "failureTreeCaptured": true,
+    "failureScreenshotCaptured": true,
+    "xctestCompletedNormally": true,
+    "expectedConversation": "524654b9-36c9-4632-ac9d-177036ed412b",
+    "bob": {
+      "rows": [],
+      "screen": [
+        {
+          "conversationId": "wrong-conversation",
+          "principal": "54822cf2-4a36-4ebc-9a79-2f394e9d9a17"
+        }
+      ]
+    }
+  }
+]

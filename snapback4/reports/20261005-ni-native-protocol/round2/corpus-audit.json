@@ -1,0 +1,18 @@
+{
+  "scope": [
+    "llp/0201.000-cross-lane-native-app-protocol.rfc.md",
+    "benchmarks/native/0.4.0-native.1/CONTRACT.md",
+    "benchmarks/native/0.4.0-native.1/README.md"
+  ],
+  "checked": [
+    "Round-2 evidence predicates and fixture hash documented",
+    "UI and receipt bounds remain 10s and 60s",
+    "Accepted status and Phase-2 scored admission preserved",
+    "No inherited frozen series or backend capability claim changed",
+    "Repeated presentation timestamps: compressed samples decoded individually on macOS; encoded count remains strict",
+    "Continuation audit names all eight brief items and records the newly observed video false failure",
+    "Report distinguishes prior independent review checkpoints from the later decoder correction"
+  ],
+  "refCheck": "pass on final source",
+  "handOff": "none"
+}

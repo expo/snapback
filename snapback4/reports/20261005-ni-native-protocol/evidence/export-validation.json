@@ -1,0 +1,52 @@
+[
+  {
+    "run": "collapsed-receipt-m6-235204",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "none-m6-235322",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "none-m8-235453",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": true, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "placeholder-m6-235628",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "volatile-outbox-m8-235711",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "duplicate-sends-m6-235850",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "reversed-sends-m6-000114",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "stale-viewonce-m6-000339",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "wrong-fixture-m6-000426",
+    "exitCode": 2,
+    "stdout": "{\"valid\": false, \"pass\": null, \"reason\": \"schema-invalid:run:video\", \"requiredForGreen\": false}\n"
+  },
+  {
+    "run": "bob-wrong-conversation-m6-000515",
+    "exitCode": 0,
+    "stdout": "{\"valid\": true, \"pass\": false, \"reason\": null, \"requiredForGreen\": false}\n"
+  }
+]

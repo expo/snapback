@@ -1,0 +1,10 @@
+{
+  "pre-reopen-viewonce-load": "accepted",
+  "online-viewonce-load": "accepted",
+  "elsewhere-viewonce-pixels": "accepted",
+  "bright-viewonce-pixels": "accepted",
+  "contrast-viewonce-pixels": "accepted",
+  "missing-post-scroll-screen": "search-post-scroll-screen-missing",
+  "stale-restart-capture": "accepted",
+  "missing-restart-screen": "accepted"
+}

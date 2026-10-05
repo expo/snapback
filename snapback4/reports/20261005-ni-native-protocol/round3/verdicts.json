@@ -1,0 +1,1526 @@
+{
+  "matrix": [
+    {
+      "control": "none",
+      "segment": "m6",
+      "run": "none-m6-062854",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 100.124,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 96.016,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "none",
+      "segment": "m8",
+      "run": "none-m8-063034",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 103.689,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 99.34,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "pre-reopen-viewonce",
+      "segment": "m6",
+      "run": "pre-reopen-viewonce-m6-063218",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 40.999,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 39.558,
+          "nativeCommands": 23,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "elsewhere-viewonce",
+      "segment": "m6",
+      "run": "elsewhere-viewonce-m6-063259",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 57.462,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "stale-viewonce-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.724,
+          "nativeCommands": 50,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "bright-viewonce",
+      "segment": "m6",
+      "run": "bright-viewonce-m6-063357",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 57.74,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "stale-viewonce-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.911,
+          "nativeCommands": 50,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "delayed-refusal",
+      "segment": "m6",
+      "run": "delayed-refusal-m6-063454",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 103.006,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 98.178,
+          "nativeCommands": 50,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "scroll-no-screen",
+      "segment": "m6",
+      "run": "scroll-no-screen-m6-063637",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 104.92,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.354,
+          "nativeCommands": 52,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "stale-restart-capture",
+      "segment": "m8",
+      "run": "stale-restart-capture-m8-063822",
+      "expectedPass": null,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 105.204,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "artifact-validation:restart-capture-before-relaunch",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.114,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "async-viewonce",
+      "segment": "m6",
+      "run": "async-viewonce-m6-064007",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 55.004,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 53.013,
+          "nativeCommands": 37,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "newest-first",
+      "segment": "m6",
+      "run": "newest-first-m6-064102",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 106.335,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 101.294,
+          "nativeCommands": 53,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "stale-viewonce",
+      "segment": "m6",
+      "run": "stale-viewonce-m6-064249",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 48.698,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 46.955,
+          "nativeCommands": 34,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "placeholder",
+      "segment": "m6",
+      "run": "placeholder-m6-064337",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 45.71,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "placeholder-or-wrong-media-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 43.916,
+          "nativeCommands": 30,
+          "enteredSteps": 3,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "volatile-outbox",
+      "segment": "m8",
+      "run": "volatile-outbox-m8-064423",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 108.864,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": false,
+        "receipt": "m8-ios-run.json",
+        "reason": "fixture-row-not-found:local-muvaybbf-t34k4xgz5eq",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 102.35,
+          "nativeCommands": 70,
+          "enteredSteps": 3,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "duplicate-sends",
+      "segment": "m6",
+      "run": "duplicate-sends-m6-064612",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 154.249,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-occurrence-count:2",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 149.749,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "reversed-sends",
+      "segment": "m6",
+      "run": "reversed-sends-m6-064846",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 153.481,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-send-order",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 149.304,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "wrong-conversation",
+      "segment": "m6",
+      "run": "wrong-conversation-m6-065120",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 43.601,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "screen-conversation",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 42.058,
+          "nativeCommands": 27,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "navigation-claim",
+      "segment": "m6",
+      "run": "navigation-claim-m6-065203",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 65.211,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "native-conversation-identity",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 63.106,
+          "nativeCommands": 73,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "collapsed-receipt",
+      "segment": "m6",
+      "run": "collapsed-receipt-m6-065309",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 85.753,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "receipt-accessibility:pending",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 82.301,
+          "nativeCommands": 67,
+          "enteredSteps": 6,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "bob-wrong-conversation",
+      "segment": "m6",
+      "run": "bob-wrong-conversation-m6-065434",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 109.722,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "bob-wrong-conversation-or-principal",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 105.702,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "delayed-bob",
+      "segment": "m6",
+      "run": "delayed-bob-m6-065624",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 102.933,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 98.465,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "late-bob",
+      "segment": "m6",
+      "run": "late-bob-m6-065807",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 108.884,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "bob-wrong-conversation-or-principal",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 104.645,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "wrong-receipts",
+      "segment": "m6",
+      "run": "wrong-receipts-m6-065956",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 160.353,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-receipt-state:read",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 156.141,
+          "nativeCommands": 168,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "wrong-receipts",
+      "segment": "m8",
+      "run": "wrong-receipts-m8-070236",
+      "expectedPass": false,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 164.539,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": false,
+        "receipt": "m8-ios-run.json",
+        "reason": "server-receipt-state:read",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 159.195,
+          "nativeCommands": 175,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "undecodable-video",
+      "segment": "m6",
+      "run": "undecodable-video-m6-070521",
+      "expectedPass": null,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 93.192,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "artifact-validation:invalid-video-timing",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 92.5,
+          "nativeCommands": 46,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "wrong-fixture",
+      "segment": "m6",
+      "run": "wrong-fixture-m6-070654",
+      "expectedPass": null,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 48.92,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "fixture-row-not-found:b2a7286c-66bc-4804-b391-9ef895a3ef02",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 48.536,
+          "nativeCommands": 48,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      }
+    }
+  ],
+  "finalPair": [
+    {
+      "control": "none",
+      "segment": "m6",
+      "run": "none-m6-071102",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 102.316,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 97.167,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "control": "none",
+      "segment": "m8",
+      "run": "none-m8-071244",
+      "expectedPass": true,
+      "matched": true,
+      "exit": 0,
+      "outerWallSeconds": 105.082,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.441,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    }
+  ],
+  "allAttempts": [
+    {
+      "run": "async-viewonce-m6-064007",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "async-viewonce",
+        "segment": "m6",
+        "wallSeconds": 54.931,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 53.013,
+          "nativeCommands": 37,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "bob-wrong-conversation-m6-065434",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "bob-wrong-conversation",
+        "segment": "m6",
+        "wallSeconds": 109.651,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "bob-wrong-conversation-or-principal",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 105.702,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "bright-viewonce-m6-063357",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "bright-viewonce",
+        "segment": "m6",
+        "wallSeconds": 57.669,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "stale-viewonce-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.911,
+          "nativeCommands": 50,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "collapsed-receipt-m6-065309",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "collapsed-receipt",
+        "segment": "m6",
+        "wallSeconds": 85.665,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "receipt-accessibility:pending",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 82.301,
+          "nativeCommands": 67,
+          "enteredSteps": 6,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "delayed-bob-m6-065624",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "delayed-bob",
+        "segment": "m6",
+        "wallSeconds": 102.839,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 98.465,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "delayed-refusal-m6-063454",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "delayed-refusal",
+        "segment": "m6",
+        "wallSeconds": 102.935,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 98.178,
+          "nativeCommands": 50,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "duplicate-sends-m6-064612",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "duplicate-sends",
+        "segment": "m6",
+        "wallSeconds": 154.171,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-occurrence-count:2",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 149.749,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "elsewhere-viewonce-m6-063259",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "elsewhere-viewonce",
+        "segment": "m6",
+        "wallSeconds": 57.392,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "stale-viewonce-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.724,
+          "nativeCommands": 50,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "late-bob-m6-065807",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "late-bob",
+        "segment": "m6",
+        "wallSeconds": 108.815,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "bob-wrong-conversation-or-principal",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 104.645,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "navigation-claim-m6-065203",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "navigation-claim",
+        "segment": "m6",
+        "wallSeconds": 65.141,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "native-conversation-identity",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 63.106,
+          "nativeCommands": 73,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "newest-first-m6-064102",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "newest-first",
+        "segment": "m6",
+        "wallSeconds": 106.258,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 101.294,
+          "nativeCommands": 53,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "none-m6-062459",
+      "instrument": {
+        "commit": "893daca9abd14bb63b60206599a90ab610aa6e26",
+        "inventorySha256": "d6267415698010081f22562892019cbebac1d16cbdd2686f7207b8339577c762",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "none",
+        "segment": "m6",
+        "wallSeconds": 101.035,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 96.67,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "none-m6-062854",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "none",
+        "segment": "m6",
+        "wallSeconds": 100.069,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 96.016,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "none-m6-071102",
+      "instrument": {
+        "commit": "2eccfb33a679e72d35dda591368ce7b29800d7e1",
+        "inventorySha256": "862a65fe6f347fa4ccf2a362aece4184e20b8692e68b3db494fcd0f630e4a2fa",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "none",
+        "segment": "m6",
+        "wallSeconds": 102.254,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 97.167,
+          "nativeCommands": 47,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "none-m8-063034",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "none",
+        "segment": "m8",
+        "wallSeconds": 103.616,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 99.34,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "none-m8-071244",
+      "instrument": {
+        "commit": "2eccfb33a679e72d35dda591368ce7b29800d7e1",
+        "inventorySha256": "862a65fe6f347fa4ccf2a362aece4184e20b8692e68b3db494fcd0f630e4a2fa",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "none",
+        "segment": "m8",
+        "wallSeconds": 104.997,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.441,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "placeholder-m6-064337",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "placeholder",
+        "segment": "m6",
+        "wallSeconds": 45.64,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "placeholder-or-wrong-media-pixels",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 43.916,
+          "nativeCommands": 30,
+          "enteredSteps": 3,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "pre-reopen-viewonce-m6-063218",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "pre-reopen-viewonce",
+        "segment": "m6",
+        "wallSeconds": 40.926,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 39.558,
+          "nativeCommands": 23,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "reversed-sends-m6-064846",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "reversed-sends",
+        "segment": "m6",
+        "wallSeconds": 153.407,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-send-order",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 149.304,
+          "nativeCommands": 46,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "scroll-no-screen-m6-063637",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "scroll-no-screen",
+        "segment": "m6",
+        "wallSeconds": 104.85,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.354,
+          "nativeCommands": 52,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "stale-restart-capture-m8-063822",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "stale-restart-capture",
+        "segment": "m8",
+        "wallSeconds": 105.132,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "artifact-validation:restart-capture-before-relaunch",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 100.114,
+          "nativeCommands": 55,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "stale-viewonce-m6-064249",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "stale-viewonce",
+        "segment": "m6",
+        "wallSeconds": 48.619,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 46.955,
+          "nativeCommands": 34,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "undecodable-video-m6-070521",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "undecodable-video",
+        "segment": "m6",
+        "wallSeconds": 93.116,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "artifact-validation:invalid-video-timing",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 92.5,
+          "nativeCommands": 46,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "volatile-outbox-m8-064423",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "volatile-outbox",
+        "segment": "m8",
+        "wallSeconds": 108.793,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": false,
+        "receipt": "m8-ios-run.json",
+        "reason": "fixture-row-not-found:local-muvaybbf-t34k4xgz5eq",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 102.35,
+          "nativeCommands": 70,
+          "enteredSteps": 3,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "wrong-conversation-m6-065120",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "wrong-conversation",
+        "segment": "m6",
+        "wallSeconds": 43.531,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "screen-conversation",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 42.058,
+          "nativeCommands": 27,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "wrong-fixture-m6-070654",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "wrong-fixture",
+        "segment": "m6",
+        "wallSeconds": 48.849,
+        "exitCode": 0,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "fixture-row-not-found:b2a7286c-66bc-4804-b391-9ef895a3ef02",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 48.536,
+          "nativeCommands": 48,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "wrong-receipts-m6-065956",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "wrong-receipts",
+        "segment": "m6",
+        "wallSeconds": 160.282,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "server-receipt-state:read",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 156.141,
+          "nativeCommands": 168,
+          "enteredSteps": 7,
+          "operatorInvocations": 1
+        }
+      }
+    },
+    {
+      "run": "wrong-receipts-m8-070236",
+      "instrument": {
+        "commit": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+        "inventorySha256": "1092dca22538c6dc414a5c61b92283333226600043364d4a477e6b0beca90072",
+        "instrumentPin": "social-messenger@0.4.0-native.1",
+        "scoredUse": false
+      },
+      "operator": {
+        "control": "wrong-receipts",
+        "segment": "m8",
+        "wallSeconds": 164.467,
+        "exitCode": 1,
+        "operatorSteps": [
+          "invoke named qualification command",
+          "review retained result"
+        ],
+        "cleanupUninstallExit": 0
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": false,
+        "receipt": "m8-ios-run.json",
+        "reason": "server-receipt-state:read",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 159.195,
+          "nativeCommands": 175,
+          "enteredSteps": 4,
+          "operatorInvocations": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "honest": [
+    false,
+    0.395068
+  ],
+  "prime": [
+    true,
+    0.199
+  ],
+  "elsewhere": [
+    true,
+    1.0
+  ],
+  "brightness30": [
+    true,
+    0.998021
+  ],
+  "brightness60": [
+    true,
+    0.992213
+  ],
+  "contrast": [
+    true,
+    1.0
+  ]
+}

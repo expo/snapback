@@ -1,0 +1,28 @@
+{
+  "archiveHost": "eb1000 (expo-build-1000)",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261005-ni/round3",
+  "files": 7878,
+  "bytes": 1663056048,
+  "parts": [
+    {
+      "path": "evidence-index-000.jsonl",
+      "bytes": 649855,
+      "sha256": "9bbdfb1733fff174927fae0581c2b7fe0b4e6a87416c968f6fa94e1276dd3faa"
+    },
+    {
+      "path": "evidence-index-001.jsonl",
+      "bytes": 649961,
+      "sha256": "af0d327bd9e14f93f9f63437e0768e4f9e72d60a87c37b448848be321d5cfe0c"
+    },
+    {
+      "path": "evidence-index-002.jsonl",
+      "bytes": 649938,
+      "sha256": "b2118165868352192dd9871fef759b30df8d0e8f708f5a9705ef5ee11a6da6d8"
+    },
+    {
+      "path": "evidence-index-003.jsonl",
+      "bytes": 141511,
+      "sha256": "7aa14d84efa890dd5703b9b4337f3ef4616cd31a4054b432d96ea3a5d9576bd9"
+    }
+  ]
+}

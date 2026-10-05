@@ -1,0 +1,1 @@
+{"name":"clique-native-observer","version":"0.4.0-native.1","main":"index.ts","peerDependencies":{"expo":"*","react":"*","react-native":"*"}}

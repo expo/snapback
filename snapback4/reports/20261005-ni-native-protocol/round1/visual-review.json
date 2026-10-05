@@ -1,0 +1,12 @@
+[
+  {
+    "path": "/home/ccheever/sb5-evidence-archive/20261005-ni/round1/mini/runs/none-m6-011810/evidence/cold-search.png",
+    "sha256": "9291200b3b9722fe4592dcfe210c9de64a9b337d14da77ad7037ebc028dad9c3",
+    "observation": "The search destination visibly contains the durable needle history body, normal media, and timestamps."
+  },
+  {
+    "path": "/home/ccheever/sb5-evidence-archive/20261005-ni/round1/mini/runs/none-m6-011810/evidence/final-read.png",
+    "sha256": "73ea0a08c1d8fa38b99d4d851a54984f37212fbafe110d22a83a29978c2db333",
+    "observation": "Both queued nonce bodies appear once and in compose order, each with a 12:00 timestamp and blue double ticks."
+  }
+]

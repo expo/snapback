@@ -1,0 +1,68 @@
+{
+  "source": "958f7bf4a9cdf8732fc0b74914b2c05b9d90896b",
+  "python": {
+    "tests": 62,
+    "pass": true,
+    "wallSeconds": 154.763
+  },
+  "bobBrowser": {
+    "tests": 2,
+    "pass": true
+  },
+  "uiKit": {
+    "tests": 3,
+    "typecheck": true,
+    "pass": true
+  },
+  "swiftJournal": {
+    "pass": true,
+    "host": "Apartment mini",
+    "simulatorUsed": false
+  },
+  "mutationChecks": {
+    "oldPollingFailures": 1,
+    "oldPixelScanFailures": 10,
+    "errors": 0
+  },
+  "refCheck": {
+    "pass": true,
+    "docs": 528,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "freeze": {
+    "pass": true,
+    "files": 86,
+    "materialization": true
+  },
+  "rootInventories": {
+    "pass": false,
+    "scope": "inherited Snapback 1 scripts inventory, guide and generated artifacts; inputs unchanged"
+  },
+  "developmentAttempts": [
+    {
+      "check": "initial expanded Python suite",
+      "result": "Two subcases of the detailed-fixture test failed: scale rounding and mat aspect distortion; fixed by bounded refinement. The final 62-test suite passes."
+    },
+    {
+      "check": "initial UI kit invocation",
+      "result": "fixture upload filename valid.mp4 did not satisfy the existing vid-01.mp4 check; rerun with correct fixture name passed"
+    },
+    {
+      "check": "fleet documentation",
+      "result": "~/Dropbox/APIKeys/MACHINE_FLEET.md absent on Linux; used the mini SSH endpoint explicitly authorized by the lane brief"
+    }
+  ],
+  "archivePixels": {
+    "captures": 65,
+    "changedVerdicts": 0,
+    "retainedPixelRecordsAgree": 61,
+    "earlyStaleViewerFailuresWithoutPixelRecord": 4
+  },
+  "artifactControls": {
+    "controls": 52,
+    "contradictoryRejected": 50,
+    "positiveControlsAccepted": 2,
+    "baselinesAccepted": 2
+  }
+}

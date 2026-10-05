@@ -1,0 +1,57 @@
+[
+  {
+    "check": "Python regression harness",
+    "initialResult": "failed while fixture schema/hash, synthetic native descendants and failed-receipt timing fields were being updated",
+    "resolution": "The earlier 45-test suite passed on Linux and the mini at that checkpoint. The continuation final suite has 47 passing tests on both hosts; all logs are indexed."
+  },
+  {
+    "check": "UI kit tests in scratch",
+    "initialResult": "video fixture resolved outside scratch and was missing",
+    "resolution": "Reran all kit tests and typecheck with CLIQUE_UI_VIDEO_FIXTURE pointing at a copied canonical vid-01.mp4; passed."
+  },
+  {
+    "check": "Early evidence export",
+    "initialResult": "rsync saw a recording temporary file and a rotating process log disappear during an unfinished M8 run",
+    "resolution": "Exporter now transfers completed operator records only; the completed M8 directory replaced the partial copy, with final hash verification required before cleanup."
+  },
+  {
+    "check": "Backend test process cleanup",
+    "initialResult": "Volta shim left an HTTP-test node child after its parent exited",
+    "resolution": "The exact task-owned PID and command were verified and terminated; cleanup receipt retained."
+  },
+  {
+    "check": "Independent review",
+    "initialResult": "buffered cache load above the last collected sequence could evade the reconnect boundary",
+    "resolution": "Drain after backend readiness; check both timestamp and sequence bounds; new rebound artifact and driver regression reject."
+  },
+  {
+    "check": "Initial round-2 live receipt controls",
+    "initialResult": "Wrong-receipt variants failed read-render-event because their claimed read screen predated the window, revealing an unnecessary fresh-event requirement.",
+    "resolution": "Preserved all 15 initial matrix cells; accept the latest retained screen only when final native snapshot and server sample corroborate it inside the window. Added rebound early-read and newer-sent checks; reran the full final matrix under a new source pin."
+  },
+  {
+    "check": "Cross-host export validation and video endpoint review",
+    "initialResult": "FFmpeg timing differed from AVFoundation on sparse negative recordings. An AVFoundation request at120.783s returned an earlier53.948s frame; the default-tolerance check did not prove the ending image.",
+    "resolution": "Preserve35 original live attempts under their source identities. Bind presentation endpoints to STTS/CTTS samples, decode actual samples independently, add coordinated duration-header mutation and a held-frame positive fixture, and requalify the corrected source. App termination after snapshots supplies a recorded terminal transition."
+  },
+  {
+    "check": "Continuation Swift journal invocation",
+    "initialResult": "The compiled test was invoked without its required scratch-directory argument and exited 133 (index out of range).",
+    "resolution": "Reran with /tmp/ni-round2-20261005/continuation-journal-scratch. Explicit activation, relaunch event cap, sticky overflow and byte cap all passed. Both logs retained."
+  },
+  {
+    "check": "Final-transition source M8 video sample count",
+    "initialResult": "none-m8-042958 completed the application assertions but became unmeasured: AVFoundation returned 1337 decoded images for 1344 encoded samples. Seven PTS values each occurred twice. FFmpeg decoded all 1344.",
+    "resolution": "Read compressed samples in decode order and synchronously decode each with VideoToolbox. The original retained video now decodes all 1344 samples. Added a 3,106-byte ten-sample fixture with one repeated PTS: old decoder emits 9, corrected decoder emits 10. Original verdict and packet remain unchanged; requalification uses a new source checkpoint."
+  },
+  {
+    "check": "Continuation evidence transfer",
+    "initialResult": "A manual copy overlapped the serial completed-run exporter; rsync reported a missing temporary video file. A positive-control invocation also ran before the packet directory existed.",
+    "resolution": "Use the serial exporter completion record, then independently verify the packet and run controls. Final export verification checks every retained file before cleanup."
+  },
+  {
+    "check": "Repeated-timestamp regression fixture generation",
+    "initialResult": "The first setpts attempt also created invalid zero-duration decoding intervals, so the timing validator correctly rejected it.",
+    "resolution": "Generated a regular ten-frame H.264 stream, then changed only the selected presentation timestamp with a stream-copy bitstream filter. The final 3,106-byte fixture passes timing validation and decodes ten images on both hosts; the old Mac presentation-order checker emits nine. Both generation logs and candidate files are retained."
+  }
+]

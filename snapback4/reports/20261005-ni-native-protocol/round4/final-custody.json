@@ -1,0 +1,12 @@
+{
+  "instrument": {
+    "commit": "958f7bf4a9cdf8732fc0b74914b2c05b9d90896b",
+    "inventorySha256": "88aeda6949779dfa06b81a6fcf179630184621bca5384e341a584c60e71672f6",
+    "instrumentPin": "social-messenger@0.4.0-native.1",
+    "scoredUse": false
+  },
+  "sourceFilesMatchQualifiedCommit": 86,
+  "indexedArchiveFilesVerified": 280,
+  "driverSourceSha256": "d87a505830d02b5ba07a566dce77c37e13ce6649b39d0d17fc011853443773e5",
+  "scoredUse": false
+}

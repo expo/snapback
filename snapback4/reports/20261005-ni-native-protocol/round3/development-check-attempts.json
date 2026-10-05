@@ -1,0 +1,52 @@
+[
+  {
+    "check": "initial local suite before freezing edits",
+    "initialResult": "Trusted-source checks refused the changed source inventory.",
+    "resolution": "Refroze the candidate before running behavioral regressions; the subsequent full suite passed."
+  },
+  {
+    "check": "new M8 test fixture",
+    "initialResult": "Two assertions hit an accidental self-hash entry in the synthetic manifest.",
+    "resolution": "The helper now writes the manifest outside its file map; both intended validators reject and all 56 tests pass."
+  },
+  {
+    "check": "mini backend restart test",
+    "initialResult": "Volta shim termination left its child Node server serving old state; the legacy-row test failed. Six owned test children remained.",
+    "resolution": "Launch process.execPath directly. Full mini suite passes; six exact identified children were terminated and verified absent. Cleanup receipt retained."
+  },
+  {
+    "check": "auxiliary journal and kit checks",
+    "initialResult": "An incorrect Swift test filename, copied-kit relative imports, and missing inherited video fixture caused setup failures.",
+    "resolution": "Use tests/journal.swift with its scratch argument; run the canonical ui tree against cloned dependencies with CLIQUE_UI_VIDEO_FIXTURE set to a task-local H.264 fixture. Swift tests, all three kit tests and typecheck pass. Every attempted log is archived."
+  },
+  {
+    "check": "freeze on built scratch",
+    "initialResult": "The scratch build contains extra app/build paths and symlinks, so whole-directory freeze checking is not applicable there.",
+    "resolution": "Local clean source freeze and materialization pass; the mini source audit verifies every frozen hash and all 43 copied build inputs."
+  },
+  {
+    "check": "root inventories",
+    "initialResult": "Inherited registry/guide/generated-artifact drift remains red.",
+    "resolution": "Affected source-input blobs are identical to fb830d2c2e; baseline comparison and full output retained."
+  },
+  {
+    "check": "retained old-refusal mutation",
+    "initialResult": "The old control cleared only the attempted snapshot; the successful cold snapshot still independently proved a disabled/opened refusal, so its expected rejection was wrong.",
+    "resolution": "Clear refusal in both snapshots and fresh events. The corrected live-evidence mutation rejects; the final source includes this fix and a regression with a disabled successful snapshot. The original attempted control remains archived."
+  },
+  {
+    "check": "final mini test startup",
+    "initialResult": "Tests started before source synchronization finished, loaded the prior 56-test set and caught the changing instrument identity.",
+    "resolution": "Retained that attempted log, waited for synchronization and reran the final 58-test suite against the stable source."
+  },
+  {
+    "check": "archive transfer",
+    "initialResult": "The full copy redundantly transferred identical packet inputs.",
+    "resolution": "Reused verified hash-identical regular files, transferred remaining unique content, then interrupted the redundant original copy through its owned exec session. All 7,327 remote manifest paths match exact size and SHA-256; all 28 live exports validate independently."
+  },
+  {
+    "check": "local scratch cleanup",
+    "initialResult": "Read-only materialized directory refused unlink of failure.mjs.",
+    "resolution": "Enabled owner write on task-owned directories only, then removed the complete scratch tree. Frozen source files were not changed."
+  }
+]

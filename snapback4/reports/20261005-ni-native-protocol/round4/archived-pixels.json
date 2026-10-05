@@ -1,0 +1,1172 @@
+[
+  {
+    "capture": "round1/mini/runs/bob-wrong-conversation-m6-013159/evidence/cold-once.png",
+    "inputs": {
+      "prime": "1f7939ebe00c374d8d5e8e7d0efcc71f44d1c0c7a06d9bf223410ce31d39065e",
+      "cold": "7c9338342f3c35ce885a7db287f577ed3a8b6164d92b04b0314c122e87afa8b9",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395054
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 5.976
+  },
+  {
+    "capture": "round1/mini/runs/collapsed-receipt-m6-012951/evidence/cold-once.png",
+    "inputs": {
+      "prime": "dde0dc0b93e72ffa9451050520ce486598717211411d2d8079bb7d3534998ee1",
+      "cold": "959fde20520f4ed0aef493ff32e0da43d11ad1c1c4cf5eaf08dce3a22592a046",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395045
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.742
+  },
+  {
+    "capture": "round1/mini/runs/duplicate-sends-m6-012413/evidence/cold-once.png",
+    "inputs": {
+      "prime": "1b505987a49c0f98357c511b672d5d82d366b7053f2eac578f25f401e5fe80d4",
+      "cold": "cb107ff98247873ef975b8ba2a1410207bc66433c495c2143bd14f65db0ae010",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395051
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.729
+  },
+  {
+    "capture": "round1/mini/runs/navigation-claim-m6-013847/evidence/cold-once.png",
+    "inputs": {
+      "prime": "47c270e76cef5af098d4304be9ff96a589405023e322b6baf9843e53304fc164",
+      "cold": "dedb8bd44022113e3e0974f60e102d25f41860f3a0e6b83af891a3edf1ab6af5",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395036
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.765
+  },
+  {
+    "capture": "round1/mini/runs/none-m6-011810/evidence/cold-once.png",
+    "inputs": {
+      "prime": "2188d0cdf11ca3997c317f730627131c89b04d6b3755bb4fdcd758171283c9e1",
+      "cold": "8c959d28580736bf8073f781f3ece3ea09c3214603678c374ea2476430b27874",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395036
+    ],
+    "round4": [
+      false,
+      0.748324
+    ],
+    "changed": false,
+    "wallSeconds": 3.743
+  },
+  {
+    "capture": "round1/mini/runs/reversed-sends-m6-012639/evidence/cold-once.png",
+    "inputs": {
+      "prime": "d51c0504b0ff64463dc7259b727c2bca8c0fe59810d63461d7761b4241818ada",
+      "cold": "c11b162b0e0d5cdcf8d3198451e3c3d89744e94a1d056d01a6fc91863653761f",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395033
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.751
+  },
+  {
+    "capture": "round1/mini/runs/stale-viewonce-m6-012904/evidence/cold-once.png",
+    "inputs": {
+      "prime": "668fc017847919a0cf8885a06e09db730968e1cacf1bae9c6fa80008834233e5",
+      "cold": "3423d751f1c2e51f32aa1f8dca5f5c7f957c843800f00ae52c17dc85a66442b5",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      1.0
+    ],
+    "round4": [
+      true,
+      0.999912
+    ],
+    "changed": false,
+    "wallSeconds": 2.041
+  },
+  {
+    "capture": "round1/mini/runs/wrong-receipts-m6-013334/evidence/cold-once.png",
+    "inputs": {
+      "prime": "2f6bbaf57d307ab3557609fec085f3b7d245a76d63d88ecc4080a71d5a7c7524",
+      "cold": "07eb153bac6a92360c005088e7b0af8e98a5a02c2a1524ea4b74cb8cb589f592",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395249
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.735
+  },
+  {
+    "capture": "round2/runs/async-viewonce-m6-025654/evidence/cold-once.png",
+    "inputs": {
+      "prime": "07fddc931d4d16b12cc9b878fea541deca7263901f3d384ba8e4828a9c1776cd",
+      "cold": "187c199ff44ed88a2dda06bbbec4627f9c11412c192024cc7bc5655464ee80de",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395037
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.725
+  },
+  {
+    "capture": "round2/runs/async-viewonce-m6-032007/evidence/cold-once.png",
+    "inputs": {
+      "prime": "8050355a7a6e80ba4f3110dbdc018a6880f48478972a32e880ab0eed0bc56eb6",
+      "cold": "73fa612c54478869f937801fb639bf112d18304475cd15e8d2210f0fb2d2705e",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395061
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.726
+  },
+  {
+    "capture": "round2/runs/async-viewonce-m6-044213/evidence/cold-once.png",
+    "inputs": {
+      "prime": "88aebc14e8c8cee63c8da1011b43a99b17ecd4a25718b979d33d461666a598ac",
+      "cold": "5c3bbdbb97639f2c3621a6e5b06a95edd50d715db025810d31dd17f3509d03e0",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395052
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.752
+  },
+  {
+    "capture": "round2/runs/bob-wrong-conversation-m6-031355/evidence/cold-once.png",
+    "inputs": {
+      "prime": "986aa5754731ebde48a1cda56d4fb5c87f330e1838392c8c2b3d2a268eab8403",
+      "cold": "cde922d9ab16d7ed4fc597e0f310f6efda9e68238ac02a7a5c2781cee67aa575",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395034
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.741
+  },
+  {
+    "capture": "round2/runs/bob-wrong-conversation-m6-033644/evidence/cold-once.png",
+    "inputs": {
+      "prime": "e231710661701d3a7f6e2a86b524138061a473fee3b110bb7f79d9757d9dbb24",
+      "cold": "e88414e9d6702f0fa1a7a30cbf0679753b8d28fca450d77072f1e49a70554149",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.394991
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.715
+  },
+  {
+    "capture": "round2/runs/bob-wrong-conversation-m6-045942/evidence/cold-once.png",
+    "inputs": {
+      "prime": "4a74dcdd61b9171ac918363a261ceacfa5539fdff94066becabe6d36353dfdf8",
+      "cold": "ffd2b9509806608ac688d1b730f0268da3d311240ddbc80c2a06296b7a3f6bdd",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395043
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.76
+  },
+  {
+    "capture": "round2/runs/collapsed-receipt-m6-033826/evidence/cold-once.png",
+    "inputs": {
+      "prime": "65c423095372b267016e679dab26f0fc47129dfcce2e83f0e652f86818adae5c",
+      "cold": "31097b6cfea653dce8801cf522b7833c91fe6604eed2e799216e1229e66c78cb",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395059
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.755
+  },
+  {
+    "capture": "round2/runs/collapsed-receipt-m6-050131/evidence/cold-once.png",
+    "inputs": {
+      "prime": "a5af9077067eff4f846f17637288810ecdf9aab6f4c87c3a5b12e25800cd0f35",
+      "cold": "6c5561a48a7021f1f229a534606f8e15200c89fba74e66064d8496b5f39198bc",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.39504
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.749
+  },
+  {
+    "capture": "round2/runs/delayed-bob-m6-025931/evidence/cold-once.png",
+    "inputs": {
+      "prime": "6a92670c1f0328dae76819e2c0579e6fa2dfddcc40f4b11926b01000c16151ea",
+      "cold": "97fb8358f8e25f18914e347be9c116c8910ab1edc59f36a1706aaa9e9f63dbb1",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395034
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.724
+  },
+  {
+    "capture": "round2/runs/delayed-bob-m6-032232/evidence/cold-once.png",
+    "inputs": {
+      "prime": "8b54d221f606134deb83acd608089e79222611b1c12e79edf4e57ffdab1b5a3b",
+      "cold": "80396b04cf288d4a8e2bc92ff2520320bbaed8a9aaa63b95e733573c71fccfbb",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395055
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.778
+  },
+  {
+    "capture": "round2/runs/delayed-bob-m6-044442/evidence/cold-once.png",
+    "inputs": {
+      "prime": "9a85b7fd0ec5a5169bd8cceecfcf13cb1c31fa2d1a053e49894194ab3ee463fd",
+      "cold": "29bb65e3da68e67282f99faea811de2aa462b53b4359c5e6cd2e8ea36be78398",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395061
+    ],
+    "round4": [
+      false,
+      0.748324
+    ],
+    "changed": false,
+    "wallSeconds": 3.761
+  },
+  {
+    "capture": "round2/runs/duplicate-sends-m6-033946/evidence/cold-once.png",
+    "inputs": {
+      "prime": "a009447192692392ea243d674d4141d3dfe206060535c2b8dbc812238ca63379",
+      "cold": "24b4696522d03041e757131ebd0c57a307c9e6ea44750acfa283d23dee7861cf",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395049
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.746
+  },
+  {
+    "capture": "round2/runs/duplicate-sends-m6-050255/evidence/cold-once.png",
+    "inputs": {
+      "prime": "7813bc927fd5ad5aa2c1f49a1e4ac28b48ab785c134c8ada5ed15cc7bac52ff6",
+      "cold": "13705dd059ecb770e519ded12a3db3caf29bced0674bb4955b23284f34305129",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395038
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.772
+  },
+  {
+    "capture": "round2/runs/late-bob-m6-030246/evidence/cold-once.png",
+    "inputs": {
+      "prime": "aed936a9ea790404b25bf0165507c718f27a09ef6b3ad75b4133ea2d56d304bc",
+      "cold": "5ee40d1e99c188cf7c5f8a71db3618cd1dfb64b9c0e3d866942c55a96ad33ffd",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395058
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.769
+  },
+  {
+    "capture": "round2/runs/late-bob-m6-032545/evidence/cold-once.png",
+    "inputs": {
+      "prime": "fdffbf2665500aa47a2571ca4c0f4519daea9ecfe19ce5710b04566f0f493cd2",
+      "cold": "b413fa3c3ab0782f76844f546dd216bc0ae5b1eb0701356dc4f50b8744f83dde",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395033
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.733
+  },
+  {
+    "capture": "round2/runs/late-bob-m6-044811/evidence/cold-once.png",
+    "inputs": {
+      "prime": "5f3f2e42df798e6b5cda03074591292938f011bac9537fc343fca9cd6f134a31",
+      "cold": "85d3079ff1b16bf6e62babc6de90f0d2a696fd84da3e731b749df5e1569023f1",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395049
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.742
+  },
+  {
+    "capture": "round2/runs/navigation-claim-m6-031205/evidence/cold-once.png",
+    "inputs": {
+      "prime": "714aca59c0ee9cb02e8cc33696285a24c85c2a009a67d5e2d9bc16a5bb0d39a1",
+      "cold": "318c7c4a3a7ab7e3a58b81fc39f41e218fffc33885b79929a5b50d71c3709a0c",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.394999
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.778
+  },
+  {
+    "capture": "round2/runs/navigation-claim-m6-033458/evidence/cold-once.png",
+    "inputs": {
+      "prime": "da1ca3cf2d4f987efbea1164703c05e1c554b8ac1bafb973439981a847e67d5b",
+      "cold": "e3cb6a4e31b0e37f07a47d06ee7a246a654f32de6c3560ca9dc116ab319128f7",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395034
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.761
+  },
+  {
+    "capture": "round2/runs/navigation-claim-m6-045752/evidence/cold-once.png",
+    "inputs": {
+      "prime": "2dec04893e3588e5e1b129811e5577ccec2949a91b818b73039aeb999fb1f5b7",
+      "cold": "edd894cef46c413764999ec0b970e49046b7b03d97a1cae927e515c9cb177a2a",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395058
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.735
+  },
+  {
+    "capture": "round2/runs/newest-first-m6-030107/evidence/cold-once.png",
+    "inputs": {
+      "prime": "5b2026f06b5c715b016c9cec68a39b2d600e6494d7aabf1edf269e79bd2a0073",
+      "cold": "e9cbdb0f91be0c5bdf0c4e30bd3783ba5501eec13389801f097934ec1a00a4da",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.39503
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.765
+  },
+  {
+    "capture": "round2/runs/newest-first-m6-032407/evidence/cold-once.png",
+    "inputs": {
+      "prime": "ddcbdefe14afb5a3ba28e66736206fd09e3ec992e90cc771fc2ca32674dea18f",
+      "cold": "9a38b62e59bd384e68ca3f14e1c6d0159797e4ecc41ccced2ae0097c475d88b9",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395046
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.739
+  },
+  {
+    "capture": "round2/runs/newest-first-m6-044625/evidence/cold-once.png",
+    "inputs": {
+      "prime": "06415bdd4a0a5d033a1dbd875a692df1065fc5cc9ee36e4ff90b1c8b86b6ed9f",
+      "cold": "c6678554390ed5385632123a40fbbad3d7d5d12cc369f0c77add754a499ad004",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395044
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.745
+  },
+  {
+    "capture": "round2/runs/none-m6-024952/evidence/cold-once.png",
+    "inputs": {
+      "prime": "533612b24d9fed2b627f024fb2fdcf108643957bdf4e0670271600f39fc28ad3",
+      "cold": "92dbfe53d989fe7bc749d3a1f33e6b9f9c0deb03439bfa411cdf2d626d2db1c0",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395055
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.768
+  },
+  {
+    "capture": "round2/runs/none-m6-025343/evidence/cold-once.png",
+    "inputs": {
+      "prime": "7d1f96c6eef9551717619ad39735bcbeed3ab30a6466f71a6c0cfef0aab1278a",
+      "cold": "126332c7b203046208dc6ee27bad7107ca5de575cf1a0e1894067f42457ca1d6",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395043
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.781
+  },
+  {
+    "capture": "round2/runs/none-m6-031700/evidence/cold-once.png",
+    "inputs": {
+      "prime": "483a6c36b15ac277bf959f260e23637732e4bc25aeaa46e3eb96b756333f62bf",
+      "cold": "0d28454388fb3c06d7f2418b3eda8bfecfa1b81069f5bacecada713a952d7d4b",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395036
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.778
+  },
+  {
+    "capture": "round2/runs/none-m6-041344/evidence/cold-once.png",
+    "inputs": {
+      "prime": "31b996c657f2572ea85f67645e40b918aa15f8691fef9329ac871ea6d16fd92d",
+      "cold": "023a191c656c4866c4057071d6e6049734618edbbcd39e711f148e8db803fdff",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395033
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.722
+  },
+  {
+    "capture": "round2/runs/none-m6-042822/evidence/cold-once.png",
+    "inputs": {
+      "prime": "31108f10e9537a1d60a52d69d49616a1b7b62006bf666ce41c44e273eb8a33f5",
+      "cold": "df892629ce5268921e829e7f8e630069a33c0b9051e0aabe23cd5726c1a574a5",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395036
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.767
+  },
+  {
+    "capture": "round2/runs/none-m6-043846/evidence/cold-once.png",
+    "inputs": {
+      "prime": "7411151c6d93f374f02faaf7b62f5018eb6c0ca61e30e49e53462851d36fc262",
+      "cold": "5ed03b402ebc869446869cd4c105d6f6c282e2709c54b78dec0aa5fe1ab97911",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395068
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.758
+  },
+  {
+    "capture": "round2/runs/reversed-sends-m6-034213/evidence/cold-once.png",
+    "inputs": {
+      "prime": "1bb482a1e714df3701c06c4d5aa2c575f0c60e15ea6653b241e01e4324c29277",
+      "cold": "44a6ea5d1e9d6b37759f3b2d2bee2a4daf7fdb0478df1d5ad0c229765d64ce17",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395013
+    ],
+    "round4": [
+      false,
+      0.748322
+    ],
+    "changed": false,
+    "wallSeconds": 3.747
+  },
+  {
+    "capture": "round2/runs/reversed-sends-m6-050530/evidence/cold-once.png",
+    "inputs": {
+      "prime": "a804498099178eb13e492de6f0c042a3ae6fe2a3191e658160d099306e63d8ca",
+      "cold": "2556973378778eac6f671b993b5651d85d5bdf02d994954298c6a261ae638b09",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395013
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.783
+  },
+  {
+    "capture": "round2/runs/stale-viewonce-m6-030514/evidence/cold-once.png",
+    "inputs": {
+      "prime": "8a4887eb7e8fa4dd6ef0238a6242d6eb1063d12bb87ef9137fa9d256abe367d9",
+      "cold": "22d2462825e0aac0a30b65a46a26794559fb17f279a2281e24daf8e9b6a63807",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      1.0
+    ],
+    "round4": [
+      true,
+      0.999912
+    ],
+    "changed": false,
+    "wallSeconds": 2.096
+  },
+  {
+    "capture": "round2/runs/stale-viewonce-m6-032813/evidence/cold-once.png",
+    "inputs": {
+      "prime": "4b59fac3fc9e8519e3f82a90c95dabda83db8f5d007b3ed474b87139d8bede8b",
+      "cold": "0fd07309a75f8289d943000828ad3ae7370984b94429177e28f33b9c1ee238ec",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      1.0
+    ],
+    "round4": [
+      true,
+      0.999911
+    ],
+    "changed": false,
+    "wallSeconds": 2.099
+  },
+  {
+    "capture": "round2/runs/stale-viewonce-m6-045046/evidence/cold-once.png",
+    "inputs": {
+      "prime": "0a4d9e90bb2614bba96c351f17dba9ee948098ba72027baf35a46e3dd06172f1",
+      "cold": "32105982ec1b1bf47ef09ac9ebcbc7d80cdce0ee4fdd413215552f81b1d9c519",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      1.0
+    ],
+    "round4": [
+      true,
+      0.999911
+    ],
+    "changed": false,
+    "wallSeconds": 2.095
+  },
+  {
+    "capture": "round2/runs/undecodable-video-m6-025752/evidence/cold-once.png",
+    "inputs": {
+      "prime": "83a8f1ef3eec3c8eb164ad210ed2102ca2069eeb56bc7ae51cb41921418bac74",
+      "cold": "4f8964332829009744e0433cd55afbfa61f68a4308ae08315542a9a8e7d442af",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.39502
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.916
+  },
+  {
+    "capture": "round2/runs/undecodable-video-m6-032100/evidence/cold-once.png",
+    "inputs": {
+      "prime": "5c9c3e4914922ae67563d2faf37ad2a73914e000f0ddb417cc661716b09c8e66",
+      "cold": "ef6af0eb33abc17ccaf3048f3ef2c624825a6d4a8c3355083323bcb34b86b3fc",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395013
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.838
+  },
+  {
+    "capture": "round2/runs/undecodable-video-m6-044307/evidence/cold-once.png",
+    "inputs": {
+      "prime": "2a2ea6474921a45636973f41d8412ac6a794fa62151a1378993fc94df9eafd27",
+      "cold": "40b8cc7bbbc62096e1de807773bb4cb032e608b2b0ff2e3e4a1fdf4421d2be71",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395064
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.759
+  },
+  {
+    "capture": "round2/runs/wrong-receipts-m6-030652/evidence/cold-once.png",
+    "inputs": {
+      "prime": "89d0efbf312b0459e964e768366cdc01eac7c0dd68ab50e32482bbc56d25f221",
+      "cold": "eac887ee9867c037cdbec8985d4d0f1782909d04c7f60ae6883645d714902868",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395257
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.728
+  },
+  {
+    "capture": "round2/runs/wrong-receipts-m6-032949/evidence/cold-once.png",
+    "inputs": {
+      "prime": "739c2e1c637360fda40941fa05c4ac5d76d746f4f365b5d0309e0fcc947b9b3c",
+      "cold": "a92da945dc9e9d8d79e171cbf8e4afd9b28d055672901d1e2ad63523db119c09",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.39525
+    ],
+    "round4": [
+      false,
+      0.748322
+    ],
+    "changed": false,
+    "wallSeconds": 3.775
+  },
+  {
+    "capture": "round2/runs/wrong-receipts-m6-045226/evidence/cold-once.png",
+    "inputs": {
+      "prime": "0e4c0fcb88595969f9dbafa6d15fe1ccf4a4add41decad86921a23b06d8b1525",
+      "cold": "745d1c9cf472eda20dc0b1735a3ac17bf71a83df0b923a8603d82645b08a5c27",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395262
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.806
+  },
+  {
+    "capture": "round3/runs/async-viewonce-m6-064007/evidence/cold-once.png",
+    "inputs": {
+      "prime": "82502aadcbd73be5e9c203fe7206e6d7039391bf8621ae8ae4a0b09dc10bb9b7",
+      "cold": "3d9e29bc37e88df713c462196ea57c73c479a8a23c0cb2acce9c4880fe21d96e",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395061
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.762
+  },
+  {
+    "capture": "round3/runs/bob-wrong-conversation-m6-065434/evidence/cold-once.png",
+    "inputs": {
+      "prime": "d7637b2211f643afc0fbdad4d578c13f33a4700c66bb1a3aaef80a970c13c431",
+      "cold": "097d9ddc89a698bb7882a6558183962248f0481eec9989643ab403ccd9b48476",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395021
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.825
+  },
+  {
+    "capture": "round3/runs/bright-viewonce-m6-063357/evidence/cold-once.png",
+    "inputs": {
+      "prime": "bae9f2163791e91abacde5168fac2f4c01159ea7793cf768ee2535e0ea8ad4e6",
+      "cold": "7e9170ddeb4ec022cf4bfe13f85c51dfb697f37c9568d71cf4b50ceb9f1e4c06",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      0.999996
+    ],
+    "round4": [
+      true,
+      0.999907
+    ],
+    "changed": false,
+    "wallSeconds": 2.089
+  },
+  {
+    "capture": "round3/runs/collapsed-receipt-m6-065309/evidence/cold-once.png",
+    "inputs": {
+      "prime": "7f9abe682c01d6746d4453cb91172abb7d2fd2fdb98522d999a978d2fffe667a",
+      "cold": "dcc8fb9e55eb732ce6bddd44e1c2c821764d9670cfc1e686e774a8e6252e0348",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395052
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.773
+  },
+  {
+    "capture": "round3/runs/delayed-bob-m6-065624/evidence/cold-once.png",
+    "inputs": {
+      "prime": "3c35b2a57ccc87b0241ce6e3d1bfd98caada21d35a8da93f0e9b1bc2b87f11f9",
+      "cold": "20d56593b8ce9fa57995abb12d8249e5a6d1f24ccdf767b43d16f42dbdeab952",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.39503
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.731
+  },
+  {
+    "capture": "round3/runs/delayed-refusal-m6-063454/evidence/cold-once.png",
+    "inputs": {
+      "prime": "2db6128bb6e063565d4b3f8f07639627259c42fb5002db27129cc944e3b8e3f8",
+      "cold": "67a1ad8c212ea74d2692f35e56d3877abc01efceacf807285b86b22a4f11715c",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395047
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.75
+  },
+  {
+    "capture": "round3/runs/duplicate-sends-m6-064612/evidence/cold-once.png",
+    "inputs": {
+      "prime": "38bc41ef19b56813008234c1a2685f4e73bb9a6f6a69c7cce23d2f7a61153f06",
+      "cold": "f5331872facf01bed73829c8ca1a3023bf3921353bea6e3fa802e958e3e06913",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395037
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.75
+  },
+  {
+    "capture": "round3/runs/elsewhere-viewonce-m6-063259/evidence/cold-once.png",
+    "inputs": {
+      "prime": "049bbba3bdbd36be5a66c1896422bba1a2c7c729c9cb31f6e04f8ce9fadfefba",
+      "cold": "1c41c2a265c7235b53ab0ef5de59d6f10747fd013e54436b31ea11891dafda53",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      true,
+      1.0
+    ],
+    "round4": [
+      true,
+      1.0
+    ],
+    "changed": false,
+    "wallSeconds": 2.068
+  },
+  {
+    "capture": "round3/runs/late-bob-m6-065807/evidence/cold-once.png",
+    "inputs": {
+      "prime": "1831e688ff18a7029295f4e3380fc1150ffdee25cbcddda7f538775dbb95fa60",
+      "cold": "e343d2e783f72dda4a6664f8d7a329a77201836c509decfb1e02a8aa8fbc141a",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395023
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.735
+  },
+  {
+    "capture": "round3/runs/navigation-claim-m6-065203/evidence/cold-once.png",
+    "inputs": {
+      "prime": "f4a3ba4041860cb8915175c768bf87c343d769415f19bc1e9d5e9b7bcf90920c",
+      "cold": "f05e20c3056ac9ce1ba89b40f67879b132e9cc980c6318f6e6edf07fefd55f41",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395047
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.743
+  },
+  {
+    "capture": "round3/runs/newest-first-m6-064102/evidence/cold-once.png",
+    "inputs": {
+      "prime": "a104fc4f46bd0450d3ea946e5ad09712048c86850ec50b2281af65861e080e34",
+      "cold": "abc8ecb1c6a1ac876d211d8c7a2fdac3a7f15248be8e5ae79300074e7fa3d74d",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395052
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.752
+  },
+  {
+    "capture": "round3/runs/none-m6-062459/evidence/cold-once.png",
+    "inputs": {
+      "prime": "42f776e49e06723afe065a9d80230f80b98c39c46b68cf3cae4e2f6d04692cef",
+      "cold": "9f0bb1b3b401cc6f0ed27579c82c2422726dbe3c06ec0648e0d6b876ef9dd639",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395052
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.768
+  },
+  {
+    "capture": "round3/runs/none-m6-062854/evidence/cold-once.png",
+    "inputs": {
+      "prime": "719247e79760c6cbd221fb6cf4a134896c5dffecba939300bba5092780fd5a38",
+      "cold": "ab91f510a04a6b3c5be698158ebd6d02883a1347b4077ce5fe3cd45ab3b857d9",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395043
+    ],
+    "round4": [
+      false,
+      0.748322
+    ],
+    "changed": false,
+    "wallSeconds": 3.733
+  },
+  {
+    "capture": "round3/runs/none-m6-071102/evidence/cold-once.png",
+    "inputs": {
+      "prime": "0608c138c9bf87a8f539f3b4121e39af6585c34e585f0a0f50de806984b499db",
+      "cold": "3d739a3ddae19915977945ff7fe0a9b3b33a4a177d27b7a2ed0f4f55e04e6967",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395038
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.77
+  },
+  {
+    "capture": "round3/runs/reversed-sends-m6-064846/evidence/cold-once.png",
+    "inputs": {
+      "prime": "90a5d750164ee5d42de47900848db757bbcf342d49b7609a2e0509f6d427a098",
+      "cold": "04687afc2022239bcd5fe0a7290467a1baaf56f82e2147996b249645e2ea27a2",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395034
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.787
+  },
+  {
+    "capture": "round3/runs/scroll-no-screen-m6-063637/evidence/cold-once.png",
+    "inputs": {
+      "prime": "258ddb78439be45b407bc5edc51f204438aca947c1b017a73baf3261f639b9f4",
+      "cold": "6014b344f9de4a21abd8971f5234d323f73eb3587655a149a22974f3763e5b60",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395031
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.756
+  },
+  {
+    "capture": "round3/runs/undecodable-video-m6-070521/evidence/cold-once.png",
+    "inputs": {
+      "prime": "674df14bb00d439f13419082894efd34f03158ea7e5b952380b5d21c9317d672",
+      "cold": "8f1d4e4ad52d277abdfa2eef04a414ab8d1d324cb03f2345c0ec4d35f63bc4b6",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395033
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.738
+  },
+  {
+    "capture": "round3/runs/wrong-receipts-m6-065956/evidence/cold-once.png",
+    "inputs": {
+      "prime": "cb68f1a2c7abaa2cf005f7c371da535bf6610e56b02dd4ff106a70c2f6c38775",
+      "cold": "73f87f6b6804e3d4cdfb326fb53775da8381aa3f0bedc558c53b9776d2778b4e",
+      "fixture": "25e9fe70a44e20163612119d33f5c7f6a3898762ef632dc277a602a2b1156213"
+    },
+    "round3": [
+      false,
+      0.395221
+    ],
+    "round4": [
+      false,
+      0.748323
+    ],
+    "changed": false,
+    "wallSeconds": 3.738
+  }
+]

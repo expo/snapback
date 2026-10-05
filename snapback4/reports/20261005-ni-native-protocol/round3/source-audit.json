@@ -1,0 +1,22 @@
+{
+  "instrument": {
+    "commit": "2eccfb33a679e72d35dda591368ce7b29800d7e1",
+    "inventorySha256": "862a65fe6f347fa4ccf2a362aece4184e20b8692e68b3db494fcd0f630e4a2fa",
+    "instrumentPin": "social-messenger@0.4.0-native.1",
+    "scoredUse": false
+  },
+  "checks": [
+    {
+      "check": "85 frozen inputs",
+      "passed": true,
+      "count": 85
+    }
+  ],
+  "copiedBuildInputs": 43,
+  "copiedBuildInputsMatch": true,
+  "build": {
+    "nativeSha256": "323552a12119771bdcdec5ad96bb8f13e6a57f1ad38b4d1dc5f63319df45bb5a",
+    "hermesSha256": "89cc805e6728664498e59dd7c3eb765fc806a4b5a8b1d08dcba6f1ab779bca90"
+  },
+  "driverBinarySha256": "ab31fc90aa1265e49d1c14b6f7bb0aaa6555fc07c031d4e68d8be38ad0fab7f9"
+}

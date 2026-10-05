@@ -1,0 +1,138 @@
+{
+  "pre-reopen-viewonce": {
+    "run": "pre-reopen-viewonce-m6-063218",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "viewonce-reloaded-in-cold-process",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 39.558,
+        "nativeCommands": 23,
+        "enteredSteps": 2,
+        "operatorInvocations": 1
+      }
+    },
+    "coldViewonceLoads": [
+      {
+        "sequence": 3,
+        "receivedAt": 1791207175.6803908,
+        "provenance": "cache"
+      }
+    ],
+    "reopenAttempted": false
+  },
+  "elsewhere-viewonce": {
+    "run": "elsewhere-viewonce-m6-063259",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "stale-viewonce-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 55.724,
+        "nativeCommands": 50,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "pixels": {
+      "samePixels": true,
+      "matchScore": 1.0,
+      "frame": {
+        "x": 30,
+        "width": 288,
+        "height": 192,
+        "y": 190,
+        "screenWidth": 390
+      }
+    },
+    "coldViewonceLoads": []
+  },
+  "bright-viewonce": {
+    "run": "bright-viewonce-m6-063357",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "stale-viewonce-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 55.911,
+        "nativeCommands": 50,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "pixels": {
+      "samePixels": true,
+      "matchScore": 0.999996,
+      "frame": {
+        "height": 192,
+        "width": 288,
+        "x": 30,
+        "y": 190,
+        "screenWidth": 390
+      }
+    },
+    "coldViewonceLoads": []
+  },
+  "delayed-refusal": {
+    "run": "delayed-refusal-m6-063454",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": true,
+      "receipt": "m6-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 98.178,
+        "nativeCommands": 50,
+        "enteredSteps": 8,
+        "operatorInvocations": 1
+      }
+    },
+    "denialSecondsAfterAttempt": 2.857,
+    "captureSecondsAfterAttempt": 2.865
+  },
+  "scroll-no-screen": {
+    "run": "scroll-no-screen-m6-063637",
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": true,
+      "receipt": "m6-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 100.354,
+        "nativeCommands": 52,
+        "enteredSteps": 8,
+        "operatorInvocations": 1
+      }
+    },
+    "scrolls": 1,
+    "postTapScreensBeforeScroll": 1,
+    "postScrollScreens": 0
+  },
+  "stale-restart-capture": {
+    "run": "stale-restart-capture-m8-063822",
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": null,
+      "receipt": "m8-ios-run.json",
+      "reason": "artifact-validation:restart-capture-before-relaunch",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 100.114,
+        "nativeCommands": 55,
+        "enteredSteps": 5,
+        "operatorInvocations": 1
+      }
+    },
+    "actualRestartRetained": true,
+    "replayedCaptureAt": 1791207568.277511,
+    "relaunchedAt": 1791207569.393616
+  }
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "run": "none-m6-025343",
+    "file": "final-read.png",
+    "sha256": "031d7d177f4dbb67cdebdaf8bb4647e0a70131d448dbed2aa3ee02a23bfa99e2",
+    "observation": "Both ordered nonce bodies are visible with timestamps and blue double read ticks."
+  },
+  {
+    "run": "none-m6-025343",
+    "file": "cold-once.png",
+    "sha256": "126332c7b203046208dc6ee27bad7107ca5de575cf1a0e1894067f42457ca1d6",
+    "observation": "The view-once row says Opened and Consumed; no view-once viewer image is shown."
+  },
+  {
+    "run": "none-m6-031700",
+    "file": "final-read.png",
+    "sha256": "336f40d1139f4208c044eafa6be3a766131477cc720be4a535cbbf0a3717aac4",
+    "observation": "Both ordered nonce bodies are visible with timestamps and blue double read ticks."
+  },
+  {
+    "run": "none-m6-031700",
+    "file": "cold-once.png",
+    "sha256": "0d28454388fb3c06d7f2418b3eda8bfecfa1b81069f5bacecada713a952d7d4b",
+    "observation": "The view-once row says Opened and Consumed; no view-once viewer image is shown."
+  },
+  {
+    "run": "none-m6-042822",
+    "file": "final-read.png",
+    "sha256": "8d3cb4ab2b3f07cbedc901e75c4755133705dddcc7aaefacca48196484bcd949",
+    "observation": "Both nonce bodies are visible in compose order with timestamps and blue double read ticks.",
+    "review": "Continuation: direct screenshot inspection of final-source run"
+  },
+  {
+    "run": "none-m6-042822",
+    "file": "cold-once.png",
+    "sha256": "df892629ce5268921e829e7f8e630069a33c0b9051e0aabe23cd5726c1a574a5",
+    "observation": "The view-once control says Opened and Consumed; the ordinary photo is visible and no view-once viewer image is shown.",
+    "review": "Continuation: direct screenshot inspection of final-source run"
+  },
+  {
+    "run": "newest-first-m6-044625",
+    "file": "cold-search.png",
+    "sha256": "c30e852f26c007c790c0d1c573ffa367e4360f12579d7418a5ff40a764e3c1d3",
+    "observation": "The expected durable needle history body is visible after scrolling; the ordinary photo and consumed view-once control remain in the conversation.",
+    "review": "Continuation: direct screenshot inspection of final-source run"
+  },
+  {
+    "run": "none-m8-044027",
+    "file": "final-read.png",
+    "sha256": "2674ad170b96a2cdade2fd2a4283be3fa9430f8b0c304b01b1cc271d83632adf",
+    "observation": "The first nonce body and its blue double read ticks are visible. The second bubble begins at the lower viewport edge; its read value is exposed in the native tree but its tick is below the screenshot. This visual record does not claim both ticks are visible in this frame.",
+    "review": "Continuation: direct screenshot inspection of final-source run"
+  }
+]

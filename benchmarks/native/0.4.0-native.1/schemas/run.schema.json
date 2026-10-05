@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/clique-native/1/run",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": "0.4.0-native.1"
+    },
+    "protocol": {
+      "const": "clique-native/1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "segment": {
+      "enum": [
+        "m6",
+        "m8"
+      ]
+    },
+    "qualificationOnly": {
+      "const": true
+    },
+    "instrument": {
+      "type": "object",
+      "required": [
+        "commit",
+        "inventorySha256",
+        "instrumentPin",
+        "scoredUse"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "inventorySha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "instrumentPin": {
+          "const": "social-messenger@0.4.0-native.1"
+        },
+        "scoredUse": {
+          "const": false
+        }
+      }
+    },
+    "driverSourceSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "driverBinarySha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "installedBefore": {
+      "type": "object",
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "installedAfter": {
+      "type": "object",
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "simulator": {
+      "type": "object",
+      "properties": {
+        "udid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "udid",
+        "runtime"
+      ],
+      "additionalProperties": false
+    },
+    "host": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "xcode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name",
+        "xcode"
+      ],
+      "additionalProperties": false
+    },
+    "backend": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "origin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "argv",
+        "origin",
+        "cwd"
+      ],
+      "additionalProperties": false
+    },
+    "storeBefore": {
+      "type": "object"
+    },
+    "storeAfter": {
+      "type": "object"
+    },
+    "launches": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1
+    },
+    "prime": {
+      "type": "object"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "offlineProbes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "assertionEvidence": {
+      "type": "object"
+    },
+    "video": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "codec": {
+          "const": "h264"
+        },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "decodedEndpoints": {
+          "const": true
+        },
+        "decodedFrames": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "codec",
+        "durationSeconds",
+        "decodedEndpoints"
+      ],
+      "additionalProperties": false
+    },
+    "reinstalledDuringMeasurement": {
+      "const": false
+    },
+    "failure": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "cost": {
+      "type": "object"
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "protocol",
+    "runId",
+    "segment",
+    "qualificationOnly",
+    "instrument",
+    "driverSourceSha256",
+    "driverBinarySha256",
+    "build",
+    "installedBefore",
+    "installedAfter",
+    "simulator",
+    "host",
+    "backend",
+    "storeBefore",
+    "storeAfter",
+    "launches",
+    "prime",
+    "steps",
+    "offlineProbes",
+    "assertionEvidence",
+    "video",
+    "reinstalledDuringMeasurement",
+    "failure",
+    "cost",
+    "files"
+  ],
+  "additionalProperties": false
+}

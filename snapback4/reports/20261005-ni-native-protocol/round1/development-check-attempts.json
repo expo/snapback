@@ -1,0 +1,18 @@
+[
+  {
+    "check": "Python review regressions, first expanded suite",
+    "result": "one test fixture omitted oracleArgv; corrected the test setup, then all 33 passed"
+  },
+  {
+    "check": "UI kit first invocation",
+    "result": "explicit video-fixture path did not exist; copied the frozen vid-01.mp4 into scratch, then all three tests and typecheck passed"
+  },
+  {
+    "check": "unit-tests-during-pin-update.log",
+    "result": "INSTRUMENT_COMMIT changed while a test was reading its fixture; provenance correctly rejected the old identity; reran with stable identity"
+  },
+  {
+    "check": "M8 artifact controls first invocation",
+    "result": "missing --segment m8 caused evidence-missing:m6-ios-run.json; retained the invocation error and reran with the explicit segment"
+  }
+]

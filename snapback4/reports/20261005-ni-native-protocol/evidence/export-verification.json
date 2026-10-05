@@ -1,0 +1,6 @@
+{
+  "archiveSha256": "a6d54479ce1bbb3b3f0a956320c5379d8ba8e37b4c46ef1d5b580bb58a7b55d6",
+  "filesVerified": 1050,
+  "pass": true,
+  "priorPartialUnpack": "Attempted before SCP completed; EOF/missing-file checks rejected it. No evidence was accepted before this complete hash verification."
+}

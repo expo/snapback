@@ -1,0 +1,67 @@
+[
+  {
+    "path": "scripts/check-inventories.mjs",
+    "baselineBlob": "0b180ba0e38b8815abf823888992039757556380",
+    "currentBlob": "0b180ba0e38b8815abf823888992039757556380"
+  },
+  {
+    "path": "scripts/check-scripts-test-inventory.mjs",
+    "baselineBlob": "924790c6951cec826dfc1d8f3ec4307bc19d37bb",
+    "currentBlob": "924790c6951cec826dfc1d8f3ec4307bc19d37bb"
+  },
+  {
+    "path": "scripts/caps.test.mjs",
+    "baselineBlob": "bb5677ee8a0b44bd429522a1e2471f224ba37155",
+    "currentBlob": "bb5677ee8a0b44bd429522a1e2471f224ba37155"
+  },
+  {
+    "path": "guide/capabilities.md",
+    "baselineBlob": "7532497fe9efebe6e8c887b1f3efbcd4959be0b3",
+    "currentBlob": "7532497fe9efebe6e8c887b1f3efbcd4959be0b3"
+  },
+  {
+    "path": "guide/auth/app-identity-binding.md",
+    "baselineBlob": "c5c716f29da1835d837855faf3bf444cdf2f8415",
+    "currentBlob": "c5c716f29da1835d837855faf3bf444cdf2f8415"
+  },
+  {
+    "path": "guide/deploying/hosted-control.md",
+    "baselineBlob": "ad8cf06aebaa3f8a4ede51af3db9f64ca0bdfa11",
+    "currentBlob": "ad8cf06aebaa3f8a4ede51af3db9f64ca0bdfa11"
+  },
+  {
+    "path": "guide/deploying/index.md",
+    "baselineBlob": "1ca721443a3faa178aa0cc4e5273736e928ea35a",
+    "currentBlob": "1ca721443a3faa178aa0cc4e5273736e928ea35a"
+  },
+  {
+    "path": "guide/recipes/auth-transition-writes.md",
+    "baselineBlob": "1699ecb24471020f4a50519e6696bde71f664e2c",
+    "currentBlob": "1699ecb24471020f4a50519e6696bde71f664e2c"
+  },
+  {
+    "path": "guide/recipes/split-sensitive-fields.md",
+    "baselineBlob": "615b632608bcc94014ab69a65798a9ef6be34965",
+    "currentBlob": "615b632608bcc94014ab69a65798a9ef6be34965"
+  },
+  {
+    "path": "guide/sync/offline-and-retention.md",
+    "baselineBlob": "cad0c951f731c3159db10c7f5766b703e43b458a",
+    "currentBlob": "cad0c951f731c3159db10c7f5766b703e43b458a"
+  },
+  {
+    "path": "guide/reference/diagnostics-registry.json",
+    "baselineBlob": "042c460cb81349215ccca856b38c9ab3aa01895b",
+    "currentBlob": "042c460cb81349215ccca856b38c9ab3aa01895b"
+  },
+  {
+    "path": "guide/reference/diagnostics.md",
+    "baselineBlob": "90ab5fa642b04184a5208c3b0e36e326b1832241",
+    "currentBlob": "90ab5fa642b04184a5208c3b0e36e326b1832241"
+  },
+  {
+    "path": "packages/snapback-client/diagnostic-codes.d.mts",
+    "baselineBlob": "30f19e407982a0d94ff6581f23e56783c498f480",
+    "currentBlob": "30f19e407982a0d94ff6581f23e56783c498f480"
+  }
+]

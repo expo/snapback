@@ -1,0 +1,14 @@
+{
+  "scratch": "/tmp/ni-r3-local",
+  "scratchDeleted": true,
+  "fleetReadScratchDeleted": true,
+  "retainedChecks": "/home/ccheever/sb5-evidence-archive/20261005-ni/round3/checks",
+  "excluded": [
+    "venv",
+    "materialized",
+    "final-materialized",
+    "__pycache__"
+  ],
+  "initialAttempt": "Read-only materialized directory refused unlink of failure.mjs.",
+  "resolution": "Enabled owner write on task-owned directories only, then removed the complete scratch tree. Frozen source files were not changed."
+}

@@ -1,0 +1,476 @@
+[
+  {
+    "run": "bob-wrong-conversation-m6-013159",
+    "control": "bob-wrong-conversation",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "bob-wrong-conversation-or-principal",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 93.928,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": null,
+      "m6-a06": true,
+      "m6-a07": false
+    },
+    "failure": {
+      "reason": "bob-wrong-conversation-or-principal",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 94.601
+  },
+  {
+    "run": "collapsed-receipt-m6-012951",
+    "control": "collapsed-receipt",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "receipt-accessibility:pending",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 78.273,
+        "nativeCommands": 64,
+        "enteredSteps": 6,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": false,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "receipt-accessibility:pending",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 78.908
+  },
+  {
+    "run": "duplicate-sends-m6-012413",
+    "control": "duplicate-sends",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-occurrence-count:2",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 145.475,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": null,
+      "m6-a06": false,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "server-occurrence-count:2",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 146.137
+  },
+  {
+    "run": "navigation-claim-m6-013847",
+    "control": "navigation-claim",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "screen-conversation",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 62.684,
+        "nativeCommands": 64,
+        "enteredSteps": 5,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": false,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "screen-conversation",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 63.359
+  },
+  {
+    "run": "none-m6-011546",
+    "control": "none",
+    "segment": "m6",
+    "qualifiedIdentity": false,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "bubble-identity-count:78e9d4dd-f2c5-4e64-83c2-62d853d69bc9",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 44.46,
+        "nativeCommands": 26,
+        "enteredSteps": 2,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": false,
+      "m6-a02": null,
+      "m6-a04": null,
+      "m6-a03": null,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "bubble-identity-count:78e9d4dd-f2c5-4e64-83c2-62d853d69bc9",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 45.258
+  },
+  {
+    "run": "none-m6-011810",
+    "control": "none",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": true,
+      "receipt": "m6-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 95.514,
+        "nativeCommands": 43,
+        "enteredSteps": 8,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": true,
+      "m6-a06": true,
+      "m6-a07": true
+    },
+    "failure": null,
+    "outerWallSeconds": 96.229
+  },
+  {
+    "run": "none-m8-012013",
+    "control": "none",
+    "segment": "m8",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": true,
+      "receipt": "m8-ios-run.json",
+      "reason": null,
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 96.998,
+        "nativeCommands": 53,
+        "enteredSteps": 5,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m8-a17": true,
+      "m8-a18": true
+    },
+    "failure": null,
+    "outerWallSeconds": 97.452
+  },
+  {
+    "run": "placeholder-m6-012150",
+    "control": "placeholder",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "placeholder-or-wrong-media-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 42.731,
+        "nativeCommands": 29,
+        "enteredSteps": 3,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": false,
+      "m6-a04": null,
+      "m6-a03": null,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "placeholder-or-wrong-media-pixels",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 43.487
+  },
+  {
+    "run": "reversed-sends-m6-012639",
+    "control": "reversed-sends",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-send-order",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 144.706,
+        "nativeCommands": 43,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": null,
+      "m6-a06": false,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "server-send-order",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 145.357
+  },
+  {
+    "run": "stale-viewonce-m6-012904",
+    "control": "stale-viewonce",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "stale-viewonce-pixels",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 46.139,
+        "nativeCommands": 34,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": false,
+      "m6-a03": null,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "stale-viewonce-pixels",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 46.785
+  },
+  {
+    "run": "volatile-outbox-m8-012234",
+    "control": "volatile-outbox",
+    "segment": "m8",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": false,
+      "receipt": "m8-ios-run.json",
+      "reason": "fixture-row-not-found:local-muuzghei-ut6ekfjsepg",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 98.469,
+        "nativeCommands": 69,
+        "enteredSteps": 3,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m8-a17": false,
+      "m8-a18": null
+    },
+    "failure": {
+      "reason": "fixture-row-not-found:local-muuzghei-ut6ekfjsepg",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 98.908
+  },
+  {
+    "run": "wrong-conversation-m6-013951",
+    "control": "wrong-conversation",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "screen-conversation",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 43.486,
+        "nativeCommands": 26,
+        "enteredSteps": 2,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": false,
+      "m6-a02": null,
+      "m6-a04": null,
+      "m6-a03": null,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "screen-conversation",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 44.131
+  },
+  {
+    "run": "wrong-fixture-m6-013110",
+    "control": "wrong-fixture",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": null,
+      "receipt": "m6-ios-run.json",
+      "reason": "fixture-row-not-found:fffb783b-2b85-490c-9003-388721397b59",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 48.582,
+        "nativeCommands": 48,
+        "enteredSteps": 0,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": null,
+      "m6-a02": null,
+      "m6-a04": null,
+      "m6-a03": null,
+      "m6-a05": null,
+      "m6-a06": null,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "fixture-row-not-found:fffb783b-2b85-490c-9003-388721397b59",
+      "outcomeClass": "setup"
+    },
+    "outerWallSeconds": 48.953
+  },
+  {
+    "run": "wrong-receipts-m6-013334",
+    "control": "wrong-receipts",
+    "segment": "m6",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": false,
+      "receipt": "m6-ios-run.json",
+      "reason": "server-receipt-state:read",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 155.012,
+        "nativeCommands": 165,
+        "enteredSteps": 7,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m6-a01": true,
+      "m6-a02": true,
+      "m6-a04": true,
+      "m6-a03": true,
+      "m6-a05": false,
+      "m6-a06": true,
+      "m6-a07": null
+    },
+    "failure": {
+      "reason": "server-receipt-state:read",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 155.675
+  },
+  {
+    "run": "wrong-receipts-m8-013610",
+    "control": "wrong-receipts",
+    "segment": "m8",
+    "qualifiedIdentity": true,
+    "status": {
+      "id": "ios-simulator-m8",
+      "pass": false,
+      "receipt": "m8-ios-run.json",
+      "reason": "server-receipt-state:read",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 157.416,
+        "nativeCommands": 172,
+        "enteredSteps": 4,
+        "operatorInvocations": 1
+      }
+    },
+    "assertions": {
+      "m8-a17": true,
+      "m8-a18": false
+    },
+    "failure": {
+      "reason": "server-receipt-state:read",
+      "outcomeClass": "application"
+    },
+    "outerWallSeconds": 157.851
+  }
+]

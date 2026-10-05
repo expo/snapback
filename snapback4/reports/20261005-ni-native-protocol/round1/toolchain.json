@@ -1,0 +1,8 @@
+{
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "node": "v24.18.0",
+  "python": "Python 3.9.6",
+  "playwright": "1.62.1",
+  "pillow": "11.3.0",
+  "jsonschema": "4.25.1"
+}

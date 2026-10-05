@@ -1,0 +1,53 @@
+{
+  "matrixSource": "eb2ac6d6427289299d3d8b1778a840de490bb896",
+  "finalSource": "2eccfb33a679e72d35dda591368ce7b29800d7e1",
+  "changedPaths": [
+    "benchmarks/native/0.4.0-native.1/CONTRACT.md",
+    "benchmarks/native/0.4.0-native.1/INSTRUMENT.sha256",
+    "benchmarks/native/0.4.0-native.1/driver/evidence.py",
+    "benchmarks/native/0.4.0-native.1/driver/run.py",
+    "benchmarks/native/0.4.0-native.1/instrument.manifest.json",
+    "benchmarks/native/0.4.0-native.1/reference/artifact-controls.py",
+    "benchmarks/native/0.4.0-native.1/tests/test_round2.py",
+    "benchmarks/native/0.4.0-native.1/tests/test_round3.py"
+  ],
+  "liveBehaviorInputs": [
+    {
+      "path": "driver/run.py",
+      "sha256": "17beb74a01ca478b573659a1fcfe04af654c59b43bb73997b10e57ee303e681c",
+      "bytesUnchanged": false,
+      "executableCodeUnchanged": false
+    },
+    {
+      "path": "driver/evidence.py",
+      "sha256": "a207848eb191eda90b62ecc9f8a8c2dc7a5a3d3b43a3b3bd9cd992f6b1d8f298",
+      "bytesUnchanged": false,
+      "executableCodeUnchanged": true
+    },
+    {
+      "path": "reference/App.tsx",
+      "sha256": "a406b5abca948e201073fca2bf2f273116cae30bf7708a410227a5c8423a7166",
+      "bytesUnchanged": true,
+      "executableCodeUnchanged": true
+    },
+    {
+      "path": "reference/server.mjs",
+      "sha256": "1812a2de21e4ed2a6f228d62af6b855fb4b7e3fd18993e0081c81ebb2c5b4bd6",
+      "bytesUnchanged": true,
+      "executableCodeUnchanged": true
+    },
+    {
+      "path": "reference/replay-restart.py",
+      "sha256": "798c20c6ca28f1fe44b5116bec97d082145ba9b9c2c4a8cdac81e47c0de77f4a",
+      "bytesUnchanged": true,
+      "executableCodeUnchanged": true
+    },
+    {
+      "path": "reference/qualify.py",
+      "sha256": "6305ea2e87b00f6c7ed7cf948c0c9e05eb8d4b00b5c19192f39d2b7493b8e4a8",
+      "bytesUnchanged": true,
+      "executableCodeUnchanged": true
+    }
+  ],
+  "qualification": "Final-source M6/M8 and corrected retained controls rerun. The final driver drains the journal after process termination, covered by a regression; prior live controls retain their original identities."
+}
