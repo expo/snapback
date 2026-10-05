@@ -217,13 +217,16 @@ protocol. Trusted bootstrap captures that object, deletes its global, and
 keeps the object and every member behind closures only; `Hermes::harden()`
 refuses construction if the object or a member remains reachable from the
 frozen graph. The test-owner bound wrapper performs logical grant/binding
-checks before the raw primitive; a refusal before raw leaves the ordinary
-Headers handle unclaimed, while a call into the primitive transfers the fresh
-snapshot into that object's domain and releases it exactly once after
-settlement. Response handles finish by EOF, terminal read rejection, or field
-8 cancellation; control tokens release once. Snapback keeps lowercase header
-pairs for the next hop and applies §1's rewrite and strip rules there. Neither
-the object nor a member is reachable from authored effects.
+and URL-substitution checks before allocating a Headers snapshot or control
+token, so a refusal before raw creates neither. After admission every fresh
+snapshot reaches the primitive `fetch`; adoption transfers it into that
+object's domain, and `headersFree` releases it exactly once after the promise
+settles. `headersFree` has no release path for an unadopted snapshot. Response
+handles finish by EOF, terminal read rejection, or field 8 cancellation; a
+closure-private iterable cancels any unread handles on either job-settlement
+path. Control tokens end with `fetchControl(2)`. Snapback keeps lowercase
+header pairs for the next hop and applies §1's rewrite and strip rules there.
+Neither the object nor a member is reachable from authored effects.
 
 A JS exception is `Failed { retry: true }`; a grant denial (`denied:
 net.fetch`) is `Failed { retry: false }` — retrying a refused origin is
