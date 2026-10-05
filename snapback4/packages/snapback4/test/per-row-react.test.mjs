@@ -22,7 +22,9 @@ async function browserFixture(t, harness, setup = async () => {}) {
   writeFileSync(join(temporary, 'index.html'), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(temporary, 'harness.jsx'), harness);
   server = await createServer({ root: temporary, configFile: false, logLevel: 'error',
-    server: { host: '127.0.0.1', port: 0, fs: { allow: [root, temporary] } },
+    // This immutable fixture must retain its page through held notification
+    // turns; a development reload would replace the context under assertions.
+    server: { hmr: false, watch: null, host: '127.0.0.1', port: 0, fs: { allow: [root, temporary] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve('react') },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve('react/jsx-runtime') },

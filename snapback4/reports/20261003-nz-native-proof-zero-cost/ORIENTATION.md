@@ -129,3 +129,23 @@ three-mode failed-handoff/held-wrapper tests and the held-publication-lock contr
 Doc targets: dated §15, witness guide, Round 7 report and append-only JOURNAL.
 No other host, worktree, process or simulator; no new native measurement or
 independent review is claimed. Hand-off: none.
+
+
+Round 8 (2026-10-04), base aa75cab431: LLP 3000.030 §15 governs the single
+retention liveness invariant requested by the operator: bounded waits only on
+live custody, repair ownerless transactions/shells, and no spinning retry chain.
+Preserve namespace verification, rollback/current evidence pins and deletion
+outside the publication lock. Keep the 30-second native worker budget, WD drain,
+coalescing and background-only preparation bounds. Update wrapper failure custody,
+retention/recovery, deterministic tests, dated §15, witness guide, report and
+append-only JOURNAL. Supplied operator findings are the review input; no new
+independent review or native/cross-host measurement is claimed. Same mini only;
+no other worktree, process or simulator, no push. Hand-off: none.
+
+Round 8 qualification also exposed a navigation in the unchanged `per-row-react`
+fixture. LLP 3000 §7 “Publication suite under contention” and LLP 3000.023 §10
+require preserving outcomes and real notification ordering. The neighboring
+`answers-stay-react` and `typing-expiry` fixtures disable Vite reloads; applying
+that same immutable-page policy changes no client behavior or assertion. A
+forced reload reproduces the observed execution-context error; the original
+intermittent navigation was not instrumented and its exact trigger is unconfirmed.

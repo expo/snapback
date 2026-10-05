@@ -313,8 +313,11 @@ setInterval(()=>{},1000);
   f.put('bin/gzip', `#!/bin/sh\nexec '${process.execPath}' '${script}.cjs' "$@"\n`, 0o755);
 }
 for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['before','supersede'], ['before','deadline'], ['after','SIGTERM'], ['after','SIGKILL'], ['after','supersede']]) test(`blocked retention has bounded custody: ${phase} ${mode}`, { skip: process.platform !== 'darwin', timeout: 90000 }, async () => {
-  const f = fixture();
+  const f = fixture(); let pending;
   try {
+    // Keep automatic maintenance pending while the proof's post-driver
+    // retention enters compression; its guardian is the intended victim.
+    if (phase === 'after') pending = await holdRetention(f, 'maintenance');
     if (phase === 'before') blockedRetention(f);
     assert.equal(f.invoke().status, 0);
     const first = f.latest();
@@ -356,7 +359,7 @@ for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['befor
     await until(() => f.events().length > 0, 'new proof acquired the lease and reached its tool');
     f.put('continue', ''); assert.equal(f.status('--wait').status, 2);
     console.log(`retention ${phase} ${mode}: compressor group drained in ${elapsed} ms; newer proof started`);
-  } finally { await cleanup(f); }
+  } finally { if(pending){pending.child.stdin.end();await pending.exited;} await cleanup(f); }
 });
 
 
@@ -736,5 +739,158 @@ test('failed maintenance retains a parked request and a later export retries it'
     await maintenanceIdle(f);
     assert.equal(retainedRuns(f).full.length,5);assert.equal(retainedRuns(f).compressed.length,2);
     assert.equal(read(path.join(root,'maintenance-result.json')).error,null);
+  } finally {if(holder){holder.stdin.end();await exited;}await cleanup(f);}
+});
+
+async function holdRetention(f, name = 'retention') {
+  const root=path.join(f.root,'artifacts/native-smoke');fs.mkdirSync(root,{recursive:true});
+  const marker=path.join(f.root,'held-'+randomUUID());
+  const child=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,name+'.lock'),marker],{stdio:['pipe','ignore','inherit']});
+  const exited=once(child,'exit');await until(()=>fs.existsSync(marker),'fixture retention lease held');
+  return {child,exited};
+}
+async function seedQueuedExports(f,count=28) {
+  const saved=f.env.SNAPBACK4_NATIVE_SMOKE;f.env.SNAPBACK4_NATIVE_SMOKE='off';
+  try {for(let i=0;i<count;i++){const r=f.invoke(`retention history ${i}`);assert.equal(r.status,0,r.stdout+r.stderr);}}
+  finally {if(saved===undefined)delete f.env.SNAPBACK4_NATIVE_SMOKE;else f.env.SNAPBACK4_NATIVE_SMOKE=saved;}
+}
+function assertRetentionBound(f) {
+  const runs=retainedRuns(f);
+  assert.equal(runs.full.length,5);assert.equal(runs.compressed.length,20);assert.equal(runs.dirs.length,25);
+  assert.ok(runs.full.includes(f.latest().artifacts),'current evidence remains full');
+  for(const dir of runs.compressed)assert.ok(fs.existsSync(path.join(dir,'result.json.gz')),'actual compressed result evidence');
+}
+for(const point of ['before','after'])test(`retention repairs an ownerless publication ${point} exchange without worker respawn`,{timeout:120000},async()=>{
+  const f=fixture();let held,wrapperChild,wrapperExit,publisher;
+  try {
+    skipMode(f,'off');held=await holdRetention(f);await seedQueuedExports(f);
+    const previous=f.latest(),root=path.join(f.root,'artifacts/native-smoke');
+    const library=path.join(f.root,'publication.'+(process.platform==='darwin'?'dylib':'so'));
+    const compiled=spawnSync('cc',[...(process.platform==='darwin'?['-dynamiclib']:['-shared','-fPIC']),new URL('./publication-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+    assert.equal(compiled.status,0,compiled.stderr);
+    f.put('dispatch.mjs',`#!${process.execPath}
+import {spawnSync} from 'node:child_process';
+const args=process.argv.slice(2),env={...process.env};
+if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
+const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
+process.exit(r.status??1);
+`,0o755);
+    const barrier=path.join(f.root,'publisher-paused');
+    wrapperChild=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,SNAPBACK4_BIN:path.join(f.root,'dispatch.mjs'),SB4_FAULT:'pause-'+point,SB4_FAULT_TARGET:path.join(f.root,'dist'),SB4_FAULT_BARRIER:barrier},stdio:['ignore','pipe','pipe']});
+    let output='';wrapperChild.stdout.on('data',x=>output+=x);wrapperChild.stderr.on('data',x=>output+=x);wrapperExit=once(wrapperChild,'exit');
+    await until(()=>fs.existsSync(barrier),'our publisher paused at the namespace boundary');publisher=Number(fs.readFileSync(barrier,'utf8'));
+    assert.ok(fs.existsSync(path.join(root,'publication-pending.json')));
+    const observer=read(path.join(root,'maintenance-next.json')).process.pid;
+    held.child.stdin.end();await held.exited;held=null;
+    const end=Date.now()+2200;
+    while(Date.now()<end){await pause();assert.ok(alive(observer));assert.equal(read(path.join(root,'maintenance-active.json'))?.attempt??0,0,'live publication waits passively');}
+    process.kill(publisher,'SIGKILL');publisher=null;
+    const [code]=await wrapperExit;assert.notEqual(code,0,output);wrapperChild=null;
+    const repairStarted=Date.now();await maintenanceIdle(f);
+    assert.ok(Date.now()-repairStarted<30000,'ownerless transaction repaired without a later export');
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,1,'one worker repairs and prunes; no retry chain');
+    assert.equal(fs.existsSync(path.join(root,'publication-pending.json')),false);
+    assert.equal(f.latest().generation,previous.generation);assert.equal(f.status('--wait').status,2);
+    assert.match(f.status().stdout,/native smoke skipped/);
+    assertRetentionBound(f);
+    for(let i=0;i<10;i++){await pause();assert.equal(read(path.join(root,'maintenance-active.json')).attempt,1);}
+    console.log(JSON.stringify({interruptedPublication:point,workerStarts:1,repairMs:Date.now()-repairStarted,full:5,compressed:20}));
+  } finally {
+    if(publisher&&alive(publisher))process.kill(publisher,'SIGKILL');
+    if(wrapperChild)await wrapperExit;
+    if(held){held.child.stdin.end();await held.exited;}
+    await cleanup(f);
+  }
+});
+
+for(const mode of ['off','non-macOS','background'])test(`failed export lease removes its shell and retention repairs legacy ownerless runs (${mode})`,{skip:process.platform!=='darwin',timeout:120000},async()=>{
+  const f=fixture();let held;
+  try {
+    if(mode!=='background')skipMode(f,mode);
+    held=await holdRetention(f);await seedQueuedExports(f);
+    const root=path.join(f.root,'artifacts/native-smoke');
+    f.put('lease-fails','#!/bin/sh\nexit 1\n',0o755);
+    const saved=f.env.SNAPBACK4_BIN;f.env.SNAPBACK4_BIN=path.join(f.root,'lease-fails');
+    const failed=f.invoke();f.env.SNAPBACK4_BIN=saved;
+    assert.notEqual(failed.status,0);assert.match(failed.stderr,/export lease failed/);
+    assert.equal(retainedRuns(f).dirs.length,28,'failed initialization leaves no numeric run shell');
+    f.put('lease-fails',`#!/bin/sh
+if [ "$4" = "--initialize" ]; then exec '${binary}' "$@"; fi
+exit 1
+`,0o755);
+    f.env.SNAPBACK4_BIN=path.join(f.root,'lease-fails');const afterCreate=f.invoke();f.env.SNAPBACK4_BIN=saved;
+    assert.notEqual(afterCreate.status,0);assert.match(afterCreate.stderr,/export lease failed/);
+    assert.equal(retainedRuns(f).dirs.length,28,'failed export lease removes the already-created shell');
+    const shells=[];
+    for(let i=0;i<10;i++) {
+      const dir=path.join(root,`${9999999999999+i}-1`);shells.push(dir);fs.mkdirSync(dir);
+      if(i%2) {fs.mkdirSync(path.join(dir,'export'));fs.writeFileSync(path.join(dir,'export/partial'),'unfinished bytes');}
+    }
+    // A missing legacy journal must not permit eviction of current evidence.
+    const current=f.latest().artifacts;
+    for(const name of ['live.json','finished.json','publication.json','request.json'])fs.rmSync(path.join(current,name),{force:true});
+    held.child.stdin.end();await held.exited;held=null;
+    const started=Date.now();await maintenanceIdle(f);
+    assert.ok(Date.now()-started<30000,'ownerless states repaired within the worker bound');
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,1);
+    for(const dir of shells)assert.equal(fs.existsSync(dir),false,'empty/partial shells are excluded from all keep slots');
+    assert.equal(read(path.join(current,'finished.json')).missingOwner,true);
+    assertRetentionBound(f);assert.match(f.status().stdout,/native smoke skipped/);
+    console.log(JSON.stringify({ownerlessRepair:mode,removedShells:10,workerStarts:1,full:5,compressed:20}));
+  } finally {if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+for(const gated of [true,false])test(`a live retention owner has a bounded passive observer and leaves a durable retry (launch gate ${gated})`,{timeout:120000},async()=>{
+  const f=fixture();let held,observer,exited;
+  try {
+    skipMode(f,'off');held=await holdRetention(f);
+    const root=path.join(f.root,'artifacts/native-smoke');
+    f.put('artifacts/native-smoke/maintenance-request.json','{"state":"pending"}');
+    // Use the real internal entry with its inherited OS lease and an earlier
+    // deadline, not an environment override that can enlarge product limits.
+    observer=spawn('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",root,binary,String(Date.now()+1500)],{cwd:f.root,env:f.env,stdio:['pipe','ignore','pipe']});
+    let output='';observer.stderr.on('data',x=>output+=x);exited=once(observer,'exit');observer.stdin.on('error',()=>{});if(gated)observer.stdin.end('s');
+    const started=Date.now();
+    const [code]=await exited;observer=null;assert.equal(code,1,output);
+    assert.ok(Date.now()-started<4000,'live-owner observation terminates at its fixed deadline');assert.match(output,/60-minute deadline.*parked/);
+    assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')));
+    assert.equal(read(path.join(root,'maintenance-active.json')),null);
+    await seedQueuedExports(f);
+    held.child.stdin.end();await held.exited;held=null;
+    const later=f.invoke('after bounded wait');assert.equal(later.status,0,later.stdout+later.stderr);
+    await maintenanceIdle(f);assertRetentionBound(f);
+  } finally {if(observer){observer.stdin.end('s');await exited;}if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+test('retention cannot remove a run between directory creation and export lease acquisition',{timeout:120000},async()=>{
+  const f=fixture();let held,child,exited;
+  try {
+    skipMode(f,'off');held=await holdRetention(f);await seedQueuedExports(f);
+    f.put('pause-initialization.cjs',`const fs=require('fs'),old=fs.mkdirSync;fs.mkdirSync=function(p,...args){const value=old.call(this,p,...args);if(/native-smoke\\/\\d+-\\d+$/.test(String(p))){fs.writeFileSync('initializing.json',JSON.stringify({dir:p}));while(!fs.existsSync('resume-initialization'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,25);}return value;};`);
+    child=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,NODE_OPTIONS:`--require=${path.join(f.root,'pause-initialization.cjs')}`},stdio:['ignore','pipe','pipe']});
+    let output='';child.stdout.on('data',x=>output+=x);child.stderr.on('data',x=>output+=x);exited=once(child,'exit');
+    await until(()=>read(path.join(f.root,'initializing.json')),'wrapper paused after mkdir but before export lease');
+    const dir=read(path.join(f.root,'initializing.json')).dir,root=path.join(f.root,'artifacts/native-smoke');
+    assert.equal(read(path.join(dir,'live.json')),null);
+    held.child.stdin.end();await held.exited;held=null;
+    const end=Date.now()+2200;
+    while(Date.now()<end){await pause();assert.ok(fs.existsSync(dir));assert.equal(read(path.join(root,'maintenance-active.json')),null,'initialization lease keeps the observer passive');}
+    f.put('resume-initialization','');const [code]=await exited;child=null;assert.equal(code,0,output);
+    await maintenanceIdle(f);assertRetentionBound(f);
+    assert.equal(read(path.join(root,'maintenance-active.json')).attempt,1);
+  } finally {f.put('resume-initialization','');if(child)await exited;if(held){held.child.stdin.end();await held.exited;}await cleanup(f);}
+});
+
+test('export initialization refuses a live stuck initializer within five seconds',{timeout:30000},async()=>{
+  const f=fixture();let holder,exited;
+  try {
+    skipMode(f,'off');const root=path.join(f.root,'artifacts/native-smoke');fs.mkdirSync(root,{recursive:true});
+    holder=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(root,'initialization.lock'),path.join(f.root,'initialization-held')],{stdio:['pipe','ignore','inherit']});
+    exited=once(holder,'exit');await until(()=>fs.existsSync(path.join(f.root,'initialization-held')),'our initialization lease held');
+    const started=Date.now(),r=f.invoke();assert.notEqual(r.status,0);assert.match(r.stderr,/initialization lease unavailable within 5 seconds/);
+    assert.ok(Date.now()-started>=4900&&Date.now()-started<8000);
+    assert.equal(retainedRuns(f).dirs.length,0);
+    holder.stdin.end();await exited;holder=null;
+    assert.equal(f.invoke().status,0);await maintenanceIdle(f);
   } finally {if(holder){holder.stdin.end();await exited;}await cleanup(f);}
 });

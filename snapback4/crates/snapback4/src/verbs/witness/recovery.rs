@@ -437,22 +437,28 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
 }
 pub(super) fn finished(dir: &Path) -> bool {
     let run = read(&dir.join("smoke-ios-run.json"));
-    dir.join("finished.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
+    dir.join("finished.json").exists() || dir.join("retention.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
 }
 // The caller keeps the candidate's export lease through deletion. A candidate
 // cannot become a publication after this decision without acquiring that lease.
 // Publication locking protects both sides of a swap, including rollback custody;
 // it is released before any recursive deletion or compression.
 fn publication_pinned(root: &Path, dir: &Path) -> Result<bool> {
+    Ok(publication_pin(root, dir)?.unwrap_or(true))
+}
+// None is live publication custody, not evidence that this generation is pinned.
+fn publication_pin(root: &Path, dir: &Path) -> Result<Option<bool>> {
     let request = read(&dir.join("request.json"));
     let publication = read(&dir.join("publication.json"));
-    let Some(target) = request["target"].as_str().or_else(|| publication["target"].as_str()).map(PathBuf::from) else { return Ok(false); };
+    let fallback = root.parent().filter(|p| root.file_name().is_some_and(|n| n == "native-smoke") && p.file_name().is_some_and(|n| n == "artifacts"))
+        .and_then(Path::parent).map(|project| project.join("dist"));
+    let Some(target) = request["target"].as_str().or_else(|| publication["target"].as_str()).map(PathBuf::from).or(fallback) else { return Ok(Some(false)); };
     let lock_path = publication::lock_path(&target)?;
     fs::create_dir_all(lock_path.parent().unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&lock_path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     match lock.try_lock_shared() {
         Ok(()) => {},
-        Err(std::fs::TryLockError::WouldBlock) => { retention::request(root)?; return Ok(true); },
+        Err(std::fs::TryLockError::WouldBlock) => { retention::request(root)?; return Ok(None); },
         Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
     }
     let private = read(&dir.join("export/.snapback4-publication.json"));
@@ -461,7 +467,7 @@ fn publication_pinned(root: &Path, dir: &Path) -> Result<bool> {
     let current = read(&target.join(".snapback4-publication.json"));
     let transaction = read(&lock_path.with_file_name("publication-pending.json"));
     let pending = transaction["source"].as_str().map(|source| read(&Path::new(source).join(".snapback4-publication.json"))).unwrap_or(Value::Null);
-    Ok(matches(&current) || matches(&pending))
+    Ok(Some(matches(&current) || matches(&pending)))
 }
 pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -477,6 +483,28 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
         if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
         let dir = entry.path();
         let finished = finished(&dir);
+        // A bare/legacy unfinished directory is not a live owner. Repair only
+        // under both leases, after transaction recovery and generation pinning.
+        // Never infer process or simulator ownership from its directory name.
+        if !finished && read(&dir.join("live.json")).is_null() {
+            // Claim both per-run leases before releasing initialization custody.
+            // No recovery, compression or recursive removal holds this lease.
+            let Ok(initializing) = preparation::lease(&root.join("initialization.lock")) else { retention::request(root)?; continue; };
+            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
+            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+            if !read(&dir.join("live.json")).is_null() { retention::request(root)?; continue; }
+            drop(initializing);
+            if !publication::reconcile_orphan(&dir)? { retention::request(root)?; continue; }
+            let Some(pinned) = publication_pin(root, &dir)? else { continue; };
+            if pinned {
+                write(&dir.join("finished.json"), &json!({ "finishedAt": now(), "abandoned": true, "recovered": true, "missingOwner": true }))?;
+                runs.push(dir);
+            } else {
+                remove(&dir)?;
+                eprintln!("witness: removed ownerless unfinished export {}", dir.display());
+            }
+            continue;
+        }
         // Even a finalized receipt may precede a driver's last cleanup/drop.
         if alive(&read(&dir.join("live.json"))["owner"]) && finished { retention::request(root)?; continue; }
         // Also reconcile prematurely finished runs and the five full-evidence
@@ -504,6 +532,9 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
         if publication_pinned(root, dir)? { continue; }
         if index >= 25 { remove(dir)?; continue; }
         if dir.join("retention.json").exists() { continue; }
+        // Legacy completed receipts may lack a completion marker. Persist one
+        // before compressing away their only uncompressed terminal receipt.
+        if !dir.join("finished.json").exists() { write(&dir.join("finished.json"), &json!({ "finishedAt": now(), "retained": true }))?; }
         let mut retained = Vec::new(); let mut removed = Vec::new();
         for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
             let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -543,6 +574,25 @@ fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence() {
+        let project = std::env::temp_dir().join(format!("sb4-ownerless-{}-{}", std::process::id(), now()));
+        let root = project.join("artifacts/native-smoke"); let dir = root.join("1-1");
+        fs::create_dir_all(&dir).unwrap();
+        for name in ["initialization.lock", "publication.lock"] {
+            let held = preparation::lease(&root.join(name)).unwrap();
+            cleanup_inner(&root, None).unwrap();
+            assert!(dir.exists()); assert!(!dir.join("finished.json").exists());
+            assert!(root.join("maintenance-request.json").exists());
+            drop(held);
+        }
+        remove(&root.join("maintenance-request.json")).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(!dir.exists(), "ownerless shell is repaired when the actual lease exits");
+        assert!(!root.join("maintenance-request.json").exists());
+        fs::remove_dir_all(project).unwrap();
+    }
+
     #[test]
     fn discovery_of_an_unfinished_leased_export_keeps_maintenance_pending() {
         let root = std::env::temp_dir().join(format!("sb4-deferred-discovery-{}-{}", std::process::id(), now()));

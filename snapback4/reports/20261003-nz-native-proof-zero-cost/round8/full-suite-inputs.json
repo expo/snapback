@@ -1,0 +1,38 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "bbdc76e0a07547b7f5f75a820d3baf7a2f4428e4679eda3f39fd88db36bd25b2"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "0f82064ffa978582117c56024896bdc3ea182618fea1102eb6870885ecd7728c"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "bab31f04b59dff4f76e5fd08efef5b4a69bffe4c4200c241b42dbbaa0725cd8b"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "fc00f4f19e2f8da0e8a73a9f90f0405a3968ba5d8c810e6a590cab8516fa0e61"
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "1779243d305bb5e0f7ea9ad08c84161b4c22c09239ec1ea05ac933e695a5458a"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "a5123a80a031b44efa5efd60b2424a132ffac4078029711f3965e53bd844ca61"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-failure.test.mjs",
+    "sha256": "d6d65e34801756978430b9b685ce463b81b00129efe24252af7198e3ef6b1e38"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-native.test.mjs",
+    "sha256": "c987d266308a50cf038e3bccbe204b08a5427e2cd89a51be0b5f4c573b84c99c"
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/publication-interposer.c",
+    "sha256": "fe6b8997616bd5c7bc4c469d78a0dd2a54fd68fc4e3278ac64d88df376c732dc"
+  }
+]

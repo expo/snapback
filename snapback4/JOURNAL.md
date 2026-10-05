@@ -86498,3 +86498,62 @@ or previously recorded NZ devices; other worktrees, processes and simulators wer
 untouched. Large evidence stays outside git with hashes. Earlier qualifications
 and intermittent issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
 [Round 7 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-7--durable-deferral-and-passive-lock-backoff).
+
+
+## 2026-10-04 — NZ round 8: bounded live-owner waits and ownerless repair
+
+On aa75cab431, address the operator's Astra and Grok retention-liveness findings
+with one LLP 3000.030 §15 invariant: every retention wait is on a live owner and
+is bounded; every ownerless state is repaired; retention never spins or waits
+forever. Only held kernel leases and birth-matched live journal owners cause
+passive waiting. The observer's launch gate, passive waits and successor chain
+share a 60-minute expiry, with monotonic and sleep checks. Expiry parks a durable
+request with a diagnostic. Inode conflicts and I/O errors fail explicitly; no
+ownership is guessed. Native work keeps its 30-second custody and WD group drain.
+
+Retention now resolves matching abandoned publication intents itself: roll back
+unverified exchanges, preserve verified commits, detach committed displaced trees
+under the publication lock and delete privately after releasing it. Markers and
+inode checks permit interrupted deletion to resume. Ownerless unfinished runs
+are repaired under run/export custody; current evidence stays full, other empty
+or partial shells are removed and do not consume keep slots. A busy publication
+lease defers an empty shell without marking it completed. Legacy completion is
+preserved across compression. The wrapper covers lease failure with try/finally
+and a brief initialization lease, acquired with a five-second refusal bound.
+Retention releases initialization before recovery/deletion. This closes the
+mkdir-to-lease race without placing recursive maintenance on export publication.
+
+New controls cover real publisher death before/after exchange with exactly one
+repair scan and 5/20 restoration; verified-commit and deleter death; failed lease
+acquisition and ten ownerless shells in all three modes; current evidence without
+its live journal; bounded live-owner and withheld launch-gate observation; and
+initialization races/timeouts. Existing coalescing, pending requests, generation
+binding, atomic publication and native custody remain. These are fixture controls
+on this mini, not new native timings, Linux qualification or host-sleep evidence.
+
+Initial qualification found and fixed the startup race, compressed legacy receipt
+classification and an ambiguous post-driver fixture. That fixture now excludes
+a competing automatic custodian while testing the intended guardian; PGID and
+cancellation assertions remain. The legacy active-run fixture now owns a real
+lease. A vanished post-enumeration directory is now already covered, while a
+broken lock in a surviving directory is an explicit error. The first full suite
+was orderly cancelled through its own shell at 420.15 s for that final discovery
+correction; its non-qualifying record is retained separately. The next full run
+reported a navigation/context-loss failure in the base's unchanged per-row React
+fixture. Twenty isolated runs did not reproduce the spontaneous event; a real
+Vite full-reload injection reproduced the exact error. The immutable fixture now
+disables HMR and file watching, with all seven cases and assertions intact; the
+injected-reload control and all seven cases pass. This proves the reload
+vulnerability, not the uninstrumented original event's exact trigger. Both earlier
+attempts and all initial logs are retained. The complete export/preparation rerun
+passed 88/88; final serial witness tests passed 65/65 and three-mode ownerless controls
+passed. The full Mac suite exercised final source and passed with **0 failures in
+2,640 seconds**: all Rust targets/doctests, 297 CLI units (four existing ignores),
+76 witness integrations, nine fixture wrappers, all 312 client files (6,246 passes,
+six existing skips), and 79 model cases. All ten code/guide hashes stayed unchanged;
+no intervention or reduced counts. Reference/whitespace and custody checks passed.
+No real devices created or lane CLI jobs remaining; prior NZ devices absent.
+Other worktrees, processes and simulators untouched. Large evidence stays outside
+git with hashes. Earlier qualification limits and intermittent issues remain.
+NZ is for 0.4.14. Nothing pushed or published.
+[Round 8 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-8--bounded-live-owner-waits-and-ownerless-repair).

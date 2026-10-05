@@ -183,6 +183,9 @@ test('config file references bind excluded source bytes and refuse external path
 
 test('retention keeps five completed runs, compresses older receipts and leaves active runs alone', async () => {
   const { retainEvidence } = await import('../../snapback4-expo/export-ios.mjs');
+  const {spawn}=await import('node:child_process');
+  const {once}=await import('node:events');
+  let holder,exited;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-retention-'));
   try {
     for (let i = 1; i <= 8; i++) {
@@ -190,14 +193,22 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
       fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), JSON.stringify({ exitStatus: 1, ...(i !== 2 ? { endedAt: 1 } : {}) }));
       fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
       if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
-      if (i !== 2) retainEvidence(root, dir, binary);
+      if (i === 2) {
+        holder=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(dir,'export.lock'),path.join(root,'active-held')],{stdio:['pipe','ignore','inherit']});
+        exited=once(holder,'exit');const end=Date.now()+5000;
+        while(!fs.existsSync(path.join(root,'active-held'))){assert.ok(Date.now()<end);await new Promise(r=>setTimeout(r,10));}
+      } else retainEvidence(root, dir, binary);
     }
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-run.json.gz')), true);
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-screen.mp4')), false);
     assert.equal(fs.readFileSync(path.join(root, '1-123/proof.json.gz'), 'utf8'), 'already archived before interruption');
     assert.equal(fs.existsSync(path.join(root, '2-123/smoke-ios-screen.mp4')), true);
     assert.equal(fs.existsSync(path.join(root, '4-123/smoke-ios-screen.mp4')), true);
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+    holder.stdin.end();await exited;holder=null;
+    assert.equal(retainEvidence(root,undefined,binary),true);
+    assert.equal(fs.existsSync(path.join(root,'2-123')),false,'ownerless unfinished run is repaired after its real lease exits');
+    assert.ok(fs.existsSync(path.join(root,'1-123/smoke-ios-run.json.gz')),'compressed legacy completion survives later discovery');
+  } finally { if(holder){holder.stdin.end();await exited;} fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('wrapper forwards both signals and waits for child cleanup before returning signal status', async () => {

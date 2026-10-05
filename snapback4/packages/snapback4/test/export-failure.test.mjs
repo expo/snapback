@@ -104,9 +104,10 @@ if(args[1]==='ios') {
         fs.writeFileSync(path.join(dir, 'finished.json'), '{}');
         for(let i=1;i<=6;i++){const newer=path.join(root,'artifacts/native-smoke',`${Date.now()+i}-123`);fs.mkdirSync(newer);fs.writeFileSync(path.join(newer,'finished.json'),'{}');}
         const cleanup=spawnSync(binary,['witness','export-cleanup',path.join(root,'artifacts/native-smoke')],{encoding:'utf8'});
-        assert.equal(cleanup.status,0,cleanup.stderr);assert.deepEqual(inventory(oldAt).files,previous);
+        assert.equal(cleanup.status,0,cleanup.stderr);
+        assert.deepEqual(inventory(path.join(root,'dist')).files,previous,'retention itself restores the previous publication');
+        assert.equal(fs.existsSync(path.join(dir,'publication-pending.json')),false);
         const restored = run('tamper'); assert.notEqual(restored.status,0,restored.stdout+restored.stderr);
-        assert.match(restored.stderr, /restored previous export after interrupted publication/);
         assert.deepEqual(inventory(path.join(root,'dist')).files,previous,'recovery and failed retry restore last good export');
         const next = run(''); assert.equal(next.status, 0, next.stdout + next.stderr);
         assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');

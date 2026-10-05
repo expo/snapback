@@ -1,0 +1,64 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "aa75cab4316aa7a9169573382fbba19432895774",
+  "state": "finished",
+  "startedAt": 1791158266.150223,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r8-full-suite-discovery-restart.log",
+  "before": {
+    "at": 1791158267.317211,
+    "load": [
+      4.4658203125,
+      4.9501953125,
+      4.94189453125
+    ],
+    "idlePercent": 81.10192837465564,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 188.8 /usr/libexec/PerfPowerServices",
+      "    1     0  19.7 /sbin/launchd",
+      "  485     1  14.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "72381 46055   6.1 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "99129 99075   2.7 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      " 1083     1   2.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   1.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.5 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "18428     1   1.3 /usr/libexec/diagnosticd",
+      "  793     1   1.2 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha"
+    ]
+  },
+  "status": 143,
+  "finishedAt": 1791158687.474516,
+  "durationSeconds": 420.148274625,
+  "after": {
+    "at": 1791158688.69935,
+    "load": [
+      44.1376953125,
+      55.31689453125,
+      32.30224609375
+    ],
+    "idlePercent": 72.09944751381215,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  661     1 101.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "27142     1  57.3 /usr/libexec/PerfPowerServices",
+      "  442     1  39.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "  485     1  17.0 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1160     1   4.9 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  417     1   3.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      " 1083     1   2.9 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "46055 46048   2.9 codex",
+      " 1164     1   2.6 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1002     1   1.8 /System/Library/Frameworks/ApplicationServices.framework/Frameworks/ATS.framework/Support/fontd"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r8-full-suite-discovery-restart.log",
+    "sha256": "9e46bea85c96823f83911ba0b8db9f338afaa5886c86a72e52fe1d298e678841",
+    "bytes": 12478
+  },
+  "inputsUnchanged": true,
+  "note": "Agent cancelled only its own suite shell at 420.15 s for the vanished-discovery correction. This is not a qualification pass; a fresh complete suite follows."
+}

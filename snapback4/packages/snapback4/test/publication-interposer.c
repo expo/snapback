@@ -14,6 +14,12 @@ static void boundary(const char *target, int after) {
     if (!selected(target)) return;
     const char *fault = getenv("SB4_FAULT");
     if (!fault) return;
+    if ((!after && !strcmp(fault, "pause-before")) || (after && !strcmp(fault, "pause-after"))) {
+        const char *barrier = getenv("SB4_FAULT_BARRIER");
+        FILE *out = barrier ? fopen(barrier, "w") : NULL;
+        if (out) { fprintf(out, "%d", getpid()); fclose(out); }
+        for (;;) usleep(10000);
+    }
     if ((!after && !strcmp(fault, "before")) || (after && !strcmp(fault, "after"))) {
         kill(getpid(), SIGTERM); _exit(143);
     }

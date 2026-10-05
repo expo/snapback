@@ -1,0 +1,343 @@
+{
+  "build": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r8-build-final-inputs.log"
+  },
+  "witness": {
+    "status": 0,
+    "passed": 65,
+    "failed": 0,
+    "durationSeconds": 41.43,
+    "log": "/tmp/sb4-nz-r8-witness-final-inputs.log"
+  },
+  "exports": {
+    "log": "/tmp/sb4-nz-r8-exports-final.log",
+    "tests": 88,
+    "pass": 88,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 381496.042208
+  },
+  "correctedControls": {
+    "log": "/tmp/sb4-nz-r8-corrected-regressions.log",
+    "tests": 14,
+    "pass": 14,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 114613.360958
+  },
+  "finalOwnerlessControls": {
+    "log": "/tmp/sb4-nz-r8-ownerless-qualified.log",
+    "tests": 3,
+    "pass": 3,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 25001.295375
+  },
+  "initialExports": {
+    "log": "/tmp/sb4-nz-r8-exports.log",
+    "tests": 86,
+    "pass": 83,
+    "fail": 3,
+    "failures": [
+      "new-run initialization raced ownerless removal",
+      "post-driver custody fixture selected a competing maintenance journal",
+      "compressed legacy receipt no longer classified as completed"
+    ],
+    "note": "Exploratory run during implementation; corrected controls and complete rerun supersede it. The initial first-export failure also reproduced separately."
+  },
+  "samples": [
+    {
+      "mode": "off",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        304,
+        209,
+        207,
+        204,
+        205,
+        206,
+        241,
+        224,
+        212,
+        208,
+        216,
+        223,
+        238,
+        217,
+        218,
+        212,
+        211,
+        210,
+        211,
+        205,
+        210,
+        209,
+        214,
+        211,
+        207,
+        210,
+        202,
+        220
+      ]
+    },
+    {
+      "mode": "non-macOS",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        282,
+        213,
+        210,
+        209,
+        216,
+        206,
+        212,
+        211,
+        206,
+        205,
+        206,
+        209,
+        207,
+        224,
+        226,
+        214,
+        216,
+        209,
+        209,
+        206,
+        214,
+        206,
+        207,
+        205,
+        204,
+        214,
+        207,
+        205
+      ]
+    },
+    {
+      "mode": "off",
+      "exports": 28,
+      "maximumMaintenanceProcesses": 1,
+      "pendingObservers": 1,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        545,
+        204,
+        205,
+        208,
+        206,
+        202,
+        205,
+        235,
+        213,
+        207,
+        209,
+        200,
+        205,
+        211,
+        202,
+        205,
+        205,
+        204,
+        208,
+        208,
+        206,
+        205,
+        205,
+        202,
+        207,
+        203,
+        204,
+        207
+      ]
+    },
+    {
+      "mode": "non-macOS",
+      "exports": 28,
+      "maximumMaintenanceProcesses": 1,
+      "pendingObservers": 1,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        264,
+        204,
+        204,
+        207,
+        205,
+        208,
+        203,
+        207,
+        244,
+        213,
+        210,
+        213,
+        208,
+        207,
+        211,
+        203,
+        202,
+        204,
+        205,
+        208,
+        204,
+        206,
+        206,
+        205,
+        206,
+        207,
+        205,
+        205
+      ]
+    },
+    {
+      "mode": "off",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "mode": "non-macOS",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "mode": "background",
+      "failedHandoffs": 10,
+      "pausedFull": 15,
+      "full": 5,
+      "compressed": 10,
+      "pendingAfterRelease": false
+    },
+    {
+      "heldPublicationMs": 2200,
+      "retentionStartsWhileHeld": 0,
+      "retentionStartsAfterRelease": 1,
+      "full": 5,
+      "compressed": 10
+    },
+    {
+      "interruptedPublication": "before",
+      "workerStarts": 1,
+      "repairMs": 2366,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "interruptedPublication": "after",
+      "workerStarts": 1,
+      "repairMs": 2424,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "ownerlessRepair": "off",
+      "removedShells": 10,
+      "workerStarts": 1,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "ownerlessRepair": "non-macOS",
+      "removedShells": 10,
+      "workerStarts": 1,
+      "full": 5,
+      "compressed": 20
+    },
+    {
+      "ownerlessRepair": "background",
+      "removedShells": 10,
+      "workerStarts": 1,
+      "full": 5,
+      "compressed": 20
+    }
+  ],
+  "note": "The complete export/preparation rerun passed 88/88. Final typed liveness distinctions (busy publication versus a pin, vanished discovery versus a surviving invalid lock) were covered by the 65-test witness rerun; all three ownerless-mode controls also passed. The final full suite exercises all 88 final affected cases against ten recorded inputs. A first full-suite attempt was orderly cancelled at 420.15 seconds before the final discovery correction and is retained separately as non-qualifying evidence. A subsequent full run found a base React-fixture navigation failure; it is retained separately. A fresh full run qualifies the immutable-page fixture correction.",
+  "reactFixture": {
+    "status": 0,
+    "passed": 7,
+    "failed": 0,
+    "durationMs": 13563.272792,
+    "log": "/tmp/sb4-nz-r8-react-final.log",
+    "diagnostic": {
+      "isolatedTrials": 20,
+      "spontaneousFailureReproduced": false,
+      "injectedReloadBeforeStatus": 1,
+      "injectedReloadAfterStatus": 0,
+      "beforeLog": "/tmp/sb4-nz-r8-react-reload-recorded-before.log",
+      "afterLog": "/tmp/sb4-nz-r8-react-reload-recorded-after.log",
+      "note": "Real Vite full-reload injection reproduces the exact execution-context error. The original uninstrumented spontaneous navigation trigger remains unconfirmed. All seven original cases and assertions are preserved."
+    }
+  },
+  "browserFailureFullSuite": {
+    "status": 1,
+    "durationSeconds": 2637.433704125,
+    "record": "full-suite.json",
+    "passedClientTests": 6245,
+    "failedClientTests": 1,
+    "skippedClientTests": 6,
+    "modelPasses": 79,
+    "reason": "Base per-row-react immutable fixture allowed a development navigation during assertions; corrected before the final full rerun."
+  },
+  "fullSuite": {
+    "status": 0,
+    "reportedSeconds": 2640,
+    "durationSeconds": 2639.898412,
+    "inputsUnchanged": true,
+    "inputCount": 10,
+    "rustCli": {
+      "passed": 297,
+      "ignored": 4
+    },
+    "witnessIntegrations": 76,
+    "fixtureWrappers": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "clientFiles": 312,
+    "clientTests": {
+      "tests": 6252,
+      "pass": 6246,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 6,
+      "todo": 0
+    },
+    "models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "finalAffectedCases": 88,
+    "record": "full-suite-final.json",
+    "inputs": "full-suite-final-inputs.json"
+  },
+  "referenceCheck": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r8-ref-check-final.log"
+  },
+  "whitespaceCheck": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r8-whitespace-final.log"
+  }
+}

@@ -1,5 +1,10 @@
 # Lane NZ — publish first, prove native execution in the background
 
+Round 8 establishes bounded live-owner waits and ownerless repair on
+**aa75cab431**. See [Round 8](#round-8--bounded-live-owner-waits-and-ownerless-repair).
+The full Mac suite passed: **0 failures in 2,640 s**. NZ targets 0.4.14.
+Nothing pushed.
+
 Round 7 preserves deferred maintenance and backs off passively on **d488a5f7db**.
 See [Round 7](#round-7--durable-deferral-and-passive-lock-backoff). The full Mac
 suite passed: **0 failures in 2,617 s**. NZ remains for 0.4.14. Nothing pushed.
@@ -1092,3 +1097,123 @@ large logs (including the initial fixture failure) and the binary stay in the
 external content-addressed archive. No gzip/video or new files over 256 KB are
 committed. Earlier qualification scopes and intermittent-test issues remain
 intact. NZ remains for 0.4.14. Nothing pushed or published.
+
+
+## Round 8 — bounded live-owner waits and ownerless repair
+
+Date: 2026-10-04. Base **aa75cab431**. This addresses the operator's Astra P2
+and Grok Medium under one invariant: **every retention wait is on a live owner
+and is bounded; every ownerless state is repaired; retention never spins and
+never waits forever.** The operator's supplied review findings are the input;
+no new independent review is claimed. Work and verification stay on this mini.
+NZ remains for 0.4.14. No real simulators are needed.
+
+**State classification.** A held kernel lease or a birth-matched live journal
+owner can cause passive waiting. An unfinished directory or transaction marker
+cannot. The single observer keeps the request pending while probing live custody
+at 100 ms. Its launch gate, passive waits and follow-up observer chain share one
+60-minute expiry; successors inherit that expiry. Each observer also checks its
+monotonic elapsed time and host sleep. Expiry exits loudly with a durable pending
+request for a later export. Native work still has its separate 30-second deadline
+and unchanged WD group drain. Unrecoverable inode conflicts or I/O failures park
+with diagnostics instead of repeated work; repair never guesses ownership.
+
+**Transaction recovery.** Retention holds the candidate run/export leases and
+tries the publication lease nonblockingly. Matching destination/run intents now
+invoke the existing namespace recovery: an unverified exchange rolls back and a
+verified commit stays committed. A committed displaced tree is renamed into
+private custody; all recursive deletion occurs after releasing publication.
+The run marker survives until deletion completes, so interrupted cleanup can be
+repeated. A later publisher uses the same namespace repair and leaves private
+deletion to retention. No later publication is needed to resolve abandoned
+transactions when maintenance is already pending.
+
+**Ownerless runs and initialization.** Failed lease acquisition is inside the
+wrapper's try/finally and removes only a directory created by that invocation.
+A short initialization lease protects directory creation through export-lease
+acquisition and journalling. A stuck initializer is refused after five seconds.
+Retention probes that lease passively; for a bare run it claims both per-run
+leases and rereads the journal before releasing initialization custody. Recovery
+and deletion run after that release. This closes the mkdir-to-lease race without
+holding initialization over recursive maintenance. Ownerless current evidence
+stays full with a recovered completion marker. Other empty/partial shells are
+removed and excluded from keep slots. A busy publication lease is distinct from
+a pinned generation: it defers classification without making an empty shell a
+completed run. No process or simulator ownership is inferred from the numeric
+name. Legacy compressed receipts count as completed; a terminal marker is persisted before compressing their original terminal receipt.
+
+**Deterministic controls.** Before- and after-exchange barriers hold a real
+publisher with 28 actual exports queued. While the publisher lives, retention
+starts no worker. Killing only that fixture publisher and allowing its wrapper
+to exit triggers exactly one repair/prune worker, with no later export, and
+restores five full plus twenty compressed runs. A Rust control kills a verified
+publisher and then its private-tree deleter; another sweep preserves the committed
+export and completes deletion, both with and without a previous destination.
+
+For opt-out, simulated non-macOS and background modes, a failing binary and a
+selectively failing export-lease helper leave no shell. Ten seeded bare/partial
+legacy directories are then repaired in one scan. Removing the current run's
+journal and local handoff metadata additionally checks generation pinning through
+its immutable export marker: that evidence remains full. Every mode returns to
+5/20. Passive-owner and withheld-launch-gate controls exercise an earlier internal
+expiry without an environment override that could enlarge production bounds.
+A Rust control also holds initialization and publication leases over an ownerless
+shell, checks that it stays unfinished/pending, then requires removal after release.
+A real stuck-initializer control exercises the five-second refusal; another
+pauses a wrapper after mkdir, before lease acquisition, while pending maintenance
+must remain passive, then permits successful publication and 5/20 restoration.
+
+**Corrections during qualification.** The first combined run found the startup
+race fixed by the initialization lease, a legacy compressed-receipt classification
+gap, and an ambiguous post-driver retention fixture. The fixture had allowed the
+automatic observer to race the post-driver custodian, then selected the first
+native journal. It now holds the automatic maintenance lease until the intended
+proof guardian's compressor and group drain finish; all PGID and cancellation
+assertions remain. The legacy active-run fixture now holds a real export lease,
+then checks ownerless repair after release. Initial logs are retained, not counted
+as final qualification. The earlier rounds' native/ABBA, Linux and host-sleep
+qualification limits remain unchanged; these new controls use fake exporters and
+host tools on macOS.
+
+A final discovery-race control covers a failed initializer removing its directory
+after enumeration. A vanished entry is treated as already covered, not an I/O
+failure that parks unrelated maintenance. The first full-suite attempt was
+cancelled through its own shell's cleanup at 420.15 s to include this correction;
+its record and log remain separate. Only the final successful complete run qualifies.
+
+The next full run finished in 2,637.43 s with one browser-fixture failure in
+`per-row-react`: its terminal-refusal case lost the execution context during navigation. That fixture
+was unchanged from the base. Twenty isolated diagnostic runs did not reproduce
+the spontaneous navigation. Sending a real Vite full-reload message at the same
+held-notification boundary did reproduce the exact error; disabling HMR passed
+that control. This establishes the reload vulnerability, not the uninstrumented
+original event's precise cause. The immutable fixture now disables HMR and file
+watching, as neighboring browser fixtures already do. All seven original cases
+and all their assertions remain, and pass in 13.56 s. The failed suite and both
+sides of the reload control are retained. `round8-react-reload.py` records the
+reproduction. A fresh complete suite qualifies the final fixture and native code.
+
+**Verification.** Build passed. The complete export/preparation rerun passed
+**88/88** in 381.50 s, with no failures, skips or cancellations. The final liveness
+classification was covered by **65/65 serial witness tests** in 41.43 s and the
+three ownerless-mode controls in 25.00 s. The full suite then exercised all final
+inputs, including every earlier regression and the nine new JavaScript controls,
+and passed with **0 failures in 2,640 s** (2,639.90 s measured wall time).
+The qualifying [run record](./round8/full-suite-final.json) and
+[ten-input manifest](./round8/full-suite-final-inputs.json) are separate from the
+two earlier attempts.
+
+All Rust targets and doctests passed, including **297 CLI units** (four existing
+ignores) and **76 witness integrations**. Nine fixture wrappers passed. All
+**312 client files** passed: **6,246 passed / six existing skips / zero failures
+or cancellations**. Both full-count model files passed **79/79**. Builds, budgets,
+release guard and typechecks passed. No intervention or reduced counts occurred.
+All ten recorded code/guide input hashes remained unchanged. Reference and
+whitespace checks passed. Final read-only custody checks found no lane CLI or
+interposed fixture jobs and confirmed the previously recorded NZ devices absent.
+No real devices were created; other worktrees, processes and simulators were
+untouched. Outcomes, hashes, samples and custody records are in `round8/`.
+Large logs, including the initial failures, and the tested binary stay in the
+external content-addressed archive. No gzip/video or new files over 256 KB are
+committed. Earlier qualification limits and intermittent-test issues remain.
+NZ targets 0.4.14. Nothing pushed or published.
