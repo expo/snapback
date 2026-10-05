@@ -1,3 +1,8 @@
+// Dev copies snapback/ plus server-checker-tracked project imports; keep helpers there.
+// process.cwd() starts at SNAPBACK_PROJECT_DIR (project in dev, active release in serve).
+// Write files with resolve(process.env.SNAPBACK_PROJECT_DIR, "data/push-log.jsonl"),
+// never relative to import.meta.url: module URLs point into a disposable private copy.
+// Dependencies stay host-installed; arbitrary parent env is stripped (guide effects).
 // `snapback4 dev` supplies this worker's service seat. The invitation is
 // an application integration: the engine never executes this TypeScript.
 import { GiveUp, mintSession, runWorker } from "snapback4/worker";

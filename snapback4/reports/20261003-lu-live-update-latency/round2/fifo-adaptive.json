@@ -1,0 +1,1035 @@
+{
+  "rows": [
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 9584.711331874132,
+      "started": 1791115522628.1516,
+      "host_load": [
+        110.19580078125,
+        83.08740234375,
+        41.88818359375
+      ],
+      "commit": 1791115522975.9143,
+      "delivery_done": 1791115532165.764,
+      "delivery_ms": 9189.849609375,
+      "test_ms": 9205,
+      "first_live_ms": 3.50927734375,
+      "turns": 888,
+      "turns_by_kind": {
+        "delivery": 888
+      },
+      "live_rows": {
+        "2": 876,
+        "3": 12
+      },
+      "requested_pause_ms": 7739.01051,
+      "cpu_ms": 1105.57293,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-0-0.log",
+      "copied": 900,
+      "last_copy": 1791115532165.764,
+      "last_copy_ms": 9189.849609375,
+      "pause_decisions": 2663,
+      "nonzero_pause_decisions": 2663,
+      "raw_bytes": 574139,
+      "raw_sha256": "207b0cdf9bf466d73ba9aa3d6b498a72e3e608cbcfd8900defd6f729e66939f4"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 8132.401889190078,
+      "started": 1791115532226.518,
+      "host_load": [
+        101.69140625,
+        81.7744140625,
+        41.6845703125
+      ],
+      "commit": 1791115532576.4377,
+      "delivery_done": null,
+      "delivery_ms": null,
+      "test_ms": 7753,
+      "first_live_ms": 3.185791015625,
+      "turns": 680,
+      "turns_by_kind": {
+        "delivery": 680
+      },
+      "live_rows": {
+        "2": 460,
+        "3": 220
+      },
+      "requested_pause_ms": 6545.683802,
+      "cpu_ms": 935.097686,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-0-0.log",
+      "copied": 900,
+      "last_copy": 1791115540322.0012,
+      "last_copy_ms": 7745.5634765625,
+      "pause_decisions": 2039,
+      "nonzero_pause_decisions": 2039,
+      "raw_bytes": 438822,
+      "raw_sha256": "57f936386c33f440c75a45c77d8e992609ea6561704e065fc974168167ea925a"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 9979.634280316532,
+      "started": 1791115540373.222,
+      "host_load": [
+        87.23193359375,
+        79.3291015625,
+        41.31787109375
+      ],
+      "commit": 1791115540720.103,
+      "delivery_done": 1791115550287.969,
+      "delivery_ms": 9567.865966796875,
+      "test_ms": 9580,
+      "first_live_ms": 3.1484375,
+      "turns": 744,
+      "turns_by_kind": {
+        "delivery": 744
+      },
+      "live_rows": {
+        "2": 588,
+        "3": 156
+      },
+      "requested_pause_ms": 8096.496359,
+      "cpu_ms": 1156.642337,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-0-1.log",
+      "copied": 900,
+      "last_copy": 1791115550287.969,
+      "last_copy_ms": 9567.865966796875,
+      "pause_decisions": 2231,
+      "nonzero_pause_decisions": 2231,
+      "raw_bytes": 480603,
+      "raw_sha256": "0944db53ab87a28928de327f10e6c611c9c0480b6d0e1a4b2d81dd4530464eb8"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 11532.707303762436,
+      "started": 1791115550366.8772,
+      "host_load": [
+        74.44140625,
+        76.84814453125,
+        40.91748046875
+      ],
+      "commit": 1791115550713.602,
+      "delivery_done": 1791115561833.068,
+      "delivery_ms": 11119.466064453125,
+      "test_ms": 11136,
+      "first_live_ms": 3.1240234375,
+      "turns": 879,
+      "turns_by_kind": {
+        "delivery": 879
+      },
+      "live_rows": {
+        "2": 858,
+        "3": 21
+      },
+      "requested_pause_ms": 9398.852771,
+      "cpu_ms": 1342.693253,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-0-1.log",
+      "copied": 900,
+      "last_copy": 1791115561833.068,
+      "last_copy_ms": 11119.466064453125,
+      "pause_decisions": 2636,
+      "nonzero_pause_decisions": 2636,
+      "raw_bytes": 568462,
+      "raw_sha256": "71565af8b9a28718ad290ef0f2f38c62a5f9002cd51ddaa3d633c735b59d04be"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 7776.715571992099,
+      "started": 1791115561916.5828,
+      "host_load": [
+        63.6845703125,
+        74.46533203125,
+        40.52685546875
+      ],
+      "commit": 1791115562279.0745,
+      "delivery_done": 1791115569623.8645,
+      "delivery_ms": 7344.7900390625,
+      "test_ms": 7382,
+      "first_live_ms": 6.279052734375,
+      "turns": 879,
+      "turns_by_kind": {
+        "delivery": 879
+      },
+      "live_rows": {
+        "2": 858,
+        "3": 21
+      },
+      "requested_pause_ms": 6140.079218,
+      "cpu_ms": 877.154174,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-0-2.log",
+      "copied": 900,
+      "last_copy": 1791115569623.8645,
+      "last_copy_ms": 7344.7900390625,
+      "pause_decisions": 2636,
+      "nonzero_pause_decisions": 2636,
+      "raw_bytes": 568102,
+      "raw_sha256": "3071ea14b90ace3694434e52b42b0f4568b21ae20b95551878b496649368b1ca"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 0,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 9380.685915239155,
+      "started": 1791115569710.7998,
+      "host_load": [
+        54.8154296875,
+        72.21044921875,
+        40.15673828125
+      ],
+      "commit": 1791115570053.6814,
+      "delivery_done": 1791115579049.7854,
+      "delivery_ms": 8996.10400390625,
+      "test_ms": 9013,
+      "first_live_ms": 3.000732421875,
+      "turns": 732,
+      "turns_by_kind": {
+        "delivery": 732
+      },
+      "live_rows": {
+        "2": 564,
+        "3": 168
+      },
+      "requested_pause_ms": 7605.129203,
+      "cpu_ms": 1086.447029,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-0-2.log",
+      "copied": 900,
+      "last_copy": 1791115579049.7854,
+      "last_copy_ms": 8996.10400390625,
+      "pause_decisions": 2195,
+      "nonzero_pause_decisions": 2195,
+      "raw_bytes": 473228,
+      "raw_sha256": "3642e3cdb176c3c6007fcca42e1a68a7ad2c0d8ee8294dbe431ddd21b2c85190"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 8645.361879840493,
+      "started": 1791115581198.6667,
+      "host_load": [
+        50.3046875,
+        70.67138671875,
+        39.99951171875
+      ],
+      "commit": 1791115582169.8867,
+      "delivery_done": 1791115589815.1855,
+      "delivery_ms": 7645.298828125,
+      "test_ms": 7663,
+      "first_live_ms": 2.57275390625,
+      "turns": 860,
+      "turns_by_kind": {
+        "delivery": 860
+      },
+      "live_rows": {
+        "2": 820,
+        "3": 40
+      },
+      "requested_pause_ms": 5451.228314,
+      "cpu_ms": 778.746902,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-20-0.log",
+      "copied": 900,
+      "last_copy": 1791115589815.1855,
+      "last_copy_ms": 7645.298828125,
+      "pause_decisions": 2577,
+      "nonzero_pause_decisions": 2577,
+      "raw_bytes": 555217,
+      "raw_sha256": "1ee053bfaf463006470f96498a5512168ddbcef941a096a17e5b65d3230a1e15"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 7189.850979950279,
+      "started": 1791115589870.251,
+      "host_load": [
+        46.80810546875,
+        69.25,
+        39.865234375
+      ],
+      "commit": 1791115590831.7983,
+      "delivery_done": 1791115596998.3254,
+      "delivery_ms": 6166.527099609375,
+      "test_ms": 6190,
+      "first_live_ms": 2.96337890625,
+      "turns": 591,
+      "turns_by_kind": {
+        "delivery": 591
+      },
+      "live_rows": {
+        "2": 283,
+        "3": 307,
+        "4": 1
+      },
+      "requested_pause_ms": 3964.84711,
+      "cpu_ms": 566.40673,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-20-0.log",
+      "copied": 900,
+      "last_copy": 1791115596998.3254,
+      "last_copy_ms": 6166.527099609375,
+      "pause_decisions": 1772,
+      "nonzero_pause_decisions": 1772,
+      "raw_bytes": 382813,
+      "raw_sha256": "8c963b6578d7e87cc160ed8edb88f650c676a2aade9092cf82ae41bb134bf75d"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 8041.118128225207,
+      "started": 1791115597070.2427,
+      "host_load": [
+        45.4619140625,
+        68.59814453125,
+        39.81201171875
+      ],
+      "commit": 1791115598004.659,
+      "delivery_done": 1791115605048.0723,
+      "delivery_ms": 7043.413330078125,
+      "test_ms": 7067,
+      "first_live_ms": 6.080078125,
+      "turns": 654,
+      "turns_by_kind": {
+        "delivery": 654
+      },
+      "live_rows": {
+        "2": 408,
+        "3": 246
+      },
+      "requested_pause_ms": 4517.174914,
+      "cpu_ms": 645.310702,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-20-1.log",
+      "copied": 900,
+      "last_copy": 1791115605048.0723,
+      "last_copy_ms": 7043.413330078125,
+      "pause_decisions": 1959,
+      "nonzero_pause_decisions": 1959,
+      "raw_bytes": 423139,
+      "raw_sha256": "222337f863954cd0a86c32d59a9ad60256a99b834db136fa355d0491c60a4581"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 10049.974602181464,
+      "started": 1791115605125.0417,
+      "host_load": [
+        49.40087890625,
+        68.73046875,
+        40.16650390625
+      ],
+      "commit": 1791115606118.6719,
+      "delivery_done": 1791115615125.0674,
+      "delivery_ms": 9006.3955078125,
+      "test_ms": 9036,
+      "first_live_ms": 11.0009765625,
+      "turns": 870,
+      "turns_by_kind": {
+        "delivery": 870
+      },
+      "live_rows": {
+        "2": 840,
+        "3": 30
+      },
+      "requested_pause_ms": 5741.254099,
+      "cpu_ms": 820.179157,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-20-1.log",
+      "copied": 900,
+      "last_copy": 1791115615125.0674,
+      "last_copy_ms": 9006.3955078125,
+      "pause_decisions": 2607,
+      "nonzero_pause_decisions": 2607,
+      "raw_bytes": 563001,
+      "raw_sha256": "b41c6362c785f4fdd562ad8ee4776b1d6035d818ecf8a5eeee7996b83520cea4"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 11052.078455220908,
+      "started": 1791115615200.934,
+      "host_load": [
+        46.7314453125,
+        67.52099609375,
+        40.07861328125
+      ],
+      "commit": 1791115615907.964,
+      "delivery_done": 1791115626223.2458,
+      "delivery_ms": 10315.28173828125,
+      "test_ms": 10337,
+      "first_live_ms": 7.87158203125,
+      "turns": 884,
+      "turns_by_kind": {
+        "delivery": 884
+      },
+      "live_rows": {
+        "2": 868,
+        "3": 16
+      },
+      "requested_pause_ms": 5967.083101,
+      "cpu_ms": 852.440443,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-20-2.log",
+      "copied": 900,
+      "last_copy": 1791115626223.2458,
+      "last_copy_ms": 10315.28173828125,
+      "pause_decisions": 2649,
+      "nonzero_pause_decisions": 2649,
+      "raw_bytes": 572018,
+      "raw_sha256": "c7398d19ff863f17cd7d8304e43a3ab8c87755ccc6eeb9006c054f504b2b6913"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 20,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 7594.330851919949,
+      "started": 1791115626273.1892,
+      "host_load": [
+        43.45751953125,
+        66.13671875,
+        39.921875
+      ],
+      "commit": 1791115627265.6567,
+      "delivery_done": 1791115633833.95,
+      "delivery_ms": 6568.293212890625,
+      "test_ms": 6601,
+      "first_live_ms": 2.1796875,
+      "turns": 588,
+      "turns_by_kind": {
+        "delivery": 588
+      },
+      "live_rows": {
+        "2": 278,
+        "3": 308,
+        "4": 2
+      },
+      "requested_pause_ms": 3933.409641,
+      "cpu_ms": 561.915663,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-20-2.log",
+      "copied": 900,
+      "last_copy": 1791115633833.95,
+      "last_copy_ms": 6568.293212890625,
+      "pause_decisions": 1761,
+      "nonzero_pause_decisions": 1761,
+      "raw_bytes": 381037,
+      "raw_sha256": "f0b5ebf0299c65b98d82e4bebe872acadd8e8ea6bf85cef78ed831b33e1bcb91"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 30294.221281073987,
+      "started": 1791115637088.6672,
+      "host_load": [
+        81.07373046875,
+        73.05224609375,
+        43.20751953125
+      ],
+      "commit": 1791115646763.6316,
+      "delivery_done": 1791115667272.6677,
+      "delivery_ms": 20509.0361328125,
+      "test_ms": 20607,
+      "first_live_ms": 8.15478515625,
+      "turns": 896,
+      "turns_by_kind": {
+        "delivery": 896
+      },
+      "live_rows": {
+        "2": 892,
+        "3": 4
+      },
+      "requested_pause_ms": 5966.364243,
+      "cpu_ms": 852.337749,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-120-0.log",
+      "copied": 900,
+      "last_copy": 1791115667272.6677,
+      "last_copy_ms": 20509.0361328125,
+      "pause_decisions": 2685,
+      "nonzero_pause_decisions": 2685,
+      "raw_bytes": 578362,
+      "raw_sha256": "ead9c7d37f8c8f854ba722e4a2bdde4404360cad33d5bbc971a864ad261e4f40"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 0,
+      "exit": 0,
+      "wall_ms": 20248.626914806664,
+      "started": 1791115667484.1187,
+      "host_load": [
+        93.171875,
+        76.33642578125,
+        44.92529296875
+      ],
+      "commit": 1791115674123.6633,
+      "delivery_done": 1791115687596.7393,
+      "delivery_ms": 13473.075927734375,
+      "test_ms": 13579,
+      "first_live_ms": 10.96044921875,
+      "turns": 604,
+      "turns_by_kind": {
+        "delivery": 604
+      },
+      "live_rows": {
+        "2": 308,
+        "3": 296
+      },
+      "requested_pause_ms": 4223.659615,
+      "cpu_ms": 603.379945,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-120-0.log",
+      "copied": 900,
+      "last_copy": 1791115687596.7393,
+      "last_copy_ms": 13473.075927734375,
+      "pause_decisions": 1809,
+      "nonzero_pause_decisions": 1809,
+      "raw_bytes": 390120,
+      "raw_sha256": "2231fe33c4243631eea908b161e301f28ada76969d9b1dfc567bffe50b2fc912"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 20717.513024806976,
+      "started": 1791115687751.1687,
+      "host_load": [
+        101.86083984375,
+        79.40869140625,
+        46.60595703125
+      ],
+      "commit": 1791115694802.6753,
+      "delivery_done": 1791115708353.6267,
+      "delivery_ms": 13550.951416015625,
+      "test_ms": 13641,
+      "first_live_ms": 13.983642578125,
+      "turns": 597,
+      "turns_by_kind": {
+        "delivery": 597
+      },
+      "live_rows": {
+        "2": 294,
+        "3": 303,
+        "1": 1
+      },
+      "requested_pause_ms": 4196.849552,
+      "cpu_ms": 599.549936,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-120-1.log",
+      "copied": 900,
+      "last_copy": 1791115708332.6763,
+      "last_copy_ms": 13530.0009765625,
+      "pause_decisions": 1788,
+      "nonzero_pause_decisions": 1788,
+      "raw_bytes": 386558,
+      "raw_sha256": "cbabc6eb18cfbbc335e054f088db3e0691999d7be1fd0d143647f5e9c9a509b3"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 1,
+      "exit": 0,
+      "wall_ms": 22717.917039990425,
+      "started": 1791115708488.9858,
+      "host_load": [
+        108.13330078125,
+        82.2978515625,
+        48.25634765625
+      ],
+      "commit": 1791115714885.2568,
+      "delivery_done": 1791115731118.6667,
+      "delivery_ms": 16233.409912109375,
+      "test_ms": 16337,
+      "first_live_ms": 8.83984375,
+      "turns": 894,
+      "turns_by_kind": {
+        "delivery": 894
+      },
+      "live_rows": {
+        "2": 888,
+        "3": 6
+      },
+      "requested_pause_ms": 5854.670787,
+      "cpu_ms": 836.381541,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-120-1.log",
+      "copied": 900,
+      "last_copy": 1791115731118.6667,
+      "last_copy_ms": 16233.409912109375,
+      "pause_decisions": 2679,
+      "nonzero_pause_decisions": 2679,
+      "raw_bytes": 577072,
+      "raw_sha256": "3bf2f59a9ba7dfe0fc0222a95c519d088409ebcf45dbf4737f70f6f93a23df28"
+    },
+    {
+      "label": "main-fifo",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 26205.19027998671,
+      "started": 1791115731297.6328,
+      "host_load": [
+        114.4619140625,
+        86.30078125,
+        50.671875
+      ],
+      "commit": 1791115737629.666,
+      "delivery_done": 1791115757436.6755,
+      "delivery_ms": 19807.009521484375,
+      "test_ms": 19878,
+      "first_live_ms": 12.996337890625,
+      "turns": 896,
+      "turns_by_kind": {
+        "delivery": 896
+      },
+      "live_rows": {
+        "2": 892,
+        "3": 4
+      },
+      "requested_pause_ms": 6018.009256,
+      "cpu_ms": 859.715608,
+      "log": "target/lu-r2/fifo-adaptive-main-fifo-replay-120-2.log",
+      "copied": 900,
+      "last_copy": 1791115757436.6755,
+      "last_copy_ms": 19807.009521484375,
+      "pause_decisions": 2685,
+      "nonzero_pause_decisions": 2685,
+      "raw_bytes": 578188,
+      "raw_sha256": "502f5b41fcf697c6318a0550f3e1037d3d013782265732ae4635fe1bce32c5ec"
+    },
+    {
+      "label": "adaptive",
+      "shape": "replay",
+      "burners": 120,
+      "trial": 2,
+      "exit": 0,
+      "wall_ms": 15723.54607982561,
+      "started": 1791115757573.118,
+      "host_load": [
+        117.25830078125,
+        88.29541015625,
+        51.89599609375
+      ],
+      "commit": 1791115761694.6614,
+      "delivery_done": 1791115773200.6758,
+      "delivery_ms": 11506.014404296875,
+      "test_ms": 11593,
+      "first_live_ms": 10.00634765625,
+      "turns": 604,
+      "turns_by_kind": {
+        "delivery": 604
+      },
+      "live_rows": {
+        "2": 308,
+        "3": 296
+      },
+      "requested_pause_ms": 4149.634167,
+      "cpu_ms": 592.804881,
+      "log": "target/lu-r2/fifo-adaptive-adaptive-replay-120-2.log",
+      "copied": 900,
+      "last_copy": 1791115773200.6758,
+      "last_copy_ms": 11506.014404296875,
+      "pause_decisions": 1809,
+      "nonzero_pause_decisions": 1809,
+      "raw_bytes": 390555,
+      "raw_sha256": "f64c3f9828514139424f165538c2b4325f6a2d1cfae1ebe1394848b9f1a94ea6"
+    }
+  ],
+  "groups": {
+    "main-fifo:replay:0": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 9584.711331874132,
+        "p95": 11532.707303762436,
+        "min": 7776.715571992099,
+        "max": 11532.707303762436
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 9205,
+        "p95": 11136,
+        "min": 7382,
+        "max": 11136
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 9189.849609375,
+        "p95": 11119.466064453125,
+        "min": 7344.7900390625,
+        "max": 11119.466064453125
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 3.50927734375,
+        "p95": 6.279052734375,
+        "min": 3.1240234375,
+        "max": 6.279052734375
+      },
+      "turns": {
+        "n": 3,
+        "p50": 879,
+        "p95": 888,
+        "min": 879,
+        "max": 888
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 2636,
+        "p95": 2663,
+        "min": 2636,
+        "max": 2663
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 7739.01051,
+        "p95": 9398.852771,
+        "min": 6140.079218,
+        "max": 9398.852771
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 1105.57293,
+        "p95": 1342.693253,
+        "min": 877.154174,
+        "max": 1342.693253
+      }
+    },
+    "adaptive:replay:0": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 9380.685915239155,
+        "p95": 9979.634280316532,
+        "min": 8132.401889190078,
+        "max": 9979.634280316532
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 9013,
+        "p95": 9580,
+        "min": 7753,
+        "max": 9580
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 8996.10400390625,
+        "p95": 9567.865966796875,
+        "min": 7745.5634765625,
+        "max": 9567.865966796875
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 3.1484375,
+        "p95": 3.185791015625,
+        "min": 3.000732421875,
+        "max": 3.185791015625
+      },
+      "turns": {
+        "n": 3,
+        "p50": 732,
+        "p95": 744,
+        "min": 680,
+        "max": 744
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 2195,
+        "p95": 2231,
+        "min": 2039,
+        "max": 2231
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 7605.129203,
+        "p95": 8096.496359,
+        "min": 6545.683802,
+        "max": 8096.496359
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 1086.447029,
+        "p95": 1156.642337,
+        "min": 935.097686,
+        "max": 1156.642337
+      }
+    },
+    "main-fifo:replay:20": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 10049.974602181464,
+        "p95": 11052.078455220908,
+        "min": 8645.361879840493,
+        "max": 11052.078455220908
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 9036,
+        "p95": 10337,
+        "min": 7663,
+        "max": 10337
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 9006.3955078125,
+        "p95": 10315.28173828125,
+        "min": 7645.298828125,
+        "max": 10315.28173828125
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 7.87158203125,
+        "p95": 11.0009765625,
+        "min": 2.57275390625,
+        "max": 11.0009765625
+      },
+      "turns": {
+        "n": 3,
+        "p50": 870,
+        "p95": 884,
+        "min": 860,
+        "max": 884
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 2607,
+        "p95": 2649,
+        "min": 2577,
+        "max": 2649
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 5741.254099,
+        "p95": 5967.083101,
+        "min": 5451.228314,
+        "max": 5967.083101
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 820.179157,
+        "p95": 852.440443,
+        "min": 778.746902,
+        "max": 852.440443
+      }
+    },
+    "adaptive:replay:20": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 7594.330851919949,
+        "p95": 8041.118128225207,
+        "min": 7189.850979950279,
+        "max": 8041.118128225207
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 6601,
+        "p95": 7067,
+        "min": 6190,
+        "max": 7067
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 6568.293212890625,
+        "p95": 7043.413330078125,
+        "min": 6166.527099609375,
+        "max": 7043.413330078125
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 2.96337890625,
+        "p95": 6.080078125,
+        "min": 2.1796875,
+        "max": 6.080078125
+      },
+      "turns": {
+        "n": 3,
+        "p50": 591,
+        "p95": 654,
+        "min": 588,
+        "max": 654
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 1772,
+        "p95": 1959,
+        "min": 1761,
+        "max": 1959
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 3964.84711,
+        "p95": 4517.174914,
+        "min": 3933.409641,
+        "max": 4517.174914
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 566.40673,
+        "p95": 645.310702,
+        "min": 561.915663,
+        "max": 645.310702
+      }
+    },
+    "main-fifo:replay:120": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 26205.19027998671,
+        "p95": 30294.221281073987,
+        "min": 22717.917039990425,
+        "max": 30294.221281073987
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 19878,
+        "p95": 20607,
+        "min": 16337,
+        "max": 20607
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 19807.009521484375,
+        "p95": 20509.0361328125,
+        "min": 16233.409912109375,
+        "max": 20509.0361328125
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 8.83984375,
+        "p95": 12.996337890625,
+        "min": 8.15478515625,
+        "max": 12.996337890625
+      },
+      "turns": {
+        "n": 3,
+        "p50": 896,
+        "p95": 896,
+        "min": 894,
+        "max": 896
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 2685,
+        "p95": 2685,
+        "min": 2679,
+        "max": 2685
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 5966.364243,
+        "p95": 6018.009256,
+        "min": 5854.670787,
+        "max": 6018.009256
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 852.337749,
+        "p95": 859.715608,
+        "min": 836.381541,
+        "max": 859.715608
+      }
+    },
+    "adaptive:replay:120": {
+      "n": 3,
+      "failures": 0,
+      "wall_ms": {
+        "n": 3,
+        "p50": 20248.626914806664,
+        "p95": 20717.513024806976,
+        "min": 15723.54607982561,
+        "max": 20717.513024806976
+      },
+      "test_ms": {
+        "n": 3,
+        "p50": 13579,
+        "p95": 13641,
+        "min": 11593,
+        "max": 13641
+      },
+      "last_copy_ms": {
+        "n": 3,
+        "p50": 13473.075927734375,
+        "p95": 13530.0009765625,
+        "min": 11506.014404296875,
+        "max": 13530.0009765625
+      },
+      "first_live_ms": {
+        "n": 3,
+        "p50": 10.96044921875,
+        "p95": 13.983642578125,
+        "min": 10.00634765625,
+        "max": 13.983642578125
+      },
+      "turns": {
+        "n": 3,
+        "p50": 604,
+        "p95": 604,
+        "min": 597,
+        "max": 604
+      },
+      "nonzero_pause_decisions": {
+        "n": 3,
+        "p50": 1809,
+        "p95": 1809,
+        "min": 1788,
+        "max": 1809
+      },
+      "requested_pause_ms": {
+        "n": 3,
+        "p50": 4196.849552,
+        "p95": 4223.659615,
+        "min": 4149.634167,
+        "max": 4223.659615
+      },
+      "cpu_ms": {
+        "n": 3,
+        "p50": 599.549936,
+        "p95": 603.379945,
+        "min": 592.804881,
+        "max": 603.379945
+      }
+    }
+  }
+}

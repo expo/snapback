@@ -89,13 +89,13 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError> {
-        self.tx
+        self.conn()
             .execute("DELETE FROM _sessions WHERE token_digest = ?1", [digest])?;
         Ok(())
     }
 
     fn invalidate_family(&self, principal: &str, family: &str) -> Result<(), RuntimeError> {
-        self.tx.execute(
+        self.conn().execute(
             "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
             params![principal, family],
         )?;
@@ -117,7 +117,7 @@ impl Store {
             sql.rollback()?;
             return Ok(None);
         }
-        let tx = Tx { changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &self.catalog };
+        let tx = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &self.catalog };
         let resolved = crate::identity::resolve_session_tx(&tx, digest, now, supervisor_revision)?;
         tx.rollback()?;
         Ok(resolved)

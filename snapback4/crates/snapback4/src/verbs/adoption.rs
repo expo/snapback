@@ -16,7 +16,9 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
         Err(error) => return Err(error.to_string()),
     };
     let steps = store.successor(schema).map_err(|e| e.to_string())?;
-    if estimates.iter().all(|e| e.sources == 0) && timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok((Vec::new(), Vec::new())); }
+    let pause = store.adoption_estimate(schema).map_err(|e| e.to_string())?;
+    let windows = super::sql::window_populations(&path, schema).map_err(|(_, message)| message)?;
+    if windows.is_empty() && pause.is_none() && estimates.iter().all(|e| e.sources == 0) && timeline_error.is_none() && !steps.iter().any(|s| s.change == Change::Narrowing) { return Ok((Vec::new(), Vec::new())); }
     let mut sites = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
@@ -48,11 +50,21 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
         diagnostics.push(Diagnostic::new(&site, code, message,
             snapback4_core::store::timeline_launch::ALTERNATIVE).guide("feeds"));
     }
-    let notes = estimates.iter().filter(|e| e.sources != 0).map(|estimate| {
+    let mut notes: Vec<_> = estimates.iter().filter(|e| e.sources != 0).map(|estimate| {
         let site = sites.get(&format!("timelines.{}", estimate.name)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
         Diagnostic::new(&site, "N_TIMELINE_ADOPT", format!("{}; dev will atomically start this feed now: all retained own events and newest 1,000 live events per current follow, no refill on removal; fresh repost ids, no recovered delivery history. Writes and syncs wait; devices reacquire", estimate.summary()),
             "dev adopts automatically; deploy requires --allow-feed-adoption. Use planned home in guide feeds to avoid the launch lock").guide("feeds")
     }).collect();
+    if let Some(pause) = pause {
+        notes.push(Diagnostic::new(&Site::new("schema.q", 1, 1), "N_ADOPTION_PAUSE", pause.summary(),
+            "plan this atomic activation's write pause; queries retain the predecessor snapshot; the adoption line reports measured phases after commit").guide("maintains"));
+    }
+    for (name, last, count) in windows {
+        let site = sites.get(&format!("tables.{name}")).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
+        notes.push(Diagnostic::new(&site, "N_SYNC_WINDOW_SIZE",
+            format!("{name} has at least {count} stored rows across all groups; the new sync last {last} window is per group, not a server history limit (guide sync, opening sentence)"),
+            "see the opening of guide sync: cursor history pages beyond the device working set on the server; offline reads use only acquired data").guide("sync"));
+    }
     Ok((diagnostics, notes))
 }
 

@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018 §3.2 on the local client, over the wasm and process devices: a
 // background presence refresh is quiet when it fails, publishes an accepted
@@ -44,12 +45,13 @@ async function bob(t, tier, plan, hold = async () => {}) {
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   const host = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(host);
   const exit = once(host, "exit");
   let log = "", client;
   host.stdout.on("data", b => { log += b; }); host.stderr.on("data", b => { log += b; });
   t.after(async () => { await client?.close(); host.kill("SIGTERM"); await exit; rmSync(directory, { recursive: true, force: true }); });
-  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+/.test(log); }, "server did not listen");
-  const url = log.match(/http:\/\/127\.0\.0\.1:\d+/)[0];
+  await until(() => { assert.equal(host.exitCode, null, log); return /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout()); }, "server did not listen");
+  const url = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)[0];
   const reads = [];
   let outage = false, entered = 0;
   const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });

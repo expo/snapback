@@ -1,0 +1,121 @@
+✔ a decoded newer whole reply publishes through repeated notifications and published applies (6.948173ms)
+✔ whole server progress refuses older cut (3.945503ms)
+✔ whole server progress refuses missing cut (0.377726ms)
+✔ whole server progress refuses invalid cut (0.419398ms)
+✔ whole server progress refuses unsequenced change (0.430505ms)
+✔ whole server progress refuses admission (0.449814ms)
+✔ whole server progress refuses settlement (0.383195ms)
+✔ whole server progress refuses store replacement (0.559048ms)
+✔ whole server progress refuses staged apply (0.458868ms)
+✔ whole server progress refuses unknown images (0.495543ms)
+✔ whole server progress refuses newer images (0.398156ms)
+✔ whole server progress refuses scope loss (0.723023ms)
+✔ whole server progress refuses prediction (0.601502ms)
+✔ server proof never qualifies retained dependency (0.424667ms)
+✔ server proof never qualifies retained component (0.383134ms)
+✔ server proof never qualifies retained rows (0.288533ms)
+✔ server proof never qualifies local reobservation (0.277957ms)
+✔ image publication metadata must certify the whole apply (0.174422ms)
+✔ publication proof expires at a hard boundary even after evaluation has finished (2.203112ms)
+✔ a published apply with existing predictions keeps its hard boundary (0.268272ms)
+✔ disjoint evidence preserves the actual local evaluation (retained: false) (0.417216ms)
+✔ disjoint evidence preserves the actual local evaluation (retained: true) (0.185578ms)
+✔ unchanged-input proof refuses unknown notification (0.330505ms)
+✔ unchanged-input proof refuses unknown apply (0.108733ms)
+✔ unchanged-input proof refuses authorization input (0.110616ms)
+✔ unchanged-input proof refuses native (0.10625ms)
+✔ unchanged-input proof refuses staged apply (0.145999ms)
+✔ unchanged-input proof refuses admission (0.12656ms)
+✔ a disjoint replica footprint cannot certify an older external answer (composed: false) (0.275503ms)
+✔ a disjoint replica footprint cannot certify an older external answer (composed: true) (0.36743ms)
+✔ independent unchanged inputs and a covering external cut permit progress (composed: false) (0.414762ms)
+✔ independent unchanged inputs and a covering external cut permit progress (composed: true) (0.462413ms)
+✔ a composed reply needs unchanged local inputs even when its server cut covers the change (0.272448ms)
+✔ remembered recovery cannot use a disjoint replica footprint to renew external authority (0.430766ms)
+✖ retained positive route rejects watermark-only catch-up after routing (0.965146ms)
+✖ retained empty route rejects watermark-only catch-up after routing (0.388743ms)
+✖ retained structured route rejects watermark-only catch-up after routing (0.29979ms)
+✖ queued known prediction fences non-empty local publication (0.34047ms)
+✖ queued opaque prediction fences non-empty local publication (0.213179ms)
+✔ unaccounted watch versions cannot borrow later cut evidence (local: false) (0.38073ms)
+✔ unaccounted watch versions cannot borrow later cut evidence (local: true) (0.154352ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 36
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.097155
+
+✖ failing tests:
+
+test at packages/snapback4/test/observation-publication.test.mjs:198:58
+✖ retained positive route rejects watermark-only catch-up after routing (0.965146ms)
+  AssertionError [ERR_ASSERTION]: must reevaluate the route at the new watermark
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:216:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:198:58
+✖ retained empty route rejects watermark-only catch-up after routing (0.388743ms)
+  AssertionError [ERR_ASSERTION]: must reevaluate the route at the new watermark
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:216:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:198:58
+✖ retained structured route rejects watermark-only catch-up after routing (0.29979ms)
+  AssertionError [ERR_ASSERTION]: must reevaluate the route at the new watermark
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:216:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:219:53
+✖ queued known prediction fences non-empty local publication (0.34047ms)
+  AssertionError [ERR_ASSERTION]: the non-empty local page cannot reuse its earlier pending result
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:227:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:219:53
+✖ queued opaque prediction fences non-empty local publication (0.213179ms)
+  AssertionError [ERR_ASSERTION]: the non-empty local page cannot reuse its earlier pending result
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:227:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

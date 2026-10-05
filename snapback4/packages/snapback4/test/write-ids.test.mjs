@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Caller IDs across independent owners and the bounded device receipt window.
 import test from "node:test";
@@ -42,8 +43,9 @@ async function fixture(t, tier) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-write-ids-"));
   mkdirSync(join(dir, "snapback")); writeFileSync(join(dir, "snapback/schema.q"), source);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit"); let log = "", url;
-  for (const stream of [server.stdout, server.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on("data", chunk => { log += chunk; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], cores = [], posts = [], replies = [], shared = new Map();
   let offline = false, held, ordered = false;
   const firstAdmission = deferred();

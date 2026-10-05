@@ -1,0 +1,258 @@
+{
+  "base": "eb39b39936567f47974a031dc7392b99fb7a3a66",
+  "host": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "affinity": "72-79",
+  "sha256": {
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "ea4d93d9b0edff591dc94761ab0a2fc4ee68bee52e19846e4632fd3974642bb0",
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "c6682141fcdf5cdf98e6ac344f248f62c466fa7219b512426903b7eac1bf9219",
+    "snapback4/packages/snapback4/test/cleanup.test.mjs": "04843b729207fcf8861f3b9f143c08dea5d6bb8e436a47877feca19dc3bb6882",
+    "snapback4/packages/snapback4/test/helpers/cleanup.mjs": "f66edc75bd935af6b8211316f817d700fc5c87f157ff4b8e73370cff838df64e"
+  },
+  "runs": [
+    {
+      "file": "cleanup",
+      "iteration": 1,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/cleanup.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-cleanup-1",
+      "exit": 0,
+      "seconds": 0.592,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "cleanup",
+      "iteration": 2,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/cleanup.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-cleanup-2",
+      "exit": 0,
+      "seconds": 0.581,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "cleanup",
+      "iteration": 3,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/cleanup.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-cleanup-3",
+      "exit": 0,
+      "seconds": 0.514,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "release-activation",
+      "iteration": 1,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/release-activation.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-release-activation-1",
+      "exit": 0,
+      "seconds": 2.778,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "release-activation",
+      "iteration": 2,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/release-activation.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-release-activation-2",
+      "exit": 0,
+      "seconds": 2.749,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "release-activation",
+      "iteration": 3,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/release-activation.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-release-activation-3",
+      "exit": 0,
+      "seconds": 2.614,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "worker-regressions",
+      "iteration": 1,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/worker-regressions.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-worker-regressions-1",
+      "exit": 0,
+      "seconds": 445.057,
+      "counts": {
+        "tests": 61,
+        "pass": 61,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "worker-regressions",
+      "iteration": 2,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/worker-regressions.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-worker-regressions-2",
+      "exit": 0,
+      "seconds": 445.142,
+      "counts": {
+        "tests": 61,
+        "pass": 61,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "file": "worker-regressions",
+      "iteration": 3,
+      "command": [
+        "taskset",
+        "-c",
+        "72-79",
+        "/home/ccheever/.local/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/worker-regressions.test.mjs"
+      ],
+      "TMPDIR": "/tmp/sb4-fy-round3.KBclHX/tmp-worker-regressions-3",
+      "exit": 0,
+      "seconds": 445.188,
+      "counts": {
+        "tests": 61,
+        "pass": 61,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "hog_pid": 2056604,
+  "hog_affinity": [
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79
+  ],
+  "hog_cpu_seconds": 445.74,
+  "hog_exit": -15,
+  "elapsed_seconds": 445.776,
+  "unchanged_fixture_files": [
+    "snapback4/packages/snapback4/test/release-activation.test.mjs",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs"
+  ],
+  "controls": {
+    "baseline_helper_commit": "eb39b39936567f47974a031dc7392b99fb7a3a66",
+    "baseline_new_regressions": {
+      "pass": 2,
+      "fail": 4,
+      "exit": 1
+    },
+    "fixed_new_regressions": {
+      "pass": 6,
+      "fail": 0,
+      "exit": 0
+    },
+    "controls": "The same final cleanup.test.mjs was run against the unmodified base helper, then the fixed helper. Native child regressions assert reporting across a 25 ms timeout with successful 150 ms cleanup, and original AssertionError fields through single/nested failed cleanup.",
+    "full_suite": "Not rerun; executable changes are confined to the cleanup helper and its regression tests."
+  },
+  "total_tests_passed": 255,
+  "reference_check": "ref-check: ok \u2014 527 LLP docs, 10343 refs in 34453 files, 0 errors, 0 unchecked",
+  "diff_check_exit": 0,
+  "sampled_disk_use": "13 GiB worktree; 212 KiB scratch at completion"
+}

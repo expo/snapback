@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-04T17:42:41.139060+00:00",
+  "host": "MacMini-Apt101-M5-A",
+  "udid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+  "simulatorState": "Booted",
+  "uninstall": [
+    {
+      "bundle": "dev.snapback.np2.cal30",
+      "exit": 0
+    },
+    {
+      "bundle": "dev.snapback.np2.driver.xctrunner",
+      "exit": 0
+    }
+  ],
+  "probeAppsAbsent": true,
+  "scratchPortClosed": true,
+  "ownedProcessRecordsCleared": true,
+  "evidenceTransferHashesVerified": 19,
+  "scratchPath": "/tmp/np2-native-protocol-20261004",
+  "scratchAbsent": true
+}

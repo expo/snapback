@@ -1,0 +1,4058 @@
+{
+  "run": 3,
+  "viewer": 1,
+  "events": [
+    {
+      "stage": "op",
+      "at": 0.08,
+      "event": "clear",
+      "before": 700,
+      "after": 701,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 0.08,
+      "event": "withdrawScopes",
+      "before": 701,
+      "after": 701
+    },
+    {
+      "stage": "op",
+      "at": 1.58,
+      "event": "applied",
+      "before": 701,
+      "after": 702,
+      "cut": 3658
+    },
+    {
+      "stage": "op",
+      "at": 8.78,
+      "event": "notified",
+      "before": 702,
+      "after": 703,
+      "cut": 3661
+    },
+    {
+      "stage": "op",
+      "at": 8.78,
+      "event": "changed",
+      "before": 704,
+      "after": 705,
+      "name": "history",
+      "cut": 3661
+    },
+    {
+      "stage": "op",
+      "at": 12.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3661,
+      "authority": 702,
+      "current": 706
+    },
+    {
+      "stage": "op",
+      "at": 12.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 702,
+      "current": 706
+    },
+    {
+      "stage": "op",
+      "at": 12.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 702,
+      "current": 706,
+      "changeVersion": 1,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 18.68,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3662,
+      "authority": 706,
+      "current": 706
+    },
+    {
+      "stage": "op",
+      "at": 22.38,
+      "event": "clear",
+      "before": 706,
+      "after": 707,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 22.38,
+      "event": "withdrawScopes",
+      "before": 707,
+      "after": 707
+    },
+    {
+      "stage": "op",
+      "at": 23.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 706,
+      "current": 707
+    },
+    {
+      "stage": "op",
+      "at": 23.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 706,
+      "current": 707,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 23.98,
+      "event": "applied",
+      "before": 707,
+      "after": 708,
+      "cut": 3661
+    },
+    {
+      "stage": "op",
+      "at": 24.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 707,
+      "current": 708
+    },
+    {
+      "stage": "op",
+      "at": 24.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 707,
+      "current": 708,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 31.78,
+      "event": "notified",
+      "before": 708,
+      "after": 709,
+      "cut": 3663
+    },
+    {
+      "stage": "op",
+      "at": 32.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3664,
+      "authority": 708,
+      "current": 710
+    },
+    {
+      "stage": "op",
+      "at": 32.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 708,
+      "current": 710
+    },
+    {
+      "stage": "op",
+      "at": 32.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 708,
+      "current": 710,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 40.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3664,
+      "authority": 710,
+      "current": 710
+    },
+    {
+      "stage": "op",
+      "at": 41.48,
+      "event": "clear",
+      "before": 710,
+      "after": 711,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 41.58,
+      "event": "withdrawScopes",
+      "before": 711,
+      "after": 711
+    },
+    {
+      "stage": "op",
+      "at": 42.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 710,
+      "current": 711
+    },
+    {
+      "stage": "op",
+      "at": 42.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 710,
+      "current": 711,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 42.68,
+      "event": "applied",
+      "before": 711,
+      "after": 712,
+      "cut": 3664
+    },
+    {
+      "stage": "op",
+      "at": 42.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 711,
+      "current": 712
+    },
+    {
+      "stage": "op",
+      "at": 42.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 711,
+      "current": 712,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 50.68,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3665,
+      "authority": 712,
+      "current": 712
+    },
+    {
+      "stage": "op",
+      "at": 50.98,
+      "event": "notified",
+      "before": 712,
+      "after": 713,
+      "cut": 3665
+    },
+    {
+      "stage": "op",
+      "at": 51.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 712,
+      "current": 714
+    },
+    {
+      "stage": "op",
+      "at": 51.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 712,
+      "current": 714,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 59.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3666,
+      "authority": 714,
+      "current": 714
+    },
+    {
+      "stage": "op",
+      "at": 61.58,
+      "event": "clear",
+      "before": 714,
+      "after": 715,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 61.58,
+      "event": "withdrawScopes",
+      "before": 715,
+      "after": 715
+    },
+    {
+      "stage": "op",
+      "at": 62.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 714,
+      "current": 715
+    },
+    {
+      "stage": "op",
+      "at": 62.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 714,
+      "current": 715,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 62.78,
+      "event": "applied",
+      "before": 715,
+      "after": 716,
+      "cut": 3666
+    },
+    {
+      "stage": "op",
+      "at": 63.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 715,
+      "current": 716
+    },
+    {
+      "stage": "op",
+      "at": 63.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 715,
+      "current": 716,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 71.58,
+      "event": "notified",
+      "before": 716,
+      "after": 717,
+      "cut": 3668
+    },
+    {
+      "stage": "op",
+      "at": 72.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3668,
+      "authority": 716,
+      "current": 718
+    },
+    {
+      "stage": "op",
+      "at": 72.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 716,
+      "current": 718
+    },
+    {
+      "stage": "op",
+      "at": 72.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 716,
+      "current": 718,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 78.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3669,
+      "authority": 718,
+      "current": 718
+    },
+    {
+      "stage": "op",
+      "at": 80.38,
+      "event": "clear",
+      "before": 718,
+      "after": 719,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 80.38,
+      "event": "withdrawScopes",
+      "before": 719,
+      "after": 719
+    },
+    {
+      "stage": "op",
+      "at": 81.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 718,
+      "current": 719
+    },
+    {
+      "stage": "op",
+      "at": 81.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 718,
+      "current": 719,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 81.58,
+      "event": "applied",
+      "before": 719,
+      "after": 720,
+      "cut": 3669
+    },
+    {
+      "stage": "op",
+      "at": 81.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 719,
+      "current": 720
+    },
+    {
+      "stage": "op",
+      "at": 81.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 719,
+      "current": 720,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 88.58,
+      "event": "notified",
+      "before": 720,
+      "after": 721,
+      "cut": 3670
+    },
+    {
+      "stage": "op",
+      "at": 91.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3670,
+      "authority": 720,
+      "current": 722
+    },
+    {
+      "stage": "op",
+      "at": 91.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 720,
+      "current": 722
+    },
+    {
+      "stage": "op",
+      "at": 91.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 720,
+      "current": 722,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 97.98,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3671,
+      "authority": 722,
+      "current": 722
+    },
+    {
+      "stage": "op",
+      "at": 99.98,
+      "event": "clear",
+      "before": 722,
+      "after": 723,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 99.98,
+      "event": "withdrawScopes",
+      "before": 723,
+      "after": 723
+    },
+    {
+      "stage": "op",
+      "at": 100.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 722,
+      "current": 723
+    },
+    {
+      "stage": "op",
+      "at": 100.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 722,
+      "current": 723,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 100.98,
+      "event": "applied",
+      "before": 723,
+      "after": 724,
+      "cut": 3671
+    },
+    {
+      "stage": "op",
+      "at": 101.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 723,
+      "current": 724
+    },
+    {
+      "stage": "op",
+      "at": 101.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 723,
+      "current": 724,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 107.68,
+      "event": "notified",
+      "before": 724,
+      "after": 725,
+      "cut": 3672
+    },
+    {
+      "stage": "op",
+      "at": 111.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3672,
+      "authority": 724,
+      "current": 726
+    },
+    {
+      "stage": "op",
+      "at": 111.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 724,
+      "current": 726
+    },
+    {
+      "stage": "op",
+      "at": 111.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 724,
+      "current": 726,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 117.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3673,
+      "authority": 726,
+      "current": 726
+    },
+    {
+      "stage": "op",
+      "at": 118.98,
+      "event": "clear",
+      "before": 726,
+      "after": 727,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 118.98,
+      "event": "withdrawScopes",
+      "before": 727,
+      "after": 727
+    },
+    {
+      "stage": "op",
+      "at": 119.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 726,
+      "current": 727
+    },
+    {
+      "stage": "op",
+      "at": 119.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 726,
+      "current": 727,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 120.18,
+      "event": "applied",
+      "before": 727,
+      "after": 728,
+      "cut": 3673
+    },
+    {
+      "stage": "op",
+      "at": 120.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 727,
+      "current": 728
+    },
+    {
+      "stage": "op",
+      "at": 120.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 727,
+      "current": 728,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 127.18,
+      "event": "notified",
+      "before": 728,
+      "after": 729,
+      "cut": 3674
+    },
+    {
+      "stage": "op",
+      "at": 129.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3674,
+      "authority": 728,
+      "current": 730
+    },
+    {
+      "stage": "op",
+      "at": 129.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 728,
+      "current": 730
+    },
+    {
+      "stage": "op",
+      "at": 129.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 728,
+      "current": 730,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 134.98,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3674,
+      "authority": 730,
+      "current": 730
+    },
+    {
+      "stage": "op",
+      "at": 136.88,
+      "event": "clear",
+      "before": 730,
+      "after": 731,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 136.88,
+      "event": "withdrawScopes",
+      "before": 731,
+      "after": 731
+    },
+    {
+      "stage": "op",
+      "at": 138.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 730,
+      "current": 731
+    },
+    {
+      "stage": "op",
+      "at": 138.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 730,
+      "current": 731,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 138.58,
+      "event": "applied",
+      "before": 731,
+      "after": 732,
+      "cut": 3674
+    },
+    {
+      "stage": "op",
+      "at": 138.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 731,
+      "current": 732
+    },
+    {
+      "stage": "op",
+      "at": 138.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 731,
+      "current": 732,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 148.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3675,
+      "authority": 732,
+      "current": 732
+    },
+    {
+      "stage": "op",
+      "at": 149.48,
+      "event": "notified",
+      "before": 732,
+      "after": 733,
+      "cut": 3675
+    },
+    {
+      "stage": "op",
+      "at": 153.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 732,
+      "current": 734
+    },
+    {
+      "stage": "op",
+      "at": 153.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 732,
+      "current": 734,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 162.78,
+      "event": "clear",
+      "before": 734,
+      "after": 735,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 162.78,
+      "event": "withdrawScopes",
+      "before": 735,
+      "after": 735
+    },
+    {
+      "stage": "op",
+      "at": 163.68,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3675,
+      "authority": 734,
+      "current": 735
+    },
+    {
+      "stage": "op",
+      "at": 163.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 734,
+      "current": 735
+    },
+    {
+      "stage": "op",
+      "at": 163.68,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 734,
+      "current": 735,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 163.78,
+      "event": "applied",
+      "before": 735,
+      "after": 736,
+      "cut": 3675
+    },
+    {
+      "stage": "op",
+      "at": 164.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 735,
+      "current": 736
+    },
+    {
+      "stage": "op",
+      "at": 164.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 735,
+      "current": 736,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 170.98,
+      "event": "notified",
+      "before": 736,
+      "after": 737,
+      "cut": 3676
+    },
+    {
+      "stage": "op",
+      "at": 173.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3676,
+      "authority": 736,
+      "current": 738
+    },
+    {
+      "stage": "op",
+      "at": 173.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 736,
+      "current": 738
+    },
+    {
+      "stage": "op",
+      "at": 173.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 736,
+      "current": 738,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 177.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3676,
+      "authority": 738,
+      "current": 738
+    },
+    {
+      "stage": "op",
+      "at": 179.78,
+      "event": "clear",
+      "before": 738,
+      "after": 739,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 179.78,
+      "event": "withdrawScopes",
+      "before": 739,
+      "after": 739
+    },
+    {
+      "stage": "op",
+      "at": 180.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 738,
+      "current": 739
+    },
+    {
+      "stage": "op",
+      "at": 180.68,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 738,
+      "current": 739,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 180.88,
+      "event": "applied",
+      "before": 739,
+      "after": 740,
+      "cut": 3676
+    },
+    {
+      "stage": "op",
+      "at": 181.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 739,
+      "current": 740
+    },
+    {
+      "stage": "op",
+      "at": 181.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 739,
+      "current": 740,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 188.98,
+      "event": "notified",
+      "before": 740,
+      "after": 741,
+      "cut": 3678
+    },
+    {
+      "stage": "op",
+      "at": 189.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3678,
+      "authority": 740,
+      "current": 742
+    },
+    {
+      "stage": "op",
+      "at": 189.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 740,
+      "current": 742
+    },
+    {
+      "stage": "op",
+      "at": 190.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 740,
+      "current": 742,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 200.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3679,
+      "authority": 742,
+      "current": 742
+    },
+    {
+      "stage": "op",
+      "at": 201.98,
+      "event": "clear",
+      "before": 742,
+      "after": 743,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 201.98,
+      "event": "withdrawScopes",
+      "before": 743,
+      "after": 743
+    },
+    {
+      "stage": "op",
+      "at": 202.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 742,
+      "current": 743
+    },
+    {
+      "stage": "op",
+      "at": 202.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 742,
+      "current": 743,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 202.98,
+      "event": "applied",
+      "before": 743,
+      "after": 744,
+      "cut": 3679
+    },
+    {
+      "stage": "op",
+      "at": 203.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 743,
+      "current": 744
+    },
+    {
+      "stage": "op",
+      "at": 203.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 743,
+      "current": 744,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 211.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3681,
+      "authority": 744,
+      "current": 744
+    },
+    {
+      "stage": "op",
+      "at": 211.58,
+      "event": "notified",
+      "before": 744,
+      "after": 745,
+      "cut": 3681
+    },
+    {
+      "stage": "op",
+      "at": 211.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 744,
+      "current": 746
+    },
+    {
+      "stage": "op",
+      "at": 211.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 744,
+      "current": 746,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 219.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3681,
+      "authority": 746,
+      "current": 746
+    },
+    {
+      "stage": "op",
+      "at": 220.48,
+      "event": "clear",
+      "before": 746,
+      "after": 747,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 220.48,
+      "event": "withdrawScopes",
+      "before": 747,
+      "after": 747
+    },
+    {
+      "stage": "op",
+      "at": 220.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 746,
+      "current": 747
+    },
+    {
+      "stage": "op",
+      "at": 221.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 746,
+      "current": 747,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 221.18,
+      "event": "applied",
+      "before": 747,
+      "after": 748,
+      "cut": 3681
+    },
+    {
+      "stage": "op",
+      "at": 221.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 747,
+      "current": 748
+    },
+    {
+      "stage": "op",
+      "at": 221.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 747,
+      "current": 748,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 230.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3683,
+      "authority": 748,
+      "current": 748
+    },
+    {
+      "stage": "op",
+      "at": 231.68,
+      "event": "notified",
+      "before": 748,
+      "after": 749,
+      "cut": 3683
+    },
+    {
+      "stage": "op",
+      "at": 232.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 748,
+      "current": 750
+    },
+    {
+      "stage": "op",
+      "at": 232.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 748,
+      "current": 750,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 240.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3684,
+      "authority": 750,
+      "current": 750
+    },
+    {
+      "stage": "op",
+      "at": 242.18,
+      "event": "clear",
+      "before": 750,
+      "after": 751,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 242.18,
+      "event": "withdrawScopes",
+      "before": 751,
+      "after": 751
+    },
+    {
+      "stage": "op",
+      "at": 242.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 750,
+      "current": 751
+    },
+    {
+      "stage": "op",
+      "at": 242.68,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 750,
+      "current": 751,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 242.88,
+      "event": "applied",
+      "before": 751,
+      "after": 752,
+      "cut": 3683
+    },
+    {
+      "stage": "op",
+      "at": 243.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 751,
+      "current": 752
+    },
+    {
+      "stage": "op",
+      "at": 243.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 751,
+      "current": 752,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 251.08,
+      "event": "notified",
+      "before": 752,
+      "after": 753,
+      "cut": 3685
+    },
+    {
+      "stage": "op",
+      "at": 251.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3685,
+      "authority": 752,
+      "current": 754
+    },
+    {
+      "stage": "op",
+      "at": 251.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 752,
+      "current": 754
+    },
+    {
+      "stage": "op",
+      "at": 251.68,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 752,
+      "current": 754,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 259.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3685,
+      "authority": 754,
+      "current": 754
+    },
+    {
+      "stage": "op",
+      "at": 262.28,
+      "event": "clear",
+      "before": 754,
+      "after": 755,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 262.28,
+      "event": "withdrawScopes",
+      "before": 755,
+      "after": 755
+    },
+    {
+      "stage": "op",
+      "at": 262.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 754,
+      "current": 755
+    },
+    {
+      "stage": "op",
+      "at": 263.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 754,
+      "current": 755,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 263.18,
+      "event": "applied",
+      "before": 755,
+      "after": 756,
+      "cut": 3685
+    },
+    {
+      "stage": "op",
+      "at": 263.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 755,
+      "current": 756
+    },
+    {
+      "stage": "op",
+      "at": 263.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 755,
+      "current": 756,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 273.68,
+      "event": "notified",
+      "before": 756,
+      "after": 757,
+      "cut": 3687
+    },
+    {
+      "stage": "op",
+      "at": 274.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3687,
+      "authority": 756,
+      "current": 758
+    },
+    {
+      "stage": "op",
+      "at": 274.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 756,
+      "current": 758
+    },
+    {
+      "stage": "op",
+      "at": 274.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 756,
+      "current": 758,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 282.88,
+      "event": "clear",
+      "before": 758,
+      "after": 759,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 282.88,
+      "event": "withdrawScopes",
+      "before": 759,
+      "after": 759
+    },
+    {
+      "stage": "op",
+      "at": 283.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3688,
+      "authority": 758,
+      "current": 759
+    },
+    {
+      "stage": "op",
+      "at": 283.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 758,
+      "current": 759
+    },
+    {
+      "stage": "op",
+      "at": 283.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 758,
+      "current": 759,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 284.08,
+      "event": "applied",
+      "before": 759,
+      "after": 760,
+      "cut": 3688
+    },
+    {
+      "stage": "op",
+      "at": 284.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 759,
+      "current": 760
+    },
+    {
+      "stage": "op",
+      "at": 284.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 759,
+      "current": 760,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 290.98,
+      "event": "notified",
+      "before": 760,
+      "after": 761,
+      "cut": 3689
+    },
+    {
+      "stage": "op",
+      "at": 291.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3689,
+      "authority": 760,
+      "current": 762
+    },
+    {
+      "stage": "op",
+      "at": 291.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 760,
+      "current": 762
+    },
+    {
+      "stage": "op",
+      "at": 291.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 760,
+      "current": 762,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 299.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3690,
+      "authority": 762,
+      "current": 762
+    },
+    {
+      "stage": "op",
+      "at": 300.58,
+      "event": "clear",
+      "before": 762,
+      "after": 763,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 300.58,
+      "event": "withdrawScopes",
+      "before": 763,
+      "after": 763
+    },
+    {
+      "stage": "op",
+      "at": 301.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 762,
+      "current": 763
+    },
+    {
+      "stage": "op",
+      "at": 301.68,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 762,
+      "current": 763,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 301.78,
+      "event": "applied",
+      "before": 763,
+      "after": 764,
+      "cut": 3690
+    },
+    {
+      "stage": "op",
+      "at": 302.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 763,
+      "current": 764
+    },
+    {
+      "stage": "op",
+      "at": 302.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 763,
+      "current": 764,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 308.68,
+      "event": "notified",
+      "before": 764,
+      "after": 765,
+      "cut": 3691
+    },
+    {
+      "stage": "op",
+      "at": 309.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3691,
+      "authority": 764,
+      "current": 766
+    },
+    {
+      "stage": "op",
+      "at": 309.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 764,
+      "current": 766
+    },
+    {
+      "stage": "op",
+      "at": 309.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 764,
+      "current": 766,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 317.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3692,
+      "authority": 766,
+      "current": 766
+    },
+    {
+      "stage": "op",
+      "at": 318.88,
+      "event": "clear",
+      "before": 766,
+      "after": 767,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 318.98,
+      "event": "withdrawScopes",
+      "before": 767,
+      "after": 767
+    },
+    {
+      "stage": "op",
+      "at": 319.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 766,
+      "current": 767
+    },
+    {
+      "stage": "op",
+      "at": 319.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 766,
+      "current": 767,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 319.88,
+      "event": "applied",
+      "before": 767,
+      "after": 768,
+      "cut": 3692
+    },
+    {
+      "stage": "op",
+      "at": 328.48,
+      "event": "notified",
+      "before": 768,
+      "after": 769,
+      "cut": 3693
+    },
+    {
+      "stage": "op",
+      "at": 329.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3693,
+      "authority": 768,
+      "current": 770
+    },
+    {
+      "stage": "op",
+      "at": 329.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 768,
+      "current": 770
+    },
+    {
+      "stage": "op",
+      "at": 329.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 768,
+      "current": 770,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 337.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3694,
+      "authority": 770,
+      "current": 770
+    },
+    {
+      "stage": "op",
+      "at": 339.28,
+      "event": "clear",
+      "before": 770,
+      "after": 771,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 339.28,
+      "event": "withdrawScopes",
+      "before": 771,
+      "after": 771
+    },
+    {
+      "stage": "op",
+      "at": 340.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 770,
+      "current": 771
+    },
+    {
+      "stage": "op",
+      "at": 340.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 770,
+      "current": 771,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 340.98,
+      "event": "applied",
+      "before": 771,
+      "after": 772,
+      "cut": 3694
+    },
+    {
+      "stage": "op",
+      "at": 341.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 771,
+      "current": 772
+    },
+    {
+      "stage": "op",
+      "at": 341.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 771,
+      "current": 772,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 348.68,
+      "event": "notified",
+      "before": 772,
+      "after": 773,
+      "cut": 3695
+    },
+    {
+      "stage": "op",
+      "at": 353.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3696,
+      "authority": 772,
+      "current": 774
+    },
+    {
+      "stage": "op",
+      "at": 353.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 772,
+      "current": 774
+    },
+    {
+      "stage": "op",
+      "at": 353.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 772,
+      "current": 774,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 360.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3697,
+      "authority": 774,
+      "current": 774
+    },
+    {
+      "stage": "op",
+      "at": 362.28,
+      "event": "clear",
+      "before": 774,
+      "after": 775,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 362.28,
+      "event": "withdrawScopes",
+      "before": 775,
+      "after": 775
+    },
+    {
+      "stage": "op",
+      "at": 363.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 774,
+      "current": 775
+    },
+    {
+      "stage": "op",
+      "at": 363.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 774,
+      "current": 775,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 363.48,
+      "event": "applied",
+      "before": 775,
+      "after": 776,
+      "cut": 3696
+    },
+    {
+      "stage": "op",
+      "at": 363.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 775,
+      "current": 776
+    },
+    {
+      "stage": "op",
+      "at": 363.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 775,
+      "current": 776,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 371.48,
+      "event": "notified",
+      "before": 776,
+      "after": 777,
+      "cut": 3698
+    },
+    {
+      "stage": "op",
+      "at": 372.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3698,
+      "authority": 776,
+      "current": 778
+    },
+    {
+      "stage": "op",
+      "at": 372.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 776,
+      "current": 778
+    },
+    {
+      "stage": "op",
+      "at": 372.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 776,
+      "current": 778,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 381.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3699,
+      "authority": 778,
+      "current": 778
+    },
+    {
+      "stage": "op",
+      "at": 383.48,
+      "event": "clear",
+      "before": 778,
+      "after": 779,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 383.48,
+      "event": "withdrawScopes",
+      "before": 779,
+      "after": 779
+    },
+    {
+      "stage": "op",
+      "at": 384.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 778,
+      "current": 779
+    },
+    {
+      "stage": "op",
+      "at": 384.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 778,
+      "current": 779,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 385.18,
+      "event": "applied",
+      "before": 779,
+      "after": 780,
+      "cut": 3699
+    },
+    {
+      "stage": "op",
+      "at": 385.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 779,
+      "current": 780
+    },
+    {
+      "stage": "op",
+      "at": 385.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 779,
+      "current": 780,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 393.88,
+      "event": "notified",
+      "before": 780,
+      "after": 781,
+      "cut": 3701
+    },
+    {
+      "stage": "op",
+      "at": 394.68,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3701,
+      "authority": 780,
+      "current": 782
+    },
+    {
+      "stage": "op",
+      "at": 394.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 780,
+      "current": 782
+    },
+    {
+      "stage": "op",
+      "at": 394.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 780,
+      "current": 782,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 401.98,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3702,
+      "authority": 782,
+      "current": 782
+    },
+    {
+      "stage": "op",
+      "at": 403.48,
+      "event": "clear",
+      "before": 782,
+      "after": 783,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 403.48,
+      "event": "withdrawScopes",
+      "before": 783,
+      "after": 783
+    },
+    {
+      "stage": "op",
+      "at": 404.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 782,
+      "current": 783
+    },
+    {
+      "stage": "op",
+      "at": 404.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 782,
+      "current": 783,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 404.48,
+      "event": "applied",
+      "before": 783,
+      "after": 784,
+      "cut": 3702
+    },
+    {
+      "stage": "op",
+      "at": 404.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 783,
+      "current": 784
+    },
+    {
+      "stage": "op",
+      "at": 404.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 783,
+      "current": 784,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 411.28,
+      "event": "notified",
+      "before": 784,
+      "after": 785,
+      "cut": 3703
+    },
+    {
+      "stage": "op",
+      "at": 414.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3703,
+      "authority": 784,
+      "current": 786
+    },
+    {
+      "stage": "op",
+      "at": 414.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 784,
+      "current": 786
+    },
+    {
+      "stage": "op",
+      "at": 414.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 784,
+      "current": 786,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 420.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3704,
+      "authority": 786,
+      "current": 786
+    },
+    {
+      "stage": "op",
+      "at": 424.08,
+      "event": "clear",
+      "before": 786,
+      "after": 787,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 424.08,
+      "event": "withdrawScopes",
+      "before": 787,
+      "after": 787
+    },
+    {
+      "stage": "op",
+      "at": 424.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 786,
+      "current": 787
+    },
+    {
+      "stage": "op",
+      "at": 425.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 786,
+      "current": 787,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 425.18,
+      "event": "applied",
+      "before": 787,
+      "after": 788,
+      "cut": 3704
+    },
+    {
+      "stage": "op",
+      "at": 425.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 787,
+      "current": 788
+    },
+    {
+      "stage": "op",
+      "at": 425.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 787,
+      "current": 788,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 433.08,
+      "event": "notified",
+      "before": 788,
+      "after": 789,
+      "cut": 3706
+    },
+    {
+      "stage": "op",
+      "at": 436.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3706,
+      "authority": 788,
+      "current": 790
+    },
+    {
+      "stage": "op",
+      "at": 436.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 788,
+      "current": 790
+    },
+    {
+      "stage": "op",
+      "at": 436.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 788,
+      "current": 790,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 442.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3707,
+      "authority": 790,
+      "current": 790
+    },
+    {
+      "stage": "op",
+      "at": 443.88,
+      "event": "clear",
+      "before": 790,
+      "after": 791,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 443.88,
+      "event": "withdrawScopes",
+      "before": 791,
+      "after": 791
+    },
+    {
+      "stage": "op",
+      "at": 445.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 790,
+      "current": 791
+    },
+    {
+      "stage": "op",
+      "at": 445.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 790,
+      "current": 791,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 445.58,
+      "event": "applied",
+      "before": 791,
+      "after": 792,
+      "cut": 3706
+    },
+    {
+      "stage": "op",
+      "at": 445.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 791,
+      "current": 792
+    },
+    {
+      "stage": "op",
+      "at": 445.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 791,
+      "current": 792,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 454.38,
+      "event": "notified",
+      "before": 792,
+      "after": 793,
+      "cut": 3708
+    },
+    {
+      "stage": "op",
+      "at": 456.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3708,
+      "authority": 792,
+      "current": 794
+    },
+    {
+      "stage": "op",
+      "at": 456.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 792,
+      "current": 794
+    },
+    {
+      "stage": "op",
+      "at": 456.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 792,
+      "current": 794,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 463.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3709,
+      "authority": 794,
+      "current": 794
+    },
+    {
+      "stage": "op",
+      "at": 464.68,
+      "event": "clear",
+      "before": 794,
+      "after": 795,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 464.68,
+      "event": "withdrawScopes",
+      "before": 795,
+      "after": 795
+    },
+    {
+      "stage": "op",
+      "at": 465.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 794,
+      "current": 795
+    },
+    {
+      "stage": "op",
+      "at": 466.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 794,
+      "current": 795,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 466.28,
+      "event": "applied",
+      "before": 795,
+      "after": 796,
+      "cut": 3709
+    },
+    {
+      "stage": "op",
+      "at": 466.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 795,
+      "current": 796
+    },
+    {
+      "stage": "op",
+      "at": 466.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 795,
+      "current": 796,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 473.58,
+      "event": "notified",
+      "before": 796,
+      "after": 797,
+      "cut": 3710
+    },
+    {
+      "stage": "op",
+      "at": 474.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3710,
+      "authority": 796,
+      "current": 798
+    },
+    {
+      "stage": "op",
+      "at": 474.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 796,
+      "current": 798
+    },
+    {
+      "stage": "op",
+      "at": 474.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 796,
+      "current": 798,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 483.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3710,
+      "authority": 798,
+      "current": 798
+    },
+    {
+      "stage": "op",
+      "at": 485.58,
+      "event": "clear",
+      "before": 798,
+      "after": 799,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 485.68,
+      "event": "withdrawScopes",
+      "before": 799,
+      "after": 799
+    },
+    {
+      "stage": "op",
+      "at": 486.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 798,
+      "current": 799
+    },
+    {
+      "stage": "op",
+      "at": 486.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 798,
+      "current": 799,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 486.88,
+      "event": "applied",
+      "before": 799,
+      "after": 800,
+      "cut": 3710
+    },
+    {
+      "stage": "op",
+      "at": 487.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 799,
+      "current": 800
+    },
+    {
+      "stage": "op",
+      "at": 487.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 799,
+      "current": 800,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 494.38,
+      "event": "notified",
+      "before": 800,
+      "after": 801,
+      "cut": 3711
+    },
+    {
+      "stage": "op",
+      "at": 499.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3711,
+      "authority": 800,
+      "current": 802
+    },
+    {
+      "stage": "op",
+      "at": 499.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 800,
+      "current": 802
+    },
+    {
+      "stage": "op",
+      "at": 499.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 800,
+      "current": 802,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 505.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3712,
+      "authority": 802,
+      "current": 802
+    },
+    {
+      "stage": "op",
+      "at": 506.98,
+      "event": "clear",
+      "before": 802,
+      "after": 803,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 506.98,
+      "event": "withdrawScopes",
+      "before": 803,
+      "after": 803
+    },
+    {
+      "stage": "op",
+      "at": 508.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 802,
+      "current": 803
+    },
+    {
+      "stage": "op",
+      "at": 508.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 802,
+      "current": 803,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 508.38,
+      "event": "applied",
+      "before": 803,
+      "after": 804,
+      "cut": 3712
+    },
+    {
+      "stage": "op",
+      "at": 508.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 803,
+      "current": 804
+    },
+    {
+      "stage": "op",
+      "at": 508.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 803,
+      "current": 804,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 515.88,
+      "event": "notified",
+      "before": 804,
+      "after": 805,
+      "cut": 3713
+    },
+    {
+      "stage": "op",
+      "at": 518.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3714,
+      "authority": 804,
+      "current": 806
+    },
+    {
+      "stage": "op",
+      "at": 518.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 804,
+      "current": 806
+    },
+    {
+      "stage": "op",
+      "at": 518.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 804,
+      "current": 806,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 526.88,
+      "event": "clear",
+      "before": 806,
+      "after": 807,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 526.88,
+      "event": "withdrawScopes",
+      "before": 807,
+      "after": 807
+    },
+    {
+      "stage": "op",
+      "at": 527.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3714,
+      "authority": 806,
+      "current": 807
+    },
+    {
+      "stage": "op",
+      "at": 527.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 806,
+      "current": 807
+    },
+    {
+      "stage": "op",
+      "at": 527.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 806,
+      "current": 807,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 528.18,
+      "event": "applied",
+      "before": 807,
+      "after": 808,
+      "cut": 3714
+    },
+    {
+      "stage": "op",
+      "at": 528.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 807,
+      "current": 808
+    },
+    {
+      "stage": "op",
+      "at": 528.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 807,
+      "current": 808,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 533.98,
+      "event": "notified",
+      "before": 808,
+      "after": 809,
+      "cut": 3715
+    },
+    {
+      "stage": "op",
+      "at": 536.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3716,
+      "authority": 808,
+      "current": 810
+    },
+    {
+      "stage": "op",
+      "at": 536.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 808,
+      "current": 810
+    },
+    {
+      "stage": "op",
+      "at": 536.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 808,
+      "current": 810,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 541.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3716,
+      "authority": 810,
+      "current": 810
+    },
+    {
+      "stage": "op",
+      "at": 542.88,
+      "event": "clear",
+      "before": 810,
+      "after": 811,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 542.88,
+      "event": "withdrawScopes",
+      "before": 811,
+      "after": 811
+    },
+    {
+      "stage": "op",
+      "at": 543.68,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 810,
+      "current": 811
+    },
+    {
+      "stage": "op",
+      "at": 543.78,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 810,
+      "current": 811,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 543.88,
+      "event": "applied",
+      "before": 811,
+      "after": 812,
+      "cut": 3716
+    },
+    {
+      "stage": "op",
+      "at": 550.68,
+      "event": "notified",
+      "before": 812,
+      "after": 813,
+      "cut": 3717
+    },
+    {
+      "stage": "op",
+      "at": 551.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3717,
+      "authority": 812,
+      "current": 814
+    },
+    {
+      "stage": "op",
+      "at": 551.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 812,
+      "current": 814
+    },
+    {
+      "stage": "op",
+      "at": 551.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 812,
+      "current": 814,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 560.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3718,
+      "authority": 814,
+      "current": 814
+    },
+    {
+      "stage": "op",
+      "at": 565.18,
+      "event": "clear",
+      "before": 814,
+      "after": 815,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 565.18,
+      "event": "withdrawScopes",
+      "before": 815,
+      "after": 815
+    },
+    {
+      "stage": "op",
+      "at": 566.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 814,
+      "current": 815
+    },
+    {
+      "stage": "op",
+      "at": 566.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 814,
+      "current": 815,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 566.28,
+      "event": "applied",
+      "before": 815,
+      "after": 816,
+      "cut": 3718
+    },
+    {
+      "stage": "op",
+      "at": 566.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 815,
+      "current": 816
+    },
+    {
+      "stage": "op",
+      "at": 566.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 815,
+      "current": 816,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 574.38,
+      "event": "notified",
+      "before": 816,
+      "after": 817,
+      "cut": 3720
+    },
+    {
+      "stage": "op",
+      "at": 578.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3720,
+      "authority": 816,
+      "current": 818
+    },
+    {
+      "stage": "op",
+      "at": 578.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 816,
+      "current": 818
+    },
+    {
+      "stage": "op",
+      "at": 578.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 816,
+      "current": 818,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 585.28,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3721,
+      "authority": 818,
+      "current": 818
+    },
+    {
+      "stage": "op",
+      "at": 587.48,
+      "event": "clear",
+      "before": 818,
+      "after": 819,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 587.48,
+      "event": "withdrawScopes",
+      "before": 819,
+      "after": 819
+    },
+    {
+      "stage": "op",
+      "at": 588.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 818,
+      "current": 819
+    },
+    {
+      "stage": "op",
+      "at": 588.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 818,
+      "current": 819,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 588.78,
+      "event": "applied",
+      "before": 819,
+      "after": 820,
+      "cut": 3721
+    },
+    {
+      "stage": "op",
+      "at": 589.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 819,
+      "current": 820
+    },
+    {
+      "stage": "op",
+      "at": 589.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 819,
+      "current": 820,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 599.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3723,
+      "authority": 820,
+      "current": 820
+    },
+    {
+      "stage": "op",
+      "at": 600.68,
+      "event": "notified",
+      "before": 820,
+      "after": 821,
+      "cut": 3723
+    },
+    {
+      "stage": "op",
+      "at": 601.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 820,
+      "current": 822
+    },
+    {
+      "stage": "op",
+      "at": 601.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 820,
+      "current": 822,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 611.78,
+      "event": "clear",
+      "before": 822,
+      "after": 823,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 611.78,
+      "event": "withdrawScopes",
+      "before": 823,
+      "after": 823
+    },
+    {
+      "stage": "op",
+      "at": 613.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3724,
+      "authority": 822,
+      "current": 823
+    },
+    {
+      "stage": "op",
+      "at": 613.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 822,
+      "current": 823
+    },
+    {
+      "stage": "op",
+      "at": 613.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 822,
+      "current": 823,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 613.28,
+      "event": "applied",
+      "before": 823,
+      "after": 824,
+      "cut": 3724
+    },
+    {
+      "stage": "op",
+      "at": 621.98,
+      "event": "notified",
+      "before": 824,
+      "after": 825,
+      "cut": 3725
+    },
+    {
+      "stage": "op",
+      "at": 623.18,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3725,
+      "authority": 824,
+      "current": 826
+    },
+    {
+      "stage": "op",
+      "at": 623.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 824,
+      "current": 826
+    },
+    {
+      "stage": "op",
+      "at": 623.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 824,
+      "current": 826,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 629.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3726,
+      "authority": 826,
+      "current": 826
+    },
+    {
+      "stage": "op",
+      "at": 632.18,
+      "event": "clear",
+      "before": 826,
+      "after": 827,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 632.18,
+      "event": "withdrawScopes",
+      "before": 827,
+      "after": 827
+    },
+    {
+      "stage": "op",
+      "at": 633.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 236,
+      "authority": 826,
+      "current": 827
+    },
+    {
+      "stage": "op",
+      "at": 633.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 826,
+      "current": 827,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 633.38,
+      "event": "applied",
+      "before": 827,
+      "after": 828,
+      "cut": 3726
+    },
+    {
+      "stage": "op",
+      "at": 633.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 827,
+      "current": 828
+    },
+    {
+      "stage": "op",
+      "at": 633.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 827,
+      "current": 828,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 640.58,
+      "event": "notified",
+      "before": 828,
+      "after": 829,
+      "cut": 3728
+    },
+    {
+      "stage": "op",
+      "at": 641.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3728,
+      "authority": 828,
+      "current": 830
+    },
+    {
+      "stage": "op",
+      "at": 641.38,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 828,
+      "current": 830
+    },
+    {
+      "stage": "op",
+      "at": 641.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 828,
+      "current": 830,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 649.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3729,
+      "authority": 830,
+      "current": 830
+    },
+    {
+      "stage": "op",
+      "at": 650.38,
+      "event": "clear",
+      "before": 830,
+      "after": 831,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 650.38,
+      "event": "withdrawScopes",
+      "before": 831,
+      "after": 831
+    },
+    {
+      "stage": "op",
+      "at": 651.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 830,
+      "current": 831
+    },
+    {
+      "stage": "op",
+      "at": 651.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 830,
+      "current": 831,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 651.38,
+      "event": "applied",
+      "before": 831,
+      "after": 832,
+      "cut": 3728
+    },
+    {
+      "stage": "op",
+      "at": 660.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3730,
+      "authority": 832,
+      "current": 832
+    },
+    {
+      "stage": "op",
+      "at": 661.18,
+      "event": "notified",
+      "before": 832,
+      "after": 833,
+      "cut": 3730
+    },
+    {
+      "stage": "op",
+      "at": 661.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 832,
+      "current": 834
+    },
+    {
+      "stage": "op",
+      "at": 661.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 832,
+      "current": 834,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 669.78,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3731,
+      "authority": 834,
+      "current": 834
+    },
+    {
+      "stage": "op",
+      "at": 671.48,
+      "event": "clear",
+      "before": 834,
+      "after": 835,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 671.48,
+      "event": "withdrawScopes",
+      "before": 835,
+      "after": 835
+    },
+    {
+      "stage": "op",
+      "at": 672.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 834,
+      "current": 835
+    },
+    {
+      "stage": "op",
+      "at": 672.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 834,
+      "current": 835,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 672.68,
+      "event": "applied",
+      "before": 835,
+      "after": 836,
+      "cut": 3731
+    },
+    {
+      "stage": "op",
+      "at": 672.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 835,
+      "current": 836
+    },
+    {
+      "stage": "op",
+      "at": 672.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 835,
+      "current": 836,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 681.28,
+      "event": "notified",
+      "before": 836,
+      "after": 837,
+      "cut": 3732
+    },
+    {
+      "stage": "op",
+      "at": 682.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3732,
+      "authority": 836,
+      "current": 838
+    },
+    {
+      "stage": "op",
+      "at": 682.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 836,
+      "current": 838
+    },
+    {
+      "stage": "op",
+      "at": 682.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 836,
+      "current": 838,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 693.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3733,
+      "authority": 838,
+      "current": 838
+    },
+    {
+      "stage": "op",
+      "at": 695.18,
+      "event": "clear",
+      "before": 838,
+      "after": 839,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 695.18,
+      "event": "withdrawScopes",
+      "before": 839,
+      "after": 839
+    },
+    {
+      "stage": "op",
+      "at": 696.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 838,
+      "current": 839
+    },
+    {
+      "stage": "op",
+      "at": 696.18,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 838,
+      "current": 839,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 696.18,
+      "event": "applied",
+      "before": 839,
+      "after": 840,
+      "cut": 3733
+    },
+    {
+      "stage": "op",
+      "at": 704.18,
+      "event": "notified",
+      "before": 840,
+      "after": 841,
+      "cut": 3735
+    },
+    {
+      "stage": "op",
+      "at": 705.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3735,
+      "authority": 840,
+      "current": 842
+    },
+    {
+      "stage": "op",
+      "at": 705.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 840,
+      "current": 842
+    },
+    {
+      "stage": "op",
+      "at": 705.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 840,
+      "current": 842,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 712.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3736,
+      "authority": 842,
+      "current": 842
+    },
+    {
+      "stage": "op",
+      "at": 714.28,
+      "event": "clear",
+      "before": 842,
+      "after": 843,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 714.28,
+      "event": "withdrawScopes",
+      "before": 843,
+      "after": 843
+    },
+    {
+      "stage": "op",
+      "at": 715.18,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 842,
+      "current": 843
+    },
+    {
+      "stage": "op",
+      "at": 715.28,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 842,
+      "current": 843,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 715.28,
+      "event": "applied",
+      "before": 843,
+      "after": 844,
+      "cut": 3736
+    },
+    {
+      "stage": "op",
+      "at": 722.08,
+      "event": "notified",
+      "before": 844,
+      "after": 845,
+      "cut": 3737
+    },
+    {
+      "stage": "op",
+      "at": 722.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3737,
+      "authority": 844,
+      "current": 846
+    },
+    {
+      "stage": "op",
+      "at": 722.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 844,
+      "current": 846
+    },
+    {
+      "stage": "op",
+      "at": 722.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 844,
+      "current": 846,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 731.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3738,
+      "authority": 846,
+      "current": 846
+    },
+    {
+      "stage": "op",
+      "at": 734.38,
+      "event": "clear",
+      "before": 846,
+      "after": 847,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 734.38,
+      "event": "withdrawScopes",
+      "before": 847,
+      "after": 847
+    },
+    {
+      "stage": "op",
+      "at": 735.28,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 846,
+      "current": 847
+    },
+    {
+      "stage": "op",
+      "at": 735.38,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 846,
+      "current": 847,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 735.58,
+      "event": "applied",
+      "before": 847,
+      "after": 848,
+      "cut": 3738
+    },
+    {
+      "stage": "op",
+      "at": 735.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 847,
+      "current": 848
+    },
+    {
+      "stage": "op",
+      "at": 735.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 847,
+      "current": 848,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 744.28,
+      "event": "notified",
+      "before": 848,
+      "after": 849,
+      "cut": 3739
+    },
+    {
+      "stage": "op",
+      "at": 744.88,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3739,
+      "authority": 848,
+      "current": 850
+    },
+    {
+      "stage": "op",
+      "at": 744.88,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 848,
+      "current": 850
+    },
+    {
+      "stage": "op",
+      "at": 745.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 848,
+      "current": 850,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 752.98,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3740,
+      "authority": 850,
+      "current": 850
+    },
+    {
+      "stage": "op",
+      "at": 753.78,
+      "event": "clear",
+      "before": 850,
+      "after": 851,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 753.78,
+      "event": "withdrawScopes",
+      "before": 851,
+      "after": 851
+    },
+    {
+      "stage": "op",
+      "at": 754.78,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 63,
+      "authority": 850,
+      "current": 851
+    },
+    {
+      "stage": "op",
+      "at": 754.88,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 850,
+      "current": 851,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 754.88,
+      "event": "applied",
+      "before": 851,
+      "after": 852,
+      "cut": 3740
+    },
+    {
+      "stage": "op",
+      "at": 760.68,
+      "event": "notified",
+      "before": 852,
+      "after": 853,
+      "cut": 3741
+    },
+    {
+      "stage": "op",
+      "at": 764.38,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3742,
+      "authority": 852,
+      "current": 854
+    },
+    {
+      "stage": "op",
+      "at": 764.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 852,
+      "current": 854
+    },
+    {
+      "stage": "op",
+      "at": 764.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 852,
+      "current": 854,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 771.88,
+      "event": "clear",
+      "before": 854,
+      "after": 855,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 771.88,
+      "event": "withdrawScopes",
+      "before": 855,
+      "after": 855
+    },
+    {
+      "stage": "op",
+      "at": 773.08,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3742,
+      "authority": 854,
+      "current": 855
+    },
+    {
+      "stage": "op",
+      "at": 773.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 854,
+      "current": 855
+    },
+    {
+      "stage": "op",
+      "at": 773.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 854,
+      "current": 855,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 774.08,
+      "event": "applied",
+      "before": 855,
+      "after": 856,
+      "cut": 3742
+    },
+    {
+      "stage": "op",
+      "at": 774.08,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 855,
+      "current": 856
+    },
+    {
+      "stage": "op",
+      "at": 774.08,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 855,
+      "current": 856,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 779.68,
+      "event": "notified",
+      "before": 856,
+      "after": 857,
+      "cut": 3743
+    },
+    {
+      "stage": "op",
+      "at": 782.48,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3743,
+      "authority": 856,
+      "current": 858
+    },
+    {
+      "stage": "op",
+      "at": 782.48,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 856,
+      "current": 858
+    },
+    {
+      "stage": "op",
+      "at": 782.48,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 856,
+      "current": 858,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 790.78,
+      "event": "clear",
+      "before": 858,
+      "after": 859,
+      "operation": "apply"
+    },
+    {
+      "stage": "op",
+      "at": 790.78,
+      "event": "withdrawScopes",
+      "before": 859,
+      "after": 859
+    },
+    {
+      "stage": "op",
+      "at": 791.98,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3744,
+      "authority": 858,
+      "current": 859
+    },
+    {
+      "stage": "op",
+      "at": 791.98,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 149,
+      "authority": 858,
+      "current": 859
+    },
+    {
+      "stage": "op",
+      "at": 791.98,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 858,
+      "current": 859,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 792.18,
+      "event": "applied",
+      "before": 859,
+      "after": 860,
+      "cut": 3744
+    },
+    {
+      "stage": "op",
+      "at": 792.58,
+      "event": "checkpoint-uncovered",
+      "name": "history",
+      "site": 105,
+      "authority": 859,
+      "current": 860
+    },
+    {
+      "stage": "op",
+      "at": 792.58,
+      "event": "rerun-reject",
+      "name": "history",
+      "authority": 859,
+      "current": 860,
+      "changeVersion": 2,
+      "nowVersion": 2
+    },
+    {
+      "stage": "op",
+      "at": 799.58,
+      "event": "decoded",
+      "name": "history",
+      "seq": 3746,
+      "authority": 860,
+      "current": 860
+    },
+    {
+      "stage": "op",
+      "at": 799.58,
+      "event": "candidate",
+      "name": "history",
+      "origin": "composed",
+      "seq": 3746,
+      "authority": 860,
+      "current": 860
+    }
+  ]
+}

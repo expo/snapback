@@ -26,7 +26,7 @@ fn saturated_writer(path: &'static str) {
             format!("Authorization: Bearer {}\r\nx-snapback-effect-lease: missing\r\n", session.token)
         } else { "x-snapback-persona: alice\r\n".into() };
         let payload = r#"{"result":null}"#;
-        writers.push(thread::spawn(move || exchange(address,
+        writers.push(thread::spawn(move || exchange_held(address, WAIT_TIMEOUT + 2 * CLIENT_TIMEOUT,
             &format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}Content-Length: {}\r\n\r\n{payload}", payload.len()))));
     }
     wait_until(|| host.shared.engine.waiting() as usize == MUTATION_WORKERS

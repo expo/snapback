@@ -171,7 +171,7 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
         let p = Project::new(); p.initialize();
         let args = if watch { vec!["dev", "--port", "0"] } else { vec!["dev", "--port", "0", "--no-watch"] };
         let host = Running::start(&p, "host", &args);
-        wait(|| host.logs().contains("snapback4 dev: http://"));
+        wait(|| host.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 dev: http://")));
         let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
         let generation = p.generation();
         for args in [vec!["run", "backfill"], vec!["run", "put"], vec!["run", "rows"], vec!["test"]] {
@@ -263,7 +263,7 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
         wait(|| {
             let text = host.logs();
             assert!(host.child.try_wait().unwrap().is_none(), "startup failed: {text}");
-            text.contains("snapback4 serve: http://")
+            text.split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 serve: http://"))
         });
         let address = host.logs().split("snapback4 serve: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
         assert!(fs::read_to_string(&lock).unwrap().contains(&address));

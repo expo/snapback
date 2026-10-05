@@ -1,0 +1,183 @@
+{
+  "base": "c148778aa2dcd12e6e8637b9f8dade8583fd3aaa",
+  "environment": {
+    "eb1000": "Linux x86_64; Node 24.13.1; Bun 1.3.14; Rust 1.97.0",
+    "Apartment mini": "Darwin arm64; Node 24.13.1; Bun 1.4.2; Rust 1.97.0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "commands": {
+    "linux-check-final": {
+      "command": "cargo test -p snapback4 --test check -- --nocapture",
+      "passing_tests_per_iteration": 84,
+      "iterations": 30
+    },
+    "linux-workers": {
+      "command": "node --test packages/snapback4/test/worker-regressions.test.mjs",
+      "passing_tests_per_iteration": 61,
+      "iterations": 30
+    },
+    "linux-lifecycle": {
+      "command": "cargo test -p snapback4 --test lifecycle -- --nocapture",
+      "passing_tests_per_iteration": 27,
+      "iterations": 30
+    },
+    "linux-run-admission": {
+      "command": "cargo test -p snapback4 --test run_admission -- --nocapture",
+      "passing_tests_per_iteration": 27,
+      "iterations": 30
+    },
+    "linux-witness": {
+      "command": "cargo test -p snapback4 --test witness -- --nocapture",
+      "passing_tests_per_iteration": 31,
+      "iterations": 30
+    },
+    "linux-upload-retry": {
+      "command": "node --test packages/snapback4/test/upload-retry.test.mjs",
+      "passing_tests_per_iteration": 35,
+      "iterations": 30
+    },
+    "linux-worker-wire": {
+      "command": "node --test packages/snapback4/test/worker.test.mjs",
+      "passing_tests_per_iteration": 35,
+      "iterations": 30
+    },
+    "linux-file-runner": {
+      "command": "node --test packages/snapback4/test/test-file-runner.test.mjs",
+      "passing_tests_per_iteration": 39,
+      "iterations": 30
+    },
+    "linux-client-seams": {
+      "command": "node --test packages/snapback4/test/client-seams.test.mjs",
+      "passing_tests_per_iteration": 65,
+      "iterations": 30
+    },
+    "linux-refresh-records": {
+      "command": "node --test --test-name-pattern=\"refuses refresh without logging a bearer across split writes\" packages/snapback4/test/worker-regressions.test.mjs",
+      "passing_tests_per_iteration": 2,
+      "iterations": 30
+    }
+  },
+  "macOS_scope": "check and worker-regressions only; identical commands, plus filtered refresh-record repetitions",
+  "caveats": [
+    "Excluded the entire first eb1000 stress pass; no measurements overlapping 13:45-13:55Z count as test results.",
+    "Three early mini worker completions also overlapped the excluded window and were replaced by new timed runs.",
+    "The refresh-log barrier was added during full worker repetitions; its delta has 30 additional filtered repetitions per host.",
+    "Darwin-only witness driver tests were not run; actual checker and simctl fixture handoffs were probed directly 30 times on Linux."
+  ],
+  "delayed_write_probes": {
+    "empty_final_json_negative_control": {
+      "native_exit": 1,
+      "json_parse_failures": 9
+    },
+    "atomic_results_same_delay": {
+      "native_exit": 0,
+      "passed": 12
+    },
+    "witness_handoffs": {
+      "native_exit": 0,
+      "iterations": 30
+    }
+  },
+  "changed_test_sha256": {
+    "snapback4/crates/snapback4/tests/check.rs": "1e72d825a3844b6a18b2046719782610220a8ef8bf042f87b94a9feabb183d2a",
+    "snapback4/crates/snapback4/tests/check_adoption/mod.rs": "07021e0ded0e7b4897b75a4af385200e5c19309abcf12151dcbb6df19e37374f",
+    "snapback4/crates/snapback4/tests/fixtures/witness-simctl.py": "e44a8e9ec40b6cb37bc3881b5bbddb7113e9fffdccf7bf2463071892b97a2b34",
+    "snapback4/crates/snapback4/tests/lifecycle.rs": "32a6f180e118d12ba19d566226ad007cdb5aab1296d98062572a0bd3c5092944",
+    "snapback4/crates/snapback4/tests/run_admission.rs": "da577ae12f45815f0dbce7640a6fbc021f45b9e0e5f46203829b572171633a93",
+    "snapback4/crates/snapback4/tests/run_admission/identity.rs": "26f72af14ff4564ec54bd4a3a52fca37a2362addaad7b2a0801ba7b04d5f14b6",
+    "snapback4/crates/snapback4/tests/witness.rs": "5557169ca738b7609c2d910d8687dc088aaeb80a965cf94b32046ea85af3763e",
+    "snapback4/packages/snapback4/test/client-seams.test.mjs": "795934bbc01bcc36489d7c7fbb89d1b361f0270fd7b2951b0ca8145413c09ee9",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs": "703c5cd5f289f79cf298731587445d0122410456b24b691ba4c340c0fcc41d62",
+    "snapback4/packages/snapback4/test/upload-retry.test.mjs": "c3e2e761658f29b7420f9832c3a2c74e1c77f6efb60b1c0d36f4b73bd8200ec4",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "bebbd002d25ea7f353bf56fc599a19fc53643cb3be32e8625f732d440e5e2a1a",
+    "snapback4/packages/snapback4/test/worker.test.mjs": "0e25041102fca773a1cf458d7fbabbb7df06c96ffdabc38aaae48ebc9e40cf8f"
+  },
+  "intermediate_check": {
+    "iterations": 30,
+    "nonzero_native_exits": 2,
+    "failure": "external adoption attempted while SIGSTOP held the host SQLite writer; fixed by the fixture stop barrier",
+    "failed_runs": [
+      {
+        "label": "linux-check",
+        "iteration": 21,
+        "code": 101,
+        "seconds": 15.75,
+        "started_at": 1791122510.1547415,
+        "finished_at": 1791122525.9085906
+      },
+      {
+        "label": "linux-check",
+        "iteration": 10,
+        "code": 101,
+        "seconds": 15.76,
+        "started_at": 1791122461.7455826,
+        "finished_at": 1791122477.50627
+      }
+    ]
+  },
+  "full_suite": {
+    "command": "bash scripts/test.sh",
+    "native_exit": 0,
+    "status": "exit=0 seconds=1615.93",
+    "started_utc": "2026-10-04T14:29:52Z",
+    "seconds_reported_by_suite": 1616,
+    "rust_passed": 4968,
+    "rust_failed": 0,
+    "rust_existing_ignores": 33,
+    "doctests_passed": 17,
+    "fixture_tests": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "client_pool": {
+      "tests": 6198,
+      "pass": 6187,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 11,
+      "todo": 0
+    },
+    "serial_models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "session_histories_per_tier": 5000,
+    "online_model_histories": 3000,
+    "log_sha256": "c55d80605c54af759adde146c429e93b8b9a3bf5ebc8f99781c218e51e5302dc",
+    "passed_stages": [
+      "cargo build (26 s)",
+      "wasm build (32 s)",
+      "docs budget (37 s)",
+      "release guard (10 s)",
+      "package typecheck (2 s)",
+      "package build (3 s)",
+      "chat app check (0 s)",
+      "cargo test (588 s)",
+      "chat app typecheck (1 s)",
+      "expo app typecheck (1 s)",
+      "fixture wrapper tests (11 s)",
+      "client tests (610 s)",
+      "client models (308 s)"
+    ]
+  },
+  "mini_source_verification": {
+    "snapback4/crates/snapback4/tests/check.rs": "1e72d825a3844b6a18b2046719782610220a8ef8bf042f87b94a9feabb183d2a",
+    "snapback4/crates/snapback4/tests/check_adoption/mod.rs": "07021e0ded0e7b4897b75a4af385200e5c19309abcf12151dcbb6df19e37374f",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "bebbd002d25ea7f353bf56fc599a19fc53643cb3be32e8625f732d440e5e2a1a"
+  },
+  "cleanup": {
+    "owned_targets_and_scratch_below_gb": 40,
+    "local_target_removed": true,
+    "local_suite_scratch_removed": true,
+    "mini_scratch_removed": true,
+    "owned_process_check": "No local target executables or suite cwd remained; no mini scratch cwd remained open."
+  }
+}

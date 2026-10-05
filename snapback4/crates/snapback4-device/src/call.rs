@@ -138,11 +138,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 // `unknown` names server-only knowledge (missing facts or presence), not every incomplete answer.
                 let search = request.get("search").and_then(Json::as_bool) == Some(true);
                 let spent = request.get("spent").cloned().map(parse::<snapback4_core::meter::Metered>).transpose()?;
-                let (result, unknown, retained, components, provenance) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
+                let (result, unknown, retained, components, provenance, watermark) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
                 let mut reply = match result {
                     Ok(mut outcome) => {
                         let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "decorationExpiry": outcome.decoration_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
-                        if search { reply["metered"] = encoded(&outcome.metered)?; }
+                        if search || spent.is_some() { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
                         }
@@ -176,6 +176,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 for (field, value) in [("unknown", unknown), ("retained", retained)] {
                     reply[field] = Json::Bool(value);
                 }
+                if let Some(watermark) = watermark { reply["watermark"] = json!(watermark); }
                 // Absence means false; ordinary replies retain the published 0.2.33 wire.
                 if provenance.speculative { reply["speculative"] = Json::Bool(true); }
                 reply

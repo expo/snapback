@@ -1936,27 +1936,54 @@ The supervisor owns token rotation for both named and conventional workers.
 `/auth/refresh` returns HTTP 403 `E_WORKER_REFRESH` for these families and leaves
 the injected bearer live; keep using it. Manually minted seats remain refreshable,
 including seats with the same service name.
-Deploy packages this source subtree; helpers belong in subdirectories. Install
-its package dependencies on the deployment host. Symlinks at every level and
-non-regular source files are refused on every launch/restart. Named workers execute
-private copies of validated entry/helper bytes under `.snapback4`; source-path replacement cannot
-change the code or selected secrets of that launch. Package dependencies remain
-host-installed code, with `snapback/node_modules` taking precedence over
-project-root packages. Numbered releases use the nearest ancestor containing
-`snapback/node_modules`; install dependencies there. Schema, project and ancestor
-package manifests also use no-follow regular-file copies. Global temporary
-directories never add package lookup locations. Doctor reports each worker,
-including source-blocked, revocation-blocked and ledger-unavailable states.
-Startup clears prior reports with the previous host's credential retirement,
-so a removed declaration cannot retain a running report.
-Automatic dev `snapback/server.*` and `snapback/worker.*` entries likewise execute
-private copies of the schema tree, including generated modules and relative
-helpers. The TypeScript checker's tracked imports elsewhere inside the project
-also use validated copies; untracked relative helpers stay within `snapback/`.
-Source symlinks refuse before minting, including after a restart. The working
-directory remains the project; runtime files should use that or an explicit
-durable path, since module URLs refer to private source copies.
-Explicit `serve --worker <path>` still selects an operator-owned external entry.
+#### Worker files, modules and runtime paths
+
+`SNAPBACK_PROJECT_DIR` is the absolute project root for dev and the active
+release root for serve. It equals the child's initial `process.cwd()` and
+stays fixed even if the worker changes cwd. Relative filesystem paths use cwd;
+`import.meta.url`, `import.meta.dirname` and relative imports refer to the
+launch's private source tree. That tree is removed after the process group stops.
+Write application output under `data/` at the project root. For example:
+
+```js
+import { mkdir, appendFile } from "node:fs/promises";
+import { join } from "node:path";
+const dataDir = join(process.env.SNAPBACK_PROJECT_DIR, "data");
+await mkdir(dataDir, { recursive: true });
+export async function recordPush(payload, meta) {
+  await appendFile(join(dataDir, "push-log.jsonl"), JSON.stringify({ id: meta.idempotencyKey, payload }) + "\n");
+  return { logged: true };
+}
+```
+
+This acceptance handler records locally; it does not deliver to a provider or
+promise exactly-once appends. A serve release's `data/` is release-local: to keep
+logs across releases, supply an absolute durable directory through a declared
+secret and select that secret in the worker directive. Arbitrary environment
+variables, `.env` files and `NODE_OPTIONS` are not automatically forwarded/loaded.
+Standalone Node workers must supply their own project path, URL and token.
+
+| Entry | Source copied for execution | Where project helpers belong |
+| --- | --- | --- |
+| Named worker, dev or serve | Every regular file under `snapback/workers/`, not an import graph | Subdirectories of that tree; relative imports with extensions |
+| Conventional dev server/worker | All of `snapback/`, including generated files, plus present project files tracked by the server TypeScript checker | That tree, or checker-tracked project imports |
+| Explicit `serve --worker <path>` | None; operator-selected entry runs in place | Entry's ordinary Node module tree |
+
+Named workers cannot rely on sibling `src/` or generated modules being copied.
+Do not import original application source via cwd to bypass the snapshot. Source
+symlinks and non-regular files refuse launch/restart; manifests also use regular,
+no-follow copies. Original source replacement cannot change a running copy.
+`deploy` packages only the named-worker source subtree, never dependencies.
+Install dependencies on the deployment host. Node resolves helper/worker-local
+`node_modules`, then schema-local packages, then project and ancestor packages.
+For numbered releases, schema-local lookup uses the nearest ancestor containing
+`snapback/node_modules`. Symlinked dependency directories and packages work;
+they remain live host-owned code outside snapshot validation. Global temporary
+parents add no lookup locations. This is trusted Node, **not a filesystem/network
+sandbox**; only source bytes, selected environment and process lifetime are isolated.
+Doctor reports source-blocked, revocation-blocked and ledger-unavailable states.
+Startup retires prior credentials and clears their old status reports.
+
 Named workers start with no declared secrets. A source line such as
 `// snapback4 secrets: PUSH_API_KEY` opts into named schema-declared secrets.
 The conventional generated runtime retains the full registry's secret set;
@@ -2078,7 +2105,7 @@ or `.mjs`, `dev` starts Node 24 in an explicit environment rather than
 inheriting the parent environment. The child receives only `PATH`, `HOME`,
 `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `SNAPBACK_URL`, every secret
 name declared anywhere in the schema, and a per-child
-`SNAPBACK_SERVICE_TOKEN`, `SNAPBACK_WORKER_LEDGER` and the internal supervision
+`SNAPBACK_SERVICE_TOKEN`, `SNAPBACK_PROJECT_DIR`, `SNAPBACK_WORKER_LEDGER` and the internal supervision
 marker. Parent `NODE_OPTIONS` is not copied. Generated server handlers get a frozen
 per-handler subset through `ctx.secrets`; the Node application remains trusted
 and can inspect its process environment, as can a legacy worker. Automatically injected
@@ -2321,6 +2348,14 @@ step.
   row-count/truncation notice go to stderr. `--json` returns `columns`, positional `rows` (retaining every
   selected column), `limit`, `more`, `ruleFiltered: false`, and the same inspection header. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
+  `snapback4 sql '\dt'` (alias `'.tables'`) lists application tables and maintained views;
+  `snapback4 sql '\d messages'` (alias `'.schema messages'`) describes Quarry types,
+  nullability, indexes and unique keys. Both show the active generation and stored row counts:
+  exact through 10,000, otherwise a lower bound of 10,001; ephemeral counts are unavailable.
+  Catalog JSON carries `generation`, `tables` (each with `name`, `kind`, `rows`, and
+  description-only `columns`/`indexes`), `ruleFiltered: false` and the inspection header.
+  `rows.count` is exact only when `rows.exact` is true; null means unavailable.
+  Internal-name refusals point to these commands; SQLite metadata stays private.
 - **`snapback4 device <store.sqlite> [backend.json]`** runs the native
   device over stdin/stdout, one JSON request and answer per line.
 - **`snapback4 --help`** lists every verb and its flags; `deploy`, `rollback` and `serve` are described in §6.

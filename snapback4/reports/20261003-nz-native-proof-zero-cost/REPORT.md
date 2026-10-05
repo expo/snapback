@@ -1566,3 +1566,108 @@ passed. [Evidence hashes](./round11/verification-evidence.json) bind the logs an
 tested binary in the existing external archive. No new file over 256 KB, gzip
 or video is committed. These are local Mac fixture/suite results, not additional
 native timing, physical-sleep or Linux qualification. Nothing was pushed.
+
+
+## Round 12 — integration (2026-10-05)
+
+Merged fetched main **8bd933cd2dfbf7cb8acfd43f209f7015ed58a633** into reviewed NZ
+**67a29a10b05bad86620e64bad8f4aab15a764180**, from their last common main
+**abafa9af9c**. This is a two-parent merge, not a rebase. No version or publication
+staging was changed; NZ remains intended for 0.4.14, separate from the 0.4.13 cut.
+All work stayed on the Apartment mini. The main-only comparison below used an
+NZ-owned source snapshot on this mini, never another session's worktree.
+
+Five conflicts were resolved. Both JOURNAL histories are retained in order:
+comparison with each parent reports only insertions. The root LLP keeps both
+revision entries. The adoption test keeps main's complete-log-line barrier.
+Retained-history teardown keeps main's held-apply release and complete stdout
+capture, together with NZ's stop-watcher-before-delete ordering and `finally`
+cleanup. The published-engine fence required the semantic reconciliation below.
+The [integration audit](./round12/integration-audit.json) records the twelve
+paths changed on both branches and their resolutions.
+
+Main's client implementation, FX/FY cleanup helper, DG worker/starter guidance,
+RH/OP behavior, SQL catalog documentation and `CLIENT-AND-OPERATIONS.md` are
+preserved. Its witness peak parser and atomic stalled-checker PID publication
+are retained. NZ's export wrapper, retention protocol, preparation deadline,
+WD cleanup and direct process-group code are byte-identical to reviewed Round 11.
+The existing bounded release diagnostic drain remains alongside main's adoption
+log changes. The LLP 3000.030 §15 protocol and its accepted bounds did not change.
+
+### Failure classification and reconciliation
+
+The initial wasm check reported **640,054 B gzip**, 113 B over the main cap.
+The independently built main snapshot passed at **639,941 B**. Rebuilding only
+NZ's two workspace wasm crates retained the discrepancy in dependency artifacts.
+Cleaning this lane's wasm profile and rebuilding all wasm dependencies produced
+**the identical main artifact**: 2,117,610 B raw, 639,941 B gzip, SHA-256
+`e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9`.
+No wasm source or cap changed. NZ adds **0 B**; the cap remains the main Linux
+measurement **639,811 B + 130 B** macOS allowance. The client was rebuilt from
+the qualified wasm before its tests. The initial failure is retained in
+[the comparison](./round12/wasm-initial-comparison.json); [clean qualification](./round12/wasm-qualified.json)
+binds all three build logs and final bytes. This is a stale local build-output
+finding, not an NZ byte increase or an inherited main failure.
+
+The initially combined Darwin fence failed four assertions: NZ's Round 2 test
+workaround unconditionally added reservation capability names (duplicating
+main's two nonzero fixture sets) and expected ordinary zero-cost schemas to be
+fenced. RPF's landed fix omits all-zero reservation maps and restores canonical
+current capability-free bytes. Unmodified main passed **7/7** on this host.
+Restoring main's fence assertions therefore supersedes that old workaround:
+exact capability sets, current canonical byte/store compatibility, native/WASM
+refusals, migration and mixed-version store preservation all remain tested.
+Main's explicit `watermark` assertion stays outside neutral metadata cleanup.
+The corrected merged fence passed **7/7**, zero skips. [Before/after hashes and
+comparison logs](./round12/fence-reconciliation.json) retain the initial failure
+and main control; no runtime behavior was changed to satisfy an assertion.
+
+### Qualification and resolved tickets
+
+[Affected qualification](./round12/affected-qualified.json) passes on the merged
+tree: CLI build, **68/68** serial witness units, **77/77** serial witness
+integrations, **179/179** export/witness/preparation tests across eight files,
+**7/7** Darwin published-engine fence tests, and **120/120** retained-history,
+periphery, release-activation and cleanup controls. These test runs have no skips
+or cancellations. All prior retention/crash controls remain included. No real
+simulator was created.
+
+The original aggregate run conservatively retains its nonzero status for the
+first cached wasm build and the fence test's changed input hash. The scoped
+qualification records both: a clean wasm rebuild matched main, and the sole
+changed test file was reconciled **before** its passing scheduled execution.
+Every other recorded source input stayed unchanged. The separate full suite
+records the final merged source hashes before starting.
+
+Closed [NZ's release-activation crash-cut ticket](../../../issues/closed/20261004-snapback4-release-activation-crash-cut-race.md):
+main FY supplies a witnessed stop after real schedule admission and before any
+maintenance chunk, retaining queued/chunk/write, restart, exactly-once and outbox
+assertions. Its affected test passed in 1.397 s. The separate NZ ephemeral-expiry
+intermittency ticket remains open: main has no established root-cause repair,
+and a later passing sample alone cannot close it.
+
+The [full Mac suite](./round12/full-suite.json) passed with **zero failures in
+2,869 s** (2,869.461 s measured). All Rust targets passed: **5,090 tests**, zero
+failures and 33 existing ignores across 1,012 executions / 299 binaries, plus
+passing workspace doctests. This includes 315 CLI tests (four existing ignores)
+and 77 witness integrations. All nine fixture tests, builds, typechecks, budgets
+and release guard passed. The client pool passed **321/321 files**, **6,469 tests**,
+with six existing skips and no failures/cancellations. Both full-count model
+files passed **79/79**. Rust took 1,218 s, clients 1,399 s and models 194 s.
+All [209 source input hashes](./round12/full-suite-inputs.json) remained unchanged
+throughout the full run; no work count, timeout, assertion or performance bound
+was reduced. No inherited-main test failure remained to classify.
+
+[Custody verification](./round12/custody-verification.json) found no remaining
+lane CLI or interposed fixture processes. No real simulator was created, and
+all five previously recorded NZ devices remain absent. No other session's
+worktree, process or simulator was changed or signalled. The isolated main
+comparison snapshot is removed after its logs, binary and wasm bytes are retained.
+[Evidence hashes](./round12/verification-evidence.json) bind logs, runner sources
+and both CLI binaries in the existing external archive. New NZ evidence stays
+under 256 KB per git file, without `.gz` or `.mp4`; main's existing tracked
+history is preserved. Reference validation and NZ-delta whitespace checks passed. The broad first-parent
+whitespace check reports 95 findings in main's existing benchmark reports and RH
+raw logs; the main-only diff reproduces the identical list. Those historical bytes
+are preserved ([classification](./round12/whitespace-classification.json)). Nothing
+pushed or published; the separate 0.4.13 publication was not touched.

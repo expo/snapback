@@ -1,0 +1,38 @@
+[
+  {
+    "name": "pair1-r0",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 40.047707080841064
+  },
+  {
+    "name": "pair1-r1",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 42.15890622138977
+  },
+  {
+    "name": "pair2-r1",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 41.04253840446472
+  },
+  {
+    "name": "pair2-r0",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 40.92963719367981
+  },
+  {
+    "name": "pair3-r0",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 40.504095792770386
+  },
+  {
+    "name": "pair3-r1",
+    "exit": 0,
+    "affinity_exit": 0,
+    "seconds": 40.433505058288574
+  }
+]

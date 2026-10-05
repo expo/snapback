@@ -1,0 +1,14 @@
+{
+  "purpose": "NP2 feasibility only",
+  "origin": "http://127.0.0.1:49481",
+  "conversation": "00000000004JAHKHWPJT4EC5AM",
+  "chatValue": "dm:bob",
+  "history": "0000000000D6158W3YTVGGG9RN",
+  "ordinary": "0000000000F3QV2R348V8QCHPM",
+  "once": "0000000000EZATCYVDNV5G106C",
+  "searchToken": "np2needle",
+  "queuedBodies": [
+    "NP2 queued first 20261004",
+    "NP2 queued second 20261004"
+  ]
+}

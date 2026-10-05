@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -52,8 +53,9 @@ async function fixture(t, tier) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-pending-items-'));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), schema);
   let server = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(server);
   let exited = once(server, 'exit'); let log = '', url;
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { log += chunk; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   const clients = [], cores = [], gates = [], posts = [];
   let offline = false, gateWrites = true, blockSync = false;
   const persistence = memoryPersistence();
@@ -80,8 +82,9 @@ async function fixture(t, tier) {
   return { open, cores, posts, gates, async replaceBackend() {
     server.kill(); await exited;
     server = spawn(binary, ['dev', '--fresh', '--port', new URL(url).port, '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+    const readStdout = captureStdout(server);
     exited = once(server, 'exit'); let ready = false, output = '';
-    for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { output += chunk; ready ||= /http:\/\/127\.0\.0\.1:\d+/.test(output); });
+    for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { output += chunk; ready ||= /http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/.test(readStdout()); });
     await waitFor(() => { if (server.exitCode != null) throw Error(output); return ready; }, 'replacement server');
   }, offline(v) { offline = v; }, blockSync(v) { blockSync = v; }, pass() { gateWrites = false; },
     async release(index) { const gate = gates[index]; gate.resolve(await fetch(gate.input, gate.init)); } };

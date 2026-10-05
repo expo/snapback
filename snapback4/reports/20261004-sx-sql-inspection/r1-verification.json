@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-04T23:06:16.940248+00:00",
+  "base": "98d09e2ebd",
+  "tests": {
+    "sql": 7,
+    "check": 89,
+    "guide": 112,
+    "clientFiles": 6,
+    "clientTests": 203,
+    "clientFailed": 0,
+    "manualCatalogProbes": 18
+  },
+  "fullSuiteRerun": false,
+  "scope": "Catalog implementation, catalog tests, report and journal only. Round-0 full-suite red remains recorded.",
+  "wasmSha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1",
+  "wasmRebuilt": false,
+  "allocatedBytesAfterCleanup": 14831800320,
+  "maximumSampledAllocatedBytes": 14831800320,
+  "diskCeilingBytes": 40000000000,
+  "scratchRemoved": "/tmp/sb4-sx-r1.6rS2gD",
+  "referenceAudit": {
+    "llps": 527,
+    "references": 10365,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

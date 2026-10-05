@@ -1,11 +1,13 @@
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
+import { cleanup, withCleanup } from './helpers/cleanup.mjs';
+import { identity, live } from '../../../scripts/test-processes.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync, chmodSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync, chmodSync, statSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -17,6 +19,14 @@ const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../targ
 const workerModule = new URL('../dist/worker.js', import.meta.url).href;
 const fixtureDiagnostics = new AsyncLocalStorage();
 async function until(fn) { return awaitState(fn, fn.toString(), { diagnostics: () => fixtureDiagnostics.getStore()?.() ?? 'no worker fixture' }); }
+async function lockWriter(db) {
+  // A worker marker or HTTP reply does not release another SQLite writer.
+  // Establish the fixture's lock before testing the host's refusal/recovery.
+  await until(() => {
+    try { db.exec('BEGIN IMMEDIATE'); return true; }
+    catch (error) { if (error.errcode === 5) return false; throw error; }
+  });
+}
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -26,7 +36,7 @@ function alive(pid) {
     return true;
   } catch { return false; }
 }
-function fixture(t, source) {
+function fixture(t, source, cleanupChildren) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-worker-regression-'));
   mkdirSync(join(dir, 'snapback/workers'), { recursive: true });
   writeFileSync(join(dir, 'snapback/schema.q'), "use personas alice\neffect notify\nmutation send():\n  emit notify { message: 'hello' }\n  return true\n");
@@ -51,14 +61,25 @@ function fixture(t, source) {
   t.signal.addEventListener('abort', onAbort, { once: true });
   t.after(async () => {
     t.signal.removeEventListener('abort', onAbort);
-    for (const s of servers) {
-      const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
-      try { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
-      finally { clearTimeout(timer); }
+    try {
+      for (const s of servers) {
+        const timer = setTimeout(() => { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL'); }, 5000);
+        try {
+          if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM');
+          await cleanup(() => s.done, `worker server ${s.child.pid}`, diagnostics, [s.child]);
+        } finally { clearTimeout(timer); }
+      }
+      if (cleanupChildren) await cleanupChildren();
+      else for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
+        for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    } finally {
+      // A failed join must still release every owned host and its watchdog pipe.
+      for (const { child } of servers) {
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+        child.stdout.destroy(); child.stderr.destroy(); child.unref();
+      }
+      rmSync(dir, { recursive: true, force: true });
     }
-    for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
-      for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
-    rmSync(dir, { recursive: true, force: true });
   });
   return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev") {
     const release = join(dir, 'release');
@@ -124,9 +145,10 @@ for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.
   mkdirSync(packageDir, {recursive:true});
   writeFileSync(join(packageDir, 'package.json'), '{"name":"wk-parent-only","type":"module","exports":"./index.js"}');
   writeFileSync(join(packageDir, 'index.js'), 'export default "from-temporary-parent";');
-  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync} from 'node:fs';
+  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync,renameSync} from 'node:fs';
 const result=await import('wk-parent-only').then(m=>m.default,error=>error.code);
-writeFileSync('package-lookup',JSON.stringify(result));setInterval(()=>{},1000);`);
+// Publish only complete bytes to the parent's existence barrier.
+writeFileSync('package-lookup.tmp',JSON.stringify(result));renameSync('package-lookup.tmp','package-lookup');setInterval(()=>{},1000);`);
   const s = await f.start([], {TMPDIR:temporary}, false, mode);
   await until(() => existsSync(join(s.workdir,'package-lookup')));
   assert.equal(JSON.parse(readFileSync(join(s.workdir,'package-lookup'),'utf8')), 'ERR_MODULE_NOT_FOUND');
@@ -176,6 +198,10 @@ console.error('refresh-logged');setInterval(()=>{},1000);`);
   const s = await f.start();
   await until(() => existsSync(join(f.dir, 'refresh-result')) && s.log.includes('refresh-logged'));
   const {token, status, reply} = JSON.parse(readFileSync(join(f.dir, 'refresh-result'), 'utf8'));
+  // stdout and stderr have independent readers; stderr's marker cannot
+  // acknowledge the earlier stdout record, including its secrecy checks.
+  await until(() => ['refresh-whole:', 'refresh-split:'].every(prefix =>
+    s.log.split('\n').slice(0, -1).some(line => line.includes(prefix))));
   assert.equal(s.log.includes(token), false, 'initial bearer is absent from logs');
   if (reply.session) assert.equal(s.log.includes(reply.session.token), false, 'refresh must not leak a successor bearer');
   assert.equal(status, 403);
@@ -200,9 +226,9 @@ console.error('refresh-logged');setInterval(()=>{},1000);`);
 
 for (const mode of ['dev', 'serve']) for (const shadowed of [false, true]) test(`${mode} private worker snapshot resolves schema-local packages${shadowed ? ' before project packages' : ''}`, async t => {
   const f = fixture(t, `import local from 'schema-package';import {helper} from './helpers/value.mjs';
-import {writeFileSync} from 'node:fs';
+import {writeFileSync,renameSync} from 'node:fs';
 const values={local,helper};
-if(process.env.SNAPBACK_SERVICE_TOKEN){writeFileSync('package-result',JSON.stringify(values));setInterval(()=>{},1000);}
+if(process.env.SNAPBACK_SERVICE_TOKEN){writeFileSync('package-result.tmp',JSON.stringify(values));renameSync('package-result.tmp','package-result');setInterval(()=>{},1000);}
 else console.log(JSON.stringify(values));`);
   mkdirSync(join(f.dir, 'snapback/workers/helpers'));
   writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "import value from 'schema-package';export const helper=value;");
@@ -222,6 +248,45 @@ else console.log(JSON.stringify(values));`);
   assert.deepEqual(JSON.parse(readFileSync(join(s.workdir, 'package-result'), 'utf8')), expected);
 });
 
+for (const [mode, kind] of [['dev','named'], ['serve','named'], ['dev','conventional']]) for (const scope of ['', 'snapback', 'snapback/workers', 'snapback/workers/helpers'])
+test(`${mode} ${kind} snapshot uses symlinked dependencies at ${scope || 'project root'}`, async t => {
+  const f = fixture(t, `import value from './helpers/value.mjs';
+import {mkdirSync,writeFileSync,renameSync} from 'node:fs';
+mkdirSync('data',{recursive:true});
+writeFileSync('data/package-result.tmp',JSON.stringify({value,cwd:process.cwd(),module:import.meta.url}));
+renameSync('data/package-result.tmp','data/package-result');
+setInterval(()=>{},1000);`);
+  if (kind === 'conventional') {
+    const named = join(f.dir,'snapback/workers/push.mjs');
+    writeFileSync(join(f.dir,'snapback/worker.mjs'), readFileSync(named,'utf8').replace('./helpers/value.mjs','./workers/helpers/value.mjs'));
+    rmSync(named);
+  }
+  mkdirSync(join(f.dir, 'snapback/workers/helpers'));
+  writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "import value from 'dg-package';export default value;");
+  // Both the dependency directory and the installed package use relative links,
+  // as in a replay checkout borrowing an existing workspace installation.
+  const packages = join(f.dir, 'installed/node_modules'), actual = join(f.dir, 'installed/actual');
+  mkdirSync(packages, {recursive:true}); mkdirSync(actual);
+  writeFileSync(join(actual, 'package.json'), JSON.stringify({name:'dg-package',type:'module',exports:'./index.js'}));
+  writeFileSync(join(actual, 'index.js'), "export default 'host dependency';");
+  symlinkSync('../actual', join(packages, 'dg-package'));
+  symlinkSync(relative(join(f.dir, scope), packages), join(f.dir, scope, 'node_modules'));
+  if (mode === 'serve') {
+    const deployed = spawnSync(binary, ['deploy', join(f.dir, 'release')], {cwd:f.dir,encoding:'utf8'});
+    assert.equal(deployed.status, 0, deployed.stderr);
+    const installed = join(f.dir, 'release/releases/1', scope, 'node_modules');
+    assert.equal(existsSync(installed), false, 'deploy ships source, never host dependencies');
+    symlinkSync(relative(join(installed, '..'), packages), installed);
+  }
+  const s = await f.start([], {}, false, mode);
+  await until(() => existsSync(join(s.workdir, 'data/package-result')) || /ERR_MODULE_NOT_FOUND|workers:/.test(s.log));
+  assert.equal(/ERR_MODULE_NOT_FOUND|workers:/.test(s.log), false, s.log);
+  const result = JSON.parse(readFileSync(join(s.workdir, 'data/package-result'), 'utf8'));
+  assert.equal(result.value, 'host dependency');
+  assert.equal(result.cwd, realpathSync(s.workdir));
+  assert.ok(fileURLToPath(result.module).startsWith(join(realpathSync(s.workdir), '.snapback4/worker-')));
+});
+
 test('standalone worker reports errors containing its bearer with automatic redaction', async () => {
   const stop = new AbortController(), errors = [], token = 'standalone-private-bearer';
   const {done} = runWorker({url:'http://standalone.test',token,signal:stop.signal,effects:{notify:()=>{}},
@@ -237,7 +302,7 @@ test('automatic worker.mjs refuses a symlink before issuing a service token', as
   writeFileSync(join(f.dir, 'outside.mjs'), idle);
   symlinkSync(join(f.dir, 'outside.mjs'), join(f.dir, 'snapback/worker.mjs'));
   const s = await f.start();
-  await until(() => s.log.includes('snapback4 worker:'));
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('snapback4 worker:') && /workers:|source-blocked/.test(line)));
   assert.equal(rows(join(f.dir, 'starts')).length, 0, 'linked entry must never execute');
   assert.match(s.log, /workers:|source-blocked/);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'), {readOnly:true});
@@ -262,7 +327,7 @@ test('automatic worker restart rejects an entry replaced with a symlink', async 
 
 test('automatic worker executes validated entry and relative helper after source replacement', async t => {
   const f = fixture(t);
-  writeFileSync(join(f.dir, 'snapback/worker.mjs'), `import {value} from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  writeFileSync(join(f.dir, 'snapback/worker.mjs'), `import {value} from './helpers/value.mjs';\n${idle}\nimport {copyFileSync,renameSync} from 'node:fs';\nappendFileSync('values-written',value);copyFileSync('values-written','values.tmp');renameSync('values.tmp','values');`);
   mkdirSync(join(f.dir, 'snapback/helpers'));
   writeFileSync(join(f.dir, 'snapback/helpers/value.mjs'), "export const value='validated';");
   const wrapper = join(f.dir, 'node-wrapper');
@@ -291,7 +356,7 @@ for (const check of ['query fence', 'retirement custody']) test(`removed worker 
   t.after(() => db.close());
   rmSync(join(f.dir, 'snapback/workers/push.mjs'));
   await until(() => existsSync(join(f.dir, 'terms')));
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   let fenced;
   try {
     await until(() => s.log.includes("cannot close the child's session"));
@@ -334,7 +399,7 @@ test('restart refuses an entry symlink already rejected by discovery', {timeout:
 });
 
 test('launch executes validated entry and helper bytes after source paths are replaced', {timeout: hangBudget(3)}, async t => {
-  const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nimport {copyFileSync,renameSync} from 'node:fs';\nappendFileSync('values-written',value);copyFileSync('values-written','values.tmp');renameSync('values.tmp','values');`);
   mkdirSync(join(f.dir, 'snapback/workers/helpers'));
   writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "export const value='validated';");
   const wrapper = join(f.dir, 'node-wrapper');
@@ -399,11 +464,14 @@ test('worker fixture waits for initial admission after the listening URL', async
   let ready = false;
   const starting = f.start([], { SNAPBACK_NODE: wrapper }).then(s => { ready = true; return s; });
   // Release the deliberately blocked admission even if the assertion fails.
-  try {
+  await withCleanup(async () => {
     await until(() => f.listening && existsSync(join(f.dir, 'probe-ready')));
     await sleep(50);
     assert.equal(ready, false, 'a printed URL is not completed worker admission');
-  } finally { writeFileSync(join(f.dir, 'probe-go'), ''); await starting; }
+  }, async () => {
+    writeFileSync(join(f.dir, 'probe-go'), '');
+    await cleanup(() => starting, 'worker admission release', () => fixtureDiagnostics.getStore()?.());
+  });
   await until(() => rows(join(f.dir, 'starts')).length === 1);
 });
 
@@ -414,7 +482,7 @@ test('new declarations retry failed admission after Node is repaired without ano
   chmodSync(wrapper, 0o700);
   const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
   writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
-  await until(() => s.log.includes('worker needs Node 24'));
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('worker needs Node 24') && line.includes('declaration will retry')));
   assert.match(s.log, /declaration will retry/, 'the edit must reach pending admission on a serving host');
   const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
   rmSync(join(f.dir, 'bad-node'));
@@ -423,21 +491,34 @@ test('new declarations retry failed admission after Node is repaired without ano
 });
 
 for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} completes group cleanup without a live supervisor`, {timeout:hangBudget(5)}, async t => {
-  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
-const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
-process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
-  const watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
-  const done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
-  t.after(async()=>{watchdog.stdin.end();await done;});
+  let watchdog, done;
+  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';import {once} from 'node:events';
+process.on('SIGTERM',()=>{});
+const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});console.log('ready');setInterval(()=>{},1000)"],{stdio:['ignore','pipe','ignore']});
+await once(helper.stdout,'data');
+appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`, async () => {
+    // The live watchdog owns its group. EOF requests cleanup even on failure;
+    // never signal a descendant by a stale PID from the starts file.
+    watchdog?.stdin.end();
+    if (done) await cleanup(() => done, `watchdog ${signal}`, () => JSON.stringify({
+      pid: watchdog.pid, exitCode: watchdog.exitCode, signalCode: watchdog.signalCode,
+      starts: rows(join(f.dir, 'starts')),
+    }), [watchdog]);
+  });
+  watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
+  done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
   await until(()=>rows(join(f.dir,'starts')).length===1);
-  const first=rows(join(f.dir,'starts'))[0];await sleep(150);
+  const first=rows(join(f.dir,'starts'))[0];
+  const worker=identity(first.pid), helper=identity(first.helper);
+  assert.ok(worker?.alive && helper?.alive, 'capture both live process identities before signaling');
   watchdog.kill(signal);await done;
-  assert.equal(alive(first.pid),false);
+  assert.equal(live(worker),false);
   // The watchdog reaps Node, but cannot waitpid Node's child. SIGKILL delivery
   // to that descendant can finish after the watchdog's exit event is observed.
-  // Keep the test's existing timeout and still require the descendant to die.
-  await until(() => !alive(first.helper));
-  assert.equal(alive(first.helper),false);
+  // PID reuse must not resurrect either process. Inspection errors and until's
+  // TEST_HANG guard still throw; zombies count as exited on both platforms.
+  await until(() => !live(helper));
+  assert.equal(live(helper),false);
 });
 
 test('ledger open waits for a busy writer before becoming ready', async t => {
@@ -459,7 +540,7 @@ test('failed revocation blocks restart until the retired bearer is refused', { t
   assert.equal((await claim(s, first.token)).status, 200);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
   t.after(() => db.close());
-  db.exec('BEGIN IMMEDIATE');
+  await lockWriter(db);
   try {
     process.kill(first.pid, 'SIGKILL');
     await until(() => s.log.includes("cannot close the child's session"));
@@ -665,15 +746,15 @@ for (const failure of ['disk-full', 'commit-and-rollback']) test(`ledger ${failu
 });
 
 for (const mode of ['dev', 'serve']) test(`${mode} credentialed worker receives only the explicit runtime environment`, async t => {
-  const f = fixture(t, `import {writeFileSync} from 'node:fs';
-writeFileSync('environment-result',JSON.stringify({keys:Object.keys(process.env).sort(),preloaded:!!globalThis.preloaded}));setInterval(()=>{},1000);`);
+  const f = fixture(t, `import {writeFileSync,renameSync} from 'node:fs';
+writeFileSync('environment-result.tmp',JSON.stringify({keys:Object.keys(process.env).sort(),preloaded:!!globalThis.preloaded}));renameSync('environment-result.tmp','environment-result');setInterval(()=>{},1000);`);
   const preload = join(f.dir, 'preload.cjs');
   writeFileSync(preload, 'globalThis.preloaded=true;');
   const s = await f.start([], {NODE_OPTIONS:`--require=${preload}`, NODE_PATH:f.dir, WK_UNDECLARED:'unused'}, false, mode);
   await until(() => existsSync(join(s.workdir, 'environment-result')));
   const actual = JSON.parse(readFileSync(join(s.workdir, 'environment-result'), 'utf8'));
   assert.equal(actual.preloaded, false, 'only validated project source runs before its declared imports');
-  const allowed = ['PATH','HOME','TMPDIR','LANG','LC_ALL','TZ','SNAPBACK_URL','SNAPBACK_SERVICE_TOKEN','SNAPBACK_WORKER_LEDGER','SNAPBACK_WORKER_SUPERVISED'];
+  const allowed = ['PATH','HOME','TMPDIR','LANG','LC_ALL','TZ','SNAPBACK_URL','SNAPBACK_SERVICE_TOKEN','SNAPBACK_PROJECT_DIR','SNAPBACK_WORKER_LEDGER','SNAPBACK_WORKER_SUPERVISED'];
   if (process.platform === 'darwin') allowed.push('__CF_USER_TEXT_ENCODING');
   assert.deepEqual(actual.keys.filter(key => !allowed.includes(key)), []);
 });
@@ -742,7 +823,7 @@ for (const kind of ['entry-copy', 'linked-helper']) test(`automatic snapshot val
   writeFileSync(helper,"export const value='validated';");
   writeFileSync(join(f.dir,'snapback/generated/server-watch.json'),JSON.stringify([[helper,['0','0']]]));
   writeFileSync(join(f.dir,'snapback/worker.mjs'),`import {value} from '../src/provider.mjs';
-import {writeFileSync} from 'node:fs';writeFileSync('checked-value',value);setInterval(()=>{},1000);`);
+import {writeFileSync,renameSync} from 'node:fs';writeFileSync('checked-value.tmp',value);renameSync('checked-value.tmp','checked-value');setInterval(()=>{},1000);`);
   const wrapper=join(f.dir,'node-wrapper');
   writeFileSync(wrapper,`#!/bin/bash\nif [ "$1" = --version ]; then exec '${process.execPath}' "$@"; fi\ntouch launch-ready\nwhile [ ! -f launch-go ]; do sleep 0.02; done\nexec '${process.execPath}' "$@"\n`);
   chmodSync(wrapper,0o700);
@@ -762,4 +843,33 @@ import {writeFileSync} from 'node:fs';writeFileSync('checked-value',value);setIn
     await until(()=>existsSync(join(f.dir,'checked-value')));
     assert.equal(readFileSync(join(f.dir,'checked-value'),'utf8'),'validated');
   }
+});
+
+for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs'], ['serve','external.mjs']])
+test(`${mode} ${entry} runs the published file-output recipe in the project data directory`, async t => {
+  const guide = spawnSync(binary, ['guide','effects'], {encoding:'utf8'});
+  assert.equal(guide.status, 0, guide.stderr);
+  const recipe = guide.stdout.split('## Worker files and imports')[1].match(/```js\n([\s\S]*?)```/)[1];
+  const reference = readFileSync(fileURLToPath(new URL('../CLIENT-AND-OPERATIONS.md', import.meta.url)), 'utf8')
+    .split('#### Worker files, modules and runtime paths')[1].match(/```js\n([\s\S]*?)```/)[1];
+  assert.equal(recipe, reference, 'both published entry points teach the same runnable recipe');
+  const f = fixture(t);
+  const source = join(f.dir, 'snapback', entry);
+  writeFileSync(source, recipe + `
+await recordPush({text:'acceptance'}, {idempotencyKey:'stable-key'});
+const {writeFileSync}=await import('node:fs');
+writeFileSync('paths.json',JSON.stringify({projectDir:process.env.SNAPBACK_PROJECT_DIR,cwd:process.cwd(),module:import.meta.url}));
+process.chdir('/');
+await recordPush({text:'after chdir'}, {idempotencyKey:'next-key'});
+setInterval(()=>{},1000);
+`);
+  const s = await f.start(mode === 'serve' && entry === 'external.mjs' ? ['--worker',source] : [],
+    {SNAPBACK_PROJECT_DIR:'/must-not-inherit'}, false, mode);
+  const log = join(s.workdir,'data/push-log.jsonl');
+  await until(() => rows(log).length === 2);
+  assert.deepEqual(rows(log), [{id:'stable-key',payload:{text:'acceptance'}},{id:'next-key',payload:{text:'after chdir'}}]);
+  const paths=JSON.parse(readFileSync(join(s.workdir,'paths.json'),'utf8'));
+  assert.equal(paths.projectDir,realpathSync(s.workdir)); assert.equal(paths.cwd,realpathSync(s.workdir));
+  if(entry === 'external.mjs') assert.equal(fileURLToPath(paths.module),realpathSync(source));
+  else assert.ok(fileURLToPath(paths.module).startsWith(join(realpathSync(s.workdir),'.snapback4/worker-')));
 });

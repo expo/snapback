@@ -1,0 +1,442 @@
+[
+  {
+    "lane": "astra-snapback4",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/diary.md",
+    "sha256": "a37752519cfb22ca81b9e7147bb1457585798d1b2b853ae39dc376e9f158c886",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/essay.md",
+    "sha256": "c064a162ea86043ce4f9fb9f95a03f450515df9e1292b80e576549fabde9e6c5",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/run-log.md",
+    "sha256": "98988ceab4e4ba46d0e086eed67b69b259b441b4c81a6b6662ea5d5ed8178554",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/final-report.md",
+    "sha256": "c0695fa60fe0ab69f25fcf17af92a2fe07b0cc41c9a7108cd0c3a9445c1f3f98",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "run-record.json",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/run-record.json",
+    "sha256": "a354695aa3c6ecfa0f42a425fd9211bb33f5ed7aa0d75e7ec6c461d89e46afeb",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "FINAL.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/FINAL.md",
+    "sha256": "c1e09c9c45146908892e5cfbcc51f973c41b2c0c1b4c4989ffb4e4afe4f063b5",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "README.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/README.md",
+    "sha256": "18bb59b394e2593246fdb8b8035749c55873eade3ae1e535f8530903c11aa96a",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-snapback4",
+    "path": "API.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-snapback4/API.md",
+    "sha256": "e8b403af0715a015fb878b3ff16d8c56b270cf9e6d199e52281fa1be0b0c6728",
+    "record_identical": true
+  },
+  {
+    "lane": "astra-convex",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/diary.md",
+    "sha256": "08f63671f01df4b3edd57f4d7545c61bda7975fc3f24670ae3d6c59f7d897b9e",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/diary.md",
+      "exists": true,
+      "sha256": "08f63671f01df4b3edd57f4d7545c61bda7975fc3f24670ae3d6c59f7d897b9e",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/diary.md",
+      "exists": true,
+      "sha256": "08f63671f01df4b3edd57f4d7545c61bda7975fc3f24670ae3d6c59f7d897b9e",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-convex",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/essay.md",
+    "sha256": "d60eb7278167a94ac575470f40de3f0323983984c6f8cb927daa8380def6b1d8",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/essay.md",
+      "exists": true,
+      "sha256": "d60eb7278167a94ac575470f40de3f0323983984c6f8cb927daa8380def6b1d8",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/essay.md",
+      "exists": true,
+      "sha256": "d60eb7278167a94ac575470f40de3f0323983984c6f8cb927daa8380def6b1d8",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-convex",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/run-log.md",
+    "sha256": "71a4b9f2258ffcce22d85eb32584ef6d7447487193185b66a1958b42d9b30afd",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/run-log.md",
+      "exists": true,
+      "sha256": "71a4b9f2258ffcce22d85eb32584ef6d7447487193185b66a1958b42d9b30afd",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/run-log.md",
+      "exists": true,
+      "sha256": "71a4b9f2258ffcce22d85eb32584ef6d7447487193185b66a1958b42d9b30afd",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-convex",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/final-report.md",
+    "sha256": "d9a1e8053b17ce7f644448fa051d32c619c6ad95b459edd08c09f7f531d71170",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/final-report.md",
+      "exists": true,
+      "sha256": "d9a1e8053b17ce7f644448fa051d32c619c6ad95b459edd08c09f7f531d71170",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/final-report.md",
+      "exists": true,
+      "sha256": "d9a1e8053b17ce7f644448fa051d32c619c6ad95b459edd08c09f7f531d71170",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-convex",
+    "path": "run-record.json",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/run-record.json",
+    "sha256": "57e8fce04527c0be0306253e1650acfb9d7bb0a79c650ecf811c88581ea7368f",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/run-record.json",
+      "exists": true,
+      "sha256": "57e8fce04527c0be0306253e1650acfb9d7bb0a79c650ecf811c88581ea7368f",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/run-record.json",
+      "exists": true,
+      "sha256": "57e8fce04527c0be0306253e1650acfb9d7bb0a79c650ecf811c88581ea7368f",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-convex",
+    "path": "FINAL.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-convex/FINAL.md",
+    "sha256": "69465622393736c2657cb9d3271052187654177c3faa500bc6477d84ba03f150",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-convex/FINAL.md",
+      "exists": true,
+      "sha256": "69465622393736c2657cb9d3271052187654177c3faa500bc6477d84ba03f150",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-convex/FINAL.md",
+      "exists": true,
+      "sha256": "69465622393736c2657cb9d3271052187654177c3faa500bc6477d84ba03f150",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-supabase",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-supabase/diary.md",
+    "sha256": "18940f489dd097c73f4e17406942bdff5902e297546e248f81ec27698edc8ee6",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-supabase/diary.md",
+      "exists": true,
+      "sha256": "18940f489dd097c73f4e17406942bdff5902e297546e248f81ec27698edc8ee6",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-supabase/diary.md",
+      "exists": true,
+      "sha256": "18940f489dd097c73f4e17406942bdff5902e297546e248f81ec27698edc8ee6",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-supabase",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-supabase/essay.md",
+    "sha256": "7c2b4180960d91a5b5c73fb648fb1657efa5e467e3aad200201ff336d85026f3",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-supabase/essay.md",
+      "exists": true,
+      "sha256": "7c2b4180960d91a5b5c73fb648fb1657efa5e467e3aad200201ff336d85026f3",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-supabase/essay.md",
+      "exists": true,
+      "sha256": "7c2b4180960d91a5b5c73fb648fb1657efa5e467e3aad200201ff336d85026f3",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-supabase",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-supabase/run-log.md",
+    "sha256": "225fe1c29b7565c1d91a4f343c50a26f6988d6caf4afb0d2891577bc7826a349",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-supabase/run-log.md",
+      "exists": true,
+      "sha256": "225fe1c29b7565c1d91a4f343c50a26f6988d6caf4afb0d2891577bc7826a349",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-supabase/run-log.md",
+      "exists": true,
+      "sha256": "225fe1c29b7565c1d91a4f343c50a26f6988d6caf4afb0d2891577bc7826a349",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-supabase",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-supabase/final-report.md",
+    "sha256": "645581e12db14a7675a52a277046d0b253b7998fe500d697e56aed0e31453a9a",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-supabase/final-report.md",
+      "exists": true,
+      "sha256": "645581e12db14a7675a52a277046d0b253b7998fe500d697e56aed0e31453a9a",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-supabase/final-report.md",
+      "exists": true,
+      "sha256": "645581e12db14a7675a52a277046d0b253b7998fe500d697e56aed0e31453a9a",
+      "identical": true
+    }
+  },
+  {
+    "lane": "astra-supabase",
+    "path": "FINAL.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/astra-supabase/FINAL.md",
+    "sha256": "53351e8d00966073438ef0e2ef72af5a1da24747862b6ed1a1a2b4fc450d8aba",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260925/lanes/astra-supabase/FINAL.md",
+      "exists": true,
+      "sha256": "53351e8d00966073438ef0e2ef72af5a1da24747862b6ed1a1a2b4fc450d8aba",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/astra-supabase/FINAL.md",
+      "exists": true,
+      "sha256": "53351e8d00966073438ef0e2ef72af5a1da24747862b6ed1a1a2b4fc450d8aba",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-diary.md",
+    "sha256": "27bab3144a44166fdba43f062b3903f202d019b4fe7b7430107287a5f0b89be5",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-essay.md",
+    "sha256": "e752e902e906c73850eefa426874b4017bf0cd685b6cd3d39b29297b379cb489",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-run-log.md",
+    "sha256": "c7f347865212ff924b4488256118d4b4082162d8571e504471e6d5f83ebfd493",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-final-report.md",
+    "sha256": "b2420da1ba7e527b3b55879d0c45fb3312a1efa967d80782e78e780836ce626f",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "README.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-README.md",
+    "sha256": "a286b25bacfa19588a1e0162e77fc4c6016be620dcd0dfb61621f0e8b0da39c6",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-snapback4",
+    "path": "API.md",
+    "record_path": "benchmarks/runs/2026-10-03-snapback4-clique-grok-0.4.12/grok/lane-API.md",
+    "sha256": "a67782763f66d12e5dc6f7ca509ab2233dc808573b1a202927a4541b1c865e65",
+    "record_identical": true
+  },
+  {
+    "lane": "grok-convex",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-convex/diary.md",
+    "sha256": "f4247ebe22be37126257bdc23a4e9f33d806440684c79996f9b926cde12cede4",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-convex/diary.md",
+      "exists": true,
+      "sha256": "f4247ebe22be37126257bdc23a4e9f33d806440684c79996f9b926cde12cede4",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-convex/diary.md",
+      "exists": true,
+      "sha256": "f4247ebe22be37126257bdc23a4e9f33d806440684c79996f9b926cde12cede4",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-convex",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-convex/essay.md",
+    "sha256": "96fbb6a1d0f8d2a32a7d2664096ce5cf6e76ddb6774a2f36b1c525001f2580c8",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-convex/essay.md",
+      "exists": true,
+      "sha256": "96fbb6a1d0f8d2a32a7d2664096ce5cf6e76ddb6774a2f36b1c525001f2580c8",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-convex/essay.md",
+      "exists": true,
+      "sha256": "96fbb6a1d0f8d2a32a7d2664096ce5cf6e76ddb6774a2f36b1c525001f2580c8",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-convex",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-convex/run-log.md",
+    "sha256": "44dfce452253ff94554dacb7155f50c71a6434adf7cfc3c1801622de5dc59aac",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-convex/run-log.md",
+      "exists": true,
+      "sha256": "44dfce452253ff94554dacb7155f50c71a6434adf7cfc3c1801622de5dc59aac",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-convex/run-log.md",
+      "exists": true,
+      "sha256": "44dfce452253ff94554dacb7155f50c71a6434adf7cfc3c1801622de5dc59aac",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-convex",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-convex/final-report.md",
+    "sha256": "39f24f74f11f74288aff59ad341004f75c01e4405066e987bad58ad9b1a53024",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-convex/final-report.md",
+      "exists": true,
+      "sha256": "39f24f74f11f74288aff59ad341004f75c01e4405066e987bad58ad9b1a53024",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-convex/final-report.md",
+      "exists": true,
+      "sha256": "39f24f74f11f74288aff59ad341004f75c01e4405066e987bad58ad9b1a53024",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-supabase",
+    "path": "diary.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/diary.md",
+    "sha256": "6ffc563b643b4aab16377536fbe3b523595b8881928bec98bf6741207b9c867d",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-supabase/diary.md",
+      "exists": true,
+      "sha256": "6ffc563b643b4aab16377536fbe3b523595b8881928bec98bf6741207b9c867d",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-supabase/diary.md",
+      "exists": true,
+      "sha256": "6ffc563b643b4aab16377536fbe3b523595b8881928bec98bf6741207b9c867d",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-supabase",
+    "path": "essay.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/essay.md",
+    "sha256": "5d53d88f53f39d81325393a561cd3f086357383b30a4a81b1f36861a18354837",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-supabase/essay.md",
+      "exists": true,
+      "sha256": "5d53d88f53f39d81325393a561cd3f086357383b30a4a81b1f36861a18354837",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-supabase/essay.md",
+      "exists": true,
+      "sha256": "5d53d88f53f39d81325393a561cd3f086357383b30a4a81b1f36861a18354837",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-supabase",
+    "path": "run-log.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/run-log.md",
+    "sha256": "1821e50d5613bfe8e110531b419d9efbc1ea1978b4a671d52d64ef023a1b6e9f",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-supabase/run-log.md",
+      "exists": true,
+      "sha256": "1821e50d5613bfe8e110531b419d9efbc1ea1978b4a671d52d64ef023a1b6e9f",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-supabase/run-log.md",
+      "exists": true,
+      "sha256": "1821e50d5613bfe8e110531b419d9efbc1ea1978b4a671d52d64ef023a1b6e9f",
+      "identical": true
+    }
+  },
+  {
+    "lane": "grok-supabase",
+    "path": "final-report.md",
+    "record_path": "benchmarks/runs/2026-10-04-clique-cmp-0.4.12/grok-supabase/final-report.md",
+    "sha256": "46a9603de608658fffd59d4ffb0c7960d872cdf45f5f40cd21ae5ddbfbad583f",
+    "previous_comparative": {
+      "path": "/home/ccheever/clique-cmp-20260928-047/lanes/grok-supabase/final-report.md",
+      "exists": true,
+      "sha256": "46a9603de608658fffd59d4ffb0c7960d872cdf45f5f40cd21ae5ddbfbad583f",
+      "identical": true
+    },
+    "september_16": {
+      "path": "/home/ccheever/clique-full-20260916-sb4-convex-supabase/lanes/grok-supabase/final-report.md",
+      "exists": true,
+      "sha256": "46a9603de608658fffd59d4ffb0c7960d872cdf45f5f40cd21ae5ddbfbad583f",
+      "identical": true
+    }
+  }
+]

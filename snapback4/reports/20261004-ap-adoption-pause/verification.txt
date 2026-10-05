@@ -1,0 +1,28 @@
+Baseline: 2154dc163dc42e1808f12ef32e9468b2889407a3
+Host: eb1000; only lane-ap worktree/processes
+
+Focused core store tests: 21 passed, 0 failed.
+Corpus CLI check --store --json: passed, N_ADOPTION_PAUSE preserved in check-advice.json.
+Python reproduction/comparison scripts: py_compile passed.
+Corpus full-image equivalence: passed (equivalence.json).
+Three paired production runs: timings.jsonl.
+Before and after build-wasm.sh: passed, 2116457 raw / 639750 gzip.
+Wasm SHA256 identical: de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1.
+Supplemental measure-wasm.sh: stops at inherited i64 serde_json::value::ser::Serializer census failure; unchanged web bytes.
+Final full-suite command:
+taskset -c 64-87 env LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 bash snapback4/scripts/test.sh
+Rust inventory (299 binaries / 1012 executions), including doctests: passed in 545 s.
+Client files: 311/311 passed; 6198 tests, 6187 passed, 11 skipped, 0 failed; 1049 s.
+Fixture wrapper: 9 passed, 0 failed.
+Cargo/wasm/package builds, docs budget, release guard, package/chat/Expo typechecks and chat check: passed.
+Serial models: 79 passed, 0 failed; 342 s.
+Full-suite final exit: 0; zero failed stages in 1991 s. See full-suite-summary.txt.
+
+Earlier complete run: exit 1; all Rust, 9 fixtures and 79 models passed;
+client stage had 5 failing subtests in 2 files. New phase details exposed a
+private maintained-column target name, and unchanged startup printed a spurious
+adoption. Both reporting defects were fixed. The two files then passed all
+13 tests in an isolated rerun, and both pass in the final complete run above.
+No failed full-run result is treated as a passing one.
+
+Ref check: passed — 527 LLP documents, 10,346 refs, 0 errors, 0 unchecked.

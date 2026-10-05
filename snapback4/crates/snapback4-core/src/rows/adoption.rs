@@ -86,7 +86,7 @@ pub(crate) fn fits(meter: &mut Meter, price: &InternalPrice) -> bool {
 
 // @ref LLP 3000.007#20.9.3 — shrink pages before adoption writes when retained images plus row work cannot fit.
 pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, meter: &mut Meter,
-    work: Work, scratch: impl Fn(&Value) -> InternalPrice) -> Result<bool, RuntimeError> {
+    work: Work, scratch: Option<&dyn Fn(&Value) -> InternalPrice>) -> Result<bool, RuntimeError> {
     // Fix every cumulative budget before admission decodes or callbacks. Heap
     // retries retain used work, so both this check and limit use the remainder.
     if !work.fits(meter, images.len())? { return Ok(false); }
@@ -97,8 +97,8 @@ pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, mete
         if !singleton && !fits(meter, &decode) { return Ok(false); }
         charge(meter, decode)?;
         meter.charge(MeterKind::Examined, 1)?;
-        let row: Value = crate::json_codec::from_text(data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        let work = scratch(&row);
+        let row: Option<Value> = scratch.map(|_| crate::json_codec::from_text(data).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
+        let work = match (scratch, row.as_ref()) { (Some(scratch), Some(row)) => scratch(row), _ => InternalPrice::zero() };
         let fits = fits(meter, &work);
         // Only a singleton may refuse for heap. Larger pages can be dropped
         // and fetched again with a smaller limit, without replaying a write.

@@ -42,6 +42,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "E_QUARRY_RULE_HOP" => include_str!("why/E_QUARRY_RULE_HOP.md"),
         "E_QUARRY_TYPE" => include_str!("why/E_QUARRY_TYPE.md"),
         "E_QUARRY_UNKNOWN" => include_str!("why/E_QUARRY_UNKNOWN.md"),
+        "E_QUARRY_MATCHING_INDEX" => include_str!("why/E_QUARRY_MATCHING_INDEX.md"),
         "E_QUARRY_UNSUPPORTED" => include_str!("why/E_QUARRY_UNSUPPORTED.md"),
         "E_QUARRY_WRITE_TESTS" => include_str!("why/E_QUARRY_WRITE_TESTS.md"),
         "E_QUERY_HELD" => include_str!("why/E_QUERY_HELD.md"),

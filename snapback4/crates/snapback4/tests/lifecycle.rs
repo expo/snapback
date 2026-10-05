@@ -412,10 +412,11 @@ fn a_signal_still_cleans_up_the_application_worker() {
         // Automatic dev entries run from private validated snapshots. The
         // fixture owns its observation directory independently of module URLs.
         fs::write(&source, format!(r#"
-import {{ writeFileSync }} from 'node:fs';
+import {{ writeFileSync, renameSync }} from 'node:fs';
 const root = {};
 process.on('SIGTERM', () => {{ writeFileSync(root + '/worker-stopped', 'yes'); process.exit(0); }});
-writeFileSync(root + '/worker-pid', String(process.pid));
+writeFileSync(root + '/worker-pid.tmp', String(process.pid));
+renameSync(root + '/worker-pid.tmp', root + '/worker-pid');
 setInterval(() => {{}}, 1000);
 "#, serde_json::to_string(&dir.0).unwrap())).unwrap();
         let release = dir.0.join("release");
@@ -544,6 +545,9 @@ fn dev_default_adoption_and_check_share_the_successor_refusal() {
     let output = dir.run(&["check", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let diagnostic = serde_json::from_slice::<Value>(&output.stdout).unwrap()["problems"][0].clone();
+    host.until(|h| h.log().rsplit_once('\n').is_some_and(|(complete, _)|
+        complete.contains(diagnostic["message"].as_str().unwrap())
+        && complete.contains(diagnostic["rewrite"].as_str().unwrap())));
     assert!(host.log().contains(diagnostic["message"].as_str().unwrap()));
     assert!(host.log().contains(diagnostic["rewrite"].as_str().unwrap()));
     fs::write(path, source.replace("  read", "  tombstone: bool default false\n  read")).unwrap();
@@ -671,7 +675,7 @@ fn dev_refuses_an_explicit_worker_path_instead_of_ignoring_it() {
 fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children() {
     let dir = Directory::new();
     let source = dir.0.join("snapback/worker.mjs");
-    fs::write(&source, "import { writeFileSync } from 'node:fs'; writeFileSync(new URL('../worker-pid', import.meta.url), String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+    fs::write(&source, "import { writeFileSync, renameSync } from 'node:fs'; writeFileSync(new URL('../worker-pid.tmp', import.meta.url), String(process.pid)); renameSync(new URL('../worker-pid.tmp', import.meta.url), new URL('../worker-pid', import.meta.url)); setInterval(() => {}, 1000);\n").unwrap();
     let release = dir.0.join("release");
     assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success());
     let store = snapback4_core::Store::open(&release.join("store.sqlite")).unwrap();
@@ -714,7 +718,8 @@ fn w10r1b_dev_reports_the_same_cascades_as_check() {
         let expected = format!("{}\n{} in snapback/; serving the previous generation\n{}",
             lines.join("\n"), verdict.replace("check: ", "snapback4 dev: "),
             hidden.map_or_else(String::new, |line| format!("{}\n", line.replace("check: ", "snapback4 dev: "))));
-        host.until(|h| h.log().contains(expected.lines().last().unwrap()));
+        let last_line = format!("{}\n", expected.lines().last().unwrap());
+        host.until(|h| h.log().contains(&last_line));
         println!("W10R1b dev verbose={verbose}:\n{}", host.log());
         assert!(host.log().ends_with(&expected), "expected:\n{expected}actual:\n{}", host.log());
         fs::write(dir.0.join("snapback/chat.q"), "query apiHistory():\n  return true\n").unwrap();

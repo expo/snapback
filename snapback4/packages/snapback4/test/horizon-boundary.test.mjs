@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -45,6 +46,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), group ? groupSource : publicSource);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit");
   let log = "", client;
   server.stderr.on("data", chunk => { log += chunk; });
@@ -52,7 +54,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`server did not start in ten minutes: ${log}`)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    server.stdout.on("data", chunk => { log += chunk; const found = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const reply = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -187,13 +189,14 @@ async function reviewServer(t, source = reviewSource) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-boundary-review-"));
   mkdirSync(join(directory, "snapback")); writeFileSync(join(directory, "snapback/schema.q"), source);
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   const exited = once(server, "exit"); let log = "";
   server.stderr.on("data", chunk => { log += chunk; });
   t.after(async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
-    server.stdout.on("data", chunk => { log += chunk; const found = log.match(/http:\/\/127\.0\.0\.1:\d+/); if (found) { clearTimeout(timer); resolve(found[0]); } });
+    server.stdout.on("data", chunk => { log += chunk; const found = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
     const started = Date.now();

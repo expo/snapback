@@ -172,6 +172,8 @@ impl Runner<'_> {
         crate::schema::timeline::owned_id(&t.name, "Work", &[Value::String("delivery".into()), actor.clone(), Value::Null, event.clone(), Value::Null])
     }
 
+    // @ref LLP 3000.016#own-event-publication — commit the author's copy with
+    // the source; only foreign delivery waits for background queue service.
     fn timeline_deliver(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
         let actor = field(event, "actorId")?;
         self.timeline_copy(t, event, actor.as_str()?, Value::Null)?;

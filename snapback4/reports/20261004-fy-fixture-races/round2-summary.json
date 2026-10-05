@@ -1,0 +1,354 @@
+{
+  "base": "6173f51c7439c5367c891566491edb2d201439b1",
+  "sources": {
+    "snapback4/packages/snapback4/test/helpers/cleanup.mjs": "09a2a08c1ddff885ac8bcf2962218d4c90d7081947d675ab4f0ca7e7e348d5ef",
+    "snapback4/packages/snapback4/test/cleanup.test.mjs": "665b06594b7311107177acfa98c13fb5af5781bb99834fe59d2e8d277a748f50",
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "c6682141fcdf5cdf98e6ac344f248f62c466fa7219b512426903b7eac1bf9219",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "ea4d93d9b0edff591dc94761ab0a2fc4ee68bee52e19846e4632fd3974642bb0"
+  },
+  "runs": {
+    "repetitions": {
+      "configuration": {
+        "cpus": "72-79",
+        "hog_pid": 1148636,
+        "repeats": 3,
+        "parallel": 6,
+        "node": "/home/ccheever/.local/bin/node"
+      },
+      "results": [
+        {
+          "file": "release-activation",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 2.796,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-3.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "release-activation",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 2.846,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-1.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "release-activation",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 2.9,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-2.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 445.254,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-1.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 445.433,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-3.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 445.462,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-2.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        }
+      ],
+      "note": "Preliminary helper before outer-timeout aggregate logging; final-source evidence is repetitions-final."
+    },
+    "repetitions-final": {
+      "configuration": {
+        "cpus": "72-79",
+        "hog_pid": 1215735,
+        "repeats": 3,
+        "parallel": 6,
+        "node": "/home/ccheever/.local/bin/node"
+      },
+      "results": [
+        {
+          "file": "release-activation",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 4.504,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-2.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "release-activation",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 4.506,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-1.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "release-activation",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 4.548,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/release-activation.test.mjs"
+          ],
+          "log": "release-activation-3.log",
+          "counts": {
+            "tests": 18,
+            "pass": 18,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 3,
+          "exit": 0,
+          "seconds": 448.025,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-3.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 2,
+          "exit": 0,
+          "seconds": 448.038,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-2.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "file": "worker-regressions",
+          "iteration": 1,
+          "exit": 0,
+          "seconds": 448.142,
+          "command": [
+            "taskset",
+            "-c",
+            "72-79",
+            "/home/ccheever/.local/bin/node",
+            "--test",
+            "--test-reporter=tap",
+            "packages/snapback4/test/worker-regressions.test.mjs"
+          ],
+          "log": "worker-regressions-1.log",
+          "counts": {
+            "tests": 61,
+            "pass": 61,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    }
+  },
+  "masking_control": {
+    "baseline_body_hidden": true,
+    "fixed_body_and_cleanup_visible": true,
+    "guard_ms": 250
+  },
+  "cleanup_test": {
+    "passed": 3,
+    "failed": 0,
+    "includes_native_outer_timeout": true
+  },
+  "orphan_control": {
+    "source": "supplied Astra round-1 review; not rerun in FY",
+    "results": [
+      {
+        "mode": "stopped",
+        "exit": 1,
+        "seconds": 2.1,
+        "survivors_after_test_exit": [
+          "watchdog",
+          "worker",
+          "helper"
+        ],
+        "watchdog_cleaned_everyone_after_resume": true,
+        "controller_reaped": [
+          834865,
+          834885
+        ]
+      },
+      {
+        "mode": "exited",
+        "exit": 1,
+        "seconds": 0.164,
+        "survivors_after_test_exit": [
+          "worker",
+          "helper"
+        ],
+        "controller_reaped": [
+          836348,
+          836364
+        ]
+      }
+    ],
+    "resolution": "deferred to issues/20261004-fy-watchdog-death-orphan-custody.md"
+  }
+}

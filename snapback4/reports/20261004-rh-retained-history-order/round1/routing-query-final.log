@@ -1,0 +1,1117 @@
+✔ composed watch wasm: revocation fences pre-revocation server fields (629.988934ms)
+✔ composed query wasm: revocation fences pre-revocation server fields (210.650589ms)
+✔ composed query return wasm: revocation fences pre-revocation server fields (200.294141ms)
+✔ composed watch process: revocation fences pre-revocation server fields (229.474434ms)
+✔ composed query process: revocation fences pre-revocation server fields (251.750604ms)
+✔ composed query return process: revocation fences pre-revocation server fields (260.757029ms)
+▶ decorated generated search oracle on process
+  ✔ seed 1 (2691.621062ms)
+  ✔ seed 2 (2972.632951ms)
+  ✔ seed 3 (2508.53299ms)
+  ✔ seed 4 (2256.483397ms)
+  ✔ seed 5 (2098.802971ms)
+  ✔ seed 6 (2439.426932ms)
+  ✔ seed 7 (2036.512072ms)
+  ✔ seed 8 (2390.518749ms)
+  ✔ seed 9 (2589.15871ms)
+  ✔ seed 10 (2923.080661ms)
+  ✔ seed 11 (2635.243628ms)
+SJ process oracle {"pages":1475,"online":1080,"offline":395,"short":41,"currentNull":2210,"retainedNull":2471,"expiryPages":1143,"expiryNulls":526,"browsePages":490,"browseExpiryPages":379}
+  ✔ seed 12 (3054.725899ms)
+✔ decorated generated search oracle on process (30601.423855ms)
+▶ decorated generated search oracle on wasm
+  ✔ seed 1 (1860.292999ms)
+  ✔ seed 2 (1542.735774ms)
+  ✔ seed 3 (1811.256644ms)
+  ✔ seed 4 (2090.271397ms)
+  ✔ seed 5 (1828.040188ms)
+  ✔ seed 6 (1714.16167ms)
+  ✔ seed 7 (1438.012112ms)
+  ✔ seed 8 (1984.613994ms)
+  ✔ seed 9 (1964.05753ms)
+  ✔ seed 10 (2154.948106ms)
+  ✔ seed 11 (2277.264658ms)
+SJ wasm oracle {"pages":1475,"online":1080,"offline":395,"short":41,"currentNull":2210,"retainedNull":2471,"expiryPages":1143,"expiryNulls":526,"browsePages":490,"browseExpiryPages":379}
+  ✔ seed 12 (2498.783604ms)
+✔ decorated generated search oracle on wasm (23166.455759ms)
+✔ decoration expiry preserves current and retained rows process watch (290.057323ms)
+✔ decoration expiry preserves current and retained rows process one-shot (270.383765ms)
+✔ decoration expiry preserves current and retained rows wasm watch (216.57819ms)
+✔ decoration expiry preserves current and retained rows wasm one-shot (203.109283ms)
+✔ decoration valueDevice refresh preserves bare expiry (1.314959ms)
+✔ decoration valueServer refresh preserves bare expiry (0.259699ms)
+✔ remembered unsynced decorated answer expires offline: process query and watch (448.727487ms)
+✔ remembered unsynced decorated answer expires offline: wasm query and watch (548.055576ms)
+✔ createClient accepts skewed decoration replies and keeps refreshing (5638.906909ms)
+✔ createClient accepts skewed decoration replies and keeps refreshing during revocation (5643.886651ms)
+✔ createClient source-page deadline still withdraws a decorated page (11.127151ms)
+✔ an approved older page nulls its own decorations while a newer raw page waits for approval (1.732504ms)
+✔ nested decoration placeholders preserve generated object shapes and recover: process (247.96028ms)
+✔ nested decoration placeholders preserve generated object shapes and recover: wasm (188.970761ms)
+✔ nested decoration placeholders preserve generated object shapes and recover: online (175.111369ms)
+✔ retained browse keeps value deadlines process watch needle="" (253.362941ms)
+✔ retained browse keeps value deadlines process one-shot needle="" (251.261394ms)
+✔ retained browse keeps value deadlines process watch needle="   " (155.40497ms)
+✔ retained browse keeps value deadlines process one-shot needle="   " (236.504638ms)
+✔ retained browse keeps value deadlines process watch needle="!?" (258.278001ms)
+✔ retained browse keeps value deadlines process one-shot needle="!?" (362.481804ms)
+✔ retained browse keeps value deadlines process watch needle="☕️" (222.316603ms)
+✔ retained browse keeps value deadlines process one-shot needle="☕️" (247.401946ms)
+✔ retained browse keeps value deadlines wasm watch needle="" (210.932017ms)
+✔ retained browse keeps value deadlines wasm one-shot needle="" (203.315592ms)
+✔ retained browse keeps value deadlines wasm watch needle="   " (206.614532ms)
+✔ retained browse keeps value deadlines wasm one-shot needle="   " (209.147345ms)
+✔ retained browse keeps value deadlines wasm watch needle="!?" (107.596324ms)
+✔ retained browse keeps value deadlines wasm one-shot needle="!?" (195.207992ms)
+✔ retained browse keeps value deadlines wasm watch needle="☕️" (107.685146ms)
+✔ retained browse keeps value deadlines wasm one-shot needle="☕️" (188.228722ms)
+✔ online: ephemeral bypasses writes, admission and journals (217.585528ms)
+✔ wasm: ephemeral bypasses writes, admission and journals (1547.061552ms)
+✔ app-online: ephemeral bypasses writes, admission and journals (169.052417ms)
+✔ app-wasm: ephemeral bypasses writes, admission and journals (1170.801238ms)
+✔ app-online: session storage waits stay inside the bounded lane (155.229291ms)
+✔ app-wasm: session storage waits stay inside the bounded lane (1165.343124ms)
+✔ Following becomes withheld on composed re-observation: server (1019.481539ms)
+✔ Following becomes withheld on composed re-observation: offline (1003.107167ms)
+✔ Following becomes withheld on composed re-observation: pending (1001.409783ms)
+✔ Following becomes withheld on composed re-observation: transport recovered (1002.283942ms)
+✔ mixed drain: retained fills page, one invocation, cut retained and server prefix unconsumed (30.150237ms)
+✔ mixed drain stops at its established head even when more retained rows could fill the page (0.404316ms)
+✔ decoder and coordinator cannot reset a nearly exhausted device scan ledger (0.575593ms)
+✔ mixed comparisons exhaust the shared step allowance (time order) (0.695663ms)
+✔ mixed comparisons exhaust the shared step allowance (equal-time Unicode IDs) (0.52754ms)
+✔ mixed delivery withdraws membership race without refetch (0.463966ms)
+✔ mixed delivery withdraws reset race without refetch (0.59367ms)
+✔ mixed delivery withdraws edit race without refetch (0.362714ms)
+✔ mixed delivery withdraws rejoin race without refetch (0.545548ms)
+✔ mixed delivery withdraws expiry race without refetch (0.380491ms)
+✔ state loss needs no server buffer: a fresh coordinator resumes every unconsumed hit (1.910655ms)
+✔ an older device refuses composition explicitly instead of running a partial plan (0.115744ms)
+✔ a current-only page still requires the authorized server audience proof (0.245909ms)
+✔ a device words cut with 0 candidates preserves the proven server stream (1.051887ms)
+✔ a device words cut with 20 candidates preserves the proven server stream (0.597155ms)
+✔ a device meter cut with 0 candidates preserves the proven server stream (0.572879ms)
+✔ a device meter cut with 20 candidates preserves the proven server stream (0.609133ms)
+✔ an unresumable device cut with no server hits refuses instead of publishing an empty dead end (0.262964ms)
+✔ device word cut and server drain retain both constituent limits across continuation (2.687569ms)
+✔ freshness follows emitted rows and two proven exhausted lanes can be complete (1.199288ms)
+✔ a read cut retains rejected charges while every coordinator dimension stays bounded (0.393831ms)
+✔ composition propagates E_INPUT retryable=false without identity refresh (0.159469ms)
+✔ composition propagates E_INPUT retryable=true without identity refresh (0.068372ms)
+✔ composition propagates E_OP retryable=false without identity refresh (0.055503ms)
+✔ composition propagates E_OP retryable=true without identity refresh (0.063224ms)
+✔ composition propagates E_SEARCH_OPEN retryable=false without identity refresh (0.050816ms)
+✔ composition propagates E_SEARCH_OPEN retryable=true without identity refresh (0.045208ms)
+✔ composition propagates E_BOUND retryable=false without identity refresh (0.047581ms)
+✔ composition propagates E_BOUND retryable=true without identity refresh (0.04689ms)
+✔ missing overlap support refuses permanently without publishing retained candidates (0.330475ms)
+✔ complete certifies a bounded page even when the combined next has more rows (0.568212ms)
+✔ full last 86 overlap fits the shared step allowance (2.288201ms)
+✔ full last 100 overlap fits the shared step allowance (3.179287ms)
+✔ oversized overlap proof is rejected before subset work can exhaust steps (0.422053ms)
+✔ merge seen set is defense in depth for a same-page pair unmarked by overlap (0.282754ms)
+✔ exact source-order protocol Asc 9007199254740993 (0.642303ms)
+✔ exact source-order protocol Asc -9007199254740992 (0.232028ms)
+✔ exact source-order protocol Asc 9223372036854775807 (0.204055ms)
+✔ exact source-order protocol Asc -9223372036854775807 (0.216024ms)
+✔ exact source-order protocol Desc 9007199254740993 (0.221953ms)
+✔ exact source-order protocol Desc -9007199254740992 (0.270786ms)
+✔ exact source-order protocol Desc 9223372036854775807 (0.185468ms)
+✔ exact source-order protocol Desc -9223372036854775807 (0.189935ms)
+✔ search routes an ahead reply with membership proof (pending leave: false) (0.288031ms)
+✔ search routes an ahead reply with membership proof (pending leave: true) (0.178388ms)
+ORACLE_PASS host=process seed=1
+ORACLE_PASS host=process seed=2
+ORACLE_PASS host=process seed=3
+ORACLE_PASS host=process seed=4
+ORACLE_PASS host=process seed=5
+ORACLE_PASS host=process seed=6
+ORACLE_PASS host=process seed=7
+ORACLE_PASS host=process seed=8
+ORACLE_PASS host=process seed=9
+ORACLE_PASS host=process seed=10
+ORACLE_PASS host=process seed=11
+ORACLE_PASS host=process seed=12
+ORACLE_PASS host=process seed=13
+ORACLE_PASS host=process seed=14
+ORACLE_PASS host=process seed=15
+ORACLE_PASS host=process seed=16
+ORACLE_PASS host=process seed=17
+ORACLE_PASS host=process seed=18
+ORACLE_PASS host=process seed=19
+ORACLE_PASS host=process seed=20
+ORACLE_PASS host=process seed=21
+ORACLE_PASS host=process seed=22
+ORACLE_PASS host=process seed=23
+ORACLE_PASS host=process seed=24
+ORACLE_PASS host=process seed=25
+ORACLE_PASS host=process seed=26
+ORACLE_PASS host=process seed=27
+ORACLE_PASS host=process seed=28
+ORACLE_PASS host=process seed=29
+ORACLE_PASS host=process seed=30
+ORACLE_PASS host=process seed=31
+ORACLE_PASS host=process seed=32
+ORACLE_PASS host=process seed=33
+ORACLE_PASS host=process seed=34
+ORACLE_PASS host=process seed=35
+ORACLE_PASS host=process seed=36
+ORACLE_PASS host=process seed=37
+ORACLE_PASS host=process seed=38
+ORACLE_PASS host=process seed=39
+ORACLE_PASS host=process seed=40
+ORACLE_PASS host=process seed=41
+ORACLE_PASS host=process seed=42
+ORACLE_PASS host=process seed=43
+ORACLE_PASS host=process seed=44
+ORACLE_PASS host=process seed=45
+ORACLE_PASS host=process seed=46
+ORACLE_PASS host=process seed=47
+ORACLE_PASS host=process seed=48
+ORACLE_PASS host=process seed=49
+ORACLE_PASS host=process seed=50
+ORACLE_PASS host=process seed=51
+ORACLE_PASS host=process seed=52
+ORACLE_PASS host=process seed=53
+ORACLE_PASS host=process seed=54
+ORACLE_PASS host=process seed=55
+ORACLE_PASS host=process seed=56
+ORACLE_PASS host=process seed=57
+ORACLE_PASS host=process seed=58
+ORACLE_PASS host=process seed=59
+ORACLE_PASS host=process seed=60
+ORACLE_PASS host=process seed=61
+ORACLE_PASS host=process seed=62
+ORACLE_PASS host=process seed=63
+ORACLE_PASS host=process seed=64
+ORACLE_PASS host=process seed=65
+ORACLE_PASS host=process seed=66
+ORACLE_PASS host=process seed=67
+ORACLE_PASS host=process seed=68
+ORACLE_PASS host=process seed=69
+ORACLE_PASS host=process seed=70
+ORACLE_PASS host=process seed=71
+ORACLE_PASS host=process seed=72
+ORACLE_PASS host=process seed=73
+ORACLE_PASS host=process seed=74
+ORACLE_PASS host=process seed=75
+ORACLE_PASS host=process seed=76
+ORACLE_PASS host=process seed=77
+ORACLE_PASS host=process seed=78
+ORACLE_PASS host=process seed=79
+ORACLE_PASS host=process seed=80
+ORACLE_PASS host=process seed=81
+ORACLE_PASS host=process seed=82
+ORACLE_PASS host=process seed=83
+ORACLE_PASS host=process seed=84
+ORACLE_PASS host=process seed=85
+ORACLE_PASS host=process seed=86
+ORACLE_PASS host=process seed=87
+ORACLE_PASS host=process seed=88
+ORACLE_PASS host=process seed=89
+ORACLE_PASS host=process seed=90
+ORACLE_PASS host=process seed=91
+ORACLE_PASS host=process seed=92
+ORACLE_PASS host=process seed=93
+ORACLE_PASS host=process seed=94
+ORACLE_PASS host=process seed=95
+ORACLE_PASS host=process seed=96
+ORACLE_PASS host=process seed=97
+ORACLE_PASS host=process seed=98
+ORACLE_PASS host=process seed=99
+ORACLE_PASS host=process seed=100
+ORACLE_PASS host=process seed=101
+ORACLE_PASS host=process seed=102
+ORACLE_PASS host=process seed=103
+ORACLE_PASS host=process seed=104
+ORACLE_PASS host=process seed=105
+ORACLE_PASS host=process seed=106
+ORACLE_PASS host=process seed=107
+ORACLE_PASS host=process seed=108
+ORACLE_PASS host=process seed=109
+ORACLE_PASS host=process seed=110
+ORACLE_PASS host=process seed=111
+ORACLE_PASS host=process seed=112
+ORACLE_PASS host=process seed=113
+ORACLE_PASS host=process seed=114
+ORACLE_PASS host=process seed=115
+ORACLE_PASS host=process seed=116
+ORACLE_PASS host=process seed=117
+ORACLE_PASS host=process seed=118
+ORACLE_PASS host=process seed=119
+ORACLE_PASS host=process seed=120
+ORACLE_PASS host=process seed=121
+ORACLE_PASS host=process seed=122
+ORACLE_PASS host=process seed=123
+ORACLE_PASS host=process seed=124
+ORACLE_PASS host=process seed=125
+ORACLE_PASS host=process seed=126
+ORACLE_PASS host=process seed=127
+ORACLE_PASS host=process seed=128
+ORACLE_PASS host=process seed=129
+ORACLE_PASS host=process seed=130
+ORACLE_PASS host=process seed=131
+ORACLE_PASS host=process seed=132
+ORACLE_PASS host=process seed=133
+ORACLE_PASS host=process seed=134
+ORACLE_PASS host=process seed=135
+ORACLE_PASS host=process seed=136
+ORACLE_PASS host=process seed=137
+ORACLE_PASS host=process seed=138
+ORACLE_PASS host=process seed=139
+ORACLE_PASS host=process seed=140
+ORACLE_PASS host=process seed=141
+ORACLE_PASS host=process seed=142
+ORACLE_PASS host=process seed=143
+ORACLE_PASS host=process seed=144
+ORACLE_PASS host=process seed=145
+ORACLE_PASS host=process seed=146
+ORACLE_PASS host=process seed=147
+ORACLE_PASS host=process seed=148
+ORACLE_PASS host=process seed=149
+ORACLE_PASS host=process seed=150
+ORACLE_PASS host=process seed=151
+ORACLE_PASS host=process seed=152
+ORACLE_PASS host=process seed=153
+ORACLE_PASS host=process seed=154
+ORACLE_PASS host=process seed=155
+ORACLE_PASS host=process seed=156
+ORACLE_PASS host=process seed=157
+ORACLE_PASS host=process seed=158
+ORACLE_PASS host=process seed=159
+ORACLE_PASS host=process seed=160
+ORACLE_PASS host=process seed=161
+ORACLE_PASS host=process seed=162
+ORACLE_PASS host=process seed=163
+ORACLE_PASS host=process seed=164
+ORACLE_PASS host=process seed=165
+ORACLE_PASS host=process seed=166
+ORACLE_PASS host=process seed=167
+ORACLE_PASS host=process seed=168
+ORACLE_PASS host=process seed=169
+ORACLE_PASS host=process seed=170
+ORACLE_PASS host=process seed=171
+ORACLE_PASS host=process seed=172
+ORACLE_PASS host=process seed=173
+ORACLE_PASS host=process seed=174
+ORACLE_PASS host=process seed=175
+ORACLE_PASS host=process seed=176
+ORACLE_PASS host=process seed=177
+ORACLE_PASS host=process seed=178
+ORACLE_PASS host=process seed=179
+ORACLE_PASS host=process seed=180
+ORACLE_PASS host=process seed=181
+ORACLE_PASS host=process seed=182
+ORACLE_PASS host=process seed=183
+ORACLE_PASS host=process seed=184
+ORACLE_PASS host=process seed=185
+ORACLE_PASS host=process seed=186
+ORACLE_PASS host=process seed=187
+ORACLE_PASS host=process seed=188
+ORACLE_PASS host=process seed=189
+ORACLE_PASS host=process seed=190
+ORACLE_PASS host=process seed=191
+ORACLE_PASS host=process seed=192
+ORACLE_PASS host=process seed=193
+ORACLE_PASS host=process seed=194
+ORACLE_PASS host=process seed=195
+ORACLE_PASS host=process seed=196
+ORACLE_PASS host=process seed=197
+ORACLE_PASS host=process seed=198
+ORACLE_PASS host=process seed=199
+ORACLE_PASS host=process seed=200
+ORACLE_PASS host=process seed=201
+ORACLE_PASS host=process seed=202
+ORACLE_PASS host=process seed=203
+ORACLE_PASS host=process seed=204
+ORACLE_PASS host=process seed=205
+ORACLE_PASS host=process seed=206
+ORACLE_PASS host=process seed=207
+ORACLE_PASS host=process seed=208
+ORACLE_PASS host=process seed=209
+ORACLE_PASS host=process seed=210
+ORACLE_PASS host=process seed=211
+ORACLE_PASS host=process seed=212
+ORACLE_PASS host=process seed=213
+ORACLE_PASS host=process seed=214
+ORACLE_PASS host=process seed=215
+ORACLE_PASS host=process seed=216
+ORACLE_PASS host=process seed=217
+ORACLE_PASS host=process seed=218
+ORACLE_PASS host=process seed=219
+ORACLE_PASS host=process seed=220
+ORACLE_PASS host=process seed=221
+ORACLE_PASS host=process seed=222
+ORACLE_PASS host=process seed=223
+ORACLE_PASS host=process seed=224
+ORACLE_PASS host=process seed=225
+ORACLE_PASS host=process seed=226
+ORACLE_PASS host=process seed=227
+ORACLE_PASS host=process seed=228
+ORACLE_PASS host=process seed=229
+ORACLE_PASS host=process seed=230
+ORACLE_PASS host=process seed=231
+ORACLE_PASS host=process seed=232
+ORACLE_PASS host=process seed=233
+ORACLE_PASS host=process seed=234
+ORACLE_PASS host=process seed=235
+ORACLE_PASS host=process seed=236
+ORACLE_PASS host=process seed=237
+ORACLE_PASS host=process seed=238
+ORACLE_PASS host=process seed=239
+ORACLE_PASS host=process seed=240
+ORACLE_PASS host=process seed=241
+ORACLE_PASS host=process seed=242
+ORACLE_PASS host=process seed=243
+ORACLE_PASS host=process seed=244
+ORACLE_PASS host=process seed=245
+ORACLE_PASS host=process seed=246
+ORACLE_PASS host=process seed=247
+ORACLE_PASS host=process seed=248
+ORACLE_PASS host=process seed=249
+ORACLE_PASS host=process seed=250
+ORACLE_PASS host=process seed=251
+ORACLE_PASS host=process seed=252
+ORACLE_PASS host=process seed=253
+ORACLE_PASS host=process seed=254
+ORACLE_PASS host=process seed=255
+ORACLE_PASS host=process seed=256
+ORACLE_PASS host=process seed=257
+ORACLE_PASS host=process seed=258
+ORACLE_PASS host=process seed=259
+ORACLE_PASS host=process seed=260
+ORACLE_PASS host=process seed=261
+ORACLE_PASS host=process seed=262
+ORACLE_PASS host=process seed=263
+ORACLE_PASS host=process seed=264
+ORACLE_PASS host=process seed=265
+ORACLE_PASS host=process seed=266
+ORACLE_PASS host=process seed=267
+ORACLE_PASS host=process seed=268
+ORACLE_PASS host=process seed=269
+ORACLE_PASS host=process seed=270
+ORACLE_PASS host=process seed=271
+ORACLE_PASS host=process seed=272
+ORACLE_PASS host=process seed=273
+ORACLE_PASS host=process seed=274
+ORACLE_PASS host=process seed=275
+ORACLE_PASS host=process seed=276
+ORACLE_PASS host=process seed=277
+ORACLE_PASS host=process seed=278
+ORACLE_PASS host=process seed=279
+ORACLE_PASS host=process seed=280
+ORACLE_PASS host=process seed=281
+ORACLE_PASS host=process seed=282
+ORACLE_PASS host=process seed=283
+ORACLE_PASS host=process seed=284
+ORACLE_PASS host=process seed=285
+ORACLE_PASS host=process seed=286
+ORACLE_PASS host=process seed=287
+ORACLE_PASS host=process seed=288
+ORACLE_PASS host=process seed=289
+ORACLE_PASS host=process seed=290
+ORACLE_PASS host=process seed=291
+ORACLE_PASS host=process seed=292
+ORACLE_PASS host=process seed=293
+ORACLE_PASS host=process seed=294
+ORACLE_PASS host=process seed=295
+ORACLE_PASS host=process seed=296
+ORACLE_PASS host=process seed=297
+ORACLE_PASS host=process seed=298
+ORACLE_PASS host=process seed=299
+ORACLE_PASS host=process seed=300
+ORACLE_SUMMARY {"host":"process","seeds":300,"failed":[],"ms":252889,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✔ ordinary search generated oracle process: 300 seeds (252889.42781ms)
+ORACLE_PASS host=wasm seed=1
+ORACLE_PASS host=wasm seed=2
+ORACLE_PASS host=wasm seed=3
+ORACLE_PASS host=wasm seed=4
+ORACLE_PASS host=wasm seed=5
+ORACLE_PASS host=wasm seed=6
+ORACLE_PASS host=wasm seed=7
+ORACLE_PASS host=wasm seed=8
+ORACLE_PASS host=wasm seed=9
+ORACLE_PASS host=wasm seed=10
+ORACLE_PASS host=wasm seed=11
+ORACLE_PASS host=wasm seed=12
+ORACLE_PASS host=wasm seed=13
+ORACLE_PASS host=wasm seed=14
+ORACLE_PASS host=wasm seed=15
+ORACLE_PASS host=wasm seed=16
+ORACLE_PASS host=wasm seed=17
+ORACLE_PASS host=wasm seed=18
+ORACLE_PASS host=wasm seed=19
+ORACLE_PASS host=wasm seed=20
+ORACLE_PASS host=wasm seed=21
+ORACLE_PASS host=wasm seed=22
+ORACLE_PASS host=wasm seed=23
+ORACLE_PASS host=wasm seed=24
+ORACLE_PASS host=wasm seed=25
+ORACLE_PASS host=wasm seed=26
+ORACLE_PASS host=wasm seed=27
+ORACLE_PASS host=wasm seed=28
+ORACLE_PASS host=wasm seed=29
+ORACLE_PASS host=wasm seed=30
+ORACLE_PASS host=wasm seed=31
+ORACLE_PASS host=wasm seed=32
+ORACLE_PASS host=wasm seed=33
+ORACLE_PASS host=wasm seed=34
+ORACLE_PASS host=wasm seed=35
+ORACLE_PASS host=wasm seed=36
+ORACLE_PASS host=wasm seed=37
+ORACLE_PASS host=wasm seed=38
+ORACLE_PASS host=wasm seed=39
+ORACLE_PASS host=wasm seed=40
+ORACLE_PASS host=wasm seed=41
+ORACLE_PASS host=wasm seed=42
+ORACLE_PASS host=wasm seed=43
+ORACLE_PASS host=wasm seed=44
+ORACLE_PASS host=wasm seed=45
+ORACLE_PASS host=wasm seed=46
+ORACLE_PASS host=wasm seed=47
+ORACLE_PASS host=wasm seed=48
+ORACLE_PASS host=wasm seed=49
+ORACLE_PASS host=wasm seed=50
+ORACLE_PASS host=wasm seed=51
+ORACLE_PASS host=wasm seed=52
+ORACLE_PASS host=wasm seed=53
+ORACLE_PASS host=wasm seed=54
+ORACLE_PASS host=wasm seed=55
+ORACLE_PASS host=wasm seed=56
+ORACLE_PASS host=wasm seed=57
+ORACLE_PASS host=wasm seed=58
+ORACLE_PASS host=wasm seed=59
+ORACLE_PASS host=wasm seed=60
+ORACLE_PASS host=wasm seed=61
+ORACLE_PASS host=wasm seed=62
+ORACLE_PASS host=wasm seed=63
+ORACLE_PASS host=wasm seed=64
+ORACLE_PASS host=wasm seed=65
+ORACLE_PASS host=wasm seed=66
+ORACLE_PASS host=wasm seed=67
+ORACLE_PASS host=wasm seed=68
+ORACLE_PASS host=wasm seed=69
+ORACLE_PASS host=wasm seed=70
+ORACLE_PASS host=wasm seed=71
+ORACLE_PASS host=wasm seed=72
+ORACLE_PASS host=wasm seed=73
+ORACLE_PASS host=wasm seed=74
+ORACLE_PASS host=wasm seed=75
+ORACLE_PASS host=wasm seed=76
+ORACLE_PASS host=wasm seed=77
+ORACLE_PASS host=wasm seed=78
+ORACLE_PASS host=wasm seed=79
+ORACLE_PASS host=wasm seed=80
+ORACLE_PASS host=wasm seed=81
+ORACLE_PASS host=wasm seed=82
+ORACLE_PASS host=wasm seed=83
+ORACLE_PASS host=wasm seed=84
+ORACLE_PASS host=wasm seed=85
+ORACLE_PASS host=wasm seed=86
+ORACLE_PASS host=wasm seed=87
+ORACLE_PASS host=wasm seed=88
+ORACLE_PASS host=wasm seed=89
+ORACLE_PASS host=wasm seed=90
+ORACLE_PASS host=wasm seed=91
+ORACLE_PASS host=wasm seed=92
+ORACLE_PASS host=wasm seed=93
+ORACLE_PASS host=wasm seed=94
+ORACLE_PASS host=wasm seed=95
+ORACLE_PASS host=wasm seed=96
+ORACLE_PASS host=wasm seed=97
+ORACLE_PASS host=wasm seed=98
+ORACLE_PASS host=wasm seed=99
+ORACLE_PASS host=wasm seed=100
+ORACLE_PASS host=wasm seed=101
+ORACLE_PASS host=wasm seed=102
+ORACLE_PASS host=wasm seed=103
+ORACLE_PASS host=wasm seed=104
+ORACLE_PASS host=wasm seed=105
+ORACLE_PASS host=wasm seed=106
+ORACLE_PASS host=wasm seed=107
+ORACLE_PASS host=wasm seed=108
+ORACLE_PASS host=wasm seed=109
+ORACLE_PASS host=wasm seed=110
+ORACLE_PASS host=wasm seed=111
+ORACLE_PASS host=wasm seed=112
+ORACLE_PASS host=wasm seed=113
+ORACLE_PASS host=wasm seed=114
+ORACLE_PASS host=wasm seed=115
+ORACLE_PASS host=wasm seed=116
+ORACLE_PASS host=wasm seed=117
+ORACLE_PASS host=wasm seed=118
+ORACLE_PASS host=wasm seed=119
+ORACLE_PASS host=wasm seed=120
+ORACLE_PASS host=wasm seed=121
+ORACLE_PASS host=wasm seed=122
+ORACLE_PASS host=wasm seed=123
+ORACLE_PASS host=wasm seed=124
+ORACLE_PASS host=wasm seed=125
+ORACLE_PASS host=wasm seed=126
+ORACLE_PASS host=wasm seed=127
+ORACLE_PASS host=wasm seed=128
+ORACLE_PASS host=wasm seed=129
+ORACLE_PASS host=wasm seed=130
+ORACLE_PASS host=wasm seed=131
+ORACLE_PASS host=wasm seed=132
+ORACLE_PASS host=wasm seed=133
+ORACLE_PASS host=wasm seed=134
+ORACLE_PASS host=wasm seed=135
+ORACLE_PASS host=wasm seed=136
+ORACLE_PASS host=wasm seed=137
+ORACLE_PASS host=wasm seed=138
+ORACLE_PASS host=wasm seed=139
+ORACLE_PASS host=wasm seed=140
+ORACLE_PASS host=wasm seed=141
+ORACLE_PASS host=wasm seed=142
+ORACLE_PASS host=wasm seed=143
+ORACLE_PASS host=wasm seed=144
+ORACLE_PASS host=wasm seed=145
+ORACLE_PASS host=wasm seed=146
+ORACLE_PASS host=wasm seed=147
+ORACLE_PASS host=wasm seed=148
+ORACLE_PASS host=wasm seed=149
+ORACLE_PASS host=wasm seed=150
+ORACLE_PASS host=wasm seed=151
+ORACLE_PASS host=wasm seed=152
+ORACLE_PASS host=wasm seed=153
+ORACLE_PASS host=wasm seed=154
+ORACLE_PASS host=wasm seed=155
+ORACLE_PASS host=wasm seed=156
+ORACLE_PASS host=wasm seed=157
+ORACLE_PASS host=wasm seed=158
+ORACLE_PASS host=wasm seed=159
+ORACLE_PASS host=wasm seed=160
+ORACLE_PASS host=wasm seed=161
+ORACLE_PASS host=wasm seed=162
+ORACLE_PASS host=wasm seed=163
+ORACLE_PASS host=wasm seed=164
+ORACLE_PASS host=wasm seed=165
+ORACLE_PASS host=wasm seed=166
+ORACLE_PASS host=wasm seed=167
+ORACLE_PASS host=wasm seed=168
+ORACLE_PASS host=wasm seed=169
+ORACLE_PASS host=wasm seed=170
+ORACLE_PASS host=wasm seed=171
+ORACLE_PASS host=wasm seed=172
+ORACLE_PASS host=wasm seed=173
+ORACLE_PASS host=wasm seed=174
+ORACLE_PASS host=wasm seed=175
+ORACLE_PASS host=wasm seed=176
+ORACLE_PASS host=wasm seed=177
+ORACLE_PASS host=wasm seed=178
+ORACLE_PASS host=wasm seed=179
+ORACLE_PASS host=wasm seed=180
+ORACLE_PASS host=wasm seed=181
+ORACLE_PASS host=wasm seed=182
+ORACLE_PASS host=wasm seed=183
+ORACLE_PASS host=wasm seed=184
+ORACLE_PASS host=wasm seed=185
+ORACLE_PASS host=wasm seed=186
+ORACLE_PASS host=wasm seed=187
+ORACLE_PASS host=wasm seed=188
+ORACLE_PASS host=wasm seed=189
+ORACLE_PASS host=wasm seed=190
+ORACLE_PASS host=wasm seed=191
+ORACLE_PASS host=wasm seed=192
+ORACLE_PASS host=wasm seed=193
+ORACLE_PASS host=wasm seed=194
+ORACLE_PASS host=wasm seed=195
+ORACLE_PASS host=wasm seed=196
+ORACLE_PASS host=wasm seed=197
+ORACLE_PASS host=wasm seed=198
+ORACLE_PASS host=wasm seed=199
+ORACLE_PASS host=wasm seed=200
+ORACLE_PASS host=wasm seed=201
+ORACLE_PASS host=wasm seed=202
+ORACLE_PASS host=wasm seed=203
+ORACLE_PASS host=wasm seed=204
+ORACLE_PASS host=wasm seed=205
+ORACLE_PASS host=wasm seed=206
+ORACLE_PASS host=wasm seed=207
+ORACLE_PASS host=wasm seed=208
+ORACLE_PASS host=wasm seed=209
+ORACLE_PASS host=wasm seed=210
+ORACLE_PASS host=wasm seed=211
+ORACLE_PASS host=wasm seed=212
+ORACLE_PASS host=wasm seed=213
+ORACLE_PASS host=wasm seed=214
+ORACLE_PASS host=wasm seed=215
+ORACLE_PASS host=wasm seed=216
+ORACLE_PASS host=wasm seed=217
+ORACLE_PASS host=wasm seed=218
+ORACLE_PASS host=wasm seed=219
+ORACLE_PASS host=wasm seed=220
+ORACLE_PASS host=wasm seed=221
+ORACLE_PASS host=wasm seed=222
+ORACLE_PASS host=wasm seed=223
+ORACLE_PASS host=wasm seed=224
+ORACLE_PASS host=wasm seed=225
+ORACLE_PASS host=wasm seed=226
+ORACLE_PASS host=wasm seed=227
+ORACLE_PASS host=wasm seed=228
+ORACLE_PASS host=wasm seed=229
+ORACLE_PASS host=wasm seed=230
+ORACLE_PASS host=wasm seed=231
+ORACLE_PASS host=wasm seed=232
+ORACLE_PASS host=wasm seed=233
+ORACLE_PASS host=wasm seed=234
+ORACLE_PASS host=wasm seed=235
+ORACLE_PASS host=wasm seed=236
+ORACLE_PASS host=wasm seed=237
+ORACLE_PASS host=wasm seed=238
+ORACLE_PASS host=wasm seed=239
+ORACLE_PASS host=wasm seed=240
+ORACLE_PASS host=wasm seed=241
+ORACLE_PASS host=wasm seed=242
+ORACLE_PASS host=wasm seed=243
+ORACLE_PASS host=wasm seed=244
+ORACLE_PASS host=wasm seed=245
+ORACLE_PASS host=wasm seed=246
+ORACLE_PASS host=wasm seed=247
+ORACLE_PASS host=wasm seed=248
+ORACLE_PASS host=wasm seed=249
+ORACLE_PASS host=wasm seed=250
+ORACLE_PASS host=wasm seed=251
+ORACLE_PASS host=wasm seed=252
+ORACLE_PASS host=wasm seed=253
+ORACLE_PASS host=wasm seed=254
+ORACLE_PASS host=wasm seed=255
+ORACLE_PASS host=wasm seed=256
+ORACLE_PASS host=wasm seed=257
+ORACLE_PASS host=wasm seed=258
+ORACLE_PASS host=wasm seed=259
+ORACLE_PASS host=wasm seed=260
+ORACLE_PASS host=wasm seed=261
+ORACLE_PASS host=wasm seed=262
+ORACLE_PASS host=wasm seed=263
+ORACLE_PASS host=wasm seed=264
+ORACLE_PASS host=wasm seed=265
+ORACLE_PASS host=wasm seed=266
+ORACLE_PASS host=wasm seed=267
+ORACLE_PASS host=wasm seed=268
+ORACLE_PASS host=wasm seed=269
+ORACLE_PASS host=wasm seed=270
+ORACLE_PASS host=wasm seed=271
+ORACLE_PASS host=wasm seed=272
+ORACLE_PASS host=wasm seed=273
+ORACLE_PASS host=wasm seed=274
+ORACLE_PASS host=wasm seed=275
+ORACLE_PASS host=wasm seed=276
+ORACLE_PASS host=wasm seed=277
+ORACLE_PASS host=wasm seed=278
+ORACLE_PASS host=wasm seed=279
+ORACLE_PASS host=wasm seed=280
+ORACLE_PASS host=wasm seed=281
+ORACLE_PASS host=wasm seed=282
+ORACLE_PASS host=wasm seed=283
+ORACLE_PASS host=wasm seed=284
+ORACLE_PASS host=wasm seed=285
+ORACLE_PASS host=wasm seed=286
+ORACLE_PASS host=wasm seed=287
+ORACLE_PASS host=wasm seed=288
+ORACLE_PASS host=wasm seed=289
+ORACLE_PASS host=wasm seed=290
+ORACLE_PASS host=wasm seed=291
+ORACLE_PASS host=wasm seed=292
+ORACLE_PASS host=wasm seed=293
+ORACLE_PASS host=wasm seed=294
+ORACLE_PASS host=wasm seed=295
+ORACLE_PASS host=wasm seed=296
+ORACLE_PASS host=wasm seed=297
+ORACLE_PASS host=wasm seed=298
+ORACLE_PASS host=wasm seed=299
+ORACLE_PASS host=wasm seed=300
+ORACLE_SUMMARY {"host":"wasm","seeds":300,"failed":[],"ms":319125,"coverage":{"projection":74,"at":105,"sync":135,"membership":263,"terminal:none":304,"invalid-input":74,"reset":71,"link":102,"argument-change":74,"new":152,"rebirth":50,"reuse:tea:before":6,"reuse:live":35,"body":90,"replacement":84,"expiry":107,"reuse:tea:after":6,"reopen":54,"differential-page":194,"generation":36,"reuse:coffee:after":9,"partial-safety":6,"large:86:last":3,"large:tea:middle":4,"reuse:coffee:before":6,"reuse:tea:middle":12,"move":10,"terminal:words":4,"large:100:last":3,"large:coffee:middle":2,"reuse:coffee:middle":11,"reuse:expired":15,"terminal:meter":1,"large:86:first":3,"large:coffee:after":2,"refusal:E_BOUND":7,"large:100:first":3,"large:tea:before":1,"large:coffee:before":2,"large:tea:after":1}}
+✔ ordinary search generated oracle wasm: 300 seeds (319126.477761ms)
+✔ ordinary search full last 86 overlaps process (390.785227ms)
+✔ ordinary search full last 100 overlaps process (413.981065ms)
+✔ ordinary search full last 86 overlaps wasm (328.192546ms)
+✔ ordinary search full last 100 overlaps wasm (396.692279ms)
+✔ expired current replacement keeps retained history process (797.758502ms)
+✔ expired current replacement keeps retained history wasm (1750.932267ms)
+✔ ordinary mixed search process: retained first page, consumed prefixes and every ID exactly once (355.004623ms)
+✔ ordinary mixed search wasm: retained first page, consumed prefixes and every ID exactly once (617.626929ms)
+✔ ordinary mixed search process: complete empty server cannot replace departed hits (272.706947ms)
+✔ ordinary mixed search wasm: complete empty server cannot replace departed hits (206.300086ms)
+✔ ordinary mixed search process: device words cut keeps the server page and its consumed continuation (306.112154ms)
+✔ ordinary mixed search process: device meter cut keeps the server page and its consumed continuation (3675.813438ms)
+✔ ordinary mixed search wasm: device words cut keeps the server page and its consumed continuation (252.035001ms)
+✔ ordinary mixed search wasm: device meter cut keeps the server page and its consumed continuation (2854.473602ms)
+✔ ordinary mixed search process: newer current rows never enter the retained device scan (232.77372ms)
+✔ ordinary mixed search wasm: newer current rows never enter the retained device scan (181.07867ms)
+✔ ordinary mixed search process: an at-changing current edit cannot reappear as a stale later device body (293.027946ms)
+✔ ordinary mixed search wasm: an at-changing current edit cannot reappear as a stale later device body (226.488747ms)
+✔ ordinary mixed search process: current-only pages are fresh; windowed retained coverage stays unknown (264.037478ms)
+✔ ordinary mixed search process: current-only pages are fresh; horizon-free absence is complete (257.498603ms)
+✔ ordinary mixed search wasm: current-only pages are fresh; windowed retained coverage stays unknown (210.102537ms)
+✔ ordinary mixed search wasm: current-only pages are fresh; horizon-free absence is complete (197.542314ms)
+✔ ordinary mixed search process: server cursor seeks the exact offline suffix (257.935137ms)
+✔ ordinary mixed search wasm: server cursor seeks the exact offline suffix (196.148234ms)
+✔ ordinary mixed search: link change and state reset restart, rejoin excludes stale retained lane (286.947028ms)
+✔ ordinary mixed search: departure during delivery rereads against the current authority (309.486223ms)
+✔ ordinary mixed search: a real server drain cut is never automatically drained (4429.17815ms)
+✔ ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it (2195.16754ms)
+✔ ordinary mixed search: an unsynced rejoin cannot union a stale retained image with current data (518.497905ms)
+✔ ordinary mixed search process: reopen recomputes unconsumed server hits without a buffer (327.155637ms)
+✔ ordinary mixed search wasm: reopen recomputes unconsumed server hits without a buffer (245.360713ms)
+✔ mounted React ordinary search follows departure, offline and rejoin without switching queries (1903.110289ms)
+✔ ordinary mixed search process: a real device reset withdraws delivery and restarts its cursor (340.091703ms)
+✔ ordinary mixed search wasm: a real device reset withdraws delivery and restarts its cursor (257.714867ms)
+✔ ordinary ascending Unicode ties cross retained/current sources process (287.570643ms)
+✔ ordinary ascending Unicode ties cross retained/current sources wasm (219.085757ms)
+✔ ordinary mixed search process: combined keyset boundary excludes new heads last (287.913987ms)
+✔ ordinary mixed search process: combined keyset boundary excludes new heads first (852.046527ms)
+✔ ordinary mixed search wasm: combined keyset boundary excludes new heads last (211.931699ms)
+✔ ordinary mixed search wasm: combined keyset boundary excludes new heads first (220.372666ms)
+✔ ordinary mixed search: real word-dense drain pages follow the combined keyset once (3847.694153ms)
+✔ integration: device observations use the issued clock; server deadlines use the estimate (5.667527ms)
+✔ integration: retained read-through fallback obeys the common router (publish) (0.80667ms)
+✔ integration: retained read-through fallback obeys the common router (prediction) (0.391347ms)
+✔ integration: retained read-through fallback obeys the common router (issued expiry) (0.228733ms)
+✔ integration: retained read-through fallback obeys the common router (server expiry) (0.243405ms)
+✔ rule 2: known complete branch wins (native=false, held=false) (0.177105ms)
+✔ rule 2: known complete branch wins (native=false, held=true) (0.115433ms)
+✔ rule 2: known complete branch wins (native=true, held=false) (0.152198ms)
+✔ rule 2: known complete branch wins (native=true, held=true) (0.148052ms)
+✔ rule 3: engine-withheld offline (0.29992ms)
+✔ rule 3: engine-withheld prediction (0.144086ms)
+✔ rule 3: engine-withheld held (0.257546ms)
+✔ rule 3: engine-withheld server (0.23399ms)
+✔ rule 3: engine-withheld transport failure (0.174021ms)
+✔ rule 4: available unknown Following offline (0.190636ms)
+✔ rule 4: available unknown Following prediction (0.109064ms)
+✔ rule 4: available unknown Following held (0.103475ms)
+✔ rule 4: available unknown Following server (0.297597ms)
+✔ rule 4: available unknown Following transport failure (0.165578ms)
+✔ rule 4: unknown conditions retain static possible reads, including slash IDs (0.804847ms)
+✔ rules 2/3: an unrelated profile read runs before considering a pending post (0.300321ms)
+✔ rule 3: known meter prefixes stay partial without fallback (0.190015ms)
+✔ rule 5: prediction arriving at delivery keeps withholding (0.297116ms)
+✔ rule 5: prediction arriving at publication keeps withholding (0.143656ms)
+✔ rule 5: prediction arriving at delivery keeps local data (0.123966ms)
+✔ rule 5: prediction arriving at publication keeps local data (0.142544ms)
+✔ rules 3/4: remembered pages cannot replace withholding (0.382463ms)
+✔ rules 3/4: remembered pages cannot replace local data (0.232408ms)
+✔ rule 5: a native program stays opaque after local execution (0.136675ms)
+✔ rule 5: observed entries and predictable no-ops release the fence (0.25291ms)
+✔ rule 3: device preflight E_PREDICT cannot certify local coverage (0.228262ms)
+✔ rule 3: device preflight E_NATIVE cannot certify local coverage (0.158678ms)
+✔ rule 1: router itself refuses E_AUTH during delivery (0.296194ms)
+✔ rule 1: router itself refuses E_CLOSED during delivery (0.13346ms)
+✔ rule 1: router itself refuses E_AUTH during publication (0.117666ms)
+✔ rule 1: router itself refuses E_CLOSED during publication (0.115262ms)
+✔ native client reset with an unobserved prediction (1020.597922ms)
+✔ native client reset with an unobserved prediction held (1002.800987ms)
+✔ native client install failure with an unobserved prediction (1003.905814ms)
+✔ native client install failure with an unobserved prediction held (1003.785634ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=false) (0.337947ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=true) (0.09399ms)
+✔ rules 4/5: unknown placeholder null recovers memory, never speculative data (0.485248ms)
+✔ rules 4/5: unknown placeholder [] recovers memory, never speculative data (0.22708ms)
+✔ rules 4/5: unknown placeholder true recovers memory, never speculative data (0.192649ms)
+✔ rules 4/5: unknown placeholder false recovers memory, never speculative data (0.187131ms)
+✔ rules 4/5: unknown placeholder 0 recovers memory, never speculative data (0.204367ms)
+✔ rules 4/5: unknown placeholder {"online":true} recovers memory, never speculative data (0.20686ms)
+✔ rules 4/5: unknown placeholder [null] recovers memory, never speculative data (0.188523ms)
+✔ rule 5: remembered answer rechecks prediction during recovery (0.23301ms)
+✔ rule 5: remembered answer rechecks sign-out during recovery (0.151557ms)
+✔ rule 5: remembered answer rechecks close during recovery (0.163345ms)
+✔ rule 5: remembered answer rechecks prediction during publication (0.163234ms)
+✔ rule 5: remembered answer rechecks sign-out during publication (0.115193ms)
+✔ rule 5: remembered answer rechecks close during publication (0.107341ms)
+✔ rule 4: local freshness is decided at publication (transport failure=false) (0.144346ms)
+✔ rule 4: local freshness is decided at publication (transport failure=true) (0.14025ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (false) (0.272699ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (true) (0.121783ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (false) (0.090135ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (true) (0.096344ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (false) (0.088383ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (true) (0.11332ms)
+✔ rule 5: authoritative {"loading":true} retires earlier memory (0.238718ms)
+✔ rule 5: authoritative {"denied":{"code":"NO","family":"application","message":"no"}} retires earlier memory (0.242544ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={}) (0.174602ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={}) (0.094602ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={}) (0.091797ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={}) (0.075012ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={"speculative":false}) (0.096565ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={"speculative":false}) (0.078478ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={"speculative":false}) (0.08644ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={"speculative":false}) (0.091548ms)
+✔ rule 4: retained [] composition survives offline/transport failure=false (0.189134ms)
+✔ rule 4: retained [] composition survives offline/transport failure=true (0.159479ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=false (0.078217ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=true (0.082484ms)
+✔ rule 4: speculative values with engine held=false, fenced=false (0.175964ms)
+✔ rule 4: speculative values with engine held=false, fenced=true (0.121973ms)
+✔ rule 4: speculative values with engine held=true, fenced=false (0.109184ms)
+✔ rule 4: speculative values with engine held=true, fenced=true (0.09971ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=false (0.121313ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=true (0.085228ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=false (0.062293ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=true (0.059729ms)
+✔ rules 4/5: remembered since is the original observation time (1.016625ms)
+✔ rule 5: memory expires at recovery, with no expired answer or repeated deadline (0.441152ms)
+✔ rule 5: memory expires at publication, with no expired answer or repeated deadline (0.588221ms)
+✔ rule 5: expiry does not replace authoritative {"denied":{"code":"E_BOUND","family":"bound","message":"ceiling"}} (0.184347ms)
+✔ rule 5: expiry does not replace authoritative {"loading":true} (0.101102ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=false) (0.197396ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=true) (0.114432ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=false) (0.17292ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=true) (0.120401ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=false) (0.080731ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=true) (0.084326ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=false) (0.076996ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=true) (0.076134ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=false) (0.062674ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=true) (0.062173ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=false) (0.061422ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=true) (0.097166ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=false) (0.084437ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=true) (0.066129ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=false) (0.399018ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=true) (0.171377ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=false) (0.138057ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=true) (0.124637ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (speculative) (0.251867ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (unavailable) (0.142103ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, false) (0.251697ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, true) (0.107461ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, false) (0.141712ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, true) (0.125108ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, false) (0.102724ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, true) (0.097216ms)
+✔ rules 1/5: sign-out during local expiry retry still fences publication (0.221673ms)
+✔ rules 1/5: close during local expiry retry still fences publication (0.100861ms)
+✔ rules 1/5: incarnation during local expiry retry still fences publication (0.101993ms)
+✔ rule 5: delayed server data expires during transport (0.286169ms)
+✔ rule 5: delayed server data expires during publication (0.111517ms)
+✔ rule 5: delayed composed data expires during transport (0.263875ms)
+✔ rule 5: delayed composed data expires during publication (0.1673ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=false) (0.199739ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=true) (0.148713ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=false) (0.332859ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=true) (0.151687ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=false) (0.138217ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=true) (0.123034ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=false) (0.234942ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=true) (0.123696ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=false) (0.138939ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=true) (0.127291ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=false) (0.141682ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=true) (0.123275ms)
+✔ rules 3/4: expiry retry respects offline (0.194041ms)
+✔ rules 3/4: expiry retry respects prediction (0.127091ms)
+✔ rules 3/4: expiry retry respects held (0.098608ms)
+✔ rules 3/4: expiry retry respects transport failure (0.164937ms)
+✔ rules 4/5: expiry retry composes retained rows with its server answer (0.291698ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=false) (0.237586ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=true) (0.145939ms)
+✔ rule 5: an expired retry server answer dirties the watch without retiring valid memory (0.249564ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (publish) (0.381783ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (issued expiry) (0.169284ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (server expiry) (0.175653ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=false) (0.293039ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=true) (0.151447ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=false) (0.149114ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=true) (0.149594ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=false) (0.161542ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=true) (0.179189ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=false) (0.152568ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=true) (0.151628ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=false) (0.202163ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=true) (0.209865ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=false) (0.187992ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=true) (0.169965ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=false) (0.174481ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=true) (0.163365ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=false) (0.169144ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=true) (0.197145ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=false) (0.31349ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=true) (0.381331ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=false) (0.144707ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=true) (0.130255ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=false) (0.145078ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=true) (0.149375ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=false) (0.119459ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=true) (0.206519ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=false) (0.164447ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=true) (0.163004ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=false) (0.123926ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=true) (0.10676ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=false) (0.115633ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=true) (0.092679ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=false) (0.41308ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=true) (0.08708ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=false) (0.286921ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=true) (0.096995ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=false) (0.079549ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=true) (0.073089ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=false) (0.091387ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=true) (0.079849ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=false) (0.075724ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=true) (0.078858ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=false) (0.346499ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=true) (0.166089ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=undefined (0.712719ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=true (0.208713ms)
+✔ composed value deadlines rows=false device=null server=null (0.227831ms)
+✔ composed value deadlines rows=false device=null server=200 (0.102043ms)
+✔ composed value deadlines rows=false device=null server=400 (0.094302ms)
+✔ composed value deadlines rows=false device=null server=NaN (0.090906ms)
+✔ composed value deadlines rows=false device=100 server=null (0.088002ms)
+✔ composed value deadlines rows=false device=100 server=200 (0.082254ms)
+✔ composed value deadlines rows=false device=100 server=400 (0.078258ms)
+✔ composed value deadlines rows=false device=100 server=NaN (0.086149ms)
+✔ composed value deadlines rows=false device=300 server=null (0.091637ms)
+✔ composed value deadlines rows=false device=300 server=200 (0.130596ms)
+✔ composed value deadlines rows=false device=300 server=400 (0.090576ms)
+✔ composed value deadlines rows=false device=300 server=NaN (0.073941ms)
+✔ composed value deadlines rows=false device=NaN server=null (0.07321ms)
+✔ composed value deadlines rows=false device=NaN server=200 (0.070035ms)
+✔ composed value deadlines rows=false device=NaN server=400 (0.067181ms)
+✔ composed value deadlines rows=false device=NaN server=NaN (0.070717ms)
+✔ composed value deadlines rows=true device=null server=null (0.132319ms)
+✔ composed value deadlines rows=true device=null server=200 (0.105037ms)
+✔ composed value deadlines rows=true device=null server=400 (0.087251ms)
+✔ composed value deadlines rows=true device=null server=NaN (0.092799ms)
+✔ composed value deadlines rows=true device=100 server=null (0.098407ms)
+✔ composed value deadlines rows=true device=100 server=200 (0.083074ms)
+✔ composed value deadlines rows=true device=100 server=400 (0.099199ms)
+✔ composed value deadlines rows=true device=100 server=NaN (0.096375ms)
+✔ composed value deadlines rows=true device=300 server=null (0.119339ms)
+✔ composed value deadlines rows=true device=300 server=200 (0.087831ms)
+✔ composed value deadlines rows=true device=300 server=400 (0.127401ms)
+✔ composed value deadlines rows=true device=300 server=NaN (0.119459ms)
+✔ composed value deadlines rows=true device=NaN server=null (0.111106ms)
+✔ composed value deadlines rows=true device=NaN server=200 (1.277726ms)
+✔ composed value deadlines rows=true device=NaN server=400 (0.137786ms)
+✔ composed value deadlines rows=true device=NaN server=NaN (0.116956ms)
+✔ composition keeps the earliest value deadline per authority; unknown dominates (0.42022ms)
+✔ rule 1: sign-out during local cannot publish private data (1020.309339ms)
+✔ rule 1: sign-out during dispatch cannot publish private data (1002.605605ms)
+✔ rule 1: sign-out during transport cannot publish private data (1003.100075ms)
+✔ rule 1: sign-out during delivery cannot publish private data (1002.745684ms)
+✔ rule 1: sign-out during publication cannot publish private data (1001.933767ms)
+✔ rule 1: close during local cannot publish private data (1002.06913ms)
+✔ rule 1: close during dispatch cannot publish private data (1003.693075ms)
+✔ rule 1: close during transport cannot publish private data (1002.053045ms)
+✔ rule 1: close during delivery cannot publish private data (1002.726252ms)
+✔ rule 1: close during publication cannot publish private data (1001.957098ms)
+✔ usePage follows ordered snapshots when an earlier event arrives after a later event (2.661505ms)
+✔ usePage checks first page deadline before cached return without timer delivery (1.135901ms)
+✔ usePage checks second page deadline before cached return without timer delivery (1.142961ms)
+✔ usePage clears a later page's revalidating mark on replacement and replaces loaded cursors (0.408441ms)
+✔ usePage search repeats keep one newest image by ID through page refresh (0.462903ms)
+✔ usePage history repeats keep one newest image by ID through page refresh (0.289664ms)
+✔ review: reset delivery retains a prior emission across concurrent lookup (391.034311ms)
+✔ review: acknowledged success retirement retains prior emission across lookup (20.962137ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (17.463809ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (21.794603ms)
+✔ replacement cannot duplicate a success still in an older flush snapshot (45.662121ms)
+✔ a delayed queue snapshot protects emissions until its entries can own delivery (0.20083ms)
+✔ a failed queue snapshot releases emission cleanup (0.429423ms)
+✔ a retired settlement keeps its emitted refusal across a queue read (0.132088ms)
+✔ overlapping receipt notifications keep their emission marker: replacement-first (0.749312ms)
+✔ overlapping receipt notifications keep their emission marker: acknowledgement-first (0.104917ms)
+✔ receipt emission protection releases after settle throws (0.21396ms)
+✔ receipt emission protection releases after publish throws (0.084847ms)
+✔ receipt emission protection releases after replacement-publish throws (0.084427ms)
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (29.548113ms)
+✔ a success followed by a terminal refusal syncs the committed write before the batch finishes (31.75058ms)
+✔ an early flush exit syncs an earlier success when another owner retires the tail (28.392393ms)
+✔ repeating media failure cannot gate an already queued send and retries stay bounded (54.370269ms)
+✔ a committed admission still sends when media housekeeping keeps failing (30.806958ms)
+✔ repeating post-commit receipt-save failure cannot gate an already queued send (39.952822ms)
+✔ the observation catch schedules the only retry that can publish an earlier success (42.090413ms)
+✔ a durable refusal still completes when its observation queue read fails (38.633858ms)
+✔ receipt-save retry preserves refusal notification deduplication through observation (29.640801ms)
+✔ the final flush sync publishes an earlier success when the tail retires before its queue lookup (38.893105ms)
+✔ recovered refusal delivery survives post-commit media failure (16.281828ms)
+✔ recovered refusal delivery survives post-commit host failure (15.433248ms)
+✔ replacement retired-success delivery survives post-commit state failure (1006.726742ms)
+✔ replacement retired-success delivery survives post-commit metadata failure (1006.781327ms)
+✔ replacement retired-success delivery survives post-commit media failure (1010.918305ms)
+✔ replacement retired-success delivery survives post-commit host failure (1010.386452ms)
+✔ keepalive refusal delivery survives post-commit media failure (1007.256629ms)
+✔ keepalive refusal delivery survives post-commit host failure (1014.316554ms)
+✔ receipt head observations do not rescan retained media until publication or replacement (80.012846ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (53.452606ms)
+✖ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (195.969733ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (40.702025ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (42.070824ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (32.816007ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.829841ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (1030.028955ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (1039.401743ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (1045.589342ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (1037.908765ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (1039.482806ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (1041.741791ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (17.39706ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (32.334827ms)
+✖ finding 2: delayed server answer cannot escape its incarnation (202.620536ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (68.92162ms)
+✖ finding 2: delayed watch answer cannot escape its incarnation (122086.466062ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (217.024882ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (18.399647ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (15.838812ms)
+✔ finding 2: a delayed device read is retried before returning (52.093231ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (6.446815ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (4.447551ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1006.32693ms)
+✔ replacement receipts use exit transport without replaying known writes (1007.16016ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (52.831888ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (22.144887ms)
+✔ review extra: repeating acknowledged-observation failure cannot strand queued tail (65.798659ms)
+ℹ tests 460
+ℹ suites 0
+ℹ pass 457
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 580965.292926
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:809:1
+✖ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (195.969733ms)
+  AssertionError [ERR_ASSERTION]: prime a server answer too
+
+  undefined !== 'A'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/store-reset-review.test.mjs:818:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'A',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:1063:52
+✖ finding 2: delayed server answer cannot escape its incarnation (202.620536ms)
+  AssertionError [ERR_ASSERTION]: an old server answer must be retried
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/store-reset-review.test.mjs:1077:17)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:1063:52
+✖ finding 2: delayed watch answer cannot escape its incarnation (122086.466062ms)
+  Error: TEST_HANG: barrier was not reached; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

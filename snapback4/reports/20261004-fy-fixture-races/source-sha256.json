@@ -1,0 +1,10 @@
+{
+  "snapback4/packages/snapback4/test/release-activation.test.mjs": {
+    "base_sha256": "6b37fed5c64bc798705bb99d19948250cf96480db2e69299bdf5d0e204895578",
+    "fixed_sha256": "0f9a4d219045c9efd4b8840203df34b1b835994cfef08a0d35feb11adce46370"
+  },
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjs": {
+    "base_sha256": "1efb2d8bc58d743c9142856208800fc1450b385063a6c779fa969b8fdd3fa2bb",
+    "fixed_sha256": "74ae5d265226c0261bfa7fa25545fbf48fa43cfeda111410ad544a5fcda26f14"
+  }
+}

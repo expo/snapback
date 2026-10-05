@@ -63,3 +63,31 @@ and `/changes` still waits for its durable presence-reconnect write. The report
 contains a held-adoption reproduction and explains why acknowledging reconnects
 before their durable write would be incorrect across a crash. No blanket
 nonblocking-read or nonblocking-write capability is claimed.
+
+## 2026-10-04 lane AP: calibration 30 populated-store write pause
+
+The retained calibration-30 schema history supports a semantic generation-1
+rollback on a private copy. Three paired production measurements on eb1000
+give **17.108 s before / 6.942 s after (2.46×)**. Sorted index construction,
+bounded serialized read-ahead and shared count preflight remove much of the
+pause; writes and syncs still wait for the atomic transaction. Every stored row,
+index, capture, log and commit compares exactly with the baseline. Adoption now
+reports phase times and previews population-based cost through
+`N_ADOPTION_PAUSE`. See [the AP report](../snapback4/reports/20261004-ap-adoption-pause/REPORT.md).
+
+Keep this ticket open. AP's requested **5×** target would require **≤3.422 s**
+on that baseline and was not met. The remaining time is distributed across
+index construction, bounded unread recounts, capture fills and validation.
+Further sharing of interpreted source work needs an explicit resource/meter
+proof; replacing pending unread recounts with an unbounded exact SQL count
+would change results. LLP 3000.026 §8.6 recommends a separate online-adoption
+design with complete-journal catch-up, publication-time captures and bounded
+debt. It is not implemented or claimed by AP.
+
+AP round 1 preserves immediate physical uniqueness refusals, adds configurable
+main/temp workspace with low-memory rollback/retry, and warns about retirement
+work. Three new paired runs give **17.871 s → 7.914 s (2.26×)** with identical
+state; the default now also succeeds under a 96 MiB address-space limit. The
+report records the timing spread and memory limits. Keep this ticket open:
+5× would require **≤3.574 s** on this baseline, and writes still wait for the
+atomic transaction.

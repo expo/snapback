@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-03T17:39:26.966216+00:00",
+  "command": [
+    "/usr/bin/nohup",
+    "python3",
+    "/Users/ccheever/clique-sb4-20261003-grok-cal30/scripts/run_phase.py",
+    "builder",
+    "grok"
+  ],
+  "runnerPid": 58849,
+  "samplerPid": 58831,
+  "launch": "nohup background; dedicated process session"
+}

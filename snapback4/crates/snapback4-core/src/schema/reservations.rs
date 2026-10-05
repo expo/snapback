@@ -32,7 +32,8 @@ impl WriteReservation {
     }
     #[cfg(feature = "sqlite")]
     fn is_zero(&self) -> bool {
-        self.prices == [[0; 7]; 8] && self.birth.unwrap_or_default() == [0; 7] && !self.server_only
+        self.prices == [[0; 7]; 8] && self.birth.unwrap_or_default() == [0; 7]
+            && self.view_read.unwrap_or_default() == [0; 7] && !self.server_only
     }
 }
 fn add(to: &mut Price, price: Price) {
@@ -168,17 +169,20 @@ impl Schema {
         let had_prices = !self.source_reservations.is_empty();
         self.source_reservations = self.tables.keys().filter_map(|source|
             reservation(self, source).map(|price| (source.clone(), price))).collect();
-        // Preserve old zero-only store bytes. Fresh compiler output uses
-        // export_write_reservations and explicitly retains its zero prices.
+        // Preserve old zero-only store bytes and existing explicit price maps.
         if !had_prices && self.source_reservations.values().all(WriteReservation::is_zero) {
             self.source_reservations.clear();
         }
     }
-    /// Fresh compiler output always declares complete prices, including zero.
+    /// Export every source if any plan needs a reservation; otherwise preserve
+    /// capability-free legacy bytes. Devices already prove structural zero.
     #[cfg(feature = "sqlite")]
     pub fn export_write_reservations(&mut self) {
         self.source_reservations = self.tables.keys().filter_map(|source|
             reservation(self, source).map(|price| (source.clone(), price))).collect();
+        if self.source_reservations.values().all(WriteReservation::is_zero) {
+            self.source_reservations.clear();
+        }
     }
     pub fn write_reservation(&self, source: &str) -> Option<WriteReservation> {
         let table = self.table(source)?;
@@ -221,5 +225,30 @@ impl Schema {
             Some(plan) if plan.server_only => Some("receipt counter has additional data-dependent work; queue until settlement"),
             _ => None,
         }
+    }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zero_plan_requires_every_phase_and_server_permission_to_be_zero() {
+        let zero = WriteReservation { birth: Some([0; 7]), view_read: Some([0; 7]), ..WriteReservation::default() };
+        assert!(zero.is_zero());
+        assert!(WriteReservation::default().is_zero());
+        for phase in 0..=VIEW_READ {
+            for dimension in 0..7 {
+                let mut plan = zero.clone();
+                let price = match phase {
+                    BIRTH => plan.birth.as_mut().unwrap(),
+                    VIEW_READ => plan.view_read.as_mut().unwrap(),
+                    _ => &mut plan.prices[phase],
+                };
+                price[dimension] = 1;
+                assert!(!plan.is_zero(), "phase {phase}, dimension {dimension}");
+            }
+        }
+        assert!(!WriteReservation { server_only: true, ..zero }.is_zero());
     }
 }

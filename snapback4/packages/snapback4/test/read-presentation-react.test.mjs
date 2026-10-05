@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import { readyRead } from '../dist/read-existence.js';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,22 +27,27 @@ test('published Expo recipe: Strict Mode, withdrawal, denied membership, and acc
   const docs = readFileSync(join(root, 'packages/snapback4/CLIENT-AND-OPERATIONS.md'), 'utf8');
   const recipe = docs.split('### A stable conversation screen')[1].match(/```tsx\n([\s\S]*?)\n```/)[1];
   writeFileSync(join(dir, 'recipe.jsx'), ts.transpileModule(recipe, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText);
+  const guide = spawnSync(process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4'), ['guide', 'social'], {encoding:'utf8'});
+  assert.equal(guide.status, 0, guide.stderr);
+  const quote = guide.stdout.match(/```tsx\n\/\/ src\/QuotedMessage.tsx\n([\s\S]*?)```/)[1];
+  writeFileSync(join(dir, 'quote.jsx'), ts.transpileModule(quote, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText);
   writeFileSync(join(dir, 'index.html'), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(dir, 'native.jsx'), `import {act, createElement as h} from 'react';
-export const View = ({children}) => h('div', null, children), ScrollView = View;
+export const View = ({children,style}) => h('div', {style}, children), ScrollView = View;
 export const Text = ({children}) => h('span', null, children);
 export const TextInput = ({value, onChangeText}) => h('input', {value, onChange: e => act(()=>onChangeText(e.target.value))});
 export const Button = ({title, disabled, onPress}) => h('button', {disabled, onClick: ()=>act(()=>onPress())}, title);
 `);
-  writeFileSync(join(dir, 'api.js'), `export const api = {thread:{kind:'query',name:'thread'},myMembership:{kind:'query',name:'myMembership'},send:{kind:'mutation',name:'send'}};`);
+  writeFileSync(join(dir, 'api.js'), `export const api = {messagePhoto:{kind:'query',name:'messagePhoto'},thread:{kind:'query',name:'thread'},myMembership:{kind:'query',name:'myMembership'},send:{kind:'mutation',name:'send'}};`);
   writeFileSync(join(dir, 'harness.jsx'), `import React, {StrictMode, act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {AppProvider} from 'snapback4/react';
 import {ConversationScreen} from './recipe.jsx';
+import {QuotedMessage} from './quote.jsx';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const records = new Set(), authListeners = new Set(), writeListeners = new Set(), submissions = [];
 let auth = {state:'signed-in',viewer:'alice'}, backend='a', conversationId='one';
-let reads = {thread:{loading:true},myMembership:{loading:true}};
+let reads = {messagePhoto:{loading:true},thread:{loading:true},myMembership:{loading:true}};
 const client = {
   observe(op) {
     const listeners = new Set();
@@ -52,7 +59,7 @@ const client = {
 };
 const app = {client, auth:{getSnapshot:()=>auth,onChange(fn){authListeners.add(fn);return()=>authListeners.delete(fn);}}};
 const root = createRoot(document.getElementById('root'));
-const render = () => root.render(<StrictMode><AppProvider app={app}><ConversationScreen backend={backend} conversationId={conversationId}/></AppProvider></StrictMode>);
+const render = () => root.render(<StrictMode><AppProvider app={app}><ConversationScreen backend={backend} conversationId={conversationId}/><section id="quote"><QuotedMessage id="older-than-loaded-history"/></section></AppProvider></StrictMode>);
 window.start = async () => {await act(async()=>render());};
 window.publish = async changes => {await act(async()=>{reads={...reads,...changes};for(const r of records)for(const fn of r.listeners)fn();});};
 window.changeKey = async (kind,value) => {await act(async()=>{if(kind==='account'){auth={...auth,viewer:value};for(const fn of authListeners)fn();}else if(kind==='backend')backend=value;else conversationId=value;render();});};
@@ -89,6 +96,40 @@ window.finish = async()=>{await act(async()=>root.unmount());return {records:rec
     assert.equal(await page.evaluate(() => document.querySelector('input') === window.originalInput && document.activeElement === window.originalInput), true);
   };
   await preserved(); assert.match(await body(), /Loading/);
+  await t.test('published quote waits for point evidence, handles uncertainty, and withdraws protected text', async () => {
+    const quote = page.locator('#quote'), box = quote.locator('div');
+    await page.evaluate(() => {window.quoteBox=document.querySelector('#quote > div');});
+    const stable = async () => {
+      assert.equal(await box.evaluate(el => el === window.quoteBox), true);
+      assert.equal(await box.evaluate(el => getComputedStyle(el).minHeight), '40px');
+    };
+    // Hold the point read at loading while the rest of the screen is usable.
+    // No timing sleep or immediate-after-bubble assertion can race this barrier.
+    assert.equal(await quote.innerText(), 'Loading quoted message…'); await stable();
+    const publish = async read => { await page.evaluate(read => window.publish({messagePhoto:read}), read); await stable(); };
+    const readyQuote = (data, metadata = {}, pending = false) => readyRead({data, complete:true, fresh:true, cut:null, ...metadata}, pending);
+    for (const metadata of [{complete:false}, {cut:'meter'}, {next:'older'}]) {
+      await publish(readyQuote(null, metadata));
+      assert.equal(await quote.innerText(), 'Quoted message not yet known');
+    }
+    await publish(readyQuote(null, {}, true));
+    assert.equal(await quote.innerText(), 'Quoted message not yet known');
+    await publish(readyQuote({text:'Coffee after work?'}));
+    assert.equal(await quote.innerText(), 'Coffee after work?');
+    await publish(readyQuote({text:'Coffee after work?'}, {fresh:false,revalidating:true}));
+    assert.equal(await quote.innerText(), 'Coffee after work?');
+    await publish({loading:true});
+    assert.equal(await quote.innerText(), 'Loading quoted message…');
+    await publish(readyQuote({text:'Coffee after work?'}));
+    await publish({denied:{code:'E_AUTH',family:'auth',message:'Denied'}});
+    assert.equal(await quote.innerText(), 'Quoted message hidden');
+    await publish(readyQuote(null));
+    assert.equal(await quote.innerText(), 'Quoted message unavailable');
+    await publish({loading:true});
+    assert.equal(await quote.innerText(), 'Loading quoted message…');
+    await preserved();
+  });
+
   await page.evaluate(read => window.publish({thread:read}), ready([{id:'row',body:'protected message'}],{complete:false}));
   await preserved(); assert.match(await body(), /protected message/); assert.match(await body(), /Results may be incomplete/);
   await page.evaluate(read => window.publish({thread:read}), ready([], {existence:'partial',next:'cursor'}));

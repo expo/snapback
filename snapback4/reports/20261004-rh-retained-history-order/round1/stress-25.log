@@ -1,0 +1,181 @@
+{"host":"wasm","owner":"same","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"b5366fbe3739d5f608502eda018abad0","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"b5366fbe3739d5f608502eda018abad0","transfer_store_id":"b5366fbe3739d5f608502eda018abad0","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm commit between evaluation and capture: same owner (621.110062ms)
+{"host":"wasm","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"b1c7a647125e182cd93798f7a84965bf","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"b1c7a647125e182cd93798f7a84965bf","transfer_store_id":"b1c7a647125e182cd93798f7a84965bf","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm commit between evaluation and capture: other owner (179.022492ms)
+{"host":"process","owner":"same","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"ffbee72fe3e86b4f4ae803454545f500","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"ffbee72fe3e86b4f4ae803454545f500","transfer_store_id":"ffbee72fe3e86b4f4ae803454545f500","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process commit between evaluation and capture: same owner (214.46989ms)
+{"host":"process","owner":"other","initial":{"complete":false,"cut":null,"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":true,"watermark":2},"capture":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"54128fd37b39288b493070609d5c7c9b689a272221e64e3b141866cd84355371","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"1","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"905924d2fab67815204253139406633a","device:watermark":"3"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":0,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":3,"send_revision":1,"snapshot_catchup":false,"store_id":"905924d2fab67815204253139406633a","transfer_store_id":"905924d2fab67815204253139406633a","transfer_watermark":3,"watermark":3},"actual":{"generation":1,"native":null,"watermark":3},"result":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process commit between evaluation and capture: other owner (217.693142ms)
+{"host":"wasm","one":{"data":[{"at":4,"body":"body4","id":"r4","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"},"mounted":{"data":[{"at":4,"body":"body4","id":"r4","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"}}
+✔ wasm: ordinary cursor stays provisional during held leave (1664.717707ms)
+{"host":"process","one":{"data":[{"at":4,"body":"body4","id":"r4","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"},"mounted":{"data":[{"at":4,"body":"body4","id":"r4","room":"room"}],"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"}}
+✔ process: ordinary cursor stays provisional during held leave (1232.29073ms)
+{"host":"wasm","rejoin":true,"firstCut":3,"secondCut":4,"actual":5,"result":{"data":{"current":[{"at":1,"body":"image-1","id":"item","room":"room"}],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"}}
+✔ wasm: shared composition cannot certify an overtaken second evaluation (rejoin: true) (186.87949ms)
+{"host":"wasm","rejoin":false,"firstCut":3,"secondCut":3,"actual":4,"result":{"data":{"current":[{"at":1,"body":"image-1","id":"item","room":"room"}],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":false,"cut":null,"fresh":false,"since":1791147629899,"next":null,"existence":"present"}}
+✔ wasm: shared composition cannot certify an overtaken second evaluation (rejoin: false) (168.977165ms)
+{"host":"process","rejoin":true,"firstCut":3,"secondCut":4,"actual":5,"result":{"data":{"current":[{"at":1,"body":"image-1","id":"item","room":"room"}],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":false,"cut":null,"fresh":false,"next":null,"existence":"present"}}
+✔ process: shared composition cannot certify an overtaken second evaluation (rejoin: true) (232.935241ms)
+{"host":"process","rejoin":false,"firstCut":3,"secondCut":3,"actual":4,"result":{"data":{"current":[{"at":1,"body":"image-1","id":"item","room":"room"}],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":false,"cut":null,"fresh":false,"since":1791147630353,"next":null,"existence":"present"}}
+✔ process: shared composition cannot certify an overtaken second evaluation (rejoin: false) (220.776765ms)
+✔ ahead server empty is replaced by permitted partial history, never remembered as absence (4.003251ms)
+✔ stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true} (0.777035ms)
+✔ stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true} (0.759729ms)
+✔ unchanged fast path has no added device call: until-revoked (0.333069ms)
+✔ unchanged fast path has no added device call: online only (0.460761ms)
+✔ unchanged fast path has no added device call: disjoint (0.400401ms)
+✔ unchanged fast path has no added device call: equal cut (0.209124ms)
+✔ unchanged fast path has no added device call: older cut (0.18015ms)
+✔ unchanged fast path has no added device call: complete local (0.157746ms)
+✔ uncertain routing remains provisional: static unexecuted branch (0.379268ms)
+✔ uncertain routing remains provisional: native (1.054391ms)
+✔ uncertain routing remains provisional: missing watermark (0.209564ms)
+✔ uncertain routing remains provisional: invalid watermark (0.441622ms)
+✔ uncertain routing remains provisional: missing sequence (0.683024ms)
+✔ caught-up device reroutes the original fallback: retained partial (0.604907ms)
+✔ caught-up device reroutes the original fallback: retained complete (0.398136ms)
+✔ caught-up device reroutes the original fallback: still current (0.964385ms)
+✔ caught-up device reroutes the original fallback: new composition (0.498487ms)
+✔ caught-up device reroutes the original fallback: new row mask (0.244978ms)
+✔ caught-up device reroutes the original fallback: local refusal (0.26628ms)
+✔ an explicit original-query refusal wins without waiting for the replica (0.230366ms)
+✔ the watermark await preserves the authority publication fence (0.344076ms)
+✔ the watermark await preserves the incarnation publication fence (0.405779ms)
+✔ the watermark await preserves the credentials publication fence (1.159799ms)
+✔ the watermark await preserves the prediction publication fence (0.137476ms)
+✔ the watermark await preserves the abort publication fence (0.414752ms)
+✔ the watermark await preserves the closed publication fence (0.12739ms)
+✔ known retained composition at an ahead cut: rows (0.855643ms)
+✔ known retained composition at an ahead cut: components (0.259489ms)
+✔ known retained composition at an ahead cut: lost retention (0.109484ms)
+✔ known retained composition at an ahead cut: withheld (0.107791ms)
+✔ a rejected watermark read withholds publication (authority changed: false) (0.195613ms)
+✔ a rejected watermark read withholds publication (authority changed: true) (0.103706ms)
+✔ ahead positive server page stays useful and provisional (local rows: 0) (0.212158ms)
+✔ ahead positive server page stays useful and provisional (local rows: 1) (0.131737ms)
+✔ structured empty siblings cannot replace pending local history (0.248433ms)
+✔ dispatch watermark cannot certify an older evaluation from a shared store (0.193209ms)
+✔ a whole-server route after composition binds the second evaluation cut 4 (0.194142ms)
+✔ a whole-server route after composition binds the second evaluation cut 5 (0.207882ms)
+✔ a retained sibling cannot authorize emptying a pending history field (speculative: false) (0.204767ms)
+✔ a retained sibling cannot authorize emptying a pending history field (speculative: true) (0.164987ms)
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (678.165301ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (200.226128ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (231.978306ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH held leave wasm: retained history and independent held coverage (237.401055ms)
+RH wasm held leave: server=0, device=25, deliveries=[26,26,26]
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH stalled leave wasm: retained history and independent held coverage (1237.269223ms)
+✔ RH empty catch-up wasm: retained history and independent held coverage (205.479573ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (189.734641ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (192.115389ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1224.770186ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (250.442224ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (226.099634ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (201.30131ms)
+✔ MQ speculative events wasm: retained history and independent held coverage (8512.006955ms)
+✔ MQ expiry local left wasm: retained history and independent held coverage (1188.584311ms)
+✔ MQ expiry local watch left wasm: retained history and independent held coverage (1183.071448ms)
+✔ MQ local permit wasm: retained history and independent held coverage (1188.266115ms)
+✔ MQ local permit watch wasm: retained history and independent held coverage (1195.143805ms)
+✔ MQ local branch wasm: retained history and independent held coverage (187.580922ms)
+✔ MQ local branch watch wasm: retained history and independent held coverage (190.405676ms)
+✔ MQ local page wasm: retained history and independent held coverage (190.631465ms)
+✔ MQ ineligible wasm: retained history and independent held coverage (208.055414ms)
+✔ MQ points wasm: retained history and independent held coverage (205.721706ms)
+✔ MQ delete current wasm: retained history and independent held coverage (236.335137ms)
+✔ MQ revoke current wasm: retained history and independent held coverage (250.556465ms)
+✔ MQ rejoin wasm: retained history and independent held coverage (231.791446ms)
+✔ MQ held change wasm: retained history and independent held coverage (235.706425ms)
+✔ MQ close wasm: retained history and independent held coverage (191.651865ms)
+✔ MQ sign-out wasm: retained history and independent held coverage (198.311939ms)
+✔ MQ transport wasm: retained history and independent held coverage (189.643655ms)
+✔ MQ adoption wasm: retained history and independent held coverage (594.04391ms)
+✔ MQ reset wasm: retained history and independent held coverage (1217.228361ms)
+✔ MQ rotation wasm: retained history and independent held coverage (262.74003ms)
+✔ MQ prediction wasm: retained history and independent held coverage (4290.270191ms)
+✔ MQ expiry left wasm: retained history and independent held coverage (256.174037ms)
+✔ MQ expiry held wasm: retained history and independent held coverage (282.723126ms)
+✔ MQ interrupted snapshot wasm: retained history and independent held coverage (1209.881268ms)
+✔ MQ retained snapshot wasm: retained history and independent held coverage (267.167868ms)
+✔ W14A horizon-free matching process: retained history and independent held coverage (270.480182ms)
+ℹ W14A process: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence process: retained history and independent held coverage (267.026505ms)
+ℹ W14A process: acquired before leave; positive retained existence + 26 server rows
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history process: retained history and independent held coverage (270.536807ms)
+RH process held leave: server=0, device=25, deliveries=[26,26,26]
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH held leave process: retained history and independent held coverage (275.887999ms)
+RH process held leave: server=0, device=25, deliveries=[26,26,26]
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ RH stalled leave process: retained history and independent held coverage (1264.700625ms)
+✔ RH empty catch-up process: retained history and independent held coverage (264.200068ms)
+R1a process empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search process: retained history and independent held coverage (237.850469ms)
+R1a process mixed: device=25, server=26, watch=26
+✔ R1a mixed reads process: retained history and independent held coverage (283.582303ms)
+R2 process mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result process: retained history and independent held coverage (1258.252549ms)
+✔ R2 sync during reply process: retained history and independent held coverage (290.582757ms)
+✔ MQ authoritative bound process: retained history and independent held coverage (316.280309ms)
+✔ MQ speculative component process: retained history and independent held coverage (238.42523ms)
+✔ MQ speculative events process: retained history and independent held coverage (8570.325563ms)
+✔ MQ expiry local left process: retained history and independent held coverage (1336.747626ms)
+✔ MQ expiry local watch left process: retained history and independent held coverage (1217.771756ms)
+✔ MQ local permit process: retained history and independent held coverage (1225.695554ms)
+✔ MQ local permit watch process: retained history and independent held coverage (1232.361927ms)
+✔ MQ local branch process: retained history and independent held coverage (239.894573ms)
+✔ MQ local branch watch process: retained history and independent held coverage (546.263664ms)
+✔ MQ local page process: retained history and independent held coverage (890.169526ms)
+✔ MQ ineligible process: retained history and independent held coverage (915.340127ms)
+✔ MQ points process: retained history and independent held coverage (385.801955ms)
+✔ MQ delete current process: retained history and independent held coverage (557.716002ms)
+✔ MQ revoke current process: retained history and independent held coverage (279.567975ms)
+✔ MQ rejoin process: retained history and independent held coverage (287.12258ms)
+✔ MQ held change process: retained history and independent held coverage (297.946876ms)
+✔ MQ close process: retained history and independent held coverage (228.408094ms)
+✔ MQ sign-out process: retained history and independent held coverage (242.598056ms)
+✔ MQ transport process: retained history and independent held coverage (235.627016ms)
+✔ MQ adoption process: retained history and independent held coverage (605.674474ms)
+✔ MQ reset process: retained history and independent held coverage (1334.668379ms)
+✔ MQ rotation process: retained history and independent held coverage (288.358091ms)
+✔ MQ prediction process: retained history and independent held coverage (4298.640732ms)
+✔ MQ expiry left process: retained history and independent held coverage (278.442438ms)
+✔ MQ expiry held process: retained history and independent held coverage (276.063662ms)
+✔ MQ interrupted snapshot process: retained history and independent held coverage (1312.656503ms)
+✔ MQ retained snapshot process: retained history and independent held coverage (309.194037ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"2d1723808b0272e7d9f3714cd88ceb8b","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"wasm","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ wasm: nonblank search while leave is held (cursor: false) (1704.713673ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"b4ec74de53249dff68b8864239f14584","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"wasm","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[{"at":2,"body":"image-2","id":"newest","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ wasm: nonblank search while leave is held (cursor: true) (1435.746719ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"9bdfce12b1e94bb9b1fa84bd25224cff","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"process","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ process: nonblank search while leave is held (cursor: false) (264.661079ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"8c39386633b94a6b9a1ddd3cd730def6","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"process","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[{"at":2,"body":"image-2","id":"newest","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ process: nonblank search while leave is held (cursor: true) (452.325226ms)
+ℹ tests 129
+ℹ suites 0
+ℹ pass 129
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62072.40586

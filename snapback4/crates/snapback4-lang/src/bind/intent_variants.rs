@@ -289,6 +289,12 @@ fn browse_leaf(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>) {
     read.matching = None;
     let authored = read.index.take().and_then(|name| tables.get(&read.table)?.indexes.iter().find(|index| index.name == name));
     let Some(index) = authored else { return; };
+    // The named unique search was normalized before variants. Planning checks
+    // compatibility after this branch's predicate equalities have been pinned.
+    if index.unique && index.is_plain() && !read.order_keys.is_empty() {
+        read.index = Some(index.name.clone());
+        return;
+    }
     let Some((position, _)) = &index.words else { return; };
     for (key, column) in read.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
     if read.order_keys.is_empty() { read.order_keys = index.columns[*position..].to_vec(); }

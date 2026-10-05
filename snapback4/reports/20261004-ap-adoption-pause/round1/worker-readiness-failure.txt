@@ -1,0 +1,23 @@
+Complete full-suite attempt: exit 1, 2038 s. All Rust targets, fixtures and models passed;
+client tests: 6186 pass, 1 fail, 11 existing skips. Failure occurs in fixture.start,
+before the symlink assertions. Cause not established. No product/test code changed
+for the subsequent exact-case and full-file reruns.
+
+# Subtest: restart refuses an entry symlink already rejected by discovery
+not ok 23 - restart refuses an entry symlink already rejected by discovery
+  ---
+  duration_ms: 13630.280284
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/worker-regressions.test.mjs:318:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    WORKER_FIXTURE_READY: fetch failed
+    WORKER_FIXTURE {"dir":"/tmp/sb4-worker-regression-45t5SZ","badNode":false,"servers":[{"pid":3082013,"exitCode":null,"signalCode":null,"url":"http://127.0.0.1:45669","statuses":[{"key":"worker:status:push","value":"{\"crashes\":0,\"mode\":\"dev\",\"name\":\"push\",\"pid\":3082050,\"restarts\":0,\"source\":\"/tmp/sb4-worker-regression-45t5SZ/snapback/workers/push.mjs\",\"starts\":1,\"state\":\"running\"}"}],"starts":[{"pid":3082050,"alive":true}],"log":"snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576\nsnapback4: startup schema adopted as generation 1; phases [read-only advice 0.051 ms, key validation 0.095 ms, preflight 0.071 ms, project and index 0.001 ms, cap counts 0.000 ms, derived rebuild 0.035 ms, validation 0.000 ms, metadata 0.085 ms, commit 0.165 ms]; phase details (nested) [read-through retirement 0.015 ms, feed launch 0.000 ms, event slot fill 0.005 ms, successor assessment 0.004 ms]\nsnapback4 dev: http://127.0.0.1:45669  (schema: snapback/, types: /tmp/sb4-worker-regression-45t5SZ/snapback/generated/api.ts)\nstore: /tmp/sb4-worker-regression-45t5SZ/.snapback4/store.sqlite\nsnapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\nsnapback4 worker: /tmp/sb4-worker-regression-45t5SZ/snapback/workers/push.mjs (pid 3082050)\n"}]}
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.start (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/worker-regressions.test.mjs:81:29)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/worker-regressions.test.mjs:319:35)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...

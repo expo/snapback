@@ -1,0 +1,35 @@
+✔ ahead server empty is replaced by permitted partial history, never remembered as absence (3.16786ms)
+✔ stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true} (0.258878ms)
+✔ stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true} (3.415922ms)
+✔ unchanged fast path has no added device call: until-revoked (0.358088ms)
+✔ unchanged fast path has no added device call: online only (0.287962ms)
+✔ unchanged fast path has no added device call: disjoint (0.194572ms)
+✔ unchanged fast path has no added device call: equal cut (0.1469ms)
+✔ unchanged fast path has no added device call: older cut (0.172909ms)
+✔ unchanged fast path has no added device call: complete local (0.158838ms)
+✔ uncertain routing remains provisional: static unexecuted branch (0.368853ms)
+✔ uncertain routing remains provisional: native (0.276465ms)
+✔ uncertain routing remains provisional: missing watermark (0.252389ms)
+✔ uncertain routing remains provisional: invalid watermark (0.161372ms)
+✔ uncertain routing remains provisional: missing sequence (0.263946ms)
+✔ caught-up device reroutes the original fallback: retained partial (0.359148ms)
+✔ caught-up device reroutes the original fallback: retained complete (0.185177ms)
+✔ caught-up device reroutes the original fallback: still current (0.275994ms)
+✔ caught-up device reroutes the original fallback: new composition (0.448793ms)
+✔ caught-up device reroutes the original fallback: new row mask (0.156315ms)
+✔ caught-up device reroutes the original fallback: local refusal (0.135684ms)
+✔ an explicit original-query refusal wins without waiting for the replica (0.218517ms)
+✔ the watermark await preserves the authority publication fence (0.272588ms)
+✔ the watermark await preserves the incarnation publication fence (0.156784ms)
+✔ the watermark await preserves the credentials publication fence (0.148433ms)
+✔ the watermark await preserves the prediction publication fence (0.133931ms)
+✔ the watermark await preserves the abort publication fence (0.468813ms)
+✔ the watermark await preserves the closed publication fence (0.941472ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72.899947

@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -105,7 +106,7 @@ test("published social starter and guide snippets typecheck against generated op
   const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
-  assert.equal(snippets.length, 7);
+  assert.equal(snippets.length, 8);
   for (const [, name, source] of snippets) {
     assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
     writeFileSync(join(dir, name), source); // Compile the emitted guide text.
@@ -149,9 +150,10 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const dir = starter(t), api = await generatedApi(dir);
   let output = "";
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(server);
   server.stdout.on("data", bytes => { output += bytes; }); server.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
-  const url = await until(() => { assert.equal(server.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "social dev ready");
+  const url = await until(() => { assert.equal(server.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "social dev ready");
   await until(() => output.includes("notifications.mjs (pid"), "declared starter worker ready");
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
   const open = async () => {

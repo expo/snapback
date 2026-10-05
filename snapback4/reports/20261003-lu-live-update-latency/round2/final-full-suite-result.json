@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "seconds": 1505.58167886734,
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=16 LU_TEST_CPUS=90-91 taskset -c 0-31,48-79 bash snapback4/scripts/test.sh"
+}

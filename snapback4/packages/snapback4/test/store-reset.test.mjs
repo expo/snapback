@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -43,8 +44,9 @@ async function fixture(t, durable = false) {
     if (replacementSource) writeFileSync(join(dir, "snapback/schema.q"), replacementSource);
     const port = url ? new URL(url).port : "0";
     child = spawn(binary, ["dev", "--port", port, ...(fresh ? ["--fresh"] : [])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     exit = once(child, "exit"); let log = "", listening = false;
-    child.stdout.on("data", (data) => { log += data; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { url = address; listening = true; } });
+    child.stdout.on("data", (data) => { log += data; const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; if (address) { url = address; listening = true; } });
     child.stderr.on("data", (data) => { log += data; });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not start");
   }

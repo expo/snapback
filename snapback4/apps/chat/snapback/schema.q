@@ -1,3 +1,4 @@
+-- Sync last N bounds the device's working set, not server history: history queries with cursors page from the server beyond it, offline only within what the device has acquired.
 use server
 -- The chat backend as Snapback 4 wants to read it. This file is the desired
 -- authoring surface (LLP 2000 §4: write the application in the interface we

@@ -193,3 +193,23 @@ before any request record exists must be discoverable from evidence; live/pendin
 evidence must never become prune authority. Read current witness guide and the
 Snapback 4 AGENTS/NOT-DOING/JOURNAL. Likely updates: dated §15 clarification,
 short guide correction, Round 11 report and append-only JOURNAL. Hand-off: none.
+
+
+Round 12 (2026-10-05), base 67a29a10b0, main 8bd933cd2d. Scope: integrate
+current main, preserving native proof and all main lane changes, then qualify
+on this mini. Governing LLPs: LLP 0000 (foundation), LLP 3000 (current fence,
+§7 test custody and contention), LLP 3000.030 §15 (current native publication,
+retention and preparation), LLP 3000.002 (wasm budget), LLP 3000.023 §10
+(client observations), and the published-engine fence. The witness guide remains
+the paved authoring form. Active constraints: retain §15 generation binding,
+owner custody, atomic maintenance and actual-inventory backstop; preserve the
+main barriers/cleanup helper and published `watermark` spelling; retain both
+append-only journal histories. No publication/version changes. The cap remains
+Linux measurement plus 130 B macOS allowance, plus only measured NZ additions.
+Failures must be reproduced against the fetched main on this host before any
+fix; qualification does not authorize editing another session's worktree.
+Likely doc updates: integrated revision line, Round 12 report, append-only
+JOURNAL and closure of the FY-resolved NZ crash-cut ticket. Risk: auto-merges
+can preserve syntax but lose observation/cleanup intent; inspect overlaps and
+run affected tests, Darwin fence and the full suite. No new simulator or timing
+claim. Hand-off: none. No push or independent review is claimed.

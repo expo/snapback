@@ -108,12 +108,13 @@ impl Runner<'_> {
 
     /// Run after schema projection and before any aggregate rebuild. Only paths
     /// absent from the predecessor are captured; existing nulls are history too.
-    pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> {
+    pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>, mut report: Option<&mut crate::store::adoption_report::AdoptionReport>) -> Result<(), RuntimeError> {
         use crate::rows::{Bounds, Dir};
         if self.device { return Err(RuntimeError::Prediction("recorded activation requires the server's replacement snapshot".into())); }
         for (name, table) in &self.schema.tables.clone() {
             let paths: Vec<_> = table.recorded.keys().filter(|path| previous.and_then(|s| s.table(name)).is_none_or(|old| !old.recorded.contains_key(*path))).cloned().collect();
             if paths.is_empty() { continue; }
+            let started = std::time::Instant::now();
             // @ref LLP 3000.019#3.6 — capture changes only these fields; keep unrelated physical keys.
             // Projection already installed the candidate's defaults/indexes.
             // Persist every historical capture, including null, but generate
@@ -132,6 +133,7 @@ impl Runner<'_> {
                     self.meter.charge(MeterKind::IndexEntries, entries)?;
                 }
             }
+            if let Some(report) = report.as_deref_mut() { report.detail(format!("capture {name}: {}", paths.join(", ")), started); }
         }
         Ok(())
     }
@@ -220,7 +222,7 @@ mod tests {
         let tx = store.transaction().unwrap();
         let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::unbounded(), Cut::Abort), 1);
         runner.device = true;
-        assert_eq!(runner.capture_activation(None).unwrap_err().refusal().code,"E_PREDICT");
+        assert_eq!(runner.capture_activation(None, None).unwrap_err().refusal().code,"E_PREDICT");
         assert!(tx.scan("likes","byId",&[],&Default::default(),crate::rows::Dir::Asc,10).unwrap().is_empty());
     }
     #[test]

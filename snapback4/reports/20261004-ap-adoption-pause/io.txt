@@ -1,0 +1,21 @@
+Build: cc -O2 -shared -fPIC io-profile.c -o io-profile.so -ldl
+Run each helper with LD_PRELOAD=/absolute/io-profile.so on a fresh copy.
+Instrumentation includes open, activation, explicit checkpoint and shutdown.
+Linux /proc/self/fd classifies main, -wal, etilqs temporary files; close invalidates the fd cache.
+
+BEFORE
+checkpoint_ms=21.167
+IO_FILE main read_bytes=2838852422 read_ms=910.506 write_bytes=119316544 write_ms=56.679 syncs=1 sync_ms=84.873
+IO_FILE wal read_bytes=4381108960 read_ms=1656.185 write_bytes=3164374504 write_ms=1638.290 syncs=3 sync_ms=87.449
+IO_FILE temp read_bytes=0 read_ms=0.000 write_bytes=7227147900 write_ms=4920.380 syncs=0 sync_ms=0.000
+IO_FILE other read_bytes=0 read_ms=0.000 write_bytes=0 write_ms=0.000 syncs=1 sync_ms=0.062
+IO_PROFILE reads=1762522 read_bytes=7219961382 read_ms=2566.690 writes=4385073 write_bytes=10510838948 write_ms=6615.349 syncs=5 sync_ms=172.383
+
+AFTER
+snapback4: atomic adoption: estimated write pause 3.94–26.30 s using measured eb1000 release rates (not a host/load SLO); source rows [follows=5921, likes=5008, members=2053, messages=100015, posts=50228, reposts=1004]; 164229 row projections, 560330 index row builds, 56240 capture fills, 161704 aggregate visits, 2053 members / up to 2235717 row-view visits; payload width, token fanout, group distribution and WAL/storage affect the actual time
+checkpoint_ms=20.274
+IO_FILE main read_bytes=778889635 read_ms=318.767 write_bytes=118861888 write_ms=57.355 syncs=1 sync_ms=87.213
+IO_FILE wal read_bytes=272425080 read_ms=95.266 write_bytes=120299800 write_ms=219.060 syncs=3 sync_ms=87.216
+IO_FILE temp read_bytes=302544197 read_ms=96.205 write_bytes=373153901 write_ms=364.630 syncs=0 sync_ms=0.000
+IO_FILE other read_bytes=0 read_ms=0.000 write_bytes=0 write_ms=0.000 syncs=1 sync_ms=0.001
+IO_PROFILE reads=330371 read_bytes=1353858912 read_ms=510.238 writes=242690 write_bytes=612315589 write_ms=641.045 syncs=5 sync_ms=174.430

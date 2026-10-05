@@ -60,16 +60,16 @@ fn root(project: &Project) -> io::Result<Option<File>> {
 }
 fn walk(dir: &File, relative: &Path, dependencies: Option<(&Path, &Path)>, visit: &mut impl FnMut(&Path, &mut File) -> io::Result<()>) -> io::Result<()> {
     for name in entries(dir)? {
-        // Automatic conventional entries keep their relative schema helpers.
-        // Installed dependencies are host-owned, as in the ancestor scopes;
-        // never traverse package-manager symlinks as application source.
+        // @ref LLP 3000.009#5.3 — packages are host-owned, including nested
+        // node_modules and package-manager symlinks. Never deploy their bytes
+        // or validate them as source; launches link the original installation.
         if name == "node_modules" {
             if let Some((source, stage)) = dependencies {
                 let target = stage.join(relative).join(&name);
                 std::fs::create_dir_all(target.parent().unwrap())?;
                 if !target.exists() { std::os::unix::fs::symlink(source.join(relative).join(&name), target)?; }
-                continue;
             }
+            continue;
         }
         let mut file = open(dir, &name)?;
         let kind = file.metadata()?.file_type();
@@ -83,13 +83,16 @@ fn walk(dir: &File, relative: &Path, dependencies: Option<(&Path, &Path)>, visit
 
 // @ref LLP 3000.009#5.3 — one convention shared by development and immutable releases.
 pub(super) fn declared(project: &Project) -> Result<BTreeMap<String, PathBuf>, String> {
-    collect(project, None)
+    collect(project, None, false)
 }
 
-fn collect(project: &Project, stage: Option<&Path>) -> Result<BTreeMap<String, PathBuf>, String> {
+fn collect(project: &Project, stage: Option<&Path>, link_dependencies: bool) -> Result<BTreeMap<String, PathBuf>, String> {
     let mut workers = BTreeMap::new();
     let Some(dir) = root(project).map_err(|e| format!("workers: {e}"))? else { return Ok(workers); };
-    walk(&dir, Path::new(""), None, &mut |path, source| {
+    let source_root = project.root.join("snapback/workers");
+    let target_root = stage.map(|stage| stage.join("snapback/workers"));
+    let dependencies = target_root.as_deref().filter(|_| link_dependencies).map(|target| (source_root.as_path(), target));
+    walk(&dir, Path::new(""), dependencies, &mut |path, source| {
         if let Some(stage) = stage {
             let target = stage.join("snapback/workers").join(path);
             std::fs::create_dir_all(target.parent().unwrap())?;
@@ -111,7 +114,7 @@ fn collect(project: &Project, stage: Option<&Path>) -> Result<BTreeMap<String, P
 /// Snapshot only regular files reached through the project's pinned directories.
 /// Dependencies are installed by the host.
 pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
-    collect(project, Some(stage)).map(|_| ())
+    collect(project, Some(stage), false).map(|_| ())
 }
 
 /// A launch owns these copied bytes until its process group has stopped.
@@ -124,7 +127,7 @@ impl Snapshot {
     }
     fn create(project: &Project, name: &str) -> io::Result<Self> {
         let (mut owned, stage) = Self::scope(project)?;
-        let mut entries = collect(project, Some(&stage)).map_err(io::Error::other)?;
+        let mut entries = collect(project, Some(&stage), true).map_err(io::Error::other)?;
         owned.entry = entries.remove(name).ok_or_else(|| io::Error::other(format!("worker {name}: declaration is absent")))?;
         Ok(owned)
     }

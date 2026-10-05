@@ -56,11 +56,13 @@ test('visitor symbols retain their concrete Vec element and ignore non-reader he
 });
 
 test('dynamic envelope exceptions cannot admit an owned typed container or decoder', () => {
-  for (const type of ['serde_json::value::Value', 'serde_json::number::Number', 'alloc::string::String', '&str']) {
+  for (const type of ['serde_json::value::Value', 'serde_json::number::Number', 'alloc::string::String', '&str', 'i64']) {
     checkFamilies(collectFamilies([row(type, 'serde_json::value::ser::Serializer', true)]));
     assert.throws(() => checkFamilies(collectFamilies([row(type, 'serde_json::value::Value')])), /owned tree/);
   }
-  assert.throws(() => checkFamilies(collectFamilies([row('alloc::vec::Vec<alloc::string::String>', 'serde_json::value::ser::Serializer', true)])), /Vec/);
+  for (const type of ['alloc::vec::Vec<alloc::string::String>', 'alloc::vec::Vec<i64>', '&&alloc::string::String']) {
+    assert.throws(() => checkFamilies(collectFamilies([row(type, 'serde_json::value::ser::Serializer', true)])), /serialize/);
+  }
 });
 
 test('owned Value and Map reexports are readers and writers, never invisible families', () => {

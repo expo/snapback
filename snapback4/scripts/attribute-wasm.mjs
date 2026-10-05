@@ -108,6 +108,7 @@ const envelopeFamilies = new Map([
   ])],
   ['alloc::string::String serialize', new Set(['serde_json::value::ser::Serializer'])], // json! envelope scalar
   ['&str serialize', new Set(['serde_json::value::ser::Serializer'])], // json! envelope scalar
+  ['i64 serialize', new Set(['serde_json::value::ser::Serializer'])], // json! numeric envelope scalar; present on the RH round-0 control too
 ]);
 const allowed = new Set(['snapback4_core::value::Value serialize', 'snapback4_core::value::ObjectFields serialize']);
 export function checkFamilies(families) {

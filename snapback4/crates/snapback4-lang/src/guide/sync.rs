@@ -2,7 +2,7 @@
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
-**Start here:** Add `sync` to replicate each viewer's authorized rows; cap small owner collections as in the default starter, or use `last N` for history. Read history in the same descending order as its horizon.
+**Start here:** Sync replicates authorized rows; `last N` bounds the device's working set, not server history: history queries with cursors page from the server beyond it, while offline reads use only what the device has acquired.
 
 ```quarry
 table todos:
@@ -108,9 +108,7 @@ sync to t[.a, .b] [by .col] [last N by .at]    each row reaches every principal 
 
 `sync [last N by .at]` infers its audience from the read rule. Explicit
 `sync public` and `sync to ...` remain valid and must agree with that rule.
-The read rule must be exactly the audience — `public`, `.col = viewer`, or
-`exists t[.a, .b, viewer]` — so a device never holds a row it may not read
-and never misses one it may; a non-service second disjunct or an extra conjunct is
+The read rule must be exactly the audience — `public`, `.col = viewer`, or `exists t[.a, .b, viewer]` — so a device never holds a row it may not read and never misses one it may; a non-service second disjunct or an extra conjunct is
 refused with the rewrite. Declare `unique a, b, principal` on the target; the compiler supplies
 the recipient lookup index; when it
 has several principal columns, `by .col` names the recipient. Every insert
@@ -491,13 +489,15 @@ left-group read in its own query, since a mixed query without a component
 plan returns the whole server answer online when no predictable write is awaiting observation,
 and the whole device answer offline.
 An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
-A table without `sync` is online-only. A maintained `view`
-grouped by the audience columns inherits sync and is delivered as a value row.
+A table without `sync` is online-only. A maintained `view` grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on an aggregate view it opts
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
 
 ## Refusals
+
+N_SYNC_WINDOW_SIZE means a new or changed window meets a populated table at least ten times larger, across all groups; it does not prove any group exceeds its window.
+See the opening sentence; cursor history still pages beyond the device window. `check` probes at most 10,000 keys per changed window; unchanged windows and larger probes stay quiet.
 
 E_QUARRY_RETAIN means a table repeats its retention declaration or uses
 an unknown policy. For example, `retain forever` is not a policy; choose

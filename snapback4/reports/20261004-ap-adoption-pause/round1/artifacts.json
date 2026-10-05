@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "2154dc163dc42e1808f12ef32e9468b2889407a3",
+  "round0_commit": "547c9eaa0b",
+  "build_profile": "production",
+  "sqlite_flags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "host": "eb1000",
+  "cpu": 95,
+  "sibling": 47,
+  "preceding_idle_minimum": 0.95,
+  "configured_cache_mib": 64,
+  "sha256": {
+    "baseline": "7032cd3a9f00e470cd1f02c62678be04605c2924882e01bb537d5c730a803711",
+    "round0": "3888c081729cd64da696cfb627d7d7956028c970d9e0103f56c01fded7fb4cf1",
+    "candidate": "2edbcf0da7de2234e02598525b00b56035e3861730d1caffe79bd8576b3e895f",
+    "wasm": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1",
+    "initial_probe": "d3c929980cb29547bcd8cedc0251da4dc0b48e88cf37039c0dc70b9b3cb54a9f"
+  },
+  "client_controls": {
+    "baseline_commit": "2154dc163dc42e1808f12ef32e9468b2889407a3",
+    "baseline_profile": "release",
+    "candidate_profile": "debug",
+    "baseline_cli_sha256": "bd899bd4cab6d886b006a41556947f630ca016b950f9f436753972e7dbbd01b1",
+    "candidate_cli_sha256": "d2512d1553a1ac616ffe189767a24cca78bfb1354a06f9bf1d391aac11638bf0",
+    "purpose": "Scoped correctness control, not a cross-profile performance comparison"
+  }
+}

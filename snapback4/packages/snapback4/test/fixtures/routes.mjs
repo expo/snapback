@@ -1,3 +1,4 @@
+import { captureStdout } from '../helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from '../helpers/wait.mjs';
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -108,9 +109,10 @@ export function fixture(t, schema, source) {
     const token = minted.stdout.trim();
     const args = ["dev", "--port", String(requestedPort), "--no-watch", ...(bind === "127.0.0.1" ? [] : ["--bind", bind, "--i-understand-cleartext"])];
     const child = spawn(binary, args, {cwd:directory, stdio:["ignore", "pipe", "pipe"], env:{...process.env, SNAPBACK_NODE:process.execPath, HOOK_KEY:KEY, ...env}});
+    const readStdout = captureStdout(child);
     let log = "", port, exited = false, error;
     const done = new Promise(resolve => { child.once("exit", () => { exited = true; resolve(); }); child.once("error", value => { error = value; exited = true; resolve(); }); });
-    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; port ??= log.match(/http:\/\/(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)/)?.[1]; });
+    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; port ??= readStdout().match(/http:\/\/(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)(?=\r?\n)/)?.[1]; });
     let stopping;
     const host = { child, log:() => safe(log), leakedSecret:() => log.includes(KEY),
       workerPids:() => [...log.matchAll(/snapback4 worker: .* \(pid (\d+)\)/g)].map(match => Number(match[1])),

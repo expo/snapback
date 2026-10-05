@@ -86664,3 +86664,1054 @@ file over 256 KB, gzip or video is committed. Report and evidence:
 ### 2026-10-05 — Lane NZ Round 11: retention before its first request
 
 Made the pre-Expo backstop inspect actual full/compressed evidence, pins and live owners, so publisher death before any maintenance record is repaired by the next export, including failed Expo. Twelve crash controls cover verified commit and post-cleanup handoff across both skip modes/background, with successful/failed next exports; each restores 5/20. Affected checks passed: 68 witness units, 76 integrations, 128 export/preparation tests. Full Mac suite: zero failures in 2,812 s, all 312 client files and 79 full-count model tests passed; five source hashes unchanged. LLP 3000.030 §15/guide updated; custody verified; no real device created, other session touched or push made. [Round 11 report](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-11--inventory-backstop-before-the-first-request-2026-10-05).
+
+## 2026-10-04 — MS: a compiling rewrite for conversation-ordered search
+
+Reproduced calibration #30 Grok's M5 finding from its saved schema on
+`abafa9af9c`. The saved `searchChat` already orders by `.at`; restoring only
+`by byConversationOrdinal` produces E_QUARRY_UNKNOWN claiming that the plain
+index has words after zero columns and proposing another invalid read. Changing
+only to `.ordinal` already compiles on main. This is a misleading diagnostic
+and missing recipe, not a missing ordered-search execution path.
+
+The binder now distinguishes a plain index from a words index and prints a
+column-order rewrite only after compiling it in the original declaration and
+callers. The actual builder schema accepts the printed rewrite with its
+conversation, needle, descending page, cursor and decorations intact. Keep the
+unique conversation/ordinal index; the existing planner synthesizes a separate
+conversation/words/ordinal/id index. `guide search` teaches this form for
+`sequence by` and existing integer/receipt allocators, including cursor reset
+and acquired-history limits. LLP 3000.007 §18.1 clarifies the existing rules.
+No planner, runtime, IR, authorization, meter or coverage contract changes.
+The guide stays at 401 lines under its unchanged 405-line limit.
+
+New regressions cover named/positional/predicate scopes, preserved operands and
+helper shapes, withheld inadmissible rewrites, and the actual printed query on
+the server plus reopened offline memory/SQLite devices. Twelve store/ordinal/
+window combinations check order against opposing timestamps and ids, paging,
+multiple words, deduplication, denied conversations and missing older matches.
+A full partition can prove completeness; windowed word coverage stays
+conservative even when all fixture rows happen to be held. Empty-term browsing
+can use the ordinary ordinal window's coverage proof.
+
+Language/planner tests: 1,465 passed, 11 existing ignores. All 112 guide tests
+and the four diagnostic regressions pass, as do both device matrix tests.
+The first affected search run passed 106 and failed two guide directory
+witnesses: removing a duplicate schema exposed their broad first-profiles-block
+selector. Select the block containing the actual `people` query; preserve all
+original assertions. Both witnesses pass. Stopped the first owned full run
+when it found the same failure; exit 130 remains an interrupted result.
+
+Final full eb1000 suite: zero failures in 1,433 seconds; 4,963 Rust tests,
+18 doctests, 6,187 client tests across 311 files, nine fixtures and 79 serial
+models pass. There are 33 existing Rust ignores and 11 client skips. All builds,
+typechecks, release/docs/wasm gates pass; no final-run interventions. References
+and whitespace checks pass. Wasm is 2,116,457 B raw / 639,750 B gzip, SHA-256
+`55cf1691ef6d12b817360f9c002890112122163d696a17eddcd7444f88fd18c1`:
+137 B below the unchanged 639,887 B cap, retaining the recorded 130 B macOS
+allowance. No Mac measurement is claimed. All work stayed on eb1000; no other
+host, push or publication. The [MS report](./reports/20261004-ms-matching-ordered-search/REPORT.md)
+retains exact diagnostics, builder hashes, the pasted-rewrite check and validation.
+
+## 2026-10-04 — MS Round 1: incompatible matching indexes have their own code
+
+Addressed the Astra and Grok round-0 reviews. `E_QUARRY_MATCHING_INDEX` now
+means a declared index cannot serve the matching read, covering both the
+non-words index and wrong words-prefix scope arms. Registered its dedicated
+why explanation, search routing, definition and recovery facts. Kept
+`E_QUARRY_UNKNOWN` and its glossary unchanged and tested a genuinely missing
+index separately. Computed indexes now say they have a computed key; only
+`is_plain()` indexes get the plain-index explanation and a candidate rewrite.
+The actual builder schema still compiles after pasting the printed rewrite.
+
+The search recipe names only matching examined-row, index-entry, step and
+output-byte counts with the same rows; it no longer claims equal rule-probe
+or heap meters. The card is 402/405 lines. No planner or runtime semantics
+changed. All 177 affected compiler/guide tests, both offline matrix tests and
+the corrected simulator diagnostic test pass. The first broader search run
+found stale E_QUARRY_UNKNOWN expectations; they were corrected, and the first
+full run was interrupted rather than counted as green.
+
+Final full suite on eb1000: zero failures in 1,460 seconds; 4,966 Rust tests,
+17 doctests, 6,187 client tests across 311 files, nine fixtures and 79 serial
+models passed, with 33 existing Rust ignores and 11 client skips. All build,
+typecheck, release/docs/wasm stages passed. Correction to the previous MS entry:
+its retained round-0 log also shows 17 doctests, not 18; report metadata now
+reflects that count. Wasm is unchanged at 2,116,457 B raw / 639,750 B gzip,
+137 B below the 639,887 B cap, preserving the recorded 130 B macOS allowance.
+No Mac build, other host, push or publication.
+
+The explicitly requested root inventory check fails before and after this
+change on inherited Snapback 1 test registration, profile metadata, diagnostics
+and guide-size drift. Ran root dependency installation and generated-artifact
+bootstrap successfully; ran the diagnostics and guide generators, retaining
+the latter's legacy package-resolution failure. Restored their unrelated
+outputs. Snapback 4's own diagnostic registry and guide census pass. The
+[Round 1 report](./reports/20261004-ms-matching-ordered-search/REPORT.md#round-1--declared-index-diagnostics-and-precise-meter-wording)
+records exact diagnostics, the compiling rewrite, both root inventory logs,
+verification results and wasm bytes.
+
+2026-10-04 — MS Round 2: qualified search meter parity by the same scanned message set; card 402/405 lines; eb1000 guide (112), compiler (7), offline memory/SQLite (2), and simulator diagnostic (1) tests pass; no full-suite rerun.
+
+## 2026-10-04 — RPF: restore capability-free published-engine compatibility
+
+On the Apartment mini, reproduced all four Darwin 0.2.33 publication-fence
+failures. Fresh compiler output now omits wholly zero source-reservation maps
+and their stamps. The zero check includes owner birth, maintained reads and
+`server_only`; a nonzero plan still exports every source. Existing explicit-zero
+RP maps remain readable. The device's structural zero proof and legacy narrowing
+are unchanged; the price calculator stays native-only. Updated LLP 3000.022
+§14.3 and the receipts guide. No price, runtime ceiling or capability decoder
+rule changes.
+
+The exact fence adds both reservation names for recorded-attribution and
+maintained-column. Timeline's plans are zero, so its original feature markers
+remain exact. All six fence tests pass, including canonical legacy bytes,
+published native/wasm acceptance for the control, feature refusals, published
+keys and store preservation. Focused checks: 365 language/receipt tests
+(211 receipt/RY), 77 clients, seven native capability tests and the search-byte
+fixture pass. Both 320-case differentials retain 114 predicted commits,
+eight conservative queues and 198 server refusals. Both complete calibration
+apps' six 50-member sends predict and commit per native store and on wasm,
+with unchanged headroom bounds. The known omitted-effect-payload exception
+remains separately asserted.
+
+Full Mac suite: **two failed stages in 3,055 seconds**, exit 1. Rust has
+5,007 passes, one failure, 33 existing ignores and 17 passing doctests;
+all 76 witness tests pass. Client pool: 6,189 passes, three failures and six
+existing skips across 311 files. All 79 serial models and nine fixtures pass;
+all build/typecheck/docs/release/wasm stages pass. The Rust adoption-log failure
+reproduces at the same assertion on unmodified base. The worker failures parse
+partially written fixture JSON; the dev-environment case reproduces on base,
+while the two other observed cases share the same premature read pattern.
+The [report](./reports/20261004-rpf-capability-fence/REPORT.md) links bounded
+follow-ups and retains the failed full result separately from isolated reruns.
+
+Wasm: 2,116,732 B raw / 639,616 B gzip, 271 B below the unchanged 639,887 B cap,
+retaining its macOS allowance. Symbol inspection confirms no native price
+calculator/export. A supplemental serde-family census rejects the same i64
+serializer on unchanged base and RPF; recorded separately without broadening
+the allowlist. No other host, NZ worktree/process or simulator was used.
+Local commit only; nothing pushed or published.
+
+## 2026-10-04 — FX: complete cross-process test observations
+
+Fixed the adoption recovery-log observation race with the existing bounded
+wait and complete diagnostic lines. Worker fixtures now publish JSON/text by
+atomic rename; append-based fixtures retain duplicate-write detection. The
+Snapback 4 test audit also fixed matching PID/path handoffs and asynchronous
+log observations. Clean stress exposed an adjacent adoption fixture race:
+SIGSTOP could freeze SQLite's writer transaction. A fixture-owned writer lock
+and stopped-child acknowledgement now establish the intended external-adoption
+setup. Every original package, environment, refusal and recovery assertion is
+retained; product code and timeout ceilings are unchanged.
+
+Each affected test file passed 30 repetitions on eb1000. The authorized `check`
+and worker-regression files also passed 30 repetitions on the Apartment mini;
+the final refresh-log delta has 30 additional filtered repetitions per host.
+Delayed-write probes distinguish the old premature JSON reads from the atomic
+fixtures. Full eb1000 suite: **zero failures in 1,616 seconds**; 4,968 Rust passes,
+33 existing ignores, 17 doctests, 6,187 client passes with 11 existing skips,
+79 serial model passes at full counts, and nine fixture passes. All build and
+typecheck stages pass. Darwin witness-driver coverage remains outside the
+mini's authorized two-file scope; its actual fixture handoffs were probed on
+Linux.
+
+The operator's 13:51Z disk-full event interrupted the first stress pass. All
+measurements overlapping 13:45–13:55Z were excluded and replaced, including
+three early mini completions. The [report](./reports/20261004-fx-test-races/REPORT.md)
+lists every audit fix and preserves the clean run records. Both tickets are
+closed. Large owned targets and scratch were removed, and no other worktree or
+simulator was used. Local commit only; nothing pushed.
+
+## 2026-10-04 — LU round 2: bounded lookahead and preserved CPU repayment
+
+Merged origin/main 2cc55e168c9 (RP, QE2, NL, WD, QF/QF2) before investigating
+the 0.4.13 Darwin replay/upload failures on eb1000. The actual 900-follower
+fixture has no backfills or cleanup: all follows precede the first post.
+Pre-LU 4353aa735c and merged main pass all 30 traced replay trials and all
+60 upload trials at 0/20/120 burners on CPUs 80–89. The reported Darwin
+timeouts are not reproduced, and no Mac is used or qualified.
+
+Following walks now begin with two candidates and grow only while a slice
+can consume them, avoiding repeated decoding of 31 unused followers. Cheap
+empty bulk kinds combine CPU repayment with useful work or the idle cycle.
+Every kind retains its seven-times CPU charge and 100 ms cap; accumulated
+charges are never recapped away, each sleep stays at most 100 ms, and debt
+cannot overlap a timed worker's already scheduled repayment. New deterministic
+regressions cover wide fan-out scan cost, empty-cycle debt and the cap/race
+cases. The durable frozen-P service bound, cursor atomicity, row/rule/meter
+checks, CT admission, deadlines and aged opportunities remain unchanged.
+
+Final paired native trials (five per revision/load) reduce heavy-load p95
+commit-to-900th-copy from 24.920 to 16.055 seconds. These include tracing
+cost, not an uninstrumented production or width-independent wall-time promise.
+The no-burner p95 worsens in a mixture of paced and unpaced runs; the report
+retains all cells. Final web trials use the same frozen SDK, 30 writes per
+shape/load and two remote receivers. Heavy primary p95s are 1,352.9 ms repost,
+1,276.3 ms message and 746.2 ms reaction. Message p95 rises versus main while
+its maximum falls; no universal message win is claimed. No-burner repost p95
+605.3 ms still misses 500 ms and remains in the existing client-publication
+follow-up. One fast receiver has a −9.626 ms raw cross-clock render interval;
+it is retained and does not change the paired primary percentile.
+
+The final CT mixed control passes with 31,476 reads at 12.613 ms p95, all six
+abandoned leases recovered, and schedules, deadlines and expiry serviced.
+All affected tests pass, then the final full suite exits 0 in 1,505 seconds:
+all Rust targets/doctests; CLI units 284 passed/four ignored; clients 6,187
+passed/11 skipped; models 79/79; fixtures 9/9; all build/typecheck/budget steps.
+The initial suite had one native witness proc-inspection refusal, retained in
+an open ticket with passing isolated and whole-target controls. No witness,
+upload or replay timeout/check was weakened. Final qualification follows the
+CPU-debt correction; initial candidate data and development refusals remain
+separate evidence.
+
+Locked wasm is 2,116,457 B raw / 639,750 B gzip under the unchanged 639,887 B
+cap, preserving the 130 B macOS allowance with 7 B beyond it. LLP 3000 §7 and
+LLP 3000.013 §4 describe the policy and its limits. The
+[Round 2 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-2--wide-replay-fan-out-under-contention)
+retains distributions, controls, caveats and artifact hashes. All injected
+load and experimental descendants stayed within ten CPUs through the affinity
+guard; the ordinary suite used a separate CPU allocation. Nothing pushed.
+## 2026-10-04 — DG: calibration #30 worker paths and quoted-message recipes
+
+Published the worker copy/import/cwd/environment rules in `guide effects`, the
+worker reference, starter READMEs and worker comments. `SNAPBACK_PROJECT_DIR`
+now gives every supervised worker the canonical project root (active release
+root on serve), stable across child chdir. The executable recipe writes under
+its `data/`; cross-release output still needs a durable explicit location.
+Named workers now exclude nested `node_modules` from source validation/deploy
+packaging and link host dependencies at launch. Before the fix, project/schema
+links passed but worker/helper-local links reproduced ELOOP. The supplied replay
+record lacks its link targets, so this is not a claim to reproduce that exact
+root-level layout. Source and manifest symlink protections remain intact.
+
+The social starter ships `QuotedMessage`, embedded in `guide social` and linked
+from `guide client`. The existing whole-message point read and `readPresentation`
+distinguish loading, present, absent, denied and partial. Loading keeps the box;
+only proven absence says unavailable; withdrawal retains no protected text.
+The browser holds the point read explicitly and checks each transition; all
+eight social guide blocks typecheck against generated operations. Guide caps
+are unchanged (client 110 lines/1,198 words). Existing LLP 3000.009 §5.3 and
+LLP 3000.031 §7 record the changes.
+
+On eb1000 only: guide 112/112; canonical full suite completed in 1,656 s with
+one failed stage (clients: 6,202 pass, two stale environment-allowlist assertions,
+11 skips). All Rust/doctests, builds/typechecks, nine fixture wrappers and
+79/79 serial models passed. The worker regression file passed 77/77. Both
+allowlists were corrected and both complete files passed 44/44; final path
+cases passed 18/18. Runtime code was unchanged after the full-suite build.
+An earlier affected run overlapped a CLI rebuild and failed two restart tests
+with ENOENT; both passed on stable bytes and in the canonical run. Those failed
+runs remain failed in the [report and logs](./reports/20261004-dg-cal30-doc-gaps/REPORT.md).
+No Mac contacted, push or publication; no native-UI-layout claim.
+
+## 2026-10-04 — SU: held serve clients include their fixture's work budget
+
+On eb1000 only, reproduced the upload client's three-second read timeout on
+unchanged `2154dc163d`: **50/50 failures** at the original read/join sites.
+Eight CPU hogs and the test shared CPUs 0–1; an external shim stalled only
+the driver for four seconds after both uploads parked. The fixed test
+passed **50/50** with the same confinement, hogs and stall. A 25-second stall
+still fails, witnessing the finite bound.
+
+Held clients now share one absolute connect/write/read deadline: the driver's
+bounded setup/probes plus 15 seconds. Uploads get 23 seconds; the longest
+worker-adoption case gets 55. Its two post-claim setup waits share 30 seconds;
+earlier child startup/exit guards remain 60 seconds. The audit corrected
+20 test cases across auth, adoption, delivery, detached sync, latency and
+spawn-failure dispatch. Delivery and effect gates also release on panic.
+All existing assertions, variants, seeds and short progress probes remain;
+no product timeout or production source changed.
+
+The serve target passes 189 tests with four existing ignores. The full suite
+ran on CPUs 8–31 and finished in **2,382 seconds, exit 1**: Rust has 4,968
+passes, 33 existing ignores and 17 passing doctests; all 79 serial models
+pass. The 311-file client pool has 6,185 passes, two failures and 11 skips.
+The two failures are unchanged fixtures: scheduled-job crash recovery saw
+`done` after a queued snapshot, and the watchdog SIGTERM helper liveness
+assertion saw `true` after waiting for `false`. Both pass isolated reruns;
+the full result remains red. Follow-ups are
+[scheduled-job crash cut](../issues/20261004-snapback4-scheduled-job-crash-cut-race.md)
+and [watchdog helper liveness](../issues/20261004-snapback4-watchdog-helper-liveness-fixture.md).
+
+The [SU report](./reports/20261004-su-serve-upload-timeout/REPORT.md) lists
+all 20 cases, budgets, reproduction code and retained logs. Reference checking
+passes; the affected LLP decisions remain applicable. Sampled worktree plus
+scratch use stayed below 24.1 GB; scratch was removed. Lane FX's worktree
+was untouched. Local commit only; nothing pushed or published.
+
+
+## 2026-10-04 — LU round 3: preserve outstanding maintenance repayment
+
+Fixed Astra's P2: slice completion now appends its charge after any outstanding
+repayment, including an empty-cycle flush that races the aged worker. The new
+deterministic regression fails on round 2 (70 ms retained instead of 130 ms);
+both orderings, the 240 ms debt case, aged/expiry service, fairness, timeline
+and live-latency checks pass. Three paired heavy replay trials per revision on
+CPUs 80–89 retain comparable 900-follower completion: round 3 11.742–13.289 s,
+round 2 12.820–15.974 s; these are sample ranges, not stable tail percentiles.
+Full suite exits 0 in 1,957 s, including the Chromium regression and all models.
+Wasm is unchanged at 639,750 B gzip; sampled worktree use stays below 14.1 GB.
+LLP 3000 §7 and the [Round 3 report](./reports/20261003-lu-live-update-latency/REPORT.md#round-3--preserve-repayment-in-either-worker-ordering)
+record the correction and evidence. Local commit on b0e17cec74; nothing pushed.
+
+## 2026-10-04 — FX round 1: complete merged test observations
+
+Merged main at `cee23d5619`, keeping both journal histories. Fixed Astra's
+three P2s and the merged-tree audit's atomic-file, independent-stream and
+complete-line observations, including partial ports and HTTP 100-continue.
+All 4,999 existing JavaScript assertions and test names remain intact.
+Each of 71 Linux file series ran 30 times under confined CPU contention;
+70 passed 30/30, while retained-history reproduced its open product defect
+seven times (also reproduced on the merged baseline). Both worker files
+passed 30/30 final-source runs on the Apartment mini. The full Linux suite
+passed with zero failed stages in 2,072 s and full model counts. Both original
+tickets remain closed; the retained-history ticket remains open. The
+[Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+lists every audit fix, intermediate result, probe, disk-sampling limitation
+and cleanup. Build/scratch allocations stayed below 40 GB and were removed
+after evidence collection. Local commit only; nothing pushed or published.
+
+## 2026-10-04 — FX round 1: Grok marker follow-up
+
+Fixed libtest banner sharing in the witness memory marker and the audit's
+HTTP descriptor and acquisition-crash markers; all existing assertions stay
+unchanged. Witness and HTTP descriptor binaries each pass 30/30 under a
+CPU-0 busy loop; the full 48-kill acquisition model passes there too. FY's
+500 ms refresh control passes both cases with the existing barrier and
+fails both without it. The [Round 1 report](./reports/20261004-fx-test-races/REPORT.md#round-1--merged-audit-and-complete-observations)
+records the follow-up; its full-suite evidence stands. Build and scratch
+files were removed. One local follow-up commit on `12b101b76b`; no push.
+
+## 2026-10-04 — FX round 2: independent readiness and whole marker values
+
+Fixed Astra's two P2s on `0edf7c4690`: all 79 combined-stream readiness reads
+now parse stdout alone while retaining complete-line guards; witness, HTTP
+descriptor and acquisition markers consume whole values and select the first
+record. Existing assertions, names and bounds remain unchanged. Interleaving
+and malformed-value controls fail the parent and pass the repairs. All three
+Rust binaries pass 30/30 under a CPU-0 hog. The 63 JavaScript file series
+ran 30 times each under four-CPU contention: 1,874 passes and 16 retained
+failures (four known R5, two parent-reproduced condition timeouts, ten
+unclassified). The full suite passes in 2,082 s at full counts. Astra's
+separate MQ count failure remains unclassified and was not pursued. The
+[Round 2 report](./reports/20261004-fx-test-races/REPORT.md#round-2--keep-readiness-streams-separate-and-parse-whole-measurements)
+records every result, source/receipt checks, controls and cleanup. Observed
+allocations peaked at 12.29 GB; owned target/scratch removed after verified
+archival. One local commit, with no push or remote-host work.
+
+## 2026-10-04 — FY: witnessed job crash and watchdog process identities
+
+Fixed two SU-reported client fixture races on base ce9bef594a. The scheduled
+job fixture now stops the serving process inside its synchronous Node-version
+probe, after real schedule admission and before maintenance starts. It witnesses
+stopped state and SIGKILL exit, then compares the unchanged queued job before
+restart. Same-ID recovery, exactly-once execution and the queued outbox remain.
+The watchdog signal fixtures capture worker/helper birth identities after a
+readiness handshake and retain watchdog-owned cleanup. The existing `until`
+already throws on timeout; an injected guard confirms it. Delay and PID-reuse
+controls demonstrate the baseline mechanisms. No product change was needed.
+
+Both whole files passed 30/30 runs on eb1000 with two hogs confined to CPUs
+72–79 and 30/30 on the explicitly permitted Apartment mini. The full eb1000
+suite passed in 1,957 seconds: all Rust targets/doctests, 6,187 client passes
+and 11 skips, 79 model passes, nine fixture passes, and every build/typecheck/
+budget step. Reference validation passed. Both SU-origin tickets are closed;
+[the report](./reports/20261004-fy-fixture-races/REPORT.md) retains controls and
+logs. Sampled worktree/scratch use stayed below 15 GB; private scratch was
+removed and owned hogs reaped. No other host/worktree or simulator was used.
+Local commit only; nothing pushed or published.
+
+Round 1: bounded all asynchronous cleanup joins in the two FY fixtures, with
+visible diagnostics and watchdog-owned custody; the stopped-watchdog control
+now exits at its cleanup deadline. Both files passed 30/30 on confined eb1000;
+the mini ran the worker file 30 times (22 passed, eight retained sibling-fixture
+failures). All 180 watchdog variants passed and no cleanup hook failed. The
+[Round 1 report](./reports/20261004-fy-fixture-races/REPORT.md#round-1--bounded-cleanup-hooks)
+records partial-JSON failures for FX plus open log-readiness/writer-lock
+follow-ups. Only cleanup plumbing changed; full suite not rerun this round.
+
+Round 2 (2026-10-04): FY cleanup now retains body and teardown errors together,
+including when an outer test timeout hides the later rejection. All four
+finally paths use the shared wrapper; native after-hook reporting is covered.
+Both whole files passed 3/3 under confined CPU load, and the new masking tests
+passed 3/3. P3 watchdog-death orphan custody is explicitly deferred in an open
+ticket with the supplied review reproduction. See the
+[Round 2 report](./reports/20261004-fy-fixture-races/REPORT.md#round-2--preserve-body-and-cleanup-failures).
+Test-only change; no full suite or remote tests this round; nothing pushed.
+
+Round 3 (2026-10-04): FY reports the body error before awaiting cleanup and
+rethrows that same error, preserving assertion fields and its existing cause;
+nested cleanup failures attach separately. The exact timeout-with-successful-
+cleanup regression and native assertion-reporting checks fail on the old helper
+and pass with the fix. All three files passed 3/3 under confined CPU load
+(255 tests, zero failures/skips). Reference validation passed. See the
+[Round 3 report](./reports/20261004-fy-fixture-races/REPORT.md#round-3--report-the-body-before-cleanup-and-keep-it-primary).
+The accepted orphan-custody deferral is unchanged; test-only commit, no full
+suite or remote tests, scratch removed and owned hog reaped, nothing pushed.
+## 2026-10-04 — AP: reduce and expose populated-store adoption pauses
+
+Lane AP on eb1000, baseline `2154dc163dc42e1808f12ef32e9468b2889407a3`.
+Calibration 30's retained generation definitions support a semantic rollback to
+its generation-1 schema on a private copy, followed by repeatable generation-2
+adoption at a pinned time. This retains the final evidence's later delivery and
+receipt work; it is not exact historical time travel. The physical message table
+contains 100,015 rows; `unread`'s 227,989 number counts repeated source visits.
+
+Three sequential production-profile pairs on an idle CPU gave **16.322 s →
+6.762 s median (2.41×)**. The requested 5× target, **3.264 s** against this
+baseline, **is not met**. The formerly unattributed bulk is new-index insertion:
+row-order B-tree churn wrote roughly 10.5 GB through SQLite versus 612 MB after
+ordered staging and a scoped 64 MiB cache. The complete phase table, capture
+breakdown, profiling caveats, reproduction commands and raw timings are in
+[the AP report](./reports/20261004-ap-adoption-pause/REPORT.md).
+
+Keep one atomic activation transaction and its predecessor-snapshot readers.
+Sort admitted keys before insertion; retain every key/contribution bound. An
+activation-only 32-row/128 KiB serialized read-ahead buffer amortizes SQLite
+seeks while retaining identical logical meter charges and fallback on wide
+rows. Count preflight reuses source validation when the population proves every
+group fits; sums retain wide cancellation. Avoid a second typed admission decode
+when no contribution scratch needs it, and avoid copying maps merely to retain
+all their fields. No interpreter ceiling changes. Capture semantics, sparse
+physical images, pending recounts and device behavior stay unchanged.
+
+Every stored row, all 3,441,029 index entries, all captures, catalog, log and
+commit records compare byte-for-byte with the baseline. Twelve generated seeds
+exercise sparse images, historical captures and cancelling sums; meter/cursor,
+cache invalidation and refused-commit rollback tests cover the new workspace.
+`check` gives read-only `N_ADOPTION_PAUSE` population/rate advice; dev and deploy
+print it before activation. Adoption output now includes disjoint phases and
+explicitly nested details. The estimate names eb1000's measured rate and its
+population uncertainty; it is not a latency SLO.
+
+Wasm before/after is byte-identical: **2,116,457 B raw / 639,750 B gzip**,
+SHA-256 `de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`.
+The **639,887 B** budget and **130 B macOS allowance** are unchanged. Both
+`build-wasm.sh` runs pass. Supplemental `measure-wasm.sh` hits the already
+recorded i64 serde-family census failure; no new web bytes explain or conceal it.
+
+A remaining multi-second pause merits a separate online-adoption project.
+LLP 3000.026 §8.6 recommends snapshot preparation, complete-journal catch-up and
+one brief switch, with publication-time captures, expiry, sparse shadow images,
+all-writer coverage, bounded debt and recovery requirements. This is design only.
+The final suite/ref-check results and cleanup are recorded in the report's
+verification record. No stores or tokens are retained in the commit; no push.
+
+AP final verification follow-up: tightened serialized read-ahead's cursor-growth
+reservation before final qualification. Three new paired runs measure **17.108 s
+→ 6.942 s (2.46×)**, with the 5× bar now **3.422 s**; the report retains both
+sets and uses the final set. A separate RSS probe is **28.5 MiB → 147 MiB** for
+the whole helper: larger SQLite cache/sorter workspace is the explicit memory
+cost of avoiding WAL/temp churn. Final corpus bytes still match exactly.
+
+AP final suite: **zero failures in 1,991 s** on eb1000. All 299 Rust binaries /
+1,012 executions and doctests pass; all 311 client files pass (6,187 tests and
+11 existing skips), as do 79 serial models and nine fixtures. All build,
+typecheck, docs-budget and release-guard stages pass. An earlier full run caught
+private physical names in phase details and a false unchanged-startup adoption
+announcement; both reporting defects were repaired, passed their 13 focused
+tests, and passed again in the final full run. The final wasm hash still matches
+the baseline exactly. `ref-check --verbose` passes with zero errors or unchecked
+references. Private stores and remaining scratch artifacts were removed; the
+existing adoption-pause ticket stays open for the unmet 5× target. Local commit
+only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 1: refusal order and constrained activation memory
+
+Addressed the Astra/Grok READY WITH CHANGES findings on `547c9eaa0b`.
+Ordered staging now has an immediate `(ti,k)` primary key, preserving the
+original duplicate's walk step, `E_STORE` message and charges before a later
+validation failure. Raw activation and store writes use the read-ahead
+invalidating accessor; a savepoint rollback test verifies old images return.
+
+`SNAPBACK4_ADOPTION_CACHE_MIB` controls the combined main/temp target (0–512,
+default 64 MiB, half each; 0 preserves caller settings). Larger caller settings
+are retained. Linux procfs supplies finite address-space headroom for a
+conservative reduction. A SQLite `NOMEM` after enlargement rolls back completely,
+restores both caller settings, checks predecessor identity and retries once;
+other failures and one-shot device preparation are not retried. The injected
+failure test compares the predecessor before retry and final output against an
+uninterrupted control. The failed-attempt duration is reported separately.
+
+An actual 96 MiB address-space probe exposed a Rust allocator abort before
+SQLite could return `NOMEM` in the initial main-cache-only revision. The final
+headroom policy succeeds on the full corpus at **47.54 MiB peak RSS**, with all
+rows/indexes/captures/log/commits identical; explicit 0 succeeds at 30.83 MiB.
+The retained round-0 binary reproduces SQLite NOMEM with complete rollback.
+Normal final runs peak at **93.11 MiB RSS** versus round 0's approximately
+147 MiB. LLP 3000.002 now states the sorter/cache relationship and the limits
+of this workspace policy; it is not a process or cgroup memory guarantee.
+
+Three new paired production runs on eb1000 CPU 95 (sibling 47 idle before each
+sample) give **17.871 s → 7.914 s median, 2.26× faster**. Every complete digest
+and every per-table/index/capture digest matches the original slow path. The
+325 selected tests pass, including the 12 generated sparse/capture/sum seeds,
+maintained-column/device adoption and the new CLI advice regressions. The
+original 5× target remains unmet. Online adoption remains design-only; §8.6 of
+LLP 3000.026 retains the separate snapshot/catch-up recommendation.
+
+Advice now counts retirement rows/index entries and explicitly warns that their
+additional pause is unestimated, including retirement-only changes. The modeled
+build work says “up to” at measured eb1000 rates; its subtotal is not a floor or
+an SLO. Builder advice and `guide maintains` disclose the cache control and RSS.
+The [Round 1 report](./reports/20261004-ap-adoption-pause/REPORT.md#round-1--refusal-order-memory-and-complete-pause-advice)
+retains the failed exploratory probe, accepted timing pairs and memory evidence.
+
+Round-1 qualification remains **red for the full client suite**. After fixing a
+stale guide definition/action pin (112 guide tests pass), two complete suites
+finished with client-stage failures: one worker readiness fetch in 2,038 s, then
+five transport and two assertion failures in 2,049 s. Both passed all 299 Rust
+binaries / 1,012 executions and doctests, nine fixtures, all 79 serial models,
+and every build/typecheck/docs/release stage. The worker case and its whole
+61-test file passed focused reruns. The second run's seven failing files then
+passed against both the retained pre-AP release CLI and the candidate debug CLI:
+89 tests each, including all 600 search seeds. These controls do not replace a
+green full suite or establish a cause. No retry workaround was added; the
+[follow-up ticket](../issues/20261004-snapback4-intermittent-client-suite-failures.md)
+and report preserve both complete failures and the controls separately.
+Wasm remains byte-identical at 2,116,457 B raw / 639,750 B gzip; its budget and
+recorded macOS allowance are unchanged. No macOS execution is claimed.
+
+Final reference audit: zero errors and unchecked references. Private stores and
+remaining scratch artifacts were removed; disk use is 40.06 GiB.
+Local commit only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-04 — AP round 2: surviving-table retirement advice
+
+Completed pause advice for reused timeline names and dependent targets,
+aggregate/private/recount/basis cleanup, replaced indexes, read-through
+expiry/recapture, parent mirrors, cap resets and asset-home retirement. Definite
+predecessor populations are counted once; conditional work explicitly warns
+that its pause is unestimated. Legacy sum/cap repairs are visible without a
+schema delta. Activation is unchanged. All 419 affected tests and the nested
+allocation probe pass (one existing ignore), including held-writer and stopped
+`check` database/WAL byte comparisons; guide budget and reference checks pass.
+No full-suite or timing rerun for this advice-only round. See the
+[Round 2 audit](./reports/20261004-ap-adoption-pause/REPORT.md#round-2--retirement-and-rewrites-inside-surviving-tables).
+
+## 2026-10-04 — AP round 3: deadline rewrite advice
+
+Unchanged read-through tables now say activation rewrites their stored rows to
+recompute deadlines, with a separate unpriced rewrite count. Affected tables,
+including inherited-expiry changes, keep the time-dependent deletion warning.
+Activation is unchanged. All 23 core adoption and 87 CLI check tests pass,
+including plain/JSON advice and live/stopped-store database/WAL byte checks;
+the reference audit and diff check pass. See the
+[Round 3 note](./reports/20261004-ap-adoption-pause/REPORT.md#round-3--distinguish-deadline-rewrites-from-retirement).
+
+## 2026-10-04 — AP round 3 documentation follow-up
+
+Aligned `guide maintains`, `N_ADOPTION_PAUSE`, LLP 3000.019 §3.6 and LLP
+3000.000 with the reviewed implementation: unaffected read-through tables
+rewrite every stored row to recompute deadlines, counted exactly and separately
+from affected tables' time-dependent deletion subsets. Both pauses remain
+unestimated. Guide card line counts and activation behavior are unchanged.
+All 112 guide tests pass, including card budgets; `ref-check --verbose` reports
+zero errors and unchecked references, and `git diff --check` passes.
+
+## 2026-10-04 — RH: retained history cannot publish an ahead empty server page
+
+Closed the retained-history transient-empty ticket. A leave could commit at
+server sequence 5 while the device still held 25 current rows at watermark 4;
+the ordinary unknown-coverage fallback published the authorized server empty
+before the device applied the leave and routed to retained history.
+
+Held-apply tests reproduce that order on both wasm and process without load:
+the unchanged router failed all ten repetitions per host. The router now
+compares retention-sensitive whole-server replies with applied device state.
+Ahead empty/structured replies preserve permitted local history as incomplete
+and stale, or loading; positive server pages remain useful provisionally.
+Sync reroutes after application, including an empty catch-up page. Known
+retained compositions retain current-row refresh and value deadlines; explicit
+refusals and every publication fence remain authoritative. No new polling,
+catch-up wait, delivery authority or retention allowance was added.
+
+The original R5 no-empty assertion remains. Six real-host cases cover held
+leave, stalled leave and empty catch-up; 36 evaluator cases cover routing,
+fast paths, cache custody and await fences. The complete retention file passed
+**30/30 under four CPUs plus one CPU hog: 2,220 cases**. Routing/publication
+checks passed 342/342; decorated/ordinary-history checks 107/107; reset checks
+60/60. The full suite passed with **zero failures in 2,251 seconds**, including
+all 312 client files and both full-count models. A separate inherited expiry
+fixture race was proved on the base (3/100) and isolated by parking its feed
+from startup, preserving explicit sync and the strict two-evaluation assertion.
+R5 and RH continue using the live feed. Reset mocks now include their real
+protocol counterpart's sequence; their assertions are unchanged.
+
+Ordinary complete-local and online-only paths add no device calls. Paired
+600-trial-per-host/mode measurements show pooled ordinary p50 shifts of at most
+0.14 ms; the uncertain retained fallback's time to a complete answer is
+measured separately. Wasm stays **639,750 B gzip / 639,887 B budget**, preserving
+the full 130 B macOS allowance. Sampled worktree usage stayed below 16 GB.
+Only eb1000 and this worktree were used; no push or publication.
+
+Updated LLP 3000.028 §3.2 with matching pointers in LLP 3000.013 and 3000.001.
+The [report](./reports/20261004-rh-retained-history-order/REPORT.md) holds source
+hashes, raw qualification/latency evidence and the diagnostic failures corrected
+before the final run. [Resolved ticket](../issues/closed/20260929-snapback4-retained-history-transient-empty.md).
+
+## 2026-10-04 — RH round 1: bind retained routing to the evaluation transaction
+
+Astra rejected round 0's transport-cut shortcut: a different process could
+apply leave after local evaluation without advancing this reader's authority
+revision. Ordinary non-blank search also had a separate unguarded publication
+path. Both defects reproduce on wasm and process without load. The rebuilt
+round-0 SDK/devices fail all 50 causal controls, including compositions that
+switch to a whole-server route or retain one sibling while another leaves.
+
+Query replies now carry the applied watermark from their read transaction.
+Whole-server routing uses that evaluation's cut, including the second
+observation of a composition. Empty server sibling arrays cannot erase
+permitted device rows while their retained route is unresolved. Search state
+carries its transaction cut and current scopes; the authorized server scope
+opening can prove ordinary routing unchanged without another device call.
+Otherwise search keeps matching rows provisional, or uses its existing bounded
+loading/refusal path. It issues no second HTTP request or continuation and
+resumes one shared meter. Original refusals and publication fences remain.
+
+Updated LLP 3000.028 §§3.2–3.3 and LLP 3000.013 §13.2, corrected the round-0
+report's same-owner assumption, and extended the ticket resolution. The
+[Round 1 report](./reports/20261004-rh-retained-history-order/REPORT.md#round-1--evaluation-cuts-and-ordinary-search)
+records the complete qualification, diagnostics and baseline artifacts.
+
+The final device is 2,117,335 B raw / **639,810 B gzip**, **+60 B gzip** versus
+round 0. Raise the ratchet by **53 B to 639,940 B**, exactly the measured Linux
+artifact plus the retained **130 B macOS allowance**. The new transaction and
+search routing metadata needs these bytes; no runtime ceiling changes.
+Search scope encoding reuses the existing string serializer. An inherited
+attribution omission, independently reproduced on round 0, now admits only the
+`i64` dynamic-envelope scalar; typed containers and non-text decoders remain
+refused. Family/absence checks and the wasm measurement pass on eb1000.
+
+Paired full-artifact live measurements cover 600 mutations per host/mode in
+both creation orders, including ordinary search. Safe paths add no awaited
+host call or round trip; ordinary point pooled p50 increases by at most
+0.117 ms. Tail variation and raw paired differences are preserved, rather than
+claiming zero overhead. No other host was used; nothing is pushed.
+
+Final qualification passed: **30/30** four-CPU hog runs, **3,870 case passes**,
+no failures/cancellations/skips; focused routing/query **395/395**; updated
+continuation probes **14/14**. The final full suite is green in **2085 seconds**:
+4,972 Rust tests + 17 doctests, 6,269 client passes (314 files), 9 fixture tests
+and 79 model cases; existing 33 Rust ignores and 11 client skips remain. The
+first full run identified two cursor assertions that expected publication
+before leave apply; their replacements require partial/stale/no-cursor, then
+verify stable current rows and a changed audience after sync. No product bytes
+changed for that correction. Final hashes match the latency/wasm inputs.
+Largest sampled worktree usage was **21.88 GB**, below 40 GB.
+## 2026-10-05 — SX: catalog inspection and sync-window clarity
+
+Addressed calibration 30's Grok store-inspection and history-window findings.
+`sql '\dt'` / `'.tables'` list application tables and public maintained views;
+`sql '\d messages'` / `'.schema messages'` describe Quarry types/nullability,
+indexes, unique keys and maintained columns. Both show the active generation
+and bounded stored counts: exact through 10,000, otherwise at least 10,001;
+ephemeral counts are unavailable. Catalog reads share one read-only snapshot,
+ignore broken local source and preserve the SELECT authorizer. SQLite metadata
+stays private; refusals now say “`\dt` lists tables; `\d messages` describes one”.
+
+The sync/reads openings and chat/Expo/social starter comments distinguish a
+device's working set from server history, cursor paging beyond the window,
+and offline reads within acquired data. A bounded `check` note points to that
+sentence only for new/changed windows against a populated store; its total
+spans all groups and makes no per-group overflow claim. Guide cards retain
+their line/word caps. LLP 3000.007 §8 records these decisions.
+
+Final scoped checks pass: four SQL catalog tests (populated memory and SQLite,
+10,025 messages, views, timeline privacy and keys), two sync-window tests,
+112 guide tests and 26 rebuilt-CLI client tests. The affected six-file client
+pass also covers starter, horizon and ordinary/retained history behavior.
+The complete suite finished in **2,557 s, exit 1**: all 313 client files
+(6,212 passed, 11 skipped), all 79 serial models, doctests, nine fixtures and
+all build/typecheck/docs/release stages passed. Rust covered 299 binaries /
+1,012 executions; two source-comment fixture mismatches were regenerated and
+their checks passed. The unrelated blocked-stderr recovery test failed once
+and passed an isolated control; its possible stale-record observation is
+recorded in an [open issue](../issues/20261004-snapback4-blocked-stderr-recovery-observation.md).
+That control does not replace the full-run failure. No green full suite is claimed.
+
+Wasm is byte-identical: **2,116,457 B raw / 639,750 B gzip**, SHA-256
+`de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`;
+the 639,887 B budget is unchanged. Reference audit: 527 LLPs, 10,364 refs,
+zero errors/unchecked. Own scratch and failed fixture stores were removed;
+allocation remains below **14.72 GB**, within the 40 GB limit. Work stayed
+on eb1000 in this worktree; no sibling processes or worktrees were modified.
+See the [SX report](./reports/20261004-sx-sql-inspection/REPORT.md) for final
+CLI examples, logs and caveats. Local commit with the requested co-author
+trailer; nothing pushed.
+
+## 2026-10-05 — SX round 1: catalog review corrections
+
+Hide all compiler-owned index names and omit indexes over hidden bookkeeping
+columns; both description aliases now refuse private targets by public parent
+column. Corrected the report's qualified-name claim. All 7 SQL, 89 check,
+112 guide and 203 affected client tests pass; 18 CLI probes, reference audit
+and unchanged wasm hash recorded in the [Round 1 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-1--generated-indexes-and-private-target-descriptions).
+No full-suite rerun for this catalog-only change; round 0's red remains recorded.
+Scratch removed, disk below 14.84 GB. Local commit only; nothing pushed.
+
+## 2026-10-05 — SX round 2: record index provenance at the source
+
+Persist source-declared index identities before expansion; catalog origin now
+uses that record, with unknown provenance for legacy generations. Both starter
+schemas have a complete index census. All 9 SQL, 89 check, 112 guide and 13
+schema/corpus compatibility tests pass. Wasm differs only in three panic-line
+bytes (+1 B gzip), within the unchanged budget. See the [Round 2 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-2--source-provenance-for-every-index).
+Scratch removed, disk 15.09 GB. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — SX round 3: preserve legacy schema bytes
+
+Move index provenance to an atomic catalog side record; exclude its transient
+compiler input from schema serialization, equality and hashes. Main-produced
+capability-free bytes and populated-store reopen now have Linux regressions;
+metadata-only adoption keeps generation 1. Both starter censuses remain exact.
+11 SQL, 89 check, 112 guide, 5 core schema, 11 core capability, 41 store/adoption,
+1 durable-byte and 3 client capability tests pass; 4 Darwin witnesses await the
+operator's rerun. Wasm is unchanged from round 2; disk below 16 GB. See the
+[Round 3 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-3--restore-the-published-engine-compatibility-fence).
+Local commit only, with the requested co-author trailer; nothing pushed.
+
+## 2026-10-05 — OP: live publication through covered evidence
+
+Implemented in the client on eb1000, based on main `ed327e5dc7`. A matching
+server reply was repeatedly rejected after decoding because notification,
+change and published-apply evidence advanced authority/change versions; it
+finally published in an evidence-free interval. Current-main traces retain
++16.9 → +799.6 ms and +41.6 → +1,123.7 ms examples.
+
+LLP 3000.023 §10 now permits a whole-server reply to cover repeated sequenced
+evidence, with a separate unchanged-input proof for local components. Every
+external component independently covers server evidence. Prediction admission
+is fenced before its first await; scope removal still withdraws immediately.
+Store/session changes, unpublished cuts, retained routing, expiry, remembered
+recovery and unaccounted watch-version advances keep their fences. No new
+await, network request, queue capacity, retry timer or retention budget.
+LLP 3000.016 §2.2 and 3000.028 §3.2 record the routing boundary.
+
+LU's three-browser 1,000-history/refollow fixture, 30 trials per cell: final
+idle repost p95 is **105.5 ms**, and an adjacent baseline/final repeat is
+**709.4 → 81.0 ms**. Repost and message improve across the measured loads;
+reaction and ordinary browser tails vary, with the full tables retained.
+A paired ordinary-client control measures 600 same-mutation samples per
+host/mode; the largest p95 increase is 0.832 ms, while server-only p95 improves
+by about 2 ms. This is fixture evidence, not a calibration rescore.
+
+Thirty four-CPU hog repetitions pass: **16,950 cases**, zero failures,
+cancellations or skips; all owned hogs are reaped. Focused checks pass
+**697/697**. The first full suite caught twelve callback-boundary failures:
+a covering cut had wrongly excused direct watch-version changes. The final
+accounting fence and two negative controls correct that gap. An existing
+compiler mutation's source anchor was updated without relaxing its assertion.
+The full suite passes in **2,264 seconds**: 5,002 Rust tests + 17 doctests, 6,315 client passes (318 files), 9 fixture tests and 79 model cases. Existing 33 Rust ignores and 11 client skips remain; no counts or timeouts were reduced.
+
+Wasm remains **2,117,335 B raw / 639,810 B gzip** under the unchanged
+**639,940 B** ratchet, preserving **130 B** for macOS; no macOS host was used.
+Measured and qualified SDKs match all 240 frozen files. Sampled worktree peak
+was **16.89 GB**, below 40 GB. The publication ticket is resolved; no push
+or publication was performed. [Report](./reports/20261004-op-observation-publication/REPORT.md).
+
+
+## 2026-10-05 — OP round 1: retained publication and queued prediction fences
+
+Follow-up to c43a86a440 after Astra READY and Grok READY WITH CHANGES. A
+retained composition could choose provisional routing before an empty-footprint
+catch-up, then publish it afterward because its local inputs were unchanged and
+its server cut already covered the apply. The client now records published
+watermark progress at the commit callback and sync publication, and rejects a
+retained route whose evaluation watermark is behind that floor. Repeated equal
+watermarks coalesce. Every apply also schedules retained-sensitive watches,
+including local watches without server provenance or a pending change cut.
+The existing shared-store transaction checks, scope withdrawals and separate
+local/server proofs remain; this adds no query await or new server authority.
+
+Queue discovery now fences earlier candidates when predictable, unobserved
+write identities/footprints change, including unknown footprints and another
+write to the same table. Identical queue reads coalesce. This covers nonempty
+local answers between their pending check and prediction admission; fresh local
+evaluations of admitted predictions remain publishable. LLP 3000.016 §2.2,
+3000.023 §10 and 3000.028 §3.2 state the final behavior, including advancing
+empty notifications and the separate retained-routing watermark floor.
+
+Five deterministic cases and two process/wasm controls fail against round 0.
+The final publication file passes 43 cases; four new real-device regressions
+cover late catch-up and empty-apply retained resumption on both hosts. Ten
+confined four-CPU repetitions with owned hogs pass **6,620 cases**, no failures,
+cancellations or skips. All hogs were reaped before the full suite, which passes
+in **2,292 seconds**: 5,002 Rust tests + 17 doctests, 6,326 client passes across
+318 files, nine fixture checks and 79 final model cases. Existing 33 Rust ignores
+and 11 client skips remain; no test count or timeout was reduced.
+
+Three alternating round-0/round-1 browser pairs, 30 writes per idle cell per
+SDK, retain the 1,000-history/refollow starvation fix. Round-1 repost p95 is
+121.0, 113.8 and 96.0 ms; pooled **106.2 ms**, versus **105.3 ms** at round 0.
+Message p95 improves; reaction p95 rises about 5 ms. This short repeat does not
+establish universal browser-tail nonregression or repeat the heavy controls.
+
+Wasm is unchanged at **2,117,335 B raw / 639,810 B gzip** under the **639,940 B**
+cap, preserving the **130 B macOS allowance**. All 238 rebuilt SDK files match
+the frozen measurement input. Sampled disk peak is **18.83 GB**, below 40 GB.
+Only eb1000 and this worktree were used. The original ticket remains resolved;
+nothing was pushed. [Round 1 report](./reports/20261004-op-observation-publication/REPORT.md#round-1--review-corrections-2026-10-05).
+
+## 2026-10-05 — OP round 2: fence overtaken queue discovery
+
+Fixed Astra's remaining Low on a759ded99a: every completed queue read now
+fences newly discovered predictions, even when disjoint evidence overtook it;
+the revision guard still prevents stale snapshots from replacing cached state.
+This restores pre-OP main's protection for the six reported interleavings,
+which its unconditional authority check rejected. Added all six on both process
+and wasm, plus expiry-retry, final-callback and coalescing/state controls.
+Ten confined hog repetitions pass **7,610 cases**, no failures, cancellations
+or skips. One 30-trial idle browser run retains **104.7 ms repost p95**.
+Wasm remains byte-identical at **639,810 B gzip**, with the **130 B macOS
+allowance** intact; disk peaked at **18.87 GB**. Only the prediction fence
+changed in product code, so the full suite was not repeated under the round-2
+instruction. LLP 3000.016 §2.2 and 3000.023 §10 distinguish discovery from
+state installation. Only eb1000 was used; nothing was pushed.
+[Round 2 report](./reports/20261004-op-observation-publication/REPORT.md#round-2--overtaken-queue-discovery-2026-10-05).
+
+
+## 2026-10-04 — FC: settled own Following bursts and the calibration reader
+
+On eb1000 only, traced calibration #30 d-01 to its actual reader:
+`grading/dbg3.mjs` writes as Alice and queries Bob. Published npm 0.4.12 and
+main baseline `1c18847b79` both pass three unpaced 25-write own bursts on online,
+process and wasm clients, plus immediate checks after every individual write.
+Changing only the reader to Bob fails the published control at 3/25. The
+fresh-client check in the grader occurs after 18 seconds, not simultaneously.
+No own-write fixing commit exists in this investigation: `timeline_deliver`
+already commits the actor's copy with the source, before foreign queue service
+(the mechanism predates 0.4.12, including `e3355db795` and `18c402220d`).
+
+Added six client regressions and an engine witness with all background delivery
+held, two-page count/order checks and timestamp ties. Updated LLP 3000.016 and
+referenced it at the existing own-copy path. Closed the
+[own-burst investigation](../issues/closed/20261004-snapback4-following-own-burst.md).
+Runtime behavior, slots, floors, withdrawal and follower scheduling are unchanged.
+The separate follower-throughput ticket remains open. Three-sample main follower
+completion ranges before / final-artifact run were online 87.58–146.09 /
+91.00–138.47 ms, process 58.84–143.67 / 63.29–145.34 ms and wasm 34.85–554.26 /
+30.74–309.42 ms, including preceding queries and polling on a shared host;
+these are not tail percentiles or production-profile comparisons.
+
+Affected client tests: 52/52. Language Following and whole-guide targets:
+171 passes (112 guide), two existing ignores; additional device/CLI Following
+checks and the new engine witness: 94/94. Final-source wasm is **2,116,457 B raw /
+639,751 B gzip**, below 639,887 B; the comment's line shift adds one gzip byte to
+the baseline artifact. All six own-write tests pass again on that artifact.
+Reference audit and whitespace checks pass.
+
+Ran `snapback4/scripts/test.sh` exactly once. Verbatim summary:
+`== 1 failure(s) in 3242 s` (cargo test). Rust: 4,972 passes, one failure,
+33 existing ignores, plus 17 passing doctests. All 312 client files pass
+(6,210 tests, 11 skips), as do all 79 serial model checks. The sole failure,
+`w11_why_every_registered_code_returns_its_dedicated_section`, is confirmed
+[shared-target CLI interference](../issues/20261004-snapback4-shared-target-cli-interference.md):
+the test's linked guide expects FC's card while the mutable external CLI prints
+another lane's revised search card. FC's pinned CLI still prints the expected
+card. This run remains red; no equality assertion was weakened. No other
+failure occurred.
+
+Evidence and package hashes: `~/sb5-lanes/fc-artifacts/`; operator report:
+`~/sb5-lanes/fc.report.md`. Cargo used the prescribed external target; no target
+was symlinked into this tree. Local commit only; nothing pushed or published.
+
+
+## 2026-10-05 — FC Round 1: equal-time ordering and mounted own bursts
+
+Addressed Grok's Low and Astra's reactive-coverage note on `f98d851ec1`.
+The deterministic engine witness now inserts each equal-`at` cohort
+id-ascending and still requires `(at, id)` descending. The 20-row boundary
+splits the `at = 3` cohort between `p005` and `p004`; stable time-only ordering
+cannot satisfy the oracle. Its comment and LLP 3000.016 state exactly this.
+
+Added process and wasm cases with one `home` observer mounted before a
+25-write burst. Every mutation must settle sent; the same subscription must
+then publish all 25 ids newest first, with complete cards and revalidation
+finished. Only callbacks update the asserted answer. The mounted fixture uses
+a 25-row home page; the existing pagination witnesses keep 20-row pages.
+A temporary built-client mutation delivering the initial answer but suppressing
+later callbacks failed both cases at the intended live-answer wait, retaining
+an empty answer. Restored the client artifact before the broader tests.
+No runtime code, delivery policy, floor, slot or publication rule changed.
+
+Verification: all eight own-write client tests passed five times, and the
+engine witness passed five times. Broader Following clients: 54/54. Language
+Following and guide: 172 passes, including 112 guide checks, with two existing
+ignored scale witnesses. Device: 49/49; CLI: 44/44. The declared-guard census
+passes all 315 client/fixture files. The existing pinned CLI and wasm match
+the Round 0 artifact hashes; Cargo used the prescribed external target with
+incremental compilation disabled. The complete battery was not rerun.
+
+Evidence: `~/sb5-lanes/fc-artifacts/round1/`; report: Round 1 in
+`~/sb5-lanes/fc.report.md`. Local commit only, with the requested Astra
+co-author trailer; nothing pushed or published.
+
+## 2026-10-04 — IS: in-chat search in conversation order
+
+Reproduced calibration #30's named conversation/ordinal search on main
+`1c18847b79`: lane MS had already improved the refusal to
+`E_QUARRY_MATCHING_INDEX`, explaining the plain index and printing the
+`.ordinal` rewrite. The full builder schema now compiles with its original
+`matching q last 20 by byConversationOrdinal after c`, including chat-title
+and sender-name decorations.
+
+A declared plain unique index now supplies an ordinary matching page's order
+before search/browse variants expand. Named and positional scope keys must
+cover its leading prefix. Existing planning supplies the scoped words index;
+the unique constraint remains intact. This changes the compiler only: no
+runtime search, cursor codec, coverage, authority or meter ceiling changes.
+LLP 3000.007 §18.1 records the decision and the implementation references it;
+LLP 3000.013 §2.3 and LLP 3000.028 §3.3.1 retain the planning and decoration
+contracts. The search card uses the named conversation/ordinal recipe and
+teaches its equivalent column ordering, live cursors and acquired-history limit.
+
+The affected checks pass: nine compiler regressions, all 112 guide tests,
+four device tests (including the twelve-case reopened memory/SQLite horizon
+matrix), and a 10,000-message chat on process and wasm devices, online and
+offline. The scale oracle traverses all 270 multi-term matches in both
+directions without repeats, checks decorations against bare page facts, and
+preserves cuts under the default meters. Exact examined/index/heap admission
+boundaries remain incomplete one unit below the threshold. Broad residual
+search can still reach the existing heap or examined limit; its HTTP heap-cut
+loading outcome and SDK E_QUERY_RETRY also match the column-order control.
+
+Ran `snapback4/scripts/test.sh` once on eb1000, CPU affinity 48–71, with the
+requested external Cargo target and package SQLite build flag. Verbatim:
+`== 0 failure(s) in 2552 s`. Rust: 4,976 passed, 33 existing ignores, plus
+17 passing doctests. Client pool: all 312 files passed, 6,206 tests passed,
+11 existing skips, no failures/cancellations. Nine fixture-wrapper tests and
+all 79 serial model tests passed. Every build, typecheck, release guard,
+docs budget and wasm budget passed; there are no failures to classify.
+
+Wasm is 2,116,457 B raw / 639,750 B gzip, under the unchanged 639,887 B cap
+(137 B headroom). No budget increase or macOS measurement. Search card:
+403/405 lines. Regular artifact copies satisfy the canonical scripts' hard-coded
+target paths; no target symlink was created. Reference checking and whitespace
+validation pass. The requested report and raw evidence are at
+`/home/ccheever/sb5-lanes/is.report.md` and `is-evidence/`. Work stayed on eb1000;
+local commit only, no push or publication.
+
+## 2026-10-05 — IS round 1: named search review corrections
+
+Folded both complete round-0 blind reviews. A refused plain unique prefix
+now names its missing leading column and offers no rewrite; the old
+unpinned-complement suggestion and the why-card's scope-preservation claim
+are gone. Valid prefixes normalize without `first`/`last`, so the ordinary
+bound diagnostic asks for a page or cap, and a declared cap works. The
+selected unique index survives normalization and disambiguates the generated
+browse branch when it remains compatible after planning. LLP 3000.007 §18.1
+now says named keys sit inside the leading prefix and omitted keys order by
+the whole index. No runtime, cursor, authority or meter change.
+
+Four new compiler assertions fail on unchanged `c4220a9e6e` production
+source at the reported failures. The shared composite-order fixture has tied
+buckets, reversed ordinal/ID order, page size two, a suffix-column equality,
+column-order controls, empty browsing and both directions. It runs on the
+server, reopened memory/SQLite devices, and HTTP/process/wasm clients.
+The reviewers' deliberate `order_keys.truncate(1)` mutation now fails the
+compiler, server and both process/wasm device assertions: `[m3,m5]` replaces
+`[m3,m4]` on the first page. The probe was removed before qualification.
+
+Final qualification on eb1000: compiler 1,475 passed/11 existing ignores,
+including all 112 guide tests and 13 matching-order regressions; matching-order
+devices 6/6; in-chat clients 4/4, including both 10,000-message process/wasm
+cases and their 270-hit traversals. CLI/package builds and docs budget pass.
+The initial device build stopped before tests with ENOSPC in the shared Cargo
+target. Removed 32 completed compiler-test executables from this run (8.33 GB),
+then the unchanged device command passed. Both attempts and the exact cleanup
+list remain in `is-evidence/`; no source or other worktree was removed.
+
+Canonical wasm is 2,116,457 B raw / 639,751 B gzip under the unchanged
+639,887 B cap. That is one gzip byte above round 0; no byte-identity or macOS
+claim. The [Round 1 report](/home/ccheever/sb5-lanes/is.report.md#round-1--fold-both-blind-reviews)
+records each review disposition, baseline failures, mutation evidence, final
+commands and artifact digest. No tests, workloads, timeouts or ceilings were
+weakened. Local commit only; nothing pushed or published.
+
+## 2026-10-04 — NP2: a proposed cross-lane native calibration protocol
+
+[LLP 0201.000](../llp/0201.000-cross-lane-native-app-protocol.rfc.md) is Review:
+reuse the kit's native IDs, add stable row/navigation identity and a passive
+observation stream, and run the frozen eight-step M6 plus separate M8 sequence
+through an instrument-owned driver. It proposes a new prompt/version and an
+explicit series break, for Charlie to rule on. LLP 0201 owns the instrument;
+LLP 3000.013 governs Quarry forms and preserves the current freeze.
+
+The [NP2 report](./reports/20261004-np2-native-protocol/REPORT.md) audits Grok
+cal30's existing source: 16/16 relevant legacy IDs are present; fixture and
+observation hooks are absent. On a scratch copy on the Apartment mini, the
+Release app plus external XCTest runner built in 128.95 s. The installed app
+crashed before sign-in with `Unsupported top level event type
+"topContentSizeChange" dispatched`; direct online and offline launches repeated
+it. Zero of eight steps qualify; only step 1's unprimed process/recording
+mechanics completed. No app TS/TSX or kit was edited to make the probe pass.
+Static blockers also include an ordinary-image viewer placeholder and missing
+message-result navigation. Logs, hashes and a diagnostic video are retained.
+
+The old "16 simulator assertions" count combines seven native M6 and nine
+unrun M7 day-two assertions. M7 has no simulator-tagged assertion; two additional
+native obligations are in M8. The proposed native coverage gain is nine, not
+eighteen. The open ticket now carries that correction without rewriting history.
+No frozen file, prompt, packet or score changed. Only the dedicated mini
+simulator was used, over SSH; its probe apps and scratch files were removed and
+its pre-existing boot state retained. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — RF: wait for the retirement fence as bounded setup
+
+The serve retirement failure was a fixture timing assumption. The supervisor
+checks workers on an independent loop with a 100 ms park; rotation stops the
+child (up to two seconds of grace) before attempting retirement. The contract
+fences before a failed deletion returns, with no two-second deadline from a
+clock advance. Replaced the fixed loop with the existing 60-second setup
+barrier, preserving every credential, manual-seat and replacement assertion.
+A new regression delays the first retirement turn by 2,200 ms for both named
+and conventional workers. Production code and wasm budgets are unchanged.
+The serve/adoption audit found no other matching short supervisor setup wait.
+
+On eb1000, confined to sampled idle CPUs: the original and fixed tests each
+passed 50/50 with a CPU hog. With the same injected delay and hog, the original
+wait failed 50/50 at the reported fence assertion and the fixed regression
+passed 50/50. Affected serve checks passed 181 tests with four existing ignores.
+The complete suite finished in 5,871 s with one failure: native witness cleanup
+returned `E_WITNESS_PROCESS: invalid /proc process group`, the signature of the
+existing open inspection issue. Three isolated controls per original/fixed
+binary and the entire original CLI unit target passed; they do not erase the
+suite failure or establish its precise cause. All 320 client files and both
+serial model files passed. The [RF report](./reports/20261005-rf-retirement-fence-wait/REPORT.md)
+records commands, contracts, audit dispositions, controls and raw evidence.
+Wasm rebuilt below its unchanged budget; the worktree remained below 40 GB.
+Local commit only; nothing pushed or published.
+
+
+## 2026-10-05 — NZ round 12: integrate current main for 0.4.14
+
+Merged main `8bd933cd2d` into reviewed NZ `67a29a10b0` as a two-parent merge.
+Both journal histories and LLP revision entries survive. Main's complete-line
+barriers, FX/FY cleanup helper, DG worker/starter guidance, RH/OP client changes,
+SQL catalog docs and `watermark` fence assertions remain. Retained-history
+teardown releases main's held apply and preserves NZ's stop-before-delete order.
+NZ's export, retention, WD cleanup and preparation deadlines are unchanged.
+RPF's all-zero reservation omission supersedes NZ's old fence workaround:
+main-only and corrected merged Darwin fences both pass 7/7. The initial four
+assertion failures and their classification are retained. A cached wasm overrun
+also disappears after rebuilding this lane's complete wasm profile: main and
+merged bytes match at 639,941 B gzip. NZ adds zero bytes; the cap remains Linux
+639,811 B plus the 130 B macOS allowance.
+
+Affected checks pass 68 witness units, 77 witness integrations, 179 export/
+witness/preparation tests, seven Darwin fence tests and 120 merge controls.
+The full mini suite passes with zero failures in 2,869 s: 5,090 Rust tests plus
+doctests (33 existing ignores), nine fixture tests, all 321 client files with
+6,469 passes / six existing skips, and 79 full-count model tests. All 209 source
+hashes remained unchanged. Reference and NZ-delta whitespace checks pass; main's historical log whitespace is retained. Closed NZ's release
+activation crash-cut ticket because main FY supplies the witnessed pre-chunk
+stop; the separate unexplained ephemeral-expiry intermittency stays open.
+No real device was created; prior owned devices are absent and fixture custody
+is drained. Only this mini and an NZ-owned main comparison snapshot were used.
+Nothing pushed or published; 0.4.13 staging/version files were not changed.
+Details and hashes: [Round 12 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-12--integration-2026-10-05).

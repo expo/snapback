@@ -1,0 +1,36 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-04 10:34:14.576 E  Clique[7357:18e1e12] [com.facebook.react.log:javascript] [Error: Unsupported top level event type "topContentSizeChange" dispatched]
+2026-10-04 10:34:14.576 E  Clique[7357:18e1ee7] [com.facebook.react.log:native] Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched
+2026-10-04 10:34:14.585 Df Clique[7357:18e1ee7] (CoreFoundation) *** Terminating app due to uncaught exception 'RCTFatalException: Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched', reason: 'Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched, stack:
+extractEvents@122941:73
+anonymous@122999:72
+batchedUpdatesImpl@128425:15
+batchedUpdates$1@122967:31
+dispatchEvent@122989:20
+'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001c0287f24 __exceptionPreprocess + 172
+	1   libobjc.A.dylib                     0x00000001c008194c objc_exception_throw + 72
+	2   React                               0x000000010798f814 RCTGetFatalHandler + 0
+	3   React                               0x0000000107c08bb4 -[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:] + 512
+	4   React                               0x0000000107c095f0 -[RCTExceptionsManager reportException:] + 2292
+	5   CoreFoundation                      0x00000001c028e840 __invoking___ + 144
+	6
+2026-10-04 10:36:16.341 E  Clique[9701:18e71de] [com.facebook.react.log:javascript] [Error: Unsupported top level event type "topContentSizeChange" dispatched]
+2026-10-04 10:36:16.342 E  Clique[9701:18e71d8] [com.facebook.react.log:native] Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched
+2026-10-04 10:36:16.347 Df Clique[9701:18e71d8] (CoreFoundation) *** Terminating app due to uncaught exception 'RCTFatalException: Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched', reason: 'Unhandled JS Exception: Error: Unsupported top level event type "topContentSizeChange" dispatched, stack:
+extractEvents@122941:73
+anonymous@122999:72
+batchedUpdatesImpl@128425:15
+batchedUpdates$1@122967:31
+dispatchEvent@122989:20
+'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001c0287f24 __exceptionPreprocess + 172
+	1   libobjc.A.dylib                     0x00000001c008194c objc_exception_throw + 72
+	2   React                               0x0000000103437814 RCTGetFatalHandler + 0
+	3   React                               0x00000001036b0bb4 -[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:] + 512
+	4   React                               0x00000001036b15f0 -[RCTExceptionsManager reportException:] + 2292
+	5   CoreFoundation                      0x00000001c028e840 __invoking___ + <…>

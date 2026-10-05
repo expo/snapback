@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from 'node:test';
@@ -39,11 +40,17 @@ function sameAnswer(actual,published,message,operation='query') {
   const neutral=v=>v===null||v===false||(Array.isArray(v)&&v.length===0)||(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0);
   if(actual?.ok&&published?.ok&&typeof actual.ok==='object'&&typeof published.ok==='object'&&!Array.isArray(actual.ok)) {
     const ok={...actual.ok};
-    for(const key of Object.keys(ok)) if(key!=='scopes'&&!Object.hasOwn(published.ok,key)&&neutral(ok[key])) delete ok[key];
+    for(const key of Object.keys(ok)) if(key!=='scopes'&&key!=='watermark'&&!Object.hasOwn(published.ok,key)&&neutral(ok[key])) delete ok[key];
     actual={...actual,ok};
   }
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
     const {scopes:_scopes,...rest}=actual.ok;actual={...actual,ok:rest};
+  }
+  // Lane RH (LLP 3000.028 §3.2): current engines report the applied watermark of the
+  // transaction that evaluated an answer; published engines predate the field.
+  if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'watermark')&&!Object.hasOwn(published.ok,'watermark')) {
+    assert.ok(Number.isSafeInteger(actual.ok.watermark)&&actual.ok.watermark>=0,`${message}: a current answer reports its applied watermark`);
+    const {watermark:_watermark,...rest}=actual.ok;actual={...actual,ok:rest};
   }
   assert.deepEqual(actual,published,message);
 }
@@ -76,9 +83,9 @@ const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: co
 const fixtures=[
   {name:'timeline-v2',capabilities:['timeline-event-slots','timeline-v2'],source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
-  {name:'recorded-attribution',source:recorded,plain:ordinary,
+  {name:'recorded-attribution',capabilities:['recorded-attribution','source-write-reservations-v1','source-write-reservations-v2'],source:recorded,plain:ordinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},
-  {name:'maintained-column',source:maintained,plain:ordinary,freshStore:true,
+  {name:'maintained-column',capabilities:['maintained-column','source-write-reservations-v1','source-write-reservations-v2'],source:maintained,plain:ordinary,freshStore:true,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:1},
 ];
 function storedSchema(path) {
@@ -112,7 +119,6 @@ const ok=reply=>{assert.ok(Object.hasOwn(reply,'ok'),JSON.stringify(reply));asse
 const unknown=/unknown variant [`'"]?Capabilities/;
 const storedUnknown=/E_STORE: (?:invalid stored schema: )?unknown variant [`'"]?Capabilities/;
 const capabilityCode=/"code"\s*:\s*"E_SCHEMA_CAPABILITY"/;
-const reservationCapabilities=['source-write-reservations-v1','source-write-reservations-v2'];
 function markers(schema,expected) {
   const constraints=Object.values(schema.tables).flatMap(t=>t.constraints);
   assert.ok(!constraints.some(c=>c==='Recorded'||c==='Capabilities'),'no legacy or unit carrier');
@@ -136,10 +142,11 @@ async function harness(t) {
     return {...result,replies};
   }
   async function start(bin,cwd,args=['dev','--no-watch','--port','0']) {
-    const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']}),exited=once(child,'exit');children.push({child,exited});
+    const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']}),exited=once(child,'exit');
+    const readStdout = captureStdout(child);children.push({child,exited});
     let log='',stopped=false;for(const stream of [child.stdout,child.stderr])stream.on('data',d=>{log+=d;});
     const assertAlive=()=>{assert.equal(child.exitCode,null,log);assert.equal(child.signalCode,null,log);};
-    const url = await awaitState(() => { assertAlive(); return log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "capability server", { diagnostics: () => log });
+    const url = await awaitState(() => { assertAlive(); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "capability server", { diagnostics: () => log });
     return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
   }
   const request=async(server,path,body,auth={'x-snapback-persona':'alice'})=>{
@@ -159,21 +166,20 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   skip:fenceSkip,timeout:hangBudget(8),
 },async t=>{
   const h=await harness(t),{dir,legacy,current,run,native,app}=h;
-  // Actual published compiler output remains the old-generation baseline.
-  const old=await app('prior',f.plain,f.seed,legacy.binary);
+  const old=await app('prior',f.plain,f.seed);
   await old.server.stop();
   // F1a cannot activate a column on populated storage. Build generation 2
   // on an empty server store, retaining the real prior data for device adoption.
   if(f.freshStore) {
-    const empty=await app('candidate',f.plain,[],legacy.binary);await empty.server.stop();
+    const empty=await app('candidate',f.plain);await empty.server.stop();
   }
   const next=await app(f.freshStore?'candidate':'prior',f.source,f.freshStore?f.seed:[]);
   assert.equal(next.backend.generation,old.backend.generation+1);
   const apply={op:'apply',page:next.page,first:true,viewer:'dev:alice'};
   const entry={id:'offline-write',seq:1,op:f.op,viewer:'dev:alice',args:f.args,now:1000,new_ids:[],predicted:[],predictable:true};
   const admit={op:'admit',entry};
-  // Interrogate the published native device before checking the complete
-  // capability union; exact markers below catch any lost fixture derivation.
+  // This assertion must fail when the fixture's capability derivation is removed:
+  // it interrogates the published native device before inspecting the marker.
   const fresh=join(dir,'legacy-fresh.sqlite');
   const refused=native(legacy.binary,fresh,next.backend,[apply,admit]);
   assert.notEqual(refused.status,0,'published native device accepted unsupported backend');
@@ -181,7 +187,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   t.diagnostic(`${f.name} initial native refusal: ${refused.stderr.trim()}`);
   assert.equal(refused.replies.length,0,'must not predict');assert.equal(existsSync(fresh),false,'decode before creating store');
   assert.throws(()=>new legacy.wasm(JSON.stringify(next.backend),'[]'),unknown);
-  markers(next.backend.schema,[...reservationCapabilities,...(f.capabilities??[f.name])].sort());
+  markers(next.backend.schema,f.capabilities??[f.name]);
   const unmarked=structuredClone(next.backend);
   for(const table of Object.values(unmarked.schema.tables))table.constraints=table.constraints.filter(c=>!c?.Capabilities);
   const unfenced=native(legacy.binary,join(dir,'unmarked.sqlite'),unmarked);
@@ -286,7 +292,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // New engine also refuses unknown capabilities when reopening persisted state.
   const db=new DatabaseSync(store);
   const storedSchema=JSON.parse(db.prepare('SELECT schema FROM _generations ORDER BY generation DESC LIMIT 1').get().schema);
-  markers(storedSchema,[...reservationCapabilities,...(f.capabilities??[f.name])].sort());
+  markers(storedSchema,f.capabilities??[f.name]);
   Object.values(storedSchema.tables).flatMap(t=>t.constraints).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
   db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
   db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();
@@ -303,28 +309,21 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   t.diagnostic(`${f.name}: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed`);
 });
 
-test('published 0.2.33 control: authentic capability-free bytes stay compatible; current prices are fenced',{
+test('Linux schema-byte fixture is the published capability-free control source', () => {
+  assert.equal(readFileSync(join(root,'crates/snapback4-core/tests/fixtures/capability-free.q'),'utf8'),
+    'use identity guests\n'+ordinary);
+});
+
+test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
   skip:fenceSkip,timeout:hangBudget(9),
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
   const control='use identity guests\n'+ordinary;
   const newApp=await app('new',control,fixtures[1].seed),oldApp=await app('old',control,fixtures[1].seed,legacy.binary);
   assert.ok(Buffer.isBuffer(newApp.backendBytes));assert.ok(Buffer.isBuffer(oldApp.backendBytes));
-  // @ref LLP 3000.022#14.3 — new output carries explicit source prices;
-  // compatibility belongs to genuine old bytes, never a stripped new backend.
-  const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
-  assert.equal(pinned.length,2950);
-  const priorBackend=JSON.parse(pinned);
-  markers(priorBackend.schema,[]);markers(oldApp.backend.schema,[]);
-  markers(newApp.backend.schema,reservationCapabilities);
-  const refused=native(legacy.binary,join(dir,'current-refused.sqlite'),newApp.backend);
-  assert.notEqual(refused.status,0);assert.match(refused.stdout+refused.stderr,unknown);
-  assert.equal(existsSync(join(dir,'current-refused.sqlite')),false);
-  assert.throws(()=>new legacy.wasm(JSON.stringify(newApp.backend),'[]'),unknown);
-  const currentInstall=native(binary,join(dir,'current-accepted.sqlite'),newApp.backend);
-  assert.equal(currentInstall.status,0,currentInstall.stderr);currentInstall.replies.forEach(ok);
-  const apply={op:'apply',page:oldApp.page,first:true,viewer:'dev:alice'},query={op:'query',name:'posts',viewer:'dev:alice',args:{},now:1000};
-  const path=join(dir,'control.sqlite'),result=native(legacy.binary,path,priorBackend,[apply,query,{op:'adopt',backend:priorBackend},query]);
+  markers(newApp.backend.schema,[]);
+  const apply={op:'apply',page:newApp.page,first:true,viewer:'dev:alice'},query={op:'query',name:'posts',viewer:'dev:alice',args:{},now:1000};
+  const path=join(dir,'control.sqlite'),result=native(legacy.binary,path,newApp.backend,[apply,query,{op:'adopt',backend:newApp.backend},query]);
   assert.equal(result.status,0,result.stderr);result.replies.forEach(ok);
   assert.equal(result.replies.length,5,'opening, apply, query, adopt, query');
   assert.deepEqual(result.replies[2],result.replies[4]);
@@ -332,25 +331,24 @@ test('published 0.2.33 control: authentic capability-free bytes stay compatible;
   const reopened=native(legacy.binary,path,null,[query]);assert.equal(reopened.status,0,reopened.stderr);
   assert.equal(reopened.replies.length,2);reopened.replies.forEach(ok);assert.deepEqual(reopened.replies[1],result.replies[2]);
   for(const Web of [legacy.wasm,current]) {
-    const d=new Web(JSON.stringify(priorBackend),'[]');
+    const d=new Web(JSON.stringify(newApp.backend),'[]');
     const applied=JSON.parse(d.call(JSON.stringify(apply)));ok(applied);
     sameAnswer(applied,result.replies[1],'capability-free apply payload','apply');
     const answer=JSON.parse(d.call(JSON.stringify(query)));assert.ok(ok(answer).data.length);
-    ok(JSON.parse(d.call(JSON.stringify({op:'adopt',backend:priorBackend}))));
+    ok(JSON.parse(d.call(JSON.stringify({op:'adopt',backend:newApp.backend}))));
     assert.deepEqual(JSON.parse(d.call(JSON.stringify(query))),answer);
     const kept=d.drain();d.free();
     const reopened=new Web(undefined,kept);
     assert.deepEqual(JSON.parse(reopened.call(JSON.stringify(query))),answer);reopened.free();
   }
-  t.diagnostic('pinned pre-RP capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed');
+  t.diagnostic('capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed');
   await newApp.server.stop();await oldApp.server.stop();
-  const doctor=run(legacy.binary,['doctor','--store',join(oldApp.cwd,'.snapback4/store.sqlite')],'',oldApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
-  const pricedDoctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);
-  assert.notEqual(pricedDoctor.status,0);assert.match(pricedDoctor.stdout+pricedDoctor.stderr,storedUnknown);
+  const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
   // Supervisor's 0.4 compatibility policy: a 0.4 release requires a 0.4
-  // server. New reservation capabilities make the old server refuse the
-  // stored schema before recompiling; genuine old backends remain readable.
+  // server. Selection facts/indexes/explanations may change the compiled
+  // backend; old devices still accept capability-free backends. An older
+  // server recompiles the source differently and must fail closed unchanged.
   // First serve with the matching server establishes the ordinary release
   // store link and proves the release works before testing the old server.
   const server=await start(binary,newApp.cwd,['serve',release,'--port','0']);
@@ -365,17 +363,30 @@ test('published 0.2.33 control: authentic capability-free bytes stay compatible;
   const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   assert.notEqual(served.status,0);
-  assert.match(served.stdout+served.stderr,storedUnknown);
+  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release/);
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
-  t.diagnostic('published 0.2.33 old-store doctor passed; current-store doctor and mixed-version serve refused capabilities; release/store bytes preserved');
-  // Keep the historical fixture unchanged and tie every field to output from
-  // the actual published compiler, allowing only these pre-RP diagnostic strings.
+  t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
+  // Pin the complete canonical 0.4 backend after the behavioral checks. This
+  // fixture includes the new first-10 site spelling and selection explanation.
+  const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
+  assert.equal(pinned.length,2950);
+  // /schema also reports the serving store's random identity (LLP 3000.007 §20.4),
+  // which is not program content: pin the backend bytes without that last key.
+  const schemaText=newApp.backendBytes.toString('utf8'),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
+  assert.ok(identity,'/schema reports the serving store identity as its last key');
+  assert.deepEqual(Buffer.from(schemaText.slice(0,identity.index)+'}'),pinned,'byte-for-byte canonical capability-free 0.4 backend');
+  const {store_id:_servedStore,...backendProgram}=newApp.backend;
+  assert.equal(JSON.stringify(backendProgram),pinned.toString());
+  // Stored schema uses Rust's field order; /schema uses canonical key order.
+  // Pin its exact change against the real 0.2.33 encoding, allowing only the
+  // two documented diagnostic strings per read site, never structural drift.
   let expectedSchema=storedSchema(join(oldApp.cwd,'.snapback4/store.sqlite'));
   for(const table of ['likes','posts']) {
     expectedSchema=expectedSchema.replaceAll(`(${table}[])`,`(${table}[] first 10)`)
       .replaceAll(`scan ${table} by byId: held, no horizon`,`scan ${table} by byId: held, no horizon; selected byId (); result: page; explicit by`);
   }
+  assert.equal(storedSchema(join(newApp.cwd,'.snapback4/store.sqlite')),expectedSchema,'byte-for-byte stored 0.4 generation schema');
   assert.deepEqual(JSON.parse(expectedSchema),JSON.parse(pinned).schema);
 });
 
@@ -402,4 +413,10 @@ test('published answer comparison admits only neutral additive metadata', () => 
   assert.throws(()=>sameAnswer({ok:{...published.ok,data:[2]}},published));
   assert.throws(()=>sameAnswer({ok:{...published.ok,complete:false,decorationExpiry:null}},published));
   assert.throws(()=>sameAnswer({ok:{complete:true,cut:null,data:[1],tables:['t'],decorationExpiry:null}},published));
+  // Lane RH's applied watermark is a named field, never neutral metadata.
+  for(const watermark of [0,1,4096]) sameAnswer({ok:{...published.ok,watermark}},published);
+  for(const watermark of [null,false,[],{},-1,1.5,'1']) assert.throws(()=>sameAnswer({ok:{...published.ok,watermark}},published));
+  assert.throws(()=>sameAnswer({ok:{...published.ok,watermark:1,data:[2]}},published));
+  sameAnswer({ok:{...published.ok,watermark:3}},{ok:{...published.ok,watermark:3}});
+  assert.throws(()=>sameAnswer({ok:{...published.ok,watermark:3}},{ok:{...published.ok,watermark:4}}));
 });

@@ -59,7 +59,9 @@ async function fixture(t, count = 1) {
       const captured = marker; queryStarts++;
       if (queryGate) await queryGate.promise;
       reads.push(captured);
-      return Response.json(queryUnavailable ? { loading: true } : { data: captured, complete: true, tables: ["messages"] });
+      // The query observes the same committed cut as snapshot()/sync. Real
+      // server replies always carry it; a missing cut is now provisional.
+      return Response.json(queryUnavailable ? { loading: true } : { data: captured, complete: true, tables: ["messages"], seq: 10 });
     }
     if (path.startsWith("/m/")) { if (init.keepalive && exitRefusal) return Response.json({ state: "failed", why: exitRefusal }); sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise;
       if (refuseSecond && sends.length === 2) return Response.json({ state: "failed", why: { code: "SECOND_REFUSED", family: "application", message: "second write refused", retryable: false } });

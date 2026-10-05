@@ -1,0 +1,84 @@
+✔ mixed drain: retained fills page, one invocation, cut retained and server prefix unconsumed (29.082406ms)
+✔ mixed drain stops at its established head even when more retained rows could fill the page (0.420891ms)
+✔ decoder and coordinator cannot reset a nearly exhausted device scan ledger (0.606199ms)
+✔ mixed comparisons exhaust the shared step allowance (time order) (0.708572ms)
+✔ mixed comparisons exhaust the shared step allowance (equal-time Unicode IDs) (0.591346ms)
+✔ mixed delivery withdraws membership race without refetch (0.487311ms)
+✔ mixed delivery withdraws reset race without refetch (0.9605ms)
+✔ mixed delivery withdraws edit race without refetch (0.47304ms)
+✔ mixed delivery withdraws rejoin race without refetch (0.673139ms)
+✔ mixed delivery withdraws expiry race without refetch (0.398468ms)
+✔ state loss needs no server buffer: a fresh coordinator resumes every unconsumed hit (1.091887ms)
+✔ an older device refuses composition explicitly instead of running a partial plan (0.13949ms)
+✔ a current-only page still requires the authorized server audience proof (0.257376ms)
+✔ a device words cut with 0 candidates preserves the proven server stream (1.338657ms)
+✔ a device words cut with 20 candidates preserves the proven server stream (0.741732ms)
+✔ a device meter cut with 0 candidates preserves the proven server stream (0.602413ms)
+✔ a device meter cut with 20 candidates preserves the proven server stream (0.65369ms)
+✔ an unresumable device cut with no server hits refuses instead of publishing an empty dead end (0.277116ms)
+✔ device word cut and server drain retain both constituent limits across continuation (3.016593ms)
+✔ freshness follows emitted rows and two proven exhausted lanes can be complete (1.390735ms)
+✔ a read cut retains rejected charges while every coordinator dimension stays bounded (0.428693ms)
+✔ composition propagates E_INPUT retryable=false without identity refresh (0.189274ms)
+✔ composition propagates E_INPUT retryable=true without identity refresh (0.077176ms)
+✔ composition propagates E_OP retryable=false without identity refresh (0.05979ms)
+✔ composition propagates E_OP retryable=true without identity refresh (0.068984ms)
+✔ composition propagates E_SEARCH_OPEN retryable=false without identity refresh (0.052429ms)
+✔ composition propagates E_SEARCH_OPEN retryable=true without identity refresh (0.048262ms)
+✔ composition propagates E_BOUND retryable=false without identity refresh (0.048363ms)
+✔ composition propagates E_BOUND retryable=true without identity refresh (0.048162ms)
+✔ missing overlap support refuses permanently without publishing retained candidates (0.274682ms)
+✔ complete certifies a bounded page even when the combined next has more rows (0.64022ms)
+✔ full last 86 overlap fits the shared step allowance (3.067689ms)
+✔ full last 100 overlap fits the shared step allowance (3.178576ms)
+✔ oversized overlap proof is rejected before subset work can exhaust steps (0.342513ms)
+✔ merge seen set is defense in depth for a same-page pair unmarked by overlap (0.248272ms)
+✔ exact source-order protocol Asc 9007199254740993 (0.630255ms)
+✔ exact source-order protocol Asc -9007199254740992 (0.235894ms)
+✔ exact source-order protocol Asc 9223372036854775807 (0.229404ms)
+✔ exact source-order protocol Asc -9223372036854775807 (0.221863ms)
+✔ exact source-order protocol Desc 9007199254740993 (0.210546ms)
+✔ exact source-order protocol Desc -9007199254740992 (0.278197ms)
+✔ exact source-order protocol Desc 9223372036854775807 (0.195793ms)
+✔ exact source-order protocol Desc -9223372036854775807 (0.189824ms)
+✔ search routes an ahead reply with membership proof (pending leave: false) (0.30036ms)
+✖ search routes an ahead reply with membership proof (pending leave: true) (3.256043ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"2e2312e4ebf0fbe5b41a59ed0e563653","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"wasm","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ wasm: nonblank search while leave is held (cursor: false) (708.645743ms)
+{"host":"wasm","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"277e26c891439f5bb772458760f500cc","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"wasm","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[{"at":2,"body":"image-2","id":"newest","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ wasm: nonblank search while leave is held (cursor: true) (480.659851ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":3,"store_id":"bfdf949ac79c3a9766b1d34db9bc29a2","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":5240,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":2}
+{"host":"process","cursor":false,"deliveries":[{"n":2,"complete":true,"fresh":true},{"n":2,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"mountedHeld":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ process: nonblank search while leave is held (cursor: false) (285.866639ms)
+{"host":"process","server":{"scopes":{"members":[{}],"messages":[{}]},"searchScopes":[],"searchCurrent":[],"generation":1,"complete":true,"cut":null,"data":[],"next":null,"nextExpiry":null,"seq":4,"store_id":"1dbbde0cb47b05e8270b7dba6f51ebde","tables":["members"],"viewer":"dev:bob","meter":{"cut":null,"examined":0,"heapBytes":84753,"indexEntries":0,"outputBytes":31,"probes":0,"rowsWritten":0,"steps":15}},"deviceWatermark":3}
+{"host":"process","cursor":true,"deliveries":[{"n":1,"complete":true,"fresh":true},{"n":1,"complete":true,"fresh":true},{"n":1,"complete":false,"fresh":false}],"whileHeld":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"},"next":false},"mountedHeld":{"data":[{"at":2,"body":"image-2","id":"newest","room":"room"}],"complete":false,"fresh":false,"cut":null,"next":false,"existence":"present"},"afterRows":1}
+✔ process: nonblank search while leave is held (cursor: true) (485.787239ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 48
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2106.834577
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs:225:38
+✖ search routes an ahead reply with membership proof (pending leave: true) (3.256043ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(spent.heap_bytes > 0 && spent.output_bytes > 0 && spent.steps > 0)
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs:251:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

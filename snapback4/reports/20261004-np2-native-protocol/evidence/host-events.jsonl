@@ -1,0 +1,8 @@
+{"event": "start", "at": "2026-10-04T17:30:13.232242+00:00", "pid": 2869, "birth": "Sun Oct  4 10:30:13 2026", "argv": ["/tmp/np2-native-protocol-20261004/app/node_modules/snapback4-darwin-arm64/snapback4", "dev", "--port", "49481"]}
+{"event": "stop", "at": "2026-10-04T17:34:00.426600+00:00", "pid": 2869, "processAbsent": true, "backendReachable": false}
+{"event": "start", "at": "2026-10-04T17:34:00.506837+00:00", "pid": 7181, "birth": "Sun Oct  4 10:34:00 2026", "argv": ["/tmp/np2-native-protocol-20261004/app/node_modules/snapback4-darwin-arm64/snapback4", "dev", "--port", "49481"]}
+{"event": "stop", "at": "2026-10-04T17:36:54.042364+00:00", "pid": 7181, "processAbsent": true, "backendReachable": false}
+{"event": "record", "at": "2026-10-04T17:36:54.108376+00:00", "pid": 10725, "birth": "Sun Oct  4 10:36:54 2026", "argv": ["xcrun", "simctl", "io", "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B", "recordVideo", "--codec", "h264", "/tmp/np2-native-protocol-20261004/prototype-screen.mp4"]}
+{"event": "offline-check", "at": "2026-10-04T17:36:54.542965+00:00", "backendReachable": false, "appLaunchctlRows": []}
+{"event": "offline-check", "at": "2026-10-04T17:37:07.364375+00:00", "backendReachable": false, "appLaunchctlRows": []}
+{"event": "stop-record", "at": "2026-10-04T17:37:07.661211+00:00", "pid": 10725, "processAbsent": true, "backendReachable": false}

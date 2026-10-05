@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync, openSync, closeSync } from 'node:fs';
 import { once } from 'node:events';
+import { createInterface } from 'node:readline';
 const [prefix, count = '0', cpus = '80-83'] = process.argv.slice(2);
 if (!prefix || !/^\d+$/.test(count) || !/^[0-9,-]+$/.test(cpus)) throw Error('expected OUTPUT_PREFIX [WORKERS] [CPUS]');
 const log = openSync(prefix + '.log', 'w');
@@ -28,7 +29,9 @@ print(','.join(str(w.pid) for w in workers), flush=True)
 signal.pause()
 `], { detached: true, stdio: ['ignore', 'pipe', 'inherit'] });
     metadata.loadGroup = burners.pid;
-    metadata.workerPids = (await once(burners.stdout, 'data'))[0].toString().trim().split(',').map(Number);
+    const output = createInterface({ input: burners.stdout });
+    try { metadata.workerPids = (await once(output, 'line', { signal: AbortSignal.timeout(30000) }))[0].split(',').map(Number); }
+    finally { output.close(); }
   }
   metadata.command = ['taskset', '-c', cpus, process.execPath, '--test', process.env.LM_TEST ?? 'packages/snapback4/test/live-margin-browser.test.mjs'];
   metadata.runs = [];

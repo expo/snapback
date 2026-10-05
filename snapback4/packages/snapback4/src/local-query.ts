@@ -29,14 +29,18 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = ValueDeadlines & { heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = ValueDeadlines & { publicationCurrent?: () => boolean; heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
-type Outcome = Coverage & { decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
+type Outcome = Coverage & { watermark?: number; decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
   current?(): boolean;
+  /** Captured hard evidence fence; only the whole-server route may use it. */
+  serverCurrent?(cut: number): boolean;
+  inputsCurrent?(tables: ReadonlySet<string>): boolean;
+  retainedCurrent?(watermark: number | undefined): boolean;
   revalidate?: boolean;
   serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
   coldRead?: ColdReadControl | undefined;
@@ -102,23 +106,36 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
+  let serverCut: number | undefined;
+  const serverCurrent = env.serverCurrent;
+  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut) === true;
+  const inputsCurrent = env.inputsCurrent;
+  // Keep static and observed authorization dependencies, including branches
+  // not taken. This proof never uses the server cut to validate local rows.
+  const unchanged = () => !searchAttempt && !ephemeral && possible !== null && inputsCurrent?.(tables) === true;
+  const publicationCurrent = () => covered() || unchanged();
+  const retainedRoute = () => !searchAttempt && !!latest && (mayRetain() || latest.outcome.retained
+    || Object.values(latest.outcome.components ?? {}).some(c => c.retained) || hasRetainedRows(latest.outcome.retainedRows));
+  const routeCurrent = () => !retainedRoute() || env.retainedCurrent?.(latest?.outcome.watermark) !== false;
+  let publishingCurrent: (() => boolean) | undefined;
   // The wire omits false provenance, including replies from older devices.
   const placeholder = () => !!latest?.outcome.unknown && !("loading" in latest.result.read)
     && latest.outcome.speculative === true;
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
   const fallback = (): Result<R> => placeholder() ? loading : latest?.result ?? loading;
-  const localCandidate = (): Candidate<R> => ({
+  const localCandidate = (): Candidate<R> => { serverCut = undefined; return {
     // Rule 4 can withhold a value without removing its next expiry wakeup.
     result: { ...fallback(), nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
-  });
+  }; };
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
     const denied = env.unavailable() ?? env.partitionDenied;
     if (denied) throw new Interrupted<R>({ ...loading, read: { denied } });
     checkRead(env.signal);
-    if (env.current && !env.current()) throw new Interrupted<R>(loading);
-    if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
+    if (revision !== env.incarnation) throw new Interrupted<R>(loading);
+    if (!routeCurrent()) { if (watch) watch.dirty = true; throw new Interrupted<R>(loading); }
+    if ((env.current && !env.current() || authority !== env.authority) && !(publishingCurrent ?? publicationCurrent)()) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
   let pendingResult = false;
@@ -135,6 +152,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
+    serverCut = undefined; // Recovery cannot borrow a current server cut.
     if (ephemeral) return { result: { ...loading, transportOffline: env.link === "offline" && !held && !await pending() }, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
@@ -153,6 +171,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     return { origin: "remembered", result: { scopes: last?.scopes, transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null, valueDevice: null, valueServer: last ? valueDeadline(last.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null } };
   };
   const local = async (): Promise<{ outcome: Outcome; result: Result<R> }> => {
+    serverCut = undefined;
     checkpoint();
     const answer = await env.call({ op: "query", name: op.name, viewer: env.principal, args, now: env.deviceNow() }); checkpoint();
     const outcome = (answer.ok ?? {}) as Outcome;
@@ -183,7 +202,15 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         checkpoint();
         const credentials = env.credentialRevision;
         const eph = ephemeral ? env.ephemeralReads.request() : undefined;
-        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph); checkpoint();
+        const response = await env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph);
+        // @ref LLP 3000.023#10 — repeated evidence may already be covered by
+        // this reply. Never promote an old local component or retention route.
+        if (response.ok && !provenance && !ephemeral && !held && !searchAttempt && !mayRetain()
+          && !latest?.outcome.retained && !Object.values(latest?.outcome.components ?? {}).some(c => c.retained)
+          && !hasRetainedRows(latest?.outcome.retainedRows)) {
+          serverCut = [response.json.seq, response.json.head].find(value => Number.isSafeInteger(value) && Number(value) >= 0) as number | undefined;
+        }
+        checkpoint();
         // A refetch within the attempt is a new read for the remembered answers (LLP 3000.018 §3.2).
         if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
@@ -212,6 +239,12 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
   const wantsServer = (coverage: Coverage) => !!coverage.unknown && !coverage.retained;
+  // Unknown branches keep static dependencies; native reads are opaque. This
+  // classifies routing potential only: the device still decides retention.
+  const mayRetain = () => [...(possible ?? Object.keys(env.backend.schema.tables))].some(name => {
+    const table = env.backend.schema.tables[name];
+    return table?.sync && table.leave === "delivered-history";
+  });
   // Rules 2–4 apply to every local observation, including an expiry retry.
   const routeLocal = async (first: { outcome: Outcome; result: Result<R> }, retain = true): Promise<Candidate<R>> => {
     if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
@@ -227,19 +260,72 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
     const remote = await server(retainedRows, retain); checkpoint();
-    if ((!composed && !retainedRows) || withheld) return remote;
     // Rule 5 applies to refusals and loading too. An authoritative refusal of
     // the original query must not be concealed by a second local observation.
     if (remote.origin === "server" && !("data" in remote.result.read)) return remote;
+    // @ref LLP 3000.028#3.2 — a current server page cannot replace history
+    // before the device can observe the same cut's current/retained routing.
+    // Only the cut read in the evaluation transaction can certify this route.
+    // A different process may commit without changing our authority revision.
+    const retentionRoute = remote.origin === "server" && mayRetain()
+      && (!Number.isSafeInteger(first.outcome.watermark) || first.outcome.watermark! < 0 || remote.result.seq === undefined || remote.result.seq > first.outcome.watermark!);
+    const pendingRoute = async (observed?: Outcome): Promise<Candidate<R> | null> => {
+      const state = await env.call({ op: "state" }); checkpoint();
+      const watermark = (state.ok as { watermark?: number } | undefined)?.watermark;
+      if (remote.result.seq === undefined || !Number.isSafeInteger(watermark) || watermark! < 0 || remote.result.seq > watermark!
+        // A shared owner can commit after the second evaluation too. A later
+        // state read cannot certify that earlier current/retained decision.
+        || observed && (!Number.isSafeInteger(observed.watermark) || observed.watermark! < 0 || remote.result.seq > observed.watermark!)) {
+        remember = false;
+        let provisional = localCandidate().result;
+        // Positive server pages remain useful before acquisition. They certify
+        // neither completeness nor the device's retention route. Empty pages
+        // and structured answers keep the local value until routing is known.
+        if ("data" in remote.result.read && Array.isArray(remote.result.read.data) && remote.result.read.data.length > 0) {
+          provisional = { ...provisional, read: remote.result.read, scopes: remote.result.scopes,
+            serverExpiry: remote.result.serverExpiry ?? null, valueDevice: null, valueServer: remote.result.valueServer };
+        }
+        // No catch-up wait or polling loop. Sync wakes served observations;
+        // existing change/scope/expiry fences may withhold this older value.
+        // A stalled one-shot gets partial data, or its bounded loading retry.
+        return { origin: "composed", result: { ...provisional,
+          read: "data" in provisional.read ? readyRead({ ...provisional.read, complete: false, fresh: false }) : provisional.read,
+          served: true, seq: remote.result.seq, credential: remote.result.credential,
+        } };
+      }
+      return null;
+    };
+    // Known retained compositions already publish stale and keep device history.
+    // They need this fence only if reobservation instead selects a whole reply.
+    const wholeFallback = (!composed && !retainedRows) || withheld;
+    if (wholeFallback) {
+      if (!retentionRoute) return remote;
+      const provisional = await pendingRoute(); checkpoint();
+      if (provisional) return provisional;
+    }
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — reobserve retained fields after the original server query, then publish once.
     const second = await local(); checkpoint();
     if (!second.outcome.unknown && second.outcome.complete === true) return localCandidate(); // Rule 2 again.
     if (remote.origin !== "server" || !("data" in remote.result.read)) return localCandidate();
     const stoppedAfterObservation = await blocked(); checkpoint();
     if (stoppedAfterObservation) return localCandidate(); // Rules 3/5.
-    if ("loading" in second.result.read) return remote; // Rule 3: successful original fallback.
+    if ("loading" in second.result.read) {
+      if (retentionRoute && !wholeFallback) {
+        const provisional = await pendingRoute(second.outcome); checkpoint();
+        if (provisional) return provisional;
+      }
+      return remote; // Rule 3: successful original fallback.
+    }
     if (!("data" in second.result.read)) return localCandidate();
-    if (retainedRows) {
+    const secondComponents = Object.values(second.outcome.components ?? {});
+    const secondComposed = secondComponents.some(wantsServer) && secondComponents.some(c => c.retained);
+    const secondRetainedRows = !!second.outcome.unknown && hasRetainedRows(second.outcome.retainedRows);
+    if (!wantsServer(second.outcome) && !secondComposed && !secondRetainedRows) return localCandidate();
+    if (secondRetainedRows) {
+      remember = false;
+      // Retention appeared in flight: this reply did not request the engine's
+      // pairing envelope. Keep the permitted local value without inventing IDs.
+      if (!retainedRows) return localCandidate();
       // @ref LLP 3000.014#5 — only engine source identities pair retained rows
       // with the current server page; routing and publication use Rules 1–5.
       return { origin: "composed", result: {
@@ -249,18 +335,40 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       } };
     }
     const coverage = Object.entries(second.outcome.components ?? {});
-    if (!coverage.some(([, c]) => c.retained)) return remote;
+    if (!coverage.some(([, c]) => c.retained)) {
+      if (retentionRoute && !wholeFallback) {
+        const provisional = await pendingRoute(second.outcome); checkpoint();
+        if (provisional) return provisional;
+      }
+      return remote;
+    }
     if (!coverage.some(([, c]) => wantsServer(c))) return localCandidate();
+    remember = false;
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    return { origin: "composed", result: { ...mergeValueDeadlines(second.result, remote.result), scopes: mergeReadScopes(second.result.scopes, remote.result.scopes), read: readyRead({ data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }), tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
+    // A retained sibling cannot certify an empty current sibling while that
+    // sibling's leave is pending. Preserve its permitted device rows too.
+    const ahead = retentionRoute && (!Number.isSafeInteger(second.outcome.watermark)
+      || remote.result.seq === undefined || remote.result.seq > second.outcome.watermark!);
+    let provisionalField = false;
+    if (ahead) for (const [field, coverage] of Object.entries(second.outcome.components ?? {})) {
+      const localValue = (second.outcome.data as Record<string, unknown>)[field];
+      if (wantsServer(coverage) && Array.isArray(data[field]) && data[field].length === 0
+        && Array.isArray(localValue) && localValue.length > 0) {
+        if (coverage.speculative) return { origin: "composed", result: { ...loading, served: true, seq: remote.result.seq, credential: remote.result.credential } };
+        data[field] = localValue; provisionalField = true;
+      }
+    }
+    return { origin: "composed", result: { ...mergeValueDeadlines(second.result, remote.result), scopes: mergeReadScopes(second.result.scopes, remote.result.scopes), read: readyRead({ data: data as R, complete: !provisionalField && remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }), tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
     // @ref LLP 3000.016#2.2 — only an already server-answered cold watch may
     // bypass the busy VM. No held read, local composition or remembered fallback.
     if (env.coldRead) return held ? { result: loading, origin: "local" } : server();
+    // LLP 3000.017 §2.3 makes ephemeral reads whole-server queries; they have
+    // no device current/retained routing. Durable history belongs in its own read.
     if (ephemeral) return server();
     // Rule 2: run every query locally when possible, even `runs: server`.
     if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
@@ -283,6 +391,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const publish = async (initial: Candidate<R>): Promise<Result<R>> => {
     let candidate = initial;
+    // A device footprint proves only local inputs. Every external component
+    // also needs its own covering cut; recovery cannot renew an old cache ticket.
+    publishingCurrent = () => routeCurrent() && (candidate.origin === "server" && covered() || unchanged()
+      && (candidate.origin === "local" || (candidate.origin === "server" || candidate.origin === "composed")
+        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true));
     for (let attempt = 0; ; attempt++) {
       checkpoint();
       // Rules 1/5: the same delivery fence applies after retry routing, including
@@ -374,7 +487,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const result = await publish(candidate); checkpoint();
     withDecorations(result.read, env.backend.schema.operations?.[op.name]?.search_decoration ? decorationPaths(program) : [],
       result.valueDevice, result.valueServer, env.deviceNow, env.serverNow);
-    return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };
+    return { ...result, ...((serverCurrent || inputsCurrent) && publishingCurrent ? { publicationCurrent: publishingCurrent } : {}), ...(searchAttempt ? { searchAttempt: true } : {}) };
   } catch (error) {
     if (error instanceof Interrupted) return { ...error.result as Result<R>, ...(searchAttempt ? { searchAttempt: true } : {}) };
     // An await that rejects still crosses a session/incarnation boundary.

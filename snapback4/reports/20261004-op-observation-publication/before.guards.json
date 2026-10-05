@@ -1,0 +1,2125 @@
+{
+  "samples": [
+    {
+      "run": 0,
+      "viewer": 0,
+      "commit": 1791153746390.0403,
+      "evaluated": 43.259765625,
+      "published": 120.85986328125,
+      "render": 121.959716796875,
+      "guards": {
+        "checkpoint-authority": 3,
+        "rerun-reject": 5,
+        "changed": 2,
+        "decoded": 3,
+        "checkpoint-change": 2,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 0,
+      "viewer": 1,
+      "commit": 1791153746390.0403,
+      "evaluated": 52.059814453125,
+      "published": 54.35986328125,
+      "render": 55.459716796875,
+      "guards": {
+        "changed": 2,
+        "candidate": 4,
+        "cut-reject": 2,
+        "decoded": 1
+      }
+    },
+    {
+      "run": 1,
+      "viewer": 0,
+      "commit": 1791153747360.5244,
+      "evaluated": 28.875732421875,
+      "published": 74.57568359375,
+      "render": 75.17578125,
+      "guards": {
+        "decoded": 6,
+        "candidate": 2,
+        "changed": 2,
+        "checkpoint-change": 2,
+        "rerun-reject": 4,
+        "checkpoint-authority": 2
+      }
+    },
+    {
+      "run": 1,
+      "viewer": 1,
+      "commit": 1791153747360.5244,
+      "evaluated": 30.875732421875,
+      "published": 44.07568359375,
+      "render": 44.675537109375,
+      "guards": {
+        "decoded": 6,
+        "checkpoint-change": 2,
+        "rerun-reject": 4,
+        "checkpoint-authority": 2,
+        "candidate": 2,
+        "changed": 1
+      }
+    },
+    {
+      "run": 2,
+      "viewer": 0,
+      "commit": 1791153748396.44,
+      "evaluated": 62.460205078125,
+      "published": 155.860107421875,
+      "render": 156.360107421875,
+      "guards": {
+        "changed": 5,
+        "decoded": 11,
+        "checkpoint-change": 4,
+        "rerun-reject": 10,
+        "candidate": 4,
+        "checkpoint-authority": 6
+      }
+    },
+    {
+      "run": 2,
+      "viewer": 1,
+      "commit": 1791153748396.44,
+      "evaluated": 61.860107421875,
+      "published": 96.460205078125,
+      "render": 96.960205078125,
+      "guards": {
+        "decoded": 9,
+        "checkpoint-authority": 4,
+        "rerun-reject": 6,
+        "changed": 3,
+        "checkpoint-change": 2,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 3,
+      "viewer": 0,
+      "commit": 1791153749678.661,
+      "evaluated": 33.339111328125,
+      "published": 56.2392578125,
+      "render": 56.63916015625,
+      "guards": {
+        "decoded": 5,
+        "candidate": 3,
+        "changed": 2,
+        "checkpoint-change": 1,
+        "rerun-reject": 2,
+        "checkpoint-authority": 1
+      }
+    },
+    {
+      "run": 3,
+      "viewer": 1,
+      "commit": 1791153749678.661,
+      "evaluated": 27.2392578125,
+      "published": 28.339111328125,
+      "render": 28.7392578125,
+      "guards": {
+        "decoded": 4,
+        "checkpoint-authority": 2,
+        "rerun-reject": 3,
+        "changed": 1,
+        "checkpoint-change": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 4,
+      "viewer": 0,
+      "commit": 1791153750573.0593,
+      "evaluated": 51.74072265625,
+      "published": 53.140869140625,
+      "render": 53.640869140625,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "checkpoint-change": 2,
+        "rerun-reject": 4,
+        "checkpoint-authority": 2,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 4,
+      "viewer": 1,
+      "commit": 1791153750573.0593,
+      "evaluated": 51.640625,
+      "published": 62.440673828125,
+      "render": 63.040771484375,
+      "guards": {
+        "decoded": 8,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "checkpoint-authority": 4,
+        "changed": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 5,
+      "viewer": 0,
+      "commit": 1791153751346.0464,
+      "evaluated": 79.0537109375,
+      "published": 139.0537109375,
+      "render": 139.65380859375,
+      "guards": {
+        "decoded": 10,
+        "candidate": 6,
+        "changed": 5,
+        "checkpoint-change": 3,
+        "rerun-reject": 6,
+        "checkpoint-authority": 3
+      }
+    },
+    {
+      "run": 5,
+      "viewer": 1,
+      "commit": 1791153751346.0464,
+      "evaluated": 82.45361328125,
+      "published": 83.0537109375,
+      "render": 83.5537109375,
+      "guards": {
+        "decoded": 10,
+        "candidate": 4,
+        "changed": 4,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "checkpoint-authority": 4
+      }
+    },
+    {
+      "run": 6,
+      "viewer": 0,
+      "commit": 1791153752395.3318,
+      "evaluated": 41.268310546875,
+      "published": 100.868408203125,
+      "render": 101.568359375,
+      "guards": {
+        "changed": 4,
+        "decoded": 8,
+        "checkpoint-change": 4,
+        "rerun-reject": 9,
+        "candidate": 2,
+        "checkpoint-authority": 5
+      }
+    },
+    {
+      "run": 6,
+      "viewer": 1,
+      "commit": 1791153752395.3318,
+      "evaluated": 25.8681640625,
+      "published": 79.568359375,
+      "render": 80.168212890625,
+      "guards": {
+        "decoded": 10,
+        "checkpoint-change": 4,
+        "rerun-reject": 8,
+        "checkpoint-authority": 4,
+        "candidate": 2,
+        "changed": 3
+      }
+    },
+    {
+      "run": 7,
+      "viewer": 0,
+      "commit": 1791153753402.8525,
+      "evaluated": 30.447509765625,
+      "published": 31.447509765625,
+      "render": 32.047607421875,
+      "guards": {
+        "decoded": 3,
+        "candidate": 2,
+        "changed": 1,
+        "checkpoint-change": 1,
+        "rerun-reject": 1
+      }
+    },
+    {
+      "run": 7,
+      "viewer": 1,
+      "commit": 1791153753402.8525,
+      "evaluated": 31.847412109375,
+      "published": 63.847412109375,
+      "render": 64.347412109375,
+      "guards": {
+        "changed": 3,
+        "decoded": 8,
+        "checkpoint-change": 3,
+        "rerun-reject": 6,
+        "checkpoint-authority": 3,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 8,
+      "viewer": 0,
+      "commit": 1791153754280.18,
+      "evaluated": 30.420166015625,
+      "published": 73.72021484375,
+      "render": 74.22021484375,
+      "guards": {
+        "decoded": 6,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "candidate": 3,
+        "checkpoint-authority": 4,
+        "changed": 2
+      }
+    },
+    {
+      "run": 8,
+      "viewer": 1,
+      "commit": 1791153754280.18,
+      "evaluated": 30.6201171875,
+      "published": 59.52001953125,
+      "render": 59.920166015625,
+      "guards": {
+        "decoded": 8,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "checkpoint-authority": 4,
+        "candidate": 2,
+        "changed": 2
+      }
+    },
+    {
+      "run": 9,
+      "viewer": 0,
+      "commit": 1791153755377.3171,
+      "evaluated": 72.182861328125,
+      "published": 72.98291015625,
+      "render": 73.5830078125,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "checkpoint-change": 1,
+        "rerun-reject": 3,
+        "checkpoint-authority": 2,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 9,
+      "viewer": 1,
+      "commit": 1791153755377.3171,
+      "evaluated": 69.682861328125,
+      "published": 79.0830078125,
+      "render": 79.782958984375,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "candidate": 4,
+        "checkpoint-authority": 3,
+        "rerun-reject": 3
+      }
+    },
+    {
+      "run": 10,
+      "viewer": 0,
+      "commit": 1791153756364.9253,
+      "evaluated": 39.77490234375,
+      "published": 40.77490234375,
+      "render": 41.474853515625,
+      "guards": {
+        "changed": 1,
+        "decoded": 3,
+        "checkpoint-change": 1,
+        "rerun-reject": 2,
+        "checkpoint-authority": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 10,
+      "viewer": 1,
+      "commit": 1791153756364.9253,
+      "evaluated": 34.1748046875,
+      "published": 93.274658203125,
+      "render": 93.874755859375,
+      "guards": {
+        "changed": 4,
+        "decoded": 10,
+        "checkpoint-change": 4,
+        "rerun-reject": 9,
+        "checkpoint-authority": 5,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 11,
+      "viewer": 0,
+      "commit": 1791153757415.7175,
+      "evaluated": 75.08251953125,
+      "published": 75.6826171875,
+      "render": 76.1826171875,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "checkpoint-change": 1,
+        "rerun-reject": 3,
+        "candidate": 4,
+        "checkpoint-authority": 2
+      }
+    },
+    {
+      "run": 11,
+      "viewer": 1,
+      "commit": 1791153757415.7175,
+      "evaluated": 75.282470703125,
+      "published": 85.6826171875,
+      "render": 86.58251953125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "candidate": 3,
+        "checkpoint-authority": 1,
+        "rerun-reject": 1
+      }
+    },
+    {
+      "run": 12,
+      "viewer": 0,
+      "commit": 1791153758319.7144,
+      "evaluated": 90.685791015625,
+      "published": 92.185791015625,
+      "render": 92.78564453125,
+      "guards": {
+        "decoded": 3,
+        "candidate": 3,
+        "changed": 1
+      }
+    },
+    {
+      "run": 12,
+      "viewer": 1,
+      "commit": 1791153758319.7144,
+      "evaluated": 49.78564453125,
+      "published": 196.685791015625,
+      "render": 197.28564453125,
+      "guards": {
+        "changed": 7,
+        "decoded": 16,
+        "checkpoint-change": 7,
+        "rerun-reject": 16,
+        "candidate": 3,
+        "checkpoint-authority": 9
+      }
+    },
+    {
+      "run": 13,
+      "viewer": 0,
+      "commit": 1791153759555.9023,
+      "evaluated": 34.7978515625,
+      "published": 35.7978515625,
+      "render": 36.2978515625,
+      "guards": {
+        "changed": 1,
+        "decoded": 3,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 13,
+      "viewer": 1,
+      "commit": 1791153759555.9023,
+      "evaluated": 21.897705078125,
+      "published": 59.19775390625,
+      "render": 59.797607421875,
+      "guards": {
+        "decoded": 6,
+        "checkpoint-authority": 4,
+        "rerun-reject": 6,
+        "changed": 2,
+        "checkpoint-change": 2,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 14,
+      "viewer": 0,
+      "commit": 1791153760480.942,
+      "evaluated": 55.958251953125,
+      "published": 56.658203125,
+      "render": 57.25830078125,
+      "guards": {
+        "changed": 1,
+        "decoded": 3,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 14,
+      "viewer": 1,
+      "commit": 1791153760480.942,
+      "evaluated": 57.05810546875,
+      "published": 99.158203125,
+      "render": 99.858154296875,
+      "guards": {
+        "decoded": 10,
+        "checkpoint-authority": 5,
+        "rerun-reject": 9,
+        "changed": 4,
+        "checkpoint-change": 4,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 15,
+      "viewer": 0,
+      "commit": 1791153761383.2205,
+      "evaluated": 60.879638671875,
+      "published": 70.279541015625,
+      "render": 70.779541015625,
+      "guards": {
+        "decoded": 5,
+        "candidate": 3,
+        "changed": 2,
+        "checkpoint-change": 2,
+        "rerun-reject": 2
+      }
+    },
+    {
+      "run": 15,
+      "viewer": 1,
+      "commit": 1791153761383.2205,
+      "evaluated": 60.879638671875,
+      "published": 90.57958984375,
+      "render": 91.1796875,
+      "guards": {
+        "decoded": 10,
+        "checkpoint-authority": 6,
+        "rerun-reject": 10,
+        "changed": 4,
+        "checkpoint-change": 4,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 16,
+      "viewer": 0,
+      "commit": 1791153762321.1587,
+      "evaluated": 31.741455078125,
+      "published": 61.141357421875,
+      "render": 61.44140625,
+      "guards": {
+        "decoded": 4,
+        "candidate": 3,
+        "changed": 1,
+        "checkpoint-change": 1,
+        "rerun-reject": 3,
+        "checkpoint-authority": 2
+      }
+    },
+    {
+      "run": 16,
+      "viewer": 1,
+      "commit": 1791153762321.1587,
+      "evaluated": 18.44140625,
+      "published": 49.041259765625,
+      "render": 49.44140625,
+      "guards": {
+        "changed": 2,
+        "decoded": 5,
+        "checkpoint-change": 2,
+        "rerun-reject": 5,
+        "checkpoint-authority": 3,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 17,
+      "viewer": 0,
+      "commit": 1791153763326.0981,
+      "evaluated": 45.201904296875,
+      "published": 101.802001953125,
+      "render": 102.60205078125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 17,
+      "viewer": 1,
+      "commit": 1791153763326.0981,
+      "evaluated": 32.101806640625,
+      "published": 125.302001953125,
+      "render": 125.90185546875,
+      "guards": {
+        "decoded": 8,
+        "candidate": 3,
+        "changed": 3,
+        "checkpoint-authority": 3,
+        "rerun-reject": 5,
+        "checkpoint-change": 2
+      }
+    },
+    {
+      "run": 18,
+      "viewer": 0,
+      "commit": 1791153764259.314,
+      "evaluated": 85.986083984375,
+      "published": 87.18603515625,
+      "render": 87.486083984375,
+      "guards": {
+        "decoded": 6,
+        "candidate": 4,
+        "changed": 2,
+        "checkpoint-change": 2,
+        "rerun-reject": 2
+      }
+    },
+    {
+      "run": 18,
+      "viewer": 1,
+      "commit": 1791153764259.314,
+      "evaluated": 82.18603515625,
+      "published": 99.7861328125,
+      "render": 99.986083984375,
+      "guards": {
+        "decoded": 12,
+        "checkpoint-authority": 6,
+        "rerun-reject": 10,
+        "candidate": 3,
+        "changed": 4,
+        "checkpoint-change": 4
+      }
+    },
+    {
+      "run": 19,
+      "viewer": 0,
+      "commit": 1791153765369.4517,
+      "evaluated": 8.848388671875,
+      "published": 9.54833984375,
+      "render": 9.948486328125,
+      "guards": {
+        "decoded": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 19,
+      "viewer": 1,
+      "commit": 1791153765369.4517,
+      "evaluated": 13.04833984375,
+      "published": 35.748291015625,
+      "render": 36.1484375,
+      "guards": {
+        "decoded": 5,
+        "checkpoint-authority": 2,
+        "rerun-reject": 3,
+        "candidate": 2,
+        "changed": 1,
+        "checkpoint-change": 1
+      }
+    },
+    {
+      "run": 20,
+      "viewer": 0,
+      "commit": 1791153766252.472,
+      "evaluated": 45.128173828125,
+      "published": 47.028076171875,
+      "render": 47.728271484375,
+      "guards": {
+        "decoded": 3,
+        "changed": 1,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 20,
+      "viewer": 1,
+      "commit": 1791153766252.472,
+      "evaluated": 49.628173828125,
+      "published": 63.028076171875,
+      "render": 63.328125,
+      "guards": {
+        "changed": 3,
+        "decoded": 6,
+        "checkpoint-authority": 5,
+        "rerun-reject": 7,
+        "checkpoint-change": 2,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 21,
+      "viewer": 0,
+      "commit": 1791153767305.9353,
+      "evaluated": 63.764892578125,
+      "published": 72.764892578125,
+      "render": 73.264892578125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 21,
+      "viewer": 1,
+      "commit": 1791153767305.9353,
+      "evaluated": 63.96484375,
+      "published": 94.46484375,
+      "render": 94.86474609375,
+      "guards": {
+        "changed": 4,
+        "decoded": 9,
+        "checkpoint-authority": 4,
+        "rerun-reject": 5,
+        "candidate": 5,
+        "checkpoint-change": 1
+      }
+    },
+    {
+      "run": 22,
+      "viewer": 0,
+      "commit": 1791153768449.366,
+      "evaluated": 24.134033203125,
+      "published": 33.5341796875,
+      "render": 34.234130859375,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 22,
+      "viewer": 1,
+      "commit": 1791153768449.366,
+      "evaluated": 23.134033203125,
+      "published": 72.43408203125,
+      "render": 73.234130859375,
+      "guards": {
+        "decoded": 8,
+        "candidate": 2,
+        "changed": 3,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "checkpoint-authority": 4
+      }
+    },
+    {
+      "run": 23,
+      "viewer": 0,
+      "commit": 1791153769389.2942,
+      "evaluated": 52.505859375,
+      "published": 53.805908203125,
+      "render": 54.10595703125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 23,
+      "viewer": 1,
+      "commit": 1791153769389.2942,
+      "evaluated": 50.40576171875,
+      "published": 51.10595703125,
+      "render": 51.505859375,
+      "guards": {
+        "decoded": 5,
+        "candidate": 4,
+        "changed": 2,
+        "checkpoint-authority": 1,
+        "rerun-reject": 1
+      }
+    },
+    {
+      "run": 24,
+      "viewer": 0,
+      "commit": 1791153770346.4392,
+      "evaluated": 41.86083984375,
+      "published": 50.9609375,
+      "render": 51.560791015625,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 24,
+      "viewer": 1,
+      "commit": 1791153770346.4392,
+      "evaluated": 29.4609375,
+      "published": 42.560791015625,
+      "render": 43.060791015625,
+      "guards": {
+        "decoded": 5,
+        "checkpoint-change": 2,
+        "rerun-reject": 4,
+        "checkpoint-authority": 2,
+        "changed": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 25,
+      "viewer": 0,
+      "commit": 1791153771388.7637,
+      "evaluated": 49.536376953125,
+      "published": 60.136474609375,
+      "render": 60.736328125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 25,
+      "viewer": 1,
+      "commit": 1791153771388.7637,
+      "evaluated": 40.83642578125,
+      "published": 87.536376953125,
+      "render": 88.236328125,
+      "guards": {
+        "changed": 4,
+        "decoded": 9,
+        "checkpoint-authority": 4,
+        "rerun-reject": 7,
+        "candidate": 2,
+        "checkpoint-change": 3
+      }
+    },
+    {
+      "run": 26,
+      "viewer": 0,
+      "commit": 1791153772327.4707,
+      "evaluated": 61.529296875,
+      "published": 64.029296875,
+      "render": 64.329345703125,
+      "guards": {
+        "changed": 1,
+        "decoded": 3,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 26,
+      "viewer": 1,
+      "commit": 1791153772327.4707,
+      "evaluated": 49.029296875,
+      "published": 65.229248046875,
+      "render": 65.529296875,
+      "guards": {
+        "changed": 3,
+        "decoded": 8,
+        "checkpoint-change": 3,
+        "rerun-reject": 7,
+        "checkpoint-authority": 4,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 27,
+      "viewer": 0,
+      "commit": 1791153773369.552,
+      "evaluated": 59.947998046875,
+      "published": 70.947998046875,
+      "render": 71.548095703125,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 2,
+        "rerun-reject": 2,
+        "candidate": 2
+      }
+    },
+    {
+      "run": 27,
+      "viewer": 1,
+      "commit": 1791153773369.552,
+      "evaluated": 49.548095703125,
+      "published": 72.248046875,
+      "render": 72.548095703125,
+      "guards": {
+        "decoded": 8,
+        "checkpoint-authority": 3,
+        "rerun-reject": 5,
+        "candidate": 3,
+        "changed": 2,
+        "checkpoint-change": 2
+      }
+    },
+    {
+      "run": 28,
+      "viewer": 0,
+      "commit": 1791153774375.5205,
+      "evaluated": 30.279541015625,
+      "published": 41.379638671875,
+      "render": 41.9794921875,
+      "guards": {
+        "changed": 1,
+        "decoded": 2,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 28,
+      "viewer": 1,
+      "commit": 1791153774375.5205,
+      "evaluated": 20.9794921875,
+      "published": 53.679443359375,
+      "render": 54.279541015625,
+      "guards": {
+        "decoded": 6,
+        "checkpoint-authority": 3,
+        "rerun-reject": 5,
+        "changed": 2,
+        "checkpoint-change": 2,
+        "candidate": 1
+      }
+    },
+    {
+      "run": 29,
+      "viewer": 0,
+      "commit": 1791153775317.0671,
+      "evaluated": 59.23291015625,
+      "published": 60.032958984375,
+      "render": 60.73291015625,
+      "guards": {
+        "changed": 2,
+        "decoded": 4,
+        "checkpoint-change": 1,
+        "rerun-reject": 1,
+        "candidate": 3
+      }
+    },
+    {
+      "run": 29,
+      "viewer": 1,
+      "commit": 1791153775317.0671,
+      "evaluated": 62.23291015625,
+      "published": 71.8330078125,
+      "render": 72.3330078125,
+      "guards": {
+        "decoded": 7,
+        "candidate": 4,
+        "changed": 2,
+        "checkpoint-change": 1,
+        "rerun-reject": 3,
+        "checkpoint-authority": 2
+      }
+    }
+  ],
+  "worst": {
+    "sample": {
+      "run": 12,
+      "viewer": 1,
+      "commit": 1791153758319.7144,
+      "evaluated": 49.78564453125,
+      "published": 196.685791015625,
+      "render": 197.28564453125,
+      "guards": {
+        "changed": 7,
+        "decoded": 16,
+        "checkpoint-change": 7,
+        "rerun-reject": 16,
+        "candidate": 3,
+        "checkpoint-authority": 9
+      }
+    },
+    "events": [
+      {
+        "stage": "response",
+        "at": 3.186,
+        "id": 41437,
+        "path": "/changes",
+        "request": null,
+        "seq": 3205,
+        "tables": [
+          "$ownKeys:reposts",
+          "followingFeed",
+          "followingPosts",
+          "followingWork",
+          "reposts"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 3.686,
+        "id": 41445,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3205,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 4.686,
+        "event": "notified",
+        "before": 1601,
+        "after": 1602,
+        "cut": 3205
+      },
+      {
+        "stage": "op",
+        "at": 4.786,
+        "event": "changed",
+        "before": 1602,
+        "after": 1603,
+        "name": "home",
+        "cut": 3205
+      },
+      {
+        "stage": "op",
+        "at": 5.186,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3205,
+        "authority": 1601,
+        "current": 1603
+      },
+      {
+        "stage": "op",
+        "at": 5.186,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1601,
+        "current": 1603
+      },
+      {
+        "stage": "op",
+        "at": 5.286,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1601,
+        "current": 1603,
+        "changeVersion": 384,
+        "nowVersion": 385
+      },
+      {
+        "stage": "response",
+        "at": 10.886,
+        "id": 41491,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3205,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 11.186,
+        "id": 41477,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3205
+      },
+      {
+        "stage": "op",
+        "at": 12.486,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3205,
+        "authority": 1603,
+        "current": 1603
+      },
+      {
+        "stage": "op",
+        "at": 13.486,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 3205,
+        "authority": 1603,
+        "current": 1603
+      },
+      {
+        "stage": "op",
+        "at": 16.886,
+        "event": "clear",
+        "before": 1603,
+        "after": 1604,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 16.986,
+        "event": "withdrawScopes",
+        "before": 1604,
+        "after": 1604
+      },
+      {
+        "stage": "op",
+        "at": 17.486,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 56,
+        "authority": 1603,
+        "current": 1604,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 17.486,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1603,
+        "current": 1604,
+        "changeVersion": 385,
+        "nowVersion": 385
+      },
+      {
+        "stage": "op",
+        "at": 17.586,
+        "event": "applied",
+        "before": 1604,
+        "after": 1605,
+        "cut": 3205
+      },
+      {
+        "stage": "op",
+        "at": 19.186,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 96,
+        "authority": 1604,
+        "current": 1605,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 19.186,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1604,
+        "current": 1605,
+        "changeVersion": 385,
+        "nowVersion": 385
+      },
+      {
+        "stage": "response",
+        "at": 26.586,
+        "id": 41542,
+        "path": "/changes",
+        "request": null,
+        "seq": 3206,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 26.786,
+        "id": 41553,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3206,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 27.386,
+        "event": "notified",
+        "before": 1605,
+        "after": 1606,
+        "cut": 3206
+      },
+      {
+        "stage": "op",
+        "at": 27.386,
+        "event": "changed",
+        "before": 1606,
+        "after": 1607,
+        "name": "home",
+        "cut": 3206
+      },
+      {
+        "stage": "op",
+        "at": 28.086,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3206,
+        "authority": 1605,
+        "current": 1607
+      },
+      {
+        "stage": "op",
+        "at": 28.086,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1605,
+        "current": 1607
+      },
+      {
+        "stage": "op",
+        "at": 28.486,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1605,
+        "current": 1607,
+        "changeVersion": 385,
+        "nowVersion": 386
+      },
+      {
+        "stage": "response",
+        "at": 33.186,
+        "id": 41581,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3206
+      },
+      {
+        "stage": "response",
+        "at": 35.786,
+        "id": 41594,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3206,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 35.986,
+        "event": "clear",
+        "before": 1607,
+        "after": 1608,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 35.986,
+        "event": "withdrawScopes",
+        "before": 1608,
+        "after": 1608
+      },
+      {
+        "stage": "op",
+        "at": 36.986,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3206,
+        "authority": 1607,
+        "current": 1608
+      },
+      {
+        "stage": "op",
+        "at": 36.986,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 133,
+        "authority": 1607,
+        "current": 1608,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 37.086,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1607,
+        "current": 1608,
+        "changeVersion": 386,
+        "nowVersion": 386
+      },
+      {
+        "stage": "op",
+        "at": 37.486,
+        "event": "applied",
+        "before": 1608,
+        "after": 1609,
+        "cut": 3206
+      },
+      {
+        "stage": "response",
+        "at": 43.386,
+        "id": 41640,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3206,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 44.486,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3206,
+        "authority": 1609,
+        "current": 1609
+      },
+      {
+        "stage": "op",
+        "at": 44.586,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 3206,
+        "authority": 1609,
+        "current": 1609
+      },
+      {
+        "stage": "response",
+        "at": 49.186,
+        "id": 41632,
+        "path": "/changes",
+        "request": null,
+        "seq": 3207,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "server-evaluated",
+        "at": 49.786,
+        "name": "home"
+      },
+      {
+        "stage": "response",
+        "at": 49.786,
+        "id": 41682,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3207,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 61.186,
+        "event": "notified",
+        "before": 1609,
+        "after": 1610,
+        "cut": 3207
+      },
+      {
+        "stage": "op",
+        "at": 61.186,
+        "event": "changed",
+        "before": 1610,
+        "after": 1611,
+        "name": "home",
+        "cut": 3207
+      },
+      {
+        "stage": "op",
+        "at": 73.286,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3207,
+        "authority": 1609,
+        "current": 1611
+      },
+      {
+        "stage": "op",
+        "at": 73.286,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1609,
+        "current": 1611
+      },
+      {
+        "stage": "op",
+        "at": 73.286,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1609,
+        "current": 1611,
+        "changeVersion": 386,
+        "nowVersion": 387
+      },
+      {
+        "stage": "response",
+        "at": 88.386,
+        "id": 41708,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3215
+      },
+      {
+        "stage": "response",
+        "at": 89.186,
+        "id": 41722,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3216,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 93.286,
+        "event": "clear",
+        "before": 1611,
+        "after": 1612,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 93.286,
+        "event": "withdrawScopes",
+        "before": 1612,
+        "after": 1612
+      },
+      {
+        "stage": "op",
+        "at": 94.586,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3216,
+        "authority": 1611,
+        "current": 1612
+      },
+      {
+        "stage": "op",
+        "at": 94.586,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 133,
+        "authority": 1611,
+        "current": 1612,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 94.586,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1611,
+        "current": 1612,
+        "changeVersion": 387,
+        "nowVersion": 387
+      },
+      {
+        "stage": "op",
+        "at": 95.886,
+        "event": "applied",
+        "before": 1612,
+        "after": 1613,
+        "cut": 3215
+      },
+      {
+        "stage": "op",
+        "at": 95.986,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 96,
+        "authority": 1612,
+        "current": 1613,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 95.986,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1612,
+        "current": 1613,
+        "changeVersion": 387,
+        "nowVersion": 387
+      },
+      {
+        "stage": "response",
+        "at": 102.186,
+        "id": 41761,
+        "path": "/changes",
+        "request": null,
+        "seq": 3217,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 103.186,
+        "id": 41770,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3217,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 103.486,
+        "event": "notified",
+        "before": 1613,
+        "after": 1614,
+        "cut": 3217
+      },
+      {
+        "stage": "op",
+        "at": 103.486,
+        "event": "changed",
+        "before": 1614,
+        "after": 1615,
+        "name": "home",
+        "cut": 3217
+      },
+      {
+        "stage": "op",
+        "at": 105.186,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3217,
+        "authority": 1613,
+        "current": 1615
+      },
+      {
+        "stage": "op",
+        "at": 105.186,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1613,
+        "current": 1615
+      },
+      {
+        "stage": "op",
+        "at": 105.586,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1613,
+        "current": 1615,
+        "changeVersion": 387,
+        "nowVersion": 388
+      },
+      {
+        "stage": "response",
+        "at": 110.086,
+        "id": 41799,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3217
+      },
+      {
+        "stage": "response",
+        "at": 110.986,
+        "id": 41812,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3217,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 112.286,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3217,
+        "authority": 1615,
+        "current": 1615
+      },
+      {
+        "stage": "op",
+        "at": 114.386,
+        "event": "clear",
+        "before": 1615,
+        "after": 1616,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 114.386,
+        "event": "withdrawScopes",
+        "before": 1616,
+        "after": 1616
+      },
+      {
+        "stage": "op",
+        "at": 115.286,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 56,
+        "authority": 1615,
+        "current": 1616,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 115.486,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1615,
+        "current": 1616,
+        "changeVersion": 388,
+        "nowVersion": 388
+      },
+      {
+        "stage": "op",
+        "at": 115.486,
+        "event": "applied",
+        "before": 1616,
+        "after": 1617,
+        "cut": 3217
+      },
+      {
+        "stage": "response",
+        "at": 122.686,
+        "id": 41871,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3219,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 124.786,
+        "id": 41863,
+        "path": "/changes",
+        "request": null,
+        "seq": 3219,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 127.186,
+        "event": "notified",
+        "before": 1617,
+        "after": 1618,
+        "cut": 3219
+      },
+      {
+        "stage": "op",
+        "at": 127.186,
+        "event": "changed",
+        "before": 1618,
+        "after": 1619,
+        "name": "home",
+        "cut": 3219
+      },
+      {
+        "stage": "op",
+        "at": 127.886,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3219,
+        "authority": 1617,
+        "current": 1619
+      },
+      {
+        "stage": "op",
+        "at": 127.886,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1617,
+        "current": 1619
+      },
+      {
+        "stage": "op",
+        "at": 127.886,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1617,
+        "current": 1619,
+        "changeVersion": 388,
+        "nowVersion": 389
+      },
+      {
+        "stage": "response",
+        "at": 135.886,
+        "id": 41921,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3219
+      },
+      {
+        "stage": "response",
+        "at": 138.186,
+        "id": 41931,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3219,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 138.686,
+        "event": "clear",
+        "before": 1619,
+        "after": 1620,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 138.686,
+        "event": "withdrawScopes",
+        "before": 1620,
+        "after": 1620
+      },
+      {
+        "stage": "op",
+        "at": 139.786,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3219,
+        "authority": 1619,
+        "current": 1620
+      },
+      {
+        "stage": "op",
+        "at": 139.786,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 133,
+        "authority": 1619,
+        "current": 1620,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 139.986,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1619,
+        "current": 1620,
+        "changeVersion": 389,
+        "nowVersion": 389
+      },
+      {
+        "stage": "op",
+        "at": 140.186,
+        "event": "applied",
+        "before": 1620,
+        "after": 1621,
+        "cut": 3219
+      },
+      {
+        "stage": "response",
+        "at": 147.886,
+        "id": 41980,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3220,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 150.286,
+        "id": 41972,
+        "path": "/changes",
+        "request": null,
+        "seq": 3220,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 150.886,
+        "event": "notified",
+        "before": 1621,
+        "after": 1622,
+        "cut": 3220
+      },
+      {
+        "stage": "op",
+        "at": 150.886,
+        "event": "changed",
+        "before": 1622,
+        "after": 1623,
+        "name": "home",
+        "cut": 3220
+      },
+      {
+        "stage": "op",
+        "at": 151.886,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3220,
+        "authority": 1621,
+        "current": 1623
+      },
+      {
+        "stage": "op",
+        "at": 151.886,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1621,
+        "current": 1623
+      },
+      {
+        "stage": "op",
+        "at": 151.886,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1621,
+        "current": 1623,
+        "changeVersion": 389,
+        "nowVersion": 390
+      },
+      {
+        "stage": "response",
+        "at": 162.686,
+        "id": 42030,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3220
+      },
+      {
+        "stage": "response",
+        "at": 164.086,
+        "id": 42040,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3220,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 164.786,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3220,
+        "authority": 1623,
+        "current": 1623
+      },
+      {
+        "stage": "op",
+        "at": 165.786,
+        "event": "clear",
+        "before": 1623,
+        "after": 1624,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 165.786,
+        "event": "withdrawScopes",
+        "before": 1624,
+        "after": 1624
+      },
+      {
+        "stage": "op",
+        "at": 166.886,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 56,
+        "authority": 1623,
+        "current": 1624,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 166.986,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1623,
+        "current": 1624,
+        "changeVersion": 390,
+        "nowVersion": 390
+      },
+      {
+        "stage": "op",
+        "at": 166.986,
+        "event": "applied",
+        "before": 1624,
+        "after": 1625,
+        "cut": 3220
+      },
+      {
+        "stage": "response",
+        "at": 175.986,
+        "id": 42091,
+        "path": "/changes",
+        "request": null,
+        "seq": 3221,
+        "tables": [
+          "followingFeed",
+          "followingWork"
+        ]
+      },
+      {
+        "stage": "response",
+        "at": 176.786,
+        "id": 42099,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3221,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 176.786,
+        "event": "notified",
+        "before": 1625,
+        "after": 1626,
+        "cut": 3221
+      },
+      {
+        "stage": "op",
+        "at": 176.786,
+        "event": "changed",
+        "before": 1626,
+        "after": 1627,
+        "name": "home",
+        "cut": 3221
+      },
+      {
+        "stage": "op",
+        "at": 180.086,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3221,
+        "authority": 1625,
+        "current": 1627
+      },
+      {
+        "stage": "op",
+        "at": 180.086,
+        "event": "checkpoint-change",
+        "name": "home",
+        "site": 133,
+        "authority": 1625,
+        "current": 1627
+      },
+      {
+        "stage": "op",
+        "at": 180.086,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1625,
+        "current": 1627,
+        "changeVersion": 390,
+        "nowVersion": 391
+      },
+      {
+        "stage": "response",
+        "at": 183.986,
+        "id": 42117,
+        "path": "/sync",
+        "request": null,
+        "watermark": 3221
+      },
+      {
+        "stage": "response",
+        "at": 185.286,
+        "id": 42141,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3221,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 186.086,
+        "event": "clear",
+        "before": 1627,
+        "after": 1628,
+        "operation": "apply"
+      },
+      {
+        "stage": "op",
+        "at": 186.086,
+        "event": "withdrawScopes",
+        "before": 1628,
+        "after": 1628
+      },
+      {
+        "stage": "op",
+        "at": 186.986,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3221,
+        "authority": 1627,
+        "current": 1628
+      },
+      {
+        "stage": "op",
+        "at": 186.986,
+        "event": "checkpoint-authority",
+        "name": "home",
+        "site": 133,
+        "authority": 1627,
+        "current": 1628,
+        "revision": 1,
+        "incarnation": 1
+      },
+      {
+        "stage": "op",
+        "at": 187.186,
+        "event": "rerun-reject",
+        "name": "home",
+        "authority": 1627,
+        "current": 1628,
+        "changeVersion": 391,
+        "nowVersion": 391
+      },
+      {
+        "stage": "op",
+        "at": 187.486,
+        "event": "applied",
+        "before": 1628,
+        "after": 1629,
+        "cut": 3221
+      },
+      {
+        "stage": "response",
+        "at": 194.886,
+        "id": 42187,
+        "path": "/q/home",
+        "request": null,
+        "seq": 3221,
+        "tables": [
+          "followingEdges",
+          "followingFeed",
+          "followingRemovedEvents",
+          "followingWork",
+          "posts"
+        ]
+      },
+      {
+        "stage": "op",
+        "at": 195.586,
+        "event": "decoded",
+        "name": "home",
+        "seq": 3221,
+        "authority": 1629,
+        "current": 1629
+      },
+      {
+        "stage": "op",
+        "at": 195.686,
+        "event": "candidate",
+        "name": "home",
+        "origin": "server",
+        "seq": 3221,
+        "authority": 1629,
+        "current": 1629
+      },
+      {
+        "stage": "published",
+        "at": 196.686,
+        "name": "home"
+      }
+    ]
+  }
+}

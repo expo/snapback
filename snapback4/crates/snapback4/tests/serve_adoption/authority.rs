@@ -25,7 +25,7 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             let address = host.address;
             let request = thread::spawn(move || {
                 let payload = payload.to_string();
-                exchange(address, &format!("POST /m/{op} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}Content-Length: {}\r\n\r\n{payload}",payload.len()))
+                exchange_held(address, 2 * WAIT_TIMEOUT, &format!("POST /m/{op} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}Content-Length: {}\r\n\r\n{payload}",payload.len()))
             });
             wait_until(|| gate.entered.load(Ordering::Acquire) == 1);
             // principal_of succeeded. Lock 2 follows durable replay or the

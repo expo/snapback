@@ -1,0 +1,30 @@
+[
+  {
+    "label": "merged",
+    "optimized": {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+      "sha256": "50c79f7ca824d909b8cd6b2fadcd96d2c4ea675a052fdb45271c7e247bce2bcc",
+      "bytes": 2117834
+    },
+    "rustOutput": {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/wasm32-unknown-unknown/wasm/snapback4_device.wasm",
+      "sha256": "a444f360403d136fc1132b6eb5c7032afd2fad26b1d7d001a2ec4d53e1e1e0bc",
+      "bytes": 2671090
+    },
+    "gzipBytes": 640054
+  },
+  {
+    "label": "main",
+    "optimized": {
+      "path": "/private/tmp/sb4-nz-r12-main-q4mzi5iy/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+      "sha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9",
+      "bytes": 2117610
+    },
+    "rustOutput": {
+      "path": "/private/tmp/sb4-nz-r12-main-q4mzi5iy/snapback4/target/wasm32-unknown-unknown/wasm/snapback4_device.wasm",
+      "sha256": "1eacb5c21ed78bb118d5c0a09d1708d27bdc8222e052007be52a5078cf64d823",
+      "bytes": 2670866
+    },
+    "gzipBytes": 639941
+  }
+]

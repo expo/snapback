@@ -1,0 +1,50 @@
+{"host":"wasm","actual":5,"result":{"data":{"current":[],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ wasm: shared composition cannot certify an overtaken second evaluation (883.757018ms)
+{"host":"process","actual":5,"result":{"data":{"current":[],"left":[{"at":1,"body":"left","id":"left-item","room":"left"}]},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✖ process: shared composition cannot certify an overtaken second evaluation (394.111092ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1467.966821
+
+✖ failing tests:
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:67:41
+✖ wasm: shared composition cannot certify an overtaken second evaluation (883.757018ms)
+  AssertionError [ERR_ASSERTION]: newly retained component must survive a shared commit after the second evaluation
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:121:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:67:41
+✖ process: shared composition cannot certify an overtaken second evaluation (394.111092ms)
+  AssertionError [ERR_ASSERTION]: newly retained component must survive a shared commit after the second evaluation
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rh/snapback4/target/rh-round0-src/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:121:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

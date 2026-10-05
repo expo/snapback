@@ -1,0 +1,8 @@
+{
+  "startedAt": "2026-10-03T15:58:34.970196+00:00",
+  "pid": 5746,
+  "intervalSeconds": 60,
+  "lifetime": "operator-owned; stop only after builder, grade AND holistic score terminate",
+  "host": "MacMini-Apt101-M5-A",
+  "cpuCount": 18
+}

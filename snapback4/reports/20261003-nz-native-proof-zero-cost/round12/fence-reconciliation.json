@@ -1,0 +1,24 @@
+{
+  "at": 1791192061.741296,
+  "path": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+  "beforeSha256": "73e7b95038eb0802e806e7ed4251012c99b900a4d4440aa80921b61c62cf2d67",
+  "afterSha256": "bb3592954b06133a976a1e07ab238446a8f118fae1ec914e8b1d35c1e92b72db",
+  "main": "8bd933cd2dfbf7cb8acfd43f209f7015ed58a633",
+  "classification": "Merge-caused test semantic conflict. NZ round-2 workaround universally adds reservation markers and fences ordinary schemas; RPF now omits all-zero plans. Restore main exact capability expectations and canonical current capability-free byte/store controls, retaining main watermark assertions and native/WASM refusal and migration coverage. No runtime change.",
+  "preFix": {
+    "path": "/tmp/sb4-nz-r12-fence-pre-fix.log",
+    "sha256": "90a3fc413211368086528298b669e554af8655c6e37520fad3271ff1059cd3ed",
+    "bytes": 7332
+  },
+  "mainControl": {
+    "path": "/tmp/sb4-nz-r12-main-fence.log",
+    "sha256": "fa5c66c3dfcc279fcd5e1d8b406a1bfc0f902e6c4863229b9e8a01ca0874eb83",
+    "bytes": 6600
+  },
+  "fixedOutcome": "7/7 passed, zero skipped, 5.431 s; original main expectations, no runtime change",
+  "fixedControl": {
+    "path": "/tmp/sb4-nz-r12-fence-fixed.log",
+    "sha256": "93c91480fb8392684bf001f2569bb1870887b2c8ce5332a73ae28efac497a91f",
+    "bytes": 6600
+  }
+}

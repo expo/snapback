@@ -1,3 +1,8 @@
+// Named workers copy snapback/workers/; put relative helper imports in its subdirectories.
+// process.cwd() starts at SNAPBACK_PROJECT_DIR (project in dev, active release in serve).
+// Write files with resolve(process.env.SNAPBACK_PROJECT_DIR, "data/push-log.jsonl"),
+// never relative to import.meta.url: module URLs point into a disposable private copy.
+// Dependencies stay host-installed; arbitrary parent env is stripped (guide effects).
 // This filename declares service:notifications. dev and serve own its lifecycle.
 import { GiveUp, runWorker } from "snapback4/worker";
 

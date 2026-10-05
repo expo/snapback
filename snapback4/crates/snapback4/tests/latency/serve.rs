@@ -66,7 +66,7 @@ fn latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_wai
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
     let engine = lock(&host.shared.engine);
     let address = host.address;
-    let read = thread::spawn(move || exchange(address, "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}"));
+    let read = thread::spawn(move || exchange_held(address, CLIENT_TIMEOUT + 3 * CLIENT_TIMEOUT + Duration::from_millis(120), "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}"));
     let started = Instant::now();
     while host.shared.engine.queued() < 2 {
         assert!(started.elapsed() < Duration::from_secs(3)); thread::yield_now();
@@ -89,7 +89,7 @@ fn latency_reset_excludes_requests_that_arrived_in_the_previous_window() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), SOURCE);
     let engine = lock(&host.shared.engine);
     let address = host.address;
-    let read = thread::spawn(move || exchange(address, "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}"));
+    let read = thread::spawn(move || exchange_held(address, 2 * CLIENT_TIMEOUT, "POST /q/read HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 2\r\n\r\n{}"));
     let started = Instant::now();
     while host.shared.engine.queued() < 2 { assert!(started.elapsed() < Duration::from_secs(3)); thread::yield_now(); }
     host.request("POST", "/dev/latency/reset", "", "");

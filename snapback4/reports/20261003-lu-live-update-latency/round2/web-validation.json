@@ -1,0 +1,45 @@
+[
+  {
+    "label": "main",
+    "writes": 270,
+    "remote_renders": 540,
+    "all_renders_after_commit": true,
+    "negative_raw_stamp_samples": [],
+    "primary_percentiles_reproduced_from_csv": true,
+    "max_csv_rounding_difference_ms": 0.00048828125,
+    "stage_stamp_counts": {
+      "delivery": 540,
+      "published": 540,
+      "received": 538,
+      "evaluation": 540,
+      "render": 540
+    }
+  },
+  {
+    "label": "after",
+    "writes": 270,
+    "remote_renders": 540,
+    "all_renders_after_commit": false,
+    "negative_raw_stamp_samples": [
+      {
+        "burners": "120",
+        "run": "27",
+        "shape": "message",
+        "viewer": "1",
+        "commit": "1791119515394.626",
+        "evaluation": "1791119515372.400",
+        "render": "1791119515385.000",
+        "render_minus_commit_ms": -9.6259765625
+      }
+    ],
+    "primary_percentiles_reproduced_from_csv": true,
+    "max_csv_rounding_difference_ms": 0.000732421875,
+    "stage_stamp_counts": {
+      "delivery": 540,
+      "published": 540,
+      "received": 531,
+      "evaluation": 540,
+      "render": 540
+    }
+  }
+]

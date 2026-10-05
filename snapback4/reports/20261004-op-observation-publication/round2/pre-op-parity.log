@@ -1,0 +1,20 @@
+REVIEW_DISCOVERY {"boundary":"disjoint-notification","predicted":["rows/own"],"read":{"loading":true},"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"disjoint-notification","read":{"loading":true},"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"published-empty-commit","predicted":["rows/own"],"read":{"loading":true},"predictions":null}
+REVIEW_DISCOVERY {"boundary":"published-empty-commit","read":{"loading":true},"predictions":null}
+REVIEW_DISCOVERY {"boundary":"applied","predicted":["rows/own"],"read":{"loading":true},"predictions":[]}
+REVIEW_DISCOVERY {"boundary":"applied","read":{"loading":true},"predictions":[]}
+✔ new known prediction with disjoint-notification (3.281457ms)
+✔ new opaque prediction with disjoint-notification (0.342443ms)
+✔ new known prediction with published-empty-commit (0.471556ms)
+✔ new opaque prediction with published-empty-commit (0.30697ms)
+✔ new known prediction with applied (0.321973ms)
+✔ new opaque prediction with applied (0.217827ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62.58192

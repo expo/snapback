@@ -18,6 +18,9 @@ struct Wire {
     #[serde(skip)]
     legacy_receipt_prediction: bool,
     tables: BTreeMap<String, Table>,
+    #[cfg(feature = "sqlite")]
+    #[serde(skip)]
+    authored_indexes: inspection::AuthoredIndexes,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     delivery: Vec<DeliveryBinding>,
     #[cfg(feature = "sqlite")]

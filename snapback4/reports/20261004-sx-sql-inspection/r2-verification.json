@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-04T23:46:54.516292+00:00",
+  "base": "19f492f247",
+  "tests": {
+    "sql": 9,
+    "check": 89,
+    "guide": 112,
+    "schemaCapabilities": 10,
+    "receiptCorpora": 2,
+    "durableCompatibility": 1,
+    "catalogProbeCommands": 4
+  },
+  "fullSuiteRerun": false,
+  "diskAllocatedBytes": 15086485504,
+  "diskCeilingBytes": 40000000000,
+  "scratchRemoved": true,
+  "wasmComparison": "r2-wasm-comparison.json",
+  "runtimeInstructionsIdentical": true,
+  "metadataPolicy": "Persist source-declared identities before expansion; unknown origin for legacy records; no device projection metadata."
+}

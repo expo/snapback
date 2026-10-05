@@ -1,0 +1,7 @@
+{
+  "path": "/private/tmp/sb4-nz-r12-main-q4mzi5iy",
+  "main": "8bd933cd2dfbf7cb8acfd43f209f7015ed58a633",
+  "removedAt": 1791195958.8587399,
+  "remainingDirectCommands": [],
+  "note": "Only the NZ-created comparison snapshot was removed; its node_modules symlink was unlinked, never followed. Main binary, wasm and test logs were archived first."
+}

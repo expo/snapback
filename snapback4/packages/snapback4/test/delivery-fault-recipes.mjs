@@ -19,7 +19,7 @@ export const groups = {
   native: [126,127,128,129],
   query: [8,12],
   queryDecode: [116],
-  search: [139,140,141,142,143,144,145,146,147,148,149,150,151,152,153],
+  search: [161,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153],
   hold: [10,130,131,132],
   clock: [134],
   auth: [11,18,26,27],
@@ -29,6 +29,9 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  // RH round 1: the provisional search fallback reads on the shared ledger.
+  if (index === 150) return 161;
+  if (index > 150) index -= 1;
   // EA round 2: close reads both custody sources before reporting unknown.
   if (index === 95 || index === 96) return index + 64;
   if (index > 96) index -= 2;

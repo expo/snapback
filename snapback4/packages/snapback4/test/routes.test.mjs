@@ -316,5 +316,6 @@ test("32 idle actions and 129 service routes still verify and complete the last 
   assert.equal(p.records("unexpected-idle-action").length, 0);
   const work = runs(p); assert.equal(work.length, 1); assert.equal(work[0].name, `@route/${last}`);
   assert.equal(work[0].state, "done"); assert.equal(work[0].attempts, 1);
+  await until(() => f.workerPids().length > 0, "route worker PID diagnostic", f.log);
   assert.equal(p.inspect("SELECT * FROM r").length, 1); assert.equal(f.workerPids().length, 1, f.log());
 });

@@ -1,0 +1,30 @@
+snapback4 — the scale-to-zero backend with a partition on every device
+
+  init [dir] [--online|--expo|--web]  start a project
+  new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
+  check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
+  types                            compile and write snapback/generated/api.ts
+  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h] [--trace-empty]
+                                      --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
+  deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
+  rollback <dir>                   current → the previous release
+  serve <dir> [--port N] [--bind IP] [--worker <path>]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+    --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
+  run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
+  clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
+  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
+  why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
+  guide [keyword]                  list cards and aliases, or print one card
+  data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
+  sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
+    sql '\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
+    sql '\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
+  token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
+  doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
+  witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
+                                      prove fresh acquisition and retained cold restart on the native process device
+  witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
+  witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
+                                      record an installed iOS app cold-offline, then reconnect its owned backend
+  device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
+  --version

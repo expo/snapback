@@ -1,0 +1,1226 @@
+{
+  "parent": "0edf7c46904fbfa94d78c78d1013573a9f122376",
+  "host": "expose-builder-pixel",
+  "build_environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "cli_sha256": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+  "cli_stat_mtime": 1791139665.089276,
+  "recorded_at": "2026-10-04T18:57:49.487419+00:00",
+  "review_sha256": "c1e27080d8a7f69b03e0eb0f06f17715d05724767a830f3e91c81b5fa8ae9afe",
+  "astra_mq_note": "Round-1 review retained-history sample was 67/68: MQ local branch watch wasm observed calls=3, expected 2. Thirty isolated merged-baseline MQ controls and one complete baseline file passed. Root cause unclassified; not investigated in FX round 2, per operator. Distinct from R5 empty delivery and from fetch failures.",
+  "selection": "Witness restores first-record semantics and requires the whole line value to be ASCII digits fitting u64. Descriptor/acquisition also use the first marker in a line; acquisition census now rejects extra tokens rather than silently parsing its second whitespace token.",
+  "context": "LLP 3000#publication-suite-under-contention: preserve assertions, counts and bounds; observe complete records. No product code or authoring surface change.",
+  "outside_csv_safe": [
+    "local-e2e.test.mjs output getter is stdout only",
+    "worker-regressions.test.mjs output is stdout only and newline-terminated",
+    "witness/lib.mjs and witness/starter.mjs use stdout only and complete lines",
+    "periphery, supervised-workers and worker regex assertions validate already observed output rather than waiting on a mixed readiness record"
+  ],
+  "coverage": "30 runs of all 57 changed JavaScript test files, five complete consumers for shared helpers, and the new regression file (63 total); full suite covers remaining transitive consumers. 30 full runs of each of the three Rust targets. No remote hosts.",
+  "toolchain": {
+    "node": {
+      "version": "v24.13.1",
+      "path": "/home/ccheever/.local/bin/node",
+      "resolved_path": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "executable_sha256": "d95de52ccb76fb2c5775bf176f29f3025e4b19352c092aad51ce5d930717359f"
+    },
+    "rustc": {
+      "version": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "path": "/home/ccheever/.cargo/bin/rustc",
+      "resolved_path": "/home/ccheever/.cargo/bin/rustup",
+      "executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    },
+    "cargo": {
+      "version": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "path": "/home/ccheever/.cargo/bin/cargo",
+      "resolved_path": "/home/ccheever/.cargo/bin/rustup",
+      "executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    },
+    "bun": {
+      "version": "1.3.14",
+      "path": "/home/ccheever/.local/bin/bun",
+      "resolved_path": "/home/ccheever/.bun/bin/bun",
+      "executable_sha256": "9fd36f87e4b90b07632b987a2e4ec81ca15a62c81bf983190cea6d715be2ad74"
+    }
+  },
+  "verification": {
+    "verified_at": "2026-10-04T20:13:34.242187+00:00",
+    "js_invocations": 1890,
+    "js_pass": 1874,
+    "js_fail": 16,
+    "rust_invocations": 90,
+    "rust_pass": 90,
+    "baseline_read_existence_pass": 29,
+    "baseline_read_existence_fail": 1,
+    "all_log_hashes_match": true,
+    "native_exits_and_affinity_match": true,
+    "keeper_cleanup_acknowledged": true,
+    "hog_cleanup_recorded": true,
+    "source_hashes_unchanged": true,
+    "rust_binary_hashes_unchanged": true
+  },
+  "repetitions": {
+    "at": "2026-10-04T19:39:08.530723+00:00",
+    "invocations": 1890,
+    "passes": 1874,
+    "failures": 16,
+    "files": [
+      {
+        "file": "packages/snapback4/test/acquisition.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+        "invocations": 30,
+        "passes": 29,
+        "failures": 1,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/app.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/asset-avatars.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/asset-lists.test.mjs",
+        "invocations": 30,
+        "passes": 28,
+        "failures": 2,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/bounded-following.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/client-seams.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/composed-authority.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/familiar-forms.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/first-account.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/following-unfollow.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/http-bounds.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/intent-views.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/keep-device.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/maintained-columns.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/maintains.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/page-authority.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/page-observation.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/page-ready.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/pending-items.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/pending-writes.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/periphery.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/presence-composed.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/presence-live.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/presence-local.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+        "invocations": 30,
+        "passes": 28,
+        "failures": 2,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/read-through.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/readauth.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/release-activation.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/repair-b.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/residency.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/retained-history.test.mjs",
+        "invocations": 30,
+        "passes": 25,
+        "failures": 5,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/routes.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/seen-devices.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/server-e2e.test.mjs",
+        "invocations": 30,
+        "passes": 28,
+        "failures": 2,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/server-output.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/social-starter.test.mjs",
+        "invocations": 30,
+        "passes": 29,
+        "failures": 1,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+        "invocations": 30,
+        "passes": 29,
+        "failures": 1,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/store-reset.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/sync-generation.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/sync-overflow.test.mjs",
+        "invocations": 30,
+        "passes": 29,
+        "failures": 1,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/transport-http.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/unread-range.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/witness-acquire.test.mjs",
+        "invocations": 30,
+        "passes": 29,
+        "failures": 1,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/worker.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/write-authority.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      },
+      {
+        "file": "packages/snapback4/test/write-ids.test.mjs",
+        "invocations": 30,
+        "passes": 30,
+        "failures": 0,
+        "complete_30_iteration_series": true
+      }
+    ]
+  },
+  "interleaving": [
+    {
+      "label": "parent",
+      "started": "2026-10-04T18:51:52.361343+00:00",
+      "finished": "2026-10-04T18:53:55.219933+00:00",
+      "command": [
+        "taskset",
+        "-c",
+        "88-91",
+        "node",
+        "/tmp/fx-r2/run-interleave.mjs",
+        "parent"
+      ],
+      "exit_code": 1
+    },
+    {
+      "label": "final",
+      "started": "2026-10-04T18:51:52.361918+00:00",
+      "finished": "2026-10-04T18:51:54.759368+00:00",
+      "command": [
+        "taskset",
+        "-c",
+        "88-91",
+        "node",
+        "/tmp/fx-r2/run-interleave.mjs",
+        "final"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "parser_controls": {
+    "source_sha256": {
+      "crates/snapback4/tests/witness.rs": "321ce5fe93d15da2d75c104af1be36d349968212998a7be1c5c6383762cfb470",
+      "crates/snapback4/tests/http_emfile.rs": "0f7d548792af87f1fa38aa1f85a37d83236bba8edef7ec886c1b72352f0e0bd7",
+      "crates/snapback4-device/tests/acquisition_crash.rs": "963fab53c4cbfb30086e4d7097e36a30ceb9f2e6a34d382ebfb9ebb727e36343"
+    },
+    "parent_adaptation": "Original parsing expressions adapted to Option-returning helper signatures; panicking parse failure becomes None for malformed-value probes. Final helper and test functions are extracted verbatim.",
+    "runs": [
+      {
+        "mode": "parent",
+        "build": [
+          "rustc",
+          "--edition=2024",
+          "--test",
+          "/tmp/fx-r2/evidence/parser-probe-parent.rs",
+          "-o",
+          "/tmp/fx-r2/parser-probe-parent"
+        ],
+        "command": [
+          "/tmp/fx-r2/parser-probe-parent",
+          "--nocapture"
+        ],
+        "exit_code": 101,
+        "source_sha256": "fde50b63c707e808e751ded66207fa97f3f27a3d9be43f77189eae2b12f3fc1c"
+      },
+      {
+        "mode": "final",
+        "build": [
+          "rustc",
+          "--edition=2024",
+          "--test",
+          "/tmp/fx-r2/evidence/parser-probe-final.rs",
+          "-o",
+          "/tmp/fx-r2/parser-probe-final"
+        ],
+        "command": [
+          "/tmp/fx-r2/parser-probe-final",
+          "--nocapture"
+        ],
+        "exit_code": 0,
+        "source_sha256": "8577a9472674fda6492a2b304e17447afc064152536f13320d9c256893edcb6f"
+      }
+    ]
+  },
+  "full_suite": {
+    "command": [
+      "bash",
+      "scripts/test.sh"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-fx/snapback4",
+    "environment": {
+      "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_BUILD_JOBS": "8",
+      "TMPDIR": "/tmp/fx-r2/full-scratch"
+    },
+    "started": "2026-10-04T19:37:50.833855+00:00",
+    "cli_sha256_before": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "pid": 2203845,
+    "exit_code": 0,
+    "finished": "2026-10-04T20:12:32.687285+00:00",
+    "seconds": 2081.7873376240022,
+    "log_sha256": "bd08d8ce650b98d939e2947c915dae4e545fd68fcdacd81fd62f347a921edc7c",
+    "cli_sha256_after": "0ef1bec24b99e87c7ed8c5c23706a69dc021a823b5be4548b7aede148b76d1b6",
+    "reported_failed_stages": 0,
+    "reported_seconds": 2082,
+    "stages": [
+      {
+        "result": "ok",
+        "name": "cargo build",
+        "seconds": 24
+      },
+      {
+        "result": "ok",
+        "name": "wasm build",
+        "seconds": 70
+      },
+      {
+        "result": "ok",
+        "name": "docs budget",
+        "seconds": 50
+      },
+      {
+        "result": "ok",
+        "name": "release guard",
+        "seconds": 10
+      },
+      {
+        "result": "ok",
+        "name": "package typecheck",
+        "seconds": 2
+      },
+      {
+        "result": "ok",
+        "name": "package build",
+        "seconds": 3
+      },
+      {
+        "result": "ok",
+        "name": "chat app check",
+        "seconds": 0
+      },
+      {
+        "result": "ok",
+        "name": "cargo test",
+        "seconds": 1003
+      },
+      {
+        "result": "ok",
+        "name": "chat app typecheck",
+        "seconds": 1
+      },
+      {
+        "result": "ok",
+        "name": "expo app typecheck",
+        "seconds": 1
+      },
+      {
+        "result": "ok",
+        "name": "fixture wrapper tests",
+        "seconds": 12
+      },
+      {
+        "result": "ok",
+        "name": "client tests",
+        "seconds": 615
+      },
+      {
+        "result": "ok",
+        "name": "client models",
+        "seconds": 305
+      }
+    ],
+    "rust_counts": {
+      "passed": 4975,
+      "failed": 0,
+      "ignored": 33
+    },
+    "client_summaries": [
+      {
+        "completed": 1,
+        "total": 1,
+        "failed_files": 0,
+        "counts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "completed": 312,
+        "total": 312,
+        "failed_files": 0,
+        "counts": {
+          "tests": 6217,
+          "pass": 6206,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 11,
+          "todo": 0
+        }
+      },
+      {
+        "completed": 2,
+        "total": 2,
+        "failed_files": 0,
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      }
+    ],
+    "cli_unchanged": true,
+    "rust_executions": 1012,
+    "detailed_summary": "round2-evidence.tar.gz:evidence/full-suite-summary.json"
+  },
+  "disk": {
+    "samples": 320,
+    "peak_sampled_owned_bytes": 12294679432,
+    "samples_with_errors": 8,
+    "all_samples_under_40GB": true,
+    "all_samples_complete": true,
+    "minimum_free_bytes": 52100493312
+  },
+  "assertions": {
+    "assertions": 4534,
+    "files": [
+      {
+        "path": "snapback4/packages/snapback4/test/acquisition.test.mjs",
+        "assertions": 187,
+        "test_names": 20,
+        "timeouts": 16
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/admit-before-identity.test.mjs",
+        "assertions": 216,
+        "test_names": 28,
+        "timeouts": 18
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/answer-row-authority.test.mjs",
+        "assertions": 19,
+        "test_names": 2,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs",
+        "assertions": 23,
+        "test_names": 2,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/asset-lists.test.mjs",
+        "assertions": 161,
+        "test_names": 11,
+        "timeouts": 11
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/bounded-following.test.mjs",
+        "assertions": 218,
+        "test_names": 20,
+        "timeouts": 20
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+        "assertions": 195,
+        "test_names": 34,
+        "timeouts": 28
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/client-seams.test.mjs",
+        "assertions": 315,
+        "test_names": 29,
+        "timeouts": 13
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/column-stream-recovery.test.mjs",
+        "assertions": 20,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/composed-authority.test.mjs",
+        "assertions": 19,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs",
+        "assertions": 55,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/familiar-forms.test.mjs",
+        "assertions": 42,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/first-account.test.mjs",
+        "assertions": 36,
+        "test_names": 3,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/fixtures/routes.mjs",
+        "assertions": 4,
+        "test_names": 0,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/following-unfollow.test.mjs",
+        "assertions": 23,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/helpers/app-server.mjs",
+        "assertions": 1,
+        "test_names": 0,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs",
+        "assertions": 4,
+        "test_names": 0,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/helpers/read-through-server.mjs",
+        "assertions": 2,
+        "test_names": 0,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs",
+        "assertions": 56,
+        "test_names": 0,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/horizon-boundary.test.mjs",
+        "assertions": 168,
+        "test_names": 16,
+        "timeouts": 14
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/http-bounds.test.mjs",
+        "assertions": 62,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/intent-views.test.mjs",
+        "assertions": 5,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/keep-device.test.mjs",
+        "assertions": 29,
+        "test_names": 3,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/keepalive-headers.test.mjs",
+        "assertions": 19,
+        "test_names": 3,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs",
+        "assertions": 11,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+        "assertions": 60,
+        "test_names": 1,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/maintains.test.mjs",
+        "assertions": 15,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/page-authority.test.mjs",
+        "assertions": 44,
+        "test_names": 11,
+        "timeouts": 9
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/page-observation.test.mjs",
+        "assertions": 9,
+        "test_names": 2,
+        "timeouts": 3
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/page-ready.test.mjs",
+        "assertions": 37,
+        "test_names": 3,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/pending-items.test.mjs",
+        "assertions": 59,
+        "test_names": 11,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/pending-writes.test.mjs",
+        "assertions": 72,
+        "test_names": 8,
+        "timeouts": 3
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/periphery.test.mjs",
+        "assertions": 144,
+        "test_names": 19,
+        "timeouts": 8
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/presence-composed.test.mjs",
+        "assertions": 6,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/presence-live.test.mjs",
+        "assertions": 17,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/presence-local.test.mjs",
+        "assertions": 29,
+        "test_names": 12,
+        "timeouts": 12
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/read-admission-insert.test.mjs",
+        "assertions": 8,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/read-existence-integration.test.mjs",
+        "assertions": 42,
+        "test_names": 3,
+        "timeouts": 3
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/readauth.test.mjs",
+        "assertions": 26,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/recorded-compatibility.test.mjs",
+        "assertions": 31,
+        "test_names": 1,
+        "timeouts": 2
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/release-activation.test.mjs",
+        "assertions": 147,
+        "test_names": 14,
+        "timeouts": 15
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/repair-b-overflow.test.mjs",
+        "assertions": 34,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/repair-b-round9.test.mjs",
+        "assertions": 48,
+        "test_names": 3,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/repair-b.test.mjs",
+        "assertions": 57,
+        "test_names": 5,
+        "timeouts": 5
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/residency.test.mjs",
+        "assertions": 85,
+        "test_names": 9,
+        "timeouts": 8
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/retained-history.test.mjs",
+        "assertions": 237,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/row-keyed-view.test.mjs",
+        "assertions": 58,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/row-view-prediction.test.mjs",
+        "assertions": 9,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/schema-capabilities.test.mjs",
+        "assertions": 124,
+        "test_names": 4,
+        "timeouts": 3
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/seen-devices.test.mjs",
+        "assertions": 16,
+        "test_names": 1,
+        "timeouts": 1
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/server-e2e.test.mjs",
+        "assertions": 161,
+        "test_names": 9,
+        "timeouts": 10
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+        "assertions": 160,
+        "test_names": 11,
+        "timeouts": 5
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs",
+        "assertions": 51,
+        "test_names": 7,
+        "timeouts": 7
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/store-reset.test.mjs",
+        "assertions": 38,
+        "test_names": 4,
+        "timeouts": 4
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/sync-generation.test.mjs",
+        "assertions": 145,
+        "test_names": 13,
+        "timeouts": 5
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/sync-overflow.test.mjs",
+        "assertions": 85,
+        "test_names": 8,
+        "timeouts": 6
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/transport-http.test.mjs",
+        "assertions": 51,
+        "test_names": 5,
+        "timeouts": 5
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/unread-range.test.mjs",
+        "assertions": 63,
+        "test_names": 8,
+        "timeouts": 8
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/witness-acquire.test.mjs",
+        "assertions": 143,
+        "test_names": 21,
+        "timeouts": 0
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/worker.test.mjs",
+        "assertions": 238,
+        "test_names": 20,
+        "timeouts": 14
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/write-authority.test.mjs",
+        "assertions": 45,
+        "test_names": 6,
+        "timeouts": 4
+      },
+      {
+        "path": "snapback4/packages/snapback4/test/write-ids.test.mjs",
+        "assertions": 50,
+        "test_names": 5,
+        "timeouts": 1
+      }
+    ]
+  },
+  "rust_assertions": {
+    "snapback4/crates/snapback4/tests/witness.rs": {
+      "original_assertion_lines_preserved": 266,
+      "added_test_functions": 1
+    },
+    "snapback4/crates/snapback4/tests/http_emfile.rs": {
+      "original_assertion_lines_preserved": 25,
+      "added_test_functions": 1
+    },
+    "snapback4/crates/snapback4-device/tests/acquisition_crash.rs": {
+      "original_assertion_lines_preserved": 11,
+      "added_test_functions": 1
+    }
+  },
+  "archive": {
+    "path": "round2-evidence.tar.gz",
+    "sha256": "1bd2738583ad6c56b05dca8e0603a86673995d3df4725f3867c35bda437a742b",
+    "bytes": 3277818,
+    "files": 2147,
+    "all_archived_bytes_verified": true
+  },
+  "cleanup": {
+    "completed_stress_scratch": "stress-scratch-cleanup.json",
+    "completed_control_scratch": "control-scratch-cleanup.json",
+    "target_and_final_scratch": {
+      "finished": "2026-10-04T20:13:50.231871+00:00",
+      "removed_bytes_before_deletion": {
+        "/home/ccheever/sb4-intent/lane-fx/snapback4/target": 10656497308,
+        "/tmp/fx-r2": 34810439
+      },
+      "removed_paths_absent": true,
+      "existing_node_modules_retained": true
+    }
+  },
+  "source_sha256": {
+    "snapback4/crates/snapback4-device/tests/acquisition_crash.rs": "963fab53c4cbfb30086e4d7097e36a30ceb9f2e6a34d382ebfb9ebb727e36343",
+    "snapback4/crates/snapback4/tests/http_emfile.rs": "0f7d548792af87f1fa38aa1f85a37d83236bba8edef7ec886c1b72352f0e0bd7",
+    "snapback4/crates/snapback4/tests/witness.rs": "321ce5fe93d15da2d75c104af1be36d349968212998a7be1c5c6383762cfb470",
+    "snapback4/packages/snapback4/test/acquisition.test.mjs": "0faaa10d070397293a124a8a557af7e021f8bf2af49efe8f6f72ec75090c766c",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "a46675912887556ce7d79178cd8152afda1b8b70c4941400591c5f469b4b498c",
+    "snapback4/packages/snapback4/test/answer-row-authority.test.mjs": "b96a6508042dad9bc144473e28615103688a0708a0045db137adc022a0798669",
+    "snapback4/packages/snapback4/test/answer-withdrawal.test.mjs": "18efc283ddf71a65df5d8f24565a8ee66f275ee14944f5268805c62721e9b564",
+    "snapback4/packages/snapback4/test/asset-lists.test.mjs": "cc69af8e81b5eb288055bdd2f8c5c60c080a0f6ff403e6bc55cfad97ae16a765",
+    "snapback4/packages/snapback4/test/bounded-following.test.mjs": "35e9a410dfe98a0b328c70847d8e011bd21f8c9ca26e4ff9951c29ccede21fcb",
+    "snapback4/packages/snapback4/test/client-lifecycle.test.mjs": "8b134d74e0ea02d08e77a8600f077d39f9739d37729901037b2bedf0beec5c9f",
+    "snapback4/packages/snapback4/test/client-seams.test.mjs": "906d24a0aad7ceaac1d03a9ff4bf2c05e4201ba783fc6348dbef6173417e4bce",
+    "snapback4/packages/snapback4/test/column-stream-recovery.test.mjs": "a9cec636366da142e98500c00ea7431f2b35f3f99fa56e40af6e6e9fd5be8377",
+    "snapback4/packages/snapback4/test/composed-authority.test.mjs": "a5f3af273cea5a4037b80b5d9b374474402a1f994487ab8d0a465d1055ec5302",
+    "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs": "37d1e1dcb9a307a056db1e446a7a363009ae1a19aab46b4912023f551495330a",
+    "snapback4/packages/snapback4/test/familiar-forms.test.mjs": "b0d6774ad34071df6ab73bbad1c3c2b242837485402148d7fff0d5e23cd36c2e",
+    "snapback4/packages/snapback4/test/first-account.test.mjs": "d7323dba513475f05413e5fcd4b241343cafea55631d5c24f98d9fb1a2e0a7d6",
+    "snapback4/packages/snapback4/test/fixtures/routes.mjs": "709ee9fd5ee4ad110282e58495c3bba5c79f7fd7366085a2e872d919b524d424",
+    "snapback4/packages/snapback4/test/following-unfollow.test.mjs": "ddf58de6d92f5827d2deb380cc1a761d6575bc5a56532b394924b8e204ef3da3",
+    "snapback4/packages/snapback4/test/helpers/app-server.mjs": "d72ef6fa09db6a66b5c433a2dfd5462a6af70352723e2b71ba3584d2db0b7452",
+    "snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs": "1951e5aa2cafaac184470e47b570846495e4537e0440820d9f3484867e8c7670",
+    "snapback4/packages/snapback4/test/helpers/read-through-server.mjs": "455e125861294ab038457af18bf6ca91103563bef6be4c9afcc5e334cb28ed76",
+    "snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs": "708c23ad87c4fed58e2e4e19feeb89a0cc2a413c3f41d5c1899fc8caffb685fd",
+    "snapback4/packages/snapback4/test/horizon-boundary.test.mjs": "389b7bfe59a3621afed8a5e6ab5a75c8a7a620abdf9b73d549ffbab089bd310b",
+    "snapback4/packages/snapback4/test/http-bounds.test.mjs": "deb5d8992910c9f61bff41f1e602c467589d9874f9819256b18d238adef245bd",
+    "snapback4/packages/snapback4/test/intent-views.test.mjs": "46c29e8cd3eed2e4aea9c852c11665268eeededeffeb8898b91aa50b9cac8fae",
+    "snapback4/packages/snapback4/test/keep-device.test.mjs": "1acecbd826947cddddeec9caae552202623695304276b3d8a5ccba917b9a9b64",
+    "snapback4/packages/snapback4/test/keepalive-headers.test.mjs": "0ba8cea57242a3a8bcb8439b99315eec611043878dce6004b5cb02cc15999714",
+    "snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs": "e2f8576f7a5236b4e37be6ac917bcacb81f6e8431e4e838a3adb97e5e9b167ea",
+    "snapback4/packages/snapback4/test/maintained-columns.test.mjs": "580f8a36f9b1e8813583dda1dc484c9aa65a4a4fb812d07015519f176112e838",
+    "snapback4/packages/snapback4/test/maintains.test.mjs": "1dc575dc99c5f72719cd938dfd1421d46d0a80ae7b69ceaf0b28e873799ea2c2",
+    "snapback4/packages/snapback4/test/page-authority.test.mjs": "cf14fcfa6e6a3e5394cb90c43080ffbc3851b1c3b05b6c46ea49f531e3b1543e",
+    "snapback4/packages/snapback4/test/page-observation.test.mjs": "916a1846eec5f360c761a31fe1802af28c39575a914767700bd2fdac954967e3",
+    "snapback4/packages/snapback4/test/page-ready.test.mjs": "b27ab7436e86ea8f0acf1a9fe38be6f598c2d489df935a54b1caacb58a0dd456",
+    "snapback4/packages/snapback4/test/pending-items.test.mjs": "b975a4e28cf56fe61113c8d3deaef39438739d4bbea17b8a3492e7ccc2d760c2",
+    "snapback4/packages/snapback4/test/pending-writes.test.mjs": "883dfab7d6826151d8d288b47dadc71a7133182456500507b5c2ecbeca40064f",
+    "snapback4/packages/snapback4/test/periphery.test.mjs": "a3c29a3932500a00f70e46def6ce0464e4fe95d8817ec4132551f67562dc1986",
+    "snapback4/packages/snapback4/test/presence-composed.test.mjs": "eb80c69a6c21295ec09713de98ce02827480d83ef79a7d594cfc9f743124f370",
+    "snapback4/packages/snapback4/test/presence-live.test.mjs": "6aa1f7f28932fae1d8daaa777a89557d468eb3a7ba34ec4246f4a9bdd8691f39",
+    "snapback4/packages/snapback4/test/presence-local.test.mjs": "95e3a864ed2fe9770e680db094080619a9ce529e4e59745a7276daf6b46bd647",
+    "snapback4/packages/snapback4/test/read-admission-insert.test.mjs": "e0b6986658e5f09ff894c293b948fd7a8cd04138592c53d0dadd12cbccdef04e",
+    "snapback4/packages/snapback4/test/read-existence-integration.test.mjs": "73ce94c2a2422ef286c0adbc087a01006324abe672fb7dc1caf0f110b2392733",
+    "snapback4/packages/snapback4/test/readauth.test.mjs": "fe554c974cf9121979cc6873dd5321e481b8af25ce4d1a30ab43078f31319a72",
+    "snapback4/packages/snapback4/test/recorded-compatibility.test.mjs": "05198b98041aed67be3aa77f6983abc5b8c58dd48c271c7725c8fe830f2b139c",
+    "snapback4/packages/snapback4/test/release-activation.test.mjs": "7796da48f9248bbde55a5167c9a01eef023b28e6d0ab151df7355b8d34e7bced",
+    "snapback4/packages/snapback4/test/repair-b-overflow.test.mjs": "f7b5c6e25aa69d0766cfc27c2e0146d7e69d82cdd94087ce98669f15d170ce10",
+    "snapback4/packages/snapback4/test/repair-b-round9.test.mjs": "0fd184e892049189a9773f50ef29534ea0a716056283d185f22c396605837a3f",
+    "snapback4/packages/snapback4/test/repair-b.test.mjs": "b8b6261f75b9ccaeb4e0688eb20314b4cea8c3def3a7e6088c175bfb712a8d02",
+    "snapback4/packages/snapback4/test/residency.test.mjs": "1ccdfe18d3d974daa8dae3a4ada2a5c0fa8a9303264ab0f83b046cf20ea2e803",
+    "snapback4/packages/snapback4/test/retained-history.test.mjs": "a46fd0650a47ce6f01946bab97cdaecbed3b4ce302884af3c523b569ed615dc2",
+    "snapback4/packages/snapback4/test/row-keyed-view.test.mjs": "0fca65996546c16eb28dac046faaf8418696fe2dfeabdf44bc5487d0d7faf445",
+    "snapback4/packages/snapback4/test/row-view-prediction.test.mjs": "1ffc9e67696a00df7efed5b221f5b0e941fee49b885b144fd1916a17d582f750",
+    "snapback4/packages/snapback4/test/schema-capabilities.test.mjs": "fdb8f633ed66780bf8c017d363654a2a1912579640c047c0dbcf3bad5923d8c1",
+    "snapback4/packages/snapback4/test/seen-devices.test.mjs": "9d1fc88b56c1e5a276d2a3cd0ca33c260e9716200d9b97707ac8ac8fdf457065",
+    "snapback4/packages/snapback4/test/server-e2e.test.mjs": "25648982e6fcee8db8736a9501c73a997aa46891f9ef1c5c01041589c5ed7c93",
+    "snapback4/packages/snapback4/test/social-starter.test.mjs": "6a8713e54db17f3166fed8d2a03284b5e901764772377b5c2b0a0332430346a7",
+    "snapback4/packages/snapback4/test/store-reset-reconnect.test.mjs": "bb4b2f3cb93ab26c5330ae48f38dca70b5281c174ff150ddb77cbdb9f86f8c6e",
+    "snapback4/packages/snapback4/test/store-reset.test.mjs": "42a53ac3ba2c8102c09339dfa0bef9d068670c47305a2f327b9fafb9381bc5cd",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs": "9c7088ef62e37116e3afcd23194b9e1ccd68fba9814c3ea627f2f2d99069a011",
+    "snapback4/packages/snapback4/test/sync-overflow.test.mjs": "73e6289bc35120fe0287423b6e6976113fb75c72e353e97618104b354d424faa",
+    "snapback4/packages/snapback4/test/transport-http.test.mjs": "4d9f6a3efa58dec9c40073e62122cf671cf1f00340fb21c77e40fddeb02dc395",
+    "snapback4/packages/snapback4/test/unread-range.test.mjs": "9539bde4ec7eef98fe11bd3442ed3600d688738c77a39a8fc82b7fb90be31e29",
+    "snapback4/packages/snapback4/test/witness-acquire.test.mjs": "9b779a3ddf2c88aa550dc07a42af70b3bbb5c2a34d34022f4b20425ebe5b0442",
+    "snapback4/packages/snapback4/test/worker.test.mjs": "bca9f92581db238c9bb5ae0bb16db2750506961456ee76c7d0ef52ea053ff34c",
+    "snapback4/packages/snapback4/test/write-authority.test.mjs": "59bd31d91da9bbbe92ac1d3470a60654a43d86bdb3f5203b55ccfc1d2c5c74a9",
+    "snapback4/packages/snapback4/test/write-ids.test.mjs": "8a99351cce0d568ee1c5db0003dea1995422059d677a0a4db30d0ace0c68a409",
+    "snapback4/packages/snapback4/test/helpers/server-output.mjs": "4ad80813ba1bbd9a271f2495153375353704e208170d5926496d0c9fbbab8c3a",
+    "snapback4/packages/snapback4/test/server-output.test.mjs": "fe0bf8e3736e472228d7b8847338cdefe15d0b8980d15927b64da0a298da867e"
+  },
+  "readable_csv": {
+    "line_endings": "LF; archive retains original CRLF exports",
+    "sha256": {
+      "round2-readiness.csv": "06846491ce79e28f277edc8d9263657b9f1eb8d24aceea62c2e6d1d808d2441f",
+      "round2-repetitions.csv": "f07440c565bae7a7f6e0e06013975665f7e3911ca66f2176ceea8070884cbc92"
+    }
+  }
+}

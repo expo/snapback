@@ -176,7 +176,7 @@ It failed the unchanged `assert.ok(!deliveries.includes(0))` at line 838.
 There were no asynchronous parser errors or other client failures. This is the
 existing baseline transient-empty product issue, now reproduced on Linux under
 16 busy workers; it is not a test timeout or a fixture guard to relax. The
-[open ticket](../../../issues/20260929-snapback4-retained-history-transient-empty.md)
+[open ticket](../../../issues/closed/20260929-snapback4-retained-history-transient-empty.md)
 now contains this run and a clearly labeled code-reading lead. All 16 load
 workers remained active during the client stage. All 79 models passed in 371 seconds (online 5000: 114.096 s; local 5000: 179.749 s).
 Exact whole footer: `== 1 failure(s) in 2227 s`.

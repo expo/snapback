@@ -52,3 +52,18 @@ builder to write the harness is not available either.
 Until then, treat native as unmeasured in the series rather than as a
 persistent deficit, and read the offline_sync note's "native runtime remains
 unverified" as a statement about the instrument.
+
+## 2026-10-04 — NP2 proposal for the owner
+
+[LLP 0201.000](../llp/0201.000-cross-lane-native-app-protocol.rfc.md) is in
+Review, with [prototype evidence](../snapback4/reports/20261004-np2-native-protocol/REPORT.md).
+LLP 0201 D3/D6/D7 governs the instrument; LLP 3000.013 governs Quarry forms.
+No frozen files, prompts, calibration packets or scores changed. This ticket
+remains open pending Charlie's instrument ruling and implementation.
+
+Count correction: the frozen assertion manifest has **seven** M6 simulator
+assertions (`m6-a01`–`m6-a07`), **nine** M7 day-two assertions (none tagged
+simulator), and **two** M8 simulator assertions (`m8-a17`, `m8-a18`). Grok
+cal30's sixteen M6/M7 `not-run` results combine those first two categories.
+The proposed native protocol addresses nine assertions including M8; it does
+not remedy the separate missing M7 session.

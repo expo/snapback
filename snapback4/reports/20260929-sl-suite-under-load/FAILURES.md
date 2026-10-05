@@ -32,7 +32,7 @@ This ledger records the completed qualification matrix and all diagnostic attemp
 
 The historical Mac close/cleanup stalls are still [open](../../../issues/20260929-snapback4-browser-close-stalls-under-publication-load.md).
 The real retained-history transient-empty assertion is unchanged and its
-[product ticket](../../../issues/20260929-snapback4-retained-history-transient-empty.md)
+[product ticket](../../../issues/closed/20260929-snapback4-retained-history-transient-empty.md)
 remains open. Passing Linux repetitions do not resolve either historical cause.
 
 

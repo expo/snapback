@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Retained history on the real server and both real device hosts.
 import test from "node:test";
@@ -9,6 +10,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
+import { inspect } from "../dist/inspection.js";
 import { ServerClock } from "../dist/clock.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
@@ -113,7 +115,7 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ local branch", "MQ local branch watch", "MQ local page", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: hangBudget(126) }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "RH held leave", "RH stalled leave", "RH empty catch-up", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ local branch", "MQ local branch watch", "MQ local page", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: hangBudget(126) }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
@@ -194,12 +196,13 @@ query wordBoth():
   if (scenario === "MQ adoption") fixtureSource = fixtureSource.replace("return {left: leftRows, held: heldRows}", "return {left: leftRows, held: heldRows, epoch: 1}");
   writeFileSync(join(directory, "snapback/schema.q"), fixtureSource);
   let child = spawn(binary, ["dev", "--port", "0", "--fresh", ...(scenario === "MQ adoption" ? [] : ["--no-watch"])], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const readStdout = captureStdout(child);
   let exit = once(child, "exit");
-  let log = "", url, client, releaseReply;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  let log = "", url, client, releaseReply, releaseHeldApply;
+  child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   t.after(async () => {
-    releaseReply?.();
+    releaseReply?.(); releaseHeldApply?.();
     try { await client?.close(); }
     finally {
       // Stop the watcher before deleting its project; otherwise a final rebuild
@@ -240,6 +243,9 @@ query wordBoth():
   if (eventCase) assert.equal((await post("/m/post", { args: { postId: "p3", parentId: null }, id: "event-p3" }, "bob")).state, "sent");
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
   let freezeSync = false;
+  let holdLeave = false, heldLeave = false, releaseLeave, zeroReplySamples;
+  const leaveGate = new Promise(resolve => { releaseLeave = resolve; });
+  releaseHeldApply = releaseLeave;
   const parked = signal => new Promise((_, reject) => {
     if (signal.aborted) reject(signal.reason);
     else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
@@ -281,6 +287,10 @@ query wordBoth():
       if (offline) throw new TypeError("test offline");
       const path = new URL(input).pathname;
       allRequests.push(path);
+      // Expiry-only cases explicitly sync before pinning their clock. Park the
+      // feed from the start: a response decoded before freezeSync can otherwise
+      // invalidate the held query after the fixture has claimed isolation.
+      if ((branchCase || pageCase) && path === "/changes") return parked(init.signal);
       if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
       if (scenario === "R2 sync during reply" && path === "/q/both") querySince = syncedAt;
       if (path === "/q/history") requests.push(JSON.parse(init.body).args.room);
@@ -298,10 +308,18 @@ query wordBoth():
         const page = await response.clone().json(); syncPages.push(page);
         if (interruptSnapshot && page.snapshot && page.more) snapshotStarted = true;
       }
+      if (holdLeave && path === "/q/history" && JSON.parse(init.body).args.room === "left") {
+        const answer = await response.clone().json();
+        if (answer.data?.length === 0 && zeroReplySamples === undefined) {
+          assert.equal(answer.complete, true);
+          assert.ok(answer.seq > Number((await core.call({ op: "state" })).ok.watermark));
+          zeroReplySamples = inspect(client).latency.samples;
+        }
+      }
       if (intercept && path === `/q/${delayedName}`) await intercept(init);
       return response;
     },
-    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt:wall:1") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
+    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (holdLeave && request.op === "apply" && (scenario === "RH empty catch-up" || request.page.events?.some(event => event.kind === "scope"))) { heldLeave = true; await leaveGate; } if (request.op === "set_meta" && request.key === "syncedAt:wall:1") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
   };
   clientOptions.fetch = clock.wrap(clientOptions.fetch);
   if (session) { delete clientOptions.persona; clientOptions.session = session; }
@@ -318,7 +336,42 @@ query wordBoth():
   const unsubscribe = watch.subscribe(() => { const value = watch.getSnapshot(); if (value.data) deliveries.push(value.data.length); });
   t.after(() => { unsubscribe(); watch.close(); });
   await until(() => watch.getSnapshot().data?.length === 26, "held watch missing");
+  if (scenario === "RH empty catch-up") {
+    holdLeave = true;
+    // Advance the server cut with a row Bob cannot read. His next sync page
+    // advances its watermark without touching any replicated table.
+    assert.equal((await post("/seed", [{ table: "members", row: { id: "alice-private", room: "private", principal: "dev:alice" } }])).seeded, 1);
+    const catchup = client.sync();
+    await until(() => heldLeave, "empty catch-up held before application");
+    const pendingWatch = client.observe(query, { room: "held" });
+    const stop = pendingWatch.subscribe(() => {});
+    t.after(() => { stop(); pendingWatch.close(); });
+    await until(() => pendingWatch.getSnapshot().data?.length === 26, "ahead positive fallback remains provisional");
+    assert.equal(pendingWatch.getSnapshot().complete, false);
+    assert.equal(pendingWatch.getSnapshot().fresh, false);
+    holdLeave = false; releaseLeave(); await catchup;
+    await until(() => pendingWatch.getSnapshot().data?.length === 26 && pendingWatch.getSnapshot().complete, "an empty published page must reroute provisional history");
+    assert.equal(pendingWatch.getSnapshot().complete, true);
+    return;
+  }
+  if (scenario.startsWith("RH ")) { inspect(client); holdLeave = true; }
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
+  if (scenario.startsWith("RH ")) {
+    await until(() => heldLeave, "leave page must be parked before device application");
+    await until(() => zeroReplySamples !== undefined && inspect(client).latency.samples > zeroReplySamples,
+      "the watch must finish evaluating the post-leave server answer while apply is held");
+    assert.ok(!deliveries.includes(0), `held leave published empty: ${JSON.stringify(deliveries)}`);
+    const partial = await client.query(query, { room: "left" });
+    assert.equal(partial.data?.length, 25, "a stalled device returns its permitted partial history");
+    assert.equal(partial.complete, false);
+    assert.equal(partial.fresh, false);
+    console.log(`RH ${tier} held leave: server=0, device=25, deliveries=${JSON.stringify(deliveries)}`);
+    if (scenario === "RH stalled leave") {
+      await until(() => watch.getSnapshot().loading === true, "stalled revocation must exhaust the existing retention bound");
+      assert.ok(!deliveries.includes(0), "stall may withdraw, never certify the server empty");
+    }
+    holdLeave = false; releaseLeave();
+  }
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
   if (branchCase || pageCase) {

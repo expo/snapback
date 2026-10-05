@@ -1,0 +1,147 @@
+[
+  {
+    "path": "/tmp/sb4-nz-r12-fence-fixed.log",
+    "sha256": "93c91480fb8392684bf001f2569bb1870887b2c8ce5332a73ae28efac497a91f",
+    "bytes": 6600
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-fence-pre-fix.log",
+    "sha256": "90a3fc413211368086528298b669e554af8655c6e37520fad3271ff1059cd3ed",
+    "bytes": 7332
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-build.log",
+    "sha256": "cab8e0d5c06a7035448000b17307e58be48763ec20022a95145f7fe78f4f958c",
+    "bytes": 2691
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-client-build.log",
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "bytes": 201
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-darwin-fence.log",
+    "sha256": "66b5ff008725b3f99da2f195a0d908abc1041c7160654aa3c4162107c086872c",
+    "bytes": 6596
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-export.log",
+    "sha256": "906d40b720c5bd056ee128b4c8cbdfb8955474d9c77573d090400a0d357b56a1",
+    "bytes": 25411
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-merge-test-controls.log",
+    "sha256": "d49753ffda9198600a35d97c3457ebb5730528d01e2e6641cd9377be88f1416b",
+    "bytes": 15207
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-wasm-build.log",
+    "sha256": "f337998ddb46d426ea069983cfaaa2e95c570b8ccf93c7e1a6844bd94f4cc000",
+    "bytes": 9027
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-witness-integration.log",
+    "sha256": "aabaaa752d803d41cc876cb5374f8f060683a0b59ba323865c1e63ef81adc4c9",
+    "bytes": 9735
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused-witness-unit.log",
+    "sha256": "a8994783c54c2b49598b8922b6ad1a08d9c187dd35873a341ab5fce62750084c",
+    "bytes": 10782
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-full-suite.log",
+    "sha256": "7b69912f6c1ef6646ce695445bd73b883f94a1e46ef5508a7d08ccc2e154edab",
+    "bytes": 1974222
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-main-build.log",
+    "sha256": "b8f180b2fa8ea8ec0297c43b0e28487d27ebd0f3dd8af8e7f0a3ec5ba7c3245f",
+    "bytes": 4899
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-main-client-build.log",
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "bytes": 201
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-main-fence.log",
+    "sha256": "fa5c66c3dfcc279fcd5e1d8b406a1bfc0f902e6c4863229b9e8a01ca0874eb83",
+    "bytes": 6600
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-main-wasm.log",
+    "sha256": "d4709b25efdd0b19cc1c1f50a20e4a091f4269614daf91650ed8352e94aed826",
+    "bytes": 8709
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-ref-check.log",
+    "sha256": "f55c6d2eea3420aa5a57d905b8800231b3328f5d72c942fa393ed702078920ea",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-wasm-cold.log",
+    "sha256": "692bfe4a7ee9748c89ec0639bc0dc31fbed4b76bc70adb857d2f7b254a40aeac",
+    "bytes": 8747
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-wasm-rebuild.log",
+    "sha256": "52c7faf5968a7057397649b43bde8be827ff190529830995661b29f09542ad00",
+    "bytes": 9065
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-finalize.py",
+    "sha256": "d4a00b83bac2aeafc6c2536c016807a3fb9b9c2d638913293e3ac2a4810089db",
+    "bytes": 3249
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-focused.py",
+    "sha256": "19eff09535bebd90e9b0bf11341afee5ad256b3a42cc254f08ded0ccde14290b",
+    "bytes": 3483
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-suite.py",
+    "sha256": "2d730dd4d245b5b9406b46cc75de3c49e47c26d6f5a336ec640c53823e3e0d4c",
+    "bytes": 3511
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-qualified-suite.py",
+    "sha256": "721eb073b27b92183c6e4ae5300e81896505ff4e1ed1b140f2b22c123234a626",
+    "bytes": 4222
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4",
+    "sha256": "424a42e1fb3e85a1c2764fa81c95faced401d81a99400933513e610c7fb4a6c5",
+    "bytes": 33404800
+  },
+  {
+    "path": "/private/tmp/sb4-nz-r12-main-q4mzi5iy/snapback4/target/debug/snapback4",
+    "sha256": "8c37973e9335b7bde6447e95d808e0ffe05488f1ee622d83c00b735538d4114b",
+    "bytes": 76180768
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-ref-check-final.log",
+    "sha256": "d6eed63343626910fbb5b5c0592c51d270934736989196883660741d05b50b1f",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-ref-check-committed-docs.log",
+    "sha256": "cb97ee1780c9dbb7d7f92a8ca28c366f480e07cc1472f33ca2dc7773240b78ae",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-whitespace-merged-first-parent.log",
+    "sha256": "8b2c74e208336ecbfaffa880bff08c325c113dda09a3d0ab53b04810aec0e25a",
+    "bytes": 10949
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-whitespace-nz-delta.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "/tmp/sb4-nz-r12-whitespace-main-only.log",
+    "sha256": "8b2c74e208336ecbfaffa880bff08c325c113dda09a3d0ab53b04810aec0e25a",
+    "bytes": 10949
+  }
+]

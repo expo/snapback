@@ -110,3 +110,73 @@ any mask mismatch. Use the measurement Node PID, not a process-name kill or
 an unrelated browser. For the suite witness the expected mask is `90-91`.
 The filter enforces inheritance continuously; this read-only audit independently
 checks observed live threads, including the software GPU pool.
+
+## Round 2
+
+The exact pre-LU control is `848b645294^1` (`4353aa735c`); round 2 merged
+main at `2cc55e168c`. Build native replay/upload probes in each checkout without
+changing their timeouts. Run from `snapback4/`, with separate output labels:
+
+```sh
+taskset -c 0-31,48-79 python3 reports/20261003-lu-live-update-latency/tools/replay-build.py \
+  /path/to/prelu/snapback4 target/lu-r2/prelu
+taskset -c 0-31,48-79 python3 reports/20261003-lu-live-update-latency/tools/replay-build.py \
+  "$PWD" target/lu-r2/main
+LU_LABELS=prelu,main LU_RUNS=5 LU_UPLOAD_RUNS=10 LU_LEVELS=0,20,120 \
+LU_TAG=prelu-main \
+taskset -c 80-89 python3 reports/20261003-lu-live-update-latency/tools/confine.py \
+  python3 reports/20261003-lu-live-update-latency/tools/replay-compare.py
+```
+
+Use the actual candidate checkout for a distinct `final` label, then compare
+`LU_LABELS=main,final` with `LU_TAG=main-final`. The retained `combined` label is
+the initial candidate before the CPU-debt conservation correction. Choose a
+new `LU_TAG` for each comparison to preserve
+prior logs. `LU_FIFO=1` on `replay-build.py` builds the current-runtime ablation
+that changes only the periodic selector to FIFO. Temporary instrumentation and
+the selectable replay server path are restored in `finally`; never run another
+build or edit sources concurrently in that same checkout.
+
+The fixture creates no historical backfills. Each successful delivery trace
+contains kind, cursor, work identity, committed sequence, timestamp and row
+writes. Sum live-delivery writes minus the one Work update to locate the 900th
+copy; a final task-retirement slice can occur later. Pause records are requested
+repayment decisions, not measured scheduler sleep duration. Build/test logs and
+individual traces stay ignored under `target/lu-r2/`. The report's compact JSON
+retains per-trial statistics and raw-log hashes.
+
+For the web sweep, build `lu-r2-main` and `lu-r2-final` with `instrument.py` at the
+corresponding revisions. Freeze the same current-main package layout under
+`target/lu-r2/sdk` after a locked wasm/package build. Use the round-1 command with
+`LU_RUNS=30`, `LU_HISTORY=1000`, `LU_REFOLLOW=1`, `LU_LEVELS=0,20,120`, and distinct
+`LU_OUT=target/lu-r2-{main,final}.json`. Keep `LU_SDK=target/lu-r2/sdk/dist` identical.
+
+Round 2 additionally runs the unchanged `contended-reads.mjs --mixed` control
+for 125 seconds on each production binary, with `--levels 0` and 120 **external**
+keeper-owned burners on the same ten CPUs. Thus its internal `busy: 0` field
+is not the actual injected load. This control covers reads, schedules, leases,
+expiry and deadlines; it has no Following backlog. The replay and web fixtures
+provide the separate live-delivery measurements. Run experiments sequentially;
+the normal suite may run on CPUs outside their physical-core allocation.
+
+Generate the compact native evidence (including turn/repayment counts cut at
+the 900th copy, which may precede final task retirement):
+
+```sh
+python3 reports/20261003-lu-live-update-latency/tools/replay-summarize.py \
+  reports/20261003-lu-live-update-latency/round2 prelu-main fifo-adaptive main-combined main-final
+```
+
+The report retains the final browser files as `web-after.*` (their metadata
+names the `r2-final` binary), and the initial candidate as `web-initial.*`.
+Independently reconstruct primary percentiles from those CSV stamps:
+
+```sh
+python3 reports/20261003-lu-live-update-latency/tools/check-stamps.py \
+  reports/20261003-lu-live-update-latency/round2 main after
+```
+
+This records raw negative cross-clock intervals as findings rather than
+clamping or removing them. Read `web-validation.json` as well as its percentile
+checks; it is not an assertion that every server/browser timestamp forms a
+single strictly ordered clock.

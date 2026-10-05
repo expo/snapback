@@ -51,3 +51,38 @@ round-1 run. Both fresh revisions and the suite witness now use confine.py to
 refuse affinity changes in the whole owned descendant tree, plus read-only
 thread audits. Keep rendering flags unchanged. The broader harness audit has
 a filesystem follow-up; original round-0 confinement claims are corrected.
+
+## Round 2 orientation (2026-10-04)
+
+Scope: the 900-follower replay regression and the unrelated upload-disk test;
+retain all round-1 service and web latency goals. Merged origin/main cleanly
+by fast-forward to 2cc55e168c; exact pre-LU control is 848b645294^1 =
+4353aa735cb1c752d08993268da9fa8a75f26c5c. Read the current CT/LU policy in
+LLP 3000#contended-read-serving, LLP 3000.013#4-following-without-caps,
+and the current feeds/client guide cards. RP's hidden-work reservations now
+price enqueue on both hosts: preserve that integration and the device fence.
+
+The replay fixture follows before any posts exist. timeline/online.rs does
+not enqueue backfill for empty history, so the proposed 900-item queue is a
+hypothesis to test, not an established explanation. Trace commits, kinds,
+recipient-copy slices, requested pacing and final completion on both commits;
+add a current-main FIFO-only control to separate rotation from other landings.
+No change to the replay deadline or the upload socket timeout. All load and
+experimental descendants stay on CPUs 80–89, through the inherited affinity
+guard. Burners have an owned keeper/group, and only that group is stopped.
+
+The bounded page scan must preserve all row/rule/meter checks, cursor atomicity,
+edge epochs, P-visit fairness, CT deadlines/pacing, and fresh read admission
+(LLP 3000#contended-read-serving and LLP 3000.013#4-following-without-caps).
+Finite fan-out still requires proportional copies: there is no documented
+width-independent physical completion time under arbitrarily large input or
+OS starvation. Qualify the requested 900th-recipient shape and disclose that
+limit rather than enlarge a timeout. Likely docs: LLP 3000 §7, REPORT Round 2,
+JOURNAL. Hand-off: none.
+
+Repayment refinement: cap each kind's CPU charge separately, preserve combined
+debt beyond a single repayment, and append empty-cycle debt after any pause a
+timed worker already scheduled. Every sleep stays at most 100 ms. Deterministic
+tests conserve 240 ms of capped charges and cover the timed-worker overlap;
+the final measurements/full suite follow this correction, with initial
+candidate evidence retained separately.

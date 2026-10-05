@@ -1,0 +1,170 @@
+Complete attempt B, exit 1 in 2049 seconds. All seven failed TAP cases below.
+Five transport failures (one explicitly UND_ERR_CONNECT_TIMEOUT), two assertions.
+
+# Subtest: wasm: Clique capture partitions and answers equal the flattened program
+not ok 1 - wasm: Clique capture partitions and answers equal the flattened program
+  ---
+  duration_ms: 10656.000191
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through.test.mjs:9:39'
+  failureType: 'testCodeFailure'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    node:internal/deps/undici/undici:16416:13
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through.test.mjs:24:16)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+
+# Subtest: wasm: retained nested rows follow source parents on shifted pages
+not ok 2 - wasm: retained nested rows follow source parents on shifted pages
+  ---
+  duration_ms: 11196.530835
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through-provenance.test.mjs:115:38'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+      [
+        'A',
+    +   'B',
+        'C',
+    -   'B'
+      ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'A'
+    1: 'C'
+    2: 'B'
+  actual:
+    0: 'A'
+    1: 'B'
+    2: 'C'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through-provenance.test.mjs:131:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+
+# Subtest: wasm: read-through upsert predicts both arms and server refusal rolls back
+not ok 1 - wasm: read-through upsert predicts both arms and server refusal rolls back
+  ---
+  duration_ms: 15772.708059
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:26:92'
+  failureType: 'testCodeFailure'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    node:internal/deps/undici/undici:16416:13
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:28:16)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+
+# Subtest: wasm-memory: revocation filters every watched read
+not ok 1 - wasm-memory: revocation filters every watched read
+  ---
+  duration_ms: 11979.150777
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/readauth.test.mjs:49:3'
+  failureType: 'testCodeFailure'
+  error: 'E_OFFLINE: the request did not complete: UND_ERR_CONNECT_TIMEOUT; check the connection and server logs before retrying'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/dist/local-backend.js:25:33
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async loadBackend (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/dist/local-backend.js:24:32)
+    async createLocalClient (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/dist/local.js:124:19)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/readauth.test.mjs:78:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+not ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+  ---
+  duration_ms: 5346.607395
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/server-e2e.test.mjs:22:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+
+      [
+        1,
+        2,
+    +   3
+      ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 1
+    1: 2
+  actual:
+    0: 1
+    1: 2
+    2: 3
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/server-e2e.test.mjs:624:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+
+# Subtest: createApp keep=true property: online, seed 44, 50ms authority
+not ok 11 - createApp keep=true property: online, seed 44, 50ms authority
+  ---
+  duration_ms: 20960.427937
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/keep-app-model.test.mjs:34:3'
+  failureType: 'testCodeFailure'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    node:internal/deps/undici/undici:16416:13
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async remote (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/keep-app-model.test.mjs:80:22)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/keep-app-model.test.mjs:100:74)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+
+# Subtest: ordinary search generated oracle process: 300 seeds
+not ok 1 - ordinary search generated oracle process: 300 seeds
+  ---
+  duration_ms: 221278.640432
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:371:5'
+  failureType: 'testCodeFailure'
+  error: |-
+    [{"seed":183,"message":"fetch failed"}]
+
+    1 !== 0
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ap/snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs:405:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...

@@ -1,0 +1,36 @@
+== cargo build
+-- ok: cargo build (2 s)
+== wasm build
+wasm 2116457 B raw, 639750 B gzip (budget 639887: ok)
+-- ok: wasm build (32 s)
+== docs budget
+-- ok: docs budget (2 s)
+== release guard
+-- ok: release guard (3 s)
+== package typecheck
+-- ok: package typecheck (3 s)
+== package build
+-- ok: package build (2 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- ok: cargo test (480 s)
+== chat app typecheck
+-- ok: chat app typecheck (2 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (14 s)
+-- available CPUs: 96; client file concurrency: 24
+== client tests
+-- client files: 311/311; failed 0; tests {"tests":6198,"pass":6187,"fail":0,"cancelled":0,"skipped":11,"todo":0}
+-- ok: client tests (604 s)
+== client models
+-- client files: 2/2; failed 0; tests {"tests":79,"pass":79,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: client models (305 s)
+== 0 failure(s) in 1433 s
+
+ref-check: ok — 527 LLP docs, 10341 refs in 34378 files, 0 errors, 0 unchecked
+Final documentation check:
+ref-check: ok — 527 LLP docs, 10341 refs in 34389 files, 0 errors, 0 unchecked

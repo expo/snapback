@@ -78,7 +78,7 @@ export function instrument(destination) {
   for (const [file] of Object.entries(scope)) {
     const sites = census().filter(site => site.file === file);
     let source = readFileSync(join(packageRoot, 'src', file), 'utf8');
-    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return syncing; }, flush, flushOnce, syncOnce, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false) { nativeReady = false; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
+    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return syncing; }, flush, flushOnce, syncOnce, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false, retention = false) { nativeReady = false; if(retention) backend = {...backend, schema: {...backend.schema, tables: {...backend.schema.tables, messages: {...backend.schema.tables.messages, leave: "delivered-history"}}}}; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
     if (file === 'local-native.ts') source = source.replace('  return installNative;', '  globalThis.__rgNativePending = () => nativeInstall?.promise;\n  return installNative;');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
     const byStart = new Map(sites.map(site => [site.start, site]));
@@ -161,6 +161,14 @@ export function instrument(destination) {
 // presentation references and admission order before copying terminal arguments.
 // Those synchronous operations change the enclosing await's text, without adding
 // I/O, custody writes or a new await. Delivery scopes/recipes remain unchanged.
+// RH (LLP 3000.028 §3.2): pendingRoute reads the applied watermark before a
+// whole query answer can replace current/retained device history. Its callers
+// only route query candidates; none admits, dispatches, persists or settles a
+// write. Rejection withholds the read and rechecks session/incarnation fences.
+// retained-history-order tests cover success/rejection and publication races;
+// real held-apply cases cover both device hosts. No delivery site/recipe changes.
+// RH round 1: the additional search query await is optional read I/O, with a dedicated
+// pending-leave recipe (161), and cannot acquire mutation delivery custody.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

@@ -1,0 +1,173 @@
+Functions sorted by metric: Exclusive Total CPU Time
+
+Excl. Total   Incl. Total    Name
+CPU           CPU
+ sec.      %   sec.      %
+0.229 100.00  0.229 100.00   <Total>
+0.072  31.30  0.072  31.30   pwrite
+0.030  13.04  0.030  13.04   pread
+0.010   4.35  0.010   4.35   <static>@0x188341 (<libc.so.6>)
+0.009   3.91  0.009   3.91   snapback4_core::rows::word_heap::stored_row
+0.007   3.04  0.083  36.09   sqlite3BtreeIndexMoveto
+0.006   2.61  0.006   2.61   <serde_json::read::SliceRead>::skip_to_escape
+0.006   2.61  0.009   3.91   <static>@0xaab1b (<libc.so.6>)
+0.006   2.61  0.009   3.91   free
+0.005   2.17  0.007   3.04   <alloc::collections::btree::map::entry::VacantEntry<alloc::string::String, snapback4_core::value::Value>>::insert_entry
+0.004   1.74  0.008   3.48   malloc
+0.004   1.74  0.076  33.04   unixWrite
+0.004   1.74  0.004   1.74   walFindFrame.constprop.0
+0.003   1.30  0.003   1.30   <static>@0xa8e24 (<libc.so.6>)
+0.003   1.30  0.006   2.61   alloc::fmt::format::format_inner
+0.003   1.30  0.089  38.70   getPageNormal
+0.003   1.30  0.006   2.61   snapback4_core::schema::materialize_optional_fields
+0.003   1.30  0.142  61.74   sqlite3VdbeExec
+0.002   0.87  0.024  10.43   <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_map::<<alloc::collections::btree::map::BTreeMap<_, _> as serde_core::de::Deserialize>::deserialize::MapVisitor<alloc::string::String, snapback4_core::value::Value>>
+0.002   0.87  0.033  14.35   balance_nonroot
+0.002   0.87  0.088  38.26   getAndInitPage
+0.002   0.87  0.002   0.87   pcache1FetchStage2
+0.002   0.87  0.002   0.87   snapback4_core::engine::validate::disallowed_control
+0.002   0.87  0.006   2.61   sqlite3VdbeRecordCompareWithSkip
+0.001   0.43  0.001   0.43   <<snapback4_core::value::Value as serde_core::de::Deserialize>::deserialize::__FieldVisitor as serde_core::de::Visitor>::visit_str::<serde_json::error::Error>
+0.001   0.43  0.010   4.35   <alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::value::Value>>::insert
+0.001   0.43  0.001   0.43   <alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Mut, alloc::string::String, snapback4_core::value::Value, alloc::collections::btree::node::marker::Leaf>, alloc::collections::btree::node::marker::Edge>>::insert_recursing::<alloc::alloc::Global, <alloc::collections::btree::map::entry::VacantEntry<alloc::string::String, snapback4_core::value::Value>>::insert_entry::{closure#0}>
+0.001   0.43  0.001   0.43   <alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Mut, (alloc::string::String, alloc::string::String, alloc::string::String), usize, alloc::collections::btree::node::marker::LeafOrInternal>>::search_tree::<(alloc::string::String, alloc::string::String, alloc::string::String)>
+0.001   0.43  0.004   1.74   <alloc::raw_vec::RawVecInner>::finish_grow
+0.001   0.43  0.001   0.43   <alloc::string::String as core::clone::Clone>::clone
+0.001   0.43  0.002   0.87   <alloc::string::String as core::fmt::Write>::write_str
+0.001   0.43  0.001   0.43   <alloc::vec::Vec<(alloc::string::String, alloc::string::String, alloc::string::String)> as alloc::vec::spec_from_iter::SpecFromIter<(alloc::string::String, alloc::string::String, alloc::string::String), core::iter::adapters::map::Map<alloc::collections::btree::map::Iter<alloc::string::String, snapback4_core::schema::Index>, <snapback4_core::engine::runner::Runner>::row_changed::{closure#2}>>>::from_iter
+0.001   0.43  0.001   0.43   <core::fmt::Formatter>::pad
+0.001   0.43  0.001   0.43   <core::marker::PhantomData<i64> as serde_core::de::DeserializeSeed>::deserialize::<&mut serde_json::de::Deserializer<serde_json::read::StrRead>>
+0.001   0.43  0.007   3.04   <serde_json::read::StrRead as serde_json::read::Read>::parse_str
+0.001   0.43  0.009   3.91   <snapback4_core::engine::runner::Runner>::capture_recorded
+0.001   0.43  0.001   0.43   <snapback4_core::meter::Meter>::heap
+0.001   0.43  0.001   0.43   <snapback4_core::schema::IndexComponent>::value
+0.001   0.43  0.041  17.83   <snapback4_core::store::Tx as snapback4_core::rows::Rows>::scan_metered
+0.001   0.43  0.004   1.74   <snapback4_core::store::Tx>::put_indexed
+0.001   0.43  0.001   0.43   <snapback4_core::value::Value as core::cmp::PartialEq>::eq
+0.001   0.43  0.001   0.43   <str>::trim_matches::<<char>::is_whitespace>
+0.001   0.43  0.001   0.43   __rustc::__rust_no_alloc_shim_is_unstable_v2
+0.001   0.43  0.005   2.17   allocateBtreePage
+0.001   0.43  0.038  16.52   balance
+0.001   0.43  0.001   0.43   computeCellSize
+0.001   0.43  0.001   0.43   core::str::converts::from_utf8
+0.001   0.43  0.001   0.43   foldhash::hash_bytes_long
+0.001   0.43  0.001   0.43   ftruncate
+0.001   0.43  0.001   0.43   pcache1Fetch
+0.001   0.43  0.001   0.43   pcacheFetchFinishWithInit
+0.001   0.43  0.003   1.30   realloc
+0.001   0.43  0.001   0.43   releaseMemArray.part.0
+0.001   0.43  0.008   3.48   snapback4_core::engine::validate::validate_image
+0.001   0.43  0.003   1.30   snapback4_core::key::decode
+0.001   0.43  0.002   0.87   snapback4_core::key::encode
+0.001   0.43  0.003   1.30   snapback4_core::rows::index_keys
+0.001   0.43  0.005   2.17   snapback4_core::rows::scan_range
+0.001   0.43  0.001   0.43   snapback4_core::rows::word_heap::range
+0.001   0.43  0.004   1.74   snapback4_core::schema::row_image
+0.001   0.43  0.001   0.43   snapback4_core::value::validate_identities
+0.001   0.43  0.001   0.43   sqlite3BitvecSet
+0.001   0.43  0.001   0.43   sqlite3_column_text
+0.001   0.43  0.144  62.61   sqlite3_step
+0.      0.    0.002   0.87   <&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_string::<serde_core::de::impls::StringVisitor>
+0.      0.    0.001   0.43   <alloc::collections::btree::map::BTreeMap<(alloc::string::String, alloc::string::String, alloc::string::String), usize>>::entry
+0.      0.    0.003   1.30   <alloc::raw_vec::RawVec<u8>>::grow_one
+0.      0.    0.001   0.43   <alloc::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc::alloc::Global>
+0.      0.    0.005   2.17   <alloc::sync::Arc<alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::value::Value>>>::drop_slow
+0.      0.    0.001   0.43   <alloc::vec::Vec<snapback4_core::value::Value> as alloc::vec::spec_from_iter::SpecFromIter<snapback4_core::value::Value, core::iter::adapters::filter_map::FilterMap<core::slice::iter::Iter<snapback4_core::schema::IndexComponent>, snapback4_core::rows::index_values::{closure#1}>>>::from_iter
+0.      0.    0.004   1.74   <rusqlite::Connection>::execute_batch
+0.      0.    0.001   0.43   <rusqlite::cache::StatementCache>::cache_stmt
+0.      0.    0.001   0.43   <rusqlite::cache::StatementCache>::get
+0.      0.    0.001   0.43   <rusqlite::row::Row>::get::<usize, alloc::string::String>
+0.      0.    0.028  12.17   <rusqlite::row::Rows>::next
+0.      0.    0.003   1.30   <rusqlite::row::Rows>::next
+0.      0.    0.106  46.09   <rusqlite::statement::Statement>::execute::<&[&dyn rusqlite::types::to_sql::ToSql]>
+0.      0.    0.003   1.30   <rusqlite::statement::Statement>::execute::<&[&dyn rusqlite::types::to_sql::ToSql]>
+0.      0.    0.106  46.09   <rusqlite::statement::Statement>::execute_with_bound_parameters
+0.      0.    0.003   1.30   <rusqlite::statement::Statement>::execute_with_bound_parameters
+0.      0.    0.001   0.43   <rusqlite::statement::Statement>::value_ref
+0.      0.    0.004   1.74   <serde_json::de::VariantAccess<serde_json::read::StrRead> as serde_core::de::EnumAccess>::variant_seed::<core::marker::PhantomData<<snapback4_core::value::Value as serde_core::de::Deserialize>::deserialize::__Field>>
+0.      0.    0.226  98.70   <snapback4_core::engine::Engine>::activate
+0.      0.    0.071  30.87   <snapback4_core::engine::Engine>::activate::{closure#6}
+0.      0.    0.226  98.70   <snapback4_core::engine::Engine>::adopt_at::<alloc::collections::btree::map::IntoValues<alloc::string::String, snapback4_core::ir::Program>>
+0.      0.    0.004   1.74   <snapback4_core::engine::authorized_scan::GuardedRows>::index_head
+0.      0.    0.008   3.48   <snapback4_core::engine::authorized_scan::GuardedRows>::lookup
+0.      0.    0.006   2.61   <snapback4_core::engine::authorized_scan::GuardedRows>::scan
+0.      0.    0.041  17.83   <snapback4_core::engine::authorized_scan::GuardedRows>::scan_metered
+0.      0.    0.003   1.30   <snapback4_core::engine::runner::Runner>::apply_aggregate
+0.      0.    0.008   3.48   <snapback4_core::engine::runner::Runner>::authorized_scratch::<core::option::Option<snapback4_core::value::Value>, <snapback4_core::engine::runner::Runner>::lookup_stored::{closure#1}>
+0.      0.    0.009   3.91   <snapback4_core::engine::runner::Runner>::capture_activation
+0.      0.    0.048  20.87   <snapback4_core::engine::runner::Runner>::live_basis_scan
+0.      0.    0.008   3.48   <snapback4_core::engine::runner::Runner>::live_lookup
+0.      0.    0.008   3.48   <snapback4_core::engine::runner::Runner>::lookup_stored
+0.      0.    0.006   2.61   <snapback4_core::engine::runner::Runner>::metered_scan::<alloc::vec::Vec<(snapback4_core::value::Value, alloc::vec::Vec<u8>)>, <snapback4_core::engine::runner::Runner>::rebuild_maintain_inner::{closure#1}>
+0.      0.    0.041  17.83   <snapback4_core::engine::runner::Runner>::metered_scan::<alloc::vec::Vec<(snapback4_core::value::Value, alloc::vec::Vec<u8>)>, <snapback4_core::engine::runner::Runner>::scan_authorized::{closure#1}>
+0.      0.    0.008   3.48   <snapback4_core::engine::runner::Runner>::prepaid_scan::<core::option::Option<snapback4_core::value::Value>, <snapback4_core::engine::runner::Runner>::lookup_stored::{closure#1}>
+0.      0.    0.062  26.96   <snapback4_core::engine::runner::Runner>::rebuild_maintain
+0.      0.    0.062  26.96   <snapback4_core::engine::runner::Runner>::rebuild_maintain_reported
+0.      0.    0.012   5.22   <snapback4_core::engine::runner::Runner>::rebuild_recorded_activation
+0.      0.    0.002   0.87   <snapback4_core::engine::runner::Runner>::row_changed
+0.      0.    0.050  21.74   <snapback4_core::engine::runner::Runner>::row_view_member
+0.      0.    0.041  17.83   <snapback4_core::engine::runner::Runner>::scan_authorized
+0.      0.    0.005   2.17   <snapback4_core::engine::runner::Runner>::small_view_range
+0.      0.    0.002   0.87   <snapback4_core::engine::runner::Runner>::view_put
+0.      0.    0.044  19.13   <snapback4_core::engine::runner::Runner>::view_scan
+0.      0.    0.001   0.43   <snapback4_core::schema::Table>::deadline
+0.      0.    0.226  98.70   <snapback4_core::store::Store>::activate_at_with_launch::<<snapback4_core::engine::Engine>::activate::{closure#6}>
+0.      0.    0.117  50.87   <snapback4_core::store::Store>::activate_at_with_launch::<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#20}
+0.      0.    0.004   1.74   <snapback4_core::store::Tx as snapback4_core::rows::Rows>::index_head
+0.      0.    0.003   1.30   <snapback4_core::store::Tx>::commit
+0.      0.    0.008   3.48   <snapback4_core::store::Tx>::lookup
+0.      0.    0.004   1.74   <snapback4_core::store::Tx>::put
+0.      0.    0.006   2.61   <snapback4_core::store::Tx>::scan
+0.      0.    0.014   6.09   <snapback4_core::store::Tx>::scan_keys
+0.      0.    0.001   0.43   <snapback4_core::value::Value as core::clone::Clone>::clone
+0.      0.    0.026  11.30   <snapback4_core::value::Value as serde_core::de::Deserialize>::deserialize::<&mut serde_json::de::Deserializer<serde_json::read::StrRead>>
+0.      0.    0.001   0.43   <snapback4_core::value::Value>::field
+0.      0.    0.227  99.13   <static>@0x2a145 (<libc.so.6>)
+0.      0.    0.227  99.13   __libc_start_main
+0.      0.    0.227  99.13   adoption_pause::main
+0.      0.    0.003   1.30   core::fmt::write
+0.      0.    0.005   2.17   core::ptr::drop_glue::<alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::value::Value>>
+0.      0.    0.001   0.43   core::ptr::drop_glue::<alloc::vec::Vec<snapback4_core::schema::SchemaIssue>>
+0.      0.    0.001   0.43   core::ptr::drop_glue::<rusqlite::cache::CachedStatement>
+0.      0.    0.003   1.30   core::ptr::drop_glue::<snapback4_core::value::ObjectFields>
+0.      0.    0.002   0.87   core::ptr::drop_glue::<snapback4_core::value::Value>
+0.      0.    0.227  99.13   main
+0.      0.    0.002   0.87   moveToRoot
+0.      0.    0.050  21.74   pagerStress
+0.      0.    0.025  10.87   pagerWalFrames
+0.      0.    0.021   9.13   pager_write
+0.      0.    0.001   0.43   pcache1Alloc
+0.      0.    0.032  13.91   readDbPage
+0.      0.    0.026  11.30   serde_json::de::from_str::<snapback4_core::value::Value>
+0.      0.    0.006   2.61   snapback4_core::engine::validate::validate_column
+0.      0.    0.001   0.43   snapback4_core::key::upper_bound
+0.      0.    0.005   2.17   snapback4_core::rows::adoption::decode_bytes
+0.      0.    0.001   0.43   snapback4_core::rows::adoption::page_fits::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, alloc::string::String)>, snapback4_core::store::activation_walk::walk_metered<<snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#19}, <snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#20}>::{closure#0}>, &<snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#19}>
+0.      0.    0.002   0.87   snapback4_core::rows::adoption::page_fits::<core::iter::adapters::map::Map<core::slice::iter::Iter<(alloc::string::String, alloc::string::String)>, snapback4_core::store::activation_walk::walk_metered<snapback4_core::store::event_slots::fill_slot::{closure#0}, snapback4_core::store::event_slots::fill_slot::{closure#1}>::{closure#0}>, &snapback4_core::store::event_slots::fill_slot::{closure#0}>
+0.      0.    0.002   0.87   snapback4_core::rows::index_key
+0.      0.    0.001   0.43   snapback4_core::rows::index_values
+0.      0.    0.001   0.43   snapback4_core::rows::scan_range::{closure#0}
+0.      0.    0.006   2.61   snapback4_core::store::activation_walk::walk::<<snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#26}>
+0.      0.    0.003   1.30   snapback4_core::store::activation_walk::walk::<<snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::store::Store>::activate<<snapback4_core::store::Store>::install_device_checked_with<<snapback4_core::store::Store>::install_device_checked::{closure#0}>::{closure#0}>::{closure#0}>::{closure#26}>::{closure#1}
+0.      0.    0.022   9.57   snapback4_core::store::activation_walk::walk::<snapback4_core::store::successor::assess::{closure#5}>
+0.      0.    0.011   4.78   snapback4_core::store::activation_walk::walk::<snapback4_core::store::successor::assess::{closure#5}>::{closure#1}
+0.      0.    0.125  54.35   snapback4_core::store::activation_walk::walk_metered::<<snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#19}, <snapback4_core::store::Store>::activate_at_with_launch<<snapback4_core::engine::Engine>::activate::{closure#6}>::{closure#20}>
+0.      0.    0.022   9.57   snapback4_core::store::successor::assess
+0.      0.    0.001   0.43   sqlite3BtreeCommitPhaseOne.part.0
+0.      0.    0.050  21.74   sqlite3BtreeInsert
+0.      0.    0.002   0.87   sqlite3BtreeNext.isra.0
+0.      0.    0.003   1.30   sqlite3Checkpoint
+0.      0.    0.001   0.43   sqlite3Malloc.part.0
+0.      0.    0.001   0.43   sqlite3MemMalloc
+0.      0.    0.001   0.43   sqlite3PagerCommitPhaseOne.part.0
+0.      0.    0.002   0.87   sqlite3VdbeHalt
+0.      0.    0.003   1.30   sqlite3WalCheckpoint
+0.      0.    0.002   0.87   sqlite3WalDefaultHook
+0.      0.    0.002   0.87   sqlite3_wal_checkpoint_v2
+0.      0.    0.227  99.13   std::rt::lang_start::<core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>>::{closure#0}
+0.      0.    0.227  99.13   std::rt::lang_start_internal
+0.      0.    0.227  99.13   std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>, core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>>
+0.      0.    0.052  22.61   subjournalPageIfRequired
+0.      0.    0.030  13.04   unixRead
+0.      0.    0.001   0.43   unixTruncate
+0.      0.    0.003   1.30   walCheckpoint

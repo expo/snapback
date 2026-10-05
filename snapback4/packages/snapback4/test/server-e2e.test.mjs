@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real CLI, HTTP, supervised Node children and an on-disk provider double.
 // This proves the provider protocol under crashes, not a third-party adapter.
@@ -73,11 +74,12 @@ function project(t, source, entry) {
     assert.equal(operator.status, 0, safe(operator.stderr));
     const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])];
     const child = spawn(binary, args, { cwd: directory, env: { ...process.env, SNAPBACK_NODE: NODE, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     let log = "", url, exited = false, spawnError;
     const output = { stdout: [], stderr: [] };
     const done = new Promise(resolve => { child.once("exit", () => { exited = true; resolve(); }); child.once("error", error => { spawnError = error; exited = true; resolve(); }); });
     for (const [name, stream] of [["stdout", child.stdout], ["stderr", child.stderr]]) stream.on("data", bytes => {
-      output[name].push(Buffer.from(bytes)); log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      output[name].push(Buffer.from(bytes)); log += bytes; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
     });
     let stopping;
     const host = {
@@ -195,6 +197,7 @@ export default worker; await worker.done;
     assert.equal(result.result.value, expected, f.log());
   };
   await expectValue("first");
+  await until(() => f.workerPids().length > 0, "initial worker PID diagnostic", f.log);
   await delay(1200);
   assert.equal(f.workerPids().length, 1, "fresh dev must not adopt its own checker metadata\n" + f.log());
   assert.doesNotMatch(f.log(), /schema adopted as generation/);
@@ -510,6 +513,9 @@ export default worker; await worker.done;
 `);
   const remote = await provider(t, p.directory);
   const f = await p.start({ env: { TEST_PROVIDER_URL: remote.url } });
+  // Observe startup before provoking the cut, so waiting for a diagnostic
+  // cannot let the replacement worker reach the provider before absence checks.
+  await until(() => f.workerPids().length > 0, "pre-provider worker PID diagnostic", f.log);
   const beforeId = "crash-before";
   assert.equal((await f.call("work", beforeId, { mode: "before" })).state, "pending");
   const cut = await until(() => jsonFile(join(p.directory, "before-provider-cut.json")), "durable pre-provider cut marker", f.log);
@@ -553,6 +559,7 @@ export default worker; await worker.done;
     assert.notEqual(attempts[0].pid, attempts[1].pid, "recovery ran in a new actual worker process");
     const crash = lines(join(p.directory, "crashes.jsonl")).find(record => record.id === id);
     assert.equal(crash.pid, attempts[0].pid);
+    await until(() => f.workerPids().includes(crash.pid), "crashed worker PID diagnostic", f.log);
     assert.ok(f.workerPids().includes(crash.pid), "the crashed PID was this fixture's supervised child");
     const callbacks = lines(join(p.directory, "step-callbacks.jsonl")).filter(record => record.id === id);
     assert.equal(callbacks.length, 1, "an uncertain step never automatically runs its initial callback again");
@@ -681,12 +688,13 @@ export default worker; await worker.done;
   await until(() => starts().length === 1, "serve worker starts");
   assert.deepEqual((await f.collect("echo", "serve-first", { message: "first" }, f.token)).result, { value: "first", principal: "service:test-driver" });
   const owned = starts()[0].pid;
+  await until(() => f.workerPids().includes(owned), "serve worker PID diagnostic", f.log);
   assert.ok(f.workerPids().includes(owned));
   process.kill(owned, "SIGKILL");
   await until(() => starts().length === 2, "serve restarts its killed child");
   assert.notEqual(starts()[1].pid, owned);
   assert.deepEqual((await f.collect("echo", "serve-second", { message: "second" }, f.token)).result, { value: "second", principal: "service:test-driver" });
-  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED", "MAIL_KEY"]);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_PROJECT_DIR", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED", "MAIL_KEY"]);
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
   for (const start of starts()) { assert.equal(start.declared, true); assert.equal(start.unrelated, null); assert.ok(start.keys.every(key => allowed.has(key)), JSON.stringify(start.keys)); }
   assert.equal(f.log().includes(secret), false); assert.doesNotMatch(f.log(), /token \(printed once\)/);

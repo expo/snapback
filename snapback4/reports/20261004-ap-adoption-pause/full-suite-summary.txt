@@ -1,0 +1,23 @@
+Final full suite, eb1000, 2026-10-04
+Command (from repository root):
+taskset -c 64-87 env LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 bash snapback4/scripts/test.sh
+Exit status: 0
+
+-- ok: cargo build (1 s)
+-- ok: wasm build (32 s)
+-- ok: docs budget (14 s)
+-- ok: release guard (3 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (3 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 299 test binaries, 1012 executions; at most 24 concurrent processes
+-- ok: cargo test (545 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (11 s)
+-- client files: 311/311; failed 0; tests {"tests":6198,"pass":6187,"fail":0,"cancelled":0,"skipped":11,"todo":0}
+-- ok: client tests (1049 s)
+-- client files: 2/2; failed 0; tests {"tests":79,"pass":79,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: client models (342 s)
+== 0 failure(s) in 1991 s

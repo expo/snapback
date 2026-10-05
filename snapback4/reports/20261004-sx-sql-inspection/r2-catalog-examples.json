@@ -1,0 +1,440 @@
+[
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "\\d followingFeed",
+      "--json"
+    ],
+    "localSource": "broken",
+    "output": {
+      "generation": 1,
+      "header": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered",
+      "ruleFiltered": false,
+      "tables": [
+        {
+          "columns": [
+            {
+              "name": "id",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "actorId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "at",
+              "nullable": false,
+              "type": "time"
+            },
+            {
+              "maintained": false,
+              "name": "authorId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "epoch",
+              "nullable": true,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "eventId",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "postId",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "readerId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "repost",
+              "nullable": false,
+              "type": "bool"
+            }
+          ],
+          "indexes": [
+            {
+              "generated": true,
+              "keys": [
+                "id"
+              ],
+              "name": null,
+              "primary": true,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "eventId",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "actorId",
+                "epoch",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "eventId",
+                "epoch"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "at",
+                "eventId",
+                "epoch",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "at",
+                "eventId",
+                "epoch"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            }
+          ],
+          "kind": "timeline",
+          "name": "followingFeed",
+          "rows": {
+            "count": 0,
+            "exact": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      ".schema followingFeed",
+      "--json"
+    ],
+    "localSource": "broken",
+    "output": {
+      "generation": 1,
+      "header": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered",
+      "ruleFiltered": false,
+      "tables": [
+        {
+          "columns": [
+            {
+              "name": "id",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "actorId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "at",
+              "nullable": false,
+              "type": "time"
+            },
+            {
+              "maintained": false,
+              "name": "authorId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "epoch",
+              "nullable": true,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "eventId",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "postId",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "readerId",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "repost",
+              "nullable": false,
+              "type": "bool"
+            }
+          ],
+          "indexes": [
+            {
+              "generated": true,
+              "keys": [
+                "id"
+              ],
+              "name": null,
+              "primary": true,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "eventId",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "actorId",
+                "epoch",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "eventId",
+                "epoch"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "at",
+                "eventId",
+                "epoch",
+                "id"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": false
+            },
+            {
+              "generated": true,
+              "keys": [
+                "readerId",
+                "at",
+                "eventId",
+                "epoch"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            }
+          ],
+          "kind": "timeline",
+          "name": "followingFeed",
+          "rows": {
+            "count": 0,
+            "exact": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "\\d $ownKeys:likes",
+      "--json"
+    ],
+    "localSource": "broken",
+    "output": {
+      "generation": 1,
+      "header": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered",
+      "ruleFiltered": false,
+      "tables": [
+        {
+          "columns": [
+            {
+              "name": "id",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "post",
+              "nullable": false,
+              "type": "posts"
+            },
+            {
+              "maintained": false,
+              "name": "principal",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "value",
+              "nullable": false,
+              "type": "int"
+            }
+          ],
+          "indexes": [
+            {
+              "generated": true,
+              "keys": [
+                "id"
+              ],
+              "name": null,
+              "primary": true,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "principal",
+                "post"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            }
+          ],
+          "kind": "maintained view",
+          "maintainedFrom": "likes",
+          "name": "$ownKeys:likes",
+          "rows": {
+            "count": 0,
+            "exact": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      ".schema $ownKeys:likes",
+      "--json"
+    ],
+    "localSource": "broken",
+    "output": {
+      "generation": 1,
+      "header": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered",
+      "ruleFiltered": false,
+      "tables": [
+        {
+          "columns": [
+            {
+              "name": "id",
+              "nullable": false,
+              "type": "id"
+            },
+            {
+              "maintained": false,
+              "name": "post",
+              "nullable": false,
+              "type": "posts"
+            },
+            {
+              "maintained": false,
+              "name": "principal",
+              "nullable": false,
+              "type": "principal"
+            },
+            {
+              "maintained": false,
+              "name": "value",
+              "nullable": false,
+              "type": "int"
+            }
+          ],
+          "indexes": [
+            {
+              "generated": true,
+              "keys": [
+                "id"
+              ],
+              "name": null,
+              "primary": true,
+              "unique": true
+            },
+            {
+              "generated": true,
+              "keys": [
+                "principal",
+                "post"
+              ],
+              "name": null,
+              "primary": false,
+              "unique": true
+            }
+          ],
+          "kind": "maintained view",
+          "maintainedFrom": "likes",
+          "name": "$ownKeys:likes",
+          "rows": {
+            "count": 0,
+            "exact": true
+          }
+        }
+      ]
+    }
+  }
+]

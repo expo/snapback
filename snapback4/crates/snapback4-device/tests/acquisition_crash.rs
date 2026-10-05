@@ -108,6 +108,30 @@ fn acquisition_crash_worker() {
     println!("NA_DONE {}", cuts.count.load(SeqCst));
 }
 
+fn crash_record(line: &str) -> Option<&str> {
+    // Libtest can prepend its unterminated banner to the first record.
+    line.find("NA_").map(|marker| &line[marker..])
+}
+
+fn crash_count(record: &str) -> Option<u64> {
+    let (_, value) = record.split_once(' ')?;
+    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+    value.parse().ok()
+}
+
+#[test]
+fn acquisition_marker_parser_rejects_partial_counts() {
+    for prefix in ["", "test acquisition_crash_worker ... "] {
+        for marker in ["NA_DONE", "NA_KILL"] {
+            let parse = |value| crash_record(&format!("{prefix}{marker} {value}")).and_then(crash_count);
+            assert_eq!(parse("12345"), Some(12345));
+            for value in ["12x345", "1e9", "12 345", "+12", "", "18446744073709551616", "\n12345", "12 NA_DONE 1"] {
+                assert_eq!(parse(value), None, "{marker}: {value:?}");
+            }
+        }
+    }
+}
+
 fn child(dir: &Path, tier: &str, target: u64) -> u64 {
     let mut child = Command::new(std::env::current_exe().unwrap()).args(["--exact", "acquisition_crash_worker", "--nocapture"])
         .env("NA_CRASH_DIR", dir).env("NA_CRASH_TIER", tier).env("NA_CRASH_CUT", target.to_string())
@@ -117,7 +141,7 @@ fn child(dir: &Path, tier: &str, target: u64) -> u64 {
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines() {
             let line = line.unwrap();
-            if line.starts_with("NA_") { send.send(line).unwrap(); }
+            if let Some(record) = crash_record(&line) { send.send(record.to_owned()).unwrap(); }
         }
     });
     let line = match receive.recv_timeout(Duration::from_secs(60)) {
@@ -130,7 +154,7 @@ fn child(dir: &Path, tier: &str, target: u64) -> u64 {
         assert!(!child.wait().unwrap().success());
     } else { assert!(child.wait().unwrap().success()); }
     reader.join().unwrap();
-    line.split_whitespace().nth(1).unwrap().parse().unwrap()
+    crash_count(&line).expect("complete acquisition cut count")
 }
 
 fn prepare(dir: &Path, f: &Fixture, tier: &str, refresh: bool) -> serde_json::Value {

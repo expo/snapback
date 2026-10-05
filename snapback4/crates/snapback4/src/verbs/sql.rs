@@ -10,6 +10,9 @@ use std::sync::{Arc, atomic::{AtomicU8, Ordering}};
 
 type Result<T> = std::result::Result<T, (&'static str, String)>;
 const PRIVATE: &str = "_snapback_sql_";
+const CATALOG_HINT: &str = "`\\dt` lists tables; `\\d messages` describes one";
+#[path = "sql_catalog.rs"]
+mod catalog;
 
 pub fn sql(options: &Options) -> i32 {
     match inspect(options) {
@@ -23,8 +26,9 @@ pub fn sql(options: &Options) -> i32 {
 }
 
 fn inspect(options: &Options) -> Result<()> {
-    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", "usage: snapback4 sql '<SELECT …>' [--release dir] [--limit N] [--json]".into())); };
-    let body = select_body(statement)?;
+    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: snapback4 sql '<SELECT …> | \\dt | \\d table' [--release dir] [--limit N] [--json]; {CATALOG_HINT}"))); };
+    let command = catalog::command(statement)?;
+    let body = if command.is_none() { select_body(statement)? } else { String::new() };
     let limit = match options.flags.get("limit") {
         None => 200,
         Some(value) => value.parse::<u32>().ok().filter(|n| *n > 0).ok_or(("E_INPUT", "--limit must be a positive 32-bit integer".into()))?,
@@ -37,8 +41,18 @@ fn inspect(options: &Options) -> Result<()> {
     let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(store_error)?;
     conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
     // Catalog, compiled columns and rows all belong to the same WAL snapshot.
-    let encoded: String = conn.query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).map_err(store_error)?;
-    let schema: Schema = serde_json::from_str(&encoded).map_err(|e| ("E_SCHEMA", e.to_string()))?;
+    let (generation, schema) = catalog::active_schema(&conn)?;
+    let header = format!("sql: developer's own store {} — read-only, not rule-filtered", path.display());
+    if let Some(command) = command {
+        let result = catalog::inspect(&conn, &schema, command)?;
+        if options.json {
+            println!("{}", json!({ "header": header, "generation": generation, "tables": result, "ruleFiltered": false }));
+        } else {
+            eprintln!("{header}");
+            catalog::print(&result, generation);
+        }
+        return Ok(());
+    }
     let mut views = BTreeSet::new();
     let mut backing = BTreeSet::new();
     for (name, table) in schema.visible_tables() {
@@ -98,7 +112,7 @@ fn inspect(options: &Options) -> Result<()> {
     })).map_err(store_error)?;
     let query_error = |e: rusqlite::Error| match denied.load(Ordering::Relaxed) {
         1 => ("E_SQL_READ_ONLY", "sql accepts one read-only SELECT or WITH … SELECT; writes and side effects are refused".into()),
-        2 => ("E_SQL_INTERNAL", "sql reads application views only; internal tables, r, i and SQLite metadata are refused".into()),
+        2 => ("E_SQL_INTERNAL", format!("sql reads application views only; internal tables, r, i and SQLite metadata are refused; {CATALOG_HINT}")),
         _ => {
             let message = e.to_string();
             // SQLite identifiers are case-insensitive, including the spelling
@@ -134,7 +148,6 @@ fn inspect(options: &Options) -> Result<()> {
     }
     let more = rows.len() > limit as usize;
     if more { rows.pop(); }
-    let header = format!("sql: developer's own store {} — read-only, not rule-filtered", path.display());
     if options.json {
         println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false }));
     } else {
@@ -155,10 +168,33 @@ fn ident(name: &str) -> String { format!("\"{}\"", name.replace('"', "\"\"")) }
 fn literal(value: &str) -> String { format!("'{}'", value.replace('\'', "''")) }
 fn internal(name: &str) -> bool { name.starts_with('_') || matches!(name.to_ascii_lowercase().as_str(), "r" | "i") || name.to_ascii_lowercase().starts_with("sqlite_") }
 
+/// Population advice only for a newly declared/changed window, before adoption.
+// @ref LLP 3000.007#8 — bounded catalog probes never adopt or acquire a writer lock.
+pub(super) fn window_populations(path: &Path, candidate: &Schema) -> Result<Vec<(String, u32, u64)>> {
+    if !candidate.visible_tables().any(|(_, table)| table.ephemeral.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some())) { return Ok(Vec::new()); }
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(store_error)?;
+    conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
+    let adopted: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation'))", [], |row| row.get(0)).map_err(store_error)?;
+    if !adopted { return Ok(Vec::new()); }
+    let (_, active) = catalog::active_schema(&conn)?;
+    let mut populations = Vec::new();
+    for (name, table) in candidate.visible_tables() {
+        let Some(sync) = &table.sync else { continue; };
+        let Some(horizon) = &sync.horizon else { continue; };
+        let Some(previous) = active.tables.get(name) else { continue; };
+        if previous.sync == table.sync || table.ephemeral.is_some() { continue; }
+        let threshold = u64::from(horizon.last) * 10;
+        if threshold == 0 || threshold > catalog::COUNT_LIMIT { continue; }
+        let count = catalog::row_count(&conn, name, threshold)?;
+        if count == threshold { populations.push((name.clone(), horizon.last, count)); }
+    }
+    Ok(populations)
+}
+
 /// Strip SQL comments without disturbing quotes, and permit a single trailing
 /// terminator. SQLite still parses and authorizes the actual statement.
 fn select_body(sql: &str) -> Result<String> {
-    if sql.to_ascii_lowercase().contains(PRIVATE) { return Err(("E_SQL_INTERNAL", "private inspection views cannot be named in SQL".into())); }
+    if sql.to_ascii_lowercase().contains(PRIVATE) { return Err(("E_SQL_INTERNAL", format!("private inspection views cannot be named in SQL; {CATALOG_HINT}"))); }
     let mut chars = sql.chars().peekable();
     let mut body = String::new();
     let mut ended = false;

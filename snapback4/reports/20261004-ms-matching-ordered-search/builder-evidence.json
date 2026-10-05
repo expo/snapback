@@ -1,0 +1,14 @@
+{
+  "schema.q": {
+    "sha256": "bd53aae3b7fef323b687a87983be7a1e800ca3ce04e51ab963cd2674ea2b2dce",
+    "bytes": 19456
+  },
+  "diary.md": {
+    "sha256": "27bab3144a44166fdba43f062b3903f202d019b4fe7b7430107287a5f0b89be5",
+    "bytes": 14944
+  },
+  "run-log.md": {
+    "sha256": "c7f347865212ff924b4488256118d4b4082162d8571e504471e6d5f83ebfd493",
+    "bytes": 6674
+  }
+}

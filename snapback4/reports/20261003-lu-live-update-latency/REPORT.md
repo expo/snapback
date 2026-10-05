@@ -161,7 +161,7 @@ Each cell pools forty receiver observations. Publication is the server notificat
 
 The original repost spends nearly all its long tail before delivery: delivery p95 is 16.65 / 28.42 / 35.98 seconds at 0 / 20 / 120 workers. Candidate delivery p95 is 34.4 / 29.4 / 45.0 ms. The p95 number of earlier delivery chunks falls from 1,611 / 1,576 / 1,370 to 3 / 2 / 0. A finite queue of long items was being drained serially; rotating bounded slices removes that wait.
 
-The remaining candidate idle delay occurs after the query can return the fresh row. Idle repost trial 5 delivers at +1.3 ms, decodes a matching query reply at +21.3 ms and renders at +992.6 ms. Query replies continue throughout. Its observation queue p95 is only 0.5 ms. The traces and the existing change-version/authority checkpoints point to repeated invalidation before publication, rather than observation capacity or an expensive single wasm query. That attribution is an inference from the event sequence and guards, not a new internal discard-reason trace. The [follow-up issue](../../../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md) records the residual target miss. A sound change must distinguish revocation, predictions and mixed local/server cuts; changing those guards is not a cheap retry tweak. No client change is included.
+The remaining candidate idle delay occurs after the query can return the fresh row. Idle repost trial 5 delivers at +1.3 ms, decodes a matching query reply at +21.3 ms and renders at +992.6 ms. Query replies continue throughout. Its observation queue p95 is only 0.5 ms. The traces and the existing change-version/authority checkpoints point to repeated invalidation before publication, rather than observation capacity or an expensive single wasm query. That attribution is an inference from the event sequence and guards, not a new internal discard-reason trace. The [follow-up issue](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md) records the residual target miss. A sound change must distinguish revocation, predictions and mixed local/server cuts; changing those guards is not a cheap retry tweak. No client change is included.
 
 Read protection remains structurally unchanged and the observed HTTP query round-trip tails do not regress in this workload. Heavy-load p95 is 83.4→80.6 ms for home, 106.5→73.3 ms for message trials and 101.1→75.8 ms for reaction trials. These include transport/browser scheduling and pool all query operations during the named trial; they are not a replay of CT's whole read benchmark. The complete suite exercises CT's existing maintenance/admission regressions.
 
@@ -534,7 +534,7 @@ attempt p95 15.7 ms. The interval between evaluation and observation publication
 is 736.4 ms. Overlapping wasm/device/IndexedDB spans are retained in the summary;
 they must not be summed. This remains consistent with repeated invalidation
 before observation publication, not proof of a particular internal discard
-reason. The existing [publication follow-up](../../../issues/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
+reason. The existing [publication follow-up](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
 now carries this guarded reproduction. No retention, withdrawal or authority
 bound was weakened to hide the residual.
 
@@ -542,3 +542,503 @@ Final reference audit: 527 LLP documents, 10,288 references, zero errors and zer
 unchecked references. Whitespace checks pass. Every newly retained artifact is
 below 256 KB; no raw trace, gzip or movie is staged. Both formal measurement
 processes exited normally and their owned burners were reaped. Nothing is pushed.
+
+
+## Round 2 — wide replay fan-out under contention
+
+Date: 2026-10-04. The reported 0.4.13 Darwin dry run failed the unchanged
+`replay_delivers_900_followers_promptly_after_commit_without_schedules` test
+at its 60-second wake guard, and an upload test at its three-second socket
+read timeout. This round uses eb1000 only. `origin/main` merged cleanly by
+fast-forward to **2cc55e168c9fa3297aa321793987f480be8406e3**, including RP, QE2,
+NL, WD, QF and QF2. The exact pre-LU control is **848b645294^1 =
+4353aa735cb1c752d08993268da9fa8a75f26c5c**, built in a separate local worktree.
+No Darwin machine was used and neither timeout was enlarged.
+
+### Reproduction and cause
+
+The proposed 900-backfill/cleanup explanation does not match this fixture.
+All 900 follows occur before any post exists. `timeline/online.rs` enqueues a
+backfill only beyond the synchronous 50-event preview, and cleanup only beyond
+256 existing copies. Both queues are empty here. The trace shows only the one
+live delivery, starting within milliseconds of the source commit. The new
+regression also asserts zero pending items after these follows, then exactly
+one after posting. Thus the seconds are spent finishing the fan-out, not waiting
+for 900 other tasks.
+
+The exact replay and upload tests were repeated on pre-LU and current main,
+five replay trials and ten upload trials per revision/load at 0/20/120 owned
+burners. All **30 replay and 60 upload runs passed** on Linux. The Darwin timeout
+itself is not reproduced; these results cannot establish its platform-specific
+cause. At heavy load, the replay test's maximum was 22.224 seconds pre-LU and
+24.638 seconds on main. A current-main ablation changes only the periodic
+selector back to FIFO. It also takes many seconds, although it does not rotate
+the unfinished fan-out. All these records remain separate from candidate tests.
+
+Contended slices usually consume one recipient, while the old walk requests
+32 candidates each time. A deterministic one-row slice examines 39 rows for a
+wide population versus eight for a single recipient. The same unused suffix
+is repeatedly decoded and metered, then its CPU cost is multiplied by CT's
+seven-times pacing. Each delivery slice also goes through empty recount and
+job kinds; their separate short sleeps add scheduler wakeups under heavy load.
+Requested CPU repayment and OS/admission delays are distinct: the trace records
+charged CPU and requested pause sums, not an assertion that every sleep resumes
+at its requested deadline.
+
+### Change and invariants
+
+The delivery walk starts with two candidates and grows 2→4→8→16→32 only while
+the current turn can consume more. Two preserves one-row completion lookahead.
+All actual candidates keep ordinary row/rule/meter checks; only consumed rows
+advance the durable cursor. There is no task class, index, schema or admission
+change. The 256-candidate chunk limit, 250 µs/2 ms cooperative deadline and
+atomic commit remain. At a zero budget the 900-follower regression still writes
+one recipient per turn and completes in 900 turns, with 8,997 examined rows.
+The wide first-recipient cost stays within four rows of the single-recipient
+cost; restoring main's old scan makes that assertion fail (39 versus eight).
+
+CT still charges seven times consumed CPU with the 100 ms cap on each kind.
+Empty-kind charges accumulate until the next useful slice or until debt reaches
+100 ms; if a complete cycle is empty, they are repaid before the interruptible
+idle wait. Work or error/parking triggers repayment immediately. Each repayment
+is at most 100 ms, and any remainder carries forward. Engine custody ends
+between every kind and before every sleep.
+Request commits cannot cancel repayment. This avoids separate empty recount/job
+wakeups while a delivery remains active, without discarding their CPU charge.
+A deterministic test checks combined debt, empty-cycle repayment and aged
+eligibility; another accounts for 240 ms of individually capped debt as
+100 + 100 + 40 ms repayments. CT's existing atomic-overrun, clock, admission and expiry tests
+remain in place.
+
+Round 1's durable queue and exact frozen-P guarantee are unchanged: any item
+pending among P items gets a slice within P visits to its declaration, or D×P
+successful background turns across D fixed declarations. Small new deliveries
+still overtake unfinished history; the continuing-arrival, cleanup, multi-slice
+fan-out, epoch, rollback, restart and ordering tests remain. Later event arrival
+can precede earlier event arrival, with sorted, duplicate-free query pages.
+
+A fan-out to W recipients requires W copies. These changes reduce wasted work
+and wakeups and qualify last-recipient latency for the requested 900-recipient
+shape. They do not promise a physical completion time independent of unbounded
+W, unbounded arrival rate, storage delays or OS starvation. LLP 3000 §7 and
+LLP 3000.013 §4 state that scope explicitly.
+
+### Measurement custody
+
+Every native comparison and browser experiment runs on the same ten physical
+CPUs, **80–89**, through `taskset` and the inherited affinity guard from round 1.
+Only one injected-load experiment runs at a time. Burners use the same owned
+keeper/process group, reaped before the next experiment. Builds and ordinary
+suite work launch on 0–31,48–79; the suite browser witness uses 90–91. No process
+name/pattern is signaled and no other machine is used.
+
+`tools/replay-build.py` temporarily stamps source commits, successful work
+commits and pacing decisions, builds the ordinary test-profile server plus the
+original replay/upload test executables, then restores sources in `finally`.
+The replay executable's server path is selectable so successive builds cannot
+replace its measured binary. The fixture, read loop and timeouts are unchanged.
+`tools/replay-compare.py` alternates revisions per trial. Test elapsed time starts
+before posting, as in the original test. The 900th-copy timestamp is the commit
+where summed follower-copy writes reach 900; final task retirement can be a
+later empty slice. The original test independently checks all 901 inbox copies
+(including the author) and no jobs.
+
+Traced native latency includes probe overhead: formatting/writing the stamps
+and the work-row read used to report its durable cursor/completion. CT's CPU
+charge includes that instrumentation. Both sides use the same probes, but the
+numbers are not uninstrumented production latency or a Darwin qualification.
+Affected tests and the complete suite use the ordinary uninstrumented binary.
+
+Native cells use five trials (three for the FIFO/adaptive-only ablation), so
+nearest-rank p95 is also the maximum. Zero burners means no injected load,
+not a quiet host: CT's one-minute global load hint can remain contended after a
+previous cell. That is visible in the retained load and pause records. Do not
+compare the first run's initially quiet samples against a later contended cell
+as if host conditions were identical.
+
+The web comparison uses current main against round 2, the same freshly built
+frozen SDK on both servers, 1,000 history rows, refollow before every update,
+three independent Chromium contexts and 30 writes per shape/load. Primary
+latency is the slower remote render per write; stage counts pool both receivers.
+Production binaries contain measurement-only hooks, restored before affected
+checks and the full suite. Raw logs and event streams remain under ignored
+`target/lu-r2*`; compact tables, stamps and hashes are retained here.
+
+### Upload finding
+
+The upload test's schema has no Following declaration or queued delivery work.
+Its two deliberately blocked upload workers leave the query engine free; the
+third upload must be refused and a query must complete before release. No test
+or upload implementation is changed. All ten trials per load/revision passed
+with the original three-second socket timeout. Total test wall time rises from
+roughly 32 ms with no injected burners to a heavy-load maximum of 411 ms pre-LU
+and 408 ms on main. This demonstrates load sensitivity without reproducing the
+Darwin socket timeout. It does not support a causal link to LU's delivery
+selector; the exact Darwin failure remains unqualified on this Linux host.
+
+### Development record
+
+The first empty-kind repayment build used a nonexistent Result convenience
+method and failed compilation; replacing it with `map_or` fixed the build
+before any candidate test ran. The adaptive-only candidate and the main-FIFO
+ablation are retained as exploratory comparisons. A first combined candidate
+capped accumulated empty-kind debt, which could discard part of multiple
+individually capped charges. The final candidate caps each charge and repayment,
+carries the remainder and repays once empty debt reaches the cap. The new
+240 ms conservation regression covers that edge. The exact initial
+[maintenance patch](./round2/initial-maintenance.patch),
+[native cells](./round2/main-combined.json),
+[browser summary](./round2/web-initial.summary.json) and
+[source/binary hashes](./round2/production-artifacts.json) remain historical
+evidence; final measurements and full-suite qualification are rerun after the
+correction. The negative scan control intentionally fails and is not
+counted as a product test failure. No failed qualification is converted to a
+pass by extending a deadline.
+
+The first isolated witness control copied its test executable without the
+expected sibling `snapback4` supervisor. Its ten main attempts refused at
+startup with `No such file or directory`; no workload ran in those attempts.
+The corrected directory layout uses the matching main server and passes ten
+isolated repetitions. [Setup-attempt records](./round2/witness-control.json)
+are separate from [valid comparisons](./round2/witness-valid-control.json).
+
+The first full suite finished with **one failure in 1,788 seconds**, exit 1:
+`recovery_volta_style_shim_drains_late_group_member` refused an invalid `/proc`
+process-group field during idempotent cleanup. The CLI target had 282 passes,
+one failure and four ignores; every other Rust target/doctest passed. Clients
+passed 6,187 tests with 11 skips; models passed 79/79, fixtures 9/9, and all
+build/typecheck/budget steps passed. [Result](./round2/initial-full-suite-result.json)
+and [failure excerpt](./round2/initial-witness-failure.log) retain that outcome.
+
+The witness source is unchanged by LU. The corrected isolated controls pass
+10/10 on main and 10/10 on the initial candidate; two complete CLI unit runs
+per revision also pass ([records](./round2/unit-control.json)). These controls
+do not reproduce a baseline failure or explain the rejected snapshot. The
+[native inspection ticket](../../../issues/20261004-snapback4-native-witness-proc-group-inspection.md)
+keeps the failure open; no witness or ownership check is weakened. The final
+candidate's complete suite is recorded separately below, after the CPU-debt
+correction, without replacing this first result.
+
+The final browser sweep's first launch was refused before creating clients or
+burners: the affinity guard wrapped the experiment coordinator, whereas the
+harness requires it to wrap Node directly and checks that PID. Relaunching
+through `confine.py node ...` satisfies the existing guard. [The startup refusal](./round2/web-final-startup-refusal.log)
+is retained separately; all final browser samples come from that fresh guarded
+run. The first audit coordinator also reported an empty process tree after the
+refused process had exited; it is not an affinity-escape observation. The final
+browser audit uses the actual Node PID.
+
+### Native replay numbers
+
+Exact pre-LU versus merged main. [Individual records and hashes](./round2/prelu-main.json).
+
+| Burners | Revision | n | Test elapsed p50 / p95 (s) | Commit→900th copy p50 / p95 (s) |
+|---:|---|---:|---:|---:|
+| 0 | prelu | 5 | 0.226 / 9.027 | 0.214 / 9.012 |
+| 0 | main | 5 | 0.234 / 2.142 | 0.217 / 2.120 |
+| 20 | prelu | 5 | 8.359 / 8.501 | 8.332 / 8.471 |
+| 20 | main | 5 | 8.847 / 9.084 | 8.813 / 9.051 |
+| 120 | prelu | 5 | 21.526 / 22.224 | 21.421 / 22.142 |
+| 120 | main | 5 | 22.905 / 24.638 | 22.799 / 24.554 |
+
+Current-main FIFO and adaptive-only ablation. [Individual records and hashes](./round2/fifo-adaptive.json).
+
+| Burners | Revision | n | Test elapsed p50 / p95 (s) | Commit→900th copy p50 / p95 (s) |
+|---:|---|---:|---:|---:|
+| 0 | main-fifo | 3 | 9.205 / 11.136 | 9.190 / 11.119 |
+| 0 | adaptive | 3 | 9.013 / 9.580 | 8.996 / 9.568 |
+| 20 | main-fifo | 3 | 9.036 / 10.337 | 9.006 / 10.315 |
+| 20 | adaptive | 3 | 6.601 / 7.067 | 6.568 / 7.043 |
+| 120 | main-fifo | 3 | 19.878 / 20.607 | 19.807 / 20.509 |
+| 120 | adaptive | 3 | 13.579 / 13.641 | 13.473 / 13.530 |
+
+Paired current-main versus final round-2 candidate. [Individual records and hashes](./round2/main-final.json).
+
+| Burners | Revision | n | Test elapsed p50 / p95 (s) | Commit→900th copy p50 / p95 (s) |
+|---:|---|---:|---:|---:|
+| 0 | main | 5 | 6.574 / 8.108 | 6.559 / 8.086 |
+| 0 | final | 5 | 0.241 / 10.829 | 0.229 / 10.819 |
+| 20 | main | 5 | 9.010 / 11.298 | 8.983 / 11.269 |
+| 20 | final | 5 | 6.402 / 6.696 | 6.370 / 6.663 |
+| 120 | main | 5 | 23.286 / 25.060 | 23.215 / 24.920 |
+| 120 | final | 5 | 12.767 / 16.147 | 12.662 / 16.055 |
+
+Final paired slice decomposition, p50 per cell. The pause column counts nonzero repayment decisions; CPU and repayment are summed only until the 900th-copy commit.
+
+| Burners | Revision | Delivery turns | Nonzero repayments | Charged CPU (ms) | Requested repayment (ms) |
+|---:|---|---:|---:|---:|---:|
+| 0 | main | 796.0 | 2337.0 | 832.8 | 5383.4 |
+| 0 | final | 63.0 | 0.0 | 202.8 | 0.0 |
+| 20 | main | 878.0 | 2633.0 | 825.8 | 5780.7 |
+| 20 | final | 604.0 | 603.0 | 582.5 | 4077.0 |
+| 120 | main | 896.0 | 2685.0 | 904.8 | 6333.5 |
+| 120 | final | 607.0 | 606.0 | 613.5 | 4294.2 |
+
+The current-main FIFO-only control does not remove the delay: there is only
+one item, so selecting it without rotation still pays the repeated scan and
+pacing costs. The adaptive-only ablation improves loaded completion without
+changing CT pacing. The final combination reduces nonzero repayment decisions
+from roughly three per delivery slice to one. These sequential shared-host
+sweeps do not isolate a universal additional wall-time win for that second
+change; the CPU-accounting tests and the retained counts establish its narrower
+claim. No native cell exceeded the unchanged replay guard.
+
+
+The final heavy-load commit-to-last-copy p95 is **24.920 → 16.055 seconds**
+(35.6% lower), with all five trials per revision within the unchanged guard.
+The no-burner cell remains a mixture of roughly 0.2-second unpaced runs and
+seconds of contended pacing: final p95 is 10.819 seconds versus main 8.086,
+so no universal no-burner improvement is claimed. The retained per-trial CPU
+and requested pauses distinguish those modes.
+
+### Read and timed-maintenance control
+
+The unchanged CT mixed control runs for 125 seconds per revision with 120
+external keeper-owned burners on CPUs 80–89. Its own `--levels 0` means it
+adds no further workers; `busy: 0` in that tool's records must not be read as
+an idle host. This control has no Following backlog. The separate replay and
+browser fixtures qualify live delivery while this control checks the CPU
+repayment change against reads and timed obligations.
+
+Both runs exit 0. Main performs 29,700 reads at 13.017 ms p95; round 2 performs
+31,476 reads at 12.613 ms p95. Each observes all six deliberately abandoned
+leases, zero unexpected lease changes, exact 1,000 ms explicit lease extension,
+all expected minute boundaries once, successful delivery/retry effects and the
+expected deadline failure. Physical expiry is observed with maximum delay
+1,064 / 1,086 ms, and abandoned-lease recovery with maximum delay 2,058 / 1,982 ms.
+The latter timings vary within the ordinary periodic cadence; the report does
+not claim that every maintenance metric became faster.
+[Main summary](./round2/mixed-main-summary.json) and
+[candidate summary](./round2/mixed-final-summary.json) retain outcomes;
+[the initial thread audit](./round2/mixed-affinity.json) and
+[the final mixed audit](./round2/final-mixed-affinity.json) check the inherited
+CPU mask. The initial candidate's mixed records remain retained separately.
+
+### Affected verification
+
+The final affected runs pass 112 guide cases, 17 timeline background cases,
+eight continuing-arrival fairness cases, six live-latency cases, eight CT
+maintenance cases, all 22 replay cases and the unchanged upload test.
+[Command results](./round2/final-affected-results.json),
+[language output](./round2/final-affected-language.log),
+[maintenance output](./round2/final-affected-maintenance.log),
+[replay output](./round2/final-affected-replay.log), and
+[upload output](./round2/final-affected-upload.log) retain the checks. The
+uninstrumented 900-follower replay takes 215 ms in this affected run, with no
+injected burners; that individual observation is not a loaded distribution.
+The intentionally failing [old-scan control](./round2/negative.log) confirms
+that the new bounded-lookahead regression detects the previous behavior.
+
+
+### Published-client comparison
+
+Both formal runs exit 0 with no page errors: 270 writes and 540 remote renders
+per revision, using 30 writes per shape/load. The main control already includes
+round 1; this comparison measures the round-2 change on the merged baseline.
+[Main summary](./round2/web-main.summary.json),
+[candidate summary](./round2/web-after.summary.json),
+[main timestamps](./round2/web-main.stamps.csv) and
+[candidate timestamps](./round2/web-after.stamps.csv) retain all cells.
+
+Primary commit-to-render latency in milliseconds, slower receiver per write;
+n=30 per cell, nearest-rank percentiles.
+
+| Burners | Shape | Main p50 / p95 / max | Round 2 p50 / p95 / max |
+|---:|---|---:|---:|
+| 0 | repost | 179.9 / 925.8 / 1,507.8 | 208.6 / 605.3 / 650.5 |
+| 0 | message | 70.1 / 275.6 / 333.3 | 89.9 / 289.3 / 309.3 |
+| 0 | reaction | 37.5 / 62.9 / 66.8 | 32.7 / 40.6 / 49.8 |
+| 20 | repost | 158.4 / 511.1 / 628.5 | 183.5 / 647.0 / 700.1 |
+| 20 | message | 118.6 / 464.3 / 484.1 | 148.6 / 503.2 / 657.1 |
+| 20 | reaction | 111.3 / 195.6 / 617.4 | 124.3 / 178.9 / 179.7 |
+| 120 | repost | 456.9 / 2,254.3 / 3,894.7 | 429.2 / 1,352.9 / 1,426.8 |
+| 120 | message | 384.6 / 1,117.5 / 2,021.3 | 436.2 / 1,276.3 / 1,517.5 |
+| 120 | reaction | 423.4 / 693.8 / 826.7 | 543.4 / 746.2 / 840.5 |
+
+Per-stage p95 in milliseconds from commit, pooling receivers (normally n=60).
+These are overlapping intervals, not additive costs. Delivery means the fresh
+event's final copy; message/reaction use the source commit. As in round 1, an
+evaluation may use its own copy before the final other-receiver cut arrives.
+Receipt and evaluation are channel-specific stamps, not a universal FIFO chain.
+
+| Revision | Burners | Shape | Delivery | Published | Received | Evaluation | Render |
+|---|---:|---|---:|---:|---:|---:|---:|
+| Main | 0 | repost | 48.7 | 48.8 | 54.2 | 54.7 | 726.7 |
+| Main | 0 | message | 0.0 | 0.1 | 21.9 | 24.4 | 237.4 |
+| Main | 0 | reaction | 0.0 | 0.2 | 23.3 | 48.2 | 48.9 |
+| Main | 20 | repost | 92.3 | 92.5 | 117.4 | 125.3 | 375.5 |
+| Main | 20 | message | 0.0 | 0.1 | 77.5 | 91.5 | 279.5 |
+| Main | 20 | reaction | 0.0 | 0.1 | 74.1 | 181.7 | 194.4 |
+| Main | 120 | repost | 175.5 | 175.7 | 349.1 | 349.7 | 1,186.1 |
+| Main | 120 | message | 0.0 | 0.1 | 229.4 | 259.5 | 863.1 |
+| Main | 120 | reaction | 0.0 | 0.1 | 277.9 | 623.4 | 624.2 |
+| Round 2 | 0 | repost | 65.8 | 66.0 | 72.1 | 45.9 | 383.0 |
+| Round 2 | 0 | message | 0.0 | 0.1 | 17.0 | 18.9 | 229.1 |
+| Round 2 | 0 | reaction | 0.0 | 0.1 | 17.6 | 39.1 | 39.7 |
+| Round 2 | 20 | repost | 72.2 | 72.4 | 109.9 | 106.3 | 440.2 |
+| Round 2 | 20 | message | 0.0 | 0.2 | 77.8 | 86.1 | 415.1 |
+| Round 2 | 20 | reaction | 0.0 | 0.1 | 88.2 | 163.8 | 167.9 |
+| Round 2 | 120 | repost | 128.1 | 128.3 | 383.2 | 383.2 | 953.4 |
+| Round 2 | 120 | message | 0.0 | 0.1 | 296.8 | 308.5 | 832.5 |
+| Round 2 | 120 | reaction | 0.0 | 0.1 | 337.8 | 700.2 | 707.4 |
+
+Observed ten-CPU utilization and whole-host one-minute load, p50 / p95.
+
+| Revision | Burners | Scoped busy % | Host load |
+|---|---:|---:|---:|
+| Main | 0 | 64.4 / 71.4 | 88.3 / 118.4 |
+| Main | 20 | 99.8 / 100.0 | 61.8 / 67.3 |
+| Main | 120 | 100.0 / 100.0 | 138.5 / 165.8 |
+| Round 2 | 0 | 63.2 / 70.6 | 16.9 / 17.4 |
+| Round 2 | 20 | 99.9 / 100.0 | 26.3 / 37.4 |
+| Round 2 | 120 | 100.0 / 100.0 | 120.4 / 130.5 |
+
+Main-stage receipt counts below 60: main 20:repost commitToReceived n=59; main 120:repost commitToReceived n=59; after 0:repost commitToReceived n=54; after 20:repost commitToReceived n=59; after 120:repost commitToReceived n=58.
+Other channel counts remain in the summaries. Missing stamps are omitted,
+never filled with zero. [The main/initial affinity audit](./round2/web-affinity.json) and
+[final browser audit](./round2/final-web-affinity.json) cover all three load
+levels through the inherited guard.
+
+All heavy-load primary p95s remain below two seconds in this run: repost
+1,352.9 ms, message 1,276.3 ms, reaction 746.2 ms. The small delivery still
+overtakes history: heavy repost final-copy p95 is 128.1 ms (main 175.5 ms),
+versus the many-second FIFO drain recorded in round 1. Its primary render p95
+is 2,254.3 → 1,352.9 ms on this merged-main comparison. Background tenants and
+whole-host load differ, so these are measured distributions, not a guaranteed
+speedup for every update or an isolated estimate of each optimization.
+
+Message shows **mixed results** in this comparison: heavy primary p95 rises from
+1,117.5 to 1,276.3 ms, while maximum falls from 2,021.3 to 1,517.5 ms. At moderate load,
+its p95 also rises, 464.3 → 503.2 ms. No message or observation policy changed;
+the data do not support a universal message win. Reaction heavy-load p95 also rises, 693.8 → 746.2 ms.
+
+The no-burner repost p95 is 605.3 ms (main 925.8 ms), still above the 500 ms
+target. This shared-host condition is not globally idle. Its final-copy p95
+is 65.8 ms, so the remaining tail is after delivery. The existing
+[observation-publication follow-up](../../../issues/closed/20261003-snapback4-live-query-publication-starves-during-following-backfill.md)
+remains open. No retention, authority, withdrawal or observation bound changed.
+
+An independent [CSV validation](./round2/web-validation.json) reproduces every
+primary p50/p95/max within 0.001 ms of rounding and verifies 270 paired writes
+per revision. It also finds one raw ordering anomaly: final heavy message trial
+27, Carol, renders at −9.626 ms relative to the post-commit stamp (its matching
+HTTP evaluation is at −22.226 ms). Bob renders at +185.074 ms, which is the
+primary sample for that write. The new row is `message-87`, sequence 20555;
+the matcher checks exact row identity, not a prefix.
+
+These probes stamp after `tx.commit()` returns and compare server wall time
+with each browser's performance-origin clock. Post-commit descheduling and
+cross-clock alignment can affect that comparison; the exact cause of this
+sample is not established. The raw negative value is retained, with no offset,
+clamping or sample removal. It prevents a claim of universal millisecond-level
+stage ordering from these raw probes. The same-write slower-receiver sample
+and all reported tail percentiles are unchanged by this fast-sample anomaly;
+the separate suite regression checks its own stage ordering and generous bound.
+
+
+### Final complete verification and retained artifacts
+
+The corrected candidate's required full eb1000 suite exits **0**, with
+`== 0 failure(s) in 1505 s`. It runs as:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=16 \
+LU_TEST_CPUS=90-91 taskset -c 0-31,48-79 bash snapback4/scripts/test.sh
+```
+
+Every Rust target and doctest passes, including the complete CLI unit target
+(284 passed, four ignored), all replay cases and the unchanged upload test.
+The 311 client files pass 6,187 tests with 11 skips, the two model files pass
+79/79, and fixture wrappers pass 9/9. Every build, typecheck, release guard and
+docs/wasm budget step passes. No suite timeout, count or ownership check changes.
+[Result](./round2/final-full-suite-result.json) and
+[compact output](./round2/final-full-suite-summary.log) retain the final run;
+the first suite's witness failure remains recorded above and in its open ticket.
+
+The locked Linux wasm build measures **2,116,457 B raw / 639,750 B gzip** by
+the canonical `build-wasm.sh` gzip command. The unchanged 639,887 B cap leaves
+137 B: the recorded 130 B macOS allowance plus 7 B. No Mac build is claimed.
+The final build is byte-identical to the frozen browser SDK's wasm.
+[Wasm record](./round2/wasm.json) and
+[final source/binary/SDK hashes](./round2/final-production-artifacts.json)
+retain custody. The incoming main contains other lanes' wasm changes, so the
+older round-1 wasm value is not an isolated round-2 baseline.
+
+[The artifact manifest](./round2/ARTIFACTS.json) hashes native probes, both
+suite logs, browser event streams, mixed-control records, sources and tools.
+Large raw streams, binaries and databases stay under ignored `target/lu-r2*`.
+Every new retained evidence file is below 256 KB; no gzip or movie is included.
+The formal experiment processes exited normally and their keepers reaped the
+owned burners. The
+CPU-debt correction is included in the final measured source hashes. The
+reference audit passes: 527 LLP documents, 10,342 references, 34,414 files,
+zero errors and zero unchecked references. Source/tool hashes match the
+measured artifacts, original replay/upload tests and the budget are unchanged,
+and no instrumentation remains in shipping sources. Whitespace checks pass.
+Nothing is pushed, and no other machine was used.
+
+
+## Round 3 — preserve repayment in either worker ordering
+
+2026-10-04, eb1000 only, based on `b0e17cec74` (round 2, landed as
+`ce9bef594a`). Astra's P2 is reproduced deterministically: with 70 ms scheduled,
+10 ms elapsed and another 70 ms charge, the old completion path retains only
+70 ms instead of 130 ms. `completed()` now uses
+`resume_at = max(resume_at, now) + pause`, matching `empty_cycle()`. Both worker
+orderings conserve outstanding repayment, including an empty completion that
+adds no immediate pause. Per-kind charges, sleep caps, aged opportunities and
+Following's frozen-P service bound are unchanged. LLP 3000 §7 now states both
+orderings explicitly.
+
+The new regression fails against round 2 with `left: 70ms, right: 130ms` and
+passes with the fix. It checks useful and empty completions and the exact
+repayment deadline without sleeping. The reverse-order regression and the
+240 ms (100 + 100 + 40) case remain. Existing clock fixtures now start at the
+state's own initial instant, avoiding microsecond differences from separately
+sampling the real clock.
+
+### Brief confined replay comparison
+
+The same instrumented 900-follower fixture and unchanged 60 s guard run three
+times per revision, alternating order, with 120 keeper-owned burners on CPUs
+80–89. The inherited affinity guard and [thread audit](./round3/affinity.json)
+confine all 124 observed processes / 134 threads to those ten CPUs. The keeper
+stops and reaps only its own burners. Host one-minute load at trial completion
+ranges from 63.2 to 117.6. Ordinary verification runs outside these CPUs.
+
+| Revision | Commit → 900th copy, trial order (s) | Median (s) | Maximum (s) | Delivery turns through last copy |
+|---|---|---:|---:|---|
+| Round 2 | 15.974, 12.820, 13.128 | 13.128 | 15.974 | 644, 597, 634 |
+| Round 3 | 11.742, 13.267, 13.289 | 13.267 | 13.289 | 603, 610, 611 |
+
+All six trials pass. Each has one fewer nonzero repayment decision than delivery
+turns through the last copy; round 2's combined repayment and bounded scan gains
+remain. This small sample shows comparable completion, not a new latency win or
+a precise tail estimate. The earlier 16.055 s nearest-rank p95 was the maximum
+of that run's five samples, not a reproducible host-independent percentile.
+The earlier message and reaction heavy p95s rose slightly while remaining below
+2 s. The n=30 comparison remains round-2 evidence; browser regression coverage
+in round 3 comes from the full suite.
+[Per-trial stamps, counts and raw-log hashes](./round3/replay.csv) retain this
+comparison. The existing replay builder now accepts both deadline assignments
+and injects the same probes. Raw logs and binaries remain ignored under
+`target/lu-r2/` and `target/lu-r3/`; no large artifacts are added to git.
+
+### Verification
+
+Affected Rust checks pass: nine maintenance tests (including aged and expiry
+cases), 17 timeline background tests, eight fairness tests, six live-latency
+tests and all 22 replay tests. The full `bash snapback4/scripts/test.sh` run
+exits 0 in **1,957 s**: all Rust targets/doctests; CLI 285 passed/four ignored;
+clients 6,187 passed/11 skipped, including the confined Chromium regression;
+models 79/79 and fixtures 9/9; all build/typecheck/budget steps pass.
+[Commands, results, build inputs and hashes](./round3/verification.json) retain
+the evidence. The new regression's round-2 negative control exits 101 as expected.
+
+The suite uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`,
+`CARGO_INCREMENTAL=0`, and `CARGO_PROFILE_DEV_DEBUG=0` /
+`CARGO_PROFILE_TEST_DEBUG=0` after the old build cache was cleared. Optimization
+and debug assertions retain their checked-in settings. Sampled worktree disk
+use stays below **14.1 GB**, within the 40 GB limit. Wasm remains 2,116,457 B raw /
+639,750 B gzip under the unchanged 639,887 B cap, preserving the 130 B macOS
+allowance. `ref-check --verbose` and whitespace checks pass. Nothing pushed.

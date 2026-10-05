@@ -1,3 +1,4 @@
+import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP encoding at the unchanged 16 MiB ceiling, SQLite server storage,
 // and the production catch-up loop on both wasm and SQLite process devices.
@@ -63,11 +64,12 @@ async function fixture(t, empty = false) {
   async function start(next = source, fresh = false) {
     await stop(); writeFileSync(join(dir, "snapback/schema.q"), next);
     child = spawn(binary, ["dev", "--no-watch", "--port", url ? new URL(url).port : "0", ...(fresh ? ["--fresh"] : [])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+    const readStdout = captureStdout(child);
     exited = once(child, "exit");
     let log = "", listening = false;
     for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => {
       log += bytes;
-      const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      const address = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];
       if (address) { url = address; listening = true; }
     });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
@@ -293,9 +295,10 @@ async function historyFixture(t, tier) {
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), historySource);
   const child = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const readStdout = captureStdout(child);
   const exit = once(child, 'exit');
   let log = '', url, client, core, offline = false, intercept;
-  child.stdout.on('data', b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stdout.on('data', b => { log += b; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on('data', b => { log += b; });
   t.after(async () => {
     await client?.close();

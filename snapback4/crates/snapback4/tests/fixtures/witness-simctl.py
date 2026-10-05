@@ -212,7 +212,8 @@ elif a[0] == 'launch':
         else:
             # Only the fake log-capture child reports done after the signal.
             # No detached background process is left by this fixture.
-            (root / 'waiting').write_text(str(folder))
+            (root / 'waiting.tmp').write_text(str(folder))
+            (root / 'waiting.tmp').replace(root / 'waiting')
 elif a[0] == 'io':
     if mode != 'empty-video':
         Path(a[-1]).write_bytes(b'fake video for process tests only')
