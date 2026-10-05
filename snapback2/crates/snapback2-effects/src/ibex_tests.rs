@@ -45,6 +45,7 @@ fn compiled_es2020_effect_executes_every_admitted_global() {
         if [
             "$SHBuiltin",
             "DebuggerInternal",
+            "Function",
             "HermesInternal",
             "__ibex2_fire_timer",
             "globalThis",
@@ -436,7 +437,11 @@ fn fetch_redirect_matrix_preserves_or_drops_method_body_and_headers() {
             );
             assert_content_type(
                 request,
-                if drop_body { None } else { Some("application/json") },
+                if drop_body {
+                    None
+                } else {
+                    Some("application/json")
+                },
             );
             for (name, value) in [
                 ("content-encoding", "identity"),
@@ -559,7 +564,11 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                 }
                 assert_content_type(
                     request,
-                    if dropped { None } else { Some("application/json") },
+                    if dropped {
+                        None
+                    } else {
+                        Some("application/json")
+                    },
                 );
                 for (name, value) in [
                     ("content-encoding", "identity"),
@@ -676,19 +685,17 @@ fn fetch_invalid_redirect_mode_cannot_enter_the_raw_follower() {
 
 #[test]
 fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
+    let context = Context::new(GrantSet::none());
     let mut runtime = Hermes::new(DynamicCode::Closed).unwrap();
-    assert!(runtime.install_stdlib());
-    runtime.eval(SAVE_FETCH_ACCESSORS).unwrap();
-    runtime.install_bindings().unwrap();
-    // Observe the real free op from the same trusted bootstrap stage used by
-    // the host. The raw stub isolates settlement from the transport itself.
+    runtime
+        .install_with(Groups::PURE, &context, InstallOptions::default())
+        .unwrap();
+    // Observe header ownership at the same primitive-object seam used by the
+    // host. The raw stub isolates settlement from the transport itself.
     runtime
         .eval(
             r#"
       globalThis.released = [];
-      const free = __sb_saved.freeHeaders;
-      __sb_saved.freeHeaders = function (handle) { released.push(handle); free(handle); };
-      globalThis.__ibex2_text_decode = __sb_saved.decode;
       let tokens = 0;
       globalThis.__ibex2_fetch_control = function (action) { return action === 0 ? ++tokens : undefined; };
       globalThis.__ibex2_response_read = function () { return Promise.resolve(null); };
@@ -699,6 +706,16 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
         if (field === 7) return handle === 307 ? '[["location","/end"]]' : '[]';
         return false;
       };
+      globalThis.__snapback_ibex2_fetch_primitives = Object.freeze({
+        fetch: function () { throw new Error('raw fetch is supplied by the test'); },
+        responseField: globalThis.__ibex2_response_field,
+        responseRead: globalThis.__ibex2_response_read,
+        fetchControl: globalThis.__ibex2_fetch_control,
+        textEncode: function (text) { return new TextEncoder().encode(text).buffer; },
+        textDecode: function (bytes) { return new TextDecoder().decode(bytes); },
+        textEncodeInto: function () { throw new Error('unused'); },
+        headersFree: function (handle) { released.push(handle); },
+      });
     "#,
         )
         .unwrap();
@@ -774,7 +791,10 @@ fn empty_grants_refuse_global_aliased_and_helper_fetch_before_transport() {
     ] {
         let outcome = host.run(
             &declaration(source, vec![]),
-            &job("empty-grant-denial", json!({ "url": format!("{origin}/secret") })),
+            &job(
+                "empty-grant-denial",
+                json!({ "url": format!("{origin}/secret") }),
+            ),
             Duration::from_secs(2),
         );
         assert!(
@@ -974,6 +994,10 @@ fn effect_source_cannot_resolve_host_closure_bindings() {
         "hostToken",
         "installedEntry",
         "fireTimer",
+        "fetchPrimitives",
+        "boundTransport",
+        "rawFetch",
+        "headersClaimed",
         "grantedFetch",
     ] {
         let decl = declaration(
@@ -1424,7 +1448,7 @@ fn global_surface_allows_only_the_pinned_debugger_profile_difference() {
     };
     assert!(unknown_error.contains("unexpected: UnexpectedEngineGlobal"));
 
-    for required in ["Intl", "fetch", "__ibex2_fire_timer"] {
+    for required in ["Function", "Intl", "fetch", "__ibex2_fire_timer"] {
         let missing = release_profile
             .iter()
             .filter(|name| name.as_str() != required)

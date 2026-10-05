@@ -1,8 +1,7 @@
-// The bound-only transport of a `test` owner. Installed by the host between
-// Ibex's raw fetch binding and the prelude that captures it, so the prelude,
-// the factory, and every effect see one raw binding whichever transport is
-// behind it. It exists only when a job carries a binding table; a dev or
-// serve owner never evaluates it.
+// The bound-only transport of a `test` owner. It returns a raw wrapper to the
+// trusted prelude instead of replacing or exposing a raw-fetch global. It
+// exists only when a job carries a binding table; a dev or serve owner never
+// evaluates it.
 //
 // Order on every request and on every redirect hop (the factory calls the
 // raw binding once per hop, with the hop's logical URL):
@@ -29,17 +28,22 @@
     try { targets[new URL(names[j]).origin] = String(bindings[names[j]]); } catch (_) {}
   }
   var evidence;
+  var unclaimedHeaders = new WeakSet();
   globalThis.__sb_provider = function (reset) {
     if (reset) evidence = { origins: [], requests: 0, refused: {} };
     return evidence;
   };
   function refuse(code) { evidence.refused[code] = (evidence.refused[code] || 0) + 1; }
-  globalThis.__ibex2_fetch = function (target) {
+  function rejectBeforeRaw(error) {
+    unclaimedHeaders.add(error);
+    return Promise.reject(error);
+  }
+  var fetch = function (target) {
     var url;
-    try { url = new URL(String(target)); } catch (error) { return Promise.reject(error); }
+    try { url = new URL(String(target)); } catch (error) { return rejectBeforeRaw(error); }
     if (granted.indexOf(url.origin) === -1) {
       refuse("E_EFFECT_GRANT");
-      return Promise.reject(new Error("denied: net.fetch"));
+      return rejectBeforeRaw(new Error("denied: net.fetch"));
     }
     var to = targets[url.origin];
     if (to === undefined) {
@@ -50,7 +54,7 @@
       );
       unbound.code = "E_EFFECT_UNBOUND";
       unbound.origin = url.origin;
-      return Promise.reject(unbound);
+      return rejectBeforeRaw(unbound);
     }
     var args = Array.prototype.slice.call(arguments);
     args[0] = to + url.pathname + url.search;
@@ -58,4 +62,8 @@
     if (evidence.origins.indexOf(url.origin) === -1) evidence.origins.push(url.origin);
     return raw.apply(undefined, args);
   };
-})(globalThis.__ibex2_fetch, __SNAPBACK_GRANTS__, __SNAPBACK_BINDINGS__, __SNAPBACK_EFFECT_NAME__);
+  return Object.freeze({
+    fetch: Object.freeze(fetch),
+    headersClaimed: Object.freeze(function (error) { return !unclaimedHeaders.has(error); }),
+  });
+})(globalThis.__snapback_ibex2_fetch_primitives.fetch, __SNAPBACK_GRANTS__, __SNAPBACK_BINDINGS__, __SNAPBACK_EFFECT_NAME__);

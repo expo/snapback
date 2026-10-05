@@ -1,4 +1,4 @@
-// Adapted from expo/ibex at revision 9cbf9e62d6434b4e3f4d49eddacb337218d256a3:
+// Adapted from expo/ibex at revision 2aac9fa5b760f0e3c81c5e628d073bd9927acc55:
 // crates/ibex2/src/bindings/fetch.js. Snapback follows redirects through the
 // grant-bound raw binding one hop at a time so a denial retains the attempted
 // hop's origin instead of being mislabeled with the initial request, and it
@@ -6,34 +6,27 @@
 // not the upstream reader surface.
 // fetch and Response.
 //
-// A response crosses the boundary as an integer handle into a runtime-wide
-// table, and the accessors that read a handle's fields and body were GLOBALS
-// — so any module could read any other module's in-flight response by
-// guessing small integers, granted or not. The accessors are captured here
-// and removed from the global object; the handle lives in a WeakMap behind a
-// Response object; and the only way to get a Response is the fetch a module
-// was handed. The handle is never observable and cannot be forged.
+// A response crosses the boundary as an integer handle into an object-private
+// table. The accessors are captured from Ibex's opt-in primitive object;
+// trusted bootstrap deletes that object's temporary global before hardening.
+// The handle lives in a WeakMap behind a Response object, and the only way to
+// get a Response is the fetch a module was handed. The handle is never
+// observable and cannot be forged.
 //
 // This script's VALUE is the fetch factory. It defines no global: the engine
 // side stores the completion value and calls it once per grant set, so a
 // module never sees a function that would wrap an integer of its choosing.
-(function (global) {
+(function (primitives, global) {
   "use strict";
 
-  var field = global.__ibex2_response_field;
-  var readBody = global.__ibex2_response_read;
-  var control = global.__ibex2_fetch_control;
-  var decode = global.__ibex2_text_decode;
+  var field = primitives.responseField;
+  var readBody = primitives.responseRead;
+  var control = primitives.fetchControl;
+  var decode = primitives.textDecode;
   var Headers = global.Headers;
-  var freeHeaders = global.__sb_saved.freeHeaders;
-  delete global.__ibex2_response_field;
-  delete global.__ibex2_response_read;
-  delete global.__ibex2_fetch_control;
+  var freeHeaders = primitives.headersFree;
   // Pure helpers nothing outside the bindings needs: the engine provides
   // TextEncoder and TextDecoder itself.
-  delete global.__ibex2_text_encode;
-  delete global.__ibex2_text_decode;
-  delete global.__ibex2_text_encode_into;
 
   var handles = new WeakMap(); // Response -> { handle, used, empty, released, track, status, ok, url, redirected, headers }
 
@@ -112,6 +105,9 @@
           length += chunk.byteLength;
           return next();
         }
+        // EOF removes the native response row. The primitive owner forgets
+        // the handle at the same point, so do not issue cancel/drop afterward.
+        r.released = true;
         var joined = new Uint8Array(length);
         var offset = 0;
         for (var i = 0; i < chunks.length; i++) {
@@ -124,7 +120,12 @@
     r.track(1);
     return next().then(
       function (bytes) { r.track(-1); release(r); return bytes; },
-      function (error) { r.track(-1); release(r); throw error; }
+      function (error) {
+        // A terminal read error also drops the native response row.
+        r.released = true;
+        r.track(-1);
+        throw error;
+      }
     );
   }
   Response.prototype.arrayBuffer = function () { return consume(this); };
@@ -155,9 +156,15 @@
     return init.method === undefined ? "GET" : String(init.method).toUpperCase();
   }
 
-  function invokeRaw(raw, url, init, redirectMode, tagRawError) {
+  function invokeRaw(raw, url, init, redirectMode, tagRawError, headersClaimed) {
     var headers;
     var token;
+    var rawCalled = false;
+    function releaseHeaders(error) {
+      if (!headers || !rawCalled || (headersClaimed && !headersClaimed(error))) return;
+      freeHeaders(headers._handle);
+      headers = null;
+    }
     try {
       var method = init.method !== undefined ? String(init.method) : "";
       var body = init.body;
@@ -176,12 +183,13 @@
       // body's own control from there.
       init.headers = Array.from(headers);
       token = control(0);
+      rawCalled = true;
       return raw(target, method, body, redirectMode, headers._handle, token).then(
-        function (handle) { freeHeaders(headers._handle); control(2, token); return handle; },
-        function (error) { freeHeaders(headers._handle); control(2, token); throw tagRawError(error, target); }
+        function (handle) { releaseHeaders(); control(2, token); return handle; },
+        function (error) { releaseHeaders(error); control(2, token); throw tagRawError(error, target); }
       );
     } catch (error) {
-      if (headers) freeHeaders(headers._handle);
+      releaseHeaders(error);
       if (token !== undefined) control(2, token);
       return Promise.reject(error);
     }
@@ -196,7 +204,7 @@
   // object. `track` is the host's count of the job's in-flight network I/O.
   // Default redirect following is kept on this side of the binding so each
   // denied hop remains attributable without widening Ibex's capability.
-  return function makeFetch(raw, tagRawError, track, bound) {
+  return function makeFetch(raw, tagRawError, track, bound, headersClaimed) {
     function logicalUrl(input) {
       if (!bound) return undefined;
       var url = new URL(String(input));
@@ -212,7 +220,7 @@
       }
       if (redirectMode !== "follow") {
         var requestedUrl = String(input);
-        return invokeRaw(raw, requestedUrl, currentInit, redirectMode, tagRawError)
+        return invokeRaw(raw, requestedUrl, currentInit, redirectMode, tagRawError, headersClaimed)
           .then(function (handle) { return response(handle, undefined, methodOf(currentInit), track, logicalUrl(requestedUrl)); });
       }
 
@@ -221,7 +229,7 @@
       var redirects = 0;
 
       function next() {
-        return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError).then(function (handle) {
+        return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError, headersClaimed).then(function (handle) {
           var method = methodOf(currentInit);
           var value = response(handle, redirects > 0, method, track, logicalUrl(currentUrl));
           if (!isRedirect(value.status)) return value;
@@ -251,4 +259,4 @@
       return next();
     };
   };
-})(globalThis);
+})(globalThis.__snapback_ibex2_fetch_primitives, globalThis);

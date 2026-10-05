@@ -246,7 +246,7 @@ mutation fire():
     const rust = await readFile(`${frontend}../../crates/snapback2-effects/src/ibex.rs`, "utf8");
     const list = rust.match(/const EFFECT_GLOBALS:.*?= &\[([\s\S]*?)\];/);
     assert(list);
-    const internal = new Set(["$SHBuiltin", "DebuggerInternal", "HermesInternal", "__ibex2_fire_timer", "globalThis"]);
+    const internal = new Set(["$SHBuiltin", "DebuggerInternal", "Function", "HermesInternal", "__ibex2_fire_timer", "globalThis"]);
     const names = [...list[1]!.matchAll(/"([^"\n]+)"/g)].map((match) => match[1]!).filter((name) => !internal.has(name));
     assert.deepEqual(names, effectGlobals);
     for (const path of [`${frontend}../snapback2/guide/effects.md`, `${frontend}../../../llp/1003-effects-on-ibex2.spec.md`]) {

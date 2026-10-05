@@ -11,12 +11,10 @@ getrandom = "0.3"
 serde_json = "1"
 snapback2-core = { path = "../snapback2-core" }
 thiserror = "2"
-# Ibex 2 (LLP 0057/0058 in expo/ibex1, the archived repo this pin predates): a Rust standard library with JS bindings
-# over vanilla, pinned Hermes. `default-features = false` = no Oxc loader, no
-# engine: this crate builds from crates.io alone. The engine is `hermes`.
-ibex2 = { git = "https://github.com/expo/ibex1", rev = "49fa9841212cf1fc119a3f8dcd246b1f9ab71ea8", default-features = false }
+# Ibex 2's owning Hermes runtime, pinned with its verified lean-engine bundle.
+# It stays optional because this crate's default build must link no engine.
+ibex2-runtime = { git = "https://github.com/expo/ibex", rev = "2aac9fa5b760f0e3c81c5e628d073bd9927acc55", default-features = false, optional = true }
 
 [features]
 default = []
-hermes = ["ibex2/hermes"]
-loader = ["ibex2/loader"]
+hermes = ["dep:ibex2-runtime"]

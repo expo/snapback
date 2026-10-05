@@ -1,27 +1,27 @@
 use crate::{EffectHost, EffectJob, EffectLog, Outcome};
-use ibex2::engine::hermes::{DynamicCode, Grants, Hermes, JsError};
+use ibex2_runtime::engine::hermes::{DynamicCode, Hermes, InstallOptions, JsError};
+use ibex2_runtime::{
+    bindings::{Context, Groups},
+    grant::GrantSet,
+};
 use serde_json::json;
 use snapback2_core::{EffectDecl, digest};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 const MAX_JOBS_PER_RUNTIME: u32 = 50;
-const SAVE_FETCH_ACCESSORS: &str = r#"
-globalThis.__sb_saved = {
-  field: globalThis.__ibex2_response_field,
-  read: globalThis.__ibex2_response_read,
-  control: globalThis.__ibex2_fetch_control,
-  decode: globalThis.__ibex2_text_decode,
-  encode: globalThis.__ibex2_text_encode,
-  encodeInto: globalThis.__ibex2_text_encode_into,
-  freeHeaders: globalThis.__ibex2_headers.free
-};
-"#;
+const FETCH_PRIMITIVES_GLOBAL: &str = "__snapback_ibex2_fetch_primitives";
+const EFFECT_GROUPS: Groups = Groups::PURE
+    .union(Groups::CONSOLE)
+    .union(Groups::TIMERS)
+    .union(Groups::ABORT)
+    .union(Groups::FETCH);
 const PRELUDE: &str = include_str!("prelude.js");
 const FETCH_FACTORY: &str = include_str!("prelude/fetch.js");
 const BOUND_TRANSPORT: &str = include_str!("prelude/bound.js");
-// Public names match the compiler effect allowlist. Engine internals and globalThis
-// remain unnameable in authored source; the host needs them to harden and pump.
+// Public names match the compiler effect allowlist. Function, engine internals,
+// and globalThis remain unnameable in authored source; the host needs them to
+// harden and pump, with DynamicCode::Closed refusing dynamic compilation.
 const DEBUGGER_INTERNAL: &str = "DebuggerInternal";
 const EFFECT_GLOBALS: &[&str] = &[
     "$SHBuiltin",
@@ -38,6 +38,7 @@ const EFFECT_GLOBALS: &[&str] = &[
     "EvalError",
     "Float32Array",
     "Float64Array",
+    "Function",
     "Headers",
     "HermesInternal",
     "Infinity",
@@ -107,9 +108,10 @@ struct RuntimeKey {
 }
 
 struct EffectRuntime {
-    // Drop the runtime before its raw fetch binding's borrowed grants.
+    // The runtime borrows the install endowment. Field order is intentional:
+    // Rust drops it before the context declared immediately after it.
     runtime: Hermes,
-    _grants: Grants,
+    _context: Context,
     declared_grants: Vec<String>,
     // A `test` owner's job carries its epoch's bindings; a runtime built for
     // one binding table never serves a job with another.
@@ -327,32 +329,29 @@ fn build_runtime_until(
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
     // One budget covers trusted setup as well as authored execution.
     runtime.set_deadline(deadline);
-    if !runtime.install_stdlib() {
-        return Err(BuildFailure::Unavailable(
-            "Ibex 2 standard library install failed",
-        ));
-    }
-    runtime
-        .eval(SAVE_FETCH_ACCESSORS)
-        .map_err(|error| BuildFailure::Invalid(format!("save fetch accessors: {error}")))?;
-    runtime
-        .install_bindings()
-        .map_err(|error| BuildFailure::Invalid(format!("install bindings: {error}")))?;
-
     let grant_spec = transport_origins(decl, bindings)
         .map(|origin| format!("net.fetch {origin}"))
         .collect::<Vec<_>>()
         .join("\n");
-    let grants = Grants::parse(&grant_spec)
-        .ok_or_else(|| BuildFailure::Invalid("declared fetch grants did not parse".to_owned()))?;
-    if !runtime.install_fetch(&grants) {
-        return Err(BuildFailure::Invalid(
-            "install grant-bound raw fetch failed".to_owned(),
-        ));
-    }
+    let grants = GrantSet::parse(&grant_spec).map_err(|error| {
+        BuildFailure::Invalid(format!("declared fetch grants did not parse: {error}"))
+    })?;
+    let context = Context::new(grants);
+    runtime
+        .install_with(
+            EFFECT_GROUPS,
+            &context,
+            InstallOptions {
+                fetch_primitives: Some(FETCH_PRIMITIVES_GLOBAL),
+            },
+        )
+        .map_err(|error| BuildFailure::Invalid(format!("install effect bindings: {error}")))?;
     if let Some(bindings) = bindings {
         runtime
-            .eval(&bound_transport(decl, bindings))
+            .eval(&format!(
+                "globalThis.__snapback_bound_transport = {}",
+                bound_transport(decl, bindings)
+            ))
             .map_err(|error| {
                 BuildFailure::Invalid(format!("install bound transport: {error:?}"))
             })?;
@@ -410,7 +409,7 @@ fn build_runtime_until(
 
     Ok(EffectRuntime {
         runtime,
-        _grants: grants,
+        _context: context,
         declared_grants: decl.grants.clone(),
         bindings: bindings.cloned(),
         jobs: 0,
@@ -469,7 +468,8 @@ fn verify_global_names(names: &[String]) -> Result<(), BuildFailure> {
     // Pinned debugger-enabled Hermes installs DebuggerInternal as a
     // non-configurable global, while its release profile omits it. It is not
     // in the compiler's authored allowlist and the host never calls it; this
-    // is the sole admitted engine-profile difference.
+    // is the sole admitted engine-profile difference. Function is fixed in
+    // both profiles because the Ibex hardener needs Function.prototype.call.
     let has_debugger_internal = names.iter().any(|name| name == DEBUGGER_INTERNAL);
     let expected = EFFECT_GLOBALS
         .iter()

@@ -9,32 +9,26 @@
 
   const hostToken = __SNAPBACK_HOST_TOKEN__;
   const effectName = __SNAPBACK_EFFECT_NAME__;
-  const saved = globalThis.__sb_saved;
   const allowedGlobals = __SNAPBACK_ALLOWED_GLOBALS__;
   const fireTimer = globalThis.__ibex2_fire_timer;
   const scheduleTimer = globalThis.setTimeout;
   const NativeReferenceError = globalThis.ReferenceError;
-  globalThis.__ibex2_response_field = saved.field;
-  globalThis.__ibex2_response_read = saved.read;
-  globalThis.__ibex2_fetch_control = saved.control;
-  globalThis.__ibex2_text_decode = saved.decode;
-  globalThis.__ibex2_text_encode = saved.encode;
-  globalThis.__ibex2_text_encode_into = saved.encodeInto;
 
-  // The factory captures the restored accessors and deletes them itself.
-  // A body streams in after its fetch resolved, so its reads count as the
-  // job's pending network I/O alongside the fetches themselves.
+  // Ibex publishes one frozen bootstrap object. Capture it only in closures,
+  // remove every temporary global before hardening, and expose neither the
+  // object nor one of its members to effect code. A body streams in after its
+  // fetch resolved, so reads count as pending network I/O too.
+  const fetchPrimitives = globalThis.__snapback_ibex2_fetch_primitives;
   const provider = globalThis.__sb_provider;
   delete globalThis.__sb_provider;
+  const boundTransport = globalThis.__snapback_bound_transport;
+  const rawFetch = boundTransport ? boundTransport.fetch : fetchPrimitives.fetch;
+  const headersClaimed = boundTransport ? boundTransport.headersClaimed : null;
+  delete globalThis.__snapback_bound_transport;
   const makeFetch = __SNAPBACK_FETCH_FACTORY__;
+  delete globalThis.__snapback_ibex2_fetch_primitives;
   const trackBodyRead = function (delta) { state.pendingFetches += delta; };
-  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError, trackBodyRead, !!provider);
-  delete globalThis.__ibex2_fetch;
-  delete globalThis.__sb_saved;
-  // Effects never load ESM, so its lowering-only helpers have no job here.
-  delete globalThis.__ibex2_default;
-  delete globalThis.__ibex2_dynamic_import;
-  delete globalThis.__ibex2_export_all;
+  const grantedFetch = makeFetch(rawFetch, tagRawGrantError, trackBodyRead, !!provider, headersClaimed);
 
   const state = {
     status: "idle",

@@ -7,30 +7,61 @@
 use super::*;
 use serde_json::Value;
 
-/// A runtime with the real bindings installed and the response accessors
-/// replaced by `stubs`, which define `__ibex2_response_field`,
-/// `__ibex2_response_read`, and `__ibex2_fetch_control` as the factory
-/// captures them, plus a `released` list every field-8 call appends to. The
-/// factory's value is left in `globalThis.factory`.
-fn stubbed(stubs: &str) -> Hermes {
+/// A PURE runtime plus a fake bootstrap object whose response operations are
+/// replaced by `stubs`. `released` records every field-8 call; header releases
+/// are irrelevant to these response-lifecycle tests. The context follows the
+/// runtime so the runtime is dropped first.
+struct Stubbed {
+    runtime: Hermes,
+    _context: Context,
+}
+
+impl std::ops::Deref for Stubbed {
+    type Target = Hermes;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runtime
+    }
+}
+
+impl std::ops::DerefMut for Stubbed {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.runtime
+    }
+}
+
+fn stubbed(stubs: &str) -> Stubbed {
     let mut runtime = Hermes::new(DynamicCode::Closed).unwrap();
-    assert!(runtime.install_stdlib());
-    runtime.eval(SAVE_FETCH_ACCESSORS).unwrap();
-    runtime.install_bindings().unwrap();
+    let context = Context::new(GrantSet::none());
+    runtime
+        .install_with(Groups::PURE, &context, InstallOptions::default())
+        .unwrap();
     runtime
         .eval(&format!(
             r#"
-      globalThis.__ibex2_text_decode = __sb_saved.decode;
       globalThis.released = [];
       globalThis.__ibex2_fetch_control = function (action) {{ return action === 0 ? 1 : undefined; }};
       {stubs}
+      globalThis.__snapback_ibex2_fetch_primitives = Object.freeze({{
+        fetch: function () {{ throw new Error('raw fetch is supplied by the test'); }},
+        responseField: globalThis.__ibex2_response_field,
+        responseRead: globalThis.__ibex2_response_read,
+        fetchControl: globalThis.__ibex2_fetch_control,
+        textEncode: function (text) {{ return new TextEncoder().encode(text).buffer; }},
+        textDecode: function (bytes) {{ return new TextDecoder().decode(bytes); }},
+        textEncodeInto: function () {{ throw new Error('unused'); }},
+        headersFree: function () {{}},
+      }});
     "#
         ))
         .unwrap();
     runtime
         .eval(&format!("globalThis.factory = {FETCH_FACTORY};"))
         .unwrap();
-    runtime
+    Stubbed {
+        runtime,
+        _context: context,
+    }
 }
 
 /// Run `program`, an async IIFE, to its settlement: what it resolved to, or
@@ -94,9 +125,10 @@ fn a_bodiless_redirect_hop_is_released_exactly_once() {
 
 /// A body read that throws — synchronously, before it returns a promise —
 /// rejects the consumer with the throw, and the job's pending I/O count
-/// comes back down and the record is released all the same. A count left
-/// high would keep the host waiting for I/O that is not coming, and report
-/// the throw as the timeout.
+/// comes back down. The primitive operation owns terminal-error release, so
+/// the wrapper must not issue a second field-8 drop. A count left high would
+/// keep the host waiting for I/O that is not coming, and report the throw as
+/// the timeout.
 #[test]
 fn a_body_read_that_throws_settles_the_pending_count_and_rejects_with_the_throw() {
     let mut runtime = stubbed(
@@ -129,6 +161,6 @@ fn a_body_read_that_throws_settles_the_pending_count_and_rejects_with_the_throw(
     );
     assert_eq!(
         result,
-        json!({ "rejected": "read broke", "pending": 0, "released": [7], "bodyUsed": true })
+        json!({ "rejected": "read broke", "pending": 0, "released": [], "bodyUsed": true })
     );
 }
