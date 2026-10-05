@@ -363,13 +363,12 @@ Python `sqlite3.Connection.iterdump()` after the driver's WAL checkpoint.
 
 ### Validation
 
-All requested Linux checks pass: **11 SQL, 89 check, 112 guide, 5 core schema,
-11 core capability and 3 client capability tests**. The client capability file
-explicitly skips its **4 Darwin-only witnesses** on Linux; the published 0.2.33
-fence still needs the operator's mini rerun. Additional checks pass: **41 core
-store/adoption tests**, the durable-schema compatibility test with the round-2
-exception removed, CLI build, reference audit and whitespace check. No full
-suite or Darwin result is claimed for round 3.
+The initial scoped Linux checks passed: **11 SQL, 89 check, 112 guide, 5 core
+schema, 11 core capability and 3 client capability tests**. The client capability
+file skipped its **4 Darwin-only witnesses** on Linux. Additional checks passed:
+**41 core store/adoption tests**, the durable-schema compatibility test with the
+round-2 exception removed, CLI build, reference audit and whitespace check.
+The follow-up below records the subsequent full suite and operator's Darwin result.
 
 Wasm is byte-identical to round 2:
 `a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26`,
@@ -377,6 +376,45 @@ Wasm is byte-identical to round 2:
 The earlier round-2 source-location-only difference from round 0 remains as
 recorded above; this round adds no wasm difference.
 
-`r3-*.log.gz` and `r3-verification.json` retain validation. Disk usage stayed
-below **16 GB**, under the **40 GB** limit. All work stayed on eb1000. Local
-commit with the requested co-author trailer; nothing pushed.
+`r3-*.log.gz` and `r3-verification.json` retain the initial scoped validation.
+Its disk usage stayed below **16 GB**, under the **40 GB** limit. All work stayed
+on eb1000. Local commit with the requested co-author trailer; nothing pushed.
+
+
+### Full-suite follow-up — 2026-10-05
+
+Ran the full suite **once on 093868ee5e58edd045711ce60b32422fa353dcf9** on
+eb1000, **00:24:00–01:20:02 UTC**. It passed with **exit 0, zero failures in
+3,361 seconds (56m 1s)**. All **13 stages** passed, including the workspace
+build, wasm, docs budget, release guard, package/app checks and typechecks,
+**299 Rust test binaries / 1,012 executions**, workspace doctests, **9 fixture
+tests**, all **313 client files (6,213 passed, 11 skipped)**, and both serial
+client model files (**79 passed**). No failure rerun or main comparison was
+needed. Round 0's failed run remains a historical result, not rewritten here.
+
+Before starting, three two-second `/proc/stat` samples identified twelve distinct
+physical cores whose selected logical CPUs and sibling threads were each below
+5% busy in every sample. The exact command was:
+
+```sh
+taskset -c 3,4,5,10,14,17,30,31,56,60,66,95 bash snapback4/scripts/test.sh
+```
+
+The inherited build environment used `CARGO_BUILD_JOBS=8`,
+`CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DEBUG=0` and
+`CARGO_PROFILE_TEST_DEBUG=0`. The suite observed twelve available CPUs and
+used twelve Rust test processes and four concurrent client files, then its
+normal serial model slot. Process-tree samples during compilation and models
+found every sampled descendant confined to the selected CPUs. No other
+worktree or process was modified. Sampled worktree usage peaked below **16.74 GB**,
+under the **40 GB** limit. Wasm retained the round-3 hash above.
+
+The operator additionally reports **Astra READY with no open findings** and
+the **Darwin published-engine fence passing 7/7 on the Apartment mini**, both
+against **093868ee5e**. Those are operator-provided results; this lane performed
+its full-suite run only on eb1000.
+
+Evidence: `r3-full-suite.log.gz`, `r3-full-suite-result.json`,
+`r3-full-suite-cpu-check.json`, `r3-full-suite-affinity.jsonl` and
+`r3-full-suite-disk.jsonl`. This follow-up changes only the report and its
+validation evidence. No code changes, no push.
