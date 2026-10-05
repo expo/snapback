@@ -64,9 +64,9 @@ Rules the compiler enforces (family `effect`, each with a rewrite):
   `tools.meta` carry `id`, `effect`, and `attempt`. `crypto` is absent from the pinned
   Ibex runtime and refuses rather than receiving an invented declaration;
   `eval`, the authored `Function` name, DOM names, and engine internals remain
-  refused. The hardened host surface retains the frozen `Function` intrinsic
-  because Ibex's hardener uses `Function.prototype.call`; `DynamicCode::Closed`
-  refuses dynamic compilation and the compiler never admits the name.
+  refused. The host deletes `Function` before hardening; at expo/ibex
+  `c8e1941`, `harden.js` needs only `Object`. `DynamicCode::Closed` refuses
+  dynamic compilation, and the compiler still refuses the authored name.
   The host also verifies its post-hardening engine surface exactly. Pinned
   debugger-enabled Hermes leaves one non-configurable `DebuggerInternal`
   global, while the release profile omits it; Snapback admits those two exact
