@@ -1,0 +1,19 @@
+{
+  "messages": [
+    { "id": "m9", "conversation": "chat", "bucket": "A", "ordinal": 1, "body": "coffee car" },
+    { "id": "m8", "conversation": "chat", "bucket": "A", "ordinal": 2, "body": "coffee coffers car" },
+    { "id": "m7", "conversation": "chat", "bucket": "A", "ordinal": 3, "body": "coffers car" },
+    { "id": "m6", "conversation": "chat", "bucket": "A", "ordinal": 4, "body": "tea" },
+    { "id": "m5", "conversation": "chat", "bucket": "B", "ordinal": 1, "body": "coffee car" },
+    { "id": "m4", "conversation": "chat", "bucket": "B", "ordinal": 2, "body": "coffee car" },
+    { "id": "m3", "conversation": "chat", "bucket": "C", "ordinal": 1, "body": "coffee car" },
+    { "id": "secret", "conversation": "hidden", "bucket": "Z", "ordinal": 99, "body": "coffee car" }
+  ],
+  "cases": [
+    { "query": "named", "control": "columns", "needle": "cof car", "pages": [["m3", "m4"], ["m5", "m7"], ["m8", "m9"]] },
+    { "query": "named", "control": "columns", "needle": "...", "pages": [["m3", "m4"], ["m5", "m6"], ["m7", "m8"], ["m9"]] },
+    { "query": "ascending", "needle": "cof car", "pages": [["m9", "m8"], ["m7", "m5"], ["m4", "m3"]] },
+    { "query": "suffix", "control": "suffixColumns", "needle": "cof car", "pages": [["m7", "m8"], ["m9"]] },
+    { "query": "suffix", "control": "suffixColumns", "needle": "", "pages": [["m6", "m7"], ["m8", "m9"]] }
+  ]
+}

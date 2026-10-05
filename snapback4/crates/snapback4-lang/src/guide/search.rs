@@ -42,7 +42,7 @@ query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
 ```
 
 Both forms plan `(conversation, words(body), ordinal, id)`; the unique index still serves history and receipts.
-A named plain unique index supplies its order; bracket keys must pin its leading columns. Other plain indexes use column order.
+A named plain unique index supplies its order; named bracket keys must sit inside its leading prefix. Omitting keys orders by the whole index. Other plain indexes use column order.
 Existing integer ordinals work too: do not migrate to `sequence by` just to search (`guide sequences`).
 Pass `next` as `c`; reset it when the conversation or text changes. An empty needle browses in ordinal order.
 Keep ordinals stable while paging; refresh to include new matches before the cursor. Point decorations preserve the bare page (below).

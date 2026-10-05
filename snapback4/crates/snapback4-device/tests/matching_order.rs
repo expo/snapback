@@ -101,6 +101,60 @@ fn ordered_search_offline_sqlite() {
     for sequence in [false, true] { for horizon in [None, Some(500), Some(3)] { scenario(&mut Sqlite::new("matching-order"), sequence, horizon); } }
 }
 
+// Shared with the HTTP/process/wasm client oracle. Equal buckets have ordinal
+// order opposite to id order, including a tie that crosses a page boundary.
+fn composite_order<H: Host>(host: &mut H) {
+    let (mut server, backend) = compile(include_str!("matching_order/composite.q"));
+    let fixture: serde_json::Value = serde_json::from_str(include_str!("matching_order/composite.json")).unwrap();
+    server.seed(["chat", "hidden"].map(|key| ("conversations".into(), object([("id", id(key))])))).unwrap();
+    server.seed([("m1", "chat", "dev:alice"), ("m2", "hidden", "dev:bob")].map(|(key, chat, who)| (
+        "members".into(), object([("id", id(key)), ("conversation", id(chat)), ("principal", id(who))])
+    ))).unwrap();
+    server.seed(fixture["messages"].as_array().unwrap().iter().map(|row| (
+        "messages".into(), snapback4_core::wire::row_from_json(&backend.schema.tables["messages"], row).unwrap()
+    ))).unwrap();
+    let mut device = host.open("composite-order", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "dev:alice", 2).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    host.close("composite-order", device);
+    let mut device = host.open("composite-order", None).unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let name = case["query"].as_str().unwrap();
+        let q = case["needle"].as_str().unwrap();
+        let expected = case["pages"].as_array().unwrap();
+        let mut cursor = None;
+        for (n, want) in expected.iter().enumerate() {
+            let arguments = args(&[("conversation", id("chat")), ("q", Value::String(q.into())), ("c", cursor.clone().map(Value::String).unwrap_or(Value::Null))]);
+            let page = server.query(name, Context::new("dev:alice", arguments.clone())).unwrap();
+            assert!(page.complete && page.cut.is_none(), "{name}: {page:?}");
+            assert_eq!(json!(ids(&page)), *want, "{name} {q} page {n}");
+            if let Some(control) = case["control"].as_str() {
+                let other = server.query(control, Context::new("dev:alice", arguments)).unwrap();
+                assert_eq!(page.data, other.data);
+                assert_eq!(page.next, other.next);
+            }
+            let local = device.query(name, "dev:alice", &json!({"conversation":"chat", "q":q, "c":cursor}), snapback4_core::now_ms()).unwrap();
+            assert!(local.complete && local.cut.is_none(), "{name}: {local:?}");
+            assert_eq!(local.data, page.data);
+            assert_eq!(local.next, page.next);
+            cursor = local.next;
+            if n + 1 < expected.len() { assert!(cursor.is_some(), "{name} ended early"); }
+        }
+        // A full terminal page can have a final empty continuation.
+        if cursor.is_some() {
+            let arguments = args(&[("conversation", id("chat")), ("q", Value::String(q.into())), ("c", Value::String(cursor.clone().unwrap()))]);
+            let page = server.query(name, Context::new("dev:alice", arguments)).unwrap();
+            let local = device.query(name, "dev:alice", &json!({"conversation":"chat", "q":q, "c":cursor}), snapback4_core::now_ms()).unwrap();
+            for end in [page, local] { assert!(ids(&end).is_empty() && end.complete && end.cut.is_none() && end.next.is_none(), "{name}: {end:?}"); }
+        }
+    }
+    host.close("composite-order", device);
+}
+
+#[test]
+fn composite_order_offline_memory() { composite_order(&mut Memory::new()); }
+#[test]
+fn composite_order_offline_sqlite() { composite_order(&mut Sqlite::new("composite-order")); }
+
 // @ref LLP 3000.007#18.1 — the named order has exactly the existing search
 // boundary: a cut is never certified exhaustion, even when it returns no hits.
 fn meter_boundary<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str) {

@@ -81,6 +81,11 @@ impl Requests {
             *column = row_column(table, column).into();
         }
         if super::validate_key_names(read).is_err() { return; }
+        // @ref LLP 3000.007#18.1 — normalized named search orders keep their
+        // explicit choice for a compatible browse plan; words use normal planning.
+        let preferred = read.index.as_ref().filter(|name| !read.order_keys.is_empty()
+            && table.indexes.iter().any(|index| &index.name == *name && index.unique && index.is_plain())).cloned();
+        if preferred.is_some() { read.index = None; }
         if read.index.is_some() {
             if !rule { self.selected_prefix(table, read); }
             return;
@@ -190,11 +195,12 @@ impl Requests {
             (index.unique || index.columns.len() > read.keys.len())
                 && (!cursor || table.total_cursor(index)) && ordered == columns && index.words == words && computed_descriptor(table, &index.computed) == computed
         }).collect();
-        if candidates.len() > 1 {
+        let selected = candidates.iter().copied().find(|index| Some(&index.name) == preferred.as_ref());
+        if candidates.len() > 1 && selected.is_none() {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),
                 format!("choose `by {}` explicitly or keep one definition", candidates[0].name)));
         }
-        read.index = Some(if let Some(index) = extremum_index.or_else(|| candidates.first().copied()) { index.name.clone() }
+        read.index = Some(if let Some(index) = selected.or(extremum_index).or_else(|| candidates.first().copied()) { index.name.clone() }
             else { self.index_computed(table, columns, words, read.computed.clone(), &read.site, true) });
     }
     // @ref LLP 3000.028#3.2 — an explicit index has the same coverage as

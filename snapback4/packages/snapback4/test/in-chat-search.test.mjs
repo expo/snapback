@@ -148,3 +148,66 @@ for (const tier of ['process', 'wasm']) test(`in-chat unique order: 10,000 messa
   }
   t.diagnostic(`${tier}: 10000 chat rows, ${expected.length} hits; descending/ascending, decorations, empty browse, hidden scope, default meter cut`);
 });
+
+const compositeRoot = new URL('../../../crates/snapback4-device/tests/matching_order/', import.meta.url);
+const compositeSource = readFileSync(new URL('composite.q', compositeRoot), 'utf8');
+const compositeFixture = JSON.parse(readFileSync(new URL('composite.json', compositeRoot), 'utf8'));
+
+for (const tier of ['process', 'wasm']) test(`in-chat composite order: tied buckets and suffix pin ${tier}`, { timeout: 60000 }, async t => {
+  const { url, dir } = await server(t, '', compositeSource);
+  const rows = [
+    { table: 'conversations', row: { id: 'chat' } },
+    { table: 'conversations', row: { id: 'hidden' } },
+    { table: 'members', row: { id: 'member', conversation: 'chat', principal: 'dev:alice' } },
+    { table: 'members', row: { id: 'hidden-member', conversation: 'hidden', principal: 'dev:bob' } },
+    ...compositeFixture.messages.map(row => ({ table: 'messages', row })),
+  ];
+  const seeded = await fetch(`${url}/seed`, { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json());
+  assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+  const online = createClient({ url, persona: 'alice' });
+  let offline = false;
+  const device = tier === 'process' ? processDevice({ binary, dir: join(dir, 'device') })
+    : webDevice({ persist: memoryPersistence(), wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)) });
+  const local = await createLocalClient({ url, persona: 'alice', device, fetch: async (input, init) => {
+    if (offline) throw new TypeError('offline');
+    if (new URL(input).pathname === '/changes') return parkedChanges(init.signal);
+    return fetch(input, init);
+  } });
+  t.after(async () => { await local.close(); await online.close(); });
+  await local.sync();
+  offline = true; await local.sync();
+  assert.equal(local.link(), 'offline');
+  for (const { query, control, needle: q, pages } of compositeFixture.cases) {
+    let c = null; const seen = [];
+    for (const expected of pages) {
+      const args = { conversation: 'chat', q, c };
+      const remote = await online.query(op(query), args);
+      const held = await local.query(op(query), args);
+      for (const [host, page] of [[tier, held], ['server', remote]]) {
+        assert.deepEqual(page.data?.map(row => row.id), expected, `${host} ${query} ${q}`);
+        assert.equal(page.complete, true, JSON.stringify(page));
+        assert.equal(page.cut ?? null, null);
+      }
+      assert.equal(held.next, remote.next, 'server and device cursors interchange');
+      if (control) for (const [client, page] of [[online, remote], [local, held]]) {
+        const equivalent = await client.query(op(control), args);
+        for (const key of ['data', 'next', 'complete', 'cut']) assert.deepEqual(equivalent[key], page[key], `${query}/${control}: ${key}`);
+      }
+      seen.push(...held.data.map(row => row.id));
+      c = held.next;
+      if (seen.length < pages.flat().length) assert.ok(c, 'continuation across tied buckets');
+    }
+    assert.equal(new Set(seen).size, seen.length, 'no repeated hit');
+    if (c) for (const client of [online, local]) {
+      const end = await client.query(op(query), { conversation: 'chat', q, c });
+      assert.deepEqual(end.data, []);
+      assert.equal(end.complete, true);
+      assert.equal(end.cut ?? null, null);
+      assert.equal(end.next ?? null, null);
+    }
+  }
+  for (const client of [online, local]) {
+    const hidden = await client.query(op('named'), { conversation: 'hidden', q: 'cof car' });
+    assert.deepEqual(hidden.data, []);
+  }
+});

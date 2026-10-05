@@ -37,8 +37,69 @@ fn unique_order_refuses_keys_outside_its_declared_prefix_with_exact_text() {
     assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
     let refusal = &bound.diagnostics[0];
     assert_eq!(refusal.code, "E_QUARRY_MATCHING_INDEX");
-    assert_eq!(refusal.message, "messages.byConversationOrdinal is a plain unique index; matching scope keys must name its leading columns. Order by columns to plan a different search scope");
+    assert!(refusal.rewrite.is_empty(), "a non-prefix key must not suggest an unscoped search: {refusal:?}");
+    assert_eq!(refusal.message, "messages.byConversationOrdinal is a plain unique index; matching scope keys must name its leading columns; missing leading column: conversation");
     assert_eq!(refusal.guide, "search");
+}
+
+#[test]
+fn named_unique_search_keeps_explicit_browse_choice_among_competing_indexes() {
+    for prefix in ["messages[conversation = conversation]", "messages[conversation]", "messages where .conversation = conversation"] {
+        let schema = recipe().split("query searchChat").next().unwrap().replace(
+            "  unique byConversationOrdinal: conversation, ordinal",
+            "  unique byConversationOrdinal: conversation, ordinal\n  by byConversationOrdinalId: conversation, ordinal, id");
+        let source = format!("{schema}query page(conversation: conversations, q: text <=100, c: cursor ?):\n  return {prefix} matching q last 20 by byConversationOrdinal after c\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+        let browse: Vec<_> = scans.iter().filter(|scan| bound.schema.tables["messages"].indexes[&scan.index].word_component().is_none()).collect();
+        assert_eq!(browse.len(), 1);
+        assert_eq!(browse[0].index, "byConversationOrdinal");
+    }
+}
+
+#[test]
+fn valid_named_prefix_without_a_page_bound_requests_a_bound() {
+    let source = recipe().replace("last 20 by .ordinal after c", "by byConversationOrdinal");
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+    let refusal = &bound.diagnostics[0];
+    assert_eq!(refusal.code, "E_QUARRY_BOUND", "{refusal:?}");
+    assert!(refusal.message.contains("no cap over this prefix"), "{refusal:?}");
+    assert!(refusal.rewrite.contains("cap N by conversation"), "{refusal:?}");
+    assert!(refusal.rewrite.contains("first N"), "{refusal:?}");
+    assert_eq!(refusal.guide, "bounds");
+}
+
+#[test]
+fn valid_named_prefix_uses_its_cap_without_an_explicit_page_bound() {
+    let source = recipe().replace("  search body", "  search body\n  cap 20 by conversation")
+        .replace("last 20 by .ordinal after c", "by byConversationOrdinal");
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+    assert_eq!(scans.len(), 2);
+    assert!(scans.iter().all(|scan| scan.take == snapback4_core::ir::Bound::Literal(20)));
+}
+
+#[test]
+fn named_composite_order_keeps_all_unpinned_columns_and_suffix_pins() {
+    for (prefix, columns) in [
+        ("messages[conversation = conversation]", vec!["conversation", "bucket", "ordinal", "id"]),
+        ("messages[conversation = conversation] where .bucket = 'A'", vec!["bucket", "conversation", "ordinal", "id"]),
+        ("messages", vec!["conversation", "bucket", "ordinal", "id"]),
+    ] {
+        let schema = recipe().split("query searchChat").next().unwrap()
+            .replace("  body:", "  bucket: text <=10\n  body:")
+            .replace("byConversationOrdinal: conversation, ordinal", "byOrder: conversation, bucket, ordinal")
+            .replace(" last 500 by byConversationOrdinal", "");
+        let source = format!("{schema}query page(conversation: conversations, q: text <=100, c: cursor ?):\n  return {prefix} matching q last 2 by byOrder after c\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let scans = snapback4_core::ir::scans(&bound.programs[0].program);
+        let search = scans.iter().find(|scan| bound.schema.tables["messages"].indexes[&scan.index].word_component().is_some()).unwrap();
+        assert_eq!(bound.schema.tables["messages"].indexes[&search.index].columns(), columns);
+    }
 }
 
 #[test]
@@ -139,6 +200,7 @@ fn matching_index_code_has_its_own_registry_entry_explanation_and_guide() {
     assert!(guide::codes().contains(&code));
     assert_eq!(snapback4_lang::diag::guide_for(code), "search");
     let why = guide::explain_code(code).unwrap();
+    assert!(why.contains("missing leading column and offers no rewrite"), "{why}");
     for fact in ["the named index is declared", "computed key", "scope keys", "snapback4 guide search"] {
         assert!(why.contains(fact), "missing {fact}: {why}");
     }

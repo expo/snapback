@@ -6,7 +6,7 @@ use crate::ast::*;
 // @ref LLP 3000.007#18.1 — a plain unique search order lowers to the same
 // scoped words index as column order, before needle/browse variants diverge.
 pub(super) fn named_order(table: &super::catalog::TableInfo, read: &mut ReadExpr) -> bool {
-    if read.matching.is_none() || read.range.is_none() || !read.order_keys.is_empty()
+    if read.matching.is_none() || !read.order_keys.is_empty()
         || super::validate_key_names(read).is_err() { return false; }
     let Some(index) = table.indexes.iter().find(|index| Some(&index.name) == read.index.as_ref()) else { return false; };
     if !index.unique || !index.is_plain() || read.keys.len() > index.columns.len() { return false; }
@@ -23,7 +23,8 @@ pub(super) fn named_order(table: &super::catalog::TableInfo, read: &mut ReadExpr
     read.order_keys = index.columns.iter().filter(|column| !pinned.contains(*column)).cloned().collect();
     if read.order_keys.is_empty() { read.order_keys.push("id".into()); }
     for (key, column) in read.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
-    read.index = None;
+    // Keep the authored choice until the alternatives are planned: a compatible
+    // browse branch must not become ambiguous with an equivalent plain index.
     true
 }
 
@@ -35,7 +36,9 @@ pub(super) fn capture(catalog: &mut Catalog) {
             let [Stmt::Return { value, .. }] = program.body.as_slice() else { continue };
             let value = match value { Expr::Shape { base, .. } | Expr::ShapeUse { base, .. } => base.as_ref(), value => value };
             let Expr::Read(read) = value else { continue };
-            if read.matching.is_none() || read.index.is_some() || !read.keys.is_empty()
+            // Column order also identifies normalized named unique reads. An
+            // explicit words index without column order still stays out.
+            if read.matching.is_none() || !read.keys.is_empty()
                 || read.range.is_none() || read.order_keys.is_empty()
                 || read.filter.as_deref().is_some_and(|value| !scalar(value)) { continue; }
             let Some(table) = catalog.tables.get(&read.table) else { continue };

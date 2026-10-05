@@ -86376,3 +86376,40 @@ target paths; no target symlink was created. Reference checking and whitespace
 validation pass. The requested report and raw evidence are at
 `/home/ccheever/sb5-lanes/is.report.md` and `is-evidence/`. Work stayed on eb1000;
 local commit only, no push or publication.
+
+## 2026-10-05 — IS round 1: named search review corrections
+
+Folded both complete round-0 blind reviews. A refused plain unique prefix
+now names its missing leading column and offers no rewrite; the old
+unpinned-complement suggestion and the why-card's scope-preservation claim
+are gone. Valid prefixes normalize without `first`/`last`, so the ordinary
+bound diagnostic asks for a page or cap, and a declared cap works. The
+selected unique index survives normalization and disambiguates the generated
+browse branch when it remains compatible after planning. LLP 3000.007 §18.1
+now says named keys sit inside the leading prefix and omitted keys order by
+the whole index. No runtime, cursor, authority or meter change.
+
+Four new compiler assertions fail on unchanged `c4220a9e6e` production
+source at the reported failures. The shared composite-order fixture has tied
+buckets, reversed ordinal/ID order, page size two, a suffix-column equality,
+column-order controls, empty browsing and both directions. It runs on the
+server, reopened memory/SQLite devices, and HTTP/process/wasm clients.
+The reviewers' deliberate `order_keys.truncate(1)` mutation now fails the
+compiler, server and both process/wasm device assertions: `[m3,m5]` replaces
+`[m3,m4]` on the first page. The probe was removed before qualification.
+
+Final qualification on eb1000: compiler 1,475 passed/11 existing ignores,
+including all 112 guide tests and 13 matching-order regressions; matching-order
+devices 6/6; in-chat clients 4/4, including both 10,000-message process/wasm
+cases and their 270-hit traversals. CLI/package builds and docs budget pass.
+The initial device build stopped before tests with ENOSPC in the shared Cargo
+target. Removed 32 completed compiler-test executables from this run (8.33 GB),
+then the unchanged device command passed. Both attempts and the exact cleanup
+list remain in `is-evidence/`; no source or other worktree was removed.
+
+Canonical wasm is 2,116,457 B raw / 639,751 B gzip under the unchanged
+639,887 B cap. That is one gzip byte above round 0; no byte-identity or macOS
+claim. The [Round 1 report](/home/ccheever/sb5-lanes/is.report.md#round-1--fold-both-blind-reviews)
+records each review disposition, baseline failures, mutation evidence, final
+commands and artifact digest. No tests, workloads, timeouts or ceilings were
+weakened. Local commit only; nothing pushed or published.
