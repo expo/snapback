@@ -1,0 +1,15 @@
+{
+  "at": 1791133852.2819571,
+  "run": "full-suite-qualified.json",
+  "test": "snapback4/packages/snapback4/test/ephemeral-e2e.test.mjs",
+  "testSha256": "3016346c37b7119033ec8b8b0593b71aeee991ad52916d430f90df0a1b16109d",
+  "trial": 5,
+  "ephemeralFirstMs": 3.024,
+  "ephemeralGoneAfterLastMs": 5979.005,
+  "ephemeralRequests": 2,
+  "maximumGoneAfterLastMs": 4500,
+  "earlierFullRunPasses": 2,
+  "sourceUnchanged": true,
+  "cause": "unestablished",
+  "note": "No timeout/acceptance bound changed. Replay follows the running full suite; full logs remain retained."
+}

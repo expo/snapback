@@ -27,6 +27,13 @@ async function lockWriter(db) {
     catch (error) { if (error.errcode === 5) return false; throw error; }
   });
 }
+async function fixtureDdl(db, sql) {
+  // Status writes and credential retirement can still own SQLite after HTTP
+  // replies. Acquire our fixture's writer before installing/removing its fault.
+  await lockWriter(db);
+  try { db.exec(sql); db.exec('COMMIT'); }
+  catch (error) { try { db.exec('ROLLBACK'); } catch {} throw error; }
+}
 function rows(path) { try { return readFileSync(path, 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } }
 function alive(pid) {
   try {
@@ -71,7 +78,11 @@ function fixture(t, source, cleanupChildren) {
       }
       if (cleanupChildren) await cleanupChildren();
       else for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
-        for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+        for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) {
+          // The owned descendant can exit between the liveness check and signal.
+          try { process.kill(pid, 'SIGKILL'); }
+          catch (error) { if (error.code !== 'ESRCH') throw error; }
+        }
     } finally {
       // A failed join must still release every owned host and its watchdog pipe.
       for (const { child } of servers) {
@@ -792,7 +803,7 @@ appendFileSync('starts',JSON.stringify({name:'${name}',pid:process.pid,token:pro
   t.after(() => db.close());
   // Refuse deletion without blocking status writes, so both stopped states
   // and repeated retries can be observed while the original rows stay valid.
-  db.exec("CREATE TRIGGER hold_retirement BEFORE DELETE ON _sessions BEGIN SELECT RAISE(FAIL,'retirement held'); END");
+  await fixtureDdl(db, "CREATE TRIGGER hold_retirement BEFORE DELETE ON _sessions BEGIN SELECT RAISE(FAIL,'retirement held'); END");
   try {
     process.kill(original.find(row=>row.name==='push').pid,'SIGKILL');
     const statuses = () => db.prepare("SELECT value FROM _meta WHERE key LIKE 'worker:status:%'").all().map(row=>JSON.parse(row.value));
@@ -803,7 +814,7 @@ appendFileSync('starts',JSON.stringify({name:'${name}',pid:process.pid,token:pro
       const response=await fetch(s.url+'/q/who',{method:'POST',headers:{authorization:'Bearer '+row.token},body:'{}'});
       assert.equal(response.status,401);
     }
-  } finally {db.exec('DROP TRIGGER hold_retirement');}
+  } finally {await fixtureDdl(db, 'DROP TRIGGER hold_retirement');}
   await until(() => starts().length===4);
   const replacements=starts().slice(2);
   assert.deepEqual(replacements.map(row=>row.name).sort(),['digest','push']);

@@ -1,0 +1,134 @@
+[
+  {
+    "name": "worker-delay",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at snapback4/packages/snapback4/test/.it-worker-delay.test.mjs:23:55",
+      "\u2716 actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes (28443.265461ms)",
+      "  AssertionError [ERR_ASSERTION]: park snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: [ 1, 2, 3 ],",
+      "    expected: [ 1, 2 ],"
+    ]
+  },
+  {
+    "name": "ephemeral-delay",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at snapback4/packages/snapback4/test/.it-ephemeral-delay.test.mjs:11:1",
+      "\u2716 ephemeral typing: five real-server trials beside a durable typing control (8974.826312ms)",
+      "  AssertionError [ERR_ASSERTION]: {\"trial\":1,\"ephemeralFirstMs\":37.023,\"ephemeralGoneAfterLastMs\":6124.973,\"ephemeralRequests\":2}",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: false,",
+      "    expected: true,"
+    ]
+  },
+  {
+    "name": "ephemeral-lingering",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at snapback4/packages/snapback4/test/.it-ephemeral-lingering.test.mjs:11:1",
+      "\u2716 ephemeral typing: five real-server trials beside a durable typing control (9112.320964ms)",
+      "  AssertionError [ERR_ASSERTION]: {\"trial\":1,\"ephemeralEmptyAfterLastMs\":6101.625,\"ephemeralFirstMs\":45.225,\"ephemeralGoneAfterLastMs\":5929.84,\"ephemeralRequests\":2}",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: false,",
+      "    expected: true,"
+    ]
+  },
+  {
+    "name": "provenance-timeout",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at snapback4/packages/snapback4/test/.it-provenance-timeout.test.mjs:115:38",
+      "\u2716 wasm: retained nested rows follow source parents on shifted pages (606.740132ms)",
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: [ 'A', 'B', 'C' ],",
+      "    expected: [ 'A', 'C', 'B' ],",
+      "test at snapback4/packages/snapback4/test/.it-provenance-timeout.test.mjs:115:38",
+      "\u2716 process: retained nested rows follow source parents on shifted pages (275.728671ms)",
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: [ 'A', 'B', 'C' ],",
+      "    expected: [ 'A', 'C', 'B' ],"
+    ]
+  },
+  {
+    "name": "overflow-timeout",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at snapback4/packages/snapback4/test/.it-overflow-timeout.test.mjs:143:1",
+      "\u2716 oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (57977.604015ms)",
+      "  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: undefined,",
+      "    expected: 'E_BOUND',"
+    ]
+  },
+  {
+    "name": "existence-order",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-order.test.mjs:107:84",
+      "\u2716 wasm: same-key row arrival and delete replace absent/present existence (124362.815449ms)",
+      "  Error: TEST_HANG: condition; 1 work unit(s), 122000 ms elapsed, 122000 ms guard",
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-order.test.mjs:107:84",
+      "\u2716 wasm: same-key row arrival and delete replace absent/present existence (123188.255625ms)",
+      "  Error: TEST_HANG: condition; 1 work unit(s), 122004 ms elapsed, 122000 ms guard",
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-order.test.mjs:107:84",
+      "\u2716 wasm: same-key row arrival and delete replace absent/present existence (123497.727211ms)",
+      "  Error: TEST_HANG: condition; 1 work unit(s), 122000 ms elapsed, 122000 ms guard",
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-order.test.mjs:107:84",
+      "\u2716 wasm: same-key row arrival and delete replace absent/present existence (124351.736554ms)",
+      "  Error: TEST_HANG: condition; 1 work unit(s), 122000 ms elapsed, 122000 ms guard"
+    ]
+  },
+  {
+    "name": "existence-noop",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-noop.test.mjs:107:40",
+      "\u2716 process: same-key row arrival and delete replace absent/present existence (447.526733ms)",
+      "  AssertionError [ERR_ASSERTION]: a no-op sync cannot strand a confirmed absent query partial",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: 'partial',",
+      "    expected: 'absent',",
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-noop.test.mjs:107:40",
+      "\u2716 wasm: same-key row arrival and delete replace absent/present existence (656.203974ms)",
+      "  AssertionError [ERR_ASSERTION]: a no-op sync cannot strand a confirmed absent query partial",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: 'partial',",
+      "    expected: 'absent',"
+    ]
+  },
+  {
+    "name": "existence-regression-before",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-regression-before.test.mjs:139:41",
+      "\u2716 process: a no-op sync preserves proven absence without another query or write (358.198025ms)",
+      "  AssertionError [ERR_ASSERTION]: the completed empty sync relearns the unchanged empty outbox",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: 'partial',",
+      "    expected: 'absent',",
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-existence-regression-before.test.mjs:139:41",
+      "\u2716 wasm: a no-op sync preserves proven absence without another query or write (731.777267ms)",
+      "  AssertionError [ERR_ASSERTION]: the completed empty sync relearns the unchanged empty outbox",
+      "    code: 'ERR_ASSERTION',",
+      "    actual: 'partial',",
+      "    expected: 'absent',"
+    ]
+  },
+  {
+    "name": "worker-ddl-before",
+    "nativeExit": 1,
+    "signatureLines": [
+      "test at ../../../../tmp/sb4-it-baseline/packages/snapback4/test/.it-worker-ddl-before.test.mjs:782:52",
+      "\u2716 serve renews peers once after a failed credential retirement fences their revision (456.019852ms)",
+      "  Error: database is locked",
+      "    code: 'ERR_SQLITE_ERROR',",
+      "    errcode: 5,",
+      "    errstr: 'database is locked'"
+    ]
+  }
+]

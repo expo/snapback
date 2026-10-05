@@ -1,0 +1,15 @@
+{
+  "phase": "pressure",
+  "verified": 120,
+  "passed": 120,
+  "failed": [],
+  "perFile": {
+    "packages/snapback4/test/read-through.test.mjs": 20,
+    "packages/snapback4/test/read-through-upsert.test.mjs": 20,
+    "packages/snapback4/test/read-through-provenance.test.mjs": 20,
+    "packages/snapback4/test/readauth.test.mjs": 20,
+    "packages/snapback4/test/social-starter.test.mjs": 20,
+    "packages/snapback4/test/admit-before-identity.test.mjs": 20
+  },
+  "archiveSha256": "6049ff792c1e993a66b6222987a224b5e27f3cd55b52498460c094c43b0317d7"
+}

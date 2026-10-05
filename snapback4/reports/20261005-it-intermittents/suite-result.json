@@ -1,0 +1,26 @@
+{
+  "pid": 429293,
+  "exit_code": 0,
+  "finished": 1791183646.9663732,
+  "logSha256": "32495bd42e619ce988219df2513dec54e8e2920d65688502793024e43dd0b1c4",
+  "stageSummaries": [
+    "-- ok: cargo build (945 s)",
+    "-- ok: wasm build (38 s)",
+    "-- ok: docs budget (42 s)",
+    "-- ok: release guard (11 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1280 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- client files: 319/319; failed 0; tests {\"tests\":6381,\"pass\":6370,\"fail\":0,\"cancelled\":0,\"skipped\":11,\"todo\":0}",
+    "-- ok: client tests (1443 s)",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- ok: client models (398 s)",
+    "== 0 failure(s) in 4163 s"
+  ],
+  "suitePidGone": true
+}

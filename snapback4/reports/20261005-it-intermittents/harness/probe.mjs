@@ -1,0 +1,26 @@
+import { execFileSync } from 'node:child_process';
+import { channel } from 'node:diagnostics_channel';
+import { readFileSync, readdirSync } from 'node:fs';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
+const lag = monitorEventLoopDelay({ resolution: 20 }); lag.enable();
+const read = p => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
+const fdCount = () => { try { return readdirSync('/proc/self/fd').length; } catch(error) { return {error:error.code}; } };
+const errorData = e => e && ({name:e.name, code:e.code, message:e.message, cause:errorData(e.cause)});
+const sockets = port => {
+ if (!/^\d+$/.test(String(port))) return null;
+ const inspect = args => { try { return execFileSync('ss', args, {encoding:'utf8',timeout:2000,maxBuffer:262144}); } catch(error) { return {error:error.code ?? error.message}; } };
+ return {listener:inspect(['-ltnp','sport','=',String(port)]),connections:inspect(['-nto','dst',`127.0.0.1:${port}`])};
+};
+const emit = (kind, data) => process.stderr.write(`IT_DIAGNOSTIC ${JSON.stringify({kind, probeVersion:2, pid:process.pid, at:new Date().toISOString(), ...data})}\n`);
+channel('undici:client:connectError').subscribe(({connectParams,error}) => {
+ emit('connectError',{host:connectParams.hostname,port:connectParams.port,sockets:sockets(connectParams.port),error:errorData(error),sockstat:read('/proc/net/sockstat'),netstat:read('/proc/net/netstat'),fds:fdCount(),limits:read('/proc/self/limits'),lagMaxMs:lag.max/1e6});
+});
+const hostFetch = globalThis.fetch;
+globalThis.fetch = async function(input,init) {
+ const began=performance.now();
+ try { return await hostFetch(input,init); }
+ catch(error) {
+  if (!init?.signal?.aborted) emit('fetchError',{url:String(input),ms:performance.now()-began,error:errorData(error),sockstat:read('/proc/net/sockstat'),fds:fdCount(),lagMaxMs:lag.max/1e6});
+  throw error;
+ }
+};

@@ -1,0 +1,199 @@
+{
+  "began": 1791187814.0438771,
+  "root": "/tmp/sb4-it-worker-final",
+  "cpuSample": {
+    "at": 1791187048.8035989,
+    "busyPercent": {
+      "48": 5.35,
+      "49": 5.7,
+      "50": 5.03,
+      "51": 10.37,
+      "52": 2.68,
+      "53": 37.12,
+      "54": 0.66,
+      "55": 3.0,
+      "56": 3.68,
+      "57": 1.67,
+      "58": 0.67,
+      "59": 6.67,
+      "60": 3.04,
+      "61": 13.33,
+      "62": 0.0,
+      "63": 0.34,
+      "64": 2.35,
+      "65": 0.33,
+      "66": 0.33,
+      "67": 4.35,
+      "68": 13.76,
+      "69": 9.03,
+      "70": 2.33,
+      "71": 11.26,
+      "72": 17.17,
+      "73": 11.41,
+      "74": 3.67,
+      "75": 1.0,
+      "76": 5.32,
+      "77": 13.13,
+      "78": 0.67,
+      "79": 0.33,
+      "80": 1.01,
+      "81": 0.67,
+      "82": 2.67,
+      "83": 1.33,
+      "84": 18.24,
+      "85": 0.67,
+      "86": 6.69,
+      "87": 0.0,
+      "88": 0.0,
+      "89": 0.33,
+      "90": 2.36,
+      "91": 7.72,
+      "92": 0.33,
+      "93": 5.32,
+      "94": 2.33,
+      "95": 1.33
+    }
+  },
+  "allocation": "Same four-CPU groups already allocated to this lane after the retained idle sample. Shares them with the earlier immutable worker-fixed phase. One additional owned hog per group stays alive for the complete worker-final phase; while worker-fixed remains active its two hogs also contend on that group.",
+  "groups": [
+    {
+      "group": 0,
+      "cpus": "48,49,50,52",
+      "pid": 3364766,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "48,49,50,52",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "0",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-0.json"
+      ]
+    },
+    {
+      "group": 1,
+      "cpus": "54,55,56,57",
+      "pid": 3364767,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "54,55,56,57",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "1",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-1.json"
+      ]
+    },
+    {
+      "group": 2,
+      "cpus": "58,59,60,62",
+      "pid": 3364768,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "58,59,60,62",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "2",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-2.json"
+      ]
+    },
+    {
+      "group": 3,
+      "cpus": "63,64,65,66",
+      "pid": 3364769,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "63,64,65,66",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "3",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-3.json"
+      ]
+    },
+    {
+      "group": 4,
+      "cpus": "67,70,74,75",
+      "pid": 3364770,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "67,70,74,75",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "4",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-4.json"
+      ]
+    },
+    {
+      "group": 5,
+      "cpus": "76,78,79,80",
+      "pid": 3364771,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "76,78,79,80",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "5",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-5.json"
+      ]
+    },
+    {
+      "group": 6,
+      "cpus": "81,82,83,85",
+      "pid": 3364772,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "81,82,83,85",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "6",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-6.json"
+      ]
+    },
+    {
+      "group": 7,
+      "cpus": "86,87,88,89",
+      "pid": 3364773,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "86,87,88,89",
+        "node",
+        "/tmp/sb4-it-worker-final.mjs",
+        "/tmp/sb4-it-worker-final",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final",
+        "7",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-final/tasks-7.json"
+      ]
+    }
+  ],
+  "sha256": {
+    "packages/snapback4/test/worker-regressions.test.mjs": "91fa8f61cc6326ed15e6485b6d0c5b09b213598fa86983d3c422232ccfacd2f7"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "pid": 3087885,
+  "exit_code": 1,
+  "finished": 1791190694.8221235,
+  "logSha256": "efb653e13715807bc1a36e54843187740fc84473638a02b6d3a43adb5526f998",
+  "logIncomplete": true,
+  "reason": "ENOSPC also interrupted collection of the temporary client log; the retained outer log ends mid-diagnostic before the explicit model-runner ENOSPC errors. Earlier live-log observations are not a complete receipt.",
+  "stageSummaries": [
+    "-- ok: cargo build (9 s)",
+    "-- ok: wasm build (36 s)",
+    "-- ok: docs budget (25 s)",
+    "-- ok: release guard (3 s)",
+    "-- ok: package typecheck (3 s)",
+    "-- ok: package build (4 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (2358 s)",
+    "-- ok: chat app typecheck (2 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- ok: fixture wrapper tests (15 s)",
+    "-- client files: 2/2; failed 2; tests {}",
+    "-- FAIL: client models (0 s)",
+    "== 2 failure(s) in 3501 s"
+  ]
+}

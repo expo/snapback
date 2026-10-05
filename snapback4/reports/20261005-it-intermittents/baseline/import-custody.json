@@ -1,0 +1,52 @@
+{
+  "at": 1791186314.1102757,
+  "runners": [
+    {
+      "runner": 176822,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176824,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176820,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176823,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176817,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176821,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176818,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176819,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176815,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176816,
+      "sdkOrBinaryOverrides": {}
+    },
+    {
+      "runner": 176825,
+      "sdkOrBinaryOverrides": {}
+    }
+  ],
+  "localJsPath": "/tmp/sb4-it-baseline/packages/snapback4/dist/local.js",
+  "localJsSha256": "be559e28599d34eb55cc5017a1f776ed1a596809e55f00b0682dd2e5dd122c1f",
+  "resolution": "Named clients import snapshot-relative dist; server-e2e creates its fixture snapback4 symlink against snapshot packages/snapback4. Shared node_modules supplies unchanged external dependencies."
+}

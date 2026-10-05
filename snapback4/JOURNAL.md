@@ -87065,3 +87065,100 @@ eighteen. The open ticket now carries that correction without rewriting history.
 No frozen file, prompt, packet or score changed. Only the dedicated mini
 simulator was used, over SSH; its probe apps and scratch files were removed and
 its pre-existing boot state retained. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — RF: wait for the retirement fence as bounded setup
+
+The serve retirement failure was a fixture timing assumption. The supervisor
+checks workers on an independent loop with a 100 ms park; rotation stops the
+child (up to two seconds of grace) before attempting retirement. The contract
+fences before a failed deletion returns, with no two-second deadline from a
+clock advance. Replaced the fixed loop with the existing 60-second setup
+barrier, preserving every credential, manual-seat and replacement assertion.
+A new regression delays the first retirement turn by 2,200 ms for both named
+and conventional workers. Production code and wasm budgets are unchanged.
+The serve/adoption audit found no other matching short supervisor setup wait.
+
+On eb1000, confined to sampled idle CPUs: the original and fixed tests each
+passed 50/50 with a CPU hog. With the same injected delay and hog, the original
+wait failed 50/50 at the reported fence assertion and the fixed regression
+passed 50/50. Affected serve checks passed 181 tests with four existing ignores.
+The complete suite finished in 5,871 s with one failure: native witness cleanup
+returned `E_WITNESS_PROCESS: invalid /proc process group`, the signature of the
+existing open inspection issue. Three isolated controls per original/fixed
+binary and the entire original CLI unit target passed; they do not erase the
+suite failure or establish its precise cause. All 320 client files and both
+serial model files passed. The [RF report](./reports/20261005-rf-retirement-fence-wait/REPORT.md)
+records commands, contracts, audit dispositions, controls and raw evidence.
+Wasm rebuilt below its unchanged budget; the worktree remained below 40 GB.
+Local commit only; nothing pushed or published.
+## 2026-10-05 — IT: pending facts after sync and intermittent client fixtures
+
+A delayed-response control reproduced the same-key existence guard failure
+4/60 times. A page with no row changes still invalidated the pending-write
+cache, but no affected query refreshed it. A complete empty answer could
+therefore stay partial until unrelated queue work ran. Sync now refreshes that
+cache through the existing fenced queue read before returning. Deterministic
+process and wasm regressions require absence after an unchanged sync and no
+additional query evaluation. The same 60-case timing control passes 60/60.
+The new optional delivery-read boundary has transient/persistent storage-fault
+coverage; overtaken queue results and admission fences retain their assertions.
+LLP 3000.031 §1.1 records the implementation consequence of its pending rule.
+
+Two deliberately crashed worker fixtures used a one-second lease for their
+healthy recovery attempt too. A 1,200 ms delay reproduced [1,2,3]. They now
+use the normal 60-second lease and expire only the first claim after its known
+owner has exited; ordinary server maintenance still performs recovery. Exact
+attempt journals, replay, provider-key/effect counts and parked-work checks
+remain. The ephemeral fixture now measures the last visible row's withdrawal,
+including withdrawal to loading, separately from its settled empty reply.
+Delaying that reply 2,100 ms reproduced a false 6.125 s disappearance while the
+row left at 3.826 s. A row kept visible too long still fails the 4.5 s bound.
+Neither fixture adds test retries or weakens an acceptance bound.
+
+Both corrected fixture files passed 60/60 complete runs under confined hogs.
+Final-client repetitions and full-suite results are recorded in
+[the IT report](reports/20261005-it-intermittents/REPORT.md), with every native
+receipt and the failed controls. RH had already corrected the MQ fixture's
+buffered change-feed race. Historical raw transport, retained-order and
+missing-overflow-refusal causes remain open pending attributable evidence;
+a controlled full socket queue validates the diagnostic probe without claiming
+that it caused those earlier failures. NZ's historical Mac expiry observation
+remains open because it lacks the component timing needed to classify it.
+
+All work used eb1000 and a private target. Linux wasm remains byte-identical:
+2,117,335 B raw / 639,807 B gzip, a zero-byte delta. The unchanged 639,941 B
+cap preserves the 130 B macOS allowance. Nothing was pushed or published.
+
+## 2026-10-05 — IT qualification addendum: worker fixtures and capacity failure
+
+The complete baseline finished 1,020 invocations: 1,017 passed, one worker
+file failed when an owned descendant exited between cleanup's liveness check
+and signal, and two worker files failed with explicit storage exhaustion.
+Cleanup now accepts only ESRCH from that final signal. Its intermediate
+60-run phase exposed another fixture race: DROP TRIGGER competed with an
+active SQLite writer. The fixture now acquires its writer through the existing
+bounded lock helper before installing/removing the fault trigger. A held-writer
+control reproduces the old failure and passes 60/60 after the correction.
+Credential refusals, replacement counts and revision assertions are unchanged.
+The intermediate phase retains its one SQLite-contention and four ENOSPC
+failures; no failed invocation is replaced or hidden with a retry.
+
+Final complete-file stress passes 240/240: 60 each of server-e2e,
+ephemeral-e2e, read-existence-integration and worker-regressions. The final
+worker file alone passes all 4,620 assertions. Every native receipt matches
+its archived log hash, all owned runners/hogs have exited, and completed
+private scratch snapshots are removed. Additional transport controls pass
+26/26 burst files and 120/120 sustained startup files; historical transport
+causes and the unmeasured Mac withdrawal interval remain open.
+
+The first full suite passed with the product fix, before the two late worker
+fixture corrections. A later complete invocation exited 1 during observed
+ENOSPC/SQLite-full failures. Storage exhaustion also truncated its collected
+client log, so that invocation has no complete client tally and supplies no
+green qualification. The post-event filesystem sample reported 100% use with
+ample free inodes; this lane's measured workspace/snapshot roots peaked at
+14.89 GiB, below 40 GB. Only this lane's completed Cargo intermediates and
+scratch snapshots were removed. No other workload is blamed or touched.
+The report preserves the native failures and log limitation. Wasm remains
+byte-identical with zero budget delta. Nothing was pushed or published.

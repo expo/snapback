@@ -1,0 +1,550 @@
+{
+  "began": "2026-10-05T07:23:18.788Z",
+  "root": "/tmp/sb4-it-baseline",
+  "pid": 2338379,
+  "hogs": [
+    2338539,
+    2338544
+  ],
+  "affinity": "Cpus_allowed_list:\t60-63",
+  "cpuSample": {
+    "at": 1791184964.3903277,
+    "busyPercent": {
+      "48": 11.07,
+      "49": 11.07,
+      "50": 40.27,
+      "51": 7.72,
+      "52": 29.97,
+      "53": 2.68,
+      "54": 13.67,
+      "55": 0.67,
+      "56": 10.74,
+      "57": 4.67,
+      "58": 33.67,
+      "59": 1,
+      "60": 1.01,
+      "61": 1.99,
+      "62": 3.34,
+      "63": 1.01,
+      "64": 5,
+      "65": 1,
+      "66": 0.33,
+      "67": 2.32,
+      "68": 13.04,
+      "69": 0.67,
+      "70": 2.34,
+      "71": 7.69,
+      "72": 95.27,
+      "73": 97.99,
+      "78": 0.33,
+      "79": 12,
+      "80": 3.01,
+      "81": 1.33,
+      "82": 31.89,
+      "83": 0.33,
+      "84": 95.96,
+      "85": 0,
+      "86": 0,
+      "87": 0,
+      "88": 8.74,
+      "89": 5.76,
+      "90": 15.72,
+      "91": 7.05,
+      "92": 3,
+      "93": 4.35,
+      "94": 2.34,
+      "95": 5.7
+    }
+  },
+  "files": [
+    "read-through",
+    "read-through-upsert",
+    "readauth",
+    "read-through-provenance",
+    "social-starter",
+    "admit-before-identity"
+  ],
+  "concurrency": 12,
+  "jobs": [
+    {
+      "file": "read-through",
+      "iteration": 1
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 1
+    },
+    {
+      "file": "readauth",
+      "iteration": 1
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 1
+    },
+    {
+      "file": "social-starter",
+      "iteration": 1
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 1
+    },
+    {
+      "file": "read-through",
+      "iteration": 2
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 2
+    },
+    {
+      "file": "readauth",
+      "iteration": 2
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 2
+    },
+    {
+      "file": "social-starter",
+      "iteration": 2
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 2
+    },
+    {
+      "file": "read-through",
+      "iteration": 3
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 3
+    },
+    {
+      "file": "readauth",
+      "iteration": 3
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 3
+    },
+    {
+      "file": "social-starter",
+      "iteration": 3
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 3
+    },
+    {
+      "file": "read-through",
+      "iteration": 4
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 4
+    },
+    {
+      "file": "readauth",
+      "iteration": 4
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 4
+    },
+    {
+      "file": "social-starter",
+      "iteration": 4
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 4
+    },
+    {
+      "file": "read-through",
+      "iteration": 5
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 5
+    },
+    {
+      "file": "readauth",
+      "iteration": 5
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 5
+    },
+    {
+      "file": "social-starter",
+      "iteration": 5
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 5
+    },
+    {
+      "file": "read-through",
+      "iteration": 6
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 6
+    },
+    {
+      "file": "readauth",
+      "iteration": 6
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 6
+    },
+    {
+      "file": "social-starter",
+      "iteration": 6
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 6
+    },
+    {
+      "file": "read-through",
+      "iteration": 7
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 7
+    },
+    {
+      "file": "readauth",
+      "iteration": 7
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 7
+    },
+    {
+      "file": "social-starter",
+      "iteration": 7
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 7
+    },
+    {
+      "file": "read-through",
+      "iteration": 8
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 8
+    },
+    {
+      "file": "readauth",
+      "iteration": 8
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 8
+    },
+    {
+      "file": "social-starter",
+      "iteration": 8
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 8
+    },
+    {
+      "file": "read-through",
+      "iteration": 9
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 9
+    },
+    {
+      "file": "readauth",
+      "iteration": 9
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 9
+    },
+    {
+      "file": "social-starter",
+      "iteration": 9
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 9
+    },
+    {
+      "file": "read-through",
+      "iteration": 10
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 10
+    },
+    {
+      "file": "readauth",
+      "iteration": 10
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 10
+    },
+    {
+      "file": "social-starter",
+      "iteration": 10
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 10
+    },
+    {
+      "file": "read-through",
+      "iteration": 11
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 11
+    },
+    {
+      "file": "readauth",
+      "iteration": 11
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 11
+    },
+    {
+      "file": "social-starter",
+      "iteration": 11
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 11
+    },
+    {
+      "file": "read-through",
+      "iteration": 12
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 12
+    },
+    {
+      "file": "readauth",
+      "iteration": 12
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 12
+    },
+    {
+      "file": "social-starter",
+      "iteration": 12
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 12
+    },
+    {
+      "file": "read-through",
+      "iteration": 13
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 13
+    },
+    {
+      "file": "readauth",
+      "iteration": 13
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 13
+    },
+    {
+      "file": "social-starter",
+      "iteration": 13
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 13
+    },
+    {
+      "file": "read-through",
+      "iteration": 14
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 14
+    },
+    {
+      "file": "readauth",
+      "iteration": 14
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 14
+    },
+    {
+      "file": "social-starter",
+      "iteration": 14
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 14
+    },
+    {
+      "file": "read-through",
+      "iteration": 15
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 15
+    },
+    {
+      "file": "readauth",
+      "iteration": 15
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 15
+    },
+    {
+      "file": "social-starter",
+      "iteration": 15
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 15
+    },
+    {
+      "file": "read-through",
+      "iteration": 16
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 16
+    },
+    {
+      "file": "readauth",
+      "iteration": 16
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 16
+    },
+    {
+      "file": "social-starter",
+      "iteration": 16
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 16
+    },
+    {
+      "file": "read-through",
+      "iteration": 17
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 17
+    },
+    {
+      "file": "readauth",
+      "iteration": 17
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 17
+    },
+    {
+      "file": "social-starter",
+      "iteration": 17
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 17
+    },
+    {
+      "file": "read-through",
+      "iteration": 18
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 18
+    },
+    {
+      "file": "readauth",
+      "iteration": 18
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 18
+    },
+    {
+      "file": "social-starter",
+      "iteration": 18
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 18
+    },
+    {
+      "file": "read-through",
+      "iteration": 19
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 19
+    },
+    {
+      "file": "readauth",
+      "iteration": 19
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 19
+    },
+    {
+      "file": "social-starter",
+      "iteration": 19
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 19
+    },
+    {
+      "file": "read-through",
+      "iteration": 20
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 20
+    },
+    {
+      "file": "readauth",
+      "iteration": 20
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 20
+    },
+    {
+      "file": "social-starter",
+      "iteration": 20
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 20
+    }
+  ]
+}

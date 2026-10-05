@@ -2,6 +2,15 @@ use super::*;
 
 #[test]
 fn serve_rotation_fences_a_valid_credential_while_retirement_is_locked() {
+    serve_rotation_while_retirement_is_locked(Duration::ZERO);
+}
+
+#[test]
+fn serve_rotation_waits_for_a_delayed_retirement_turn() {
+    serve_rotation_while_retirement_is_locked(Duration::from_millis(2200));
+}
+
+fn serve_rotation_while_retirement_is_locked(retirement_delay: Duration) {
     for named in [false, true] {
         let dir = ReaderTestDirectory::new();
         let database = dir.0.join("rotation.sqlite");
@@ -26,35 +35,49 @@ setInterval(()=>{},1000);
         let token = std::fs::read_to_string(dir.0.join("ready")).unwrap();
         let headers = format!("Authorization: Bearer {token}\r\n");
         assert_eq!(status(&host.request("POST","/q/who",&headers,"{}")),200);
+        let delayed = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let manual = {
             let engine = lock(&host.shared.engine);
             engine.store().conn().busy_timeout(Duration::from_millis(5)).unwrap();
             // Ordinary expiry must not be the reason the retired bearer fails.
             engine.store().conn().execute("UPDATE _sessions SET expires_at=expires_at+86400000 WHERE kind='service'",[]).unwrap();
-            snapback4_core::identity::service_session(engine.store(),"manual",host.shared.now(),3).unwrap()
+            let manual = snapback4_core::identity::service_session(engine.store(),"manual",host.shared.now(),3).unwrap();
+            if !retirement_delay.is_zero() {
+                let delayed = delayed.clone();
+                // Delay only the first retirement turn, before SQLite reports
+                // the external writer lock. No product scheduling hook needed.
+                engine.store().conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+                    if matches!(ctx.action, rusqlite::hooks::AuthAction::Delete { table_name: "_sessions" })
+                        && !delayed.swap(true, Ordering::AcqRel) {
+                        thread::sleep(retirement_delay);
+                    }
+                    rusqlite::hooks::Authorization::Allow
+                })).unwrap();
+            }
+            manual
         };
         let holder = rusqlite::Connection::open(&database).unwrap();
         holder.execute_batch("BEGIN IMMEDIATE").unwrap();
         lock(&host.shared.clock).advance(86_400_000).unwrap();
-        // Always release the external writer before stopping the supervisor,
-        // including when this regression is run on the previous implementation.
-        let fenced = (0..200).any(|_| {
-            if host.shared.worker_revision.load(Ordering::Acquire)>0 {return true;}
-            thread::sleep(Duration::from_millis(10)); false
-        });
+        // @ref LLP 3000#publication-suite-under-contention — readiness uses a bounded state barrier.
+        // The supervisor parks 100 ms between turns, then stops the child
+        // (up to 2 s grace) before trying retirement. Scheduling and writer
+        // contention belong to the existing bounded setup budget, not a 2 s
+        // latency contract. On timeout, holder drops before supervisor, so
+        // unwinding releases the external writer before joining supervision.
+        wait_setup("failed serve retirement must advance the credential fence", ||
+            host.shared.worker_revision.load(Ordering::Acquire) > 0);
         let response = host.request("POST","/q/who",&headers,"{}");
         assert!(holder.query_row("SELECT count(*) FROM _sessions WHERE kind='service' AND expires_at>?1",[host.shared.now()],|r|r.get::<_,i64>(0)).unwrap()>=2);
         let mutation = host.request("POST","/m/noop",&headers,"{}");
         let refresh = host.request("POST","/auth/refresh",&headers,"{}");
         let manual_response=host.request("POST","/q/who",&format!("Authorization: Bearer {}\r\n",manual.token),"{}");
         holder.execute_batch("ROLLBACK").unwrap();
-        if fenced {
-            wait_setup("serve replacement",||std::fs::read_to_string(dir.0.join("ready")).is_ok_and(|next|next!=token));
-            let next=std::fs::read_to_string(dir.0.join("ready")).unwrap();
-            assert_eq!(status(&host.request("POST","/q/who",&format!("Authorization: Bearer {next}\r\n"),"{}")),200);
-        }
+        wait_setup("serve replacement",||std::fs::read_to_string(dir.0.join("ready")).is_ok_and(|next|next!=token));
+        let next=std::fs::read_to_string(dir.0.join("ready")).unwrap();
+        assert_eq!(status(&host.request("POST","/q/who",&format!("Authorization: Bearer {next}\r\n"),"{}")),200);
         drop(supervisor);
-        assert!(fenced,"failed serve retirement must advance the credential fence");
+        assert_eq!(delayed.load(Ordering::Acquire), !retirement_delay.is_zero(), "retirement delay exercised");
         for response in [response,mutation,refresh] {assert_eq!(status(&response),401,"{response}");}
         assert_eq!(status(&manual_response),200,"manual seats stay live");
     }

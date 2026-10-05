@@ -135,6 +135,36 @@ for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row ar
 });
 
 // @ref LLP 3000.031#7 — real device metadata supplies presentation, without a new proof.
+// @ref LLP 3000.031#1.1 — a no-op apply still refreshes invalidated pending facts.
+for (const host of ['process', 'wasm']) test(`${host}: a no-op sync preserves proven absence without another query or write`, { timeout: hangBudget(5) }, async t => {
+  const { fixture, opener, open, q, until, parked } = await import('./helpers/answers-stay.mjs');
+  const f = await fixture(t);
+  assert.equal((await f.post('/m/erase', {})).state, 'sent');
+  let queries = 0;
+  const inner = opener(host, join(f.dir, host));
+  const client = await open(t, f, host, {
+    fetch: (input, init) => new URL(input).pathname === '/changes' ? parked(init.signal) : fetch(input, init),
+    device: { async open(...args) {
+      const core = await inner.open(...args);
+      return { ...core, call(request, committed) {
+        if (request.op === 'query') queries++;
+        return core.call(request, committed);
+      } };
+    } },
+  });
+  const watch = client.observe(q('item'), {});
+  const stop = watch.subscribe(() => {});
+  t.after(() => { stop(); watch.close(); });
+  await until(() => existence(watch.getSnapshot()) === 'absent');
+  const before = queries;
+  await client.sync();
+  assert.equal(existence(watch.getSnapshot()), 'absent', 'the completed empty sync relearns the unchanged empty outbox');
+  assert.equal(watch.getSnapshot().data, null);
+  assert.equal(watch.getSnapshot().complete, true);
+  assert.equal(queries, before, 'refresh pending metadata without reevaluating unchanged rows');
+});
+
+// @ref LLP 3000.031#7 — real device metadata supplies presentation, without a new proof.
 for (const host of ['process', 'wasm']) test(`${host}: presentation keeps nonempty continuation incomplete and offline empty absence stale`, { timeout: hangBudget(10) }, async t => {
   const { fixture, open, q, source } = await import('./helpers/answers-stay.mjs');
   const f = await fixture(t, source + '\nquery page(c: cursor?):\n  return messages[\'room\'] first 1 by byRoom after c\n');

@@ -1,7 +1,7 @@
 # Snapback 4: intermittent client suite transport and assertion failures
 
 - Opened: 2026-10-04 during AP round-1 full-suite verification on eb1000.
-- Status: Open; cause unclassified. No fixture retry or product workaround added.
+- Status: Open for unresolved transport, provenance and overflow causes; IT classifies and fixes the worker fixture and same-key pending-cache defect below. No test retry added.
 - Scope: the worker readiness case and seven client files named below.
 - Qualification: two complete suites exited 1; neither is a green result.
 
@@ -64,3 +64,63 @@ probe logged and rethrew errors without retrying or changing requests; it caught
 ordinary aborts but no reproduced failing transport. The profile difference
 precludes timing comparisons; these scoped successes do not classify the full
 run failures. [Control evidence and command](../snapback4/reports/20261004-ap-adoption-pause/round1/client-controls.txt).
+
+## IT investigation, 2026-10-05
+
+[IT report and retained receipts](../snapback4/reports/20261005-it-intermittents/REPORT.md)
+cover the AP files, FX transport consumers, same-key existence guard, MQ and
+NZ's ephemeral timing observation. The ticket remains open for transport,
+shifted-page and overflow causes that have not been established.
+
+- **Worker attempt assertions: fixture race.** A 1,200 ms delay in the
+  second attempt reproduces the third attempt because the fixture also gives
+  that live recovery attempt a one-second lease. Both deliberate-crash tests
+  now use the normal 60-second lease, observe the killed owner exit, and expire
+  only its first claim in the fixture store. Exact attempt and provider-effect
+  assertions remain. Both fixed crash cases pass the injected delay.
+- **Same-key existence guard: product race.** A no-op apply invalidates the
+  pending-write cache without triggering reevaluation of unchanged queries.
+  A complete empty answer can remain partial awaiting unrelated queue work.
+  The 60-case timing probe failed 4 times on the baseline and passes 60/60 after
+  sync refreshes the pending predicate through its existing fenced queue read.
+  Deterministic process/wasm regressions preserve query counts. Overtaken queue
+  and admission fences remain intact; storage failures retain their semantics.
+- **MQ query count:** already addressed by RH's fixture change-feed barrier
+  in `0094fe7fd7`; IT retains that lane's causal trace and additional controls.
+- **Shifted-page order / missing overflow refusal:** interrupting the relevant
+  reply reproduces each assertion through stale fallback / an undelivered
+  `E_BOUND`. These controls do not prove the historical transport cause.
+- **Raw transport / worker readiness:** retain nested causes and per-socket
+  evidence. A controlled full connection queue validates the diagnostic probe;
+  no evidence yet attributes the original failures to queue or FD exhaustion.
+
+The report records every complete-file invocation, including failures, and
+keeps deliberately failing controls separate from qualification. No test retry
+or weakened assertion was introduced.
+
+IT also found a new fixture cleanup race in baseline `worker-regressions`
+run 44: the descendant-stop assertions passed, but a descendant exited after
+the liveness check and before the cleanup signal, causing `kill ESRCH` in
+the after-hook. Cleanup now accepts only that already-exited result and still
+propagates all other errors. The original native failure remains recorded;
+this is distinct from `WORKER_FIXTURE_READY` and does not classify it.
+
+A separate cleanup-only stress run then exposed SQLite writer contention at
+`DROP TRIGGER hold_retirement`. A 100 ms held-writer control reproduces the
+original error; acquiring the fixture writer before CREATE/DROP passes all
+60 selected controls. Original-token refusal, exact replacement counts and
+one-revision renewal assertions are unchanged. Final complete worker-file
+qualification passes 60/60 runs (4,620 assertions), recorded separately in IT
+`worker-final/`; the intermediate native failure remains retained. All four
+changed files pass 60/60 final complete-file runs under confined hogs.
+
+The later IT qualification also hit a distinct, observed storage-exhaustion
+event: two baseline worker files, four intermediate worker files and the
+second full-suite attempt reported `ENOSPC` or `E_STORE: database or disk is
+full`. The filesystem was at 100% use when inspected afterward, with ample
+inodes; IT's measured workspace/snapshot roots were 14.89 GiB. Only IT-owned
+completed Cargo intermediates and scratch snapshots were removed. The second
+suite remains a native failure, and its collected client log was truncated
+by the capacity problem. This is environmental evidence for this later event,
+not attribution of AP/FX's historical connection failures. The first complete
+suite had passed before the two late worker fixture corrections.

@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-05T06:25:14.202Z",
+  "files": [
+    "/tmp/sb4-it-candidate/packages/snapback4/dist/local.js",
+    "snapback4/packages/snapback4/dist/local.js"
+  ],
+  "change": "Keep local.ts within its existing 1500-line cap by compacting comments and joining two assignments; generated JavaScript with comments removed is identical.",
+  "sha256": "a3ca534db041b08c90a6414bc044f92649ca40bf15e6bba3bba26e6417b1a8aa"
+}

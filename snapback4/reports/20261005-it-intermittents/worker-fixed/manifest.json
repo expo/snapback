@@ -1,0 +1,198 @@
+{
+  "began": 1791187093.4091797,
+  "root": "/tmp/sb4-it-worker-fixed",
+  "cpuSample": {
+    "at": 1791187048.8035989,
+    "busyPercent": {
+      "48": 5.35,
+      "49": 5.7,
+      "50": 5.03,
+      "51": 10.37,
+      "52": 2.68,
+      "53": 37.12,
+      "54": 0.66,
+      "55": 3.0,
+      "56": 3.68,
+      "57": 1.67,
+      "58": 0.67,
+      "59": 6.67,
+      "60": 3.04,
+      "61": 13.33,
+      "62": 0.0,
+      "63": 0.34,
+      "64": 2.35,
+      "65": 0.33,
+      "66": 0.33,
+      "67": 4.35,
+      "68": 13.76,
+      "69": 9.03,
+      "70": 2.33,
+      "71": 11.26,
+      "72": 17.17,
+      "73": 11.41,
+      "74": 3.67,
+      "75": 1.0,
+      "76": 5.32,
+      "77": 13.13,
+      "78": 0.67,
+      "79": 0.33,
+      "80": 1.01,
+      "81": 0.67,
+      "82": 2.67,
+      "83": 1.33,
+      "84": 18.24,
+      "85": 0.67,
+      "86": 6.69,
+      "87": 0.0,
+      "88": 0.0,
+      "89": 0.33,
+      "90": 2.36,
+      "91": 7.72,
+      "92": 0.33,
+      "93": 5.32,
+      "94": 2.33,
+      "95": 1.33
+    }
+  },
+  "groups": [
+    {
+      "group": 0,
+      "cpus": "48,49,50,52",
+      "pid": 3049293,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "48,49,50,52",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "0",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-0.json"
+      ]
+    },
+    {
+      "group": 1,
+      "cpus": "54,55,56,57",
+      "pid": 3049294,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "54,55,56,57",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "1",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-1.json"
+      ]
+    },
+    {
+      "group": 2,
+      "cpus": "58,59,60,62",
+      "pid": 3049295,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "58,59,60,62",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "2",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-2.json"
+      ]
+    },
+    {
+      "group": 3,
+      "cpus": "63,64,65,66",
+      "pid": 3049297,
+      "tasks": 8,
+      "command": [
+        "taskset",
+        "-c",
+        "63,64,65,66",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "3",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-3.json"
+      ]
+    },
+    {
+      "group": 4,
+      "cpus": "67,70,74,75",
+      "pid": 3049298,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "67,70,74,75",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "4",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-4.json"
+      ]
+    },
+    {
+      "group": 5,
+      "cpus": "76,78,79,80",
+      "pid": 3049299,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "76,78,79,80",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "5",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-5.json"
+      ]
+    },
+    {
+      "group": 6,
+      "cpus": "81,82,83,85",
+      "pid": 3049300,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "81,82,83,85",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "6",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-6.json"
+      ]
+    },
+    {
+      "group": 7,
+      "cpus": "86,87,88,89",
+      "pid": 3049301,
+      "tasks": 7,
+      "command": [
+        "taskset",
+        "-c",
+        "86,87,88,89",
+        "node",
+        "/tmp/sb4-it-stress.mjs",
+        "/tmp/sb4-it-worker-fixed",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed",
+        "7",
+        "/home/ccheever/sb4-intent/lane-it/snapback4/reports/20261005-it-intermittents/worker-fixed/tasks-7.json"
+      ]
+    }
+  ],
+  "sha256": {
+    "packages/snapback4/test/worker-regressions.test.mjs": "028563aba94e31f9197a14bbc4174102aba241238b143d6ec644d046a0a945b5"
+  }
+}

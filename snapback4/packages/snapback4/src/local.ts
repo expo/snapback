@@ -747,9 +747,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
       if (!caughtUp) return false;
       await refreshAcquired();
-      seq = watermark;
-      lastSyncAt = Date.now();
+      seq = watermark; lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt:wall:1", value: String(lastSyncAt) });
+      await queued(); // @ref LLP 3000.031#1.1 — refresh pending facts invalidated even by empty applies.
       // A later reconnect can establish custody that startup could not validate.
       const resumeSending = !sendingAllowed;
       listenForExit();

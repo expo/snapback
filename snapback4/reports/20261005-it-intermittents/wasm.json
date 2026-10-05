@@ -1,0 +1,12 @@
+{
+  "measuredAt": 1791181619.6263163,
+  "raw": 2117335,
+  "gzip": 639807,
+  "cap": 639941,
+  "macOSAllowance": 130,
+  "baselineSha256": "ab844763d82cdaa287599e1fc4ff9eb7c67f1c2099d1950f5a3636f38c799e5d",
+  "finalSha256": "ab844763d82cdaa287599e1fc4ff9eb7c67f1c2099d1950f5a3636f38c799e5d",
+  "gzipDelta": 0,
+  "finalRecheckedAt": 1791191626.693787,
+  "gzipCommand": "gzip -9 -c snapback4_device_bg.wasm (same filename/header convention as scripts/build-wasm.sh)"
+}

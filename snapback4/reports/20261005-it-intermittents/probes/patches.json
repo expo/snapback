@@ -1,0 +1,94 @@
+[
+  {
+    "file": "ephemeral-delay.patch.gz",
+    "uncompressedSha256": "aa06ce50d28f1d2bad134c96bc98c20e9b850c7acc76859036b2d239d167680a"
+  },
+  {
+    "file": "ephemeral-fixed-delay.patch.gz",
+    "uncompressedSha256": "4a1b0013dca96ed366ba972e8c7e7b828aff3b70bbcb0f5adfe480c0319a2b90"
+  },
+  {
+    "file": "ephemeral-lingering.patch.gz",
+    "uncompressedSha256": "c5445fd4406001cc75efc9c6991dbd2d2721b3a2a5182d313c0d1a78fc1bf9ab"
+  },
+  {
+    "file": "existence-answers.patch.gz",
+    "uncompressedSha256": "84e87780ae0020e999b686fc8040545da9fe73c27d73ae915faadd4fc3631b9b"
+  },
+  {
+    "file": "existence-delayed.patch.gz",
+    "uncompressedSha256": "23deed541b25f780ee122520f2d7db613cbd7fee1c0422c8c59f1171c980caba"
+  },
+  {
+    "file": "existence-fullreads.patch.gz",
+    "uncompressedSha256": "dc5e2890800d4c104cd64d709b4b2cae8381701c532a608b721a0eafd02c421e"
+  },
+  {
+    "file": "existence-noop-guard.patch.gz",
+    "uncompressedSha256": "6ddde6497bd7c10476da0035b07265531101c1b493d8592712e786fcd01947d8"
+  },
+  {
+    "file": "existence-noop.patch.gz",
+    "uncompressedSha256": "72c8f0e8d91aecfe238b120ca20614acde4d6fcbec16764cfa27b5e2d3744c7c"
+  },
+  {
+    "file": "existence-order-fixed.patch.gz",
+    "uncompressedSha256": "9fa0d2281d65cfb4f25b78c408b6309354af4d5309823fdc33ec9b92a9b72204"
+  },
+  {
+    "file": "existence-order.patch.gz",
+    "uncompressedSha256": "9fa0d2281d65cfb4f25b78c408b6309354af4d5309823fdc33ec9b92a9b72204"
+  },
+  {
+    "file": "existence-regression-before.patch.gz",
+    "uncompressedSha256": "219ffb07a311199edc0ce846d7a366e020f7cd59dcc44aed67af626f1057c3b9"
+  },
+  {
+    "file": "existence-repeats.patch.gz",
+    "uncompressedSha256": "da502da1acb08eea461b4fac46a5a55dba5c963129dd540e902e335d22d90c98"
+  },
+  {
+    "file": "existence-snapshots.patch.gz",
+    "uncompressedSha256": "84e7c05613a846061427f73b8a67f5ee7d7d56956bc91b266e93188f3a2b6465"
+  },
+  {
+    "file": "existence-stale-poll.patch.gz",
+    "uncompressedSha256": "041e5306c4b04a2e21fbd2ebeb019ae35cf440bbfb86b15a23998e6d1c6b2d97"
+  },
+  {
+    "file": "existence-trace.patch.gz",
+    "uncompressedSha256": "6e5592d607337822b025f648f1e14b617282763115211a85951fe40657abfe97"
+  },
+  {
+    "file": "mq-current.patch.gz",
+    "uncompressedSha256": "e2c853583193446304a4b28082d6dadfd98a4b40de68776b1154f357dfce97fc"
+  },
+  {
+    "file": "mq-old-feed.patch.gz",
+    "uncompressedSha256": "97ada47223cb034aa2c677ba44f052fbe56073f71acee8c8981119cd4f9b581e"
+  },
+  {
+    "file": "overflow-timeout.patch.gz",
+    "uncompressedSha256": "0d609cc5eb9e7c62ce9efd7926f3eedc672f8d1b622eb0e2ba17f08a4ba3eaaa"
+  },
+  {
+    "file": "provenance-timeout.patch.gz",
+    "uncompressedSha256": "cbe151fbe80e5678bc3cce3af377e058d744b0922c94d9aeba08f8ef6335a268"
+  },
+  {
+    "file": "worker-ddl-before.patch.gz",
+    "uncompressedSha256": "6830a92f7cac06cefa8a7eee534cee6b8c2fffff6f91735f6d90ec123d5a55f2"
+  },
+  {
+    "file": "worker-ddl-final.patch.gz",
+    "uncompressedSha256": "a47563bca741139533cbcecedb0a99381d1c3357e47a3173cda2132ea6033379"
+  },
+  {
+    "file": "worker-delay.patch.gz",
+    "uncompressedSha256": "e41d3cae7b80eb7d0e32da707a00c4bd06750bb41e34f2084abf653ad2536717"
+  },
+  {
+    "file": "worker-fixed-delay.patch.gz",
+    "uncompressedSha256": "84d4359fa3c5c30306d93183c52f66f7f489ee15dcffef54af643260968e7d7a"
+  }
+]

@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+import { DatabaseSync } from "node:sqlite";
 
 const shard = process.env.SNAPBACK4_TEST_SHARD?.split("/").map(Number);
 if (shard && (shard.length !== 2 || !Number.isInteger(shard[0]) || !Number.isInteger(shard[1]) || shard[0] < 0 || shard[1] < 1 || shard[0] >= shard[1])) {
@@ -451,6 +452,22 @@ async function provider(t, directory) {
 }
 
 // @ref LLP 3000.009#11-verification-obligations — distinguish both external-work crash cuts and never infer provider absence from an uncertain lookup.
+// @ref LLP 3000.009#52-schedules-and-durable-work — recovery follows lease
+// expiry, not process death. Give live attempts the normal 60-second lease;
+// expire only after the deliberately killed owner has exited. A one-second
+// lease also expired healthy recovery attempts under contention.
+async function expireCrashedClaim(host, directory, id, pid) {
+  await until(() => { try { process.kill(pid, 0); return false; } catch (error) { if (error.code === "ESRCH") return true; throw error; } }, "crashed claim owner exits", host.log);
+  // The dev clock deliberately shifts worker leases too. Set only this dead
+  // owner's lease deadline in our fixture store; ordinary server maintenance
+  // must invalidate its delegated session and reclaim the durable request.
+  const db = new DatabaseSync(join(directory, ".snapback4/store.sqlite"));
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    assert.equal(db.prepare("UPDATE _requests SET lease_until = 0 WHERE id = ? AND state = 'running' AND attempts = 1").run(id).changes, 1);
+  } finally { db.close(); }
+}
+
 test("actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes", { timeout: hangBudget(10) }, async t => {
   const p = project(t, `${notes}
 use server
@@ -508,7 +525,7 @@ const worker = server({actions:{async work({mode}, ctx) {
   }
   if (ctx.invocation.attempt === 1 && mode === "done") return crash("recorded-before-action-settlement", providerKey);
   return {value:result.value, attempt:ctx.invocation.attempt, writeId};
-}}}, ${options});
+}}}, {...${options}, lease:60});
 export default worker; await worker.done;
 `);
   const remote = await provider(t, p.directory);
@@ -526,9 +543,13 @@ export default worker; await worker.done;
   assert.deepEqual(remote.requests().filter(request => request.key === cut.key), [], "no provider request happened before the cut");
   await until(() => { try { process.kill(cut.pid, 0); return false; } catch (error) { if (error.code === "ESRCH") return true; throw error; } }, "pre-provider worker PID dies", f.log);
 
+  await expireCrashedClaim(f, p.directory, beforeId, cut.pid);
   const settled = new Map([["before", await f.collect("work", beforeId, { mode: "before" })]]);
   for (const mode of ["done", "reconcile", "park", "changed", "lookup-timeout", "lookup-5xx", "lookup-unreadable"]) {
     const id = `crash-${mode}`;
+    assert.equal((await f.call("work", id, { mode })).state, "pending");
+    const crash = await until(() => lines(join(p.directory, "crashes.jsonl")).find(record => record.id === id), `crash marker for ${mode}`, f.log);
+    await expireCrashedClaim(f, p.directory, id, crash.pid);
     settled.set(mode, await f.collect("work", id, { mode }));
   }
   const modes = ["done", "reconcile", "park", "changed", "before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"];
@@ -618,12 +639,15 @@ const worker = server({actions:{async send(_, ctx) {
     return new Promise<never>(() => {});
   });
   return {value:result.value};
-}}}, ${options});
+}}}, {...${options}, lease:60});
 export default worker; await worker.done;
 `);
   const remote = await provider(t, p.directory);
   const f = await p.start({ env: { TEST_PROVIDER_URL: remote.url } });
   const actionId = "operator-parked-action";
+  assert.equal((await f.call("send", actionId)).state, "pending");
+  const acceptedCrash = await until(() => jsonFile(join(p.directory, "operator-accepted-crash.json")), "accepted provider crash", f.log);
+  await expireCrashedClaim(f, p.directory, actionId, acceptedCrash.pid);
   const parked = await f.collect("send", actionId);
   assert.equal(parked.state, "failed", JSON.stringify(parked));
   assert.equal(parked.why.code, "E_STEP_PARKED");

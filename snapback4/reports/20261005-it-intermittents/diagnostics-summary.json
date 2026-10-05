@@ -1,0 +1,95 @@
+{
+  "baseline": {
+    "events": 339,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 118,
+      "fetchError:ECONNRESET": 23,
+      "connectError:ECONNREFUSED": 103,
+      "fetchError:ECONNREFUSED": 95
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 41,
+    "maxRecordedLoopDelayMs": 7964.983295
+  },
+  "fixed": {
+    "events": 0,
+    "codes": {},
+    "connectTimeouts": [],
+    "maxFDsAtError": null,
+    "maxRecordedLoopDelayMs": null
+  },
+  "candidate": {
+    "events": 142,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 35,
+      "fetchError:ECONNRESET": 17,
+      "connectError:ECONNREFUSED": 47,
+      "fetchError:ECONNREFUSED": 43
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 29,
+    "maxRecordedLoopDelayMs": 630.194175
+  },
+  "burst": {
+    "events": 15,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 7,
+      "connectError:ECONNREFUSED": 4,
+      "fetchError:ECONNREFUSED": 4
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 36,
+    "maxRecordedLoopDelayMs": 11148.460031
+  },
+  "pressure": {
+    "events": 115,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 49,
+      "connectError:ECONNREFUSED": 27,
+      "fetchError:ECONNREFUSED": 27,
+      "fetchError:ECONNRESET": 11,
+      "connectError:ECONNRESET": 1
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 41,
+    "maxRecordedLoopDelayMs": 23169.335295
+  },
+  "worker-fixed": {
+    "events": 0,
+    "codes": {},
+    "connectTimeouts": [],
+    "maxFDsAtError": null,
+    "maxRecordedLoopDelayMs": null
+  },
+  "worker-final": {
+    "events": 0,
+    "codes": {},
+    "connectTimeouts": [],
+    "maxFDsAtError": null,
+    "maxRecordedLoopDelayMs": null
+  },
+  "suite": {
+    "events": 303,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 56,
+      "connectError:ECONNREFUSED": 113,
+      "fetchError:ECONNREFUSED": 103,
+      "fetchError:ECONNRESET": 21,
+      "fetchError:Error": 10
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 38,
+    "maxRecordedLoopDelayMs": 3263.168511
+  },
+  "suite-final": {
+    "events": 8,
+    "codes": {
+      "fetchError:UND_ERR_SOCKET": 7,
+      "fetchError:ECONNRESET": 1
+    },
+    "connectTimeouts": [],
+    "maxFDsAtError": 38,
+    "maxRecordedLoopDelayMs": 405.798911,
+    "logIncomplete": true
+  }
+}
