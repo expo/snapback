@@ -40,7 +40,7 @@ function sameAnswer(actual,published,message,operation='query') {
   const neutral=v=>v===null||v===false||(Array.isArray(v)&&v.length===0)||(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0);
   if(actual?.ok&&published?.ok&&typeof actual.ok==='object'&&typeof published.ok==='object'&&!Array.isArray(actual.ok)) {
     const ok={...actual.ok};
-    for(const key of Object.keys(ok)) if(key!=='scopes'&&!Object.hasOwn(published.ok,key)&&neutral(ok[key])) delete ok[key];
+    for(const key of Object.keys(ok)) if(key!=='scopes'&&key!=='watermark'&&!Object.hasOwn(published.ok,key)&&neutral(ok[key])) delete ok[key];
     actual={...actual,ok};
   }
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
@@ -413,4 +413,10 @@ test('published answer comparison admits only neutral additive metadata', () => 
   assert.throws(()=>sameAnswer({ok:{...published.ok,data:[2]}},published));
   assert.throws(()=>sameAnswer({ok:{...published.ok,complete:false,decorationExpiry:null}},published));
   assert.throws(()=>sameAnswer({ok:{complete:true,cut:null,data:[1],tables:['t'],decorationExpiry:null}},published));
+  // Lane RH's applied watermark is a named field, never neutral metadata.
+  for(const watermark of [0,1,4096]) sameAnswer({ok:{...published.ok,watermark}},published);
+  for(const watermark of [null,false,[],{},-1,1.5,'1']) assert.throws(()=>sameAnswer({ok:{...published.ok,watermark}},published));
+  assert.throws(()=>sameAnswer({ok:{...published.ok,watermark:1,data:[2]}},published));
+  sameAnswer({ok:{...published.ok,watermark:3}},{ok:{...published.ok,watermark:3}});
+  assert.throws(()=>sameAnswer({ok:{...published.ok,watermark:3}},{ok:{...published.ok,watermark:4}}));
 });
