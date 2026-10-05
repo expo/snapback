@@ -1,0 +1,316 @@
+✖ overtaken known queue fences publication after disjoint notification (3.858303ms)
+✖ overtaken known queue fences expiry retry after disjoint notification (3.627586ms)
+✖ overtaken known queue fences caller delivery after disjoint notification (0.950715ms)
+✖ overtaken opaque queue fences publication after disjoint notification (0.24711ms)
+✖ overtaken opaque queue fences expiry retry after disjoint notification (0.311067ms)
+✖ overtaken opaque queue fences caller delivery after disjoint notification (0.308353ms)
+✖ overtaken known queue fences publication after disjoint commit (0.350616ms)
+✖ overtaken known queue fences expiry retry after disjoint commit (0.250957ms)
+✖ overtaken known queue fences caller delivery after disjoint commit (0.409724ms)
+✖ overtaken opaque queue fences publication after disjoint commit (0.448192ms)
+✖ overtaken opaque queue fences expiry retry after disjoint commit (0.311277ms)
+✖ overtaken opaque queue fences caller delivery after disjoint commit (0.222193ms)
+✖ overtaken known queue fences publication after disjoint applied (0.246649ms)
+✖ overtaken known queue fences expiry retry after disjoint applied (0.236414ms)
+✖ overtaken known queue fences caller delivery after disjoint applied (0.256795ms)
+✖ overtaken opaque queue fences publication after disjoint applied (0.790315ms)
+✖ overtaken opaque queue fences expiry retry after disjoint applied (0.189705ms)
+✖ overtaken opaque queue fences caller delivery after disjoint applied (0.163345ms)
+✖ overtaken queue discovery coalesces without overwriting current prediction state (0.322062ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 0
+ℹ fail 19
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81.496436
+
+✖ failing tests:
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences publication after disjoint notification (3.858303ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences expiry retry after disjoint notification (3.627586ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences caller delivery after disjoint notification (0.950715ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences publication after disjoint notification (0.24711ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences expiry retry after disjoint notification (0.311067ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences caller delivery after disjoint notification (0.308353ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences publication after disjoint commit (0.350616ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences expiry retry after disjoint commit (0.250957ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences caller delivery after disjoint commit (0.409724ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences publication after disjoint commit (0.448192ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences expiry retry after disjoint commit (0.311277ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences caller delivery after disjoint commit (0.222193ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences publication after disjoint applied (0.246649ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences expiry retry after disjoint applied (0.236414ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken known queue fences caller delivery after disjoint applied (0.256795ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences publication after disjoint applied (0.790315ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences expiry retry after disjoint applied (0.189705ms)
+  AssertionError [ERR_ASSERTION]: must reject the pre-prediction local candidate
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:279:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:251:75
+✖ overtaken opaque queue fences caller delivery after disjoint applied (0.163345ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:278:33)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/observation-publication.test.mjs:285:1
+✖ overtaken queue discovery coalesces without overwriting current prediction state (0.322062ms)
+  AssertionError [ERR_ASSERTION]: first discovery fences; identical rediscoveries coalesce
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-op/snapback4/packages/snapback4/test/observation-publication.test.mjs:299:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

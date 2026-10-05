@@ -86789,3 +86789,20 @@ cap, preserving the **130 B macOS allowance**. All 238 rebuilt SDK files match
 the frozen measurement input. Sampled disk peak is **18.83 GB**, below 40 GB.
 Only eb1000 and this worktree were used. The original ticket remains resolved;
 nothing was pushed. [Round 1 report](./reports/20261004-op-observation-publication/REPORT.md#round-1--review-corrections-2026-10-05).
+
+## 2026-10-05 — OP round 2: fence overtaken queue discovery
+
+Fixed Astra's remaining Low on a759ded99a: every completed queue read now
+fences newly discovered predictions, even when disjoint evidence overtook it;
+the revision guard still prevents stale snapshots from replacing cached state.
+This restores pre-OP main's protection for the six reported interleavings,
+which its unconditional authority check rejected. Added all six on both process
+and wasm, plus expiry-retry, final-callback and coalescing/state controls.
+Ten confined hog repetitions pass **7,610 cases**, no failures, cancellations
+or skips. One 30-trial idle browser run retains **104.7 ms repost p95**.
+Wasm remains byte-identical at **639,810 B gzip**, with the **130 B macOS
+allowance** intact; disk peaked at **18.87 GB**. Only the prediction fence
+changed in product code, so the full suite was not repeated under the round-2
+instruction. LLP 3000.016 §2.2 and 3000.023 §10 distinguish discovery from
+state installation. Only eb1000 was used; nothing was pushed.
+[Round 2 report](./reports/20261004-op-observation-publication/REPORT.md#round-2--overtaken-queue-discovery-2026-10-05).

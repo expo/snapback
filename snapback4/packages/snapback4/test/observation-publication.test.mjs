@@ -247,6 +247,62 @@ test('unchanged queued predictions coalesce but a second prediction to the same 
   assert.equal(current(new Set(['rows'])), false);
 });
 
+for (const boundary of ['notification', 'commit', 'applied']) for (const predicted of [['rows/own'], undefined]) {
+  for (const phase of ['publication', 'expiry retry', 'caller delivery']) test(`overtaken ${predicted ? 'known' : 'opaque'} queue fences ${phase} after disjoint ${boundary}`, async () => {
+    const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
+    f.outcome = { data: ['before-prediction'], complete: true, unknown: false, tables: ['rows'] };
+    let publications = 0, discovered = false;
+    const discovery = async () => {
+      const entered = Promise.withResolvers(), release = Promise.withResolvers();
+      const pending = f.reads.readQueued(async () => {
+        entered.resolve(); await release.promise;
+        return [{ id: 'new', predictable: true, predicted }];
+      }, [f.watch]);
+      await entered.promise;
+      if (boundary === 'notification') f.reads.notified(['other'], 40);
+      if (boundary === 'commit') f.reads.committed([], 'apply', [], [], 40);
+      if (boundary === 'applied') f.reads.applied([], 40);
+      release.resolve(); assert.equal((await pending).length, 1); discovered = true;
+    };
+    if (phase === 'expiry retry') f.outcome.nextExpiry = 1;
+    f.env.followingPending = async () => {
+      publications++;
+      if (phase === 'publication' || phase === 'expiry retry' && publications === 2) await discovery();
+      if (phase === 'expiry retry') f.outcome = { ...f.outcome, nextExpiry: null };
+      return false;
+    };
+    const result = await f.run();
+    if (phase === 'caller delivery') {
+      assert.deepEqual(result.read.data, ['before-prediction']);
+      assert.equal(result.publicationCurrent(), true);
+      await discovery(); assert.equal(result.publicationCurrent(), false);
+    } else assert.ok(!('data' in result.read), 'must reject the pre-prediction local candidate');
+    assert.equal(discovered, true);
+    if (phase === 'expiry retry') assert.equal(publications, 2);
+  });
+}
+
+test('overtaken queue discovery coalesces without overwriting current prediction state', async () => {
+  const f = fixture(), entries = [{ id: 'own', predictable: true, predicted: ['rows/own'] }];
+  const pending = Promise.withResolvers();
+  const old = f.reads.readQueued(() => pending.promise, [f.watch]);
+  f.reads.queued([{ id: 'newer', predictable: true, predicted: ['other/newer'] }]);
+  pending.resolve([]); await old;
+  assert.deepEqual(f.reads.predictions, ['other'], 'a stale empty queue cannot clear newer state');
+  for (let i = 0; i < 3; i++) {
+    const result = Promise.withResolvers();
+    const read = f.reads.readQueued(() => result.promise, [f.watch]);
+    f.reads.notified(['other'], 40);
+    const proof = f.reads.inputsCurrent(f.watch), revision = f.reads.revision;
+    result.resolve(entries); await read;
+    assert.deepEqual(f.reads.predictions, ['other'], 'a stale nonempty queue cannot replace newer state');
+    assert.equal(proof(new Set(['rows'])), i > 0, 'first discovery fences; identical rediscoveries coalesce');
+    assert.equal(f.reads.revision, revision + (i === 0 ? 1 : 0));
+  }
+  await f.reads.readQueued(async () => entries, [f.watch]);
+  assert.deepEqual(f.reads.predictions, ['rows'], 'an unobstructed read still installs its state');
+});
+
 for (const local of [false, true]) test(`unaccounted watch versions cannot borrow later cut evidence (local: ${local})`, async () => {
   const f = fixture(); f.env.inputsCurrent = f.reads.inputsCurrent(f.watch);
   if (local) f.outcome = { data: ['local'], complete: true, unknown: false, tables: ['rows'] };

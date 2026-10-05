@@ -585,3 +585,132 @@ Raw traces, logs and frozen SDKs remain under `target/op/round1` and
 `target/op/sdk-r1-final`. `round1/evidence.json` records their hashes and
 recomputes pooled browser statistics. The original round-0 evidence was not
 rewritten.
+
+## Round 2 — overtaken queue discovery (2026-10-05)
+
+Follow-up to `a759ded99a` after Grok READY and Astra READY WITH CHANGES (one
+Low). The only product change is the prediction discovery fence in
+`LocalReads.readQueued`; routing, retained-watermark checks, publication proofs,
+retry timers and admission behavior are unchanged.
+
+### Cause, parity and correction
+
+A nonempty local candidate has already evaluated and read its pending state.
+A later queue read starts, then a sequenced disjoint notification, published
+empty-footprint commit, or `applied()` advances the authority revision. The queue
+read returns a newly discovered predictable, unobserved write. Round 1's
+revision check skips `queued()` entirely, including its prediction fence. The
+unchanged-input proof then lets the pre-prediction local answer publish. Unknown
+prediction footprints have the same failure.
+
+**This restores pre-OP main's protection for the overtaken path.** At
+`ed327e5dc7`, `readQueued` also skipped installing an overtaken snapshot, but
+`evaluateLocal.checkpoint` unconditionally rejected any authority revision
+change. Round 0 introduced disjoint-evidence survival without moving prediction
+discovery outside that installation guard. The six overtaken cases all pass
+against the frozen pre-OP SDK, fail against round 1, and pass after this fix.
+The [parity log](./round2/pre-op-parity.log) uses Astra's reproducer with only
+the new proof-hook lookups made optional for the older SDK. This parity claim
+is specific to the six overtaken cases; round 1 also fixed discovery without
+intervening evidence.
+
+Every completed queue read now calls the shared `fencePredictions` helper.
+The revision comparison is captured **before** discovery can advance evidence,
+and controls only installing cached prediction state and notifying existence.
+Stale empty and nonempty snapshots cannot overwrite newer cached state.
+Successive identical prediction sets coalesce, including overtaken reads;
+different out-of-order snapshots may conservatively fence again. A fresh local
+evaluation can still publish the actual predicted rows. No await was added.
+
+The queue-path audit covered `local.ts`'s sole queue wrapper, initial recovery,
+receipt batching and retry/settlement helpers, `FollowingIntents.pending`,
+`evaluateLocal.pending`, and the final one-shot queue check. All use
+`LocalReads.readQueued`. Its hard evidence retires both local-input and server-cut
+proofs; the ordinary publication loop, expiry re-evaluation, live rerun and final
+`publishLocal` callback check those proofs. Synchronous admission, cold-read
+control and settlement retain their existing fences. LLP 3000.016 §2.2 and
+3000.023 §10 now distinguish discovery from snapshot installation; LLP 3000.028
+§3.2's retained routing rule is unchanged and remains applicable.
+
+### Deterministic and load evidence
+
+Astra's [reproducer](./round2/astra-overtaken-queue.test.mjs) gives six failing
+overtaken cases and two passing no-overtaking controls on round 1; all eight
+pass with the fix. The checked-in regressions add:
+
+- Twelve real-device cases: three evidence boundaries × known/opaque footprints
+  × process/wasm. The device evaluates a nonempty page, another caller admits a
+  real prediction, and a latched queue reply crosses the chosen evidence event
+  before delivery. All twelve fail at the stale-publication assertion on round
+  1. After the fix, all withhold the old value and then publish the actual
+  predicted rows on reevaluation. Opaque mode omits footprint metadata from the
+  real queue reply to exercise compatibility with an unknown footprint.
+- Eighteen evaluator cases cover those six interleavings at ordinary
+  publication, expiry retry and the final caller continuation.
+- One control checks stale empty/nonempty queue-state protection, repeated
+  discovery coalescing, and later successful snapshot installation.
+
+The two publication files pass **76 cases**, including all existing starvation,
+authority, composition and retained-watermark controls. SDK build/typecheck
+and reference validation pass. [Negative real-device log](./round2/negative-live.log),
+[negative evaluator log](./round2/negative-unit.log),
+[positive publication log](./round2/positive-focused.log).
+
+Ten hog repetitions pass **7,610 cases** (761 each), with zero failures,
+cancellations or skips. The selected 29 files include observation, publication,
+prediction, routing and live tests plus the retained-history and authority
+controls from round 1. Each group has four confined CPUs and its own hog;
+three groups run on disjoint physical cores. All three hogs remained alive for
+their repetitions and were reaped on completion. The full suite is **not repeated**:
+the product change is confined to the fence, as permitted by the round-2
+instruction. The full round-1 suite remains historical evidence above.
+
+One LU three-browser idle run uses 1,000 historical posts, unfollow/refollow
+before every write, and 30 trials per shape. The reported latency is the slower
+of the two remote React renders for each write:
+
+| Cell | p50 | p95 | Maximum |
+|---|---:|---:|---:|
+| Idle repost | 55.8 ms | **104.7 ms** | 123.9 ms |
+| Idle message | 63.4 ms | 94.5 ms | 102.3 ms |
+| Idle reaction | 51.3 ms | 80.4 ms | 80.4 ms |
+
+Repost remains below the 500 ms target; round 1's pooled repost p95 was
+106.2 ms. Repost evaluation-to-observation-publication p95 is 12.5 ms and
+observation-publication-to-render p95 is 1.3 ms across the 60 receiver samples.
+This single repeat confirms continued progress; it is not a paired browser-tail
+nonregression claim and does not repeat heavy/ordinary latency controls.
+[Summary](./round2/idle.summary.json), [per-update stamps](./round2/idle.stamps.csv).
+
+### Reproduction and custody
+
+Run from `snapback4/`; the qualification driver samples `/proc/stat` for three
+seconds, checks SMT siblings, selects eleven idle physical cores, and confines
+all stress and browser descendants with LU's seccomp affinity wrapper:
+
+```sh
+bun run --cwd packages/snapback4 build
+bun run --cwd packages/snapback4 typecheck
+python3 reports/20261004-op-observation-publication/trace-sdk.py r2-final
+python3 reports/20261004-op-observation-publication/round2/qualify.py
+python3 reports/20261004-op-observation-publication/round2/collect.py
+```
+
+The browser input is a frozen SDK with diagnostic hooks only in its copied JS,
+and the retained instrumented native server `target/lu-op`. The selected masks
+and sampled idle load are in [idle-qualification.json](./round2/idle-qualification.json).
+Raw traces, logs and the clean frozen SDK remain under `target/op/round2`;
+the measured copy is `target/op/sdk-r2-final`. The collector records hashes,
+test counts, affinity audits, cleanup, wasm parity and sampled disk use in
+[qualification.json](./round2/qualification.json).
+
+All **238** rebuilt SDK files match the clean frozen input. Affinity audits
+found only the selected thread masks for each group. Sampled disk peak was
+**18,872,057,110 B (18.87 GB)**, below 40 GB; every stored artifact is below
+256 KiB. No test count or timeout was reduced.
+
+Wasm is byte-identical to round 1: **2,117,335 B raw / 639,810 B gzip**, measured
+with the same filename-bearing `gzip -9 -c` convention. The **639,940 B** budget
+and **130 B macOS allowance** are unchanged; no macOS measurement is claimed.
+Only eb1000 and this worktree were used. The ticket remains resolved; nothing
+was pushed.

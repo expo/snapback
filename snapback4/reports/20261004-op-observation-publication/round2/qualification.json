@@ -1,0 +1,520 @@
+{
+  "collected": 1791173248.2064176,
+  "parent": "a759ded99a",
+  "product": {
+    "packages/snapback4/src/local-reads.ts": "091837d40f884b8a99701547afd06f3dbb861b534edf9931e67dad4f6981037b",
+    "packages/snapback4/src/local-query.ts": "4b0cf5d4ce284d4eb7bec86a61c52832726c59ce32fb771eca5e575ea5d2e916",
+    "packages/snapback4/src/local.ts": "2651ca594b8468ae362ef2b4416194ee45bd53fc84961301d439ec90d2f3dbbf"
+  },
+  "stress": [
+    {
+      "cpus": [
+        7,
+        13,
+        55,
+        61
+      ],
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=3",
+        "packages/snapback4/test/local-reads.test.mjs",
+        "packages/snapback4/test/read-observation.test.mjs",
+        "packages/snapback4/test/prediction-routing.test.mjs",
+        "packages/snapback4/test/following-routing.test.mjs",
+        "packages/snapback4/test/ephemeral-routing.test.mjs",
+        "packages/snapback4/test/observation-publication.test.mjs",
+        "packages/snapback4/test/observation-publication-live.test.mjs",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/retained-history-cut.test.mjs",
+        "packages/snapback4/test/retained-history-order.test.mjs",
+        "packages/snapback4/test/retained-search-order.test.mjs",
+        "packages/snapback4/test/live-propagation.test.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+        "packages/snapback4/test/answers-stay-round2.test.mjs",
+        "packages/snapback4/test/answers-stay-round3.test.mjs",
+        "packages/snapback4/test/per-row-inflight.test.mjs",
+        "packages/snapback4/test/per-row-boundaries.test.mjs",
+        "packages/snapback4/test/composed-authority.test.mjs",
+        "packages/snapback4/test/answer-row-authority.test.mjs",
+        "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+        "packages/snapback4/test/keep-authority.test.mjs",
+        "packages/snapback4/test/page-authority.test.mjs",
+        "packages/snapback4/test/query-publication-session.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/keep-observation.test.mjs",
+        "packages/snapback4/test/page-observation.test.mjs",
+        "packages/snapback4/test/row-view-prediction.test.mjs",
+        "packages/snapback4/test/server-clock-live.test.mjs"
+      ],
+      "hog_pid": 3405200,
+      "seconds": 504.281,
+      "runs": [
+        {
+          "run": 1,
+          "exit": 0,
+          "seconds": 127.905,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "c79c377b3c4787ec00f619a6785547b97389cee7637c553a00b06fc92d0b2287"
+        },
+        {
+          "run": 2,
+          "exit": 0,
+          "seconds": 126.08,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "f6af0180bfcfd5d0cdbfa670dc6556b1af65bc8c103562ab3573219cf5d19260"
+        },
+        {
+          "run": 3,
+          "exit": 0,
+          "seconds": 124.008,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "67b2a20ee859074cfee10feb0b0f97bede9b16129cb385eeb23fbf7229a6d5ea"
+        },
+        {
+          "run": 4,
+          "exit": 0,
+          "seconds": 126.286,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "43af5f0bd3748eb4170715cdef24d62677da409facbdf6153cd74478caaf57e3"
+        }
+      ],
+      "hog_reaped": true
+    },
+    {
+      "cpus": [
+        24,
+        26,
+        72,
+        74
+      ],
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=3",
+        "packages/snapback4/test/local-reads.test.mjs",
+        "packages/snapback4/test/read-observation.test.mjs",
+        "packages/snapback4/test/prediction-routing.test.mjs",
+        "packages/snapback4/test/following-routing.test.mjs",
+        "packages/snapback4/test/ephemeral-routing.test.mjs",
+        "packages/snapback4/test/observation-publication.test.mjs",
+        "packages/snapback4/test/observation-publication-live.test.mjs",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/retained-history-cut.test.mjs",
+        "packages/snapback4/test/retained-history-order.test.mjs",
+        "packages/snapback4/test/retained-search-order.test.mjs",
+        "packages/snapback4/test/live-propagation.test.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+        "packages/snapback4/test/answers-stay-round2.test.mjs",
+        "packages/snapback4/test/answers-stay-round3.test.mjs",
+        "packages/snapback4/test/per-row-inflight.test.mjs",
+        "packages/snapback4/test/per-row-boundaries.test.mjs",
+        "packages/snapback4/test/composed-authority.test.mjs",
+        "packages/snapback4/test/answer-row-authority.test.mjs",
+        "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+        "packages/snapback4/test/keep-authority.test.mjs",
+        "packages/snapback4/test/page-authority.test.mjs",
+        "packages/snapback4/test/query-publication-session.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/keep-observation.test.mjs",
+        "packages/snapback4/test/page-observation.test.mjs",
+        "packages/snapback4/test/row-view-prediction.test.mjs",
+        "packages/snapback4/test/server-clock-live.test.mjs"
+      ],
+      "hog_pid": 3405202,
+      "seconds": 376.423,
+      "runs": [
+        {
+          "run": 5,
+          "exit": 0,
+          "seconds": 124.293,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "9c1346b6d36ea03833caa218d445f85fe147a77394293a2ecf8e598936148715"
+        },
+        {
+          "run": 6,
+          "exit": 0,
+          "seconds": 127.034,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "5f5c3b1dd686cdc290fe7aa8c5ac6ff59f4096ad9a8fc0f8e57776b951047480"
+        },
+        {
+          "run": 7,
+          "exit": 0,
+          "seconds": 125.096,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "e60da0afc1f79ca1048381e5128586659b3694a1d962c6d2c61875f0b8357a57"
+        }
+      ],
+      "hog_reaped": true
+    },
+    {
+      "cpus": [
+        31,
+        35,
+        79,
+        83
+      ],
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=3",
+        "packages/snapback4/test/local-reads.test.mjs",
+        "packages/snapback4/test/read-observation.test.mjs",
+        "packages/snapback4/test/prediction-routing.test.mjs",
+        "packages/snapback4/test/following-routing.test.mjs",
+        "packages/snapback4/test/ephemeral-routing.test.mjs",
+        "packages/snapback4/test/observation-publication.test.mjs",
+        "packages/snapback4/test/observation-publication-live.test.mjs",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/retained-history-cut.test.mjs",
+        "packages/snapback4/test/retained-history-order.test.mjs",
+        "packages/snapback4/test/retained-search-order.test.mjs",
+        "packages/snapback4/test/live-propagation.test.mjs",
+        "packages/snapback4/test/live-propagation-fallback.test.mjs",
+        "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+        "packages/snapback4/test/answers-stay-round2.test.mjs",
+        "packages/snapback4/test/answers-stay-round3.test.mjs",
+        "packages/snapback4/test/per-row-inflight.test.mjs",
+        "packages/snapback4/test/per-row-boundaries.test.mjs",
+        "packages/snapback4/test/composed-authority.test.mjs",
+        "packages/snapback4/test/answer-row-authority.test.mjs",
+        "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+        "packages/snapback4/test/keep-authority.test.mjs",
+        "packages/snapback4/test/page-authority.test.mjs",
+        "packages/snapback4/test/query-publication-session.test.mjs",
+        "packages/snapback4/test/per-row-publication.test.mjs",
+        "packages/snapback4/test/keep-observation.test.mjs",
+        "packages/snapback4/test/page-observation.test.mjs",
+        "packages/snapback4/test/row-view-prediction.test.mjs",
+        "packages/snapback4/test/server-clock-live.test.mjs"
+      ],
+      "hog_pid": 3405203,
+      "seconds": 368.811,
+      "runs": [
+        {
+          "run": 8,
+          "exit": 0,
+          "seconds": 123.701,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "59693bc49da29c852f762ea6b60c6c7ac88eac764399b30d5ae6ebd9894a1c42"
+        },
+        {
+          "run": 9,
+          "exit": 0,
+          "seconds": 122.454,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "894a7fdefcdfbd20ffc53de64668989787ee585986fb999eface586cc154101c"
+        },
+        {
+          "run": 10,
+          "exit": 0,
+          "seconds": 122.656,
+          "hog_alive": true,
+          "tests": 761,
+          "pass": 761,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "log_sha256": "71aaf328821bac40be72e37781c3bd75ba41c395dbe89f2911fb2b31602e4bac"
+        }
+      ],
+      "hog_reaped": true
+    }
+  ],
+  "logs": {
+    "negative-astra.log": {
+      "bytes": 5967,
+      "sha256": "0dc0627874cae41e3b01fd40553290f2d6348df1333d4b886342f17285602fbf",
+      "counts": {
+        "tests": 8,
+        "pass": 2,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "0dc0627874cae41e3b01fd40553290f2d6348df1333d4b886342f17285602fbf"
+    },
+    "negative-unit.log": {
+      "bytes": 14757,
+      "sha256": "4c7b593fc3ee8e28abf5e825bf30ecc6573f2804d98f1c460c6a106ab616c8ea",
+      "counts": {
+        "tests": 19,
+        "pass": 0,
+        "fail": 19,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "e1268f58003645e7eb2a9b8f03a8f0f5ef3ce7a4be8457ac0f98efa90bfa1e38"
+    },
+    "negative-live.log": {
+      "bytes": 11056,
+      "sha256": "9e3f768411eb97bfb404ef73e1d288c35b352629d987c691cfa4dde6beba72c3",
+      "counts": {
+        "tests": 12,
+        "pass": 0,
+        "fail": 12,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "9e3f768411eb97bfb404ef73e1d288c35b352629d987c691cfa4dde6beba72c3"
+    },
+    "positive-astra.log": {
+      "bytes": 1390,
+      "sha256": "f6be9ac75159ad9e2b1b44da60bef3c5e579ae52776afd62d8cf24e33af4e706",
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "f6be9ac75159ad9e2b1b44da60bef3c5e579ae52776afd62d8cf24e33af4e706"
+    },
+    "positive-focused.log": {
+      "bytes": 6461,
+      "sha256": "e96f23c4fe14d06819c2f4157cbf3533fefb9844c1ef4fc2311d5114f0ff9a66",
+      "counts": {
+        "tests": 76,
+        "pass": 76,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "e96f23c4fe14d06819c2f4157cbf3533fefb9844c1ef4fc2311d5114f0ff9a66"
+    },
+    "pre-op-parity.log": {
+      "bytes": 1102,
+      "sha256": "790eb35d9cd43435d5524dc89938fb6fb8bbe8ba69651f84bf2a6b5e3ae694a4",
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stored_sha256": "790eb35d9cd43435d5524dc89938fb6fb8bbe8ba69651f84bf2a6b5e3ae694a4"
+    },
+    "sdk-build.log": {
+      "bytes": 201,
+      "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "counts": {},
+      "stored_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+    },
+    "typecheck.log": {
+      "bytes": 32,
+      "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+      "counts": {},
+      "stored_sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+    },
+    "ref-check.log": {
+      "bytes": 81,
+      "sha256": "9d70510d8185721bd1e368cb2faa6d0f1ae3d43522c640e70e54ec8910905fc4",
+      "counts": {},
+      "stored_sha256": "9d70510d8185721bd1e368cb2faa6d0f1ae3d43522c640e70e54ec8910905fc4"
+    }
+  },
+  "passes": 7610,
+  "runs": [
+    {
+      "name": "idle",
+      "pid": 3405193,
+      "exit": 0,
+      "seconds": 44.123
+    },
+    {
+      "name": "stress-c",
+      "pid": 3405192,
+      "exit": 0,
+      "seconds": 372.87
+    },
+    {
+      "name": "stress-b",
+      "pid": 3405191,
+      "exit": 0,
+      "seconds": 378.34
+    },
+    {
+      "name": "stress-a",
+      "pid": 3405190,
+      "exit": 0,
+      "seconds": 509.66
+    }
+  ],
+  "affinity": {
+    "idle.affinity.json": {
+      "at": "2026-10-05T03:56:49.887699+00:00",
+      "root": 3405193,
+      "processes": 10,
+      "thread_masks": {
+        "2,6,9,36,43,50,54,57,84,91": 221
+      },
+      "names": {
+        "MainThread": 1,
+        "chrome": 8,
+        "lu-op": 1
+      }
+    },
+    "stress-c.affinity.json": {
+      "at": "2026-10-05T03:56:49.850593+00:00",
+      "root": 3405192,
+      "processes": 9,
+      "thread_masks": {
+        "31,35,79,83": 61
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 3
+      }
+    },
+    "stress-a.affinity.json": {
+      "at": "2026-10-05T03:56:49.795409+00:00",
+      "root": 3405190,
+      "processes": 10,
+      "thread_masks": {
+        "7,13,55,61": 61
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 4
+      }
+    },
+    "stress-b.affinity.json": {
+      "at": "2026-10-05T03:56:49.823559+00:00",
+      "root": 3405191,
+      "processes": 10,
+      "thread_masks": {
+        "24,26,72,74": 60
+      },
+      "names": {
+        "python3": 1,
+        "MainThread": 5,
+        "snapback4": 4
+      }
+    }
+  },
+  "disk_peak_bytes": 18872057110,
+  "sdk_match": true,
+  "sdk_files": 238,
+  "sdks": {
+    "sdk-before": {
+      "files": 240,
+      "manifest_sha256": "806c9ee97eff6b8a309579535b1bc35467c0431cf1a1199d6250ba6b44d13dd3",
+      "modules": {
+        "dist/local-reads.js": "5bcadfdce39ceab0c3df8f8d78328a891453c7b3d6c16df153877fa75c735275",
+        "dist/local-query.js": "afb7f55769fea4a9e72ff6a00248094e1cd0fa44b209352dacb092c6b84fa449",
+        "dist/local.js": "fe10cef02a4f3c35132e5cfe5abd70b8ef88a31bfb016e48b6311df06762621e",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c"
+      }
+    },
+    "round1/sdk-final-plain": {
+      "files": 239,
+      "manifest_sha256": "babfb99f7de09733279cce85753e733cf175dc02debe79223e7e5aea5351f8db",
+      "modules": {
+        "dist/local-reads.js": "d0fb1e18cd2be07445dfe6d195c44d3c7c88d72f8841b923752f80b2c29e9d2a",
+        "dist/local-query.js": "c36c90220ec58234ec870d7ca139187ca7adde1e81fce07334debeef1ba78e42",
+        "dist/local.js": "be559e28599d34eb55cc5017a1f776ed1a596809e55f00b0682dd2e5dd122c1f",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c"
+      }
+    },
+    "round2/sdk-final-plain": {
+      "files": 239,
+      "manifest_sha256": "ce2a3c93ad0519b1eb706191c78d70442b3bfb7adcabe428d035e6d30b4296f8",
+      "modules": {
+        "dist/local-reads.js": "712737807db7a349f4431dd873eb091bb91a224162137f51cf94ef42a027618e",
+        "dist/local-query.js": "c36c90220ec58234ec870d7ca139187ca7adde1e81fce07334debeef1ba78e42",
+        "dist/local.js": "be559e28599d34eb55cc5017a1f776ed1a596809e55f00b0682dd2e5dd122c1f",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c"
+      }
+    },
+    "sdk-r2-final": {
+      "files": 240,
+      "manifest_sha256": "ffe378de2b8d91df3dc5061a2e6b78694c11b0628e122cdb5b370a1da0ee911f",
+      "modules": {
+        "dist/local-reads.js": "fd6934ac4542b7512ccd4433b18baa84652c51697ff782195ac4e65835acb8da",
+        "dist/local-query.js": "b46bde1e06ebd897030e2c3042e3484d179a25f8728f4901b7a1f7c9096afc11",
+        "dist/local.js": "c836cb9af9e21747c35421788f22f1b7d0bf7db32d8b2b9f8e49adb0d6308575",
+        "dist/wasm/snapback4_device_bg.wasm": "03f848a418e225607be5edf74b559ffb69a8faaf9aadd139e9ccb9dd9390433c"
+      }
+    }
+  },
+  "inputs": {
+    "target/lu-op": "4fd92f25d267ae3be1cb5463e0c7a0c33006b00cee1462eb91894a739e4d0f06",
+    "target/debug/snapback4": "07d7965c2e201f5b25938a31a86e000ba89739c981b1b097f81d78d2766fd136",
+    "packages/snapback4/test/observation-publication.test.mjs": "6533de8248e6b555ce0734ff82d24ac1c8530dd04baf0747e5b32f58adf8606c",
+    "packages/snapback4/test/observation-publication-live.test.mjs": "4f54fff82fa01d9023fab95fbf1716bd4a910ddf3df27945f87105c9d210ad08",
+    "reports/20261004-op-observation-publication/round2-stress.py": "4cd57b2ea2345fc126f13ded3115f932e6ba7f6720656d96874876f213be8e35",
+    "reports/20261004-op-observation-publication/round2/qualify.py": "e50d35fe7e0854b9d0dc8b45cebb25951f3b8a25c3d8e3a67701431ed2c35171",
+    "reports/20261004-op-observation-publication/round2/astra-overtaken-queue.test.mjs": "2b99bb76899cc59cbdde3fc0a7011ed7dbdc6a06fc8daccfd428e80d7b528c26"
+  },
+  "browser_raw": {
+    "idle.json": "ddeeab1fc9418e4e3f6cb8fc2c4070c7d8b6e325190d673186b061427a2bef99",
+    "idle.json.jsonl": "e1048ff4e265a170bfd8ac632b93d2b06326630a7267ff28e124b478c22799f7"
+  },
+  "full_suite": "Not repeated: only the prediction fence changed in product code; round 1 full-suite evidence is retained."
+}

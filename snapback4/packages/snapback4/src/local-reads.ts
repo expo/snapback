@@ -272,13 +272,21 @@ export class LocalReads {
   }
   async readQueued(run: () => Promise<Queued[]>, watches: Iterable<LocalWatch>): Promise<Queued[]> {
     const revision = this.revision, entries = await run();
-    if (revision === this.revision) {
-      this.queued(entries);
+    const current = revision === this.revision;
+    // Disjoint evidence may preserve a local candidate while this read waits.
+    // Always fence discovery, but never install an overtaken queue snapshot.
+    this.fencePredictions(entries);
+    if (current) {
+      this.predictions = queuedPredictions(entries);
       for (const watch of watches) if (watch.updateExistence()) notifyLocalWatch(watch);
     }
     return entries;
   }
   queued(entries: readonly Queued[]): void {
+    this.fencePredictions(entries);
+    this.predictions = queuedPredictions(entries);
+  }
+  private fencePredictions(entries: readonly Queued[]): void {
     // @ref LLP 3000.016#2.2 — queue discovery can precede admission. Fence a
     // changed prediction set once, including a second write to the same table.
     const inputs = entries.filter(e => e.observed_seq == null && e.predictable === true)
@@ -286,7 +294,6 @@ export class LocalReads {
     const signature = JSON.stringify(inputs);
     if (inputs.length && signature !== this.predictionInputs) this.evidence();
     this.predictionInputs = signature;
-    this.predictions = queuedPredictions(entries);
   }
   readonly serverAnswers = new RememberedAnswers();
 
