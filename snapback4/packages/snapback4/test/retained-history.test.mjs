@@ -195,14 +195,23 @@ query wordBoth():
   }
   if (scenario === "MQ adoption") fixtureSource = fixtureSource.replace("return {left: leftRows, held: heldRows}", "return {left: leftRows, held: heldRows, epoch: 1}");
   writeFileSync(join(directory, "snapback/schema.q"), fixtureSource);
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
   let child = spawn(binary, ["dev", "--port", "0", "--fresh", ...(scenario === "MQ adoption" ? [] : ["--no-watch"])], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(child);
   let exit = once(child, "exit");
   let log = "", url, client, releaseReply, releaseHeldApply;
   child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
-  t.after(async () => { releaseReply?.(); releaseHeldApply?.(); await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM"); await exit; });
+  t.after(async () => {
+    releaseReply?.(); releaseHeldApply?.();
+    try { await client?.close(); }
+    finally {
+      // Stop the watcher before deleting its project; otherwise a final rebuild
+      // can recreate files during rm, throw ENOTEMPTY and strand the server.
+      if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
+      try { await exit; }
+      finally { rmSync(directory, { recursive: true, force: true }); }
+    }
+  });
   await until(() => { assert.equal(child.exitCode, null, log); return url; }, "server did not listen");
   let session;
   if (scenario === "MQ rotation") {

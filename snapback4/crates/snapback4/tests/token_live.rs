@@ -2,9 +2,10 @@
 #![cfg(unix)]
 #[allow(dead_code)]
 #[path = "../src/host_limits.rs"] mod host_limits;
-use std::{fs, io::{BufRead, BufReader, Read, Write}, net::{SocketAddr, TcpStream, UdpSocket},
+use std::{fs, io::{BufRead, BufReader, Read, Write}, net::{SocketAddr, TcpStream},
     os::unix::fs::{PermissionsExt, symlink}, path::PathBuf, process::{Child, Command, Output, Stdio},
     sync::{atomic::{AtomicUsize, Ordering}, mpsc}, time::Duration};
+#[path = "support/local_interface.rs"] mod local_interface;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -148,9 +149,7 @@ fn mint_paths(release: bool) {
 #[test]
 fn public_listeners_refuse_remote_peers_and_missing_wrong_duplicate_or_browser_proofs() {
     host_limits::prepare_tests();
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    socket.connect("192.0.2.1:9").unwrap(); // Determines our interface without sending a packet.
-    let remote_ip = socket.local_addr().unwrap().ip(); assert!(!remote_ip.is_loopback());
+    let remote_ip = local_interface::address(); assert!(!remote_ip.is_loopback());
     for release in [false, true] {
         let p = Project::new(release); let host = Host::start(&p, "0.0.0.0");
         let before = p.sessions(); let body = protocol::body(&p); let json = body.to_string();
@@ -380,8 +379,7 @@ fn a_forwarding_impostor_cannot_read_the_minted_token_or_replay_completion() {
 
 #[test]
 fn ipv6_wildcard_refuses_ipv4_mapped_loopback_and_remote_peers() {
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap(); socket.connect("192.0.2.1:9").unwrap();
-    let remote_ip = socket.local_addr().unwrap().ip(); assert!(!remote_ip.is_loopback());
+    let remote_ip = local_interface::address(); assert!(!remote_ip.is_loopback());
     for release in [false, true] {
         let p = Project::new(release); let host = Host::start(&p, "::");
         let body = protocol::body(&p); let (client, challenge) = protocol::challenge(host.address, &body);

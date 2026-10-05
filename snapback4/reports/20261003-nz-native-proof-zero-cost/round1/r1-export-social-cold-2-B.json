@@ -1,0 +1,1270 @@
+{
+  "label": "r1-export-social-cold-2-B",
+  "starter": "social",
+  "kind": "cold",
+  "arm": "B",
+  "index": 2,
+  "startedAt": 1791089726.486239,
+  "returnedAt": 1791089730.09969,
+  "criticalSeconds": 3.6134342919999654,
+  "totalSeconds": 1135.574512625,
+  "afterReturnSeconds": 1131.961078333,
+  "status": 0,
+  "waitStatus": 0,
+  "before": {
+    "at": 1791089726.482919,
+    "load": [
+      6.9111328125,
+      13.54443359375,
+      20.0
+    ],
+    "idlePercent": 76.49006622516556,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  417     1 230.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "22764 11548  93.4 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "12969     1  72.7 /usr/libexec/PerfPowerServices",
+      "  661     1  69.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "56574 56547  28.6 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/locationd",
+      "56600 56547  27.2 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "18428     1  18.3 /usr/libexec/diagnosticd",
+      " 1175     1  14.3 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder",
+      "  442     1  12.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 7404  1166   3.9 /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
+    ]
+  },
+  "after": {
+    "at": 1791090863.259574,
+    "load": [
+      6.501953125,
+      13.31201171875,
+      18.986328125
+    ],
+    "idlePercent": 75.13751375137514,
+    "compilers": [],
+    "backgroundJobs": [
+      81429
+    ],
+    "busy": [
+      "12969     1 188.2 /usr/libexec/PerfPowerServices",
+      "18225     1  82.4 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+      "97500  1160  82.2 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "  417     1  26.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      " 1160     1  23.9 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  661     1   7.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "  442     1   5.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1164     1   3.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  541     1   2.3 /usr/libexec/airportd",
+      " 1495  1166   1.8 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+    ]
+  },
+  "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381",
+  "result": {
+    "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381",
+    "exportHash": "a61d0c0e99ef57908edf21fb26f2c267fd5225312cbb1da10c4b9947e87c8a4b",
+    "finishedAt": 1791090862007,
+    "log": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/background.log",
+    "publishedAt": 1791089730059,
+    "reason": "prime/offline/restart",
+    "receipt": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-run.json",
+    "state": "passed"
+  },
+  "nativeDurationMs": 1124480,
+  "cache": {
+    "fingerprint": {
+      "fingerprint": {
+        "hash": "59b8d9e70ad37c31473a6ae4e6f9ca61fbb66a22e3bd5ee2b7af82e6c24e05ce"
+      }
+    },
+    "hit": false
+  },
+  "error": null,
+  "simulator": {
+    "name": "sb4-nz-1791089732137-81432",
+    "prefix": "sb4-nz-",
+    "ready": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "created",
+    "udid": "F0C022DC-EEA0-40C1-8562-ACAF66765B31"
+  },
+  "deadline": {
+    "background": true,
+    "elapsedMs": 1051017,
+    "expired": false,
+    "hardLimitMs": 3600000,
+    "idleLimitMs": 900000,
+    "idleMs": 1369,
+    "outputBytes": 18462616,
+    "progressObservations": 121
+  },
+  "phases": [
+    {
+      "label": "export-xcode-version",
+      "executable": "xcodebuild",
+      "args": [
+        "-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089751468,
+      "durationMs": 277,
+      "status": 0,
+      "signal": null,
+      "log": "export-xcode-version.log",
+      "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77"
+    },
+    {
+      "label": "export-sdk-version",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089751745,
+      "durationMs": 64,
+      "status": 0,
+      "signal": null,
+      "log": "export-sdk-version.log",
+      "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a"
+    },
+    {
+      "label": "export-sdk-build",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-build-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089751812,
+      "durationMs": 40,
+      "status": 0,
+      "signal": null,
+      "log": "export-sdk-build.log",
+      "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be"
+    },
+    {
+      "label": "export-developer",
+      "executable": "xcrun",
+      "args": [
+        "--find",
+        "clang"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089751852,
+      "durationMs": 40,
+      "status": 0,
+      "signal": null,
+      "log": "export-developer.log",
+      "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24"
+    },
+    {
+      "label": "export-tool-swiftc",
+      "executable": "xcrun",
+      "args": [
+        "--find",
+        "swiftc"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089752081,
+      "durationMs": 42,
+      "status": 0,
+      "signal": null,
+      "log": "export-tool-swiftc.log",
+      "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89"
+    },
+    {
+      "label": "export-tool-swift-frontend",
+      "executable": "xcrun",
+      "args": [
+        "--find",
+        "swift-frontend"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089752263,
+      "durationMs": 12,
+      "status": 0,
+      "signal": null,
+      "log": "export-tool-swift-frontend.log",
+      "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a"
+    },
+    {
+      "label": "export-tool-ld",
+      "executable": "xcrun",
+      "args": [
+        "--find",
+        "ld"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089752360,
+      "durationMs": 46,
+      "status": 0,
+      "signal": null,
+      "log": "export-tool-ld.log",
+      "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88"
+    },
+    {
+      "label": "export-sdk-path",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-path"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089752411,
+      "durationMs": 41,
+      "status": 0,
+      "signal": null,
+      "log": "export-sdk-path.log",
+      "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec"
+    },
+    {
+      "label": "export-pod-version",
+      "executable": "pod",
+      "args": [
+        "--version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089752457,
+      "durationMs": 1489,
+      "status": 0,
+      "signal": null,
+      "log": "export-pod-version.log",
+      "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+    },
+    {
+      "label": "export-ruby-version",
+      "executable": "ruby",
+      "args": [
+        "--version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089753946,
+      "durationMs": 35,
+      "status": 0,
+      "signal": null,
+      "log": "export-ruby-version.log",
+      "sha256": "e206508cdef0a6c6b14b656b71ad9366db219b3e83e5efcf0839a50c87fd8dba"
+    },
+    {
+      "label": "fingerprint-before",
+      "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "args": [
+        "-e",
+        "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089772586,
+      "durationMs": 6632,
+      "status": 0,
+      "signal": null,
+      "log": "fingerprint-before.log",
+      "sha256": "f652a11f1ae509d334a5d68e06be6205b2f686294f713a25c670f7b348b830f8"
+    },
+    {
+      "label": "xcode-version",
+      "executable": "xcodebuild",
+      "args": [
+        "-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089779219,
+      "durationMs": 411,
+      "status": 0,
+      "signal": null,
+      "log": "xcode-version.log",
+      "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77"
+    },
+    {
+      "label": "sdk-version",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089779630,
+      "durationMs": 71,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-version.log",
+      "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a"
+    },
+    {
+      "label": "sdk-build",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-build-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089779701,
+      "durationMs": 52,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-build.log",
+      "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be"
+    },
+    {
+      "label": "pod-version",
+      "executable": "pod",
+      "args": [
+        "--version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089779753,
+      "durationMs": 1475,
+      "status": 0,
+      "signal": null,
+      "log": "pod-version.log",
+      "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+    },
+    {
+      "label": "runtime",
+      "executable": "xcrun",
+      "args": [
+        "simctl",
+        "list",
+        "runtimes",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089781229,
+      "durationMs": 619,
+      "status": 0,
+      "signal": null,
+      "log": "runtime.log",
+      "sha256": "797a978aeb146cdb1ad71ebdaf87de3334f7d3a4ac6a056f6f901495bbe37271"
+    },
+    {
+      "label": "snapshot",
+      "executable": "/usr/bin/rsync",
+      "args": [
+        "-a",
+        "--delete",
+        "--exclude=/.git",
+        "--exclude=/.expo",
+        "--exclude=/.snapback4",
+        "--exclude=/.snapback4-witness",
+        "--exclude=/artifacts",
+        "--exclude=/evidence",
+        "--exclude=/dist",
+        "--exclude=/choreography",
+        "--exclude=provider-secrets.env",
+        "--exclude=.env*",
+        "--exclude=/ios",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791089781850,
+      "durationMs": 39376,
+      "status": 0,
+      "signal": null,
+      "log": "snapshot.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "public-config",
+      "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "args": [
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+        "config",
+        "--type",
+        "public",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089827933,
+      "durationMs": 215,
+      "status": 0,
+      "signal": null,
+      "log": "public-config.log",
+      "sha256": "a26ca9547271c9a8bf5f50b85fb40fd7901a91715d9afce02a90f3b363c496c4"
+    },
+    {
+      "label": "prebuild",
+      "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "args": [
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+        "prebuild",
+        "--platform",
+        "ios",
+        "--no-install",
+        "--clean"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089828148,
+      "durationMs": 1684,
+      "status": 0,
+      "signal": null,
+      "log": "prebuild.log",
+      "sha256": "760817c0abef0754ae42e2529d618519cf915fee2cdeec02b4741f131bac4111"
+    },
+    {
+      "label": "pods",
+      "executable": "pod",
+      "args": [
+        "install"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios",
+      "startedAt": 1791089829834,
+      "durationMs": 55483,
+      "status": 0,
+      "signal": null,
+      "log": "pods.log",
+      "sha256": "42687b51a3dd5e256c6026472571a4f6f39cb0f573b5c9cdcd1f4e5df06565f2"
+    },
+    {
+      "label": "schemes",
+      "executable": "xcodebuild",
+      "args": [
+        "-list",
+        "-json",
+        "-workspace",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Smallsocial.xcworkspace"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089896539,
+      "durationMs": 3263,
+      "status": 0,
+      "signal": null,
+      "log": "schemes.log",
+      "sha256": "0897d1bdd06d68cea5aee4bccf597278a6b8ed41d5e9ad49962163b229831904"
+    },
+    {
+      "label": "build-settings",
+      "executable": "xcodebuild",
+      "args": [
+        "-workspace",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Smallsocial.xcworkspace",
+        "-scheme",
+        "Smallsocial",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "id=F0C022DC-EEA0-40C1-8562-ACAF66765B31",
+        "-derivedDataPath",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGN_IDENTITY=-",
+        "RCT_NEW_ARCH_ENABLED=1",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089899803,
+      "durationMs": 4365,
+      "status": 0,
+      "signal": null,
+      "log": "build-settings.log",
+      "sha256": "c24ecb3c6fcf070a55dcc69142f2111032eba7371dd8ffdeeecc991f53a96320"
+    },
+    {
+      "label": "sdk-path",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-path"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089904177,
+      "durationMs": 13,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-path.log",
+      "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec"
+    },
+    {
+      "label": "plist-23",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Smallsocial.xcodeproj/project.pbxproj"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089904191,
+      "durationMs": 14,
+      "status": 0,
+      "signal": null,
+      "log": "plist-23.log",
+      "sha256": "c55039872e66384026570452513b68ee5dc6a63c8c07972dc10ab44eacaffa94"
+    },
+    {
+      "label": "target-settings-0",
+      "executable": "xcodebuild",
+      "args": [
+        "-project",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Smallsocial.xcodeproj",
+        "-alltargets",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "ARCHS=arm64",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089904205,
+      "durationMs": 2326,
+      "status": 0,
+      "signal": null,
+      "log": "target-settings-0.log",
+      "sha256": "66947b08f4378fb43bf4b0ad4e00ddf27165852b9988135a43dc6b33a5ebd613"
+    },
+    {
+      "label": "plist-25",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj/project.pbxproj"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089907525,
+      "durationMs": 103,
+      "status": 0,
+      "signal": null,
+      "log": "plist-25.log",
+      "sha256": "8f41e3d24fa39dd517c557911d8183d72052366450e2d2281764ca57a62db79c"
+    },
+    {
+      "label": "target-settings-1",
+      "executable": "xcodebuild",
+      "args": [
+        "-project",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj",
+        "-alltargets",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "ARCHS=arm64",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089907643,
+      "durationMs": 8958,
+      "status": 0,
+      "signal": null,
+      "log": "target-settings-1.log",
+      "sha256": "0b150aa26d85bddeb2fb49d447e93f3642c8cf081daa865e473319b52677522a"
+    },
+    {
+      "label": "xcode-build",
+      "executable": "xcodebuild",
+      "args": [
+        "-workspace",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/ios/Smallsocial.xcworkspace",
+        "-scheme",
+        "Smallsocial",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "id=F0C022DC-EEA0-40C1-8562-ACAF66765B31",
+        "-derivedDataPath",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGN_IDENTITY=-",
+        "RCT_NEW_ARCH_ENABLED=1",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "SKIP_BUNDLING=",
+        "SOURCEMAP_FILE=",
+        "-resultBundlePath",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/build.xcresult",
+        "build"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791089958796,
+      "durationMs": 766550,
+      "status": 0,
+      "signal": null,
+      "log": "xcode-build.log",
+      "sha256": "50a04f4a3777c9d17d89bf23efb4db0394a7720e4a6812023414baf19e14ee26"
+    },
+    {
+      "label": "preserve-app",
+      "executable": "/bin/cp",
+      "args": [
+        "-cR",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/DerivedData/Build/Products/Release-iphonesimulator/Smallsocial.app",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/base.app"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791090766581,
+      "durationMs": 63,
+      "status": 0,
+      "signal": null,
+      "log": "preserve-app.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "plist-29",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/base.app/Info.plist"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791090766711,
+      "durationMs": 12,
+      "status": 0,
+      "signal": null,
+      "log": "plist-29.log",
+      "sha256": "47875f55077993b1d994e2837e53dcbdc49c97fdec077e2f8bad7bede0e7b15d"
+    },
+    {
+      "label": "hermes-version",
+      "executable": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot/node_modules/hermes-compiler/hermesc/osx-bin/hermesc",
+      "args": [
+        "-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/snapshot",
+      "startedAt": 1791090766806,
+      "durationMs": 17,
+      "status": 0,
+      "signal": null,
+      "log": "hermes-version.log",
+      "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000"
+    },
+    {
+      "label": "fingerprint-after",
+      "executable": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "args": [
+        "-e",
+        "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791090775294,
+      "durationMs": 2930,
+      "status": 0,
+      "signal": null,
+      "log": "fingerprint-after.log",
+      "sha256": "f652a11f1ae509d334a5d68e06be6205b2f686294f713a25c670f7b348b830f8"
+    },
+    {
+      "label": "export-copy-base",
+      "executable": "/bin/cp",
+      "args": [
+        "-cR",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/.snapback4-witness/export-base.app",
+        "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export.app"
+      ],
+      "cwd": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "startedAt": 1791090800849,
+      "durationMs": 61,
+      "status": 0,
+      "signal": null,
+      "log": "export-copy-base.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "segments": {
+    "offline": "passed",
+    "prime": "passed",
+    "restart": "passed"
+  },
+  "exportHash": "a61d0c0e99ef57908edf21fb26f2c267fd5225312cbb1da10c4b9947e87c8a4b",
+  "loadedHash": "a61d0c0e99ef57908edf21fb26f2c267fd5225312cbb1da10c4b9947e87c8a4b",
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-export-social-cold-2-B.log",
+      "sha256": "95a7dca248865359f89b5bc2e13af64046821e3fb905fbe38af1924ee0b628ef",
+      "bytes": 2099
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-export-social-cold-2-B-host.jsonl",
+      "sha256": "969cc90fe15c0feb86e7b68de6332dc48a16ea1dc8ba0dccc3f0b40cd9aae537",
+      "bytes": 276281049
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-collection-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-offline-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-install-group.json",
+      "sha256": "1d9c49e1fbee6ef8531b71671a441018161ae24755a71c27b8bfc028290da3f5",
+      "bytes": 269
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/sdk-path.log",
+      "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+      "bytes": 117
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/request.json",
+      "sha256": "8aea522b8f8b5059ea180fc17d86dae9e6fae2ec7cc2c4279cf2df3da3bb3ebd",
+      "bytes": 541
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-prime-group.json",
+      "sha256": "6dd71c3ada7b5afcc48e5a24d27c1d7287462ac65a0aa60244593f7cec154bdb",
+      "bytes": 267
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/pods.log",
+      "sha256": "42687b51a3dd5e256c6026472571a4f6f39cb0f573b5c9cdcd1f4e5df06565f2",
+      "bytes": 25192
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-offline-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/check-stdout.log",
+      "sha256": "f3b394d49ebdeb771879bbe0ff1b06b466dd6ce74d176e00996cd41114baebbe",
+      "bytes": 2513
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-restart-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-phases.json",
+      "sha256": "87e857e9a066fce0f74bc9fb756728934923becdd9fec709e1dea95c540b2adb",
+      "bytes": 24574
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-sdk-version.log",
+      "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+      "bytes": 5
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-progress.jsonl",
+      "sha256": "a39cff3dcc74525c1f25c32350fc90a516c71039b91cb9a6ead2cef8bc93666f",
+      "bytes": 3980
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-pod-version.log",
+      "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+      "bytes": 7
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime-resolution-group.json",
+      "sha256": "08020710514a9f508a793ad0265d0169ebb61ca5db8ea31b449ffe2e5083db34",
+      "bytes": 273
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/plist-29.log",
+      "sha256": "47875f55077993b1d994e2837e53dcbdc49c97fdec077e2f8bad7bede0e7b15d",
+      "bytes": 2309
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/resolved-native.json",
+      "sha256": "62a90aeb22c94003f04f572ec61b004e1de59c4d348da1ae10602ec8dd258065",
+      "bytes": 15365463
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/sdk-build.log",
+      "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+      "bytes": 7
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/result.json",
+      "sha256": "635cba86bb098bbdeb3cfea4e31e69092da5bb5b0c03f4d53f13ab3c2a207492",
+      "bytes": 572
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-xcode-version.log",
+      "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+      "bytes": 33
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-developer.log",
+      "sha256": "083060ae79a9cc17bc69cb6166b1e16396c638b533de036324d8c6d49b77af24",
+      "bytes": 93
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/build-settings.log",
+      "sha256": "c24ecb3c6fcf070a55dcc69142f2111032eba7371dd8ffdeeecc991f53a96320",
+      "bytes": 107685
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/before-install-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-prime-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/prebuild.log",
+      "sha256": "760817c0abef0754ae42e2529d618519cf915fee2cdeec02b4741f131bac4111",
+      "bytes": 168
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/cache-miss.json",
+      "sha256": "13c5969d419afc951a6ae36ccaf8b62a486869b7326797137dd4147927122ab2",
+      "bytes": 34
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-install-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-install-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-collection-group.json",
+      "sha256": "417afa848241a90890b7d0cd2fef14543288ab0159c05bcee14e0a27f372a1b9",
+      "bytes": 272
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/live.json",
+      "sha256": "cca0775cb7163744e772342abd966e2edcd0f918677934d5b90025144c8244a2",
+      "bytes": 3405
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/xcode-build.log",
+      "sha256": "50a04f4a3777c9d17d89bf23efb4db0394a7720e4a6812023414baf19e14ee26",
+      "bytes": 9606795
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/native-mods.json",
+      "sha256": "8d31680522ac81cd7a4b5ff99c146211bbbbe25922370f2670b648210a94a299",
+      "bytes": 2118
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-sdk-build.log",
+      "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+      "bytes": 7
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-video.log",
+      "sha256": "967b8c69ad4efd24776dd23b02e389ee4a52a02a52f877d3d20beb312cd3c17a",
+      "bytes": 131
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/fingerprint-after.log",
+      "sha256": "f652a11f1ae509d334a5d68e06be6205b2f686294f713a25c670f7b348b830f8",
+      "bytes": 25235
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/check-group.json",
+      "sha256": "01fe0e548e680bbeb97ede33c052378fc527466a6647a98ceeffac713d9370b8",
+      "bytes": 260
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-prime.png",
+      "sha256": "234007a742cabfc0ac6d750c114cd0aac8f7adc0fbd09e71dd29cec698c4a0d2",
+      "bytes": 48647
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime-resolution-stdout.log",
+      "sha256": "fc085f1d6b05201cc8504c695c1ad9d352dadac3ebf563326bb9a7a879ef906a",
+      "bytes": 59
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-deadline.json",
+      "sha256": "7b6b91d63f922936b12a7ceb5e070200a21570d8f90158f18441de9773d524a3",
+      "bytes": 162
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-copy-base.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-log-stderr.log",
+      "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+      "bytes": 44
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-deadline.jsonl",
+      "sha256": "d3d92f511b2b45208a9ccc7107e48d985207f522dbbb02484bdc9d0528d6ccc9",
+      "bytes": 19002
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/worker.json",
+      "sha256": "7550f51372f7f6498f9051af102d353403f475f66abac9cb333e88120da2bfb5",
+      "bytes": 92
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/native-closure.json",
+      "sha256": "529247433d8db96f3e41bbcc05198c9a62a10fcc13d63880846d61ecd736a172",
+      "bytes": 5412738
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-tool-ld.log",
+      "sha256": "83b2a256356bb337f057ffb453b4e32c9d5f5f96737855843feb966c59816c88",
+      "bytes": 90
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-restart-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-restart.png",
+      "sha256": "12132b9d41d3c3c857f6695d1ee8d75e3f4f8022a9f533e24a6a29d86cc482ad",
+      "bytes": 48489
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/check-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-offline-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-launch.log",
+      "sha256": "ba8efa01daae7759602d435e5e2dc66e9973585ea56fe80e112e02d3a1882f2d",
+      "bytes": 84
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-restart-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/fingerprint-before.log",
+      "sha256": "f652a11f1ae509d334a5d68e06be6205b2f686294f713a25c670f7b348b830f8",
+      "bytes": 25235
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/snapshot.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-backend-stdout.log",
+      "sha256": "abb54ee81bbfb5776d239e76048d9a74364e3ec90ce361afd5b43e41236ab14a",
+      "bytes": 46
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/installed.json",
+      "sha256": "1615cae75eac4b832c3eea1aa0753bc0a1a62ecfb837bde95af28aa0b76f1b8f",
+      "bytes": 25844
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-collection-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-group.json",
+      "sha256": "ba022086dab88de0d9a3526f30c19256329cf07ee6c008f06e7cad9f16639afb",
+      "bytes": 263
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-offline.png",
+      "sha256": "234007a742cabfc0ac6d750c114cd0aac8f7adc0fbd09e71dd29cec698c4a0d2",
+      "bytes": 48647
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/hermes-version.log",
+      "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+      "bytes": 232
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/driver.json",
+      "sha256": "6b1f5ed2cba9d5abf66c1f11519db552baf6d959249da4c96133cc3f26fa9730",
+      "bytes": 93
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/before-install-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-collection-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/public-config.log",
+      "sha256": "a26ca9547271c9a8bf5f50b85fb40fd7901a91715d9afce02a90f3b363c496c4",
+      "bytes": 463
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-sdk-path.log",
+      "sha256": "3ba87c09483737cf52e0f24936936ae207e4e5f433bc120069330c02d39a0cec",
+      "bytes": 117
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/background.log",
+      "sha256": "3817c9fd3e11827581c4db2b88d2eb37ac3bf57e55546a1d79a2a801081985bf",
+      "bytes": 1453
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-restart-group.json",
+      "sha256": "ada7010f31a06872f56cd398d329a7f86056075a2908e2c548884eb2261057bc",
+      "bytes": 269
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-ruby-version.log",
+      "sha256": "e206508cdef0a6c6b14b656b71ad9366db219b3e83e5efcf0839a50c87fd8dba",
+      "bytes": 68
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/pod-version.log",
+      "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+      "bytes": 7
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime.log",
+      "sha256": "797a978aeb146cdb1ad71ebdaf87de3334f7d3a4ac6a056f6f901495bbe37271",
+      "bytes": 19927
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-device.log",
+      "sha256": "d6216620ff28a6024a3df93ceea34c6ee94440217ac74e77b3a81d1b2077a1b4",
+      "bytes": 9423412
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preserve-app.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/native-base.json",
+      "sha256": "74823f04e1c73ee1812a43844cee3d177afef4fcd8369996256e56ff2749ada5",
+      "bytes": 64581922
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/launch.json",
+      "sha256": "611fd0ac987b98750b7faa8b6abc59c4f7acfb6d201f0caeb8fbacd8943948d1",
+      "bytes": 71
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/publication.json",
+      "sha256": "ac3770b793827b36d0665682796f3c0322af85dfa48441d4d4cd6d4c33f709e3",
+      "bytes": 5268
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-offline-group.json",
+      "sha256": "b1868ccfac8d32784292c86ddcbfa00d6f0aa9ebc9ab57bf16f0b417aaf53846",
+      "bytes": 269
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-prime-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime-resolution-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-prime-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/finished.json",
+      "sha256": "ceb4db9148caef52fffa856b5e6e3725b3be59a9acb151cea1f29aefa00bd0e0",
+      "bytes": 62
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/plist-25.log",
+      "sha256": "8f41e3d24fa39dd517c557911d8183d72052366450e2d2281764ca57a62db79c",
+      "bytes": 2275723
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-install-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/source-inputs.json",
+      "sha256": "904169203c1074b3dcd9db10764ac2553bea3c6a9dc40aa515468f65baad16ab",
+      "bytes": 8664
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/xcode-version.log",
+      "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+      "bytes": 33
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-backend.log",
+      "sha256": "a66cab7b5c403c605973ad5e0eda880ae24c238cefcb34af93b549bcde406abd",
+      "bytes": 2269
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/before-install-group.json",
+      "sha256": "41cd3a3396e61a7765f0deb7b9d298b2e459989badca665f75513252b41ad8d2",
+      "bytes": 267
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/target-settings-0.log",
+      "sha256": "66947b08f4378fb43bf4b0ad4e00ddf27165852b9988135a43dc6b33a5ebd613",
+      "bytes": 214223
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/target-settings-1.log",
+      "sha256": "0b150aa26d85bddeb2fb49d447e93f3642c8cf081daa865e473319b52677522a",
+      "bytes": 6126445
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/driver-result.json",
+      "sha256": "ce466fe90860b501243e4a7daa3ad3d775089f1f5e7d478b1877f8d2ff416774",
+      "bytes": 572
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime-resolution-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-tool-swiftc.log",
+      "sha256": "d7169a86b1252865dcd21df69011451b7e64416aac297516eb7b717d58af7c89",
+      "bytes": 94
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/build.json",
+      "sha256": "34aefb331862f6dc5462b159f17da7babf05b5242436d08b53f7b9970599071b",
+      "bytes": 58414387
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/check-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/schemes.log",
+      "sha256": "0897d1bdd06d68cea5aee4bccf597278a6b8ed41d5e9ad49962163b229831904",
+      "bytes": 3360
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-receipts.jsonl",
+      "sha256": "350280e027a44a8fed881118e804b555488a70163fe1de121a19ba39f0332aab",
+      "bytes": 6869
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/proof.json",
+      "sha256": "6d360893a88fc1a78da331d24fee650ff174fee7aa5f6183dddb2a66cb76f96f",
+      "bytes": 76880
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-run.json",
+      "sha256": "1dd4ad75ab1a4e7141ade893c17d819d939a953c7d38cd083065412d812d4e66",
+      "bytes": 30602
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/plist-23.log",
+      "sha256": "c55039872e66384026570452513b68ee5dc6a63c8c07972dc10ab44eacaffa94",
+      "bytes": 22287
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/smoke-ios-screen.mp4",
+      "sha256": "9a68ad2e3d129eeefc5d6f7e463a0391780e2531a1a263e7d313ff4ba19dfd53",
+      "bytes": 5492486
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/before-install-status.json",
+      "sha256": "fe85cceb474303eb80a5ca9a60b16d92208a8e0b38647647654b0c42447b51f7",
+      "bytes": 12
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/sdk-version.log",
+      "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+      "bytes": 5
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/export-tool-swift-frontend.log",
+      "sha256": "63caf425577bea9b8eec23ee737a981566c649dbff89e42e940159f66208941a",
+      "bytes": 102
+    }
+  ]
+}

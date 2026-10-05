@@ -1,0 +1,169 @@
+{
+  "base": "7e03a5cea9409a87823ec5a96ebc6e7bfb43d69f",
+  "state": "finished",
+  "startedAt": 1791167941.2261171,
+  "before": {
+    "at": 1791167942.394805,
+    "load": [
+      4.9736328125,
+      4.97412109375,
+      4.93701171875
+    ],
+    "idlePercent": 81.16022099447514,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 190.0 /usr/libexec/PerfPowerServices",
+      "  485     1  27.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "73756  8101  13.8 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "  489     1   8.1 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      " 1164     1   4.8 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 8101  8094   4.7 codex",
+      " 1083     1   4.5 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1092     1   2.7 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   2.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1165     1   2.0 /Applications/cmux.app/Contents/MacOS/cmux"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "c1552eca497711108d524dbdaf087b9050eebe43ea077db302f3e4fa310bd986"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "sha256": "2979874f3642cdca8838d2031021ed2cf10cf2eaa63a34c82f1ee1592f87d81d"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "85cc551bc15b55d434eb4c2ae2a10fbd7d4bb805e5f4b73cc0a2263f03d908a5"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "abdafa2d718bb1361976a24daaba8d6567368dddefb60b5c64fb9a2f6417f63e"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "13a8c2c9fdd17d9f7466943413849157d3624f435f7e1413837c0a567232d0da"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "5e58d5922483ad9d6f753f27b3dc8913c762b09393d583dd07a7a1942b8fc315"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "815ae6fc7aac12a29120686819dbe24c6486e067fe50b0298f693fc83eb2cb4c"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-publication.test.mjs",
+      "sha256": "fcdb7257e37b0629bda1543385564bdce7cf8a6b4f3674d000cced484fd9f4bb"
+    }
+  ],
+  "checks": [
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 2.540411625,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r9-final-build.log",
+        "sha256": "e3b97a60ffde1a78a178a758ba99edf94038d523064c94ee9efbab3ccbb58186",
+        "bytes": 2383
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 60.32337879200001,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r9-final-witness-unit.log",
+        "sha256": "c509ab37f66178920cd4340d8676210fe9cb8881c862460f212bf784fabb3aab",
+        "bytes": 10452
+      }
+    },
+    {
+      "label": "witness-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 554.0738537499999,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r9-final-witness-integration.log",
+        "sha256": "6d8830f6dd3ad8202f062d0a5527dae085ea95007b3e03f349af3392dc9e36ba",
+        "bytes": 9668
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs"
+      ],
+      "status": 1,
+      "durationSeconds": 462.842335208,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r9-final-export.log",
+        "sha256": "6714a18f7303eb3bea8f10baaec98f7c7773cf1da41476f9d5fd72c56ac56aca",
+        "bytes": 12552
+      }
+    }
+  ],
+  "finishedAt": 1791169022.199857,
+  "after": {
+    "at": 1791169023.3684978,
+    "load": [
+      4.89599609375,
+      5.27734375,
+      5.1650390625
+    ],
+    "idlePercent": 83.9622641509434,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 195.7 /usr/libexec/PerfPowerServices",
+      "  485     1  24.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  489     1   5.1 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      " 1083     1   4.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   3.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   2.7 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   1.1 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "56600 56547   1.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "18428     1   0.6 /usr/libexec/diagnosticd",
+      "  800     1   0.5 /usr/libexec/wifip2pd"
+    ]
+  },
+  "inputsUnchanged": true,
+  "status": 1
+}

@@ -1,0 +1,6 @@
+{
+  "suitePid": 46778,
+  "rustRunnerPid": 47496,
+  "parallelDirectory": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/snapback4-test.ch4kRz",
+  "ownership": "Observed via the launched suite process tree and its Rust child stdout descriptor; this is this run only. Temporary logs are collected into the final suite log before normal cleanup."
+}

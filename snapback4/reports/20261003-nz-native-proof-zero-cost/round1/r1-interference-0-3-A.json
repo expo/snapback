@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-0-3-A",
+  "block": 0,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791092184.138588,
+  "endedAt": 1791092228.715777,
+  "seconds": 44.577026124999975,
+  "status": 0,
+  "childCpuSeconds": 19.270337999999995,
+  "before": {
+    "at": 1791092184.136796,
+    "load": [
+      29.59033203125,
+      45.8916015625,
+      44.07080078125
+    ],
+    "idlePercent": 70.12700165654334,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 173.6 /usr/libexec/PerfPowerServices",
+      "  661     1  82.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "45250  1160  80.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      " 1160     1  19.3 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  442     1  18.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "  454     1   5.4 /usr/libexec/opendirectoryd",
+      "    1     0   5.0 /sbin/launchd",
+      "45569 26217   3.5 /Users/ccheever/.local/bin/fleet",
+      "  417     1   3.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "  479     1   2.5 /usr/sbin/notifyd"
+    ]
+  },
+  "after": {
+    "at": 1791092229.877307,
+    "load": [
+      17.533203125,
+      40.40625,
+      42.142578125
+    ],
+    "idlePercent": 70.15995587424159,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 192.1 /usr/libexec/PerfPowerServices",
+      "  661     1 156.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "46450 99075  30.4 (facetimemessages)",
+      "46451 56547  28.9 (facetimemessages)",
+      "46452 59730  24.7 (managedappdistri)",
+      "46453 60455  24.3 (managedappdistri)",
+      " 1160     1   3.1 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      " 1164     1   1.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  442     1   1.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1495  1166   1.4 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+    ]
+  },
+  "smoke": null,
+  "exportedAt": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0.0,
+  "waitStatus": null,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-0-3-A.log",
+      "sha256": "0bdb45e117ccf2e0511e8e607cad829d8060bd2e48e86004319587d7be6f5272",
+      "bytes": 20794
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-0-3-A-host.jsonl",
+      "sha256": "27477620a2673e26522cb02ab8d3810e58a7e5fb24ba8029f0805580f21f2ec7",
+      "bytes": 10262824
+    }
+  ]
+}

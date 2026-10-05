@@ -1,0 +1,158 @@
+{
+  "scope": "all",
+  "base": "e98cf0f089254c7a6e9e6d50e8d1a55aa165d496",
+  "state": "finished",
+  "startedAt": 1791184720.7479749,
+  "before": {
+    "at": 1791184721.929584,
+    "load": [
+      3.72509765625,
+      4.07470703125,
+      5.07763671875
+    ],
+    "idlePercent": 82.33351678591085,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1  66.8 /usr/libexec/PerfPowerServices",
+      "15194 96593  51.0 /Users/ccheever/.local/bin/fleet",
+      "  485     1  15.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "15195 96189   4.2 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   3.3 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   3.3 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   2.0 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  454     1   1.9 /usr/libexec/opendirectoryd",
+      "  793     1   1.8 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "96189 96181   1.3 codex"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "28651c6b9073fd1b555a9821882aadd057bf14839d196b515312d0812ec91b03"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "e5b1d1d046f5ccdda7e32e0ea24d5ad4afa4c886807ffdfd04538bd4bdfb5163"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "d2144d22d3ed3a6fe82683f6879a8d1c53ae0e0a720ff18c85833d352d9ab944"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "abb5f9b49727c82720524c5fb2d11c4c39b01f6dde7fc6e6235a2ca952763c5e"
+    }
+  ],
+  "checks": [
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 5.6685722919999995,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-build.log",
+        "sha256": "8eb32c71e9029315366470b0c648ffc75f788805d63c29b02b4095a1bdfb8e7e",
+        "bytes": 2589
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 61.294609,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-witness-unit.log",
+        "sha256": "a33c550bab1c410e6e9299dc40b0948f298eb7a2bd37a932b2bb0fad323f36be",
+        "bytes": 10684
+      }
+    },
+    {
+      "label": "witness-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 555.440099709,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-witness-integration.log",
+        "sha256": "f3eca34d02c6867a52da3abf96cca85f9b7f412cc315d3b20ce6532257b2d5f6",
+        "bytes": 9668
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 757.984965125,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r11-focused-export.log",
+        "sha256": "84a7f553c6619c8dbdfbd020895c72ee7e0a53f0e8f029523bae75273e8a75ed",
+        "bytes": 18394
+      }
+    }
+  ],
+  "finishedAt": 1791186102.3273401,
+  "after": {
+    "at": 1791186103.518719,
+    "load": [
+      6.0146484375,
+      8.6416015625,
+      7.6533203125
+    ],
+    "idlePercent": 84.32671081677704,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1 195.8 /usr/libexec/PerfPowerServices",
+      " 1924     1  24.9 /Applications/Dropbox.app/Contents/MacOS/Dropbox",
+      "  485     1  19.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "20320 20316   6.7 /Users/ccheever/.local/bin/claude",
+      " 1083     1   4.6 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   3.2 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1388  1166   2.5 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "  793     1   2.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1092     1   2.0 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "96593 96587   1.8 sshd-session: ccheever@notty"
+    ]
+  },
+  "inputsUnchanged": false,
+  "status": 1
+}

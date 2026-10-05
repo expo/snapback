@@ -1,0 +1,85 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "e7e325b7d13ccbe527c29455f104b7a5b16d92c8",
+  "state": "finished",
+  "startedAt": 1791128951.3500721,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r4-full-suite-final.log",
+  "before": {
+    "at": 1791128952.5213299,
+    "load": [
+      8.3701171875,
+      6.78662109375,
+      9.3701171875
+    ],
+    "idlePercent": 75.8046614872364,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 146.6 /usr/libexec/PerfPowerServices",
+      "  485     1  13.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  541     1   8.3 /usr/libexec/airportd",
+      "  972 92868   4.5 (snapback4)",
+      "  869     1   3.9 /System/Library/CoreServices/WiFiAgent.app/Contents/MacOS/WiFiAgent",
+      "  900 14846   3.5 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "  910 93122   2.8 /private/tmp/sb4-fy-fixture-races.Z1v1cq/snapback4/target/debug/snapback4",
+      "92868 92867   2.5 /private/tmp/sb4-fy-fixture-races.Z1v1cq/node-v24.13.1-darwin-arm64/bin/node",
+      "  417     1   2.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      " 1083     1   2.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+    ]
+  },
+  "status": 1,
+  "finishedAt": 1791132092.191477,
+  "durationSeconds": 3139.6638807500003,
+  "after": {
+    "at": 1791132093.6865668,
+    "load": [
+      84.2822265625,
+      91.4912109375,
+      63.5029296875
+    ],
+    "idlePercent": 25.207296849087893,
+    "compilers": [
+      "81668 60381   0.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "83040 81668  90.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "85271 82257   0.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "87441 87440   7.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+      "87469 87441  43.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87478 87441  47.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87491 87441  50.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87494 87441  48.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87497 87441  44.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87498 87441  46.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87519 87441  43.6 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87522 87441  38.9 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87523 87441  41.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87524 87441  40.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87525 87441  47.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87527 87441  39.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87530 87441  26.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87537 87441  24.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87540 87441  26.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87543 87441  25.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87544 87441  19.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "87438 85271 116.2 /Users/ccheever/projects/ibex-split-work/ibex-final/target/debug/deps/ibex2-18c640f8d4602ab7",
+      "83040 81668  90.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87491 87441  50.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87494 87441  48.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87525 87441  47.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87478 87441  47.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87498 87441  46.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87497 87441  44.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87519 87441  43.6 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+      "87469 87441  43.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r4-full-suite-final.log",
+    "sha256": "ad46b02a66ae56259dce1cb4a16627a9cce274ccecaf3a123937d51a03add9e9",
+    "bytes": 1900052
+  },
+  "inputsUnchanged": true
+}

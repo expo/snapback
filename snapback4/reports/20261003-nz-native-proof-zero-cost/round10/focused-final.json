@@ -1,0 +1,142 @@
+{
+  "scope": "maintenance",
+  "base": "7a1899daa813fab1dd4cb147029043dfb9f10c19",
+  "state": "finished",
+  "startedAt": 1791178456.936655,
+  "before": {
+    "at": 1791178458.110549,
+    "load": [
+      5.56591796875,
+      5.5224609375,
+      5.87060546875
+    ],
+    "idlePercent": 73.86990077177508,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 181.4 /usr/libexec/PerfPowerServices",
+      "17770  1160  73.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      " 1160     1  22.0 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  485     1  13.9 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "17822 60455  10.5 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/FaceTimeMessageStore.framework/facetimemessagestored",
+      " 1924     1   8.7 /Applications/Dropbox.app/Contents/MacOS/Dropbox",
+      "17815 72050   3.3 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   2.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "    1     0   2.0 /sbin/launchd",
+      " 1164     1   1.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub"
+    ]
+  },
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "ed50ca4d80edf93cd63b69b90eecf1104942af6e37b39e935d22363a8056a4bb"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "sha256": "82db9ffa40c0b16684360769c5000fefc36893c2d249ef8b58d8680bf078d1dd"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "371335e5765533b830fc453de7ede2245f1816b8b10d3d4147c351e9f63e6229"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "dd94c07abb91cd2dbd8db8c1385a20d2dc1dcebbc41d22528c80725367554679"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "80d03cf2f794131605d4b8458510b952c2e11d2420e908f3e855f2303fff33ac"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "dfd6e5f2d8705dd3c79c75024c52a90e3566bc5ea90e12000bd50fd1babfd84b"
+    }
+  ],
+  "checks": [
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 4.310202125,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-final-build.log",
+        "sha256": "6ce56ab160933206cda94da1fd4625b73e63a1195d4fc0129ced74e7ae184c45",
+        "bytes": 2488
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 59.894745833,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-final-witness-unit.log",
+        "sha256": "1a6a4843c3ec40d3331197744f15250556c564206c2a6041eacc3767ad3194e3",
+        "bytes": 10452
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 566.033728958,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r10-focused-final-export.log",
+        "sha256": "bd75cfefa3d0f86cb7c6b65fee0ec1ec01a49b68e4d547a82df63fefa1db4c3c",
+        "bytes": 15456
+      }
+    }
+  ],
+  "finishedAt": 1791179088.355401,
+  "after": {
+    "at": 1791179089.530881,
+    "load": [
+      5.3779296875,
+      5.474609375,
+      5.67236328125
+    ],
+    "idlePercent": 84.36807095343681,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 190.0 /usr/libexec/PerfPowerServices",
+      "  485     1  17.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "91055 64989  13.1 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/Frameworks/ManagedAppDistribution.framework/Support/managedappdistributiond",
+      "91056 99075  12.5 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/Frameworks/ManagedAppDistribution.framework/Support/managedappdistributiond",
+      "91040     1   4.0 sshd-session: ccheever [priv]",
+      "  793     1   3.8 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1083     1   3.2 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "  454     1   2.9 /usr/libexec/opendirectoryd",
+      " 1164     1   2.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   2.0 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService"
+    ]
+  },
+  "inputsUnchanged": true,
+  "status": 0
+}

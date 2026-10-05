@@ -1,0 +1,221 @@
+{
+  "at": "2026-10-04T09:09:09.528Z",
+  "source": "abafa9af9cd58e30a3b0dc6461cd4ab339c3cb83; core/device/build-xcframework script match this main commit",
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/build-xcframework.sh",
+  "rationale": "The existing audited NX fixtures ship an engine that rejects source-write-reservations-v1 from merged main. Replace only the two compiled native engine slices and associated framework headers/metadata from the merged source. Every other installed dependency byte and mode, including all executable plugin/JS code, remains in the previously audited snapshot. No audit predicate changes.",
+  "framework": {
+    "sha256": "a9b5b5d133f5510d34ece55c9f2e9b3b5f504b40f12b203dfde2ac3934bdb334",
+    "bytes": 14136955,
+    "files": [
+      {
+        "path": "Info.plist",
+        "mode": 420,
+        "type": "file",
+        "bytes": 1257,
+        "sha256": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d"
+      },
+      {
+        "path": "ios-arm64",
+        "mode": 493,
+        "type": "directory"
+      },
+      {
+        "path": "ios-arm64/Headers",
+        "mode": 448,
+        "type": "directory"
+      },
+      {
+        "path": "ios-arm64/Headers/module.modulemap",
+        "mode": 420,
+        "type": "file",
+        "bytes": 61,
+        "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+      },
+      {
+        "path": "ios-arm64/Headers/snapback4.h",
+        "mode": 420,
+        "type": "file",
+        "bytes": 2204,
+        "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+      },
+      {
+        "path": "ios-arm64/libsnapback4_device.a",
+        "mode": 420,
+        "type": "file",
+        "bytes": 7068960,
+        "sha256": "ef612c8e2cd035d7617ff1c348c9a0c15c4969fa1cc267bc007c074334f61460"
+      },
+      {
+        "path": "ios-arm64-simulator",
+        "mode": 493,
+        "type": "directory"
+      },
+      {
+        "path": "ios-arm64-simulator/Headers",
+        "mode": 448,
+        "type": "directory"
+      },
+      {
+        "path": "ios-arm64-simulator/Headers/module.modulemap",
+        "mode": 420,
+        "type": "file",
+        "bytes": 61,
+        "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+      },
+      {
+        "path": "ios-arm64-simulator/Headers/snapback4.h",
+        "mode": 420,
+        "type": "file",
+        "bytes": 2204,
+        "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+      },
+      {
+        "path": "ios-arm64-simulator/libsnapback4_device.a",
+        "mode": 420,
+        "type": "file",
+        "bytes": 7062208,
+        "sha256": "60d807f3a1a3473c6411690032b7c37d64c4da310e6a786a949353902ac59e9c"
+      }
+    ]
+  },
+  "records": [
+    {
+      "starter": "plain",
+      "project": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B",
+      "pluginBefore": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+      "pluginAfter": "a72be4da013d6139b0191bd28cd5ca961067f1ec4f19ca2c1f3280c5b7b33587",
+      "dependencyBefore": "bbc47944fe65bc071b1af1ae81c6ab85bf7044e0ef7362ae7022b7d258247040",
+      "dependencyAfter": "88cb9c5ff68a14874fbb5c659deaa42e98ad8e4cc3198c3a686b1eb5c55616a2",
+      "beforeInventory": {
+        "sha256": "2646387830a14e4a17a03a5cfc747d9e2fae82d771b5ac13c3dbc02b5f619744",
+        "bytes": 4835013
+      },
+      "afterInventory": {
+        "sha256": "6976284c6edecd8da0a11481fcf22296fc5ed48e877743476deae9826a20e059",
+        "bytes": 4835013
+      },
+      "delta": [
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+            "mode": 420,
+            "type": "file",
+            "bytes": 1257,
+            "sha256": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+            "mode": 420,
+            "type": "file",
+            "bytes": 1257,
+            "sha256": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d"
+          }
+        },
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 6958896,
+            "sha256": "291060a2b22c1c5bbd7c494a676dd49a0f6ce4eeec45a39545167445ccc6fed1"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 7062208,
+            "sha256": "60d807f3a1a3473c6411690032b7c37d64c4da310e6a786a949353902ac59e9c"
+          }
+        },
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 6965648,
+            "sha256": "fdb9b85c6387f46d587693899b638c58ed044f72a8d63f1b2a57f3fb91dd8e5a"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 7068960,
+            "sha256": "ef612c8e2cd035d7617ff1c348c9a0c15c4969fa1cc267bc007c074334f61460"
+          }
+        }
+      ]
+    },
+    {
+      "starter": "social",
+      "project": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "pluginBefore": "e3073226584417eec6b677cba0d0d3f70c3d47a8754d62192b41fddefb7d9880",
+      "pluginAfter": "a72be4da013d6139b0191bd28cd5ca961067f1ec4f19ca2c1f3280c5b7b33587",
+      "dependencyBefore": "433329043c48175e2c0003a7ea354b18eab15afaf31a162211e6e41bb5e38a50",
+      "dependencyAfter": "ba0cacfc0372e6218dfe8b71d652855ca0f0d98d5cf3260336d61a9f368ebc50",
+      "beforeInventory": {
+        "sha256": "485be61bbb0256bd6ad1224df12f606866aac681c22153cfcf78e7a6d86cccce",
+        "bytes": 7286771
+      },
+      "afterInventory": {
+        "sha256": "251b44b6e6a51620237fc5bb69ea384e7326555dd6dfdae10391e68334c5221e",
+        "bytes": 7286771
+      },
+      "delta": [
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+            "mode": 420,
+            "type": "file",
+            "bytes": 1257,
+            "sha256": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+            "mode": 420,
+            "type": "file",
+            "bytes": 1257,
+            "sha256": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d"
+          }
+        },
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 6958896,
+            "sha256": "291060a2b22c1c5bbd7c494a676dd49a0f6ce4eeec45a39545167445ccc6fed1"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 7062208,
+            "sha256": "60d807f3a1a3473c6411690032b7c37d64c4da310e6a786a949353902ac59e9c"
+          }
+        },
+        {
+          "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+          "expected": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 6965648,
+            "sha256": "fdb9b85c6387f46d587693899b638c58ed044f72a8d63f1b2a57f3fb91dd8e5a"
+          },
+          "actual": {
+            "path": "node_modules/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+            "mode": 420,
+            "type": "file",
+            "bytes": 7068960,
+            "sha256": "ef612c8e2cd035d7617ff1c348c9a0c15c4969fa1cc267bc007c074334f61460"
+          }
+        }
+      ]
+    }
+  ]
+}

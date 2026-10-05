@@ -1,0 +1,45 @@
+{
+  "at": 1791105095.1551628,
+  "binary": {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-r2-debug",
+    "sha256": "41149a80268c1b29625a4d1becc35713987d03b7b3a10e1dd094c0ff5d13204b",
+    "bytes": 75799760
+  },
+  "profile": "dev/unoptimized",
+  "design": "Sequential plain engine-prime/warm then social engine-prime/warm after the retained failed old-engine plain prime. Audited framework and CLI integration change native keys, so priming is separate from warm samples. No native cache cleared; warm changes only JavaScript. No quiet admission.",
+  "dependencies": "Existing audited NX 0.4.11 fixtures, Expo 57.0.22, with merged-source native engine framework only. Complete inventory delta audited and pinned in framework-audit.json; no audit bypass. Does not qualify the published 0.4.12 dependency tree.",
+  "environment": {
+    "PATH": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.codex/packages/standalone/releases/0.160.0-aarch64-apple-darwin/codex-path:/Users/ccheever/.local/bin:/Users/ccheever/.bun-1.3.12/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/Users/ccheever/.bun-1.3.12/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.grok/bin:/Users/ccheever/.opencode/bin:/Users/ccheever/.local/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.codex/tmp/arg0/codex-arg00k7toX:/Users/ccheever/.codex/packages/standalone/releases/0.160.0-aarch64-apple-darwin/codex-path:/Users/ccheever/np-tools/node/bin:/Users/ccheever/np-tools/bun/bin:/Users/ccheever/.cargo/bin:/Users/ccheever/.local/bin",
+    "XDG_STATE_HOME": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r2-state",
+    "SNAPBACK4_SMOKE_DEVICE_PREFIX": "sb4-nz-",
+    "SNAPBACK4_BIN": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-r2-debug"
+  },
+  "projects": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B",
+      "package": {
+        "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/package.json",
+        "sha256": "ff0b248cd7beb16e9b085e91e7fdf11f30c04ad3cc220efcdf3e7a64d6d4c742",
+        "bytes": 943
+      },
+      "lock": {
+        "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/package-lock.json",
+        "sha256": "5868be7716f7341d0ff05daf7fdb7de9c67344cebbed97d9e8992cdf66c102b4",
+        "bytes": 244466
+      }
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+      "package": {
+        "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/package.json",
+        "sha256": "6190cb3d961b4cf30d40d883ff4f29dd77c5d861243a77d2779126428c0378cf",
+        "bytes": 1172
+      },
+      "lock": {
+        "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/package-lock.json",
+        "sha256": "6b1e695d024687ae2d8d506953a4a4309adf85820e89bcd321e57a9777919458",
+        "bytes": 295725
+      }
+    }
+  ]
+}

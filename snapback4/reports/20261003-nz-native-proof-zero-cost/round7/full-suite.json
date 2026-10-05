@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "d488a5f7db8671775373b276581c7759360999f7",
+  "state": "finished",
+  "startedAt": 1791151800.146977,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r7-full-suite.log",
+  "before": {
+    "at": 1791151801.314052,
+    "load": [
+      4.2451171875,
+      5.0,
+      4.97607421875
+    ],
+    "idlePercent": 83.33333333333333,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 167.4 /usr/libexec/PerfPowerServices",
+      "  485     1  21.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  489     1   5.4 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      "49769 22604   5.1 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   3.5 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "59733 59730   3.3 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/CoreServices/SpringBoard.app/SpringBoard",
+      "64996 64989   3.2 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/CoreServices/SpringBoard.app/SpringBoard",
+      " 1164     1   2.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  661     1   2.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "22604 22597   2.3 codex"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791154418.2696419,
+  "durationSeconds": 2616.942620667,
+  "after": {
+    "at": 1791154419.439687,
+    "load": [
+      6.03515625,
+      5.17041015625,
+      8.4208984375
+    ],
+    "idlePercent": 83.81948266373142,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 198.1 /usr/libexec/PerfPowerServices",
+      "  485     1  14.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 1164     1   2.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1083     1   2.5 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1160     1   2.0 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      " 1092     1   1.6 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  793     1   1.1 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "  800     1   0.6 /usr/libexec/wifip2pd",
+      "  791     1   0.5 /usr/libexec/trustd",
+      "    1     0   0.4 /sbin/launchd"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r7-full-suite.log",
+    "sha256": "dffdc8fe190b2876d03f2424617a0d5c51a9a413d62be5f965bbf7ead768a98c",
+    "bytes": 1902663
+  },
+  "inputsUnchanged": true
+}

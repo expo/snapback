@@ -24,7 +24,7 @@ fn shipped_files() -> BTreeSet<String> {
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
     // The builder's own Expo inputs and generated native-proof outputs.
-    "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json",
+    "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json", "preparation-deadline.json",
     "artifacts/native-smoke/build.json",
     "snapback/schema.q", "snapback/social.q", "snapback/jobs.q", "snapback/*.q",
     "snapback/server.ts", "snapback/worker.ts", "snapback/worker.mts",

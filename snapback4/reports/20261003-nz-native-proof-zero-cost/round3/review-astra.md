@@ -1,0 +1,21 @@
+**NOT READY** for `38d9bfe0de → 1c589336fa`. Two blocking findings reproduced on eb1000.
+
+1. **P1 — Retention runs outside owner-death custody and deadlines.** The guardian calls `recovery::cleanup` before spawning its driver, and again after the driver exits. Cleanup takes a blocking lock and launches `gzip` through unbounded `Command::output()`. These operations have no peer watchdog or cancellation deadline.
+
+   With six completed fixture runs and a blocked compression child, SIGTERM did not interrupt the guardian; SIGKILL left the child alive under PID 1. I then killed that recorded child. This requires only one watchdog’s death. A stalled compression can also hold the background lease indefinitely, preventing newer proofs. Retention needs bounded, cancellable process custody. See [initial cleanup](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/background.rs:180), [final cleanup](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/background.rs:233), and [compression](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/recovery.rs:366).
+
+2. **P1 — A newer successful export can leave status reporting an older pass.** Publication commits before scheduling updates `latest.json`. If that write fails, scheduling logs failure but preserves the old pointer. Status and doctor trust that pointer without checking the current publication.
+
+   Starting with a previous-pass fixture, I injected a latest-pointer write failure. The wrapper returned **0**, `dist/` contained the new export, and `witness status --wait` returned **0 with the previous pass**. It prints the old hash, but its successful exit does not establish proof of the latest export. Bind reporting to the publication generation and fail closed when its handoff is missing. See [scheduling](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/background.rs:85) and [status lookup](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/background.rs:358).
+
+3. **P2 limitation — Log activity can extend a genuinely stalled build to 60 minutes.** Any increasing accepted log length renews the idle budget; repeated retry or heartbeat messages qualify without build advancement. The hard cap works, and foreground preparation retains its fixed 900-second limit. The guide describes log growth accurately, but “900 seconds without progress” must not imply detection of semantic build progress. See [deadline renewal](/home/ccheever/sb4-intent/review-nz-r01-astra/snapback4/crates/snapback4/src/verbs/witness/preparation_deadline.rs:28).
+
+Normal proof serialization, supersession, and simulator selection preserve shared leases and recorded ownership. WD’s group-drain implementation is unchanged and its Linux controls pass. The custody defect is in NZ’s surrounding retention work.
+
+The measurements recompute correctly: **16 passing exports**, **3.07–4.64 s** background returns, and interference medians **4.47% cached / 0.53% cold**. ABBA is adequate for the report’s limited, descriptive busy-host observations. Two export samples per arm and three interference blocks per condition do not establish general interference bounds; the workload windows also exclude simulator boot. The report acknowledges these limitations.
+
+README, guide, and LLP §15 correctly distinguish publication from native proof and remove the cost-adjacent opt-out advice. Their latest-result and overall custody/bounding promises require findings 1–2 to be fixed.
+
+Linux checks passed: **55 witness units, 112 guide tests, 22 init tests, 31 witness integration tests, and 17 JavaScript tests**; **13 Mac-only controls skipped**. Initial scratch setup failures were resolved before these runs. Darwin QoS, actual CoreSimulator behavior, and real sleep/wake require Mac execution. I relied on the lane’s recorded Mac evidence; real sleep/wake remains unexercised there.
+
+The scratch worktree was deleted. The lane is unchanged, nothing was pushed, and no Mac was contacted.

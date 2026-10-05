@@ -73,14 +73,20 @@ test('npm bin symlink really exports, preserves export failure and honors opt-ou
   try {
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
     const expo = path.join(root, 'node_modules/expo/bin'); fs.mkdirSync(expo, { recursive: true });
-    fs.writeFileSync(path.join(expo, 'cli'), `require('node:fs').writeFileSync('export-ran', JSON.stringify(process.argv.slice(2))); process.exit(Number(process.env.EXPORT_STATUS || 0));`);
+    fs.writeFileSync(path.join(expo, 'cli'), `const fs=require('node:fs'),path=require('node:path');fs.writeFileSync('export-ran',JSON.stringify(process.argv.slice(2)));if(process.env.EXPORT_STATUS!=='0')process.exit(Number(process.env.EXPORT_STATUS));const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'bundle.hbc'),'fixture');fs.writeFileSync(path.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle.hbc'}}}));`);
+    const tools=path.join(root,'bin');fs.mkdirSync(tools);
+    fs.symlinkSync(new URL('../bin/snapback4.js',import.meta.url).pathname,path.join(tools,'snapback4'));
     const bin = path.join(root, 'export-bin'); fs.symlinkSync(new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname, bin);
-    const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
+    const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary, PATH: tools+':'+process.env.PATH, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
     const success = invoke(0); assert.equal(success.status, 0, success.stderr);
     assert.match(success.stdout, /native smoke skipped: SNAPBACK4_NATIVE_SMOKE=off/);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'export-ran'))), ['export', '--platform', 'ios', '--dump-assetmap']);
-    const failed = invoke(7); assert.equal(failed.status, 7); assert.equal(failed.stdout, '');
-    assert.equal(fs.existsSync(path.join(root, 'artifacts')), false);
+    const args=JSON.parse(fs.readFileSync(path.join(root,'export-ran')));
+    assert.deepEqual(args.slice(0,5),['export','--platform','ios','--dump-assetmap','--output-dir']);
+    assert.ok(args[5].endsWith('/export')&&!args[5].endsWith('/dist'));
+    const marker=fs.readFileSync(path.join(root,'dist/.snapback4-publication.json'),'utf8');
+    assert.equal(JSON.parse(marker).mode,'skipped');
+    const failed = invoke(7); assert.equal(failed.status, 7); assert.match(failed.stdout, /native smoke skipped/);
+    assert.equal(fs.readFileSync(path.join(root,'dist/.snapback4-publication.json'),'utf8'),marker,'failed private export preserves current publication');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -177,6 +183,9 @@ test('config file references bind excluded source bytes and refuse external path
 
 test('retention keeps five completed runs, compresses older receipts and leaves active runs alone', async () => {
   const { retainEvidence } = await import('../../snapback4-expo/export-ios.mjs');
+  const {spawn}=await import('node:child_process');
+  const {once}=await import('node:events');
+  let holder,exited;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-retention-'));
   try {
     for (let i = 1; i <= 8; i++) {
@@ -184,14 +193,22 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
       fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), JSON.stringify({ exitStatus: 1, ...(i !== 2 ? { endedAt: 1 } : {}) }));
       fs.writeFileSync(path.join(dir, 'smoke-ios-screen.mp4'), 'video');
       if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
-      if (i !== 2) retainEvidence(root, dir, binary);
+      if (i === 2) {
+        holder=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(dir,'export.lock'),path.join(root,'active-held')],{stdio:['pipe','ignore','inherit']});
+        exited=once(holder,'exit');const end=Date.now()+5000;
+        while(!fs.existsSync(path.join(root,'active-held'))){assert.ok(Date.now()<end);await new Promise(r=>setTimeout(r,10));}
+      } else retainEvidence(root, dir, binary);
     }
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-run.json.gz')), true);
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-screen.mp4')), false);
     assert.equal(fs.readFileSync(path.join(root, '1-123/proof.json.gz'), 'utf8'), 'already archived before interruption');
     assert.equal(fs.existsSync(path.join(root, '2-123/smoke-ios-screen.mp4')), true);
     assert.equal(fs.existsSync(path.join(root, '4-123/smoke-ios-screen.mp4')), true);
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+    holder.stdin.end();await exited;holder=null;
+    assert.equal(retainEvidence(root,undefined,binary),true);
+    assert.equal(fs.existsSync(path.join(root,'2-123')),false,'ownerless unfinished run is repaired after its real lease exits');
+    assert.ok(fs.existsSync(path.join(root,'1-123/smoke-ios-run.json.gz')),'compressed legacy completion survives later discovery');
+  } finally { if(holder){holder.stdin.end();await exited;} fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('wrapper forwards both signals and waits for child cleanup before returning signal status', async () => {

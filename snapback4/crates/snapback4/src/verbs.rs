@@ -715,6 +715,7 @@ pub fn doctor(options: &Options) -> i32 {
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
+    if let Some(summary) = witness::background::doctor_summary(&project.root) { lines.push(summary); }
     lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
     match crate::dev_worker::declared(&project) {
         Ok(workers) => for (name, path) in workers { lines.push(format!("worker    {name}: {} (dev and serve)", path.display())); },

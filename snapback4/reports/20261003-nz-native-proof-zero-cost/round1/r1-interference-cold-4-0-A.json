@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-cold-4-0-A",
+  "condition": "cold-build",
+  "block": 4,
+  "index": 0,
+  "arm": "A",
+  "startedAt": 1791094294.260159,
+  "endedAt": 1791094338.599939,
+  "seconds": 44.339694334000114,
+  "status": 0,
+  "childCpuSeconds": 19.608019000000013,
+  "before": {
+    "at": 1791094294.2567308,
+    "load": [
+      4.953125,
+      11.9755859375,
+      21.69970703125
+    ],
+    "idlePercent": 79.81090100111234,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 197.7 /usr/libexec/PerfPowerServices",
+      "  478     1   1.3 /usr/sbin/bluetoothd",
+      " 1164     1   1.2 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   1.1 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  793     1   1.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1052     1   0.9 /usr/libexec/intelligentroutingd",
+      "  912     1   0.8 /usr/libexec/sharingd",
+      "  941     1   0.8 /usr/libexec/nearbyd",
+      "  862     1   0.7 /usr/libexec/rapportd",
+      "  800     1   0.6 /usr/libexec/wifip2pd"
+    ]
+  },
+  "after": {
+    "at": 1791094339.76561,
+    "load": [
+      4.88427734375,
+      10.99267578125,
+      20.8359375
+    ],
+    "idlePercent": 78.03532008830022,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 186.0 /usr/libexec/PerfPowerServices",
+      "92248  1160  81.6 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      "99129 99075  77.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "18428     1  51.3 /usr/libexec/diagnosticd",
+      "99102 99075  38.9 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/locationd",
+      " 1160     1  23.0 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "  130 99075  14.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/Frameworks/MapKit.framework/XPCServices/com.apple.MapKit.SnapshotService.xpc/com.apple.MapKit.SnapshotService",
+      " 4175 99075   9.1 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/Applications/Maps.app/PlugIns/GeneralMapsWidget.appex/GeneralMapsWidget",
+      " 1164     1   2.4 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "99072     1   2.0 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost"
+    ]
+  },
+  "smoke": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "waitStatus": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-4-0-A.log",
+      "sha256": "5aacd77ca3deee4c500ce45d101a891f93035d936d4aec1f274b4f6b4bc2ea92",
+      "bytes": 20776
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-4-0-A-host.jsonl",
+      "sha256": "3df9072e697137a4f486a2af64d529549251d17c446057484c74dd2907448e5a",
+      "bytes": 9783004
+    }
+  ]
+}

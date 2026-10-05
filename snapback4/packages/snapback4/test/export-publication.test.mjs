@@ -18,10 +18,11 @@ function fixture() {
   for (let i = 2; i <= 6; i++) {
     const newer = path.join(root, `runs/${i}-123`); fs.mkdirSync(newer);
     fs.writeFileSync(path.join(newer, 'finished.json'), '{}');
+    fs.writeFileSync(path.join(newer, 'result.json'), JSON.stringify({state:'skipped'}));
   }
   const proof = JSON.stringify({ exported: { inventory: inventory(source) } });
   fs.writeFileSync(path.join(dir, 'proof.json'), proof);
-  fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), JSON.stringify({ exitStatus: 0, proof: { sha256: hash(proof) } }));
+  fs.writeFileSync(path.join(dir, 'smoke-ios-run.json'), JSON.stringify({ exitStatus: 0, endedAt: 1, proof: { sha256: hash(proof) } }));
   return { root, dir, source };
 }
 const publish = (source, root, lease) => spawnSync(process.execPath, [shim, 'witness', 'export-publish', source, path.join(root, 'dist')], {

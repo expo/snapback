@@ -1,0 +1,170 @@
+{
+  "at": 1791078329.293078,
+  "commands": [
+    {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "output": "Darwin MacMini-Apt101-M5-A 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64"
+    },
+    {
+      "command": [
+        "sw_vers"
+      ],
+      "output": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434"
+    },
+    {
+      "command": [
+        "sysctl",
+        "hw.model",
+        "machdep.cpu.brand_string",
+        "hw.memsize",
+        "hw.ncpu",
+        "hw.nperflevels",
+        "hw.perflevel0.name",
+        "hw.perflevel0.physicalcpu",
+        "hw.perflevel1.name",
+        "hw.perflevel1.physicalcpu"
+      ],
+      "output": "hw.model: Mac17,16\nmachdep.cpu.brand_string: Apple M5 Pro\nhw.memsize: 68719476736\nhw.ncpu: 18\nhw.nperflevels: 2\nhw.perflevel0.name: Super\nhw.perflevel0.physicalcpu: 6\nhw.perflevel1.name: Performance\nhw.perflevel1.physicalcpu: 12"
+    },
+    {
+      "command": [
+        "xcodebuild",
+        "-version"
+      ],
+      "output": "Xcode 27.0\nBuild version 27A266a"
+    },
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "output": "v24.18.0"
+    },
+    {
+      "command": [
+        "bun",
+        "--version"
+      ],
+      "output": "1.3.12"
+    },
+    {
+      "command": [
+        "uptime"
+      ],
+      "output": "18:45  up 1 day, 14:57, 13 users, load averages: 15.12 25.27 15.59"
+    }
+  ],
+  "cpuTopology": [
+    {
+      "logical-cpu-id": 0,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 1,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 2,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 3,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 4,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 5,
+      "logical-cluster-id": 0,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 6,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 7,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 8,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 9,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 10,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 11,
+      "logical-cluster-id": 1,
+      "cluster-type": "M",
+      "compatible": "apple,sawtooth\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 12,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 13,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 14,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 15,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 16,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    },
+    {
+      "logical-cpu-id": 17,
+      "logical-cluster-id": 2,
+      "cluster-type": "P",
+      "compatible": "apple,everest\u0000ARM,v8"
+    }
+  ]
+}

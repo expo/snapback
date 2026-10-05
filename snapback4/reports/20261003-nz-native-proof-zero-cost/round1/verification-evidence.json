@@ -1,0 +1,127 @@
+[
+  {
+    "path": "/tmp/sb4-nz-r1-affected-js.log",
+    "sha256": "04ba142200151abff835e63709794cc04be0cec63cf65c574703ed9c34280283",
+    "bytes": 4331
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-cold-interference.log",
+    "sha256": "38700eec2dd3a2826a054df9cafdd281734abc798c8dce723add256492d92ecc",
+    "bytes": 2543
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-deadline-tests-2.log",
+    "sha256": "df20b3d94b4e23a5f7900ee37cfe06e96c9d36d602e8e3dc7102392734782006",
+    "bytes": 3042
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-deadline-tests.log",
+    "sha256": "45c17d73a05c5cc5d17af4dca7a6a504c0a178ed71ffd7f1121a3bc3efaa3c23",
+    "bytes": 453
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-debug.log",
+    "sha256": "73402454b916dd31417cbaee0c2f66b050c391d716e72fff6fdbb6285347f463",
+    "bytes": 2589
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-doctor.log",
+    "sha256": "3f400abe3b948ed25f91c9e00bfe615bdd4e290c40067571c25caf477ef42e81",
+    "bytes": 1776
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-exports.log",
+    "sha256": "958617171f0eb7ec7c5bc8a029482a282ab7c8b8be49543ee8ce135878699bad",
+    "bytes": 8021
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-full-suite-final.log",
+    "sha256": "6d8c04ce8b90f5429923a510f95e41e4cf1e3571c1e168cd8a9e00441ef265b2",
+    "bytes": 994152
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-full-suite.log",
+    "sha256": "111b82d9de9f9146435bd37af190ed594f18882fb2cd7a68288f69e2aae55a9d",
+    "bytes": 996048
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-guide-followup.log",
+    "sha256": "ef9b9f15fdfb4b10d26472aa0c98036c9bc4fe7c2c4a4bcd59d277a0f32a7591",
+    "bytes": 8303
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-preparation-js-2.log",
+    "sha256": "0e301d09a56f3799debaedfd819a6dfae29ec36906ab7f273b01dabbe7850110",
+    "bytes": 1560
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-preparation-js.log",
+    "sha256": "47f654f9c387c834bd34dd19dedb845e6198b6a986a821fc011be1ab703cb2ae",
+    "bytes": 2603
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-production-2.log",
+    "sha256": "5137e6b1d49f6698b35dad76436ebd6315918c72a14fcb000cb52d4c83e95910",
+    "bytes": 2490
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-production.log",
+    "sha256": "1a249c6612d6744b1aa5056a1c00c25e3486e5570a32389abfc520860d01bfa2",
+    "bytes": 2389
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-ref-check-final.log",
+    "sha256": "7dae6627a4243dc4006a739dc0eb46049e6f5898a79fb8ce6b008fcf360333bb",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-ref-check.log",
+    "sha256": "f6e2b0d10536209d1cd922b5845a756e052f9fa7c9f954da6d9470b294a7cea6",
+    "bytes": 81
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-status.log",
+    "sha256": "dc7170fd123dbdaef636903de0be53e1d679cbd49eb5d21afb6c90bdf27e5862",
+    "bytes": 278
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-suite-followup.log",
+    "sha256": "ad8df21ab4369149e4974372701be8b9d6d149a704165d24ef929711dc31c598",
+    "bytes": 334
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-summary-preview.log",
+    "sha256": "f314cdd3f38a175f946eabe2f04e0ae4d59d0f9763e853163ceb19f463e80d13",
+    "bytes": 2323
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-summary.log",
+    "sha256": "3cf63db2dbf3e792b2f4e2df41963ea542d26181e266585dd628ff13b88460f1",
+    "bytes": 17545
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-tail.log",
+    "sha256": "70759751e7bf68eb31e736f4e1d02183ea41e583441dcfd1e50bee377bf4d506",
+    "bytes": 993
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-warm-interference.log",
+    "sha256": "8c43dbf663b0e6300c13a0177ad790857b0924cff06ac52de73f2abe4c760e33",
+    "bytes": 2821
+  },
+  {
+    "path": "/tmp/sb4-nz-r1-witness-unit.log",
+    "sha256": "53c4743ad5e976d0a160c5c4ffc8702d3aa1070a772ee44228bb0b58325bb201",
+    "bytes": 14714
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-r1-production",
+    "sha256": "cdb5d3971e86ea625839b9781bd2ef120e4847f1329b0a373ea3e627f06ad564",
+    "bytes": 15270768
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4",
+    "sha256": "8eaf33157d4161c4893ade4c842c80f7b6591c18002a10d349dd037428c1a80c",
+    "bytes": 32486384
+  }
+]

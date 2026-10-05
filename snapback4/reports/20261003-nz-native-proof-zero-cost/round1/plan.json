@@ -1,0 +1,128 @@
+{
+  "createdAt": 1791086890.727076,
+  "plan": [
+    [
+      "plain",
+      "cold",
+      "A",
+      0
+    ],
+    [
+      "plain",
+      "cold",
+      "B",
+      1
+    ],
+    [
+      "plain",
+      "cold",
+      "B",
+      2
+    ],
+    [
+      "plain",
+      "cold",
+      "A",
+      3
+    ],
+    [
+      "social",
+      "cold",
+      "A",
+      0
+    ],
+    [
+      "social",
+      "cold",
+      "B",
+      1
+    ],
+    [
+      "social",
+      "cold",
+      "B",
+      2
+    ],
+    [
+      "social",
+      "cold",
+      "A",
+      3
+    ],
+    [
+      "plain",
+      "warm",
+      "A",
+      0
+    ],
+    [
+      "plain",
+      "warm",
+      "B",
+      1
+    ],
+    [
+      "plain",
+      "warm",
+      "B",
+      2
+    ],
+    [
+      "plain",
+      "warm",
+      "A",
+      3
+    ],
+    [
+      "social",
+      "warm",
+      "A",
+      0
+    ],
+    [
+      "social",
+      "warm",
+      "B",
+      1
+    ],
+    [
+      "social",
+      "warm",
+      "B",
+      2
+    ],
+    [
+      "social",
+      "warm",
+      "A",
+      3
+    ]
+  ],
+  "design": "A=WD synchronous foreground export; B=NZ detached background proof. One ABBA block for each starter/cache condition. No quiet gate.",
+  "cache": "Cold clears native snapshot/Pods/DerivedData/export cache, keeps identical dependency/download caches; warm changes only app JS after own-arm cold priming. Host/Metro caches are not flushed.",
+  "simulators": "Every sample starts without any live device in this harness ownership store. Baseline devices deleted after each sample; candidate deletes its own device. Warm refers to native build cache, not a prebooted device.",
+  "binaries": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/baseline-production",
+      "sha256": "91e3c821deb1ed63d0142c68834f63c6ad3304419d457c2a0caeb1b7ae028cfb",
+      "bytes": 15220928
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-r1-production",
+      "sha256": "cdb5d3971e86ea625839b9781bd2ef120e4847f1329b0a373ea3e627f06ad564",
+      "bytes": 15270768
+    }
+  ],
+  "wrappers": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/baseline-export-ios.mjs",
+      "sha256": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa",
+      "bytes": 8357
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "b68a681db55a4693c2764dd3a09b00cdc3537df70191e037f7a21076e8c47d12",
+      "bytes": 8520
+    }
+  ]
+}

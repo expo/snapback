@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "7e03a5cea9409a87823ec5a96ebc6e7bfb43d69f",
+  "state": "finished",
+  "startedAt": 1791170922.3432891,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r9-full-suite-final.log",
+  "before": {
+    "at": 1791170923.513387,
+    "load": [
+      4.65771484375,
+      5.357421875,
+      11.2509765625
+    ],
+    "idlePercent": 84.52643171806167,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 193.3 /usr/libexec/PerfPowerServices",
+      "  485     1  12.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      " 3063 97864   7.3 claude",
+      " 1083     1   2.9 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      " 1164     1   2.8 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "12682  1160   2.7 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+      " 1092     1   1.8 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "18428     1   0.9 /usr/libexec/diagnosticd",
+      "60509 60455   0.7 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "  793     1   0.6 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha"
+    ]
+  },
+  "status": 0,
+  "finishedAt": 1791173581.5168169,
+  "durationSeconds": 2657.995674375,
+  "after": {
+    "at": 1791173582.688648,
+    "load": [
+      4.2578125,
+      4.5673828125,
+      7.76220703125
+    ],
+    "idlePercent": 83.45284059569774,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 193.2 /usr/libexec/PerfPowerServices",
+      "  485     1  20.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "  540     1   8.4 /usr/libexec/mobileassetd",
+      "  489     1   5.4 /System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+      " 1083     1   2.5 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "  661     1   2.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      " 1164     1   2.2 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1092     1   1.6 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 1388  1166   1.5 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "  793     1   1.2 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r9-full-suite-final.log",
+    "sha256": "fbf60cd0299018dbeb2351b83aea8e149a455e3d344ad7a89362cb317a9c99c1",
+    "bytes": 1907284
+  },
+  "inputsUnchanged": true
+}

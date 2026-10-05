@@ -1,0 +1,63 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "aa75cab4316aa7a9169573382fbba19432895774",
+  "state": "finished",
+  "startedAt": 1791158929.548678,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r8-full-suite.log",
+  "before": {
+    "at": 1791158930.725527,
+    "load": [
+      5.83349609375,
+      27.572265625,
+      25.6767578125
+    ],
+    "idlePercent": 82.5536598789213,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 177.5 /usr/libexec/PerfPowerServices",
+      "  485     1  14.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "34457     1   8.6 /System/Library/ExtensionKit/Extensions/TGOnDeviceInferenceProviderService.appex/Contents/MacOS/TGOnDeviceInferenceProviderService",
+      "  864     1   7.8 /usr/sbin/usernoted",
+      "80859 46055   5.1 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "  931     1   3.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd",
+      " 1870     1   3.7 /System/Library/Frameworks/Contacts.framework/Support/contactsd",
+      " 1083     1   2.9 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "80858     1   2.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "  942     1   2.2 /usr/libexec/duetexpertd"
+    ]
+  },
+  "status": 1,
+  "finishedAt": 1791161568.171607,
+  "durationSeconds": 2637.433704125,
+  "after": {
+    "at": 1791161569.341822,
+    "load": [
+      4.5869140625,
+      4.8125,
+      7.783203125
+    ],
+    "idlePercent": 84.32671081677704,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 193.6 /usr/libexec/PerfPowerServices",
+      "  485     1  11.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "59783 59730   3.0 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      " 1083     1   2.8 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "18428     1   2.4 /usr/libexec/diagnosticd",
+      " 1164     1   1.8 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "59759 59730   1.5 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/dasd",
+      " 1092     1   1.4 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      " 1165     1   0.7 /Applications/cmux.app/Contents/MacOS/cmux",
+      "  738     1   0.5 /usr/libexec/searchpartyd"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r8-full-suite.log",
+    "sha256": "00801ccf42687b873851a04fd49dff715c8f516092a9f99b6b840bdb8511c3a6",
+    "bytes": 1905768
+  },
+  "inputsUnchanged": true
+}

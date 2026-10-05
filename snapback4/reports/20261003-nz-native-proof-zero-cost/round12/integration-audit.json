@@ -1,0 +1,50 @@
+{
+  "base": "abafa9af9cd58e30a3b0dc6461cd4ab339c3cb83",
+  "nz": "67a29a10b05bad86620e64bad8f4aab15a764180",
+  "main": "8bd933cd2dfbf7cb8acfd43f209f7015ed58a633",
+  "overlappingPaths": [
+    "llp/3000-snapback4.explainer.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-lang/src/guide/client.md",
+    "snapback4/crates/snapback4-lang/tests/guide/published.rs",
+    "snapback4/crates/snapback4/src/main.rs",
+    "snapback4/crates/snapback4/src/verbs/init/social/README.md",
+    "snapback4/crates/snapback4/src/verbs/releases.rs",
+    "snapback4/crates/snapback4/tests/check_adoption/mod.rs",
+    "snapback4/crates/snapback4/tests/witness.rs",
+    "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "snapback4/packages/snapback4/test/retained-history.test.mjs",
+    "snapback4/packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "conflicts": [
+    "llp/3000-snapback4.explainer.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4/tests/check_adoption/mod.rs",
+    "snapback4/packages/snapback4/test/retained-history.test.mjs",
+    "snapback4/packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "unchangedFromMain": {
+    "snapback4/packages/snapback4/test/helpers/cleanup.mjs": "f66edc75bd935af6b8211316f817d700fc5c87f157ff4b8e73370cff838df64e",
+    "snapback4/metrics/wasm-budget.json": "6aad6d4648001847f571c8dbe5ae6d3af6dae37991ee0b1e68df790af6838518",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "bb49ce1f866d5e145ce2645ed78564ac78b3ca917a88c3b4e0074e35f1602d3c"
+  },
+  "journalValidation": "SequenceMatcher between either parent and merged journal reports insertions only: HEAD +1022 lines; main +106/+488 lines. No deletion/replacement.",
+  "unchangedFromNzHead": [
+    "snapback4/crates/snapback4/src/verbs/witness/cleanup.rs",
+    "snapback4/crates/snapback4/src/verbs/witness/process_group.rs",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation_deadline.rs",
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "snapback4/packages/snapback4-expo/export-ios.mjs"
+  ],
+  "ticketAudit": {
+    "closeAfterVerification": "issues/20261004-snapback4-release-activation-crash-cut-race.md: main FY real startup stop barrier fixes the original observation race",
+    "leaveOpen": "issues/20261004-snapback4-ephemeral-expiry-bound-intermittent.md: no root-cause repair found on main; a later pass does not resolve it"
+  },
+  "conflictResolutions": {
+    "JOURNAL": "both complete histories retained in order",
+    "LLP 3000 Revised": "both NZ and LU revision entries retained",
+    "check_adoption": "main complete-log-line barrier",
+    "retained-history": "main held-apply release and stdout capture plus NZ stop-before-remove try/finally",
+    "schema-capabilities": "main RPF expectations supersede NZ round-2 workaround; main-only passing comparison retained"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "at": 1791109360.610423,
+  "identity": "62351 58807 Sun Oct  4 03:14:51 2026     /Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4 dev --port 0 --fresh",
+  "cwd": "p62351\nfcwd\nn/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-retained-bepyYh\n",
+  "reason": "68 test results recorded; after-hook ENOTEMPTY left this watched server running. SIGTERM only this fixture-owned server; retain failing test result.",
+  "signal": "SIGTERM",
+  "testProcessIntervention": {
+    "at": 1791109383.351954,
+    "identity": "58807 58806 Sun Oct  4 03:14:32 2026     /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test-concurrency=0 --heap-prof-interval=524288 --test-timeout=0 --stack-trace-limit=10 --report-signal=SIGUSR2 --max-http-header-size=16384 --heapsnapshot-near-heap-limit=0 --tls-cipher-list=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA --watch-kill-signal=SIGTERM --inspect-publish-uid=stderr,http --cpu-prof-interval=1000 --test-coverage-functions=0 --test-coverage-lines=0 --inspect-port=127.0.0.1:9229 --test-coverage-branches=0 --test-isolation=process --use-largepages=off --network-family-autoselection-attempt-timeout=250 --secure-heap-min=2 --v8-pool-size=4 --node-snapshot --trace-event-file-pattern=node_trace.${rotation}.log --secure-heap=0 --test-reporter /Users/ccheever/sb4-np/lane-nz/snapback4/scripts/test-progress-reporter.mjs /Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/retained-history.test.mjs",
+    "signal": "SIGTERM",
+    "reason": "All 68 cases finished, but the failed first after-hook also prevented client closure. Stop the file process with no remaining children; its normal pool keeper owns group cleanup. Attempt remains failed."
+  },
+  "cleanup": {
+    "at": 1791109466.3347561,
+    "recordedProcessesAbsent": true,
+    "directory": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-retained-bepyYh",
+    "existed": true,
+    "absent": true
+  }
+}

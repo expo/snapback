@@ -1,0 +1,67 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "base": "67a29a10b05bad86620e64bad8f4aab15a764180",
+  "state": "finished",
+  "startedAt": 1791192936.737311,
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r12-full-suite.log",
+  "before": {
+    "at": 1791192937.9099221,
+    "load": [
+      4.69921875,
+      7.05322265625,
+      8.802734375
+    ],
+    "idlePercent": 79.53539823008849,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1 183.4 /usr/libexec/PerfPowerServices",
+      "  485     1  15.1 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "76778     1   9.1 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine",
+      "46747 57434   4.2 (fleet)",
+      " 1164     1   2.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1083     1   2.6 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "46195 96062   2.0 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1092     1   1.7 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+      "  454     1   1.0 /usr/libexec/opendirectoryd",
+      "    1     0   0.7 /sbin/launchd"
+    ]
+  },
+  "mergedMain": "8bd933cd2dfbf7cb8acfd43f209f7015ed58a633",
+  "mergedIndexTree": "5b495a227adace0ef79fe38406c3884eae0c26a5",
+  "status": 0,
+  "finishedAt": 1791195807.458681,
+  "durationSeconds": 2869.461301542,
+  "after": {
+    "at": 1791195808.646163,
+    "load": [
+      6.4013671875,
+      7.30908203125,
+      12.13232421875
+    ],
+    "idlePercent": 72.89927657206455,
+    "compilers": [
+      "63866 63812  21.3 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+    ],
+    "backgroundJobs": [],
+    "busy": [
+      "78888     1 188.3 /usr/libexec/PerfPowerServices",
+      "59783 59730  23.6 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      "63866 63812  21.3 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "64298 59730  15.8 /Users/ccheever/Library/Developer/CoreSimulator/Devices/3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B/data/Containers/Bundle/Application/B74C1DE4-711C-4A88-A582-76CA816F2146/NIReference.app/NIReference",
+      "  485     1  15.2 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "18428     1  13.2 /usr/libexec/diagnosticd",
+      "63871 59730   9.7 /Users/ccheever/Library/Developer/CoreSimulator/Devices/3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B/data/Containers/Bundle/Application/0F3B1427-4C41-450A-9FDB-20BB4071D284/CliqueDriver-Runner.app/CliqueDriver-Runner",
+      "59754 59730   5.8 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd",
+      "64293 59730   5.5 log",
+      "59733 59730   4.9 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/CoreServices/SpringBoard.app/SpringBoard"
+    ]
+  },
+  "evidence": {
+    "path": "/tmp/sb4-nz-r12-full-suite.log",
+    "sha256": "7b69912f6c1ef6646ce695445bd73b883f94a1e46ef5508a7d08ccc2e154edab",
+    "bytes": 1974222
+  },
+  "inputsUnchanged": true
+}

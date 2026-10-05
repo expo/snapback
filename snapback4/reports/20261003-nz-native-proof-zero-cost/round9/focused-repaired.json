@@ -1,0 +1,82 @@
+{
+  "state": "finished",
+  "status": 0,
+  "inputsUnchanged": true,
+  "finishedAt": 1791169146.7399879,
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "c1552eca497711108d524dbdaf087b9050eebe43ea077db302f3e4fa310bd986"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+      "sha256": "2979874f3642cdca8838d2031021ed2cf10cf2eaa63a34c82f1ee1592f87d81d"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "85cc551bc15b55d434eb4c2ae2a10fbd7d4bb805e5f4b73cc0a2263f03d908a5"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "abdafa2d718bb1361976a24daaba8d6567368dddefb60b5c64fb9a2f6417f63e"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "13a8c2c9fdd17d9f7466943413849157d3624f435f7e1413837c0a567232d0da"
+    },
+    {
+      "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+      "sha256": "5e58d5922483ad9d6f753f27b3dc8913c762b09393d583dd07a7a1942b8fc315"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "815ae6fc7aac12a29120686819dbe24c6486e067fe50b0298f693fc83eb2cb4c"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-publication.test.mjs",
+      "sha256": "fcdb7257e37b0629bda1543385564bdce7cf8a6b4f3674d000cced484fd9f4bb"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-native-round2.test.mjs",
+      "sha256": "6ed815d5a95d06564f7d11a3a259d632751390b094bfcea389b4350b8f98459c"
+    }
+  ],
+  "initial": "focused.json",
+  "initialExportResult": "93/94; only concurrent pruning fixture failed",
+  "correction": "Only the seeded smoke receipts gained an end timestamp; all eight prior changed code/guide/test inputs remain byte-identical.",
+  "command": [
+    "node",
+    "--test",
+    "snapback4/packages/snapback4/test/export-native-round2.test.mjs"
+  ],
+  "passes": 3,
+  "durationSeconds": 2.591726834,
+  "evidence": {
+    "path": "/tmp/sb4-nz-r9-final-receipt-repair.log",
+    "sha256": "3455e63540305e34fa399cea557144b643612d412c03fb49650991458a44d7f7",
+    "bytes": 625
+  },
+  "host": {
+    "at": 1791169147.910562,
+    "load": [
+      4.37548828125,
+      5.01806640625,
+      5.07958984375
+    ],
+    "idlePercent": 83.48066298342542,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "27142     1 184.9 /usr/libexec/PerfPowerServices",
+      "80864     1  33.3 /usr/libexec/biomesyncd",
+      "  485     1  17.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "34467 34465  10.9 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      " 1083     1   3.7 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+      "99129 99075   3.2 /Library/Developer/CoreSimulator/Volumes/iOS_24A434/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd",
+      " 1164     1   2.7 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "18428     1   2.5 /usr/libexec/diagnosticd",
+      "34465  8101   2.4 /bin/zsh",
+      " 1092     1   2.2 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService"
+    ]
+  }
+}

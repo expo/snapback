@@ -52,11 +52,11 @@ fn darwin_birth(pid: u32) -> Option<Value> {
     if info.pid != pid as i32 { return None; }
     Some(json!({ "pid": pid, "start": [info.start.tv_sec, info.start.tv_usec] }))
 }
-fn alive(record: &Value) -> bool {
+pub(super) fn alive(record: &Value) -> bool {
     record["pid"].as_u64().and_then(|pid| identity(pid as u32)).as_ref() == Some(record) && !record.is_null()
 }
-fn read(path: &Path) -> Value { fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null) }
-fn write(path: &Path, value: &Value) -> Result<()> {
+pub(super) fn read(path: &Path) -> Value { fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null) }
+pub(super) fn write(path: &Path, value: &Value) -> Result<()> {
     let temp = path.with_extension("json.tmp");
     let mut file = File::create(&temp).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     file.write_all(&serde_json::to_vec(value).unwrap()).and_then(|_| file.sync_all()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -94,13 +94,15 @@ pub(super) fn begin_wrapper(dir: &Path) -> Result<()> {
 }
 pub(super) fn begin(options: &Options) -> Result<Option<File>> {
     if options.export.is_none() { return Ok(None); }
-    if let Some(root) = options.artifacts.parent() {
-        cleanup(root, None)?;
+    // The background guardian already attempted bounded maintenance. Repeating
+    // it here would turn its deliberate busy-lock deferral into a proof failure.
+    if !background::active() {
+        if let Some(root) = options.artifacts.parent() { cleanup(root, None)?; }
     }
     let lease = preparation::lease(&options.artifacts.join("run.lock"))?;
     let owner = identity(std::process::id()).ok_or_else(|| error("E_WITNESS_PROCESS", "cannot record driver process start time"))?;
     let wrapper = std::env::var("SNAPBACK4_EXPORT_WRAPPER_PID").ok().and_then(|s| s.parse().ok()).and_then(identity);
-    write(&options.artifacts.join("live.json"), &json!({ "owner": owner, "wrapper": wrapper, "children": {}, "startedAt": now() }))?;
+    write(&options.artifacts.join("live.json"), &json!({ "owner": owner, "wrapper": wrapper, "background": background::active(), "children": {}, "startedAt": now() }))?;
     Ok(Some(lease))
 }
 fn stop(record: &Value, signal: i32) -> Result<()> {
@@ -316,7 +318,7 @@ pub(super) fn stop_group_with(record: &Value, mut after_snapshot: impl FnMut()) 
     }
 }
 
-fn recover(dir: &Path) -> Result<bool> {
+pub(super) fn recover(dir: &Path) -> Result<bool> {
     let mut record = read(&dir.join("live.json"));
     if alive(&record["owner"]) {
         // A wrapper killed with SIGKILL cannot forward cancellation. Request
@@ -377,7 +379,9 @@ fn recover(dir: &Path) -> Result<bool> {
             }
         }
         if owned["udid"] == udid && owned["name"] == simulator["name"] && owned["runtime"] == simulator["runtime"] && !owned["prefix"].is_null() {
-            if owned["ready"] == false {
+            if owned["ready"] == false || (record["background"] == true && simulator["selection"] == "created") {
+                // Detached runs create a private device, never reuse a user's
+                // or another run's device. Delete it on success and on recovery.
                 simctl(&["delete", udid], Duration::from_secs(10))?;
                 owners.remove(udid)?;
             } else if active {
@@ -427,43 +431,162 @@ pub(super) fn remove(path: &Path) -> Result<()> {
     let result = if path.is_dir() && !path.is_symlink() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
     result.or_else(|e| if e.kind() == std::io::ErrorKind::NotFound { Ok(()) } else { Err(e) }).map_err(|e| error("E_WITNESS_ARTIFACT", e))
 }
-const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json"];
+const RECEIPTS: &[&str] = &["smoke-ios-run.json", "smoke-ios-receipts.jsonl", "proof.json", "build.json", "installed.json", "preparation-failure.json", "native-base.json", "live.json", "publication.json", "request.json", "result.json", "background.log"];
 pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
+    retention::run(root, completed, || Ok(()))
+}
+pub(super) fn finished(dir: &Path) -> bool {
+    let run = read(&dir.join("smoke-ios-run.json"));
+    dir.join("finished.json").exists() || dir.join("retention.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
+}
+fn completed_result(dir: &Path) -> bool {
+    let result = read(&dir.join("result.json"));
+    let run = read(&dir.join("smoke-ios-run.json"));
+    result["state"].as_str().is_some_and(|state| ["passed", "failed", "skipped", "superseded"].contains(&state))
+        || (run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()))
+        || !read(&dir.join("preparation-failure.json")).is_null()
+}
+// The caller keeps the candidate's export lease through deletion. A candidate
+// cannot become a publication after this decision without acquiring that lease.
+// Publication locking protects both sides of a swap, including rollback custody;
+// it is released before any recursive deletion or compression.
+fn publication_pinned(root: &Path, dir: &Path) -> Result<bool> {
+    Ok(publication_pin(root, dir)?.unwrap_or(true))
+}
+// None is live publication custody, not evidence that this generation is pinned.
+fn publication_pin(root: &Path, dir: &Path) -> Result<Option<bool>> {
+    let request = read(&dir.join("request.json"));
+    let publication = read(&dir.join("publication.json"));
+    let fallback = root.parent().filter(|p| root.file_name().is_some_and(|n| n == "native-smoke") && p.file_name().is_some_and(|n| n == "artifacts"))
+        .and_then(Path::parent).map(|project| project.join("dist"));
+    let Some(target) = request["target"].as_str().or_else(|| publication["target"].as_str()).map(PathBuf::from).or(fallback) else { return Ok(Some(false)); };
+    let lock_path = publication::lock_path(&target)?;
+    fs::create_dir_all(lock_path.parent().unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&lock_path).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    match lock.try_lock_shared() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => { retention::request(root)?; return Ok(None); },
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
+    let private = read(&dir.join("export/.snapback4-publication.json"));
+    let matches = |marker: &Value| marker["generation"].is_string() && marker["exportHash"].is_string()
+        && [&request, &private].iter().any(|identity| identity["generation"] == marker["generation"] && identity["exportHash"] == marker["exportHash"]);
+    let current = read(&target.join(".snapback4-publication.json"));
+    let transaction = read(&lock_path.with_file_name("publication-pending.json"));
+    let pending = transaction["source"].as_str().map(|source| read(&Path::new(source).join(".snapback4-publication.json"))).unwrap_or(Value::Null);
+    Ok(Some(matches(&current) || matches(&pending)))
+}
+// Do not rank unknown custody as a history pin: a mixed observation could
+// otherwise promote compressed rows and evict full history after contention.
+fn retention_order(runs: Vec<PathBuf>, pin: impl Fn(&Path) -> Result<Option<bool>>) -> Result<Option<Vec<(std::cmp::Reverse<(bool, u128)>, PathBuf)>>> {
+    let mut ordered = Vec::new();
+    for dir in runs {
+        let Some(pinned) = pin(&dir)? else { return Ok(None); };
+        let started = dir.file_name().unwrap().to_string_lossy().split('-').next().unwrap().parse::<u128>().unwrap();
+        ordered.push((std::cmp::Reverse((pinned, started)), dir));
+    }
+    Ok(Some(ordered))
+}
+// Inspect actual evidence even if a publisher died before its first queue
+// record. This only requests supervised work: live owners and publication pins
+// are never permission to prune, and unknown custody defers to the observer.
+pub(super) fn maintenance_needed(root: &Path) -> Result<bool> {
+    let mut full = 0; let mut compressed = 0;
+    let mut stranded = root.join("publication-pending.json").exists();
+    for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
+        let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
+        let dir = entry.path();
+        let journal = read(&dir.join("live.json"));
+        let live = alive(&journal["owner"]) || alive(&journal["wrapper"]);
+        let Some(pinned) = publication_pin(root, &dir)? else { return Ok(true); };
+        let retained = dir.join("retention.json").exists();
+        let evidence = completed_result(&dir) || !read(&dir.join("publication.json")).is_null() || retained
+            || RECEIPTS.iter().any(|n| dir.join(format!("{n}.gz")).is_file());
+        if retained { compressed += 1; }
+        if dir.join("export").is_dir() || (!retained && (evidence || pinned)) { full += 1; }
+        // Shells are repair work, never history slots. A live unfinished run
+        // may temporarily exceed the bound; readiness waits for its leases.
+        if !live && (!finished(&dir) || !evidence || dir.join("publication-pending.json").exists()) { stranded = true; }
+    }
+    Ok(full > 5 || compressed > 20 || stranded)
+}
+pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()> {
     fs::create_dir_all(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    // Blocking OS lock: no PID-file takeover race, and SIGKILL releases it.
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(root.join("retention.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    lock.lock().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    match lock.try_lock() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => return Err(error("E_WITNESS_ARTIFACT", "retention lock busy")),
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
     // A wrapper reporting driver exit does not establish cleanup. In particular
     // SIGKILL leaves owned backend/compilers and app copies behind.
-    if let Some(dir) = completed { recover(dir)?; }
+    if let Some(dir) = completed { if !recover(dir)? { retention::request(root)?; } }
     let mut runs = Vec::new();
     for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
         let dir = entry.path();
-        let run = read(&dir.join("smoke-ios-run.json"));
-        let finished = dir.join("finished.json").exists() || (read(&dir.join("live.json")).is_null() && run["exitStatus"].is_number() && (run["endedAt"].is_number() || run["finishedAt"].is_number()));
+        let finished = finished(&dir);
+        // A journal records identity, not liveness or a completed result. A
+        // dead wrapper's failed Expo attempt must not occupy a history slot.
+        let journal = read(&dir.join("live.json"));
+        let evidence = completed_result(&dir) || !read(&dir.join("publication.json")).is_null() || dir.join("retention.json").exists()
+            || RECEIPTS.iter().any(|n| dir.join(format!("{n}.gz")).is_file());
+        if !finished || !evidence {
+            if alive(&journal["owner"]) || alive(&journal["wrapper"]) { retention::request(root)?; continue; }
+            // Existing recovery drains only recorded, birth-matched ownership.
+            // Do this before removing a journal which may still own children.
+            if !journal.is_null() && !recover(&dir)? { retention::request(root)?; continue; }
+            let Ok(initializing) = preparation::lease(&root.join("initialization.lock")) else { retention::request(root)?; continue; };
+            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
+            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+            let journal = read(&dir.join("live.json"));
+            if alive(&journal["owner"]) || alive(&journal["wrapper"]) { retention::request(root)?; continue; }
+            drop(initializing);
+            if !publication::reconcile_orphan(&dir)? { retention::request(root)?; continue; }
+            let Some(pinned) = publication_pin(root, &dir)? else { continue; };
+            // A committed export with a failed handoff is history, even without
+            // result.json. A failed/partial export has no publication receipt.
+            let published = !read(&dir.join("publication.json")).is_null();
+            let completed = completed_result(&dir);
+            if pinned || published || completed {
+                write(&dir.join("finished.json"), &json!({ "finishedAt": now(), "abandoned": true, "recovered": true, "missingOwner": true }))?;
+                runs.push(dir);
+            } else {
+                remove(&dir)?;
+                eprintln!("witness: removed ownerless unfinished export {}", dir.display());
+            }
+            continue;
+        }
         // Even a finalized receipt may precede a driver's last cleanup/drop.
-        if alive(&read(&dir.join("live.json"))["owner"]) && finished { continue; }
+        if alive(&read(&dir.join("live.json"))["owner"]) && finished { retention::request(root)?; continue; }
         // Also reconcile prematurely finished runs and the five full-evidence
         // slots, which otherwise bypass recover() and the compression loop.
         if finished && dir.join("publication-pending.json").exists() {
-            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
-            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
-            if !publication::reconcile_orphan(&dir)? { continue; }
+            let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
+            let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+            if !publication::reconcile_orphan(&dir)? { retention::request(root)?; continue; }
         }
         if finished || recover(&dir)? { runs.push(dir); }
+        else { retention::request(root)?; }
     }
-    runs.sort_by_key(|p| std::cmp::Reverse(p.file_name().unwrap().to_string_lossy().split('-').next().unwrap().parse::<u128>().unwrap()));
+    let Some(mut ordered) = retention_order(runs, |dir| publication_pin(root, dir))? else { return Ok(()); };
+    ordered.sort_by_key(|(key, _)| *key);
     // Five full runs plus at most twenty compressed receipt sets. Pin the
     // current native producer separately in the cache (saveBase owns its copy).
-    for (index, dir) in runs.iter().enumerate().skip(5) {
-        let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { continue; };
-        let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { continue; };
-        if dir.join("publication-pending.json").exists() { continue; }
-        if index >= 25 { remove(dir)?; continue; }
+    for (index, (_, dir)) in ordered.iter().enumerate().skip(5) {
+        let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
+        let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+        if dir.join("publication-pending.json").exists() { retention::request(root)?; continue; }
+        if publication_pinned(root, dir)? { continue; }
+        if index >= 25 { retention::checkpoint(root, "delete-before"); remove(dir)?; retention::checkpoint(root, "delete-after"); continue; }
         if dir.join("retention.json").exists() { continue; }
+        // Legacy completed receipts may lack a completion marker. Persist one
+        // before compressing away their only uncompressed terminal receipt.
+        if !dir.join("finished.json").exists() { write(&dir.join("finished.json"), &json!({ "finishedAt": now(), "retained": true }))?; }
         let mut retained = Vec::new(); let mut removed = Vec::new();
         for entry in fs::read_dir(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
             let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -471,11 +594,15 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
             if ["finished.json", "run.lock", "export.lock"].contains(&name.as_str()) { continue; }
             if name.ends_with(".gz") && RECEIPTS.contains(&name.trim_end_matches(".gz")) { retained.push(name); continue; }
             if RECEIPTS.contains(&name.as_str()) && entry.file_type().is_ok_and(|t| t.is_file()) {
+                // This worker and gzip share the retained native anchor group.
+                // retention::run owns the deadline; owner death drains both.
+                retention::checkpoint(root, "compress-before");
                 let compressed = Command::new("gzip").args(["-n", "-c"]).arg(entry.path()).output().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
                 if !compressed.status.success() { return Err(error("E_WITNESS_ARTIFACT", "receipt compression failed")); }
                 let target = dir.join(format!("{name}.gz"));
                 let temporary = dir.join(format!("{name}.gz.tmp"));
                 fs::write(&temporary, compressed.stdout).and_then(|_| fs::rename(temporary, target)).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+                retention::checkpoint(root, "compress-committed");
                 retained.push(format!("{name}.gz"));
             } else { removed.push(name); }
             remove(&entry.path())?;
@@ -485,8 +612,15 @@ pub(super) fn cleanup(root: &Path, completed: Option<&Path>) -> Result<()> {
     Ok(())
 }
 pub(super) fn command(args: &[String]) -> i32 {
+    background::signals();
+    cleanup_command(args, cleanup)
+}
+pub(super) fn retention_command(args: &[String]) -> i32 {
+    cleanup_command(args, cleanup_inner)
+}
+fn cleanup_command(args: &[String], execute: impl FnOnce(&Path, Option<&Path>) -> Result<()>) -> i32 {
     let result = if args.len() == 1 || args.len() == 2 {
-        cleanup(Path::new(&args[0]), args.get(1).map(Path::new))
+        execute(Path::new(&args[0]), args.get(1).map(Path::new))
     } else { Err(error("E_WITNESS_INPUT", "export-cleanup requires the export artifact root and optional completed run")) };
     match result { Ok(()) => 0, Err(e) => { eprintln!("witness: evidence cleanup deferred: {e}"); 1 } }
 }
@@ -494,6 +628,123 @@ pub(super) fn command(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn inventory_backstop_counts_evidence_and_discovers_ownerless_work_without_queue_records() {
+        let project = std::env::temp_dir().join(format!("sb4-nz-inventory-{}-{}", std::process::id(), now()));
+        let root = project.join("artifacts/native-smoke"); fs::create_dir_all(&root).unwrap();
+        for n in 1..=25 {
+            let dir = root.join(format!("{n}-1")); fs::create_dir(&dir).unwrap();
+            write(&dir.join("finished.json"), &json!({})).unwrap();
+            if n <= 5 {
+                fs::create_dir(dir.join("export")).unwrap();
+                write(&dir.join("result.json"), &json!({ "state": "skipped" })).unwrap();
+            } else { write(&dir.join("retention.json"), &json!({})).unwrap(); }
+        }
+        assert!(!maintenance_needed(&root).unwrap(), "5 full plus 20 compressed is covered");
+        let extra = root.join("26-1"); fs::create_dir(&extra).unwrap();
+        write(&extra.join("live.json"), &json!({ "wrapper": identity(std::process::id()) })).unwrap();
+        assert!(!maintenance_needed(&root).unwrap(), "live empty shell is not a history slot");
+        fs::create_dir(extra.join("export")).unwrap();
+        write(&extra.join("export/.snapback4-publication.json"), &json!({ "generation": "pending", "exportHash": "hash" })).unwrap();
+        let target = project.join("dist"); fs::create_dir(&target).unwrap();
+        write(&target.join(".snapback4-publication.json"), &json!({ "generation": "pending", "exportHash": "hash" })).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "protected live current generation counts but is never pruned here");
+        fs::remove_dir_all(extra.join("export")).unwrap();
+        write(&extra.join("retention.json"), &json!({})).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "21 compressed runs also need maintenance");
+        fs::remove_file(extra.join("retention.json")).unwrap();
+        write(&extra.join("live.json"), &json!({ "wrapper": null })).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "dead owner's shell is repair work");
+        fs::remove_dir_all(&extra).unwrap();
+        write(&root.join("publication-pending.json"), &json!({})).unwrap();
+        assert!(maintenance_needed(&root).unwrap(), "ownerless transaction is stranded work");
+        assert!(!root.join("maintenance-request.json").exists(), "inventory inspection alone creates no work records");
+        fs::remove_dir_all(project).unwrap();
+    }
+
+    #[test]
+    fn unknown_publication_pin_defers_the_entire_history_order() {
+        // This is the exact mixed snapshot which used to promote compressed
+        // history ahead of unpinned full rows. No partial ranking is usable.
+        let runs = vec![PathBuf::from("28-1"), PathBuf::from("24-1"), PathBuf::from("27-1")];
+        assert!(retention_order(runs.clone(), |dir| Ok(if dir == Path::new("24-1") { None } else { Some(false) })).unwrap().is_none());
+        let mut stable = retention_order(runs, |_| Ok(Some(false))).unwrap().unwrap();
+        stable.sort_by_key(|(key, _)| *key);
+        assert_eq!(stable.iter().map(|(_, dir)| dir.to_str().unwrap()).collect::<Vec<_>>(), ["28-1", "27-1", "24-1"]);
+    }
+
+    #[test]
+    fn ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence() {
+        let project = std::env::temp_dir().join(format!("sb4-ownerless-{}-{}", std::process::id(), now()));
+        let root = project.join("artifacts/native-smoke"); let dir = root.join("1-1");
+        fs::create_dir_all(&dir).unwrap();
+        for name in ["initialization.lock", "publication.lock"] {
+            let held = preparation::lease(&root.join(name)).unwrap();
+            cleanup_inner(&root, None).unwrap();
+            assert!(dir.exists()); assert!(!dir.join("finished.json").exists());
+            assert!(root.join("maintenance-request.json").exists());
+            drop(held);
+        }
+        remove(&root.join("maintenance-request.json")).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(!dir.exists(), "ownerless shell is repaired when the actual lease exits");
+        assert!(!root.join("maintenance-request.json").exists());
+        fs::remove_dir_all(project).unwrap();
+    }
+
+    #[test]
+    fn discovery_of_an_unfinished_leased_export_keeps_maintenance_pending() {
+        let root = std::env::temp_dir().join(format!("sb4-deferred-discovery-{}-{}", std::process::id(), now()));
+        for n in 1..=8 {
+            let dir = root.join(format!("{n}-1")); fs::create_dir_all(dir.join("export")).unwrap();
+            fs::write(dir.join("export/bundle.hbc"), "snapshot").unwrap();
+            write(&dir.join("live.json"), &json!({ "owner": null, "wrapper": null, "children": {} })).unwrap();
+            write(&dir.join("publication.json"), &json!({ "verifiedAt": now() })).unwrap();
+            if n > 1 { write(&dir.join("finished.json"), &json!({})).unwrap(); }
+        }
+        let lease = preparation::lease(&root.join("1-1/export.lock")).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(root.join("maintenance-request.json").exists(), "discovery must retain deferred work");
+        assert!(root.join("1-1/export").exists());
+        drop(lease);
+        remove(&root.join("maintenance-request.json")).unwrap(); // next scan claims it
+        cleanup_inner(&root, None).unwrap();
+        assert!(!root.join("maintenance-request.json").exists(), "all discoveries were covered");
+        assert!(root.join("1-1/retention.json").exists(), "previously unfinished history was pruned");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn retention_pins_current_and_pending_swap_generations_before_start_order() {
+        let project = std::env::temp_dir().join(format!("sb4-retention-pins-{}-{}", std::process::id(), now()));
+        let root = project.join("artifacts/native-smoke");
+        let target = project.join("dist");
+        fs::create_dir_all(&target).unwrap();
+        for n in 1..=8 {
+            let dir = root.join(format!("{n}-1"));
+            fs::create_dir_all(dir.join("export")).unwrap();
+            let marker = json!({ "generation": n.to_string(), "exportHash": "fixture" });
+            write(&dir.join("export/.snapback4-publication.json"), &marker).unwrap();
+            write(&dir.join("publication.json"), &json!({ "target": target })).unwrap();
+            write(&dir.join("result.json"), &json!({ "state": "skipped" })).unwrap();
+            write(&dir.join("finished.json"), &json!({})).unwrap();
+        }
+        write(&target.join(".snapback4-publication.json"), &read(&root.join("1-1/export/.snapback4-publication.json"))).unwrap();
+        // The opposite side of an interrupted exchange can become current on
+        // rollback, even though neither old run owns an active export lease.
+        let pending = publication::lock_path(&target).unwrap().with_file_name("publication-pending.json");
+        write(&pending, &json!({ "source": root.join("2-1/export") })).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        for n in [1, 2, 6, 7, 8] { assert!(root.join(format!("{n}-1/export")).exists(), "pinned/current slot {n}"); }
+        for n in [3, 4, 5] { assert!(root.join(format!("{n}-1/retention.json")).exists()); }
+        remove(&pending).unwrap();
+        write(&target.join(".snapback4-publication.json"), &read(&root.join("2-1/export/.snapback4-publication.json"))).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(root.join("2-1/export").exists());
+        assert!(root.join("1-1/retention.json").exists(), "superseded evidence is eligible again");
+        fs::remove_dir_all(project).unwrap();
+    }
+
     #[test]
     fn abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid() {
         let root = std::env::temp_dir().join(format!("sb4-abandoned-{}-{}", std::process::id(), now()));
@@ -509,7 +760,7 @@ mod tests {
         drop(lease);
         cleanup(&root, None).unwrap();
         assert!(!dir.join("export.app").exists()); assert!(!dir.join("build.xcresult").exists()); assert!(!dir.join("preparation-tmp").exists());
-        assert_eq!(read(&dir.join("finished.json"))["abandoned"], true);
+        assert!(!dir.exists(), "recovered ownerless attempt without a result is not evidence");
         assert!(backend.status().unwrap().is_some());
         fs::remove_dir_all(root).unwrap();
     }
@@ -582,6 +833,7 @@ mod tests {
         for i in 2..=6 {
             let newer = root.join(format!("{i}-123")); fs::create_dir_all(&newer).unwrap();
             write(&newer.join("finished.json"), &json!({ "finishedAt": now() })).unwrap();
+            write(&newer.join("result.json"), &json!({ "state": "skipped" })).unwrap();
         }
         cleanup(&root, Some(&dir)).unwrap();
         assert_eq!(fs::read(dir.join("live.json")).unwrap(), before);
@@ -592,6 +844,10 @@ mod tests {
         cleanup(&root, None).unwrap();
         assert!(dir.join("export/bundle").exists());
         drop(lease);
+        // Model the wrapper's exit with the already-dead driver's real birth
+        // identity; a journal's live wrapper must still defer discovery.
+        let mut exited = journal.clone(); exited["wrapper"] = exited["owner"].clone();
+        write(&dir.join("live.json"), &exited).unwrap();
         cleanup(&root, None).unwrap();
         assert!(!dir.join("export").exists());
         fs::remove_dir_all(root).unwrap();

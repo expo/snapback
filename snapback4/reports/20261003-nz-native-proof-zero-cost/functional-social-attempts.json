@@ -1,0 +1,71 @@
+[
+  {
+    "result": {
+      "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791080957526-34447",
+      "exportHash": "e8b37d2130fabeb965d1781c9215403b7ac9921a678749c28a458b10e438b6f3",
+      "finishedAt": 1791081890460,
+      "log": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791080957526-34447/background.log",
+      "publishedAt": 1791080961999,
+      "reason": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+      "receipt": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791080957526-34447/smoke-ios-run.json",
+      "state": "failed"
+    },
+    "preparationError": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+    "device": {
+      "name": "sb4-nz-1791080963943-34572",
+      "prefix": "sb4-nz-",
+      "ready": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "created",
+      "udid": "77E77AAA-A773-443C-96AC-2D05B7F33443"
+    },
+    "deviceAbsent": true,
+    "scope": "functional only; unrelated host load throughout; first two also overlap full suite; no timing admission"
+  },
+  {
+    "result": {
+      "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791082113927-53698",
+      "exportHash": "3e7fd5fbaa314fa17232590b182e1be469da97d2a969e2cf4cbeb5b5a18702f7",
+      "finishedAt": 1791083054877,
+      "log": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791082113927-53698/background.log",
+      "publishedAt": 1791082117809,
+      "reason": "E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout",
+      "receipt": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791082113927-53698/smoke-ios-run.json",
+      "state": "failed"
+    },
+    "preparationError": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+    "device": {
+      "name": "sb4-nz-1791082119562-53755",
+      "prefix": "sb4-nz-",
+      "ready": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "created",
+      "udid": "14350806-F22E-4F21-97B9-1006043F9E95"
+    },
+    "deviceAbsent": true,
+    "scope": "functional only; unrelated host load throughout; first two also overlap full suite; no timing admission"
+  },
+  {
+    "result": {
+      "artifacts": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791083906636-88978",
+      "exportHash": "3f6905e23507cb864c463be758f425c9ec0c7e3112747227125f8a24be9fbf03",
+      "finishedAt": 1791084839275,
+      "log": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791083906636-88978/background.log",
+      "publishedAt": 1791083910548,
+      "reason": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+      "receipt": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/functional-social/artifacts/native-smoke/1791083906636-88978/smoke-ios-run.json",
+      "state": "failed"
+    },
+    "preparationError": "E_WITNESS_BUILD: preparation exceeded its 900-second deadline",
+    "device": {
+      "name": "sb4-nz-1791083912508-89063",
+      "prefix": "sb4-nz-",
+      "ready": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+      "selection": "created",
+      "udid": "2195F253-397F-4487-9DB9-651F8B644DDD"
+    },
+    "deviceAbsent": true,
+    "scope": "functional only; unrelated host load throughout; first two also overlap full suite; no timing admission"
+  }
+]

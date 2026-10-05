@@ -1,0 +1,43 @@
+{
+  "status": 0,
+  "measurements": [
+    {
+      "label": "main",
+      "wasm": {
+        "path": "/private/tmp/sb4-nz-r12-main-q4mzi5iy/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+        "sha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9",
+        "bytes": 2117610
+      },
+      "gzipBytes": 639941
+    },
+    {
+      "label": "mergedCold",
+      "wasm": {
+        "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+        "sha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9",
+        "bytes": 2117610
+      },
+      "gzipBytes": 639941
+    }
+  ],
+  "cap": 639941,
+  "addedBytes": 0,
+  "logs": [
+    {
+      "path": "/tmp/sb4-nz-r12-main-wasm.log",
+      "sha256": "d4709b25efdd0b19cc1c1f50a20e4a091f4269614daf91650ed8352e94aed826",
+      "bytes": 8709
+    },
+    {
+      "path": "/tmp/sb4-nz-r12-wasm-rebuild.log",
+      "sha256": "52c7faf5968a7057397649b43bde8be827ff190529830995661b29f09542ad00",
+      "bytes": 9065
+    },
+    {
+      "path": "/tmp/sb4-nz-r12-wasm-cold.log",
+      "sha256": "692bfe4a7ee9748c89ec0639bc0dc31fbed4b76bc70adb857d2f7b254a40aeac",
+      "bytes": 8747
+    }
+  ],
+  "classification": "Main passes at 639941 B. Rebuilding only lane core/device still used stale cached dependency artifacts (640054 B); cleaning the lane wasm profile and rebuilding all wasm dependencies produces byte-identical main output, 639941 B. No source or budget change."
+}

@@ -1,0 +1,26 @@
+{
+  "at": 1791185205.7820601,
+  "reason": "One additional legacy guardian-death fixture must hold automatic maintenance now that seeded excess evidence is discovered before publication. Edit completed during serial witness integration, before Node export tests started. Rust/guide source unchanged.",
+  "inputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "sha256": "28651c6b9073fd1b555a9821882aadd057bf14839d196b515312d0812ec91b03"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+      "sha256": "e5b1d1d046f5ccdda7e32e0ea24d5ad4afa4c886807ffdfd04538bd4bdfb5163"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+      "sha256": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+      "sha256": "d2144d22d3ed3a6fe82683f6879a8d1c53ae0e0a720ff18c85833d352d9ab944"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "sha256": "00cadd725d44b7b1b959ebf008b397b1270613c34c14d0d4de08b814d8a05de3"
+    }
+  ]
+}

@@ -555,8 +555,9 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         assert_eq!(config["expo"]["plugins"].as_array().unwrap().iter().filter(|p| **p == json!("snapback4-expo/plugin")).count(), 1);
         assert!(root.join("src/native-smoke.ts").exists());
         let readme = fs::read_to_string(root.join("README.md")).unwrap();
-        for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "also proves the app runs on iOS", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
+        for text in ["every milestone", "npm run export:ios", "npm run native:smoke", "in the background", "witness status --wait", "doctor", "artifacts/native-smoke/<timestamp>", "offline reopen", "write replay"] {
             assert!(readme.to_lowercase().contains(&text.to_lowercase()), "missing {text}");
         }
+        assert!(!readme.contains("SNAPBACK4_NATIVE_SMOKE=off"));
     }
 }

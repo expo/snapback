@@ -1,0 +1,303 @@
+{
+  "at": 1791125921.61379,
+  "build": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r4-build-overlap-fix.log"
+  },
+  "witness": {
+    "passed": 60,
+    "failed": 0,
+    "durationSeconds": 41.75,
+    "log": "/tmp/sb4-nz-r4-witness-final.log"
+  },
+  "exports": {
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 189327.7975,
+    "log": "/tmp/sb4-nz-r4-export-final.log"
+  },
+  "starters": {
+    "passed": 17,
+    "failed": 0,
+    "log": "/tmp/sb4-nz-r4-starters.log"
+  },
+  "note": "All affected checks passed. Development failures and the duplicate startup-retention correction remain in the report and external log archive.",
+  "adoptionLogWait": {
+    "status": 0,
+    "passed": 1,
+    "failed": 0,
+    "durationSeconds": 16.98,
+    "log": "/tmp/sb4-nz-r4-adoption-log-wait.log",
+    "note": "Existing bounded wait precedes unchanged asynchronous-log assertion; first complete run passed this test, second exposed the race."
+  },
+  "fullSuite": {
+    "status": 0,
+    "durationSeconds": 2678.8941411250003,
+    "reportedDurationSeconds": 2679,
+    "inputsUnchanged": true,
+    "cli": {
+      "passed": 292,
+      "ignored": 4
+    },
+    "witnessIntegration": 76,
+    "fixtures": 9,
+    "clients": {
+      "tests": 6228,
+      "pass": 6222,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 6,
+      "todo": 0
+    },
+    "models": 79,
+    "interventions": 0,
+    "log": "/tmp/sb4-nz-r4-full-suite-complete.log"
+  },
+  "earlierFullSuite": {
+    "status": 1,
+    "durationSeconds": 2705.37021875,
+    "onlyFailure": "docs budget: client README 301/300 physical lines; all tests passed",
+    "log": "/tmp/sb4-nz-r4-full-suite.log",
+    "correction": "Joined adjacent prose lines without removing words; docs budget gate passed before complete rerun"
+  },
+  "secondFullSuite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+    "base": "e7e325b7d13ccbe527c29455f104b7a5b16d92c8",
+    "state": "finished",
+    "startedAt": 1791128951.3500721,
+    "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+    "log": "/tmp/sb4-nz-r4-full-suite-final.log",
+    "before": {
+      "at": 1791128952.5213299,
+      "load": [
+        8.3701171875,
+        6.78662109375,
+        9.3701171875
+      ],
+      "idlePercent": 75.8046614872364,
+      "compilers": [],
+      "backgroundJobs": [],
+      "busy": [
+        "27142     1 146.6 /usr/libexec/PerfPowerServices",
+        "  485     1  13.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+        "  541     1   8.3 /usr/libexec/airportd",
+        "  972 92868   4.5 (snapback4)",
+        "  869     1   3.9 /System/Library/CoreServices/WiFiAgent.app/Contents/MacOS/WiFiAgent",
+        "  900 14846   3.5 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+        "  910 93122   2.8 /private/tmp/sb4-fy-fixture-races.Z1v1cq/snapback4/target/debug/snapback4",
+        "92868 92867   2.5 /private/tmp/sb4-fy-fixture-races.Z1v1cq/node-v24.13.1-darwin-arm64/bin/node",
+        "  417     1   2.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+        " 1083     1   2.1 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+      ]
+    },
+    "status": 1,
+    "finishedAt": 1791132092.191477,
+    "durationSeconds": 3139.6638807500003,
+    "after": {
+      "at": 1791132093.6865668,
+      "load": [
+        84.2822265625,
+        91.4912109375,
+        63.5029296875
+      ],
+      "idlePercent": 25.207296849087893,
+      "compilers": [
+        "81668 60381   0.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "83040 81668  90.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "85271 82257   0.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "87441 87440   7.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "87469 87441  43.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87478 87441  47.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87491 87441  50.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87494 87441  48.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87497 87441  44.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87498 87441  46.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87519 87441  43.6 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87522 87441  38.9 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87523 87441  41.4 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87524 87441  40.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87525 87441  47.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87527 87441  39.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87530 87441  26.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87537 87441  24.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87540 87441  26.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87543 87441  25.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87544 87441  19.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+      ],
+      "backgroundJobs": [],
+      "busy": [
+        "87438 85271 116.2 /Users/ccheever/projects/ibex-split-work/ibex-final/target/debug/deps/ibex2-18c640f8d4602ab7",
+        "83040 81668  90.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87491 87441  50.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87494 87441  48.3 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87525 87441  47.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87478 87441  47.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87498 87441  46.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87497 87441  44.8 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87519 87441  43.6 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87469 87441  43.5 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+      ]
+    },
+    "evidence": {
+      "path": "/tmp/sb4-nz-r4-full-suite-final.log",
+      "sha256": "ad46b02a66ae56259dce1cb4a16627a9cce274ccecaf3a123937d51a03add9e9",
+      "bytes": 1900052
+    },
+    "inputsUnchanged": true
+  },
+  "secondFullSuiteInputAudit": {
+    "at": 1791130939.964511,
+    "run": "full-suite-final.json",
+    "sourceUnchanged": false,
+    "additionalModifiedInput": "snapback4/crates/snapback4/tests/check_adoption/mod.rs",
+    "amendment": "adoption-log-wait-amendment.json",
+    "note": "The runner hashes paths already modified at start. This initially unmodified test changed after its target failed and completed, so this supplemental audit records that the complete source set changed even though the original 14 recorded hashes remain stable. The later qualified run includes this test in its manifest."
+  },
+  "thirdFullSuite": {
+    "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+    "base": "e7e325b7d13ccbe527c29455f104b7a5b16d92c8",
+    "state": "finished",
+    "startedAt": 1791132095.8555589,
+    "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+    "log": "/tmp/sb4-nz-r4-full-suite-qualified.log",
+    "before": {
+      "at": 1791132097.094398,
+      "load": [
+        84.2822265625,
+        91.4912109375,
+        63.5029296875
+      ],
+      "idlePercent": 37.41721854304636,
+      "compilers": [
+        "81668 60381   0.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "85271 82257   0.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "87441 87440   0.2 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/cargo",
+        "87530 87441  92.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87593 87441  95.7 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87595 87441  94.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87601 81668  82.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87609 87441  65.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc"
+      ],
+      "backgroundJobs": [],
+      "busy": [
+        "87593 87441  95.7 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87595 87441  94.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "  661     1  93.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+        "27142     1  92.6 /usr/libexec/PerfPowerServices",
+        "87530 87441  92.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "71932     1  88.8 /usr/libexec/biomesyncd",
+        "87601 81668  82.1 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "87609 87441  65.0 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+        "  442     1  49.5 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+        "  485     1  13.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+      ]
+    },
+    "status": 1,
+    "finishedAt": 1791134952.007993,
+    "durationSeconds": 2854.91958325,
+    "after": {
+      "at": 1791134953.177384,
+      "load": [
+        6.35009765625,
+        10.94287109375,
+        26.39013671875
+      ],
+      "idlePercent": 71.7948717948718,
+      "compilers": [],
+      "backgroundJobs": [],
+      "busy": [
+        "27142     1 196.4 /usr/libexec/PerfPowerServices",
+        "  485     1  13.4 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+        "90114     1   5.2 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+        " 1083     1   3.8 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+        "99686 31031   2.7 /Users/ccheever/.local/bin/fleet",
+        " 1164     1   2.3 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+        " 3063 97864   2.0 claude",
+        " 1092     1   1.9 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+        "  793     1   1.7 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+        "  922     1   1.7 /System/Library/PrivateFrameworks/CoreSuggestions.framework/Versions/A/Support/suggestd"
+      ]
+    },
+    "evidence": {
+      "path": "/tmp/sb4-nz-r4-full-suite-qualified.log",
+      "sha256": "3964e462cbaa797c985cb86e35437e3846a97aa1d449818dc38ffae72f624908",
+      "bytes": 1897934
+    },
+    "inputsUnchanged": true
+  },
+  "ephemeralReplay": {
+    "state": "finished",
+    "startedAt": 1791134954.381821,
+    "command": "node --test packages/snapback4/test/ephemeral-e2e.test.mjs",
+    "testSha256": "3016346c37b7119033ec8b8b0593b71aeee991ad52916d430f90df0a1b16109d",
+    "before": {
+      "at": 1791134955.5948632,
+      "load": [
+        6.56201171875,
+        10.91015625,
+        26.2880859375
+      ],
+      "idlePercent": 70.70484581497797,
+      "compilers": [],
+      "backgroundJobs": [],
+      "busy": [
+        "27142     1 193.6 /usr/libexec/PerfPowerServices",
+        "  485     1  23.7 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+        "  661     1  13.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+        "97405     1   9.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+        " 1164     1   4.9 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+        " 1083     1   4.4 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension",
+        " 3063 97864   3.1 claude",
+        " 1092     1   3.0 /System/Library/Frameworks/VideoToolbox.framework/Versions/A/XPCServices/VTDecoderXPCService.xpc/Contents/MacOS/VTDecoderXPCService",
+        " 1160     1   2.8 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "  488     1   2.2 /usr/sbin/cfprefsd"
+      ]
+    },
+    "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+    "log": "/tmp/sb4-nz-r4-ephemeral-replay.log",
+    "status": 0,
+    "durationSeconds": 62.101763249999976,
+    "finishedAt": 1791135017.701329,
+    "after": {
+      "at": 1791135018.921669,
+      "load": [
+        9.44482421875,
+        10.94140625,
+        25.25
+      ],
+      "idlePercent": 26.564215148188804,
+      "compilers": [
+        "99793 99792   0.7 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
+      ],
+      "backgroundJobs": [],
+      "busy": [
+        "27142     1 173.8 /usr/libexec/PerfPowerServices",
+        " 2936  2935  99.6 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        " 2938  2937  98.5 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        " 2949  2948  86.9 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        " 2901  1160  84.7 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154.0.8037.58/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+        " 2953  2952  47.3 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        " 2955  2954  42.7 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        " 1160     1  24.4 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "  485     1  21.5 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+        " 1083     1   4.0 /System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+      ]
+    },
+    "evidence": {
+      "path": "/tmp/sb4-nz-r4-ephemeral-replay.log",
+      "sha256": "350db2a94d402646a050fb1500a259c857f13dbde76558f7ea63bfa0e1a406ef",
+      "bytes": 1997
+    },
+    "testUnchanged": true
+  },
+  "references": {
+    "status": 0,
+    "summary": "ref-check: ok \u2014 527 LLP docs, 10347 refs in 34582 files, 0 errors, 0 unchecked",
+    "log": "/tmp/sb4-nz-r4-ref-check-final.log"
+  },
+  "whitespace": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r4-whitespace-final.log"
+  }
+}

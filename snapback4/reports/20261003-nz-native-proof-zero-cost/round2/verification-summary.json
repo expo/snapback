@@ -1,0 +1,79 @@
+{
+  "at": 1791115214.0012329,
+  "suiteRecord": "full-suite-verified.json",
+  "reportedSeconds": 2706,
+  "cliUnits": {
+    "passed": 287,
+    "failed": 0,
+    "ignored": 4
+  },
+  "witnessIntegration": {
+    "passed": 76,
+    "failed": 0
+  },
+  "pools": [
+    {
+      "completed": 1,
+      "total": 1,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "completed": 312,
+      "total": 312,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 6211,
+        "pass": 6205,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 6,
+        "todo": 0
+      }
+    },
+    {
+      "completed": 2,
+      "total": 2,
+      "failedFiles": 0,
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "clientSkips": [
+    "ok 4 - managed organization and invitation policy runs in the shared interpreter # SKIP set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent",
+    "ok 1 - managed OIDC profile binding orders and expires trusted email evidence # SKIP set SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT to an existing private directory",
+    "ok 1 - Chromium: repost, group message and reaction render under confined contention # SKIP",
+    "ok 6 - published 0.2.27 reference: four tasks with one and two search cursors # SKIP set BOUNDS_BINARY to the published 0.2.27 binary",
+    "ok 1 - published 0.2.33 rejects F2 stores, serving, backend opening and device adoption # SKIP set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary",
+    "ok 23 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary"
+  ],
+  "interventions": false,
+  "priorAttempts": [
+    "full-suite.json",
+    "full-suite-final.json"
+  ],
+  "referenceCheck": {
+    "docs": 527,
+    "references": 10346,
+    "files": 34549,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "whitespaceCheck": {
+    "command": "git diff --check HEAD",
+    "status": 0
+  }
+}

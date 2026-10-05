@@ -1,0 +1,20 @@
+[
+  {
+    "name": "snapback4",
+    "sha256": "b8fe95888b0535164990b43d9516b84d96df8b3933a1a077cbafd6082a67ffad"
+  },
+  {
+    "name": "snapback4-expo",
+    "sha256": "c01c01d6aa4ce537aafce02fa1cdb1e7f92de55765a53084079cf8e626b84191"
+  },
+  {
+    "name": "plain",
+    "sha256": "92b6e2289035ce722a1d967d67366dc311d42c39592340a18be3fc3fefeea670",
+    "project": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/plain"
+  },
+  {
+    "name": "social",
+    "sha256": "f6dc740652f2dec946a872c43875aeab8aca6796d76856b257e495b43c123f07",
+    "project": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/social"
+  }
+]

@@ -1,0 +1,120 @@
+{
+  "plan": [
+    [
+      0,
+      0,
+      "A"
+    ],
+    [
+      0,
+      1,
+      "B"
+    ],
+    [
+      0,
+      2,
+      "B"
+    ],
+    [
+      0,
+      3,
+      "A"
+    ],
+    [
+      1,
+      0,
+      "A"
+    ],
+    [
+      1,
+      1,
+      "B"
+    ],
+    [
+      1,
+      2,
+      "B"
+    ],
+    [
+      1,
+      3,
+      "A"
+    ],
+    [
+      2,
+      0,
+      "A"
+    ],
+    [
+      2,
+      1,
+      "B"
+    ],
+    [
+      2,
+      2,
+      "B"
+    ],
+    [
+      2,
+      3,
+      "A"
+    ]
+  ],
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=6",
+    "packages/snapback4/test/client-seams.test.mjs",
+    "packages/snapback4/test/client-lifecycle.test.mjs",
+    "packages/snapback4/test/device-residency.test.mjs",
+    "packages/snapback4/test/keep-device.test.mjs",
+    "packages/snapback4/test/delivery-clients.test.mjs",
+    "packages/snapback4/test/subscription-pressure-device.test.mjs"
+  ],
+  "backgroundProject": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B",
+  "start": "Start workload after background preparation supervisor appears; report actual overlap, no quiet gate.",
+  "inputs": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/client-seams.test.mjs",
+      "sha256": "2fc938524705c3fc45135ce96b55ff47e5319e2cef3bdfcda61c67f3b3c28a70",
+      "bytes": 71383
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/client-lifecycle.test.mjs",
+      "sha256": "b4f9b989123880df5ec1935d539af6fe39362d66140310a8163efde7cd636229",
+      "bytes": 81313
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/device-residency.test.mjs",
+      "sha256": "d4a1490faa497f815f1d10e3617219497c2d73c40550dfb22056851664fb28c9",
+      "bytes": 9932
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/keep-device.test.mjs",
+      "sha256": "12efe7c2ac8ff09b1ca89cdaaf6994edeba7f3dceb45e8a6ce14a4a679e2d7c8",
+      "bytes": 14610
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/delivery-clients.test.mjs",
+      "sha256": "2cf4bd650c4de81f3ec77ed4852668610b6b357a8e4b223c1c65a2e079b7c3d7",
+      "bytes": 12637
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4/test/subscription-pressure-device.test.mjs",
+      "sha256": "4f12b19a09ecae86af51847bb13abdad1fbff0cb77de7903e3cf8b722510d73d",
+      "bytes": 4374
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4",
+      "sha256": "adc3e25f53528f08892adf56a0a233224b6e151207bfc6bc84db0c5b347a5470",
+      "bytes": 74600144
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/candidate-r1-production",
+      "sha256": "cdb5d3971e86ea625839b9781bd2ef120e4847f1329b0a373ea3e627f06ad564",
+      "bytes": 15270768
+    }
+  ],
+  "analysis": "Report raw seconds, per-block B mean/A mean, and each B relative to linearly time-interpolated bracketing A controls; keep failures."
+}

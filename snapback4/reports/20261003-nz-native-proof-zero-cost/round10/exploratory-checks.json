@@ -1,0 +1,46 @@
+[
+  {
+    "log": "/tmp/sb4-nz-r10-matrix1.log",
+    "counts": {
+      "tests": 17,
+      "pass": 15,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "qualifiedFinalInputs": false
+  },
+  {
+    "log": "/tmp/sb4-nz-r10-matrix2.log",
+    "counts": {
+      "tests": 23,
+      "pass": 22,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "qualifiedFinalInputs": false
+  },
+  {
+    "log": "/tmp/sb4-nz-r10-compress1.log",
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "qualifiedFinalInputs": false
+  },
+  {
+    "log": "/tmp/sb4-nz-r10-matrix3.log",
+    "counts": {
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "qualifiedFinalInputs": false
+  }
+]

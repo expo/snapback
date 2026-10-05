@@ -1,0 +1,8 @@
+{
+  "at": 1791128916.672373,
+  "path": "snapback4/packages/snapback4/README.md",
+  "before": "8d7a633042bcfb2539716d5a457dc31666d9c1c915198ed18ce4d9b15f51e62e",
+  "after": "c41529adc094f22a743406008b93124dd3836a3f1a96819c54a85e4b839e2a85",
+  "change": "Join adjacent prose lines; retain all disclosure text. README physical line count 301 -> 300.",
+  "reason": "First full suite failed only docs budget; all tests passed. Retain failed run and rerun complete suite."
+}

@@ -79,11 +79,11 @@ Availability and handle saves use the server; your private profile is held local
 Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
 Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-At every milestone, `npm run export:ios` keeps Hermes in `dist/` and also proves the app runs on iOS when Xcode/runtime are present (warm runs take about 18 s for the plain starter and 27 s for the social one, cold runs 175–230 s, on this mini).
-Both Expo starters include the wrapper. Matching native inputs reuse a Release app; native changes rebuild. `npm run native:smoke` always runs the full build.
-Unavailable environments skip; app/SDK failures fail. `SNAPBACK4_NATIVE_SMOKE=off` opts out.
-Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Empty starters prove lifecycle; write replay needs an app scenario.
-Measured on the Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27, with tools/dependencies installed first; warm medians use five JS-only runs.
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building.
+Both Expo starters include it. The next export and `npx snapback4 doctor` print the result; `npx snapback4 witness status --wait` waits for your final report.
+Failures stay visible with their log paths without failing a successful export. Unavailable hosts report a skip. A newer export supersedes pending proof.
+Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.
+`npm run native:smoke` explicitly waits for a full build and smoke. Empty starters prove lifecycle; write replay needs an app scenario (`guide witness`).
 
 ```ts
 // src/client.ts

@@ -1,0 +1,15 @@
+{
+  "reason": "Full-suite guide validation: preserve the original first diagnostic definition and recognize preparation-deadline.json as a generated application output. Documentation/test-only; all measured runtime implementation bytes and production binary remain unchanged.",
+  "changes": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+      "beforeSha256": "ea4781215ea37af3707dcea362099db82e72d4d5c531d9eb16465718fd0b72a3",
+      "afterSha256": "be912fa2b7e71cceea281cfdf91ccac3766eb7ebdd4002d8bab4dc0e416a9d23"
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/guide/published.rs",
+      "beforeSha256": "124ee68825bec423ccc9de4d29e5839f1073762ecf0e90cdf80e065ff3cfe43c",
+      "afterSha256": "419b8a2dc4fcc77174f70efe8465facbce6e96d63001852d9778ffc4d14778e8"
+    }
+  ]
+}

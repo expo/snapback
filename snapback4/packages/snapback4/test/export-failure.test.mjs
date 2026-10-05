@@ -33,7 +33,22 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: 120000 }, () => {
+// Successful publication schedules detached maintenance even when its native
+// handoff fails. Keep this fixture's custody records until those owners exit.
+async function maintenanceExited(root) {
+  const live = name => {
+    let pid;
+    try { pid=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process?.pid; } catch { return false; }
+    if(!pid)return false;
+    try { process.kill(pid,0);return true; } catch { return false; }
+  };
+  const deadline=Date.now()+45000;
+  while(['maintenance-next.json','maintenance-active.json'].some(live)) {
+    assert.ok(Date.now()<deadline,'fixture maintenance exited before deleting its custody records');
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+}
+test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: 120000 }, async () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-wrapper-fault-')));
   try {
     install(root);
@@ -42,7 +57,7 @@ test('real wrapper finally preserves the previous export across interrupted and 
     assert.equal(compile.status, 0, compile.stderr);
     fs.writeFileSync(path.join(root, 'package.json'), '{}');
     fs.mkdirSync(path.join(root, 'node_modules/expo/bin'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');`);
+    fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');fs.writeFileSync(p.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle'}}}));`);
     const dispatcher = path.join(root, 'dispatch.mjs');
     fs.writeFileSync(dispatcher, `#!${process.execPath}
 import fs from 'node:fs'; import path from 'node:path'; import {spawnSync} from 'node:child_process'; import {inventory,hash} from ${JSON.stringify(payload)};
@@ -58,6 +73,9 @@ if(args[1]==='ios') {
  if(process.env.SB4_FAULT.endsWith('mismatch'))fs.writeFileSync(path.join(path.dirname(args[2]),'publication.json'),JSON.stringify({verifiedAt:Date.now(),source:args[2],target:args[3],proofSha256:'wrong',files:[]}));
 } else {
  const env={...process.env};
+ // A valid export reaches publication. Refuse only its downstream latest
+ // handoff, so this publication-fault fixture never launches real native tools.
+ if(args[1]==='export-publish')fs.mkdirSync(path.join(path.dirname(path.dirname(args[2])),'latest.json.tmp'),{recursive:true});
  if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
  const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
  if(r.signal){process.kill(process.pid,r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
@@ -67,6 +85,7 @@ if(args[1]==='ios') {
     delete env.SNAPBACK4_NATIVE_SMOKE;
     const run = fault => spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: 20000 });
     for (const fault of ['missing', 'mismatch', 'skip-missing', 'skip-mismatch', 'before', 'after', 'tamper']) {
+      await maintenanceExited(root);
       fs.rmSync(path.join(root, 'artifacts'), { recursive: true, force: true });
       fs.rmSync(path.join(root, 'dist'), { recursive: true, force: true });
       fs.mkdirSync(path.join(root, 'dist')); fs.writeFileSync(path.join(root, 'dist/old'), 'last good export');
@@ -77,7 +96,7 @@ if(args[1]==='ios') {
       const runs = fs.readdirSync(path.join(root, 'artifacts/native-smoke')).filter(n => /^\d+-\d+$/.test(n));
       assert.equal(runs.length, 1);
       const dir = path.join(root, 'artifacts/native-smoke', runs[0]);
-      const oldAt = fault === 'after' ? path.join(dir, 'export') : path.join(root, 'dist');
+      const oldAt = fault === 'after' ? path.join(dir, 'publication-export') : path.join(root, 'dist');
       assert.deepEqual(inventory(oldAt).files, previous, fault);
       if (fault === 'after' || fault === 'before') {
         assert.equal(fs.existsSync(path.join(dir, 'publication-pending.json')), true);
@@ -85,9 +104,10 @@ if(args[1]==='ios') {
         fs.writeFileSync(path.join(dir, 'finished.json'), '{}');
         for(let i=1;i<=6;i++){const newer=path.join(root,'artifacts/native-smoke',`${Date.now()+i}-123`);fs.mkdirSync(newer);fs.writeFileSync(path.join(newer,'finished.json'),'{}');}
         const cleanup=spawnSync(binary,['witness','export-cleanup',path.join(root,'artifacts/native-smoke')],{encoding:'utf8'});
-        assert.equal(cleanup.status,0,cleanup.stderr);assert.deepEqual(inventory(oldAt).files,previous);
+        assert.equal(cleanup.status,0,cleanup.stderr);
+        assert.deepEqual(inventory(path.join(root,'dist')).files,previous,'retention itself restores the previous publication');
+        assert.equal(fs.existsSync(path.join(dir,'publication-pending.json')),false);
         const restored = run('tamper'); assert.notEqual(restored.status,0,restored.stdout+restored.stderr);
-        assert.match(restored.stderr, /restored previous export after interrupted publication/);
         assert.deepEqual(inventory(path.join(root,'dist')).files,previous,'recovery and failed retry restore last good export');
         const next = run(''); assert.equal(next.status, 0, next.stdout + next.stderr);
         assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
@@ -95,6 +115,9 @@ if(args[1]==='ios') {
       }
     }
     const skip = run('skip-valid'); assert.equal(skip.status, 0, skip.stdout + skip.stderr);
-    assert.match(skip.stdout, /native smoke skipped/);
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+    // A blocked latest-pointer write fails native scheduling loudly downstream
+    // of the successful publication, without ever launching a real simulator.
+    assert.match(skip.stderr, /native smoke failed to start/);
+    assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
+  } finally { await maintenanceExited(root); fs.rmSync(root, { recursive: true, force: true }); }
 });

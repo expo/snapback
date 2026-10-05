@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-1-0-A",
+  "block": 1,
+  "index": 0,
+  "arm": "A",
+  "startedAt": 1791092231.0944588,
+  "endedAt": 1791092275.64541,
+  "seconds": 44.55078800000001,
+  "status": 0,
+  "childCpuSeconds": 19.583205999999983,
+  "before": {
+    "at": 1791092231.0913348,
+    "load": [
+      16.44921875,
+      39.8017578125,
+      41.9189453125
+    ],
+    "idlePercent": 66.20267260579065,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  661     1 204.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "12969     1 190.6 /usr/libexec/PerfPowerServices",
+      "35517 35516   8.2 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+      "  442     1   7.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1164     1   3.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "41853     1   3.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "45631     1   2.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      " 1495  1166   2.4 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  793     1   2.0 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      "  541     1   1.9 /usr/libexec/airportd"
+    ]
+  },
+  "after": {
+    "at": 1791092276.820535,
+    "load": [
+      11.41650390625,
+      35.2216796875,
+      40.12255859375
+    ],
+    "idlePercent": 71.70435741864313,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  661     1 216.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "12969     1 188.4 /usr/libexec/PerfPowerServices",
+      "  442     1  25.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      "47283 26217   8.5 /Users/ccheever/.local/bin/fleet",
+      " 1165     1   7.2 /Applications/cmux.app/Contents/MacOS/cmux",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  454     1   2.3 /usr/libexec/opendirectoryd",
+      "  793     1   2.1 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1495  1166   1.8 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "47294 47283   1.6 /Users/ccheever/.opencode/bin/opencode"
+    ]
+  },
+  "smoke": null,
+  "exportedAt": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0.0,
+  "waitStatus": null,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-1-0-A.log",
+      "sha256": "706378fbe57731a1418a71af61f766c2d4d8d3bf3f7bc5010193e77fb2f4ac4f",
+      "bytes": 20811
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-1-0-A-host.jsonl",
+      "sha256": "1b77d1ba253a6907fdc98819417e3e83a0e38491ae00fda0e8ee58f4861203a0",
+      "bytes": 10227962
+    }
+  ]
+}

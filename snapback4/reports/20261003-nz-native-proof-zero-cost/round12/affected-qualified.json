@@ -1,0 +1,156 @@
+{
+  "originalRun": "focused.json",
+  "originalRunStatus": 1,
+  "status": 0,
+  "checks": [
+    {
+      "label": "wasm-build",
+      "command": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "status": 1,
+      "durationSeconds": 35.881584542,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-wasm-build.log",
+        "sha256": "f337998ddb46d426ea069983cfaaa2e95c570b8ccf93c7e1a6844bd94f4cc000",
+        "bytes": 9027
+      }
+    },
+    {
+      "label": "client-build",
+      "command": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "status": 0,
+      "durationSeconds": 1.2358638749999997,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-client-build.log",
+        "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+        "bytes": 201
+      }
+    },
+    {
+      "label": "build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4"
+      ],
+      "status": 0,
+      "durationSeconds": 10.480979041000005,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-build.log",
+        "sha256": "cab8e0d5c06a7035448000b17307e58be48763ec20022a95145f7fe78f4f958c",
+        "bytes": 2691
+      }
+    },
+    {
+      "label": "witness-unit",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 73.179391875,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-witness-unit.log",
+        "sha256": "a8994783c54c2b49598b8922b6ad1a08d9c187dd35873a341ab5fce62750084c",
+        "bytes": 10782
+      }
+    },
+    {
+      "label": "witness-integration",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "witness",
+        "--",
+        "--test-threads=1"
+      ],
+      "status": 0,
+      "durationSeconds": 555.964820166,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-witness-integration.log",
+        "sha256": "aabaaa752d803d41cc876cb5374f8f060683a0b59ba323865c1e63ef81adc4c9",
+        "bytes": 9735
+      }
+    },
+    {
+      "label": "export",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-native-round2.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/export-failure.test.mjs",
+        "packages/snapback4/test/witness-preparation.test.mjs",
+        "packages/snapback4/test/witness.test.mjs",
+        "packages/snapback4/test/witness-acquire.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 765.044432833,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-export.log",
+        "sha256": "906d40b720c5bd056ee128b4c8cbdfb8955474d9c77573d090400a0d357b56a1",
+        "bytes": 25411
+      }
+    },
+    {
+      "label": "darwin-fence",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/schema-capabilities.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 4.882866958000022,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-darwin-fence.log",
+        "sha256": "66b5ff008725b3f99da2f195a0d908abc1041c7160654aa3c4162107c086872c",
+        "bytes": 6596
+      }
+    },
+    {
+      "label": "merge-test-controls",
+      "command": [
+        "node",
+        "--test",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/periphery.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/cleanup.test.mjs"
+      ],
+      "status": 0,
+      "durationSeconds": 61.01265820799995,
+      "evidence": {
+        "path": "/tmp/sb4-nz-r12-focused-merge-test-controls.log",
+        "sha256": "d49753ffda9198600a35d97c3457ebb5730528d01e2e6641cd9377be88f1416b",
+        "bytes": 15207
+      }
+    }
+  ],
+  "inputsUnchangedExceptDocumentedFenceReconciliation": true,
+  "fenceReconciliation": "fence-reconciliation.json",
+  "wasmQualification": "wasm-qualified.json",
+  "note": "Only the fence test changed during the run, before its passing execution. Every other recorded input remained unchanged. Cached wasm output was corrected by clean-profile rebuild; main and merged hashes match."
+}

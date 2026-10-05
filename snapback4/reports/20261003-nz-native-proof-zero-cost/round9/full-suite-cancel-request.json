@@ -1,0 +1,48 @@
+{
+  "at": 1791170103.412523,
+  "reason": "Audit correction: handled busy deferral must not count as a failed custodian start. Preserve this incomplete suite; rerun final source.",
+  "runner": 34465,
+  "suite": 34494,
+  "tree": [
+    {
+      "pid": 34465,
+      "parent": 8101,
+      "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python snapback4/reports/20261003-nz-native-proof-zero-cost/round9-suite.py --after focused-repaired.json"
+    },
+    {
+      "pid": 34494,
+      "parent": 34465,
+      "command": "bash snapback4/scripts/test.sh"
+    },
+    {
+      "pid": 34908,
+      "parent": 34494,
+      "command": "bash snapback4/scripts/test.sh"
+    },
+    {
+      "pid": 34910,
+      "parent": 34908,
+      "command": "node scripts/run-rust-tests.mjs"
+    },
+    {
+      "pid": 46346,
+      "parent": 34910,
+      "command": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/deps/witness-f9f0359e6cd1a276 --quiet --test-threads=1"
+    },
+    {
+      "pid": 48799,
+      "parent": 46346,
+      "command": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4 witness ios --bundle-id dev.test --port 31381 --timeout 120 --segment offline --prime --artifacts artifacts"
+    },
+    {
+      "pid": 48855,
+      "parent": 48799,
+      "command": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/debug/snapback4 dev --port 31381 --no-watch"
+    },
+    {
+      "pid": 48860,
+      "parent": 48799,
+      "command": "(Python)"
+    }
+  ]
+}

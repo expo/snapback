@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-cold-3-0-A",
+  "condition": "cold-build",
+  "block": 3,
+  "index": 0,
+  "arm": "A",
+  "startedAt": 1791093009.528084,
+  "endedAt": 1791093053.943427,
+  "seconds": 44.415209166000004,
+  "status": 0,
+  "childCpuSeconds": 19.845502999999997,
+  "before": {
+    "at": 1791093009.524599,
+    "load": [
+      11.544921875,
+      31.1103515625,
+      39.12158203125
+    ],
+    "idlePercent": 75.19294377067254,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "  661     1 193.1 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "12969     1 170.7 /usr/libexec/PerfPowerServices",
+      "71672 49570   6.4 /Users/ccheever/.local/bin/fleet",
+      "  442     1   3.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1164     1   3.3 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   1.9 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  454     1   1.0 /usr/libexec/opendirectoryd",
+      "    1     0   0.8 /sbin/launchd",
+      "  793     1   0.8 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+      " 1388  1166   0.8 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)"
+    ]
+  },
+  "after": {
+    "at": 1791093055.0914838,
+    "load": [
+      7.783203125,
+      27.40283203125,
+      37.34375
+    ],
+    "idlePercent": 87.53478018920423,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "12969     1 193.8 /usr/libexec/PerfPowerServices",
+      " 1164     1   2.5 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      " 1495  1166   1.2 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "  417     1   1.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "  478     1   1.0 /usr/sbin/bluetoothd",
+      "72478 49570   1.0 /Users/ccheever/.local/bin/fleet",
+      " 1924     1   0.7 /Applications/Dropbox.app/Contents/MacOS/Dropbox",
+      "  912     1   0.6 /usr/libexec/sharingd",
+      " 1388  1166   0.6 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "56547     1   0.5 launchd_sim"
+    ]
+  },
+  "smoke": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "waitStatus": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-3-0-A.log",
+      "sha256": "c6a552e7b7f639a5ff2330729aed54a5d1eb959fe9804982c54bf87b45a4bd5e",
+      "bytes": 20774
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-3-0-A-host.jsonl",
+      "sha256": "171c94ba0a19cb7d9070015c53a6f76e6e83c7e74245967754e938c1353b3eca",
+      "bytes": 9786385
+    }
+  ]
+}

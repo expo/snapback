@@ -1,0 +1,4056 @@
+{
+  "at": 1791102854.488889,
+  "recordedGroups": [
+    {
+      "group": 38697,
+      "guardian": {
+        "pid": 38696,
+        "start": [
+          1791087624,
+          950569
+        ]
+      },
+      "leader": {
+        "pid": 38697,
+        "start": [
+          1791087624,
+          957447
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/verify-install-group.reap.lock"
+    },
+    {
+      "group": 39042,
+      "guardian": {
+        "pid": 39041,
+        "start": [
+          1791087630,
+          503224
+        ]
+      },
+      "leader": {
+        "pid": 39042,
+        "start": [
+          1791087630,
+          511478
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 40112,
+      "guardian": {
+        "pid": 40111,
+        "start": [
+          1791087651,
+          74060
+        ]
+      },
+      "leader": {
+        "pid": 40112,
+        "start": [
+          1791087651,
+          81971
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 40145,
+      "guardian": {
+        "pid": 40144,
+        "start": [
+          1791087651,
+          858016
+        ]
+      },
+      "leader": {
+        "pid": 40145,
+        "start": [
+          1791087651,
+          866039
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 30394,
+      "guardian": {
+        "pid": 30392,
+        "start": [
+          1791087092,
+          7699
+        ]
+      },
+      "leader": {
+        "pid": 30394,
+        "start": [
+          1791087092,
+          16161
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/check-group.reap.lock"
+    },
+    {
+      "group": 30450,
+      "guardian": {
+        "pid": 30449,
+        "start": [
+          1791087094,
+          453699
+        ]
+      },
+      "leader": {
+        "pid": 30450,
+        "start": [
+          1791087094,
+          460421
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/preparation-group.reap.lock"
+    },
+    {
+      "group": 39809,
+      "guardian": {
+        "pid": 39808,
+        "start": [
+          1791087644,
+          975079
+        ]
+      },
+      "leader": {
+        "pid": 39809,
+        "start": [
+          1791087644,
+          983621
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 39402,
+      "guardian": {
+        "pid": 39401,
+        "start": [
+          1791087637,
+          390286
+        ]
+      },
+      "leader": {
+        "pid": 39402,
+        "start": [
+          1791087637,
+          396402
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 38546,
+      "guardian": {
+        "pid": 38545,
+        "start": [
+          1791087618,
+          741482
+        ]
+      },
+      "leader": {
+        "pid": 38546,
+        "start": [
+          1791087618,
+          749370
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087065865-29598/before-install-group.reap.lock"
+    },
+    {
+      "group": 14820,
+      "guardian": {
+        "pid": 14819,
+        "start": [
+          1791091317,
+          231688
+        ]
+      },
+      "leader": {
+        "pid": 14820,
+        "start": [
+          1791091317,
+          238966
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/verify-install-group.reap.lock"
+    },
+    {
+      "group": 15125,
+      "guardian": {
+        "pid": 15124,
+        "start": [
+          1791091322,
+          161611
+        ]
+      },
+      "leader": {
+        "pid": 15125,
+        "start": [
+          1791091322,
+          164432
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 16543,
+      "guardian": {
+        "pid": 16542,
+        "start": [
+          1791091348,
+          651666
+        ]
+      },
+      "leader": {
+        "pid": 16543,
+        "start": [
+          1791091348,
+          658800
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 16575,
+      "guardian": {
+        "pid": 16574,
+        "start": [
+          1791091349,
+          319000
+        ]
+      },
+      "leader": {
+        "pid": 16575,
+        "start": [
+          1791091349,
+          325369
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 14010,
+      "guardian": {
+        "pid": 14009,
+        "start": [
+          1791091278,
+          317564
+        ]
+      },
+      "leader": {
+        "pid": 14010,
+        "start": [
+          1791091278,
+          320986
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/check-group.reap.lock"
+    },
+    {
+      "group": 14050,
+      "guardian": {
+        "pid": 14049,
+        "start": [
+          1791091279,
+          736037
+        ]
+      },
+      "leader": {
+        "pid": 14050,
+        "start": [
+          1791091279,
+          742401
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/preparation-group.reap.lock"
+    },
+    {
+      "group": 16254,
+      "guardian": {
+        "pid": 16253,
+        "start": [
+          1791091342,
+          904916
+        ]
+      },
+      "leader": {
+        "pid": 16254,
+        "start": [
+          1791091342,
+          913444
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 15804,
+      "guardian": {
+        "pid": 15803,
+        "start": [
+          1791091334,
+          523955
+        ]
+      },
+      "leader": {
+        "pid": 15804,
+        "start": [
+          1791091334,
+          528700
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 14714,
+      "guardian": {
+        "pid": 14713,
+        "start": [
+          1791091314,
+          173414
+        ]
+      },
+      "leader": {
+        "pid": 14714,
+        "start": [
+          1791091314,
+          180629
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091255868-13238/before-install-group.reap.lock"
+    },
+    {
+      "group": 95217,
+      "guardian": {
+        "pid": 95216,
+        "start": [
+          1791090809,
+          506087
+        ]
+      },
+      "leader": {
+        "pid": 95217,
+        "start": [
+          1791090809,
+          510331
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-install-group.reap.lock"
+    },
+    {
+      "group": 95565,
+      "guardian": {
+        "pid": 95564,
+        "start": [
+          1791090816,
+          361163
+        ]
+      },
+      "leader": {
+        "pid": 95565,
+        "start": [
+          1791090816,
+          364331
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 97409,
+      "guardian": {
+        "pid": 97408,
+        "start": [
+          1791090852,
+          174604
+        ]
+      },
+      "leader": {
+        "pid": 97409,
+        "start": [
+          1791090852,
+          182020
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 97424,
+      "guardian": {
+        "pid": 97423,
+        "start": [
+          1791090853,
+          168672
+        ]
+      },
+      "leader": {
+        "pid": 97424,
+        "start": [
+          1791090853,
+          176772
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 82076,
+      "guardian": {
+        "pid": 82075,
+        "start": [
+          1791089749,
+          368366
+        ]
+      },
+      "leader": {
+        "pid": 82076,
+        "start": [
+          1791089749,
+          372668
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/check-group.reap.lock"
+    },
+    {
+      "group": 82167,
+      "guardian": {
+        "pid": 82166,
+        "start": [
+          1791089751,
+          7899
+        ]
+      },
+      "leader": {
+        "pid": 82167,
+        "start": [
+          1791089751,
+          15415
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/preparation-group.reap.lock"
+    },
+    {
+      "group": 96892,
+      "guardian": {
+        "pid": 96891,
+        "start": [
+          1791090841,
+          416012
+        ]
+      },
+      "leader": {
+        "pid": 96892,
+        "start": [
+          1791090841,
+          423268
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 96239,
+      "guardian": {
+        "pid": 96238,
+        "start": [
+          1791090828,
+          822487
+        ]
+      },
+      "leader": {
+        "pid": 96239,
+        "start": [
+          1791090828,
+          830352
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 95077,
+      "guardian": {
+        "pid": 95076,
+        "start": [
+          1791090803,
+          999960
+        ]
+      },
+      "leader": {
+        "pid": 95077,
+        "start": [
+          1791090804,
+          4011
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791089726674-81381/before-install-group.reap.lock"
+    },
+    {
+      "group": 24393,
+      "guardian": {
+        "pid": 24392,
+        "start": [
+          1791091540,
+          721149
+        ]
+      },
+      "leader": {
+        "pid": 24393,
+        "start": [
+          1791091540,
+          731176
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/verify-install-group.reap.lock"
+    },
+    {
+      "group": 24715,
+      "guardian": {
+        "pid": 24714,
+        "start": [
+          1791091546,
+          826571
+        ]
+      },
+      "leader": {
+        "pid": 24715,
+        "start": [
+          1791091546,
+          835298
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 26777,
+      "guardian": {
+        "pid": 26775,
+        "start": [
+          1791091586,
+          336221
+        ]
+      },
+      "leader": {
+        "pid": 26777,
+        "start": [
+          1791091586,
+          342973
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 26808,
+      "guardian": {
+        "pid": 26807,
+        "start": [
+          1791091587,
+          373837
+        ]
+      },
+      "leader": {
+        "pid": 26808,
+        "start": [
+          1791091587,
+          378053
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 23420,
+      "guardian": {
+        "pid": 23419,
+        "start": [
+          1791091491,
+          174742
+        ]
+      },
+      "leader": {
+        "pid": 23420,
+        "start": [
+          1791091491,
+          194931
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/check-group.reap.lock"
+    },
+    {
+      "group": 23465,
+      "guardian": {
+        "pid": 23464,
+        "start": [
+          1791091492,
+          680612
+        ]
+      },
+      "leader": {
+        "pid": 23465,
+        "start": [
+          1791091492,
+          687477
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/preparation-group.reap.lock"
+    },
+    {
+      "group": 26105,
+      "guardian": {
+        "pid": 26104,
+        "start": [
+          1791091574,
+          260075
+        ]
+      },
+      "leader": {
+        "pid": 26105,
+        "start": [
+          1791091574,
+          267598
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 25438,
+      "guardian": {
+        "pid": 25437,
+        "start": [
+          1791091560,
+          155386
+        ]
+      },
+      "leader": {
+        "pid": 25438,
+        "start": [
+          1791091560,
+          162769
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 24263,
+      "guardian": {
+        "pid": 24262,
+        "start": [
+          1791091535,
+          247561
+        ]
+      },
+      "leader": {
+        "pid": 24263,
+        "start": [
+          1791091535,
+          254639
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091467836-22660/before-install-group.reap.lock"
+    },
+    {
+      "group": 4979,
+      "guardian": {
+        "pid": 4978,
+        "start": [
+          1791091072,
+          512053
+        ]
+      },
+      "leader": {
+        "pid": 4979,
+        "start": [
+          1791091072,
+          518723
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/verify-install-group.reap.lock"
+    },
+    {
+      "group": 5286,
+      "guardian": {
+        "pid": 5285,
+        "start": [
+          1791091074,
+          983593
+        ]
+      },
+      "leader": {
+        "pid": 5286,
+        "start": [
+          1791091074,
+          986956
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 6553,
+      "guardian": {
+        "pid": 6552,
+        "start": [
+          1791091087,
+          761925
+        ]
+      },
+      "leader": {
+        "pid": 6553,
+        "start": [
+          1791091087,
+          768362
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 6566,
+      "guardian": {
+        "pid": 6565,
+        "start": [
+          1791091088,
+          61534
+        ]
+      },
+      "leader": {
+        "pid": 6566,
+        "start": [
+          1791091088,
+          68617
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 98422,
+      "guardian": {
+        "pid": 98421,
+        "start": [
+          1791090887,
+          577565
+        ]
+      },
+      "leader": {
+        "pid": 98422,
+        "start": [
+          1791090887,
+          580755
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/check-group.reap.lock"
+    },
+    {
+      "group": 98449,
+      "guardian": {
+        "pid": 98448,
+        "start": [
+          1791090888,
+          181446
+        ]
+      },
+      "leader": {
+        "pid": 98449,
+        "start": [
+          1791090888,
+          187381
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/preparation-group.reap.lock"
+    },
+    {
+      "group": 6185,
+      "guardian": {
+        "pid": 6184,
+        "start": [
+          1791091083,
+          728838
+        ]
+      },
+      "leader": {
+        "pid": 6185,
+        "start": [
+          1791091083,
+          735609
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 5721,
+      "guardian": {
+        "pid": 5720,
+        "start": [
+          1791091079,
+          316040
+        ]
+      },
+      "leader": {
+        "pid": 5721,
+        "start": [
+          1791091079,
+          320694
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 4850,
+      "guardian": {
+        "pid": 4849,
+        "start": [
+          1791091068,
+          297650
+        ]
+      },
+      "leader": {
+        "pid": 4850,
+        "start": [
+          1791091068,
+          305616
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791090869671-97732/before-install-group.reap.lock"
+    },
+    {
+      "group": 20767,
+      "guardian": {
+        "pid": 20766,
+        "start": [
+          1791091441,
+          765917
+        ]
+      },
+      "leader": {
+        "pid": 20767,
+        "start": [
+          1791091441,
+          768800
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/verify-install-group.reap.lock"
+    },
+    {
+      "group": 21077,
+      "guardian": {
+        "pid": 21076,
+        "start": [
+          1791091444,
+          615330
+        ]
+      },
+      "leader": {
+        "pid": 21077,
+        "start": [
+          1791091444,
+          618161
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 22472,
+      "guardian": {
+        "pid": 22471,
+        "start": [
+          1791091460,
+          683968
+        ]
+      },
+      "leader": {
+        "pid": 22472,
+        "start": [
+          1791091460,
+          688566
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 22499,
+      "guardian": {
+        "pid": 22496,
+        "start": [
+          1791091460,
+          952350
+        ]
+      },
+      "leader": {
+        "pid": 22499,
+        "start": [
+          1791091460,
+          956257
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 20166,
+      "guardian": {
+        "pid": 20165,
+        "start": [
+          1791091426,
+          76916
+        ]
+      },
+      "leader": {
+        "pid": 20166,
+        "start": [
+          1791091426,
+          81456
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/check-group.reap.lock"
+    },
+    {
+      "group": 20189,
+      "guardian": {
+        "pid": 20188,
+        "start": [
+          1791091426,
+          611455
+        ]
+      },
+      "leader": {
+        "pid": 20189,
+        "start": [
+          1791091426,
+          615535
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/preparation-group.reap.lock"
+    },
+    {
+      "group": 22039,
+      "guardian": {
+        "pid": 22038,
+        "start": [
+          1791091455,
+          462014
+        ]
+      },
+      "leader": {
+        "pid": 22039,
+        "start": [
+          1791091455,
+          464881
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 21545,
+      "guardian": {
+        "pid": 21544,
+        "start": [
+          1791091449,
+          921006
+        ]
+      },
+      "leader": {
+        "pid": 21545,
+        "start": [
+          1791091449,
+          923779
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 20664,
+      "guardian": {
+        "pid": 20663,
+        "start": [
+          1791091439,
+          292631
+        ]
+      },
+      "leader": {
+        "pid": 20664,
+        "start": [
+          1791091439,
+          296180
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091408107-19487/before-install-group.reap.lock"
+    },
+    {
+      "group": 28120,
+      "guardian": {
+        "pid": 28119,
+        "start": [
+          1791087046,
+          603862
+        ]
+      },
+      "leader": {
+        "pid": 28120,
+        "start": [
+          1791087046,
+          608143
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/verify-install-group.reap.lock"
+    },
+    {
+      "group": 28438,
+      "guardian": {
+        "pid": 28437,
+        "start": [
+          1791087049,
+          6505
+        ]
+      },
+      "leader": {
+        "pid": 28438,
+        "start": [
+          1791087049,
+          12410
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 29374,
+      "guardian": {
+        "pid": 29373,
+        "start": [
+          1791087058,
+          198565
+        ]
+      },
+      "leader": {
+        "pid": 29374,
+        "start": [
+          1791087058,
+          207118
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 29396,
+      "guardian": {
+        "pid": 29395,
+        "start": [
+          1791087058,
+          471313
+        ]
+      },
+      "leader": {
+        "pid": 29396,
+        "start": [
+          1791087058,
+          473894
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 23509,
+      "guardian": {
+        "pid": 23508,
+        "start": [
+          1791086910,
+          654004
+        ]
+      },
+      "leader": {
+        "pid": 23509,
+        "start": [
+          1791086910,
+          657234
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/check-group.reap.lock"
+    },
+    {
+      "group": 23534,
+      "guardian": {
+        "pid": 23533,
+        "start": [
+          1791086911,
+          199750
+        ]
+      },
+      "leader": {
+        "pid": 23534,
+        "start": [
+          1791086911,
+          204877
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/preparation-group.reap.lock"
+    },
+    {
+      "group": 29106,
+      "guardian": {
+        "pid": 29105,
+        "start": [
+          1791087055,
+          299099
+        ]
+      },
+      "leader": {
+        "pid": 29106,
+        "start": [
+          1791087055,
+          307157
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 28788,
+      "guardian": {
+        "pid": 28787,
+        "start": [
+          1791087052,
+          151897
+        ]
+      },
+      "leader": {
+        "pid": 28788,
+        "start": [
+          1791087052,
+          154648
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 28012,
+      "guardian": {
+        "pid": 28011,
+        "start": [
+          1791087041,
+          640330
+        ]
+      },
+      "leader": {
+        "pid": 28012,
+        "start": [
+          1791087041,
+          643027
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791086892062-22803/before-install-group.reap.lock"
+    },
+    {
+      "group": 18000,
+      "guardian": {
+        "pid": 17999,
+        "start": [
+          1791091388,
+          665892
+        ]
+      },
+      "leader": {
+        "pid": 18000,
+        "start": [
+          1791091388,
+          669052
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/verify-install-group.reap.lock"
+    },
+    {
+      "group": 18304,
+      "guardian": {
+        "pid": 18303,
+        "start": [
+          1791091391,
+          434266
+        ]
+      },
+      "leader": {
+        "pid": 18304,
+        "start": [
+          1791091391,
+          437456
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 19302,
+      "guardian": {
+        "pid": 19301,
+        "start": [
+          1791091400,
+          892068
+        ]
+      },
+      "leader": {
+        "pid": 19302,
+        "start": [
+          1791091400,
+          895248
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 19316,
+      "guardian": {
+        "pid": 19315,
+        "start": [
+          1791091401,
+          200857
+        ]
+      },
+      "leader": {
+        "pid": 19316,
+        "start": [
+          1791091401,
+          203586
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 17380,
+      "guardian": {
+        "pid": 17379,
+        "start": [
+          1791091377,
+          29048
+        ]
+      },
+      "leader": {
+        "pid": 17380,
+        "start": [
+          1791091377,
+          32263
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/check-group.reap.lock"
+    },
+    {
+      "group": 17420,
+      "guardian": {
+        "pid": 17419,
+        "start": [
+          1791091377,
+          621761
+        ]
+      },
+      "leader": {
+        "pid": 17420,
+        "start": [
+          1791091377,
+          626323
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/preparation-group.reap.lock"
+    },
+    {
+      "group": 19014,
+      "guardian": {
+        "pid": 19013,
+        "start": [
+          1791091398,
+          114069
+        ]
+      },
+      "leader": {
+        "pid": 19014,
+        "start": [
+          1791091398,
+          120693
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 18655,
+      "guardian": {
+        "pid": 18654,
+        "start": [
+          1791091394,
+          924200
+        ]
+      },
+      "leader": {
+        "pid": 18655,
+        "start": [
+          1791091394,
+          931165
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 17875,
+      "guardian": {
+        "pid": 17874,
+        "start": [
+          1791091386,
+          618992
+        ]
+      },
+      "leader": {
+        "pid": 17875,
+        "start": [
+          1791091386,
+          621835
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091360279-16742/before-install-group.reap.lock"
+    },
+    {
+      "group": 78961,
+      "guardian": {
+        "pid": 78960,
+        "start": [
+          1791089670,
+          313717
+        ]
+      },
+      "leader": {
+        "pid": 78961,
+        "start": [
+          1791089670,
+          320558
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/verify-install-group.reap.lock"
+    },
+    {
+      "group": 79257,
+      "guardian": {
+        "pid": 79256,
+        "start": [
+          1791089676,
+          907898
+        ]
+      },
+      "leader": {
+        "pid": 79257,
+        "start": [
+          1791089676,
+          915692
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 81107,
+      "guardian": {
+        "pid": 81106,
+        "start": [
+          1791089710,
+          476932
+        ]
+      },
+      "leader": {
+        "pid": 81107,
+        "start": [
+          1791089710,
+          485148
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 81127,
+      "guardian": {
+        "pid": 81126,
+        "start": [
+          1791089711,
+          540807
+        ]
+      },
+      "leader": {
+        "pid": 81127,
+        "start": [
+          1791089711,
+          547135
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 65430,
+      "guardian": {
+        "pid": 65429,
+        "start": [
+          1791088566,
+          435094
+        ]
+      },
+      "leader": {
+        "pid": 65430,
+        "start": [
+          1791088566,
+          440420
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/check-group.reap.lock"
+    },
+    {
+      "group": 65471,
+      "guardian": {
+        "pid": 65470,
+        "start": [
+          1791088567,
+          962607
+        ]
+      },
+      "leader": {
+        "pid": 65471,
+        "start": [
+          1791088567,
+          969194
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/preparation-group.reap.lock"
+    },
+    {
+      "group": 80533,
+      "guardian": {
+        "pid": 80532,
+        "start": [
+          1791089700,
+          201020
+        ]
+      },
+      "leader": {
+        "pid": 80533,
+        "start": [
+          1791089700,
+          205093
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 79880,
+      "guardian": {
+        "pid": 79879,
+        "start": [
+          1791089688,
+          966113
+        ]
+      },
+      "leader": {
+        "pid": 79880,
+        "start": [
+          1791089688,
+          973499
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 78824,
+      "guardian": {
+        "pid": 78823,
+        "start": [
+          1791089665,
+          226878
+        ]
+      },
+      "leader": {
+        "pid": 78824,
+        "start": [
+          1791089665,
+          234181
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791088543483-64662/before-install-group.reap.lock"
+    },
+    {
+      "group": 28722,
+      "guardian": {
+        "pid": 28721,
+        "start": [
+          1791091663,
+          521237
+        ]
+      },
+      "leader": {
+        "pid": 28722,
+        "start": [
+          1791091663,
+          525452
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/verify-install-group.reap.lock"
+    },
+    {
+      "group": 29050,
+      "guardian": {
+        "pid": 29049,
+        "start": [
+          1791091669,
+          833358
+        ]
+      },
+      "leader": {
+        "pid": 29050,
+        "start": [
+          1791091669,
+          841844
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 31424,
+      "guardian": {
+        "pid": 31423,
+        "start": [
+          1791091714,
+          408233
+        ]
+      },
+      "leader": {
+        "pid": 31424,
+        "start": [
+          1791091714,
+          416336
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 31439,
+      "guardian": {
+        "pid": 31438,
+        "start": [
+          1791091715,
+          478052
+        ]
+      },
+      "leader": {
+        "pid": 31439,
+        "start": [
+          1791091715,
+          487651
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 27775,
+      "guardian": {
+        "pid": 27773,
+        "start": [
+          1791091621,
+          569501
+        ]
+      },
+      "leader": {
+        "pid": 27775,
+        "start": [
+          1791091621,
+          579990
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/check-group.reap.lock"
+    },
+    {
+      "group": 27826,
+      "guardian": {
+        "pid": 27825,
+        "start": [
+          1791091622,
+          887826
+        ]
+      },
+      "leader": {
+        "pid": 27826,
+        "start": [
+          1791091622,
+          894808
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/preparation-group.reap.lock"
+    },
+    {
+      "group": 30749,
+      "guardian": {
+        "pid": 30748,
+        "start": [
+          1791091701,
+          622838
+        ]
+      },
+      "leader": {
+        "pid": 30749,
+        "start": [
+          1791091701,
+          631175
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 30044,
+      "guardian": {
+        "pid": 30043,
+        "start": [
+          1791091688,
+          65122
+        ]
+      },
+      "leader": {
+        "pid": 30044,
+        "start": [
+          1791091688,
+          71539
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 28577,
+      "guardian": {
+        "pid": 28576,
+        "start": [
+          1791091659,
+          661316
+        ]
+      },
+      "leader": {
+        "pid": 28577,
+        "start": [
+          1791091659,
+          666187
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091598468-27017/before-install-group.reap.lock"
+    },
+    {
+      "group": 47821,
+      "guardian": {
+        "pid": 47820,
+        "start": [
+          1791088119,
+          84398
+        ]
+      },
+      "leader": {
+        "pid": 47821,
+        "start": [
+          1791088119,
+          91347
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/verify-install-group.reap.lock"
+    },
+    {
+      "group": 48153,
+      "guardian": {
+        "pid": 48152,
+        "start": [
+          1791088124,
+          91667
+        ]
+      },
+      "leader": {
+        "pid": 48153,
+        "start": [
+          1791088124,
+          99418
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 49256,
+      "guardian": {
+        "pid": 49255,
+        "start": [
+          1791088142,
+          140211
+        ]
+      },
+      "leader": {
+        "pid": 49256,
+        "start": [
+          1791088142,
+          147510
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 49275,
+      "guardian": {
+        "pid": 49274,
+        "start": [
+          1791088143,
+          341764
+        ]
+      },
+      "leader": {
+        "pid": 49275,
+        "start": [
+          1791088143,
+          345579
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 41117,
+      "guardian": {
+        "pid": 41113,
+        "start": [
+          1791087687,
+          668095
+        ]
+      },
+      "leader": {
+        "pid": 41117,
+        "start": [
+          1791087687,
+          683564
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/check-group.reap.lock"
+    },
+    {
+      "group": 41163,
+      "guardian": {
+        "pid": 41162,
+        "start": [
+          1791087689,
+          292021
+        ]
+      },
+      "leader": {
+        "pid": 41163,
+        "start": [
+          1791087689,
+          295158
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/preparation-group.reap.lock"
+    },
+    {
+      "group": 48960,
+      "guardian": {
+        "pid": 48959,
+        "start": [
+          1791088137,
+          6444
+        ]
+      },
+      "leader": {
+        "pid": 48960,
+        "start": [
+          1791088137,
+          13251
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 48546,
+      "guardian": {
+        "pid": 48545,
+        "start": [
+          1791088130,
+          306329
+        ]
+      },
+      "leader": {
+        "pid": 48546,
+        "start": [
+          1791088130,
+          312825
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 47677,
+      "guardian": {
+        "pid": 47676,
+        "start": [
+          1791088114,
+          237546
+        ]
+      },
+      "leader": {
+        "pid": 47677,
+        "start": [
+          1791088114,
+          244175
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791087665980-40369/before-install-group.reap.lock"
+    },
+    {
+      "group": 11070,
+      "guardian": {
+        "pid": 11069,
+        "start": [
+          1791091208,
+          607379
+        ]
+      },
+      "leader": {
+        "pid": 11070,
+        "start": [
+          1791091208,
+          612616
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/verify-install-group.reap.lock"
+    },
+    {
+      "group": 11384,
+      "guardian": {
+        "pid": 11383,
+        "start": [
+          1791091213,
+          525817
+        ]
+      },
+      "leader": {
+        "pid": 11384,
+        "start": [
+          1791091213,
+          529569
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 13029,
+      "guardian": {
+        "pid": 13028,
+        "start": [
+          1791091243,
+          842253
+        ]
+      },
+      "leader": {
+        "pid": 13029,
+        "start": [
+          1791091243,
+          849208
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 13050,
+      "guardian": {
+        "pid": 13049,
+        "start": [
+          1791091244,
+          770774
+        ]
+      },
+      "leader": {
+        "pid": 13050,
+        "start": [
+          1791091244,
+          778405
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 10158,
+      "guardian": {
+        "pid": 10157,
+        "start": [
+          1791091166,
+          870889
+        ]
+      },
+      "leader": {
+        "pid": 10158,
+        "start": [
+          1791091166,
+          882285
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/check-group.reap.lock"
+    },
+    {
+      "group": 10201,
+      "guardian": {
+        "pid": 10199,
+        "start": [
+          1791091168,
+          361494
+        ]
+      },
+      "leader": {
+        "pid": 10201,
+        "start": [
+          1791091168,
+          365470
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/preparation-group.reap.lock"
+    },
+    {
+      "group": 12719,
+      "guardian": {
+        "pid": 12718,
+        "start": [
+          1791091237,
+          901100
+        ]
+      },
+      "leader": {
+        "pid": 12719,
+        "start": [
+          1791091237,
+          909547
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 12308,
+      "guardian": {
+        "pid": 12307,
+        "start": [
+          1791091230,
+          282217
+        ]
+      },
+      "leader": {
+        "pid": 12308,
+        "start": [
+          1791091230,
+          286790
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 10960,
+      "guardian": {
+        "pid": 10959,
+        "start": [
+          1791091203,
+          902632
+        ]
+      },
+      "leader": {
+        "pid": 10960,
+        "start": [
+          1791091203,
+          907393
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-B/artifacts/native-smoke/1791091145373-9557/before-install-group.reap.lock"
+    },
+    {
+      "group": 54165,
+      "guardian": {
+        "pid": 54164,
+        "start": [
+          1791088299,
+          270800
+        ]
+      },
+      "leader": {
+        "pid": 54165,
+        "start": [
+          1791088299,
+          276342
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/verify-install-group.reap.lock"
+    },
+    {
+      "group": 54488,
+      "guardian": {
+        "pid": 54487,
+        "start": [
+          1791088301,
+          769114
+        ]
+      },
+      "leader": {
+        "pid": 54488,
+        "start": [
+          1791088301,
+          776766
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 55442,
+      "guardian": {
+        "pid": 55441,
+        "start": [
+          1791088310,
+          751229
+        ]
+      },
+      "leader": {
+        "pid": 55442,
+        "start": [
+          1791088310,
+          759113
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 55455,
+      "guardian": {
+        "pid": 55454,
+        "start": [
+          1791088311,
+          39688
+        ]
+      },
+      "leader": {
+        "pid": 55455,
+        "start": [
+          1791088311,
+          43947
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 50149,
+      "guardian": {
+        "pid": 50148,
+        "start": [
+          1791088173,
+          816027
+        ]
+      },
+      "leader": {
+        "pid": 50149,
+        "start": [
+          1791088173,
+          820357
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/check-group.reap.lock"
+    },
+    {
+      "group": 50176,
+      "guardian": {
+        "pid": 50175,
+        "start": [
+          1791088174,
+          361609
+        ]
+      },
+      "leader": {
+        "pid": 50176,
+        "start": [
+          1791088174,
+          366084
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/preparation-group.reap.lock"
+    },
+    {
+      "group": 55161,
+      "guardian": {
+        "pid": 55160,
+        "start": [
+          1791088308,
+          78815
+        ]
+      },
+      "leader": {
+        "pid": 55161,
+        "start": [
+          1791088308,
+          85473
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 54808,
+      "guardian": {
+        "pid": 54807,
+        "start": [
+          1791088304,
+          858738
+        ]
+      },
+      "leader": {
+        "pid": 54808,
+        "start": [
+          1791088304,
+          865860
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 54052,
+      "guardian": {
+        "pid": 54051,
+        "start": [
+          1791088294,
+          876726
+        ]
+      },
+      "leader": {
+        "pid": 54052,
+        "start": [
+          1791088294,
+          882631
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791088157707-49535/before-install-group.reap.lock"
+    },
+    {
+      "group": 8053,
+      "guardian": {
+        "pid": 8052,
+        "start": [
+          1791091125,
+          720706
+        ]
+      },
+      "leader": {
+        "pid": 8053,
+        "start": [
+          1791091125,
+          724770
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/verify-install-group.reap.lock"
+    },
+    {
+      "group": 8361,
+      "guardian": {
+        "pid": 8360,
+        "start": [
+          1791091128,
+          268771
+        ]
+      },
+      "leader": {
+        "pid": 8361,
+        "start": [
+          1791091128,
+          272074
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 9358,
+      "guardian": {
+        "pid": 9357,
+        "start": [
+          1791091138,
+          123750
+        ]
+      },
+      "leader": {
+        "pid": 9358,
+        "start": [
+          1791091138,
+          127758
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 9374,
+      "guardian": {
+        "pid": 9373,
+        "start": [
+          1791091138,
+          401498
+        ]
+      },
+      "leader": {
+        "pid": 9374,
+        "start": [
+          1791091138,
+          405655
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 7447,
+      "guardian": {
+        "pid": 7446,
+        "start": [
+          1791091112,
+          256270
+        ]
+      },
+      "leader": {
+        "pid": 7447,
+        "start": [
+          1791091112,
+          259406
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/check-group.reap.lock"
+    },
+    {
+      "group": 7477,
+      "guardian": {
+        "pid": 7476,
+        "start": [
+          1791091112,
+          858372
+        ]
+      },
+      "leader": {
+        "pid": 7477,
+        "start": [
+          1791091112,
+          863167
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/preparation-group.reap.lock"
+    },
+    {
+      "group": 9071,
+      "guardian": {
+        "pid": 9070,
+        "start": [
+          1791091135,
+          118893
+        ]
+      },
+      "leader": {
+        "pid": 9071,
+        "start": [
+          1791091135,
+          123274
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 8711,
+      "guardian": {
+        "pid": 8710,
+        "start": [
+          1791091131,
+          641649
+        ]
+      },
+      "leader": {
+        "pid": 8711,
+        "start": [
+          1791091131,
+          647209
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 7943,
+      "guardian": {
+        "pid": 7942,
+        "start": [
+          1791091123,
+          368996
+        ]
+      },
+      "leader": {
+        "pid": 7943,
+        "start": [
+          1791091123,
+          371991
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-plain-A/artifacts/native-smoke/1791091095101-6761/before-install-group.reap.lock"
+    },
+    {
+      "group": 62804,
+      "guardian": {
+        "pid": 62803,
+        "start": [
+          1791088520,
+          725037
+        ]
+      },
+      "leader": {
+        "pid": 62804,
+        "start": [
+          1791088520,
+          731688
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/verify-install-group.reap.lock"
+    },
+    {
+      "group": 63137,
+      "guardian": {
+        "pid": 63136,
+        "start": [
+          1791088523,
+          194904
+        ]
+      },
+      "leader": {
+        "pid": 63137,
+        "start": [
+          1791088523,
+          201212
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 64475,
+      "guardian": {
+        "pid": 64474,
+        "start": [
+          1791088535,
+          831687
+        ]
+      },
+      "leader": {
+        "pid": 64475,
+        "start": [
+          1791088535,
+          839735
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 64490,
+      "guardian": {
+        "pid": 64489,
+        "start": [
+          1791088536,
+          152198
+        ]
+      },
+      "leader": {
+        "pid": 64490,
+        "start": [
+          1791088536,
+          154479
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 56272,
+      "guardian": {
+        "pid": 56271,
+        "start": [
+          1791088337,
+          222332
+        ]
+      },
+      "leader": {
+        "pid": 56272,
+        "start": [
+          1791088337,
+          227779
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/check-group.reap.lock"
+    },
+    {
+      "group": 56298,
+      "guardian": {
+        "pid": 56297,
+        "start": [
+          1791088337,
+          761643
+        ]
+      },
+      "leader": {
+        "pid": 56298,
+        "start": [
+          1791088337,
+          765149
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/preparation-group.reap.lock"
+    },
+    {
+      "group": 64070,
+      "guardian": {
+        "pid": 64069,
+        "start": [
+          1791088531,
+          955258
+        ]
+      },
+      "leader": {
+        "pid": 64070,
+        "start": [
+          1791088531,
+          957958
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 63614,
+      "guardian": {
+        "pid": 63613,
+        "start": [
+          1791088527,
+          540739
+        ]
+      },
+      "leader": {
+        "pid": 63614,
+        "start": [
+          1791088527,
+          544315
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 62703,
+      "guardian": {
+        "pid": 62702,
+        "start": [
+          1791088516,
+          924320
+        ]
+      },
+      "leader": {
+        "pid": 62703,
+        "start": [
+          1791088516,
+          932025
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791088318004-55586/before-install-group.reap.lock"
+    },
+    {
+      "group": 32971,
+      "guardian": {
+        "pid": 32970,
+        "start": [
+          1791091760,
+          116897
+        ]
+      },
+      "leader": {
+        "pid": 32971,
+        "start": [
+          1791091760,
+          119394
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/verify-install-group.reap.lock"
+    },
+    {
+      "group": 33281,
+      "guardian": {
+        "pid": 33280,
+        "start": [
+          1791091762,
+          566639
+        ]
+      },
+      "leader": {
+        "pid": 33281,
+        "start": [
+          1791091762,
+          569056
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 34674,
+      "guardian": {
+        "pid": 34673,
+        "start": [
+          1791091776,
+          908566
+        ]
+      },
+      "leader": {
+        "pid": 34674,
+        "start": [
+          1791091776,
+          915278
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 34700,
+      "guardian": {
+        "pid": 34699,
+        "start": [
+          1791091777,
+          207793
+        ]
+      },
+      "leader": {
+        "pid": 34700,
+        "start": [
+          1791091777,
+          210738
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 32318,
+      "guardian": {
+        "pid": 32316,
+        "start": [
+          1791091743,
+          922036
+        ]
+      },
+      "leader": {
+        "pid": 32318,
+        "start": [
+          1791091743,
+          925220
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/check-group.reap.lock"
+    },
+    {
+      "group": 32344,
+      "guardian": {
+        "pid": 32342,
+        "start": [
+          1791091744,
+          492986
+        ]
+      },
+      "leader": {
+        "pid": 32344,
+        "start": [
+          1791091744,
+          496914
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/preparation-group.reap.lock"
+    },
+    {
+      "group": 34260,
+      "guardian": {
+        "pid": 34258,
+        "start": [
+          1791091772,
+          430244
+        ]
+      },
+      "leader": {
+        "pid": 34260,
+        "start": [
+          1791091772,
+          433768
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 33742,
+      "guardian": {
+        "pid": 33741,
+        "start": [
+          1791091767,
+          299182
+        ]
+      },
+      "leader": {
+        "pid": 33742,
+        "start": [
+          1791091767,
+          302316
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 32821,
+      "guardian": {
+        "pid": 32820,
+        "start": [
+          1791091757,
+          80297
+        ]
+      },
+      "leader": {
+        "pid": 32821,
+        "start": [
+          1791091757,
+          83863
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-A/artifacts/native-smoke/1791091726375-31654/before-install-group.reap.lock"
+    },
+    {
+      "group": 87851,
+      "guardian": {
+        "pid": 87850,
+        "start": [
+          1791094189,
+          875617
+        ]
+      },
+      "leader": {
+        "pid": 87851,
+        "start": [
+          1791094189,
+          879525
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/verify-install-group.reap.lock"
+    },
+    {
+      "group": 88190,
+      "guardian": {
+        "pid": 88189,
+        "start": [
+          1791094196,
+          369542
+        ]
+      },
+      "leader": {
+        "pid": 88190,
+        "start": [
+          1791094196,
+          374874
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 90156,
+      "guardian": {
+        "pid": 90155,
+        "start": [
+          1791094233,
+          910230
+        ]
+      },
+      "leader": {
+        "pid": 90156,
+        "start": [
+          1791094233,
+          917790
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 90173,
+      "guardian": {
+        "pid": 90172,
+        "start": [
+          1791094234,
+          769872
+        ]
+      },
+      "leader": {
+        "pid": 90173,
+        "start": [
+          1791094234,
+          776929
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 73375,
+      "guardian": {
+        "pid": 73374,
+        "start": [
+          1791093084,
+          299093
+        ]
+      },
+      "leader": {
+        "pid": 73375,
+        "start": [
+          1791093084,
+          346100
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/check-group.reap.lock"
+    },
+    {
+      "group": 73403,
+      "guardian": {
+        "pid": 73402,
+        "start": [
+          1791093086,
+          73293
+        ]
+      },
+      "leader": {
+        "pid": 73403,
+        "start": [
+          1791093086,
+          79024
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/preparation-group.reap.lock"
+    },
+    {
+      "group": 89595,
+      "guardian": {
+        "pid": 89594,
+        "start": [
+          1791094222,
+          878788
+        ]
+      },
+      "leader": {
+        "pid": 89595,
+        "start": [
+          1791094222,
+          884670
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 88914,
+      "guardian": {
+        "pid": 88913,
+        "start": [
+          1791094210,
+          101134
+        ]
+      },
+      "leader": {
+        "pid": 88914,
+        "start": [
+          1791094210,
+          104682
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 87690,
+      "guardian": {
+        "pid": 87689,
+        "start": [
+          1791094184,
+          841907
+        ]
+      },
+      "leader": {
+        "pid": 87690,
+        "start": [
+          1791094184,
+          850890
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791093060021-72587/before-install-group.reap.lock"
+    },
+    {
+      "group": 67016,
+      "guardian": {
+        "pid": 67015,
+        "start": [
+          1791092831,
+          663953
+        ]
+      },
+      "leader": {
+        "pid": 67016,
+        "start": [
+          1791092831,
+          668723
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/verify-install-group.reap.lock"
+    },
+    {
+      "group": 67334,
+      "guardian": {
+        "pid": 67333,
+        "start": [
+          1791092838,
+          878906
+        ]
+      },
+      "leader": {
+        "pid": 67334,
+        "start": [
+          1791092838,
+          883608
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 69735,
+      "guardian": {
+        "pid": 69733,
+        "start": [
+          1791092885,
+          381063
+        ]
+      },
+      "leader": {
+        "pid": 69735,
+        "start": [
+          1791092885,
+          389205
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 69768,
+      "guardian": {
+        "pid": 69767,
+        "start": [
+          1791092886,
+          443919
+        ]
+      },
+      "leader": {
+        "pid": 69768,
+        "start": [
+          1791092886,
+          448660
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 65781,
+      "guardian": {
+        "pid": 65780,
+        "start": [
+          1791092787,
+          472701
+        ]
+      },
+      "leader": {
+        "pid": 65781,
+        "start": [
+          1791092787,
+          475901
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/check-group.reap.lock"
+    },
+    {
+      "group": 65826,
+      "guardian": {
+        "pid": 65825,
+        "start": [
+          1791092788,
+          905888
+        ]
+      },
+      "leader": {
+        "pid": 65826,
+        "start": [
+          1791092788,
+          909135
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/preparation-group.reap.lock"
+    },
+    {
+      "group": 69028,
+      "guardian": {
+        "pid": 69027,
+        "start": [
+          1791092872,
+          311629
+        ]
+      },
+      "leader": {
+        "pid": 69028,
+        "start": [
+          1791092872,
+          318685
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 68317,
+      "guardian": {
+        "pid": 68316,
+        "start": [
+          1791092858,
+          668791
+        ]
+      },
+      "leader": {
+        "pid": 68317,
+        "start": [
+          1791092858,
+          675941
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 66890,
+      "guardian": {
+        "pid": 66889,
+        "start": [
+          1791092827,
+          925327
+        ]
+      },
+      "leader": {
+        "pid": 66890,
+        "start": [
+          1791092827,
+          932840
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092763952-65010/before-install-group.reap.lock"
+    },
+    {
+      "group": 38501,
+      "guardian": {
+        "pid": 38500,
+        "start": [
+          1791091994,
+          29868
+        ]
+      },
+      "leader": {
+        "pid": 38501,
+        "start": [
+          1791091994,
+          38618
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/verify-install-group.reap.lock"
+    },
+    {
+      "group": 38803,
+      "guardian": {
+        "pid": 38802,
+        "start": [
+          1791092000,
+          563241
+        ]
+      },
+      "leader": {
+        "pid": 38803,
+        "start": [
+          1791092000,
+          571725
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 40716,
+      "guardian": {
+        "pid": 40715,
+        "start": [
+          1791092039,
+          819671
+        ]
+      },
+      "leader": {
+        "pid": 40716,
+        "start": [
+          1791092039,
+          826455
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 40730,
+      "guardian": {
+        "pid": 40729,
+        "start": [
+          1791092040,
+          859701
+        ]
+      },
+      "leader": {
+        "pid": 40730,
+        "start": [
+          1791092040,
+          867600
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 37167,
+      "guardian": {
+        "pid": 37166,
+        "start": [
+          1791091943,
+          650421
+        ]
+      },
+      "leader": {
+        "pid": 37167,
+        "start": [
+          1791091943,
+          657831
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/check-group.reap.lock"
+    },
+    {
+      "group": 37241,
+      "guardian": {
+        "pid": 37240,
+        "start": [
+          1791091945,
+          154744
+        ]
+      },
+      "leader": {
+        "pid": 37241,
+        "start": [
+          1791091945,
+          167019
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/preparation-group.reap.lock"
+    },
+    {
+      "group": 40178,
+      "guardian": {
+        "pid": 40177,
+        "start": [
+          1791092028,
+          105988
+        ]
+      },
+      "leader": {
+        "pid": 40178,
+        "start": [
+          1791092028,
+          114052
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 39486,
+      "guardian": {
+        "pid": 39484,
+        "start": [
+          1791092014,
+          665809
+        ]
+      },
+      "leader": {
+        "pid": 39486,
+        "start": [
+          1791092014,
+          672822
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 38370,
+      "guardian": {
+        "pid": 38369,
+        "start": [
+          1791091988,
+          141036
+        ]
+      },
+      "leader": {
+        "pid": 38370,
+        "start": [
+          1791091988,
+          149133
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791091917891-36372/before-install-group.reap.lock"
+    },
+    {
+      "group": 49312,
+      "guardian": {
+        "pid": 49311,
+        "start": [
+          1791092348,
+          978736
+        ]
+      },
+      "leader": {
+        "pid": 49312,
+        "start": [
+          1791092348,
+          983525
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/verify-install-group.reap.lock"
+    },
+    {
+      "group": 49657,
+      "guardian": {
+        "pid": 49656,
+        "start": [
+          1791092354,
+          529647
+        ]
+      },
+      "leader": {
+        "pid": 49657,
+        "start": [
+          1791092354,
+          533505
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 51661,
+      "guardian": {
+        "pid": 51660,
+        "start": [
+          1791092392,
+          84356
+        ]
+      },
+      "leader": {
+        "pid": 51661,
+        "start": [
+          1791092392,
+          92717
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 51679,
+      "guardian": {
+        "pid": 51678,
+        "start": [
+          1791092392,
+          935600
+        ]
+      },
+      "leader": {
+        "pid": 51679,
+        "start": [
+          1791092392,
+          943861
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 48078,
+      "guardian": {
+        "pid": 48077,
+        "start": [
+          1791092299,
+          997406
+        ]
+      },
+      "leader": {
+        "pid": 48078,
+        "start": [
+          1791092300,
+          4182
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/check-group.reap.lock"
+    },
+    {
+      "group": 48148,
+      "guardian": {
+        "pid": 48141,
+        "start": [
+          1791092302,
+          10832
+        ]
+      },
+      "leader": {
+        "pid": 48148,
+        "start": [
+          1791092302,
+          40197
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/preparation-group.reap.lock"
+    },
+    {
+      "group": 51007,
+      "guardian": {
+        "pid": 51006,
+        "start": [
+          1791092379,
+          703018
+        ]
+      },
+      "leader": {
+        "pid": 51007,
+        "start": [
+          1791092379,
+          711013
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 50347,
+      "guardian": {
+        "pid": 50346,
+        "start": [
+          1791092367,
+          685984
+        ]
+      },
+      "leader": {
+        "pid": 50347,
+        "start": [
+          1791092367,
+          693821
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 49199,
+      "guardian": {
+        "pid": 49198,
+        "start": [
+          1791092345,
+          623720
+        ]
+      },
+      "leader": {
+        "pid": 49199,
+        "start": [
+          1791092345,
+          631933
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092277022-47342/before-install-group.reap.lock"
+    },
+    {
+      "group": 11520,
+      "guardian": {
+        "pid": 11519,
+        "start": [
+          1791095816,
+          55946
+        ]
+      },
+      "leader": {
+        "pid": 11520,
+        "start": [
+          1791095816,
+          63262
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/verify-install-group.reap.lock"
+    },
+    {
+      "group": 11869,
+      "guardian": {
+        "pid": 11868,
+        "start": [
+          1791095823,
+          99349
+        ]
+      },
+      "leader": {
+        "pid": 11869,
+        "start": [
+          1791095823,
+          106631
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 14119,
+      "guardian": {
+        "pid": 14117,
+        "start": [
+          1791095865,
+          365547
+        ]
+      },
+      "leader": {
+        "pid": 14119,
+        "start": [
+          1791095865,
+          372015
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 14134,
+      "guardian": {
+        "pid": 14133,
+        "start": [
+          1791095866,
+          256324
+        ]
+      },
+      "leader": {
+        "pid": 14134,
+        "start": [
+          1791095866,
+          265128
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 93006,
+      "guardian": {
+        "pid": 93005,
+        "start": [
+          1791094367,
+          396051
+        ]
+      },
+      "leader": {
+        "pid": 93006,
+        "start": [
+          1791094367,
+          435118
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/check-group.reap.lock"
+    },
+    {
+      "group": 93057,
+      "guardian": {
+        "pid": 93056,
+        "start": [
+          1791094369,
+          311606
+        ]
+      },
+      "leader": {
+        "pid": 93057,
+        "start": [
+          1791094369,
+          316550
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/preparation-group.reap.lock"
+    },
+    {
+      "group": 13448,
+      "guardian": {
+        "pid": 13447,
+        "start": [
+          1791095852,
+          533966
+        ]
+      },
+      "leader": {
+        "pid": 13448,
+        "start": [
+          1791095852,
+          539916
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 12681,
+      "guardian": {
+        "pid": 12680,
+        "start": [
+          1791095838,
+          335823
+        ]
+      },
+      "leader": {
+        "pid": 12681,
+        "start": [
+          1791095838,
+          344729
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 11389,
+      "guardian": {
+        "pid": 11388,
+        "start": [
+          1791095810,
+          295046
+        ]
+      },
+      "leader": {
+        "pid": 11389,
+        "start": [
+          1791095810,
+          303242
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791094344610-92331/before-install-group.reap.lock"
+    },
+    {
+      "group": 34540,
+      "guardian": {
+        "pid": 34539,
+        "start": [
+          1791097493,
+          473011
+        ]
+      },
+      "leader": {
+        "pid": 34540,
+        "start": [
+          1791097493,
+          480699
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/verify-install-group.reap.lock"
+    },
+    {
+      "group": 34868,
+      "guardian": {
+        "pid": 34867,
+        "start": [
+          1791097499,
+          908693
+        ]
+      },
+      "leader": {
+        "pid": 34868,
+        "start": [
+          1791097499,
+          913792
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 36967,
+      "guardian": {
+        "pid": 36966,
+        "start": [
+          1791097540,
+          550899
+        ]
+      },
+      "leader": {
+        "pid": 36967,
+        "start": [
+          1791097540,
+          558992
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 36999,
+      "guardian": {
+        "pid": 36998,
+        "start": [
+          1791097541,
+          484632
+        ]
+      },
+      "leader": {
+        "pid": 36999,
+        "start": [
+          1791097541,
+          493260
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 16945,
+      "guardian": {
+        "pid": 16944,
+        "start": [
+          1791095998,
+          778790
+        ]
+      },
+      "leader": {
+        "pid": 16945,
+        "start": [
+          1791095998,
+          785994
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/check-group.reap.lock"
+    },
+    {
+      "group": 16978,
+      "guardian": {
+        "pid": 16977,
+        "start": [
+          1791096000,
+          457868
+        ]
+      },
+      "leader": {
+        "pid": 16978,
+        "start": [
+          1791096000,
+          469404
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/preparation-group.reap.lock"
+    },
+    {
+      "group": 36364,
+      "guardian": {
+        "pid": 36363,
+        "start": [
+          1791097528,
+          907238
+        ]
+      },
+      "leader": {
+        "pid": 36364,
+        "start": [
+          1791097528,
+          915814
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 35595,
+      "guardian": {
+        "pid": 35594,
+        "start": [
+          1791097513,
+          964046
+        ]
+      },
+      "leader": {
+        "pid": 35595,
+        "start": [
+          1791097513,
+          972877
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 34369,
+      "guardian": {
+        "pid": 34368,
+        "start": [
+          1791097487,
+          770611
+        ]
+      },
+      "leader": {
+        "pid": 34369,
+        "start": [
+          1791097487,
+          777327
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791095977006-16321/before-install-group.reap.lock"
+    },
+    {
+      "group": 62076,
+      "guardian": {
+        "pid": 62075,
+        "start": [
+          1791092708,
+          123490
+        ]
+      },
+      "leader": {
+        "pid": 62076,
+        "start": [
+          1791092708,
+          131303
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/verify-install-group.reap.lock"
+    },
+    {
+      "group": 62448,
+      "guardian": {
+        "pid": 62447,
+        "start": [
+          1791092713,
+          582497
+        ]
+      },
+      "leader": {
+        "pid": 62448,
+        "start": [
+          1791092713,
+          590040
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 64493,
+      "guardian": {
+        "pid": 64492,
+        "start": [
+          1791092752,
+          729361
+        ]
+      },
+      "leader": {
+        "pid": 64493,
+        "start": [
+          1791092752,
+          737348
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 64507,
+      "guardian": {
+        "pid": 64506,
+        "start": [
+          1791092753,
+          666361
+        ]
+      },
+      "leader": {
+        "pid": 64507,
+        "start": [
+          1791092753,
+          674071
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 60535,
+      "guardian": {
+        "pid": 60534,
+        "start": [
+          1791092658,
+          315320
+        ]
+      },
+      "leader": {
+        "pid": 60535,
+        "start": [
+          1791092658,
+          327861
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/check-group.reap.lock"
+    },
+    {
+      "group": 60594,
+      "guardian": {
+        "pid": 60585,
+        "start": [
+          1791092659,
+          653418
+        ]
+      },
+      "leader": {
+        "pid": 60594,
+        "start": [
+          1791092659,
+          656814
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/preparation-group.reap.lock"
+    },
+    {
+      "group": 63815,
+      "guardian": {
+        "pid": 63814,
+        "start": [
+          1791092740,
+          272219
+        ]
+      },
+      "leader": {
+        "pid": 63815,
+        "start": [
+          1791092740,
+          280211
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 63217,
+      "guardian": {
+        "pid": 63216,
+        "start": [
+          1791092728,
+          332150
+        ]
+      },
+      "leader": {
+        "pid": 63217,
+        "start": [
+          1791092728,
+          336784
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 61878,
+      "guardian": {
+        "pid": 61877,
+        "start": [
+          1791092703,
+          176996
+        ]
+      },
+      "leader": {
+        "pid": 61878,
+        "start": [
+          1791092703,
+          185539
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092633735-59459/before-install-group.reap.lock"
+    },
+    {
+      "group": 54415,
+      "guardian": {
+        "pid": 54414,
+        "start": [
+          1791092480,
+          501565
+        ]
+      },
+      "leader": {
+        "pid": 54415,
+        "start": [
+          1791092480,
+          508974
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/verify-install-group.reap.lock"
+    },
+    {
+      "group": 54761,
+      "guardian": {
+        "pid": 54760,
+        "start": [
+          1791092486,
+          999064
+        ]
+      },
+      "leader": {
+        "pid": 54761,
+        "start": [
+          1791092487,
+          7246
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 57235,
+      "guardian": {
+        "pid": 57234,
+        "start": [
+          1791092528,
+          689496
+        ]
+      },
+      "leader": {
+        "pid": 57235,
+        "start": [
+          1791092528,
+          697545
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 57256,
+      "guardian": {
+        "pid": 57255,
+        "start": [
+          1791092529,
+          614621
+        ]
+      },
+      "leader": {
+        "pid": 57256,
+        "start": [
+          1791092529,
+          623405
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 52949,
+      "guardian": {
+        "pid": 52948,
+        "start": [
+          1791092428,
+          576995
+        ]
+      },
+      "leader": {
+        "pid": 52949,
+        "start": [
+          1791092428,
+          581832
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/check-group.reap.lock"
+    },
+    {
+      "group": 52990,
+      "guardian": {
+        "pid": 52989,
+        "start": [
+          1791092430,
+          224884
+        ]
+      },
+      "leader": {
+        "pid": 52990,
+        "start": [
+          1791092430,
+          230258
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/preparation-group.reap.lock"
+    },
+    {
+      "group": 56389,
+      "guardian": {
+        "pid": 56388,
+        "start": [
+          1791092517,
+          502929
+        ]
+      },
+      "leader": {
+        "pid": 56389,
+        "start": [
+          1791092517,
+          511141
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 55679,
+      "guardian": {
+        "pid": 55678,
+        "start": [
+          1791092503,
+          897824
+        ]
+      },
+      "leader": {
+        "pid": 55679,
+        "start": [
+          1791092503,
+          905883
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 54278,
+      "guardian": {
+        "pid": 54277,
+        "start": [
+          1791092476,
+          838357
+        ]
+      },
+      "leader": {
+        "pid": 54278,
+        "start": [
+          1791092476,
+          847127
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092405862-52221/before-install-group.reap.lock"
+    },
+    {
+      "group": 42789,
+      "guardian": {
+        "pid": 42788,
+        "start": [
+          1791092123,
+          619464
+        ]
+      },
+      "leader": {
+        "pid": 42789,
+        "start": [
+          1791092123,
+          625864
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/verify-install-group.reap.lock"
+    },
+    {
+      "group": 43089,
+      "guardian": {
+        "pid": 43088,
+        "start": [
+          1791092129,
+          309656
+        ]
+      },
+      "leader": {
+        "pid": 43089,
+        "start": [
+          1791092129,
+          315241
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/verify-prime-group.reap.lock"
+    },
+    {
+      "group": 45112,
+      "guardian": {
+        "pid": 45111,
+        "start": [
+          1791092169,
+          456339
+        ]
+      },
+      "leader": {
+        "pid": 45112,
+        "start": [
+          1791092169,
+          462344
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/runtime-resolution-group.reap.lock"
+    },
+    {
+      "group": 45150,
+      "guardian": {
+        "pid": 45149,
+        "start": [
+          1791092170,
+          249789
+        ]
+      },
+      "leader": {
+        "pid": 45150,
+        "start": [
+          1791092170,
+          256557
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/verify-collection-group.reap.lock"
+    },
+    {
+      "group": 41576,
+      "guardian": {
+        "pid": 41575,
+        "start": [
+          1791092073,
+          257538
+        ]
+      },
+      "leader": {
+        "pid": 41576,
+        "start": [
+          1791092073,
+          268708
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/check-group.reap.lock"
+    },
+    {
+      "group": 41610,
+      "guardian": {
+        "pid": 41609,
+        "start": [
+          1791092074,
+          731589
+        ]
+      },
+      "leader": {
+        "pid": 41610,
+        "start": [
+          1791092074,
+          735813
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/preparation-group.reap.lock"
+    },
+    {
+      "group": 44488,
+      "guardian": {
+        "pid": 44487,
+        "start": [
+          1791092156,
+          739774
+        ]
+      },
+      "leader": {
+        "pid": 44488,
+        "start": [
+          1791092156,
+          747980
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/verify-restart-group.reap.lock"
+    },
+    {
+      "group": 43748,
+      "guardian": {
+        "pid": 43747,
+        "start": [
+          1791092142,
+          789126
+        ]
+      },
+      "leader": {
+        "pid": 43748,
+        "start": [
+          1791092142,
+          794179
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/verify-offline-group.reap.lock"
+    },
+    {
+      "group": 42660,
+      "guardian": {
+        "pid": 42659,
+        "start": [
+          1791092118,
+          313434
+        ]
+      },
+      "leader": {
+        "pid": 42660,
+        "start": [
+          1791092118,
+          322126
+        ]
+      },
+      "reapLock": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-social-B/artifacts/native-smoke/1791092050671-40872/before-install-group.reap.lock"
+    }
+  ],
+  "remainingMembers": []
+}

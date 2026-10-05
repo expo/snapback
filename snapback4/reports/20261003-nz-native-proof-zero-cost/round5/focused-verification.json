@@ -1,0 +1,132 @@
+{
+  "build": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r5-build-ready.log"
+  },
+  "witness": {
+    "passed": 60,
+    "failed": 0,
+    "durationSeconds": 41.85,
+    "log": "/tmp/sb4-nz-r5-witness.log"
+  },
+  "exports": {
+    "passed": 69,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 223883.602292,
+    "log": "/tmp/sb4-nz-r5-export.log"
+  },
+  "newSkippedRegressions": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 51498.324625,
+    "log": "/tmp/sb4-nz-r5-skipped.log"
+  },
+  "repeatedSkips": [
+    {
+      "mode": "off",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        943,
+        194,
+        198,
+        191,
+        190,
+        201,
+        199,
+        214,
+        200,
+        192,
+        193,
+        214,
+        201,
+        212,
+        194,
+        236,
+        295,
+        258,
+        203,
+        191,
+        206,
+        191,
+        191,
+        197,
+        188,
+        194,
+        190,
+        184
+      ]
+    },
+    {
+      "mode": "non-macOS",
+      "exports": 28,
+      "full": 5,
+      "compressed": 20,
+      "returnMs": [
+        342,
+        182,
+        184,
+        184,
+        189,
+        186,
+        188,
+        187,
+        183,
+        183,
+        184,
+        177,
+        174,
+        179,
+        189,
+        183,
+        179,
+        187,
+        185,
+        186,
+        190,
+        190,
+        185,
+        190,
+        187,
+        185,
+        210,
+        185
+      ]
+    }
+  ],
+  "fullSuite": {
+    "status": 0,
+    "durationSeconds": 2706.008261542,
+    "reportedDurationSeconds": 2706,
+    "inputsUnchanged": true,
+    "cli": {
+      "passed": 292,
+      "ignored": 4
+    },
+    "witnessIntegration": 76,
+    "fixtures": 9,
+    "clients": {
+      "tests": 6233,
+      "pass": 6227,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 6,
+      "todo": 0
+    },
+    "models": 79,
+    "interventions": 0,
+    "log": "/tmp/sb4-nz-r5-full-suite.log"
+  },
+  "references": {
+    "status": 0,
+    "summary": "ref-check: ok \u2014 527 LLP docs, 10347 refs in 34589 files, 0 errors, 0 unchecked",
+    "log": "/tmp/sb4-nz-r5-ref-check-final.log"
+  },
+  "whitespace": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r5-whitespace-final.log"
+  }
+}

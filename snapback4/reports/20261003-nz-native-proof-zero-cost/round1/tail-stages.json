@@ -1,0 +1,41 @@
+[
+  {
+    "label": "warm-interference",
+    "command": [
+      "python3",
+      "/Users/ccheever/sb4-np/lane-nz/snapback4/reports/20261003-nz-native-proof-zero-cost/round1-interference.py"
+    ],
+    "log": "/tmp/sb4-nz-r1-warm-interference.log",
+    "startedAt": 1791091870.65408,
+    "state": "complete",
+    "status": 0,
+    "seconds": 1137.632498041,
+    "finishedAt": 1791093008.288079
+  },
+  {
+    "label": "cold-interference",
+    "command": [
+      "python3",
+      "/Users/ccheever/sb4-np/lane-nz/snapback4/reports/20261003-nz-native-proof-zero-cost/round1-cold-interference.py"
+    ],
+    "log": "/tmp/sb4-nz-r1-cold-interference.log",
+    "startedAt": 1791093008.2889721,
+    "state": "complete",
+    "status": 0,
+    "seconds": 4591.956881792001,
+    "finishedAt": 1791097600.2608042
+  },
+  {
+    "label": "full-suite",
+    "command": [
+      "bash",
+      "snapback4/scripts/test.sh"
+    ],
+    "log": "/tmp/sb4-nz-r1-full-suite.log",
+    "startedAt": 1791097600.261933,
+    "state": "complete",
+    "status": 1,
+    "seconds": 2501.212811333001,
+    "finishedAt": 1791100101.480319
+  }
+]

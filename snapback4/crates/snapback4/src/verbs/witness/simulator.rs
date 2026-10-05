@@ -119,6 +119,7 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<(Valu
     let prefix = std::env::var("SNAPBACK4_SMOKE_DEVICE_PREFIX").unwrap_or_else(|_| "snapback4-smoke-".into());
     if !name(&prefix) || !prefix.ends_with('-') { return Err(error("E_WITNESS_INPUT", "SNAPBACK4_SMOKE_DEVICE_PREFIX must be a nonempty name ending in '-'")); }
     for runtime in &available {
+        if background::active() { break; }
         let runtime = runtime["identifier"].as_str().unwrap();
         for d in devices["devices"][runtime].as_array().into_iter().flatten() {
             let Some(udid) = d["udid"].as_str().filter(|id| name(id)) else { continue; };
@@ -190,9 +191,10 @@ fn create(args: &[&str], options: &Options) -> (String, Result<()>) {
     let stdout = options.artifacts.join("simulator-create.stdout");
     let result = (|| -> Result<()> {
         let mut command = Command::new("xcrun");
-        command.arg("simctl").args(args).process_group(0).stdin(Stdio::null())
+        command.arg("simctl").args(args).stdin(Stdio::null())
             .stdout(File::create(&stdout).map_err(|e| error("E_WITNESS_ARTIFACT", e))?)
             .stderr(output(&options.artifacts.join("simulator-create.stderr"))?);
+        if !background::active() { command.process_group(0); }
         let mut child = Owned::spawn(&mut command)?;
         recovery::child(options, "create", child.0.id())?;
         let end = Instant::now() + options.timeout;
@@ -204,7 +206,8 @@ fn create(args: &[&str], options: &Options) -> (String, Result<()>) {
             if Instant::now() >= end {
                 // Own this child's group, not the terminal's. Keep its leader
                 // unreaped until the signal has been sent.
-                unsafe { libc::kill(-(child.0.id() as i32), libc::SIGKILL); }
+                let pid = child.0.id() as i32;
+                unsafe { libc::kill(if background::active() { pid } else { -pid }, libc::SIGKILL); }
                 let _ = child.0.wait();
                 return Err(error("E_WITNESS_TIMEOUT", "simctl create timed out; rolling back any printed device identifier"));
             }

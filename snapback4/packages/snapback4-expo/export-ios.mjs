@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// @ref LLP 3000.030#15 — exact export, explicit environment skips, bounded evidence.
+// @ref LLP 3000.030#15 — publish Hermes first; detached proof retains its exact snapshot.
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -34,6 +34,18 @@ export function verifyPublication(artifacts, source, target, expected) {
       receipt.proofSha256 !== expected.proofSha256 || !isDeepStrictEqual(receipt.files, expected.files)) {
     throw Error('publication.json does not match the export proved by this run');
   }
+}
+
+// The marker is part of the atomically published inventory. A fresh generation
+// distinguishes equal-byte exports and survives a failed latest.json handoff.
+const publicationMarker = '.snapback4-publication.json';
+function markPublication(root, skip) {
+  const metadata = JSON.parse(fs.readFileSync(path.join(root, 'metadata.json')));
+  const bundle = metadata?.fileMetadata?.ios?.bundle;
+  if (typeof bundle !== 'string' || path.isAbsolute(bundle) || bundle.split(/[\\/]/).includes('..')) throw Error('export metadata has no in-tree iOS bundle');
+  const marker = { generation: randomUUID(), exportHash: sha256(fs.readFileSync(path.join(root, bundle))),
+    mode: skip ? 'skipped' : 'background', reason: skip, publishedAt: Date.now() };
+  fs.writeFileSync(path.join(root, publicationMarker), JSON.stringify(marker));
 }
 
 export function skipReason(platform, env) {
@@ -80,50 +92,59 @@ export function retainEvidence(root, completed, binary = 'snapback4') {
 // The helper locks a duplicate of this descriptor, so the kernel lease stays
 // with this process after the helper exits. Children do not inherit it unless
 // explicitly listed in stdio (the publisher must keep it if this wrapper dies).
-export function acquireExportLease(artifacts, binary = 'snapback4') {
-  const fd = fs.openSync(path.join(artifacts, 'export.lock'), 'a+');
-  const result = spawnSync(binary, ['witness', 'export-lease', artifacts], { encoding: 'utf8', env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) }, stdio: ['ignore', 'pipe', 'pipe', fd] });
+export function acquireExportLease(artifacts, binary = 'snapback4', initialize = false) {
+  const fd = fs.openSync(path.join(artifacts, initialize ? 'initialization.lock' : 'export.lock'), 'a+');
+  const result = spawnSync(binary, ['witness', 'export-lease', artifacts, ...(initialize ? ['--initialize'] : [])], { encoding: 'utf8', env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) }, stdio: ['ignore', 'pipe', 'pipe', fd] });
   if (result.status !== 0) { fs.closeSync(fd); throw Error(result.stderr || result.error?.message || 'export lease failed'); }
   return fd;
 }
 export async function main() {
   const req = createRequire(path.resolve('package.json'));
+  // Status is informational: neither an earlier failed proof nor its reporter
+  // can fail a new export. The detached worker owns maintenance and cleanup.
+  spawnSync('snapback4', ['witness', 'status', '--if-present'], { stdio: 'inherit', timeout: 5000 });
   const skip = skipReason(process.platform, process.env);
-  if (skip) {
-    const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap']);
-    if (exported.status !== 0) return exported.status;
-    console.log(`native smoke skipped: ${skip}`); return 0;
-  }
   const root = path.resolve('artifacts/native-smoke');
   const artifacts = path.join(root, `${Date.now()}-${process.pid}`);
   const privateExport = path.join(artifacts, 'export');
-  const receiptPath = path.join(artifacts, 'smoke-ios-run.json');
-  fs.mkdirSync(artifacts, { recursive: true });
-  const lease = acquireExportLease(artifacts);
-  let publicationAttempted = false;
+  const publicationExport = path.join(artifacts, 'publication-export');
+  let lease, initialization, created = false, publicationAttempted = false;
   try {
+    fs.mkdirSync(root, { recursive: true });
+    const maintenance = spawnSync('snapback4', ['witness', 'export-maintenance', root], { stdio: 'inherit', timeout: 5000 });
+    if (maintenance.status !== 0) console.error('native smoke evidence cleanup deferred; the next export will retry maintenance');
+    initialization = acquireExportLease(root, 'snapback4', true);
+    fs.mkdirSync(artifacts); created = true;
+    lease = acquireExportLease(artifacts);
+    fs.closeSync(initialization); initialization = undefined;
     const exported = await runChild(process.execPath, [req.resolve('expo/bin/cli'), 'export', '--platform', 'ios', '--dump-assetmap', '--output-dir', privateExport]);
     if (exported.status !== 0) return exported.status;
-    const result = await runChild('snapback4', ['witness', 'ios', '--build', '.', '--smoke', '--export', privateExport, '--artifacts', artifacts], { env: { ...process.env, SNAPBACK4_EXPORT_WRAPPER_PID: String(process.pid) } });
-    let receipt;
-    try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch {}
-    const outcome = result.cancelled ? { status: result.status, message: 'native smoke interrupted' } : smokeResult(result.status, receipt);
-    if (outcome.status === 0) {
-      const expected = publicationExpectation(artifacts, privateExport, result.status !== 0, receipt);
-      publicationAttempted = true;
-      const published = await runChild('snapback4', ['witness', 'export-publish', privateExport, path.resolve('dist'), ...(result.status === 0 ? [] : ['--environment-skip'])], { stdio: ['inherit', 'inherit', 'inherit', lease] });
-      try {
-        verifyPublication(artifacts, privateExport, path.resolve('dist'), expected);
-        if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
-      } catch (error) { outcome.status = published.status || 1; outcome.message = `export output publication failed: ${error.message}`; }
+    markPublication(privateExport, skip);
+    const expected = publicationExpectation(artifacts, privateExport, true);
+    // APFS clones avoid copying bundle bytes. Both trees are independently
+    // verified by the publisher; replacing dist cannot mutate the smoke input.
+    fs.cpSync(privateExport, publicationExport, { recursive: true, mode: fs.constants.COPYFILE_FICLONE });
+    publicationAttempted = true;
+    const published = await runChild('snapback4', ['witness', 'export-publish', publicationExport, path.resolve('dist'), skip ? '--environment-skip' : '--background'], { stdio: ['inherit', 'inherit', 'inherit', lease] });
+    try {
+      verifyPublication(artifacts, publicationExport, path.resolve('dist'), expected);
+      if (published.status !== 0) throw Error(`publisher exited with status ${published.status}`);
+    } catch (error) {
+      console.log(`export output publication failed: ${error.message}`);
+      return published.status || 1;
     }
-    console.log(`${outcome.message}; receipt: ${receiptPath}`);
-    return outcome.status;
+    if (skip) console.log(`native smoke skipped: ${skip}`);
+    return 0;
   } finally {
     // After a publication attempt this path may be the displaced last good
     // export. Only the publisher, under its destination lock, may remove it.
-    try { if (!publicationAttempted) fs.rmSync(privateExport, { recursive: true, force: true }); }
-    finally { fs.closeSync(lease); retainEvidence(root, artifacts); }
+    try { if (created && !publicationAttempted) fs.rmSync(artifacts, { recursive: true, force: true }); }
+    finally {
+      try {
+        if (lease !== undefined) fs.closeSync(lease);
+        else if (created) fs.rmSync(artifacts, { recursive: true, force: true });
+      } finally { if (initialization !== undefined) fs.closeSync(initialization); }
+    }
   }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) {

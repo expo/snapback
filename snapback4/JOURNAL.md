@@ -86038,6 +86038,112 @@ own simulator were used; that device and its private ownership records were
 removed after timing. No office M1, M5, other worktree or other session's device
 was touched. Nothing pushed or published.
 
+
+## 2026-10-03 — NZ: publish Hermes before detached native proof
+
+`npm run export:ios` now publishes the verified Hermes tree to `dist/` and
+returns after handing its exact export lease to a detached background guardian.
+Native preparation, prime/offline/restart and cleanup run under Darwin background
+policy. A shared project lease serializes smokes through cleanup; a newer export
+supersedes old work. The next export, `doctor`, and `witness status [--wait]`
+show the result and its export hash. Native failures cannot fail an already
+successful export. Starter READMEs lead with background proof and result lookup;
+the opt-out remains in `guide witness` only. LLP 3000.030 §15 records the dated
+revision and keeps the synchronous NX history.
+
+The guardian retains an unreaped driver/group identity, while the driver watches
+its guardian, supersession and suspended-time advancement. Background smokes
+create and delete their own recorded, leased device; explicit witnesses keep
+the existing reuse behavior. NX/WD ownership and watchdog residuals are unchanged.
+The 13 new detached integration controls exercise peer death, interruption,
+serialized supersession, create/boot crashes, skip/failure reporting and retention
+failure after a completed outcome. The sleep-clock detector has a unit control;
+this lane did not deliberately sleep the shared Mac.
+
+The real plain starter passed all three native segments with the published and
+loaded Hermes hash equal. Its device was deleted. Busy-host social preparation
+attempts hit the existing 900-second limit; a cleanup timeout on the second
+attempt was recovered by the independent guardian, and its device was deleted.
+A third social retry after our full suite also hit 900 seconds while unrelated
+host load persisted; its device was deleted. Cold social proof remains unqualified.
+These functional attempts are excluded from timing claims. The final Mac suite
+passed `== 0 failure(s) in 2540 s`: all Rust targets, 6,053 client tests with
+five existing skips, nine fixture wrappers and 79 models. Affected checks passed
+51 witness units and 66 JavaScript tests; reference validation has zero errors.
+An earlier full-suite run failed two documentation assertions, corrected before the
+final frozen-source run; its failures remain recorded. Quiet timing qualification
+is blocked: no sample was admitted, including a final five-minute window after
+all our builds and smokes ended. Unrelated `PerfPowerServices` remained near two
+cores. No unrelated process was signalled. The watcher is stopped and all eight
+functional-run devices are absent. No critical-path time distribution, CPU
+placement or interference claim is made. The open NZ qualification ticket records
+the remaining before/after and foreground-workload cohorts. A final-binary plain
+repeat conservatively missed cache on the changed CLI toolchain; it was cancelled
+through its birth-verified guardian to clear the machine, and cleaned up correctly.
+
+Only the Apartment mini and this lane's own `sb4-nz-` devices are used. The
+hardware reports M5 Pro with Performance/Super levels and no Efficiency tier.
+Background policy is verified on guardian/driver; app launches record successful
+policy application. Shared simulator services remain system-scheduled. No
+exclusive-core or zero-interference claim follows from setting QoS. The
+[NZ report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md) retains
+source/binary hashes, attempts, custody controls and measurement admission.
+Nothing pushed or published.
+
+
+## 2026-10-04 — NZ round 1: progress-based background preparation and as-is ABBA qualification
+
+Automatic background native preparation now receives 900 seconds without
+observable progress, up to a 60-minute hard cap. CocoaPods and Xcode stream raw
+logs; new log bytes and real phase transitions renew the idle budget. Polling,
+mtime changes, truncation and guardian output do not. The helper independently
+caps at 60 minutes and overall guardian/driver custody at 75 minutes. Stalls
+retain E_WITNESS_BUILD and leased process-group cleanup. Explicit native:smoke
+and witness ios --build keep the exact 900-second foreground limit. LLP 3000.030
+§15 and guide witness record the dated change. Detached publication, serialized
+supersession, status/doctor visibility, owner-death custody and sleep handling
+from round 0 remain intact.
+
+On the user's round-1 instruction, measurements ran on the Apartment mini as it
+was, without waiting for quiet or signalling unrelated PerfPowerServices,
+Chrome, indexing or media-analysis processes. All 16 plain/social × cold/warm
+export samples passed in ABBA order. Background exports returned in 3.07–4.64 s;
+foreground returns ranged 42.02–219.59 s across the four conditions. The two
+export-only cold social background proofs completed in 1,135.57–1,177.32 s,
+with preparation beyond the old limit at 1,051.017 and 1,094.782 s. Three further
+cold social proofs with a concurrent foreground workload passed preparation at
+1,096.604, 1,438.464 and 1,485.351 s. Every proof passed prime/offline/restart.
+
+Six ABBA interference blocks produced 24 passing client-pool runs, 176/176 each.
+Relative to interpolated bracketing controls, cached-proof slowdown was
+3.60–6.74%, median 4.47%; cold-compilation slowdown was −0.33–0.63%, median 0.53%.
+The cold observations share three independent builds; the report preserves
+block means and raw samples. A same-host CPU probe placed all background work
+samples on CPU IDs 0–11, the lower Performance tier, versus 5.66% under foreground
+policy. This mini reports Performance/Super levels and no Efficiency tier.
+The probe is not a simulator-thread trace, and measured contention is not zero.
+Host load and process snapshots accompany every timing sample.
+
+Affected checks passed 55 witness unit tests and 41 JavaScript tests. The first
+round-1 full suite failed two guide contracts: an early diagnostic mention hid
+its defining paragraph, and the new generated receipt needed exact app-output
+registration. The documentation/test-only correction passed all 112 guide tests;
+measured runtime implementation bytes and the production candidate stayed frozen.
+The final full Mac suite passed `== 0 failure(s) in 2502 s`, using the required
+SQLite flag and physical Node 24.18.0: all Rust targets, 76 witness integration
+tests, nine fixture wrappers, 6,053 client tests with five existing skips, and
+79 models. Both full runs are retained. Reference validation has zero errors.
+
+Real witness status --wait and doctor printed the latest passing export and
+receipt. All 25 created sb4-nz- simulators are absent, all 225 recorded process
+groups are empty, and no candidate witness job remains. No other session's
+simulator, process or X27R worktree was touched; no other host was used. The
+[NZ report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md) contains the
+Round 1 measurements, source/binary bindings, documentation amendment, cleanup
+audits and external evidence index. The round-0 qualification issue is closed;
+the distinct 0.4.12 audit-pin issue remains open and these measurements use the
+declared audited NX 0.4.11 fixtures. Nothing pushed or published.
+
 ## 2026-10-04 — WD round 1: Linux inspection and deadline diagnostics
 
 Addressed the round-0 Astra P2 and Grok follow-ups locally on eb1000, from
@@ -86070,6 +86176,494 @@ diagnostic paths in `cleanup.rs`, `preparation.rs`, `process_group.rs` and
 no native-export measurement was repeated. The [round-1 report](./reports/20261003-wd-witness-cleanup-deadline/REPORT.md#round-1--linux-inspection-and-review-cleanup-2026-10-04)
 and its validation record retain results and limits. Local commit only;
 nothing pushed or published.
+
+## 2026-10-04 — NZ round 2: integrate landed WD and main
+
+Merged origin/main at abafa9af9c into NZ's 1c589336fa as a merge commit,
+including WD round 1 and QF, LU, QE2, RP, QF2 and NL. Resolved only the LLP
+3000.030 revision header and JOURNAL append tails; neither parent's journal
+lost a line. WD's cleanup/process-group files match main exactly, retaining
+byte-based Linux inspection, scoped enumeration and progress-based cleanup.
+NZ retains detached export publication, supersession/status/doctor, custody,
+and its background-only 900-second idle / 60-minute preparation cap. Explicit
+foreground preparation stays 900 seconds. LLP 3000.030 §15 records the union.
+
+The requested build passed, as did 55 witness units and 41 focused JavaScript
+tests after a test-only readiness handshake fixed a child-heartbeat race.
+Integrated native priming first exposed the archived NX engine's refusal of
+RP's new source-write capability. Rebuilt both native slices from merged main;
+complete inventories prove only the two libraries and framework plist differ
+from each already audited NX 0.4.11 dependency tree. Added exact audit pins,
+without relaxing unknown-plugin fallback. Both starters then passed prime,
+offline and restart with identical exported/loaded Hermes hashes. Warm plain
+returned in 3.75 s and finished proof at 120.82 s; social returned in 4.91 s and
+finished at 143.81 s. These dev-profile as-is integration timings do not replace
+Round 1's production ABBA experiment or claim zero interference. Every sample
+records host load and processes. The published-0.4.12 audit-pin issue remains
+separate and open.
+
+The first full run retained two failed stages in 2,940 s. Its fixes preserve
+behavioral coverage: release commands drain queued diagnostics after dropping
+engine/deployment custody (bounded three seconds, both outcomes); the fake
+simulator fixture pins its own prefix; published-old-client tests retain genuine
+legacy bytes and assert the new reservation capabilities; retained-history
+cleanup closes its client/server before removing the watched directory. The
+release/timeline tests, six published capability tests and 68 retained-history
+cases pass separately. Two failed fixtures needed recorded process interventions under their existing
+custody; both interventions remain in the failed attempt.
+No witness/export or native-engine runtime semantics changed after measurement.
+
+The second full run exposed the fake build-command constructor's prefix leak
+and an outbound-route dependency in HTTP boundary tests. Both fake command
+constructors now pin their own prefix, and the five affected build cases pass
+under sb4-nz-. Local interface enumeration replaces route selection, retaining
+real non-loopback HTTP refusal/timing assertions. The unit case and all 39
+latency/token integration cases pass; no interface was configured and no test
+was skipped. These are test-only changes.
+
+The third complete Mac suite passed: 0 failures in 2,706 s. All Rust
+targets and doctests passed, including 287 CLI units (four existing ignores)
+and all 76 witness integration cases. Fixture wrappers passed 9/9, clients
+passed 6,205 with six existing skips, and both full-count model files passed
+79/79. Builds, budgets, release guard and typechecks passed. No intervention
+or reduced counts in the qualifying run. The second attempt's client/model
+stages had also passed; its six Rust fixture failures remain recorded in the
+2,706-second failed attempt. Reference and whitespace checks passed.
+
+The report's Round 2 section retains all five native attempts, failed/passing
+test logs, exact framework audit, source amendments and external evidence
+hashes. All five created sb4-nz- simulators are absent and all 43 recorded
+process groups are empty. No other session's simulator/process or X27R worktree
+was changed, and no other host was used. New NZ evidence files stay below
+256 KB; large logs, libraries and videos remain outside git. Nothing pushed
+or published. [Report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md).
+
+
+## 2026-10-04 — NZ round 3: bounded retention and current-publication proof
+
+Built on the completed round-2 merge a6af2febbb, including landed WD round 1.
+Read the Astra and Grok round-0/1 reviews from eb1000 with read-only SSH;
+all implementation and verification stayed on this Apartment mini.
+
+Retention now executes inside the existing native supervisor and retained group
+anchor, including compression before the proof driver starts and after it exits.
+A nonblocking lock defers contenders. The worker has 30 seconds of work, followed
+by WD's unchanged bounded drain; SIGTERM, owner death, supersession and detected
+sleep cancel it. Seven blocked-compressor regressions cover guardian SIGTERM and
+SIGKILL, a newer export, pre/post-driver custody and the real 30-second deadline.
+They verify that owned compressors, descendants and keepers exit and a newer
+proof obtains the lease. Completed native results survive maintenance failure.
+
+A fresh generation and Hermes hash now travel inside each atomic publication.
+Status and doctor bind the request/result to current dist and its actual bundle,
+so a failed latest-pointer update cannot resurrect an older pass, even when the
+bundle bytes match. Opt-out/non-macOS exports invalidate the old marker before
+publication; failed skip handoffs report no proof for the current export.
+Four injected handoff failures pass; status --wait is nonzero for unverified or
+skipped current exports. Doctor's native line remains informational.
+
+For review P2, chose the permitted documentation alternative. Output growth is
+activity, not semantic progress; repeated retries/heartbeats may occupy the proof
+slot and private simulator until the 60-minute hard cap. Distinct-line filtering
+would still accept changing timestamps and cannot reliably identify advancement
+across CocoaPods/Xcode. LLP 3000.030 §15 and guide witness state this accepted
+limit. Foreground preparation stays exactly 900 seconds; preparation-deadline.rs,
+WD cleanup.rs and process_group.rs are unchanged.
+
+Build passed, serial witness units passed 55/55, and all 58 affected export and
+preparation JavaScript tests passed together. The first full attempt retained one
+old publication fixture failure in 3,065.6 seconds: fake Expo lacked metadata.
+The fixture now provides metadata and injects downstream handoff failure without
+launching native tools, preserving its publication/interruption/rollback checks.
+Development fixture failures and their fixes remain in the report and archive.
+The final full Mac suite passed with **0 failures in 2,834 seconds**:
+all Rust targets/doctests, 287 CLI units (four existing ignores), 76 witness
+integration cases, 9 fixture wrappers, 6,216 client tests (six existing skips),
+and 79 full-count model cases. Builds, budgets, release guard and typechecks
+passed. No interventions, cancellations or reduced counts in the final run;
+source hashes match its pre-run manifest. Reference and whitespace checks passed.
+
+No real simulator was created in this round; integration controls used recorded
+fake devices. Prior recorded sb4-nz- devices remain absent, and this worktree's
+CLI processes drained. No other session's processes or simulators were signalled.
+Large evidence remains outside git, referenced by hashes; new evidence files are
+under 256 KB with no gzip/video files committed. No native timings were repeated
+and real host sleep remains unexercised. No version bump; NZ targets 0.4.14.
+Nothing pushed or published. [Round 3 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-3--review-corrections).
+
+
+## 2026-10-04 — NZ round 4: atomic skipped exports and retention races
+
+Built on e7e325b7d1, which includes the round-2 WD/main merge. Fixed every
+finding in the operator's Astra/Grok review excerpts on this Apartment mini.
+Skipped exports now prepare a private tree and generation marker and use the
+same leased atomic publication as background exports. Marker failure stops
+before changing dist; failed post-commit handoff remains a successful export
+with unverified native status. Every committed skip, including the first
+opt-out, gets a handoff. Deterministic equal-byte/changed-asset overlap tests
+cover a concurrent real publication plus marker and handoff failures.
+
+Orphan reconciliation renames its owned tree under the destination lock, then
+deletes it after releasing the lock. A new export completes while deletion is
+paused; interrupted private deletion remains recoverable. Status/doctor observe
+marker, actual bundle, request and result under a nonblocking shared publication
+lock and recheck both marker and latest pointer. A waiter follows publication
+through exchange/verify/handoff into the new generation; transient changed
+observations retry for at most five seconds, stable missing handoffs fail closed.
+Request timestamps now come from verified commit rather than private preparation.
+
+The public export-retain alias uses bounded native custody. Its internal worker
+requires the recorded anchor's parent/group/birth identity. Pre/post-driver
+maintenance failures defer without changing proof results. The deterministic
+SIGKILL overlap exposed a second cleanup in driver startup; background startup
+now uses the guardian's maintenance attempt, while explicit foreground startup
+keeps its previous path. Tests assert compressor PGIDs, public cancellation,
+inner-entry refusal, passed-result preservation on gzip failure, and a newer
+proof starting while the old retention lock remains held after guardian death.
+The test-only watcher barrier uses a private interposed CLI copy, never a changed
+product binary or production hook. Failed fixture barriers and compilation edits
+remain in the report and evidence archive; no assertion was removed.
+
+Both package READMEs and both generated starter READMEs now disclose the
+900-second idle and 60-minute total background preparation bounds, and that
+activity alone does not establish progress. No repeated-line filter was added.
+LLP 3000.030 §15 and guide witness record the changed behavior. WD's group drain,
+scoped enumeration and the preparation deadline implementation are unchanged.
+
+The first full run passed all tests but failed the README physical-line budget
+(301/300). Joining adjacent prose lines preserved all disclosure text and the
+docs gate passed; the failed run and format-only amendment are retained.
+The second run exposed an existing asynchronous-diagnostic race in the adoption
+lock test: the generation-2 query and doctor succeeded before the log assertion
+could see the queued adoption line. The test now waits with its existing bounded
+35-second helper before the unchanged assertion. The affected replay passed;
+the second full attempt and this test-only amendment are retained, and the final
+complete run covers the correction. No product behavior or timeout was relaxed.
+The next complete attempt passed Rust but missed the unchanged ephemeral expiry
+acceptance bound once (5,979.005 ms against 4,500 ms, trial 5). Both prior runs
+passed all five trials. The separate open issue records this intermittent
+failure; no assertion or ceiling was changed. Its replay and the final complete
+run are retained separately, and a later pass does not erase the failed sample.
+That attempt also found an unchanged release-activation fixture missing its
+queued-job crash cut: the job was already done when its listener-message
+SIGSTOP arrived. The other 17 cases passed; both prior runs passed the file.
+A separate open issue records the missing deterministic barrier. Its assertions
+and the release-serving implementation remain unchanged.
+Build passed; witness units passed 60/60; affected export/preparation tests
+passed 64/64 with no skips; starter tests passed 17/17. The full Mac suite passed
+with **0 failures in 2,679 seconds**: all Rust targets/doctests, 292 CLI units
+(four existing ignores), 76 witness integration cases, nine fixture wrappers,
+6,222 client tests (six existing skips), and 79 full-count model cases. Builds,
+budgets, release guard and typechecks passed. No interventions, cancellations or
+reduced counts; recorded source inputs are unchanged. Reference and whitespace
+checks passed. No real simulators were created; prior owned NZ devices remain
+absent, and this worktree's CLI processes drained. FX and other sessions were
+untouched. Large evidence stays outside git with content hashes; no gzip/video
+or new files over 256 KB are committed. No native measurements were repeated;
+real host sleep remains unexercised. NZ targets 0.4.14, not 0.4.13. Nothing pushed
+or published. [Round 4 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-4--publication-and-retention-races).
+
+
+## 2026-10-04 — NZ round 5: bounded history for skipped exports
+
+Built on 7f0ef58712. Fixed Astra's skipped-export retention regression and both
+Grok documentation/timestamp lows on this Apartment mini. Every committed
+opt-out or non-macOS publication now schedules detached maintenance after the
+publication lock is released, including after failed skipped-result handoff.
+No retention work or lock wait enters the foreground export wait. The Mac
+custodian uses background QoS; it inherits export custody until the originating
+wrapper exits, then releases that lease so a late old maintainer can prune its
+own snapshot. Compression and lock waiting run in the existing supervised native
+anchor group with owner-death cleanup. The 30-second budget includes wrapper
+exit, lock waiting and work, followed by unchanged WD drain. Proof-bound and
+explicit maintenance still defer immediately on a busy lock. Maintenance errors
+are logged and never change committed export or native result status.
+
+Both request modes now copy the exact publication.json verifiedAt timestamp.
+LLP 3000.030 §15's removed skip-path description now matches private-tree atomic
+publication followed by handoff; its dated revision and guide witness describe
+skipped retention. WD cleanup/scoped enumeration, simulator ownership, single
+background proof custody and preparation deadlines are unchanged.
+
+New regressions run 28 successful wrapper/publisher exports for each skip mode;
+both finish with exactly five full snapshots and twenty compressed runs, retaining
+the latest skip and older compressed receipts. Every committed skip has a
+maintenance launch and identical verifiedAt/publishedAt. Other controls pause
+compression and require a newer export to return before it resumes, assert the
+compressor/descendant anchor PGID, and prove SIGTERM, custodian SIGKILL and the
+real 30-second deadline drain owned processes. Five new tests passed in 51.50 s.
+The non-macOS case is a simulated wrapper branch on the mini, not Linux/native
+runtime qualification. Fixture teardown waits for its recorded maintainers.
+
+Build passed; serial witness tests passed 60/60; all export/preparation tests
+passed 69/69 with no skips or cancellations. The complete Mac suite passed with
+**0 failures in 2,706 seconds**: all Rust targets/doctests, 292 CLI units (four
+existing ignores), 76 witness integration cases, nine fixture wrappers, all
+312 client files (6,227 tests passed, six existing skips), and 79 full-count
+model cases. Builds, budgets, release guard and typechecks passed. No interventions
+or reduced counts; all seven recorded code/package inputs remained unchanged.
+Reference and whitespace checks passed. No real simulators were created, prior
+owned NZ devices remain absent, and lane CLI processes drained. Other sessions'
+worktrees, processes and simulators were untouched. Large evidence stays outside
+git with content hashes; no gzip/video or new files over 256 KB are committed.
+Earlier qualification scopes and open intermittent-test issues remain intact;
+no native/ABBA timings or real host-sleep exercise were repeated. NZ remains for
+0.4.14. Nothing pushed or published.
+[Round 5 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-5--bounded-retention-for-skipped-exports).
+
+
+## 2026-10-04 — NZ round 6: pin publication evidence and coalesce retention
+
+On f118e78bf2, address the operator's two Astra P2s and Grok's recovery-test gap.
+Retention pins the current generation/hash and both sides of an unresolved
+publication transaction, under a brief nonblocking shared destination lock.
+Pinned evidence takes precedence over start timestamps; pruning rechecks while
+holding the candidate's export lease and releases the publication lock before
+compression/deletion. Active exports and pending proofs retain their evidence.
+
+Skipped exports now mark one durable maintenance request after publication.
+Newer requests coalesce into that slot. Separate leases permit one active
+custodian and one pending observer. Busy requests return immediately; the single
+observer probes nonblockingly without launching native work until available.
+The claimed worker keeps the existing 30-second deadline, native owner-death
+custody and WD drain. A later request resumes after an active custodian dies;
+SIGTERM/host sleep stop pending observation, leaving its request for a later
+schedule. Queue records and maintenance.log live outside historical run trees.
+Proof-bound deferred pruning also arranges an observer. This supersedes round 5's
+per-export custodian and blocking lock wait; no retention wait enters publication.
+The guide and dated LLP 3000.030 §15 revision describe the policy and quiescent
+5-full/20-compressed bound. Native preparation deadlines and WD are unchanged.
+
+Three deterministic controls publish the first-started export last, covering
+opt-out, simulated non-macOS and background proof; status/doctor retain its current
+uncompressed evidence. A Rust control also pins the pending rollback generation.
+Both skip modes hold retention locked across 28 exports: exactly one pending
+maintenance process, no native group, every export returned, then exactly 5 full
+plus 20 compressed runs after release without another export. Blocked-compressor
+controls now seed 28 full export trees and require later restoration to exactly
+5/20 after SIGTERM, custodian SIGKILL and the real deadline, while checking the
+compressor/descendant anchor PGID. No real native or Linux qualification is added.
+
+Build and 61 witness unit tests passed; all 74 export/preparation tests passed.
+The final deadline assertion passed separately; the full Mac suite exercised the
+final source and passed with **0 failures in 2,614 seconds**: all Rust targets
+and doctests, 293 CLI units (four existing ignores), 76 witness integrations,
+nine fixture wrappers, all 312 client files (6,232 passes, six existing skips),
+and 79 model cases. All four recorded code/guide hashes stayed unchanged, with
+no interventions or reduced counts. Reference/whitespace and final read-only
+custody checks passed. No new real devices, remaining lane CLI jobs or previously
+recorded NZ devices; other worktrees, processes and simulators untouched. Large
+evidence stays outside git with hashes. Earlier qualifications and intermittent
+issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
+[Round 6 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-6--publication-pins-and-coalesced-retention).
+
+
+## 2026-10-04 — NZ round 7: retain deferred maintenance and probe locks passively
+
+On d488a5f7db, address the operator's Astra P2 and Grok Low. Every deferred
+retention discovery now reasserts the durable request, including unfinished
+exports, live owners, busy leases and unresolved publication reconciliation.
+Errors keep a pending request; persistent maintenance failures park for a later
+request. The one pending observer probes publication/run/export custody and live
+owners at the existing 100 ms interval, without launching native work while
+blocked. A race after probing is covered by the worker's deferred request.
+Every committed automatic export schedules coalesced maintenance after releasing
+the publication lock, covering background-mode failed handoffs that start no
+native guardian. Current-generation pins, 30-second work custody, WD group drain
+and native preparation bounds remain unchanged. LLP 3000.030 §15 and the witness
+guide record the policy; unknown unfinished legacy custody stays pending for repair.
+
+Three deterministic controls pause ten real wrappers after failed status handoffs
+and before lease release, for opt-out, simulated non-macOS and background modes.
+Fifteen full snapshots remain pending; release alone restores five full plus ten
+compressed, preserves current evidence and leaves status/doctor correctly unverified.
+A publication-lock control observes zero worker starts during its 2.2-second hold,
+then exactly one scan and restoration on release. A fifth control parks a failed
+compressor request and restores retention after repair and a later export. A Rust
+unit covers discovery after a readiness race. These are fixture tests on this Mac;
+no new native timings, Linux qualification or real host-sleep exercise are claimed.
+
+Build and 62 witness unit tests passed. The initial combined export run passed
+77/78 and exposed one teardown race: the publication-failure fixture removed its
+project before the newly scheduled background maintenance exited. Its teardown
+now waits for its recorded owners; both cases passed, as did the additional
+parked-error test. The original failure evidence is retained. The full Mac suite
+exercised all 79 final affected cases and passed with **0 failures in 2,617
+seconds**: all Rust targets/doctests, 294 CLI units (four existing ignores),
+76 witness integrations, nine fixture wrappers, all 312 client files (6,237 passes,
+six existing skips), and 79 model cases. All six recorded code/guide hashes stayed
+unchanged; no interventions or reduced counts. Reference/whitespace and final
+read-only custody checks passed. No real devices created, remaining lane CLI jobs
+or previously recorded NZ devices; other worktrees, processes and simulators were
+untouched. Large evidence stays outside git with hashes. Earlier qualifications
+and intermittent issues remain intact. NZ is for 0.4.14. Nothing pushed or published.
+[Round 7 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-7--durable-deferral-and-passive-lock-backoff).
+
+
+## 2026-10-04 — NZ round 8: bounded live-owner waits and ownerless repair
+
+On aa75cab431, address the operator's Astra and Grok retention-liveness findings
+with one LLP 3000.030 §15 invariant: every retention wait is on a live owner and
+is bounded; every ownerless state is repaired; retention never spins or waits
+forever. Only held kernel leases and birth-matched live journal owners cause
+passive waiting. The observer's launch gate, passive waits and successor chain
+share a 60-minute expiry, with monotonic and sleep checks. Expiry parks a durable
+request with a diagnostic. Inode conflicts and I/O errors fail explicitly; no
+ownership is guessed. Native work keeps its 30-second custody and WD group drain.
+
+Retention now resolves matching abandoned publication intents itself: roll back
+unverified exchanges, preserve verified commits, detach committed displaced trees
+under the publication lock and delete privately after releasing it. Markers and
+inode checks permit interrupted deletion to resume. Ownerless unfinished runs
+are repaired under run/export custody; current evidence stays full, other empty
+or partial shells are removed and do not consume keep slots. A busy publication
+lease defers an empty shell without marking it completed. Legacy completion is
+preserved across compression. The wrapper covers lease failure with try/finally
+and a brief initialization lease, acquired with a five-second refusal bound.
+Retention releases initialization before recovery/deletion. This closes the
+mkdir-to-lease race without placing recursive maintenance on export publication.
+
+New controls cover real publisher death before/after exchange with exactly one
+repair scan and 5/20 restoration; verified-commit and deleter death; failed lease
+acquisition and ten ownerless shells in all three modes; current evidence without
+its live journal; bounded live-owner and withheld launch-gate observation; and
+initialization races/timeouts. Existing coalescing, pending requests, generation
+binding, atomic publication and native custody remain. These are fixture controls
+on this mini, not new native timings, Linux qualification or host-sleep evidence.
+
+Initial qualification found and fixed the startup race, compressed legacy receipt
+classification and an ambiguous post-driver fixture. That fixture now excludes
+a competing automatic custodian while testing the intended guardian; PGID and
+cancellation assertions remain. The legacy active-run fixture now owns a real
+lease. A vanished post-enumeration directory is now already covered, while a
+broken lock in a surviving directory is an explicit error. The first full suite
+was orderly cancelled through its own shell at 420.15 s for that final discovery
+correction; its non-qualifying record is retained separately. The next full run
+reported a navigation/context-loss failure in the base's unchanged per-row React
+fixture. Twenty isolated runs did not reproduce the spontaneous event; a real
+Vite full-reload injection reproduced the exact error. The immutable fixture now
+disables HMR and file watching, with all seven cases and assertions intact; the
+injected-reload control and all seven cases pass. This proves the reload
+vulnerability, not the uninstrumented original event's exact trigger. Both earlier
+attempts and all initial logs are retained. The complete export/preparation rerun
+passed 88/88; final serial witness tests passed 65/65 and three-mode ownerless controls
+passed. The full Mac suite exercised final source and passed with **0 failures in
+2,640 seconds**: all Rust targets/doctests, 297 CLI units (four existing ignores),
+76 witness integrations, nine fixture wrappers, all 312 client files (6,246 passes,
+six existing skips), and 79 model cases. All ten code/guide hashes stayed unchanged;
+no intervention or reduced counts. Reference/whitespace and custody checks passed.
+No real devices created or lane CLI jobs remaining; prior NZ devices absent.
+Other worktrees, processes and simulators untouched. Large evidence stays outside
+git with hashes. Earlier qualification limits and intermittent issues remain.
+NZ is for 0.4.14. Nothing pushed or published.
+[Round 8 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-8--bounded-live-owner-waits-and-ownerless-repair).
+
+
+## 2026-10-04 — Lane NZ round 9: durable retention claims and state audit
+
+On 7e03a5cea9, fix the operator's remaining Astra/Grok retention findings and
+audit the complete state machine under LLP 3000.030 §15. A pending request is
+atomically renamed to a durable claim only after both the observer and a separate
+scan custodian exist. Successful work acknowledges only that claim; concurrent
+publications and deferred discoveries keep their own pending slot. Custodian
+SIGKILL leaves a surviving observer to resume after native custody drains. If the
+observer dies during a scan, the custodian cancels/drains and resumes observation
+with the original expiry. Neither repair needs a later export. Interrupted claims
+and failed starts are bounded; known work errors park with diagnostics.
+
+Readiness probes the exclusive publication lease that reconciliation actually
+needs, so shared holders also wait passively. Failed Expo wrappers remove their
+own uncommitted attempt under their export lease. Discovery uses recorded process
+birth/liveness, owned-child recovery, run/export leases and publication pins;
+journal-only dead attempts and empty completion markers do not consume history
+slots. Terminal receipts, published history and interrupted compressed receipts
+remain evidence. No directory-name PID authorizes a signal or simulator action.
+
+The audit covers queue creation, launch, claim, native work, acknowledgement,
+deferral, peer death, errors, deadlines, exit races, namespace repair and history.
+It also repaired partially written dirty-bit claiming, distinguished contention
+from lock I/O errors, and made custodian waiting bounded polling. A further
+control reproduced handled busy deferrals consuming the failed-start budget.
+The internal custodian now exits successfully after durably handling a pending
+or parked outcome; the error remains explicit in its journal/log. Only an
+unhandled/startup failure or process death spends that budget. Four forced
+post-readiness lock refusals preserve one observer and restore 5 full / 20
+compressed on release. Sole-peer SIGKILL controls restore the same bound with
+no later export. Failed Expo/dead-journal controls cover all three modes.
+
+Initial qualification exposed incomplete older retention fixtures and a real
+nonterminal-smoke-receipt classification gap; terminal receipts are now required,
+and all custody/namespace assertions remain. Earlier failed runs are retained.
+The first full suite was stopped through its directly owned shell at 953.93 s for
+the additional busy-deferral correction; its processes drained and its incomplete
+record is separate. Final affected checks passed: build, 66 serial witness units,
+and all 95 export/preparation tests with no skips or cancellations. The fresh
+complete Mac suite passed with **zero failures in 2,658 seconds**: all Rust targets
+and doctests, 298 CLI units (four existing ignores), 76 witness integrations,
+nine fixture wrappers, all 312 client files (6,253 passes / six existing skips),
+and 79 full-count model cases. All nine recorded inputs stayed unchanged; no
+intervention or reduced counts in the qualifying run. Reference/whitespace and
+custody checks passed. WD cleanup/group custody and preparation deadlines remain
+unchanged. No real devices created, prior NZ devices absent, and no lane CLI jobs
+remaining. Other worktrees, processes and simulators untouched. Large evidence
+stays outside git with hashes; no new native timing, Linux or physical-sleep
+qualification is claimed. NZ targets 0.4.14. Nothing pushed or published.
+[Round 9 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-9--crash-safe-claims-and-retention-state-audit).
+
+
+## 2026-10-04 — Lane NZ round 10: atomic maintenance transitions and export backstop
+
+On `sb4-intent/nz-native-proof-zero-cost`, based on `7a1899daa8`, on the
+Apartment mini only. Fixed both operator-supplied Astra round-9 crash windows.
+NZ targets 0.4.14; no publication or push was performed.
+
+Pending requests and metadata updates now publish complete, synced records by
+atomic rename. A claim is name-authorized and its metadata upgrade is redoable,
+including an empty legacy claim. Acknowledgement renames only that claim to done,
+leaving a separate newer request intact. A finishing custodian publishes a
+handoff record before releasing its active lease, then remains a passive backup
+until the queue is covered or a live successor has claimed. A busy observer
+lease is not an acknowledgement; killing that observer no longer strands work.
+The original observation expiry, 100 ms probes, native 30-second work budget,
+three-attempt bounds and unchanged WD drain still apply.
+
+Every wrapper first re-arms stranded or parked work, before Expo and without
+waiting for maintenance. This also repairs a request killed before its JSON
+write or rename, even when the next Expo command fails. Dead temporary-file
+writer checks authorize unlinking only that private file, never a process signal.
+A matrix-discovered mixed pin-ordering defect was also fixed: an unknown pin now
+defers the whole ranking pass instead of displacing full history with compressed
+rows. Current/pending evidence pinning and final per-candidate checks remain.
+
+Added 21 deterministic crash/backstop controls spanning request creation through
+claim, scan, compression, deletion, done and both final-handoff sides, plus a Rust
+mixed-ordering control. The two reported reproducers and single-peer scan deaths
+restore five full plus twenty compressed without another export. Pre-peer/worker
+failures use the tested next-export backstop. LLP 3000.030 §15 and guide witness
+state the atomicity/recovery contract; the Round 10 report lists every state,
+transition, bound and recovery trigger. No host daemon or power-loss claim.
+
+Final affected checks: build; 67/67 serial witness unit tests; 116/116 export and
+preparation tests, no skips/cancellations. The final full Mac suite passed with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`:
+zero failures in 2,800 s (2,800.394 s measured). All Rust targets/doctests,
+299 CLI tests (four existing ignores), 76 witness integrations, nine fixture
+wrapper tests, all 312 client files (6,274 passed, six existing skips), and both
+full-count models (79/79) passed. All six recorded inputs stayed unchanged.
+Earlier exploratory failures and the input-changed intermediate run remain
+separate evidence; they are not the final qualification.
+
+Final custody checks found no remaining lane CLI/fixture jobs; no real device
+was created and prior recorded NZ devices are absent. WD cleanup, group custody
+and preparation deadlines remain unchanged. Reference/whitespace checks passed.
+Large logs and the tested binary stay in the external evidence archive; no new
+file over 256 KB, gzip or video is committed. Report and evidence:
+[Round 10](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-10--atomic-retention-transitions-2026-10-04).
+
+
+### 2026-10-05 — Lane NZ Round 11: retention before its first request
+
+Made the pre-Expo backstop inspect actual full/compressed evidence, pins and live owners, so publisher death before any maintenance record is repaired by the next export, including failed Expo. Twelve crash controls cover verified commit and post-cleanup handoff across both skip modes/background, with successful/failed next exports; each restores 5/20. Affected checks passed: 68 witness units, 76 integrations, 128 export/preparation tests. Full Mac suite: zero failures in 2,812 s, all 312 client files and 79 full-count model tests passed; five source hashes unchanged. LLP 3000.030 §15/guide updated; custody verified; no real device created, other session touched or push made. [Round 11 report](reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-11--inventory-backstop-before-the-first-request-2026-10-05).
 
 ## 2026-10-04 — MS: a compiling rewrite for conversation-ordered search
 
@@ -87162,3 +87756,32 @@ ample free inodes; this lane's measured workspace/snapshot roots peaked at
 scratch snapshots were removed. No other workload is blamed or touched.
 The report preserves the native failures and log limitation. Wasm remains
 byte-identical with zero budget delta. Nothing was pushed or published.
+
+
+## 2026-10-05 — NZ round 12: integrate current main for 0.4.14
+
+Merged main `8bd933cd2d` into reviewed NZ `67a29a10b0` as a two-parent merge.
+Both journal histories and LLP revision entries survive. Main's complete-line
+barriers, FX/FY cleanup helper, DG worker/starter guidance, RH/OP client changes,
+SQL catalog docs and `watermark` fence assertions remain. Retained-history
+teardown releases main's held apply and preserves NZ's stop-before-delete order.
+NZ's export, retention, WD cleanup and preparation deadlines are unchanged.
+RPF's all-zero reservation omission supersedes NZ's old fence workaround:
+main-only and corrected merged Darwin fences both pass 7/7. The initial four
+assertion failures and their classification are retained. A cached wasm overrun
+also disappears after rebuilding this lane's complete wasm profile: main and
+merged bytes match at 639,941 B gzip. NZ adds zero bytes; the cap remains Linux
+639,811 B plus the 130 B macOS allowance.
+
+Affected checks pass 68 witness units, 77 witness integrations, 179 export/
+witness/preparation tests, seven Darwin fence tests and 120 merge controls.
+The full mini suite passes with zero failures in 2,869 s: 5,090 Rust tests plus
+doctests (33 existing ignores), nine fixture tests, all 321 client files with
+6,469 passes / six existing skips, and 79 full-count model tests. All 209 source
+hashes remained unchanged. Reference and NZ-delta whitespace checks pass; main's historical log whitespace is retained. Closed NZ's release
+activation crash-cut ticket because main FY supplies the witnessed pre-chunk
+stop; the separate unexplained ephemeral-expiry intermittency stays open.
+No real device was created; prior owned devices are absent and fixture custody
+is drained. Only this mini and an NZ-owned main comparison snapshot were used.
+Nothing pushed or published; 0.4.13 staging/version files were not changed.
+Details and hashes: [Round 12 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-12--integration-2026-10-05).

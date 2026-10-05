@@ -1,0 +1,47 @@
+[
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist",
+    "sha256": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "bytes": 1257
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+    "sha256": "60d807f3a1a3473c6411690032b7c37d64c4da310e6a786a949353902ac59e9c",
+    "bytes": 7062208
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+    "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "bytes": 2204
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+    "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "bytes": 61
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+    "sha256": "ef612c8e2cd035d7617ff1c348c9a0c15c4969fa1cc267bc007c074334f61460",
+    "bytes": 7068960
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+    "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "bytes": 2204
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+    "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "bytes": 61
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r2-diagnose.mjs",
+    "sha256": "9b1a4e1712264396e8f1cdca3ce5476251de30ad2f615bd201221842d4ec29a9",
+    "bytes": 1902
+  },
+  {
+    "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r2-diagnose-current.mjs",
+    "sha256": "f7739889fed5bdfe27230862a982a80344078ecd075fdc8230cd834de7560387",
+    "bytes": 1992
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "at": 1791134339.331077,
+  "run": "full-suite-qualified.json",
+  "test": "snapback4/packages/snapback4/test/release-activation.test.mjs",
+  "testSha256": "6b37fed5c64bc798705bb99d19948250cf96480db2e69299bdf5d0e204895578",
+  "case": "a queued scheduled job survives serving process death and runs once after restart",
+  "expectedStateAtCrashCut": "queued",
+  "observedStateAtCrashCut": "done",
+  "durationMs": 72.987291,
+  "sourceUnchanged": true,
+  "note": "The listener-message SIGSTOP did not establish the intended pre-first-chunk cut. No assertion or release behavior changed."
+}

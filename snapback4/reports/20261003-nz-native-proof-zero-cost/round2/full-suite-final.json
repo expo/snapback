@@ -1,0 +1,11 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh",
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin",
+  "log": "/tmp/sb4-nz-r2-full-final.log",
+  "state": "finished",
+  "startedAt": 1791109795.1802292,
+  "firstSuiteStatus": 1,
+  "status": 1,
+  "finishedAt": 1791112501.68686,
+  "durationSeconds": 2706.513454125
+}

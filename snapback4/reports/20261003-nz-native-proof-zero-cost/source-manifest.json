@@ -1,0 +1,117 @@
+[
+  {
+    "path": "issues/20261003-snapback4-nz-quiet-native-proof-qualification.md",
+    "sha256": "01afd2f7f064da73b1fba43f07e0d3a8953764f72386eb063326e31e7e31135c",
+    "bytes": 3105
+  },
+  {
+    "path": "llp/3000.030-native-proof-in-minutes.rfc.md",
+    "sha256": "9647c669dc1a886231bbb88ae2d510f1e93260fa959968dd7d9524d7b85adf33",
+    "bytes": 144250
+  },
+  {
+    "path": "snapback4/JOURNAL.md",
+    "sha256": "e3fb4a11bb75de5bf7dca601e3356acac531046d78b8acaba05f1b1dda3ef9fe",
+    "bytes": 5307427
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/client.md",
+    "sha256": "59b3a6732d73a3ba8331c9ee08edbfdf41a5eb4d6be2ea20dc90de7698270f5d",
+    "bytes": 10458
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/witness.md",
+    "sha256": "2fa8ad85188cfb0dc593d18b7af582ac5aa81f61a24e142a7e84a65d3b4e3c9d",
+    "bytes": 27942
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/client.rs",
+    "sha256": "a153fd9c0facc43fa200f11c1a9b507e498574be1a5f0f8d00ccd897ba381de8",
+    "bytes": 7772
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/main.rs",
+    "sha256": "89868c6dd62de8d2ef72af91ea449db8cd8f4ec1ebe0b8b52f8ec51049bc84c0",
+    "bytes": 16237
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs.rs",
+    "sha256": "ec05e920ea0c9dec2df859c078844f0704534b8d1e217394c0c97b7784b407c0",
+    "bytes": 74921
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init.rs",
+    "sha256": "842a4521b49379127f934d10671aa48593431fd39ffd2eefe314a513d18a7398",
+    "bytes": 21388
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social/README.md",
+    "sha256": "783a33284d5167c871f690cdba34962a199e8945acd60ec116797b894247721b",
+    "bytes": 12579
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "9290c3edf52784d7accb6fe802a114fa993ab8af088f1e92e813b05c2d769501",
+    "bytes": 44917
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "sha256": "2baca8dcfdc10448c1eae12126f3008f4e74467992c97bb69e1549d2acc2d0b6",
+    "bytes": 24758
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+    "sha256": "bf85a1f8c853baa5b22d0f7e2029924a02c78e38deb16311e51313567683b664",
+    "bytes": 44281
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "953a5f4e547f739bdd53ad70b6d788288b1a9b1f8e637cd788a7b56ff164505f",
+    "bytes": 29202
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "d574b4a31d1be8ef5672d5ac4065868afe890c59a283844057e5e87c3f54161c",
+    "bytes": 30940
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/witness/simulator.rs",
+    "sha256": "5f7a20a2455bd47cc5745118fbb5183dc0c8bcecdcbb4b2ebc017273596c732d",
+    "bytes": 13197
+  },
+  {
+    "path": "snapback4/crates/snapback4/tests/init.rs",
+    "sha256": "a3fd9cdbc87d082830db4a5559b2eeac0ce8473ff820d2c9083aac8728e1aad7",
+    "bytes": 33137
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/README.md",
+    "sha256": "b50735ff3f3f41e3778e75d94efabe0126d2a989827f979e3673c8e4be31c176",
+    "bytes": 6236
+  },
+  {
+    "path": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "b68a681db55a4693c2764dd3a09b00cdc3537df70191e037f7a21076e8c47d12",
+    "bytes": 8520
+  },
+  {
+    "path": "snapback4/packages/snapback4/README.md",
+    "sha256": "db73dd4f74aa356aa524e3a226c91c6d63f12761b255c073527d1eb0ed409ad3",
+    "bytes": 21410
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "d4a2cb2a4f052f6d60206b6a4b779784e447b6df2d89ecae0cf80e63e10ed313",
+    "bytes": 13982
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/export-failure.test.mjs",
+    "sha256": "ae599a1150a71761acf06717abd09bc05aa60438d72334bdb3fdbbf8aed6bdcc",
+    "bytes": 8496
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "sha256": "62db2d136d16b6d65e8508a9aadda4493b9ab88d66a1b3a887cce677c500b3a2",
+    "bytes": 36073
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "command": [
+    "clang",
+    "-O2",
+    "-pthread",
+    "/Users/ccheever/sb4-np/lane-nz/snapback4/reports/20261003-nz-native-proof-zero-cost/cpu-probe.c",
+    "-o",
+    "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/cpu-probe-r1"
+  ],
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "design": "Three ABBA blocks; six threads for three seconds. CPU IDs are work-sample observations using the host-specific XNU register layout, not residency time or simulator-thread traces.",
+  "inputs": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/reports/20261003-nz-native-proof-zero-cost/cpu-probe.c",
+      "sha256": "0abb4f0cf028c02eaf0d04677488ba3cd8d53eb3097aa7620e972f11a4939f66",
+      "bytes": 1705
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/cpu-probe-r1",
+      "sha256": "e048bbead0de5138f6ac4fe8b4f23b771e82b4fdb49e807672f040005265d6a9",
+      "bytes": 34080
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-placement-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

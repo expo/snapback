@@ -1,0 +1,93 @@
+{
+  "at": 1791116599.533719,
+  "build": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r3-build.log"
+  },
+  "witness": {
+    "passed": 55,
+    "failed": 0,
+    "log": "/tmp/sb4-nz-r3-witness-final.log"
+  },
+  "javascript": {
+    "distinctPassed": 58,
+    "other": 28,
+    "backgroundExisting": 13,
+    "staleHandoff": 4,
+    "retention": 7,
+    "logs": [
+      "/tmp/sb4-nz-r3-focused-other-final.log",
+      "/tmp/sb4-nz-r3-background-final.log",
+      "/tmp/sb4-nz-r3-retention-final.log"
+    ],
+    "note": "Complete development background run had one new test assertion race; its seven retention cases subsequently passed with final test source. The expanded final affected run passed all 58 export and preparation cases together. The 28+13+4+7 breakdown describes the original 52-case focus, before adding six more export tests.",
+    "expandedScope": {
+      "passed": 58,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 177154.083375,
+      "log": "/tmp/sb4-nz-r3-all-affected.log",
+      "command": "node --test --test-concurrency=1 packages/snapback4/test/export-*.test.mjs packages/snapback4/test/witness-preparation.test.mjs"
+    }
+  },
+  "refCheck": {
+    "status": 0,
+    "documents": 527,
+    "refs": 10347,
+    "files": 34555,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "/tmp/sb4-nz-r3-ref-check.log"
+  },
+  "firstFullSuite": {
+    "status": 1,
+    "durationSeconds": 3065.605265917,
+    "rust": "passed",
+    "fixtures": 9,
+    "models": 79,
+    "clients": {
+      "passed": 6215,
+      "failed": 1,
+      "skipped": 6
+    },
+    "failure": "export-failure.test.mjs missing metadata in fake Expo output; fixed and 2/2 targeted plus 58/58 expanded scope passed",
+    "interventions": 0
+  },
+  "finalFullSuite": {
+    "status": 0,
+    "durationSeconds": 2834.2028097909997,
+    "reportedDurationSeconds": 2834,
+    "inputsUnchanged": true,
+    "rust": "all targets and doctests passed",
+    "cli": {
+      "passed": 287,
+      "ignored": 4
+    },
+    "witnessIntegration": 76,
+    "fixtures": 9,
+    "clients": {
+      "tests": 6222,
+      "pass": 6216,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 6,
+      "todo": 0
+    },
+    "models": 79,
+    "interventions": 0,
+    "log": "/tmp/sb4-nz-r3-full-suite-final.log"
+  },
+  "finalRefCheck": {
+    "status": 0,
+    "documents": 527,
+    "refs": 10347,
+    "files": 34560,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "/tmp/sb4-nz-r3-ref-check-final.log"
+  },
+  "whitespace": {
+    "status": 0,
+    "log": "/tmp/sb4-nz-r3-whitespace-final.log"
+  }
+}

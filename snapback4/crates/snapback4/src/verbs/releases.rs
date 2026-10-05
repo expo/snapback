@@ -70,6 +70,10 @@ fn activate(dir: &Path, owner: &Owner, release: u64, previous: Option<u64>, boun
     result
 }
 fn report(verb: &str, result: Result<(), String>) -> i32 {
+    // @ref LLP 3000#contended-read-serving — release completion owns no engine/lease; bound the final diagnostic drain.
+    // The background writer must get a chance to emit adoption estimates before
+    // this short-lived command exits. Broken/stalled output cannot hold exit.
+    let _ = snapback4_core::diagnostics::drain(std::time::Duration::from_secs(3));
     match result { Ok(()) => 0, Err(error) => { eprintln!("{verb}: {error}"); 1 } }
 }
 
@@ -190,6 +194,28 @@ pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn release_diagnostic_fixture() {
+        let Ok(outcome) = std::env::var("SB4_RELEASE_DIAGNOSTIC_FIXTURE") else { return; };
+        snapback4_core::diagnostics::set_thread_start(|| std::thread::sleep(std::time::Duration::from_millis(200)));
+        snapback4_core::diagnostic!("release completion estimate");
+        let failed = outcome == "failure";
+        assert_eq!(super::report("deploy", if failed { Err("release fixture failure".into()) } else { Ok(()) }), i32::from(failed));
+    }
+
+    #[test]
+    fn release_completion_drains_a_delayed_writer_on_success_and_failure() {
+        for outcome in ["success", "failure"] {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "verbs::releases::tests::release_diagnostic_fixture", "--nocapture"])
+                .env("SB4_RELEASE_DIAGNOSTIC_FIXTURE", outcome).output().unwrap();
+            assert!(output.status.success(), "{output:?}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("release completion estimate"), "{stderr}");
+            if outcome == "failure" { assert!(stderr.contains("release fixture failure"), "{stderr}"); }
+        }
+    }
+
     #[test]
     fn serving_defaults_loopback_and_requires_cleartext_acknowledgement() {
         let parse = |args: &[&str]| super::parse(&args.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());

@@ -1,0 +1,8 @@
+{
+  "at": 1791130939.964511,
+  "run": "full-suite-final.json",
+  "sourceUnchanged": false,
+  "additionalModifiedInput": "snapback4/crates/snapback4/tests/check_adoption/mod.rs",
+  "amendment": "adoption-log-wait-amendment.json",
+  "note": "The runner hashes paths already modified at start. This initially unmodified test changed after its target failed and completed, so this supplemental audit records that the complete source set changed even though the original 14 recorded hashes remain stable. The later qualified run includes this test in its manifest."
+}

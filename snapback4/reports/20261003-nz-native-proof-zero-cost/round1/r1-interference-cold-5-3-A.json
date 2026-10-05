@@ -1,0 +1,78 @@
+{
+  "label": "r1-interference-cold-5-3-A",
+  "condition": "cold-build",
+  "block": 5,
+  "index": 3,
+  "arm": "A",
+  "startedAt": 1791097554.405982,
+  "endedAt": 1791097599.0647838,
+  "seconds": 44.65864458299984,
+  "status": 0,
+  "childCpuSeconds": 19.955588999999975,
+  "before": {
+    "at": 1791097554.402273,
+    "load": [
+      8.9990234375,
+      14.42431640625,
+      18.7685546875
+    ],
+    "idlePercent": 76.1169332597904,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "90114     1 109.6 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+      "  661     1 103.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "27142     1  95.4 /usr/libexec/PerfPowerServices",
+      "18225     1  12.7 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService",
+      "  417     1   4.9 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+      "98706     1   3.4 /System/Library/Frameworks/CoreSpotlight.framework/spotlightknowledged",
+      "34138     1   3.3 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      " 1164     1   3.1 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "  442     1   1.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1495  1166   1.5 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)"
+    ]
+  },
+  "after": {
+    "at": 1791097600.2303722,
+    "load": [
+      6.734375,
+      13.046875,
+      18.03515625
+    ],
+    "idlePercent": 71.21546961325967,
+    "compilers": [],
+    "backgroundJobs": [],
+    "busy": [
+      "90114     1 108.7 /System/Library/PrivateFrameworks/MediaAnalysis.framework/Versions/A/mediaanalysisd",
+      "27142     1  95.9 /usr/libexec/PerfPowerServices",
+      "  661     1  83.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores",
+      "  442     1  48.6 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds",
+      " 1164     1   3.2 /Applications/Xcode.app/Contents/Applications/DeviceHub.app/Contents/MacOS/DeviceHub",
+      "34138     1   1.8 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mdworker_shared",
+      "98706     1   1.7 /System/Library/Frameworks/CoreSpotlight.framework/spotlightknowledged",
+      "  478     1   1.5 /usr/sbin/bluetoothd",
+      " 1495  1166   1.5 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      " 1388  1166   1.0 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/154.0.8037.57/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)"
+    ]
+  },
+  "smoke": null,
+  "phasesAtWorkloadStart": null,
+  "resultAtWorkloadEnd": null,
+  "result": null,
+  "waitStatus": null,
+  "nativeCache": null,
+  "backgroundOverlapSeconds": 0,
+  "overlapFraction": 0,
+  "evidence": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-5-3-A.log",
+      "sha256": "d1b9704ed50f368f9c40499aef9eb79816ec8a266da6f6f6641f7073fc62edd8",
+      "bytes": 20781
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-nz/snapback4/target/nz/r1-interference-cold-5-3-A-host.jsonl",
+      "sha256": "20adc49491845ab2fd7b6105e156a3cc1c2cff1873ba45c41319d162b622caed",
+      "bytes": 9781594
+    }
+  ]
+}

@@ -287,6 +287,9 @@ mod driver {
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
+                // These records and the fake simctl belong to this fixture,
+                // independently of the real host's smoke-device prefix.
+                .env("SNAPBACK4_SMOKE_DEVICE_PREFIX", "snapback4-smoke-")
                 .env("XDG_STATE_HOME", self.0.with_extension("state")).env("WITNESS_TEST_PORT", port.to_string())
                 .env("HOME", &self.0).env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
             command
@@ -495,6 +498,7 @@ mod driver {
         let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
         command.args(["witness", "ios", "--build", ".", "--smoke", "--artifacts", "artifacts"])
             .current_dir(&fixture.0).env("PATH", format!("{}:{}", fixture.0.display(), std::env::var("PATH").unwrap()))
+            .env("SNAPBACK4_SMOKE_DEVICE_PREFIX", "snapback4-smoke-")
             .env("XDG_STATE_HOME", fixture.0.with_extension("state"))
             .env("WITNESS_TEST_UDID", fixture.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &fixture.0).env("WITNESS_TEST_MODE", "normal");
         command
