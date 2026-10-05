@@ -1,3 +1,4 @@
+-- Sync last N bounds the device's working set, not server history: history queries with cursors page from the server beyond it, offline only within what the device has acquired.
 -- @ref LLP 3000.022#2 — the SDK reports delivery; success records the entire run.
 use identity
 use personas alice, bob, carol

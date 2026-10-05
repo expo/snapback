@@ -1,0 +1,35 @@
+{
+  "baselineSha256": "de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1",
+  "sha256": "a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26",
+  "rawBytes": 2116457,
+  "gzipBytes": 639751,
+  "budgetBytes": 639887,
+  "differingBytes": 3,
+  "changes": [
+    {
+      "wasmOffset": 2084331,
+      "file": "crates/snapback4-core/src/schema.rs",
+      "oldLine": 695,
+      "newLine": 699,
+      "source": "1 => audience.pop().expect(\"one audience\"),"
+    },
+    {
+      "wasmOffset": 2085431,
+      "file": "crates/snapback4-core/src/schema.rs",
+      "oldLine": 1392,
+      "newLine": 1396,
+      "source": "let probe_principal = &index_columns[prefix.len()];"
+    },
+    {
+      "wasmOffset": 2085447,
+      "file": "crates/snapback4-core/src/schema.rs",
+      "oldLine": 1396,
+      "newLine": 1400,
+      "source": "index_columns[..prefix.len()].to_vec()"
+    }
+  ],
+  "changedSectionIds": [
+    11
+  ],
+  "codeAndOtherNonDataSectionsIdentical": true
+}

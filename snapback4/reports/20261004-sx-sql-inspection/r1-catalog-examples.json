@@ -1,0 +1,191 @@
+[
+  {
+    "args": [
+      "sql",
+      "\\d typing"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\ntyping | ephemeral table | rows: unavailable (ephemeral, serving-process memory)\n  id: id \u2014 not null\n  conversation: conversations \u2014 not null\n  principal: principal \u2014 not null\n  primary key id (id)\n  unique (conversation, principal)\n",
+    "stderr": "sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d typing",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"generation\":1,\"header\":\"sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\",\"ruleFiltered\":false,\"tables\":[{\"columns\":[{\"name\":\"id\",\"nullable\":false,\"type\":\"id\"},{\"maintained\":false,\"name\":\"conversation\",\"nullable\":false,\"type\":\"conversations\"},{\"maintained\":false,\"name\":\"principal\",\"nullable\":false,\"type\":\"principal\"}],\"indexes\":[{\"keys\":[\"id\"],\"name\":\"id\",\"primary\":true,\"unique\":true},{\"generated\":true,\"keys\":[\"conversation\",\"principal\"],\"name\":null,\"primary\":false,\"unique\":true}],\"kind\":\"ephemeral table\",\"name\":\"typing\",\"rows\":{\"count\":null,\"exact\":false,\"reason\":\"ephemeral rows live only in the serving process's memory\"}}]}\n",
+    "stderr": "",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d follows"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\nfollows | table | rows: 0\n  id: id \u2014 not null\n  followedId: principal \u2014 not null\n  followerId: principal \u2014 not null\n  primary key id (id)\n  unique (followerId, followedId)\n  index (followedId, followerId)\n",
+    "stderr": "sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d follows",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"generation\":1,\"header\":\"sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\",\"ruleFiltered\":false,\"tables\":[{\"columns\":[{\"name\":\"id\",\"nullable\":false,\"type\":\"id\"},{\"maintained\":false,\"name\":\"followedId\",\"nullable\":false,\"type\":\"principal\"},{\"maintained\":false,\"name\":\"followerId\",\"nullable\":false,\"type\":\"principal\"}],\"indexes\":[{\"keys\":[\"id\"],\"name\":\"id\",\"primary\":true,\"unique\":true},{\"generated\":true,\"keys\":[\"followerId\",\"followedId\"],\"name\":null,\"primary\":false,\"unique\":true},{\"generated\":true,\"keys\":[\"followedId\",\"followerId\"],\"name\":null,\"primary\":false,\"unique\":false}],\"kind\":\"table\",\"name\":\"follows\",\"rows\":{\"count\":0,\"exact\":true}}]}\n",
+    "stderr": "",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d catalogSequence"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\ncatalogSequence | table | rows: 0\n  id: id \u2014 not null\n  ordinal: int \u2014 not null\n  root: catalogRoots \u2014 not null\n  primary key id (id)\n  index (root, ordinal)\n",
+    "stderr": "sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d catalogSequence",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"generation\":1,\"header\":\"sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\",\"ruleFiltered\":false,\"tables\":[{\"columns\":[{\"name\":\"id\",\"nullable\":false,\"type\":\"id\"},{\"maintained\":false,\"name\":\"ordinal\",\"nullable\":false,\"type\":\"int\"},{\"maintained\":false,\"name\":\"root\",\"nullable\":false,\"type\":\"catalogRoots\"}],\"indexes\":[{\"keys\":[\"id\"],\"name\":\"id\",\"primary\":true,\"unique\":true},{\"generated\":true,\"keys\":[\"root\",\"ordinal\"],\"name\":null,\"primary\":false,\"unique\":false}],\"kind\":\"table\",\"name\":\"catalogSequence\",\"rows\":{\"count\":0,\"exact\":true}}]}\n",
+    "stderr": "",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d catalogChildren"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\ncatalogChildren | table | rows: 0\n  id: id \u2014 not null\n  root: catalogRoots \u2014 not null\n  primary key id (id)\n",
+    "stderr": "sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d catalogChildren",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"generation\":1,\"header\":\"sql: developer's own store <fixture>/social/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\",\"ruleFiltered\":false,\"tables\":[{\"columns\":[{\"name\":\"id\",\"nullable\":false,\"type\":\"id\"},{\"maintained\":false,\"name\":\"root\",\"nullable\":false,\"type\":\"catalogRoots\"}],\"indexes\":[{\"keys\":[\"id\"],\"name\":\"id\",\"primary\":true,\"unique\":true}],\"kind\":\"table\",\"name\":\"catalogChildren\",\"rows\":{\"count\":0,\"exact\":true}}]}\n",
+    "stderr": "",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d scope.messages"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_INPUT: no application table named scope.messages; `\\dt` lists tables; `\\d messages` describes one\n",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d scope.messages",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"denied\":{\"code\":\"E_INPUT\",\"message\":\"no application table named scope.messages; `\\\\dt` lists tables; `\\\\d messages` describes one\"}}\n",
+    "stderr": "",
+    "fixture": "social"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d $column:6ba415b9c8ab7a0aee2c686b68e7fbf4a0709ee91464ca536a40d5c609c7bae3"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_MAINTAINED_COLUMN_PRIVATE: posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\dt` lists tables; `\\d messages` describes one\n",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d $column:6ba415b9c8ab7a0aee2c686b68e7fbf4a0709ee91464ca536a40d5c609c7bae3",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"denied\":{\"code\":\"E_MAINTAINED_COLUMN_PRIVATE\",\"message\":\"posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\\\dt` lists tables; `\\\\d messages` describes one\"}}\n",
+    "stderr": "",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d $COLUMN:6BA415B9C8AB7A0AEE2C686B68E7FBF4A0709EE91464CA536A40D5C609C7BAE3"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_MAINTAINED_COLUMN_PRIVATE: posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\dt` lists tables; `\\d messages` describes one\n",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      "\\d $COLUMN:6BA415B9C8AB7A0AEE2C686B68E7FBF4A0709EE91464CA536A40D5C609C7BAE3",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"denied\":{\"code\":\"E_MAINTAINED_COLUMN_PRIVATE\",\"message\":\"posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\\\dt` lists tables; `\\\\d messages` describes one\"}}\n",
+    "stderr": "",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      ".schema $column:6ba415b9c8ab7a0aee2c686b68e7fbf4a0709ee91464ca536a40d5c609c7bae3"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_MAINTAINED_COLUMN_PRIVATE: posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\dt` lists tables; `\\d messages` describes one\n",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      ".schema $column:6ba415b9c8ab7a0aee2c686b68e7fbf4a0709ee91464ca536a40d5c609c7bae3",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"denied\":{\"code\":\"E_MAINTAINED_COLUMN_PRIVATE\",\"message\":\"posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\\\dt` lists tables; `\\\\d messages` describes one\"}}\n",
+    "stderr": "",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      ".schema $COLUMN:6BA415B9C8AB7A0AEE2C686B68E7FBF4A0709EE91464CA536A40D5C609C7BAE3"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_MAINTAINED_COLUMN_PRIVATE: posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\dt` lists tables; `\\d messages` describes one\n",
+    "fixture": "private"
+  },
+  {
+    "args": [
+      "sql",
+      ".schema $COLUMN:6BA415B9C8AB7A0AEE2C686B68E7FBF4A0709EE91464CA536A40D5C609C7BAE3",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"denied\":{\"code\":\"E_MAINTAINED_COLUMN_PRIVATE\",\"message\":\"posts.likeCount is engine-maintained; read its parent column (guide maintains); `\\\\dt` lists tables; `\\\\d messages` describes one\"}}\n",
+    "stderr": "",
+    "fixture": "private"
+  }
+]

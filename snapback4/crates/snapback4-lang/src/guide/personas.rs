@@ -94,7 +94,13 @@ opens read-only alongside the running server and is never rule-filtered.
 Only application-table views are exposed; internal tables and raw r/i are
 refused. Views and `data` include absent required literal defaults; optional
 columns stay null. Device persistence exports retain raw storage images.
-The default limit is 200, with a notice when more rows exist.
+The default SELECT limit is 200, with a notice when more rows exist.
+`snapback4 sql '\dt'` (or `'.tables'`) lists application tables and maintained views;
+`sql '\d messages'` (or `'.schema messages'`) describes Quarry columns/nullability,
+indexes and unique keys. Both report the active schema generation and bounded
+stored row counts: exact through 10,000, otherwise >=10,001; ephemeral counts are
+unavailable. `--json` returns `generation`, `tables` and `ruleFiltered: false`.
+These catalog commands use the active schema, even with broken local source.
 
 ## Refusals
 
@@ -107,7 +113,7 @@ attachment, pragmas or side-effect functions through this inspection verb.
 
 E_SQL_INTERNAL means inspection tried to read engine-private storage.
 For example, `SELECT * FROM r` or `SELECT * FROM sqlite_master` is not an
-application-table view. Use `snapback4 sql "SELECT * FROM messages"` for a
-declared messages table, or `snapback4 data messages`. These views expose
+application-table view. `\dt` lists tables; `\d messages` describes one:
+use `snapback4 sql '\dt'` or `snapback4 sql '\d messages'`. These views expose
 the developer's store, including interpreted defaults, and are not an
 application authorization boundary. Use Quarry for application reads."##;

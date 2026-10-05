@@ -60,6 +60,22 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts\.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
   const privateSql=command(["sql",`select * from "${privateTarget}"`,"--json"]);
   assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts\.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
+  for(const alias of ["\\d", ".schema"]) for(const target of [privateTarget, privateTarget.toUpperCase()]) for(const json of [false,true]) {
+    const refused=command(["sql",`${alias} ${target}`,...(json?["--json"]:[])]);
+    assert.equal(refused.status,1,refused.stdout+refused.stderr);
+    const output=json?refused.stdout:refused.stderr;
+    assert.match(output,/E_MAINTAINED_COLUMN_PRIVATE/);assert.match(output,/posts\.likeCount/);
+    assert.doesNotMatch(output,/\$column:/i);assert.ok(!output.toLowerCase().includes(privateTarget.slice(8)));
+    const message=json?JSON.parse(output).denied.message:output;
+    assert.ok(message.includes(JSON.parse(privateSql.stdout).denied.message));
+    assert.ok(message.includes("`\\dt` lists tables; `\\d messages` describes one"));
+  }
+  const catalog=command(["sql","\\dt","--json"]);
+  assert.equal(catalog.status,0,catalog.stderr);assert.doesNotMatch(catalog.stdout,/\$column/);
+  assert.equal(JSON.parse(catalog.stdout).tables.length,2);
+  const described=command(["sql","\\d posts","--json"]);
+  assert.equal(described.status,0,described.stderr);assert.doesNotMatch(described.stdout,/\$column/);
+  assert.equal(JSON.parse(described.stdout).tables[0].columns.find(c=>c.name==="likeCount").maintained,true);
   const why=command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts\.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
   const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
   const opener=family==="sqlite"?processDevice({dir:join(directory,"devices"),binary}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});

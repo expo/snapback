@@ -1,0 +1,42 @@
+[
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "\\dt"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\nmessageCounts | maintained view | rows: 1\nmessages | table | rows: 2\n",
+    "stderr": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n"
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "\\d messages"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\nmessages | table | rows: 2\n  id: id \u2014 not null\n  at: time \u2014 not null\n  body: text <=120 \u2014 not null\n  note: text <=10000 \u2014 nullable\n  room: text <=32 \u2014 not null\n  primary key id (id)\n  unique (room, body)\n  index byRoomTime (room, at, id)\n",
+    "stderr": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n"
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "\\d messageCounts"
+    ],
+    "exit": 0,
+    "stdout": "Schema generation: 1\nmessageCounts | maintained view | rows: 1\n  id: id \u2014 not null\n  room: text <=32 \u2014 not null\n  value: int \u2014 not null\n  primary key id (id)\n  unique byGroup (room)\n  maintained from messages\n",
+    "stderr": "sql: developer's own store <fixture>/.snapback4/store.sqlite \u2014 read-only, not rule-filtered\n"
+  },
+  {
+    "command": [
+      "snapback4",
+      "sql",
+      "SELECT * FROM sqlite_master"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "E_SQL_INTERNAL: sql reads application views only; internal tables, r, i and SQLite metadata are refused; `\\dt` lists tables; `\\d messages` describes one\n"
+  }
+]

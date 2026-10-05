@@ -2348,6 +2348,14 @@ step.
   row-count/truncation notice go to stderr. `--json` returns `columns`, positional `rows` (retaining every
   selected column), `limit`, `more`, `ruleFiltered: false`, and the same inspection header. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
+  `snapback4 sql '\dt'` (alias `'.tables'`) lists application tables and maintained views;
+  `snapback4 sql '\d messages'` (alias `'.schema messages'`) describes Quarry types,
+  nullability, indexes and unique keys. Both show the active generation and stored row counts:
+  exact through 10,000, otherwise a lower bound of 10,001; ephemeral counts are unavailable.
+  Catalog JSON carries `generation`, `tables` (each with `name`, `kind`, `rows`, and
+  description-only `columns`/`indexes`), `ruleFiltered: false` and the inspection header.
+  `rows.count` is exact only when `rows.exact` is true; null means unavailable.
+  Internal-name refusals point to these commands; SQLite metadata stays private.
 - **`snapback4 device <store.sqlite> [backend.json]`** runs the native
   device over stdin/stdout, one JSON request and answer per line.
 - **`snapback4 --help`** lists every verb and its flags; `deploy`, `rollback` and `serve` are described in §6.

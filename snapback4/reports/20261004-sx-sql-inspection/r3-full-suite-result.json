@@ -1,0 +1,123 @@
+{
+  "commit": "093868ee5e58edd045711ce60b32422fa353dcf9",
+  "command": [
+    "taskset",
+    "-c",
+    "3,4,5,10,14,17,30,31,56,60,66,95",
+    "bash",
+    "snapback4/scripts/test.sh"
+  ],
+  "started_utc": "2026-10-05T00:24:00Z",
+  "environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": null,
+    "SNAPBACK4_TEST_SERIAL_CLIENT_FILES": null
+  },
+  "versions": {
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "pid": 1655768,
+  "exit_code": 0,
+  "elapsed_seconds": 3361.223,
+  "finished_utc": "2026-10-05T01:20:02Z",
+  "stages": [
+    {
+      "name": "cargo build",
+      "elapsed_seconds": 6
+    },
+    {
+      "name": "wasm build",
+      "elapsed_seconds": 32
+    },
+    {
+      "name": "docs budget",
+      "elapsed_seconds": 19
+    },
+    {
+      "name": "release guard",
+      "elapsed_seconds": 3
+    },
+    {
+      "name": "package typecheck",
+      "elapsed_seconds": 2
+    },
+    {
+      "name": "package build",
+      "elapsed_seconds": 3
+    },
+    {
+      "name": "chat app check",
+      "elapsed_seconds": 0
+    },
+    {
+      "name": "cargo test",
+      "elapsed_seconds": 1272
+    },
+    {
+      "name": "chat app typecheck",
+      "elapsed_seconds": 1
+    },
+    {
+      "name": "expo app typecheck",
+      "elapsed_seconds": 2
+    },
+    {
+      "name": "fixture wrapper tests",
+      "elapsed_seconds": 13
+    },
+    {
+      "name": "client tests",
+      "elapsed_seconds": 1716
+    },
+    {
+      "name": "client models",
+      "elapsed_seconds": 308
+    }
+  ],
+  "rust_inventory": {
+    "binaries": 299,
+    "executions": 1012,
+    "execution_failures": 0,
+    "workspace_doctests": "passed"
+  },
+  "client_files": {
+    "files": 313,
+    "tests": 6224,
+    "pass": 6213,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 11,
+    "todo": 0
+  },
+  "serial_client_models": {
+    "files": 2,
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "fixture_wrapper": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "worktree_peak_sampled_bytes": 16726259422,
+  "wasm_sha256": "a2922caee398df1a5379742ad9dde6655653ae5202ca06ec7e500d85ed300a26",
+  "code_changes": false,
+  "failure_reruns": "none needed; full suite passed first run",
+  "operator_reported": {
+    "astra_review": "READY at 093868ee5e; no open findings",
+    "darwin_published_engine_fence": "7/7 passed on Apartment mini at 093868ee5e"
+  },
+  "full_log_sha256": "303d9560c0bd153a8fa1650c5f3e42e388d92907a3fe4175aec666bd76801141"
+}

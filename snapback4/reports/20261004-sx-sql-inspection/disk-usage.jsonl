@@ -1,0 +1,6 @@
+{"at": "2026-10-04T21:45:28.640310+00:00", "allocatedBytes": {".": 10039373824, "/tmp/sb4-sx.fH2KuN": 2777088}, "totalAllocatedBytes": 10042150912, "ceilingBytes": 40000000000}
+{"at": "2026-10-04T21:51:09.688357+00:00", "allocatedBytes": {".": 14123524096, "/tmp/sb4-sx.fH2KuN": 57368576}, "totalAllocatedBytes": 14180892672, "ceilingBytes": 40000000000}
+{"at": "2026-10-04T21:56:14.268362+00:00", "allocatedBytes": {".": 14592241664, "/tmp/sb4-sx.fH2KuN": 27107328}, "totalAllocatedBytes": 14619348992, "ceilingBytes": 40000000000}
+{"at": "2026-10-04T22:02:55.800089+00:00", "allocatedBytes": {".": 14625832960, "/tmp/sb4-sx.fH2KuN": 35033088}, "totalAllocatedBytes": 14660866048, "ceilingBytes": 40000000000}
+{"at": "2026-10-04T22:16:25.829644+00:00", "allocatedBytes": {".": 14625918976, "/tmp/sb4-sx.fH2KuN": 30154752}, "totalAllocatedBytes": 14656073728, "ceilingBytes": 40000000000}
+{"at": "2026-10-04T22:22:52.304332+00:00", "allocatedBytes": {".": 14713782272}, "cleanup": "Removed own full-suite scratch and failed catalog test store; successful test stores self-cleaned.", "totalAllocatedBytes": 14713782272, "ceilingBytes": 40000000000}

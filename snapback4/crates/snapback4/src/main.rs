@@ -45,6 +45,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
+    sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
+    sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
   witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]

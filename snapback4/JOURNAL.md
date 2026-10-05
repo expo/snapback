@@ -86707,3 +86707,75 @@ before leave apply; their replacements require partial/stale/no-cursor, then
 verify stable current rows and a changed audience after sync. No product bytes
 changed for that correction. Final hashes match the latency/wasm inputs.
 Largest sampled worktree usage was **21.88 GB**, below 40 GB.
+## 2026-10-05 — SX: catalog inspection and sync-window clarity
+
+Addressed calibration 30's Grok store-inspection and history-window findings.
+`sql '\dt'` / `'.tables'` list application tables and public maintained views;
+`sql '\d messages'` / `'.schema messages'` describe Quarry types/nullability,
+indexes, unique keys and maintained columns. Both show the active generation
+and bounded stored counts: exact through 10,000, otherwise at least 10,001;
+ephemeral counts are unavailable. Catalog reads share one read-only snapshot,
+ignore broken local source and preserve the SELECT authorizer. SQLite metadata
+stays private; refusals now say “`\dt` lists tables; `\d messages` describes one”.
+
+The sync/reads openings and chat/Expo/social starter comments distinguish a
+device's working set from server history, cursor paging beyond the window,
+and offline reads within acquired data. A bounded `check` note points to that
+sentence only for new/changed windows against a populated store; its total
+spans all groups and makes no per-group overflow claim. Guide cards retain
+their line/word caps. LLP 3000.007 §8 records these decisions.
+
+Final scoped checks pass: four SQL catalog tests (populated memory and SQLite,
+10,025 messages, views, timeline privacy and keys), two sync-window tests,
+112 guide tests and 26 rebuilt-CLI client tests. The affected six-file client
+pass also covers starter, horizon and ordinary/retained history behavior.
+The complete suite finished in **2,557 s, exit 1**: all 313 client files
+(6,212 passed, 11 skipped), all 79 serial models, doctests, nine fixtures and
+all build/typecheck/docs/release stages passed. Rust covered 299 binaries /
+1,012 executions; two source-comment fixture mismatches were regenerated and
+their checks passed. The unrelated blocked-stderr recovery test failed once
+and passed an isolated control; its possible stale-record observation is
+recorded in an [open issue](../issues/20261004-snapback4-blocked-stderr-recovery-observation.md).
+That control does not replace the full-run failure. No green full suite is claimed.
+
+Wasm is byte-identical: **2,116,457 B raw / 639,750 B gzip**, SHA-256
+`de4877c28435db4e5ba9e501399eee2af6e8b02b97d1252b7932a103ae5effc1`;
+the 639,887 B budget is unchanged. Reference audit: 527 LLPs, 10,364 refs,
+zero errors/unchecked. Own scratch and failed fixture stores were removed;
+allocation remains below **14.72 GB**, within the 40 GB limit. Work stayed
+on eb1000 in this worktree; no sibling processes or worktrees were modified.
+See the [SX report](./reports/20261004-sx-sql-inspection/REPORT.md) for final
+CLI examples, logs and caveats. Local commit with the requested co-author
+trailer; nothing pushed.
+
+## 2026-10-05 — SX round 1: catalog review corrections
+
+Hide all compiler-owned index names and omit indexes over hidden bookkeeping
+columns; both description aliases now refuse private targets by public parent
+column. Corrected the report's qualified-name claim. All 7 SQL, 89 check,
+112 guide and 203 affected client tests pass; 18 CLI probes, reference audit
+and unchanged wasm hash recorded in the [Round 1 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-1--generated-indexes-and-private-target-descriptions).
+No full-suite rerun for this catalog-only change; round 0's red remains recorded.
+Scratch removed, disk below 14.84 GB. Local commit only; nothing pushed.
+
+## 2026-10-05 — SX round 2: record index provenance at the source
+
+Persist source-declared index identities before expansion; catalog origin now
+uses that record, with unknown provenance for legacy generations. Both starter
+schemas have a complete index census. All 9 SQL, 89 check, 112 guide and 13
+schema/corpus compatibility tests pass. Wasm differs only in three panic-line
+bytes (+1 B gzip), within the unchanged budget. See the [Round 2 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-2--source-provenance-for-every-index).
+Scratch removed, disk 15.09 GB. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — SX round 3: preserve legacy schema bytes
+
+Move index provenance to an atomic catalog side record; exclude its transient
+compiler input from schema serialization, equality and hashes. Main-produced
+capability-free bytes and populated-store reopen now have Linux regressions;
+metadata-only adoption keeps generation 1. Both starter censuses remain exact.
+11 SQL, 89 check, 112 guide, 5 core schema, 11 core capability, 41 store/adoption,
+1 durable-byte and 3 client capability tests pass; 4 Darwin witnesses await the
+operator's rerun. Wasm is unchanged from round 2; disk below 16 GB. See the
+[Round 3 report](./reports/20261004-sx-sql-inspection/REPORT.md#round-3--restore-the-published-engine-compatibility-fence).
+Local commit only, with the requested co-author trailer; nothing pushed.
