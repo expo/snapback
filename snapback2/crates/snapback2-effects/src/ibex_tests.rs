@@ -247,6 +247,54 @@ fn loopback_fetch_returns_the_response_body() {
 }
 
 #[test]
+fn unread_fetch_response_rows_are_cancelled_at_job_settlement() {
+    const FETCHES: usize = 16;
+    let server = TestServer::start("body stays unread");
+    let decl = declaration(
+        r#"async (payload, { fetch }) => {
+          for (let i = 0; i < payload.fetches; i++) await fetch(payload.url);
+          if (payload.fail) throw new Error('failed after unread responses');
+          return null;
+        }"#,
+        vec![server.origin()],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    let work = job(
+        "unread-responses",
+        json!({ "url": server.origin() + "/unread", "fetches": FETCHES, "fail": false }),
+    );
+    assert_eq!(
+        host.run(&decl, &work, Duration::from_secs(10)),
+        sent(Value::Null)
+    );
+    let snapshot = read_job_snapshot(host.runtimes.values_mut().next().unwrap(), &work.id).unwrap();
+    assert_eq!(
+        snapshot.live_responses, 0,
+        "resolved jobs must cancel every unread primitive response row"
+    );
+
+    let failed = job(
+        "unread-responses-failed",
+        json!({ "url": server.origin() + "/unread", "fetches": FETCHES, "fail": true }),
+    );
+    let outcome = host.run(&decl, &failed, Duration::from_secs(10));
+    let Outcome::Failed { error, retry } = outcome else {
+        panic!("expected authored failure, got {outcome:?}")
+    };
+    assert!(
+        retry && error.contains("failed after unread responses"),
+        "{error}"
+    );
+    let snapshot =
+        read_job_snapshot(host.runtimes.values_mut().next().unwrap(), &failed.id).unwrap();
+    assert_eq!(
+        snapshot.live_responses, 0,
+        "rejected jobs must cancel every unread primitive response row"
+    );
+    assert_eq!(server.hits.lock().unwrap().len(), FETCHES * 2);
+}
+
+#[test]
 fn fetch_delivers_authored_headers_in_every_headers_init_form() {
     let server = TestServer::start("ok");
     for form in ["record", "pairs", "headers", "iterable"] {

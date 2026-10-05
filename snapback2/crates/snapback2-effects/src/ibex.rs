@@ -523,6 +523,7 @@ struct JobSnapshot {
     source_evaluations: u64,
     effect_frozen: bool,
     pending_fetches: u64,
+    live_responses: u64,
     pending_timers: u64,
     next_timer_delay: Option<f64>,
 }
@@ -631,6 +632,9 @@ fn read_job_snapshot(
         pending_fetches: field("pendingFetches")?
             .as_u64()
             .ok_or_else(|| "host snapshot pendingFetches is not an integer".to_owned())?,
+        live_responses: field("liveResponses")?
+            .as_u64()
+            .ok_or_else(|| "host snapshot liveResponses is not an integer".to_owned())?,
         pending_timers: field("pendingTimers")?
             .as_u64()
             .ok_or_else(|| "host snapshot pendingTimers is not an integer".to_owned())?,
@@ -893,7 +897,7 @@ fn drive(
         let snapshot = read_job_snapshot(effect_runtime, &job.id)
             .map_err(|failure| snapshot_failed(effect_runtime, job, failure))?;
         let is_settled = snapshot.status != JobStatus::Running;
-        if is_settled && snapshot.pending_fetches == 0 {
+        if is_settled && snapshot.pending_fetches == 0 && snapshot.live_responses == 0 {
             if snapshot.pending_timers == 0 {
                 return Ok((snapshot, true));
             }

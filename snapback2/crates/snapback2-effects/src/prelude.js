@@ -297,6 +297,7 @@
     if (provider) provider(true);
     let effectResult;
     try {
+      grantedFetch.beginJob();
       const payload = JSON.parse(payloadJson);
       const jobMeta = Object.freeze(JSON.parse(metaJson));
       if (jobMeta.effect !== effectName) throw new Error("effect source is not installed");
@@ -312,6 +313,7 @@
     }
     return Promise.resolve(effectResult)
       .then(function (value) {
+        grantedFetch.settleJob();
         if (value === undefined) {
           throw resultError("E_EFFECT_RESULT: effect returned undefined; return null explicitly");
         }
@@ -335,6 +337,7 @@
       .catch(function (error) {
         // Settle and revoke job capabilities before inspecting application
         // error fields so even hostile accessors cannot strand shared state.
+        try { grantedFetch.settleJob(); } catch (cleanupError) { error = cleanupError; }
         state.thrownError = error;
         state.status = "failed";
         jobFetchBinding = undefined;
@@ -392,6 +395,7 @@
       sourceEvaluations: state.sourceEvaluations,
       effectFrozen: compiledEffect !== null && Object.isFrozen(compiledEffect),
       pendingFetches: state.pendingFetches,
+      liveResponses: grantedFetch.liveCount(),
       pendingTimers: timers.count,
       nextTimerDelay: timers.next,
     };

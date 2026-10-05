@@ -164,3 +164,76 @@ fn a_body_read_that_throws_settles_the_pending_count_and_rejects_with_the_throw(
         json!({ "rejected": "read broke", "pending": 0, "released": [], "bodyUsed": true })
     );
 }
+
+#[test]
+fn release_all_cancels_every_unread_response_once() {
+    let mut runtime = stubbed(
+        r#"
+      globalThis.__ibex2_response_read = function () { return Promise.resolve(null); };
+      globalThis.__ibex2_response_field = function (handle, field) {
+        if (field === 8) { released.push(handle); return undefined; }
+        if (field === 0) return 200;
+        if (field === 1) return true;
+        if (field === 2) return 'http://127.0.0.1/unread';
+        if (field === 7) return '[]';
+        return false;
+      };
+    "#,
+    );
+    let result = settle(
+        &mut runtime,
+        r#"(async function () {
+          let handle = 0;
+          const fetch = factory(
+            function () { return Promise.resolve(++handle); },
+            function (error) { return error; },
+            function () {}
+          );
+          await fetch('http://127.0.0.1/one');
+          await fetch('http://127.0.0.1/two');
+          const before = fetch.liveCount();
+          fetch.releaseAll();
+          fetch.releaseAll();
+          return { before, after: fetch.liveCount(), released };
+        })()"#,
+    );
+    assert_eq!(
+        result,
+        json!({ "before": 2, "after": 0, "released": [1, 2] })
+    );
+}
+
+#[test]
+fn a_response_wrapper_failure_cancels_its_primitive_handle() {
+    let mut runtime = stubbed(
+        r#"
+      globalThis.__ibex2_response_read = function () { return Promise.resolve(null); };
+      globalThis.__ibex2_response_field = function (handle, field) {
+        if (field === 8) { released.push(handle); return undefined; }
+        if (field === 0) return 200;
+        if (field === 1) return true;
+        if (field === 2) return 'http://127.0.0.1/broken';
+        if (field === 7) return 'not json';
+        return false;
+      };
+    "#,
+    );
+    let result = settle(
+        &mut runtime,
+        r#"(async function () {
+          const fetch = factory(
+            function () { return Promise.resolve(41); },
+            function (error) { return error; },
+            function () {}
+          );
+          let rejected;
+          try { await fetch('http://127.0.0.1/broken'); }
+          catch (error) { rejected = error instanceof SyntaxError; }
+          return { rejected, live: fetch.liveCount(), released };
+        })()"#,
+    );
+    assert_eq!(
+        result,
+        json!({ "rejected": true, "live": 0, "released": [41] })
+    );
+}

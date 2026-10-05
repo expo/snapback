@@ -9,9 +9,10 @@
 // A response crosses the boundary as an integer handle into an object-private
 // table. The accessors are captured from Ibex's opt-in primitive object;
 // trusted bootstrap deletes that object's temporary global before hardening.
-// The handle lives in a WeakMap behind a Response object, and the only way to
-// get a Response is the fetch a module was handed. The handle is never
-// observable and cannot be forged.
+// The handle lives behind a Response object in a WeakMap and in an iterable
+// private set until terminal release. The only way to get a Response is the
+// fetch a module was handed. The handle is never observable and cannot be
+// forged; the iterable set lets job settlement release an unread response.
 //
 // This script's VALUE is the fetch factory. It defines no global: the engine
 // side stores the completion value and calls it once per grant set, so a
@@ -29,6 +30,8 @@
   // TextEncoder and TextDecoder itself.
 
   var handles = new WeakMap(); // Response -> { handle, used, empty, released, track, status, ok, url, redirected, headers }
+  var liveResponses = new Set();
+  var acceptingResponses = true;
 
   function own(response) {
     var r = handles.get(response);
@@ -46,8 +49,36 @@
   // — and a bodiless hop meets two of those, so the record remembers.
   function release(r) {
     if (r.released) return;
-    r.released = true;
     field(r.handle, 8);
+    r.released = true;
+    liveResponses.delete(r);
+  }
+
+  function releaseAll() {
+    var records = Array.from(liveResponses);
+    var firstError;
+    for (var i = 0; i < records.length; i++) {
+      try {
+        release(records[i]);
+      } catch (error) {
+        if (firstError === undefined) firstError = error;
+      }
+    }
+    if (firstError !== undefined) throw firstError;
+  }
+
+  function liveCount() {
+    return liveResponses.size;
+  }
+
+  function beginJob() {
+    releaseAll();
+    acceptingResponses = true;
+  }
+
+  function settleJob() {
+    acceptingResponses = false;
+    releaseAll();
   }
 
   // The metadata is read once here, because the record is released when the
@@ -56,23 +87,31 @@
   // 205, or 304 response has no body to read, so its record goes at once.
   function response(handle, redirected, method, track, logicalUrl) {
     var r = Object.create(Response.prototype);
-    var status = field(handle, 0);
-    var empty = method === "HEAD" || status === 204 || status === 205 || status === 304;
-    var record = {
-      handle: handle,
-      used: false,
-      empty: empty,
-      released: false,
-      track: track,
-      status: status,
-      ok: field(handle, 1),
-      url: logicalUrl === undefined ? field(handle, 2) : logicalUrl,
-      redirected: redirected === undefined ? field(handle, 5) : redirected,
-      headers: new Headers(JSON.parse(field(handle, 7))),
-    };
-    handles.set(r, record);
-    if (empty) release(record);
-    return r;
+    var record;
+    try {
+      var status = field(handle, 0);
+      var empty = method === "HEAD" || status === 204 || status === 205 || status === 304;
+      record = {
+        handle: handle,
+        used: false,
+        empty: empty,
+        released: false,
+        track: track,
+        status: status,
+        ok: field(handle, 1),
+        url: logicalUrl === undefined ? field(handle, 2) : logicalUrl,
+        redirected: redirected === undefined ? field(handle, 5) : redirected,
+        headers: new Headers(JSON.parse(field(handle, 7))),
+      };
+      handles.set(r, record);
+      liveResponses.add(record);
+      if (empty || !acceptingResponses) release(record);
+      return r;
+    } catch (error) {
+      if (record) release(record);
+      else field(handle, 8);
+      throw error;
+    }
   }
 
   function define(name, get) {
@@ -108,6 +147,7 @@
         // EOF removes the native response row. The primitive owner forgets
         // the handle at the same point, so do not issue cancel/drop afterward.
         r.released = true;
+        liveResponses.delete(r);
         var joined = new Uint8Array(length);
         var offset = 0;
         for (var i = 0; i < chunks.length; i++) {
@@ -123,6 +163,7 @@
       function (error) {
         // A terminal read error also drops the native response row.
         r.released = true;
+        liveResponses.delete(r);
         r.track(-1);
         throw error;
       }
@@ -243,7 +284,7 @@
       url.hash = "";
       return url.toString();
     }
-    return function fetch(input, init) {
+    var fetch = function fetch(input, init) {
       var currentInit = copyInit(init);
       var redirectMode = currentInit.redirect !== undefined ? String(currentInit.redirect) : "follow";
       // Ibex treats unknown modes as follow; never let that bypass our hop rules.
@@ -290,5 +331,12 @@
 
       return next();
     };
+    Object.defineProperties(fetch, {
+      beginJob: { value: Object.freeze(beginJob) },
+      releaseAll: { value: Object.freeze(releaseAll) },
+      settleJob: { value: Object.freeze(settleJob) },
+      liveCount: { value: Object.freeze(liveCount) },
+    });
+    return Object.freeze(fetch);
   };
 })(globalThis.__snapback_ibex2_fetch_primitives, globalThis);
