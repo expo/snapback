@@ -35,9 +35,11 @@ Gotchas you cannot derive from the code:
 - No file over 1,500 lines — `caps` (root `node scripts/caps.mjs`) refuses it. Split on the way in.
 - The corpus under `corpus/` is shared by the Rust engine, the TS evaluator, and the TS compiler;
   regenerate with `cargo run -p snapback2-core --bin export_corpus`.
-- `effects` is off by default; `hermes` acquires the pinned, signed engine through
-  `hermes-lean-sys` (`HERMES_LEAN_SYS_DIR` overrides with a local install). The
-  blocking checks never depend on it; the published binary carries it.
+- `effects` is off by default; `hermes` acquires the pinned engine through
+  `hermes-lean-sys`, which verifies its pinned SHA-256 and bundle receipt. The
+  pins came from a release whose Sigstore attestations were verified when
+  pinning. `HERMES_LEAN_SYS_DIR` overrides with a local install. The blocking
+  checks never depend on it; the published binary carries it.
 - Backends use `snapback/schema.q`; TypeScript under `snapback/` is reserved for effects, seeds, and journeys.
 - The binary needs the bundled compiler worker (`packages/snapback2/dist/compiler.mjs`) for any verb
   that compiles; run `node build.mjs` in `packages/snapback2` after touching the compiler.

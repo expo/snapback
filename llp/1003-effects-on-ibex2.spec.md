@@ -260,10 +260,11 @@ invocation per host pump.
   overrides, loudly, for a platform without vanilla Hermes). The size is a
   measured number in `metrics/loop.jsonl` beside the engine-less one.
   `hermes-lean-sys` downloads the platform bundle for engine pin
-  `260318099.0.4` (`d412d3bd8512`), verifies its signature and SHA-256, and
-  caches it under Cargo home. `HERMES_LEAN_SYS_DIR` is the explicit local
-  install override; no hand-built Hermes or separate `hermesc` path is a
-  prerequisite.
+  `260318099.0.4` (`d412d3bd8512`), verifies its pinned SHA-256 and the bundle's
+  receipt, and caches it under Cargo home. The pins came from a release whose
+  Sigstore attestations were verified when pinning; acquisition does not
+  re-verify Sigstore. `HERMES_LEAN_SYS_DIR` is the explicit local install
+  override; no hand-built Hermes or separate `hermesc` path is a prerequisite.
 
 ## 5. What binds, and how it is checked
 
