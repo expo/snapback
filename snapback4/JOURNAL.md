@@ -87065,3 +87065,30 @@ eighteen. The open ticket now carries that correction without rewriting history.
 No frozen file, prompt, packet or score changed. Only the dedicated mini
 simulator was used, over SSH; its probe apps and scratch files were removed and
 its pre-existing boot state retained. Local commit only; nothing pushed.
+
+
+## 2026-10-05 — RF: wait for the retirement fence as bounded setup
+
+The serve retirement failure was a fixture timing assumption. The supervisor
+checks workers on an independent loop with a 100 ms park; rotation stops the
+child (up to two seconds of grace) before attempting retirement. The contract
+fences before a failed deletion returns, with no two-second deadline from a
+clock advance. Replaced the fixed loop with the existing 60-second setup
+barrier, preserving every credential, manual-seat and replacement assertion.
+A new regression delays the first retirement turn by 2,200 ms for both named
+and conventional workers. Production code and wasm budgets are unchanged.
+The serve/adoption audit found no other matching short supervisor setup wait.
+
+On eb1000, confined to sampled idle CPUs: the original and fixed tests each
+passed 50/50 with a CPU hog. With the same injected delay and hog, the original
+wait failed 50/50 at the reported fence assertion and the fixed regression
+passed 50/50. Affected serve checks passed 181 tests with four existing ignores.
+The complete suite finished in 5,871 s with one failure: native witness cleanup
+returned `E_WITNESS_PROCESS: invalid /proc process group`, the signature of the
+existing open inspection issue. Three isolated controls per original/fixed
+binary and the entire original CLI unit target passed; they do not erase the
+suite failure or establish its precise cause. All 320 client files and both
+serial model files passed. The [RF report](./reports/20261005-rf-retirement-fence-wait/REPORT.md)
+records commands, contracts, audit dispositions, controls and raw evidence.
+Wasm rebuilt below its unchanged budget; the worktree remained below 40 GB.
+Local commit only; nothing pushed or published.
