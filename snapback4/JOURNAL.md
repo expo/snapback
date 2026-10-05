@@ -86377,3 +86377,34 @@ failure occurred.
 Evidence and package hashes: `~/sb5-lanes/fc-artifacts/`; operator report:
 `~/sb5-lanes/fc.report.md`. Cargo used the prescribed external target; no target
 was symlinked into this tree. Local commit only; nothing pushed or published.
+
+
+## 2026-10-05 — FC Round 1: equal-time ordering and mounted own bursts
+
+Addressed Grok's Low and Astra's reactive-coverage note on `f98d851ec1`.
+The deterministic engine witness now inserts each equal-`at` cohort
+id-ascending and still requires `(at, id)` descending. The 20-row boundary
+splits the `at = 3` cohort between `p005` and `p004`; stable time-only ordering
+cannot satisfy the oracle. Its comment and LLP 3000.016 state exactly this.
+
+Added process and wasm cases with one `home` observer mounted before a
+25-write burst. Every mutation must settle sent; the same subscription must
+then publish all 25 ids newest first, with complete cards and revalidation
+finished. Only callbacks update the asserted answer. The mounted fixture uses
+a 25-row home page; the existing pagination witnesses keep 20-row pages.
+A temporary built-client mutation delivering the initial answer but suppressing
+later callbacks failed both cases at the intended live-answer wait, retaining
+an empty answer. Restored the client artifact before the broader tests.
+No runtime code, delivery policy, floor, slot or publication rule changed.
+
+Verification: all eight own-write client tests passed five times, and the
+engine witness passed five times. Broader Following clients: 54/54. Language
+Following and guide: 172 passes, including 112 guide checks, with two existing
+ignored scale witnesses. Device: 49/49; CLI: 44/44. The declared-guard census
+passes all 315 client/fixture files. The existing pinned CLI and wasm match
+the Round 0 artifact hashes; Cargo used the prescribed external target with
+incremental compilation disabled. The complete battery was not rerun.
+
+Evidence: `~/sb5-lanes/fc-artifacts/round1/`; report: Round 1 in
+`~/sb5-lanes/fc.report.md`. Local commit only, with the requested Astra
+co-author trailer; nothing pushed or published.

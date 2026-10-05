@@ -20,16 +20,17 @@ const query = name => ({ kind: 'query', name });
 const mutation = name => ({ kind: 'mutation', name });
 const N = 25;
 
-async function fixture(t, tier) {
+async function fixture(t, tier, homePageSize = 20) {
   const directory = await mkdtemp(join(tmpdir(), 'sb4-following-own-'));
   await mkdir(join(directory, 'snapback'));
   // Calibration #30's starter shape: bounded sources, online-only follows,
-  // a materialized Following view, and shaped 20-row pages (25 crosses a page).
+  // a materialized Following view, and shaped pages (normally 20, so 25 crosses
+  // a page; the mounted test holds the whole burst in one live answer).
   const source = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/following-view.q'), 'utf8')
     .replace('sync public', 'sync public last 1000 by .at')
     .replace('sync public\n\ntable follows', 'sync public last 1000 by .at with own keys .actorId\n\ntable follows')
     .replace('sync public\n\nview activity', 'online only\n\nview activity')
-    .replace('return feed last 20 by .at after c\n', 'return feed last 20 by .at after c { *, card: posts[.post] }\n');
+    .replace('return feed last 20 by .at after c\n', `return feed last ${homePageSize} by .at after c { *, card: posts[.post] }\n`);
   await writeFile(join(directory, 'snapback/schema.q'), 'use personas alice, bob\n' + source + `
 query global(c: cursor ?):
   return activity last 20 by .at after c { *, card: posts[.post] }
@@ -126,6 +127,32 @@ for (const tier of ['online', 'process', 'wasm']) {
     for (let n = 0; n < N; n++) {
       made.push(await post(author));
       assert.deepEqual(ids(await pageAll(author, 'home')), ids(newestFirst(made)));
+    }
+  });
+}
+
+for (const tier of ['process', 'wasm']) {
+  test(`Following ${tier}: mounted home publishes every settled own write newest first`, { timeout: hangBudget(N + 2) }, async t => {
+    const { author } = await fixture(t, tier, N);
+    const home = author.observe(query('home'), { c: null });
+    let live = home.getSnapshot();
+    const unsubscribe = home.subscribe(() => { live = home.getSnapshot(); });
+    try {
+      await waitFor(() => Array.isArray(live.data) && live.complete && !live.revalidating,
+        'mounted home initially ready');
+      assert.deepEqual(live.data, []);
+      const made = [];
+      for (let n = 0; n < N; n++) made.push(await post(author));
+      // Only subscription notifications can replace `live`. Keep this same
+      // observer mounted: no one-shot query, remount or explicit sync can
+      // refresh the answer on behalf of a broken reactive update path.
+      await waitFor(() => live.data?.length === N && live.complete && !live.revalidating,
+        'mounted home publishes all settled own writes', { work: N, diagnostics: () => JSON.stringify(live) });
+      assert.deepEqual(ids(live.data), ids(newestFirst(made)), 'all settled own writes, newest first');
+      assert.ok(live.data.every(row => row.card?.id === row.post), 'every live event retains its card');
+    } finally {
+      unsubscribe();
+      home.close();
     }
   });
 }

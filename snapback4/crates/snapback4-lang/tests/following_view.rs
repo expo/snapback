@@ -31,7 +31,8 @@ fn page(e: &mut Engine, op: &str, who: &str, c: Option<String>) -> snapback4_cor
 }
 
 // @ref LLP 3000.016#own-event-publication — own bursts do not depend on even
-// one delivery turn; equal event times use event id, never insertion order.
+// one delivery turn; each equal-at cohort is inserted id-ascending and must
+// read id-descending, including across the page boundary.
 #[test]
 fn settled_own_burst_is_complete_and_ordered_without_background_delivery() {
     let source = SOURCE.replacen("sync public", "sync public last 1000 by .at", 1)
@@ -40,7 +41,7 @@ fn settled_own_burst_is_complete_and_ordered_without_background_delivery() {
     write(&mut e, "follow", "bob", &[("actor", id("alice"))], 1);
     let mut expected = Vec::new();
     for n in 0..25 {
-        let name = format!("p{:03}", 24 - n);
+        let name = format!("p{:03}", n);
         let at = 2 + n / 3;
         post(&mut e, &name, at);
         expected.push((at, name));
