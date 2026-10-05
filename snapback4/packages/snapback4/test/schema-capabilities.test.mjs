@@ -46,6 +46,12 @@ function sameAnswer(actual,published,message,operation='query') {
   if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'scopes')&&!Object.hasOwn(published.ok,'scopes')) {
     const {scopes:_scopes,...rest}=actual.ok;actual={...actual,ok:rest};
   }
+  // Lane RH (LLP 3000.028 §3.2): current engines report the applied watermark of the
+  // transaction that evaluated an answer; published engines predate the field.
+  if(actual?.ok&&published?.ok&&Object.hasOwn(actual.ok,'watermark')&&!Object.hasOwn(published.ok,'watermark')) {
+    assert.ok(Number.isSafeInteger(actual.ok.watermark)&&actual.ok.watermark>=0,`${message}: a current answer reports its applied watermark`);
+    const {watermark:_watermark,...rest}=actual.ok;actual={...actual,ok:rest};
+  }
   assert.deepEqual(actual,published,message);
 }
 const timeline=readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/timeline-capability.q'),'utf8');
