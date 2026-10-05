@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-10-05 (expo/ibex `2aac9fa5b`: split `ibex2-runtime`, verified lean-engine acquisition, install groups and opt-in fetch-primitives handoff); 2026-09-11 (bounded Intl audit distinguishes declarations from runtime coverage; Darwin and Linux vanilla-Hermes build lookup; exact debugger/release engine-global profiles); 2026-09-10 (LLP 1018.008.003: explicit empty grants give no network authority; implementer Codex); 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
+**Revised:** 2026-10-05 (expo/ibex `c8e1941f6`: split `ibex2-runtime`, verified lean-engine acquisition, install groups and opt-in fetch-primitives handoff); 2026-09-11 (bounded Intl audit distinguishes declarations from runtime coverage; Darwin and Linux vanilla-Hermes build lookup; exact debugger/release engine-global profiles); 2026-09-10 (LLP 1018.008.003: explicit empty grants give no network authority; implementer Codex); 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -210,7 +210,7 @@ Hermes heaps are cheap, leaks are not.
 
 The fetch factory follows redirects one raw request at a time so grant denial
 attribution names the attempted hop. At expo/ibex revision
-`2aac9fa5b760f0e3c81c5e628d073bd9927acc55`, Ibex publishes one frozen opt-in
+`c8e1941f6e7e2bf6c17a209797da8d6c0785a0f0`, Ibex publishes one frozen opt-in
 object whose `fetch`, response field/read, fetch-control, UTF-8, and
 headers-free members follow ibex LLP 0068 §3's handle-domain and release
 protocol. Trusted bootstrap captures that object, deletes its global, and

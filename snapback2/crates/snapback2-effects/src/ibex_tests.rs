@@ -45,7 +45,6 @@ fn compiled_es2020_effect_executes_every_admitted_global() {
         if [
             "$SHBuiltin",
             "DebuggerInternal",
-            "Function",
             "HermesInternal",
             "__ibex2_fire_timer",
             "globalThis",
@@ -1448,7 +1447,7 @@ fn global_surface_allows_only_the_pinned_debugger_profile_difference() {
     };
     assert!(unknown_error.contains("unexpected: UnexpectedEngineGlobal"));
 
-    for required in ["Function", "Intl", "fetch", "__ibex2_fire_timer"] {
+    for required in ["Intl", "fetch", "__ibex2_fire_timer"] {
         let missing = release_profile
             .iter()
             .filter(|name| name.as_str() != required)

@@ -19,9 +19,8 @@ const EFFECT_GROUPS: Groups = Groups::PURE
 const PRELUDE: &str = include_str!("prelude.js");
 const FETCH_FACTORY: &str = include_str!("prelude/fetch.js");
 const BOUND_TRANSPORT: &str = include_str!("prelude/bound.js");
-// Public names match the compiler effect allowlist. Function, engine internals,
-// and globalThis remain unnameable in authored source; the host needs them to
-// harden and pump, with DynamicCode::Closed refusing dynamic compilation.
+// Public names match the compiler effect allowlist. Engine internals and globalThis
+// remain unnameable in authored source; the host needs them to harden and pump.
 const DEBUGGER_INTERNAL: &str = "DebuggerInternal";
 const EFFECT_GLOBALS: &[&str] = &[
     "$SHBuiltin",
@@ -38,7 +37,6 @@ const EFFECT_GLOBALS: &[&str] = &[
     "EvalError",
     "Float32Array",
     "Float64Array",
-    "Function",
     "Headers",
     "HermesInternal",
     "Infinity",
@@ -468,8 +466,7 @@ fn verify_global_names(names: &[String]) -> Result<(), BuildFailure> {
     // Pinned debugger-enabled Hermes installs DebuggerInternal as a
     // non-configurable global, while its release profile omits it. It is not
     // in the compiler's authored allowlist and the host never calls it; this
-    // is the sole admitted engine-profile difference. Function is fixed in
-    // both profiles because the Ibex hardener needs Function.prototype.call.
+    // is the sole admitted engine-profile difference.
     let has_debugger_internal = names.iter().any(|name| name == DEBUGGER_INTERNAL);
     let expected = EFFECT_GLOBALS
         .iter()

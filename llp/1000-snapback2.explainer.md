@@ -39,7 +39,7 @@ numbered 1000 and up.
    (59 links) and oversize files are baselined so the caps bite growth only,
    and its numbers may only fall. `scripts/caps.mjs` is the check.
 3. **Ibex 2, embedded now, effects only.** `snapback2-effects` depends on the
-   optional `ibex2-runtime` crate pinned to expo/ibex `2aac9fa5b` (an owning
+   optional `ibex2-runtime` crate pinned to expo/ibex `c8e1941f6` (an owning
    Hermes runtime that re-exports Ibex's Rust standard library and bindings —
    ibex LLP 0057/0058/0068). `hermes-lean-sys` acquires and verifies the pinned
    engine. The default build links no engine; `--features hermes` links it

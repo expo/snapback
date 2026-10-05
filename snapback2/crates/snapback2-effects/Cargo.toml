@@ -13,7 +13,7 @@ snapback2-core = { path = "../snapback2-core" }
 thiserror = "2"
 # Ibex 2's owning Hermes runtime, pinned with its verified lean-engine bundle.
 # It stays optional because this crate's default build must link no engine.
-ibex2-runtime = { git = "https://github.com/expo/ibex", rev = "2aac9fa5b760f0e3c81c5e628d073bd9927acc55", default-features = false, optional = true }
+ibex2-runtime = { git = "https://github.com/expo/ibex", rev = "c8e1941f6e7e2bf6c17a209797da8d6c0785a0f0", default-features = false, optional = true }
 
 [features]
 default = []

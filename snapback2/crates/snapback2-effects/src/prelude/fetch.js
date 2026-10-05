@@ -1,4 +1,4 @@
-// Adapted from expo/ibex at revision 2aac9fa5b760f0e3c81c5e628d073bd9927acc55:
+// Adapted from expo/ibex at revision c8e1941f6e7e2bf6c17a209797da8d6c0785a0f0:
 // crates/ibex2/src/bindings/fetch.js. Snapback follows redirects through the
 // grant-bound raw binding one hop at a time so a denial retains the attempted
 // hop's origin instead of being mislabeled with the initial request, and it
