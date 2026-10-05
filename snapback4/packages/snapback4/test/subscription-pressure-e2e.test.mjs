@@ -1,3 +1,4 @@
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — two independent offline writers converge without queue-only history gaps.
 import test from 'node:test';
@@ -5,7 +6,6 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { server, binary, until } from './helpers/app-server.mjs';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
@@ -40,9 +40,9 @@ const root = createRoot(document.getElementById('root')); window.rendered = [];
 window.renderRead = read => { flushSync(() => root.render(<main>{'data' in read ? read.data.map(row => <p key={row.id} data-id={row.id}>{row.text}</p>) : 'Withdrawn'}</main>)); window.rendered.push({ at: performance.now(), ids: [...document.querySelectorAll('[data-id]')].map(e => e.dataset.id) }); };
 window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, phase: 'mounted' }; const client = await createLocalClient({ url, persona, device: pressureDevice(webDevice(), state), fetch: (input, init) => { if (state.offline) return Promise.reject(Error('offline device')); return fetch(input, init); } }); await client.sync(); window.driver = await pressureDriver(client, state, window.renderRead); };
 `);
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')));
+
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
-  const vite = await createServer({ root: pageDir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, pageDir] } }, resolve: { alias: ['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })) } });
+  const vite = await createBrowserServer({ root: pageDir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, pageDir] } }, resolve: { alias: ['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })) } });
   await vite.listen(); t.after(() => vite.close());
   const { chromium } = require('playwright-core');
   const browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox', '--disable-background-timer-throttling'] });
@@ -51,7 +51,7 @@ window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, 
     const context = await browser.newContext(), page = await context.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget()); pages.push(page);
     page.on('pageerror', error => t.diagnostic(error.stack));
-    await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.openPressure);
+    await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.openPressure);
     if (tier === 'wasm') {
       await page.evaluate(options => window.openPressure(options), { url, persona, holdMs: Number(process.env.PR_HOLD_MS ?? 0) });
       drivers.push(Object.fromEntries(['offline','send','reconnect','sync','releaseHistory','settle','result','close'].map(method => [method, (...args) => page.evaluate(({method,args}) => window.driver[method](...args), {method,args})])));

@@ -1,0 +1,199 @@
+{
+  "invocations": 510,
+  "passedInvocations": 509,
+  "failedInvocations": 1,
+  "counts": {
+    "tests": 7591,
+    "pass": 7590,
+    "fail": 1
+  },
+  "files": {
+    "experiments/p19-one-query/equality/browser.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 30,
+        "pass": 30
+      }
+    },
+    "packages/snapback4/test/answers-stay-react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 1980,
+        "pass": 1980
+      }
+    },
+    "packages/snapback4/test/asset-avatars.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 420,
+        "pass": 420
+      }
+    },
+    "packages/snapback4/test/asset-buffered.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 30,
+        "pass": 30
+      }
+    },
+    "packages/snapback4/test/browser-navigation.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 210,
+        "pass": 210
+      }
+    },
+    "packages/snapback4/test/keep-authority-react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 60,
+        "pass": 60
+      }
+    },
+    "packages/snapback4/test/live-margin-browser.test.mjs": {
+      "runs": 30,
+      "passed": 29,
+      "failedRuns": [
+        4
+      ],
+      "counts": {
+        "tests": 31,
+        "pass": 30,
+        "fail": 1
+      }
+    },
+    "packages/snapback4/test/ordinary-search.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 1050,
+        "pass": 1050
+      }
+    },
+    "packages/snapback4/test/page-observation.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 60,
+        "pass": 60
+      }
+    },
+    "packages/snapback4/test/per-row-react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 240,
+        "pass": 240
+      }
+    },
+    "packages/snapback4/test/react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 1920,
+        "pass": 1920
+      }
+    },
+    "packages/snapback4/test/read-presentation-react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 210,
+        "pass": 210
+      }
+    },
+    "packages/snapback4/test/screen-lifetimes-react.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 480,
+        "pass": 480
+      }
+    },
+    "packages/snapback4/test/social-browser.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 720,
+        "pass": 720
+      }
+    },
+    "packages/snapback4/test/subscription-pressure-e2e.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 60,
+        "pass": 60
+      }
+    },
+    "packages/snapback4/test/typing-expiry.test.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 60,
+        "pass": 60
+      }
+    },
+    "scripts/qualify-revocation-retention.mjs": {
+      "runs": 30,
+      "passed": 30,
+      "failedRuns": [],
+      "counts": {
+        "tests": 30,
+        "pass": 30
+      }
+    }
+  },
+  "failures": [
+    {
+      "run": 4,
+      "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+      "started": "2026-10-05T14:40:32.356Z",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 4,
+        "unrelatedRows": 4953
+      },
+      "elapsed": 7736,
+      "counts": {
+        "tests": 2,
+        "pass": 1,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 2150000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-pw/snapback4/packages/snapback4/test/live-margin-browser.test.mjs"
+    }
+  ]
+}

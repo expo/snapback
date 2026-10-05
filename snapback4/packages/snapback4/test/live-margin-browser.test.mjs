@@ -1,3 +1,4 @@
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 // @ref LLP 3000.023#12 — same-schema set/delete and offline settlement on React/IndexedDB.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,12 +25,12 @@ test('React/IndexedDB live margin and two-device offline settlement', { timeout:
   finally { if (previous === undefined) delete process.env.SNAPBACK4_READ_TRACE; else process.env.SNAPBACK4_READ_TRACE = previous; }
   const require = createRequire(join(root, 'package.json'));
   const { chromium } = require('playwright-core');
-  const { createServer } = await import(createRequire(join(root, 'apps/chat/package.json')).resolve('vite'));
+
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
   const requests = [], active = new Set(); let nextRequest = 0;
   const browserSource = new URL('./helpers/live-margin-browser.mjs', import.meta.url).pathname;
   writeFileSync(join(dir, 'index.html'), `<div id="root"></div><script type="module" src="/@fs/${browserSource}"></script>`);
-  const vite = await createServer({ root: dir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } },
+  const vite = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } },
     resolve: { alias: [
       ...['react', 'react-dom', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })),
       { find: /^lm-sdk\/(.*)$/, replacement: join(root, 'packages/snapback4/dist/$1.js') },
@@ -53,7 +54,7 @@ test('React/IndexedDB live margin and two-device offline settlement', { timeout:
   const page = await browser.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
-  await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.lmOpen);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.lmOpen);
   const calibration = [];
   for (let i = 0; i < 9; i++) {
     const before = Number(process.hrtime.bigint()) / 1e6;

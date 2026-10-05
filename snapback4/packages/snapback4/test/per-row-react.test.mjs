@@ -1,3 +1,4 @@
+import { createBrowserServer, loadBrowserPage, reloadBrowserPage, browserLogger } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — key-order-only React renders preserve the observation and page chain.
 import test from 'node:test';
@@ -6,7 +7,6 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { server as appServer, binary } from './helpers/app-server.mjs';
 import { processDevice } from '../dist/native.js';
@@ -15,16 +15,25 @@ const root = resolve(import.meta.dirname, '../../..');
 async function browserFixture(t, harness, setup = async () => {}) {
   const require = createRequire(join(root, 'packages/snapback4/package.json'));
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
+
+  const trace = (event, detail) => t.diagnostic(JSON.stringify({ ms: Math.round(performance.now()), event, detail }));
+  const logger = await browserLogger(trace);
   const temporary = mkdtempSync(join(tmpdir(), 'sb4-row-keys-'));
-  let server, browser;
-  t.after(async () => { await browser?.close(); await server?.close(); rmSync(temporary, { recursive: true, force: true }); });
+  let server, browser, tearingDown = false;
+  const unexpected = [];
+  t.after(async () => {
+    tearingDown = true; trace('teardown');
+    try { await browser?.close(); }
+    finally { try { await server?.close(); } finally { rmSync(temporary, { recursive: true, force: true }); } }
+    assert.deepEqual(unexpected, [], 'the immutable fixture must not invalidate or lose its browser');
+  });
   writeFileSync(join(temporary, 'index.html'), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(temporary, 'harness.jsx'), harness);
-  server = await createServer({ root: temporary, configFile: false, logLevel: 'error',
-    // This immutable fixture must retain its page through held notification
-    // turns; a development reload would replace the context under assertions.
-    server: { hmr: false, watch: null, host: '127.0.0.1', port: 0, fs: { allow: [root, temporary] } },
+  // Requested only from evaluate, so the initial HTML dependency scan cannot
+  // discover it. This shares React with the already-mounted client entry.
+  writeFileSync(join(temporary, 'late.jsx'), "export {flushSync} from 'react-dom';");
+  server = await createBrowserServer({ root: temporary, configFile: false, customLogger: logger,
+    server: { host: '127.0.0.1', port: 0, fs: { allow: [root, temporary] } },
     resolve: { alias: [
       { find: /^react$/, replacement: require.resolve('react') },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve('react/jsx-runtime') },
@@ -33,13 +42,45 @@ async function browserFixture(t, harness, setup = async () => {}) {
       ...['client', 'react', 'local', 'web'].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === 'react' ? 'tsx' : 'ts'}`) })),
     ] } });
   await server.listen();
+  server.watcher.on('all', (event, path) => trace('watch:' + event, path));
+  server.httpServer.on('close', () => trace('server:close'));
+  const send = server.environments.client.hot.send.bind(server.environments.client.hot);
+  server.environments.client.hot.send = (...args) => {
+    trace('vite:send', args);
+    if (args[0]?.type === 'full-reload') unexpected.push(args[0]);
+    return send(...args);
+  };
   browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  const lifecycle = event => { trace(event); if (!tearingDown) unexpected.push(event); };
+  browser.on('disconnected', () => lifecycle('browser:disconnected'));
   const page = await browser.newPage();
+  page.on('crash', () => lifecycle('page:crash'));
+  page.on('close', () => lifecycle('page:close'));
+  page.on('framenavigated', frame => trace('page:framenavigated', { url: frame.url(), main: frame === page.mainFrame() }));
+  page.on('console', message => trace('page:console', { type: message.type(), text: message.text() }));
+  page.on('pageerror', error => trace('page:error', error.stack));
+  page.on('websocket', socket => socket.on('framereceived', frame => trace('websocket:received', frame.payload)));
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Page.enable');
+  cdp.on('Page.frameScheduledNavigation', event => trace('cdp:scheduledNavigation', event));
+  cdp.on('Page.frameRequestedNavigation', event => trace('cdp:requestedNavigation', event));
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await setup(page);
-  await page.goto(server.resolvedUrls.local[0]);
+  await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
   return page;
 }
+
+test('a late React entry shares the mounted document without optimizer invalidation or reload', async t => {
+  const page = await browserFixture(t, harness);
+  await page.waitForFunction(() => window.latest?.query.data);
+  const result = await page.evaluate(async () => {
+    const mounted = window.latest;
+    const { flushSync } = await import('/late.jsx');
+    return { same: window.latest === mounted, exportType: typeof flushSync };
+  });
+  assert.deepEqual(result, { same: true, exportType: 'function' });
+  await page.evaluate(() => window.finish());
+});
 
 test('useQuery and usePage keep canonical arguments across renders, preserving loaded pages', async t => {
   const page = await browserFixture(t, harness);
@@ -262,8 +303,8 @@ for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row h
     if (tier === 'process') {
       // The hooks and SDK run in Chromium; these bindings carry the unmodified
       // process adapter's device calls to its real SQLite process on Node.
-      // A development-server reload can open another device. Each bridge owns
-      // its handle, and teardown closes even handles abandoned by that reload.
+      // The explicit reload below opens another device. Each bridge owns its
+      // handle, and teardown closes even handles abandoned by that reload.
       await page.exposeFunction('pqOpen', async (name, backend) => {
         const id = cores.length;
         const opened = processDevice({ binary, dir: join(dir, 'react-device') }).open(name, backend);
@@ -279,7 +320,7 @@ for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row h
   await page.waitForFunction(() => window.pq?.ready);
   if (tier === 'process') {
     const opened = cores.length;
-    await page.reload();
+    await reloadBrowserPage(page);
     await page.waitForFunction(() => window.pq?.ready);
     assert.ok(cores.length > opened, 'a reload owns a new process handle');
   }

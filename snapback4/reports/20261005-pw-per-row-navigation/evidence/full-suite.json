@@ -1,0 +1,19 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "1,2,3,4,5,6,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,26",
+    "bash",
+    "scripts/test.sh"
+  ],
+  "start": 1791204819.2742314,
+  "flags": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "16"
+  },
+  "exit": 0,
+  "seconds": 2246.972
+}

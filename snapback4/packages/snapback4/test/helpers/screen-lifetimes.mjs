@@ -1,9 +1,9 @@
+import { createBrowserServer, loadBrowserPage } from './browser-server.mjs';
 // @ref LLP 3000.023#13 — complete recipe and Cal29 composition, with controlled client/UI boundaries.
 import {createRequire} from 'node:module';
 import {mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
-import {pathToFileURL} from 'node:url';
 import ts from 'typescript';
 import {chromiumExecutable} from '../../../../witness/lib.mjs';
 import {hangBudget} from './wait.mjs';
@@ -13,7 +13,7 @@ const starter=join(root,'crates/snapback4/src/verbs/init/social');
 const pilot=join(root,'reports/20261003-l-screen-lifetimes/pilot');
 export async function screen(t) {
  const {chromium}=createRequire(join(root,'package.json'))('playwright-core');
- const {createServer}=await import(pathToFileURL(createRequire(join(root,'apps/chat/package.json')).resolve('vite')));
+
  const dir=mkdtempSync(join(tmpdir(),'sb4-screen-lifetime-'));
  let browser,vite;t.after(async()=>{await browser?.close();await vite?.close();rmSync(dir,{recursive:true,force:true});});
  const emit=(name,source)=>writeFileSync(join(dir,name),ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}}).outputText);
@@ -98,7 +98,7 @@ window.useDevice=async()=>act(async()=>{
 window.adopt=async()=>{await act(async()=>{generation++;await realClient.sync()});};
 window.finish=async()=>{await act(async()=>root.unmount());await realClient?.close();return {observations:watches.size,opens:metrics.opens,closes:metrics.closes,viewers:viewers.size}};
 `);
- vite=await createServer({root:dir,configFile:false,logLevel:'error',server:{hmr:false,host:'127.0.0.1',port:0,fs:{allow:[root,dir]}},resolve:{alias:[
+ vite=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{hmr:false,host:'127.0.0.1',port:0,fs:{allow:[root,dir]}},resolve:{alias:[
  ...['react','react/jsx-runtime','react/jsx-dev-runtime','react-dom/client'].map(name=>({find:new RegExp('^'+name+'$'),replacement:pkg.resolve(name)})),
  {find:'react-native',replacement:join(dir,'native.jsx')},{find:'../snapback/generated/api',replacement:join(dir,'api.js')},
  ...['./screens','./social','./Video','../ui/src/ReactionPicker','../ui/src/ChatListRow','../ui/src/MessageBubble','../ui/src/Composer','../ui/src/TypingIndicator','../ui/src/ChatSettingsForm','expo-router','expo-image-picker','@react-navigation/native'].map(find=>({find,replacement:join(dir,'pilot-ui.jsx')})),
@@ -109,6 +109,6 @@ window.finish=async()=>{await act(async()=>root.unmount());await realClient?.clo
  browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox'],timeout:hangBudget()});
  const page=await browser.newPage();page.setDefaultTimeout(hangBudget());
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(vite.resolvedUrls.local[0]);await page.waitForFunction(()=>window.start);await page.evaluate(()=>window.start());
+ await loadBrowserPage(t, page, vite.resolvedUrls.local[0]);await page.waitForFunction(()=>window.start);await page.evaluate(()=>window.start());
  return {page,errors,counts:()=>page.evaluate(()=>window.counts()),text:()=>page.locator('body').innerText()};
 }

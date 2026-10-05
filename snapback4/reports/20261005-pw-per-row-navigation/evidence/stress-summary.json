@@ -1,0 +1,22 @@
+{
+  "fixed-linux-a": {
+    "runs": 30,
+    "passes": 30,
+    "subtests": 240,
+    "sumSeconds": 1142.381,
+    "minSeconds": 35.979,
+    "maxSeconds": 45.325,
+    "navigationCheck": "nine per file: eight initial plus one explicit process reload",
+    "hogsExited": true
+  },
+  "fixed-linux-b": {
+    "runs": 30,
+    "passes": 30,
+    "subtests": 240,
+    "sumSeconds": 1087.598,
+    "minSeconds": 29.193,
+    "maxSeconds": 44.87,
+    "navigationCheck": "nine per file: eight initial plus one explicit process reload",
+    "hogsExited": true
+  }
+}

@@ -1,3 +1,4 @@
+import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — render every real host notification, without batching away loading.
 import test from 'node:test';
@@ -7,7 +8,6 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 
 import { fixture, open, q, m, parked, until, sdk } from './helpers/answers-stay.mjs';
@@ -16,7 +16,7 @@ const root = new URL('../../../', import.meta.url).pathname;
 const require = createRequire(join(root, 'package.json'));
 async function renderer(t) {
   const { chromium } = require('playwright-core');
-  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')));
+
   const dir = mkdtempSync(join(tmpdir(), 'sb4-rl-react-'));
   writeFileSync(join(dir, 'index.html'), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
   writeFileSync(join(dir, 'harness.jsx'), `
@@ -45,7 +45,7 @@ window.replay = (input) => {
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
   // Replay against a stable page: cold dependency optimization must not reload
   // it and erase window.replay after the readiness check. No files change here.
-  const vite = await createServer({ root: dir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
+  const vite = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
     ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })),
     { find: 'test-peek', replacement: new URL('observe-watch.js', sdk).pathname },
     { find: 'snapback4/react', replacement: new URL('react.js', sdk).pathname },
@@ -55,7 +55,7 @@ window.replay = (input) => {
   t.after(async () => { await browser.close(); await vite.close(); rmSync(dir, { recursive: true, force: true }); });
   const page = await browser.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
-  await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
+  await loadBrowserPage(t, page, vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
   return async (kind, reads, scopeWithdrawal = false) => {
     const result = await page.evaluate(input => window.replay(input), { kind, reads });
     if (scopeWithdrawal) {

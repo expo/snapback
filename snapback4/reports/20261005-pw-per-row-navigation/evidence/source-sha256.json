@@ -1,0 +1,18 @@
+{
+  "snapback4/experiments/p19-one-query/equality/browser.test.mjs": "ebe8ed0ab3947c1e6d9d12a01331d66e80c485b0a4cc83725068bda15e4ce3ee",
+  "snapback4/packages/snapback4/test/answers-stay-react.test.mjs": "2b9b1c26f56dc55f52cb9627adf0a7ff882c7f5c7216b2bd334843787fe801db",
+  "snapback4/packages/snapback4/test/asset-avatars.test.mjs": "4e5ee9f4eff312fefc39bdd73368537049bd2c428df303f9be1078b5fa367894",
+  "snapback4/packages/snapback4/test/asset-buffered.test.mjs": "b0dee3839adf3561da73d37fe0ec3b38daa067e446c43bb46613f250519dbad7",
+  "snapback4/packages/snapback4/test/helpers/screen-lifetimes.mjs": "ce70ed096fea55703f42ad91b3df12da809e1f354c7726df3e309e1d6cdfdf2c",
+  "snapback4/packages/snapback4/test/keep-authority-react.test.mjs": "b3f7d4d765c6bdb451a101fe949b228d159240d6fa6c6632ddbd6db1be8e10a4",
+  "snapback4/packages/snapback4/test/live-margin-browser.test.mjs": "ed9746478840fb0e38d34f93bdf8a61ab3852af8c2e560fd9777183d637160d7",
+  "snapback4/packages/snapback4/test/ordinary-search.test.mjs": "6208141de11b2e494885f507f35ece8839dabb6a2310952a1529a87268e7e414",
+  "snapback4/packages/snapback4/test/page-observation.test.mjs": "d08f343e2da009183caea5404c07a6c17efd2dd966db9553a7d1cbe455e99dea",
+  "snapback4/packages/snapback4/test/per-row-react.test.mjs": "3ba6cd4dde717882a73600028bb3314987561416170569d1fcb184c855ee29d6",
+  "snapback4/packages/snapback4/test/react.test.mjs": "58a97d75e5a46207346ecbe0c7c71737df25c2ab221b296fd2943e54b7541e12",
+  "snapback4/packages/snapback4/test/read-presentation-react.test.mjs": "8c7928390e63633764da92f5e0366736fc5dbb850c7712f6d8f53cfd23bf343c",
+  "snapback4/packages/snapback4/test/social-browser.test.mjs": "03a1164d40fb29a392c2bf460739b4c843e0d8d7d384105b00d272beea9d8a03",
+  "snapback4/packages/snapback4/test/subscription-pressure-e2e.test.mjs": "bb85b6b3c7ebd9bce7c45c7da3b245ddf678fe0583c3f4a3d88722cdf66d9d5a",
+  "snapback4/packages/snapback4/test/typing-expiry.test.mjs": "60487fef7f0e2f0a5dd751296751e7cb94e830c677653be7d0a0dfb2776389ef",
+  "snapback4/packages/snapback4/test/helpers/browser-server.mjs": "cf36abf398e13c248ef7711e7afe3bff554c96df5f91a1c88ce52fc8059f18a3"
+}

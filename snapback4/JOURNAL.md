@@ -87785,3 +87785,64 @@ No real device was created; prior owned devices are absent and fixture custody
 is drained. Only this mini and an NZ-owned main comparison snapshot were used.
 Nothing pushed or published; 0.4.13 staging/version files were not changed.
 Details and hashes: [Round 12 report](./reports/20261003-nz-native-proof-zero-cost/REPORT.md#round-12--integration-2026-10-05).
+
+## 2026-10-05 — PW: immutable browser fixtures and attributed reload controls
+
+A controlled late React dependency reproduces the reported per-row context-loss
+exception 60/60 under confined Linux CPU hogs and 30/30 on the Apartment mini.
+Vite logs optimization, sends a full-reload websocket message, and CDP records
+reload navigation before evaluation fails; no crash, watcher event, early
+browser disconnect or server restart precedes it. The original M5 event remains
+unattributed: no trace exists, and both current main and the pre-NZ HMR options
+pass 60 isolated target runs on each host. The report distinguishes this limit
+from the witnessed fixture mechanism. NZ's HMR suppression was already on base.
+
+Seventeen Vite fixture sites now prebundle known React entries, disable late
+optimizer discovery/HMR/watching and own their caches. The per-row fixture
+retains server, websocket and browser lifecycle diagnostics and rejects optimizer
+reload requests even when HMR would hide them. Its late-import regression fails
+without prebundling. A mini intermediate run exposed shared-cache replacement
+under package-nested TMPDIR: one invocation failed two cases with outdated-dep
+504s. A two-server control reproduces that failure; private caches pass it.
+Darwin allow lists also use canonical paths. Explicit reloads, all original
+1,000-hook/2,000-call comparisons and zero-loading assertions remain. No retry,
+clock, timeout, SDK, engine or wasm-source change.
+
+Final full-file repetitions pass 60/60 under Linux hogs and 30/30 on Darwin
+(720 subtests). Other affected checks pass 223 tests, 16 React screen-lifetime
+cases, two expiry cases and the equality browser experiment. The complete
+suite passes: `== 0 failure(s) in 2247 s`. Rust: 5,049 passes and 17 doctests,
+33 existing ignores. Client pool: all 321 files, 6,433 passes and 47 existing
+platform/opt-in skips. Both full-count model files pass all 79 tests. Reference
+and whitespace checks pass. Wasm is byte-identical at 2,117,335 B raw / 639,807 B
+gzip, below the unchanged 639,941 B cap. Observed local task disk use is 14.10 GB;
+the 1.5 GB mini scratch is deleted, and all owned hogs have exited.
+
+The [PW report](./reports/20261005-pw-per-row-navigation/REPORT.md) retains every
+phase, including failed/interrupted setup and negative controls, source hashes
+and native receipts. Closed the [fixture-mechanism ticket](../issues/closed/20261005-snapback4-browser-fixture-navigation.md)
+without claiming retrospective M5 attribution. Work stayed on eb1000 except
+for the authorized file on the mini. No other worktree, simulator or device was
+touched. Local commit with the requested Astra co-author trailer; nothing pushed
+or published.
+
+## 2026-10-05 — PW round 1: fail unexpected browser navigation
+
+The shared fixture now rejects main-frame navigation after initial load, with
+one-navigation allowances for intentional reloads and explicit same-document
+allowances for two routing fixtures. Seven native Chromium regressions cover
+injected reload failures, allowed reload/history behavior, and a Vite 8
+probe-close-bind port race discovered under stress. The real socket now binds
+port zero atomically. Migrated the missed revocation-retention qualifier to the
+same private optimizer cache and navigation guard. All 541 existing assertions
+remain unchanged; no SDK, engine, wasm, workload or timeout change.
+
+Thirty loaded invocations of each of 17 affected files/qualifiers completed:
+per-row 30/30, guard regressions 30/30, qualifier 30/30; overall 509/510 passed
+(7,590 test passes, one failure, zero skips). Live-margin invocation 4 passed
+its subtest then its isolated Node process exited with SIGSEGV; it was retained,
+not retried, and has an [open follow-up](../issues/20261005-snapback4-live-margin-node-sigsegv.md).
+Its cause remains unproven. Reference/syntax/whitespace checks pass; all owned
+hogs are reaped and worktree disk use is 13.71 GB. Full suite not repeated for
+this fixture-only round. The [Round 1 report](./reports/20261005-pw-per-row-navigation/REPORT.md#round-1--navigation-failures-and-the-live-qualifier-2026-10-05)
+holds complete receipts and controls. Local commit only; nothing pushed.
