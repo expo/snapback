@@ -1,0 +1,32 @@
+{
+  "name": "snapback4-expo",
+  "version": "0.4.13",
+  "filename": "snapback4-expo-0.4.13.tgz",
+  "tarball": "/Users/ccheever/projects/snapback-pub-0413/snapback4/target/expo-0.4.13/snapback4-expo-0.4.13.tgz",
+  "bytes": 5731143,
+  "integrity": "sha512-mDdiVUxnnRQjOKakIyd2WSgmBRinmnELlp/uP3NG5iQ3umfiudk7sM72F7sOANI0WOHn0BInjTV2Z1pOrj3fjw==",
+  "fileHashes": {
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "01bdeb349af724bc572388bef5954f391070ccedbe864d5e73d07abdb1c50202",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "3fbbb5c73e056509e50b0b053b3e1b48fdeaf64595ee672d29298135cc695263",
+    "plugin.cjs": "53a54c0417883f584855f7a58d861b0588f84977eaa87a1e133519998fd43185",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "expo-module.config.json": "4150f21b78b3dcfff4f15a4a2fe59ebfa76969fd3af43d10d1a9bc563eb9ad37",
+    "package.json": "7de0694675de797f8c303926f5a6dbdc1b8f9af62b61333b9ee85e5e7af911c1",
+    "README.md": "a4a1ca81d601e59ddf5b1d75052e58e7cd6e61c1b9918aaabbd8837b9260ee09",
+    "export-ios.mjs": "9ace0438318c880ca827286b02556116cf71571de8c99c5065d4eb30dc41ecaa",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Expo.podspec": "c9f21e5335e77827679388d8f69a6f4396452c9b2a80f029cb8aaceaf0d15746",
+    "ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "ios/Snapback4Module.swift": "5eacd24bcb5e592a4f5cf2a9c29db9541327c2fd48987a648777e9be48ef9159",
+    "ios/WitnessContainer.swift": "f9aba4fb3468e89d0a866f391560ac75e3cfeab37d0dbc7e0e2dee13bd1c533f",
+    "src/index.ts": "04b159568638ca68a6fcfe2aa95ea7b558c6d3869f72f3b61d6b86259aec5731",
+    "src/smoke.ts": "97907b79f24eb2d8e38e3facc9a68a350a8c2d5140d3b982ee8d4555b2d65b98",
+    "src/witness-core.ts": "f14408dddc0b786995e40411b3e244ec1ee46634cc61461b4a6f78f13603b09a",
+    "src/witness-runtime.ts": "7c442b144e35f34f479d7d85a1de724cbe9d1257ce9784536a1efa7166ee4b30",
+    "src/witness.ts": "ac2958c34f9eb325dd1da4ecbb610b85cb801c16f0f71115c597e38171349e57"
+  },
+  "matchesQualifiedNativePackage": true
+}
