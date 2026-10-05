@@ -1,0 +1,11 @@
+{
+  "packages/snapback4/src/local.ts": "e9efd5a8bf926bc66b3c62b4c2a3d341b69037d65a7ce2195709a02d3e2cdfd5",
+  "packages/snapback4/test/server-e2e.test.mjs": "2c17b5d5099566f6ca0ef73772faa47e3a4c415bebe5efa2cc3117cbeabd58a5",
+  "packages/snapback4/test/ephemeral-e2e.test.mjs": "e32ea369d0cb3e86809ee9c404e700765ffcabf728c40639250d229f081cf175",
+  "packages/snapback4/test/read-existence-integration.test.mjs": "196df53e290d3584e99bb5cf5f2e724f6926850625482e26000abe1b80a4522a",
+  "packages/snapback4/test/delivery-fault-instrument.mjs": "a2cca7cf10f2fcb523b41de6472aec69f047898498e7a6f234fbcd14aa3e55ad",
+  "packages/snapback4/test/delivery-fault-recipes.mjs": "b51408b016cc365bb9cd0b9d311298e0e83ce53a8b05b69fb5dec8a4915b69ed",
+  "packages/snapback4/test/delivery-fault-sites.json": "b2b15c3e52c81cb27313b1b806c868b97777d70ea843232ae90604c01be4fbc7",
+  "packages/snapback4/test/delivery-await-boundary.json": "00fafb4ac885826700df364b5a744b84f4772ae24fe3ef68e3c45e2d95aa2898",
+  "packages/snapback4/test/worker-regressions.test.mjs": "91fa8f61cc6326ed15e6485b6d0c5b09b213598fa86983d3c422232ccfacd2f7"
+}

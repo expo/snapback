@@ -1,0 +1,45 @@
+{
+  "pid": 3087885,
+  "started": 1791187193.580378,
+  "command": [
+    "taskset",
+    "-c",
+    "0,1,61,68,69,73,93",
+    "bash",
+    "snapback4/scripts/test.sh"
+  ],
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "4",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "NODE_OPTIONS": "--import=/tmp/sb4-it-probe.mjs"
+  },
+  "cpuSample": {
+    "at": 1791187136.6490057,
+    "busyPercent": {
+      "0": 7.86,
+      "1": 10.14,
+      "2": 46.0,
+      "3": 26.94,
+      "51": 26.67,
+      "53": 50.5,
+      "61": 10.77,
+      "68": 5.02,
+      "69": 2.01,
+      "71": 29.67,
+      "72": 23.67,
+      "73": 7.07,
+      "77": 24.75,
+      "84": 49.83,
+      "90": 28.52,
+      "91": 31.0,
+      "92": 26.33,
+      "93": 7.41,
+      "94": 81.67,
+      "95": 48.67
+    }
+  },
+  "workerFixtureSha256": "028563aba94e31f9197a14bbc4174102aba241238b143d6ec644d046a0a945b5"
+}

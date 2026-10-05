@@ -1,0 +1,11 @@
+{
+  "phase": "fixed",
+  "verified": 120,
+  "passed": 120,
+  "failed": [],
+  "perFile": {
+    "packages/snapback4/test/server-e2e.test.mjs": 60,
+    "packages/snapback4/test/ephemeral-e2e.test.mjs": 60
+  },
+  "archiveSha256": "e37864e2a88c9b0544db3fbe14e887bb96ac11f2f225b143a2de655e24bb919b"
+}

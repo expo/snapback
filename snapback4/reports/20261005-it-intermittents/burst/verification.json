@@ -1,0 +1,22 @@
+{
+  "phase": "burst",
+  "verified": 26,
+  "passed": 26,
+  "failed": [],
+  "perFile": {
+    "packages/snapback4/test/read-through.test.mjs": 2,
+    "packages/snapback4/test/read-through-provenance.test.mjs": 2,
+    "packages/snapback4/test/read-through-upsert.test.mjs": 2,
+    "packages/snapback4/test/store-reset-reconnect.test.mjs": 2,
+    "packages/snapback4/test/social-starter.test.mjs": 2,
+    "packages/snapback4/test/readauth.test.mjs": 2,
+    "packages/snapback4/test/retained-history.test.mjs": 2,
+    "packages/snapback4/test/admit-before-identity.test.mjs": 2,
+    "packages/snapback4/test/asset-lists.test.mjs": 2,
+    "packages/snapback4/test/witness-acquire.test.mjs": 2,
+    "packages/snapback4/test/keep-app-model.test.mjs": 2,
+    "packages/snapback4/test/worker-regressions.test.mjs": 2,
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs": 2
+  },
+  "archiveSha256": "e20ac42fc9f4788678086e5ac4a5409dfe0b635413d150abfaaaa0a4ece17f26"
+}

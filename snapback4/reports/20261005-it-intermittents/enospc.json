@@ -1,0 +1,19 @@
+{
+  "at": 1791190769.9506142,
+  "filesystems": {
+    "/tmp": {
+      "bytesTotal": 1853945503744,
+      "bytesFree": 106523131904,
+      "bytesAvailable": 12272386048,
+      "inodesTotal": 115032064,
+      "inodesFree": 93634865
+    },
+    ".": {
+      "bytesTotal": 1853945503744,
+      "bytesFree": 106523131904,
+      "bytesAvailable": 12272386048,
+      "inodesTotal": 115032064,
+      "inodesFree": 93634865
+    }
+  }
+}

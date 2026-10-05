@@ -1,0 +1,10 @@
+{
+  "phase": "worker-final",
+  "verified": 60,
+  "passed": 60,
+  "failed": [],
+  "perFile": {
+    "packages/snapback4/test/worker-regressions.test.mjs": 60
+  },
+  "archiveSha256": "4f903e1e2502d68bb6b1b19922dcb4454f857cdf2b97e2bc99f24976679fcb8e"
+}

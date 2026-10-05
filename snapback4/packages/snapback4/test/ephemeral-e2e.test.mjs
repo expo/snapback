@@ -67,15 +67,21 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
       await delay(150); // Settle startup/incarnation queries; the next write must wake this poll.
       if (phase === 'ephemeral') assert.equal(held.answer, undefined);
       const times = { first: null, gone: null };
-      let delivery;
+      let delivery, visible = false;
       const stop = observation.subscribe(() => {
         const read = observation.getSnapshot();
-        if (!('data' in read)) return;
-        if (read.data.length && times.first === null) {
-          times.first = performance.now();
-          delivery = polls.findLast(p => p.answer && p.at <= times.first);
+        // LLP 3000.017 §4.7 measures when B stops seeing A. Expiry withdraws
+        // the row before its asynchronous empty answer arrives. A loading
+        // snapshot has no visible row; response latency is measured separately.
+        if ('data' in read && read.data.length) {
+          if (times.first === null) {
+            times.first = performance.now();
+            delivery = polls.findLast(p => p.answer && p.at <= times.first);
+          }
+          visible = true; times.gone = null;
+        } else if (visible) {
+          visible = false; times.gone = performance.now();
         }
-        if (!read.data.length && times.first !== null && times.gone === null) times.gone = performance.now();
       });
       const before = sends, expiredBefore = expiredReplies, outcomes = [], firstCall = performance.now();
       let lastCall = firstCall;
@@ -88,6 +94,9 @@ test('ephemeral typing: five real-server trials beside a durable typing control'
       if (phase === 'ephemeral') {
         for (const result of results) assert.equal(result.state, 'sent', JSON.stringify(result));
         await until(() => times.gone !== null, `${phase} trial ${measure.trial} disappears`);
+        // Keep the stranded-watch regression: withdrawal alone cannot pass it.
+        await until(() => observation.getSnapshot().data?.length === 0, `${phase} trial ${measure.trial} settles empty`);
+        measure.ephemeralEmptyAfterLastMs = Math.round((performance.now() - lastCall) * 1000) / 1000;
         assert.ok(expiredReplies > expiredBefore, 'an already-expired reply must not strand the watch loading');
       } else {
         // The durable control is measured, including a possible missed bound.

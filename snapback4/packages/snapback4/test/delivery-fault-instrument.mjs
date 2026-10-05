@@ -105,6 +105,10 @@ export function instrument(destination) {
 // remaining budget across predecessor identity/admission intervals, and late completion
 // without custody. Browser transaction pins are tested after synchronous capture.
 // Ordinary admission and delivery retain the required sites below.
+// IT: syncRound's final queued() refreshes the pending predicate after every
+// apply, including an unchanged page. It uses existing readQueued custody I/O;
+// it cannot admit, dispatch or settle a new write. The ordinary delivery recipe
+// injects transient/persistent read failure at this optional sync boundary.
 // Conservative boundary seal: any new/changed await anywhere in the client must
 // be reviewed for delivery reachability, even in a new module or helper owner.
 // worker.ts and worker-ledger.ts perform server effects, outside device mutation

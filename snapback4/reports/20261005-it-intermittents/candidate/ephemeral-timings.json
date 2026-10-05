@@ -1,0 +1,24 @@
+{
+  "completeFiles": 60,
+  "trials": 300,
+  "ephemeralFirstMs": {
+    "min": 6.835,
+    "max": 50.72,
+    "median": 11.716000000000001
+  },
+  "ephemeralGoneAfterLastMs": {
+    "min": 3768.457,
+    "max": 3820.755,
+    "median": 3805.919
+  },
+  "ephemeralEmptyAfterLastMs": {
+    "min": 3883.54,
+    "max": 4029.472,
+    "median": 4006.635
+  },
+  "ephemeralRequests": {
+    "min": 2,
+    "max": 2,
+    "median": 2.0
+  }
+}

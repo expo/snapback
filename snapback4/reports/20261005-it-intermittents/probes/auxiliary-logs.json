@@ -1,0 +1,32 @@
+[
+  {
+    "file": "install.log.gz",
+    "logSha256": "29a4eb3e0cde85a039955cc3bc5e72494ada4e158b517d499585de7c4b92b364",
+    "qualification": false,
+    "note": "Earlier setup/experiment log, retained for completeness; no separate native receipt in this manifest."
+  },
+  {
+    "file": "wasm-baseline.log.gz",
+    "logSha256": "668f061f6b09b8c3197d0eb73a7eb9f34e76e1a77eae5b86659030d7a076dea8",
+    "qualification": false,
+    "note": "Earlier setup/experiment log, retained for completeness; no separate native receipt in this manifest."
+  },
+  {
+    "file": "worker-fixed.log.gz",
+    "logSha256": "71c3cde148f711c9a10c68223eaea5bc232cb6e3d30d9f3f7bfd613a5fbc3c07",
+    "qualification": false,
+    "note": "Earlier setup/experiment log, retained for completeness; no separate native receipt in this manifest."
+  },
+  {
+    "file": "build.log.gz",
+    "logSha256": "e5aa14d9eecf6b4a801d565f991b6cda6530abc08df83a425813e67ba58f1fb9",
+    "qualification": false,
+    "note": "Earlier setup/experiment log, retained for completeness; no separate native receipt in this manifest."
+  },
+  {
+    "file": "jsbuild.log.gz",
+    "logSha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "qualification": false,
+    "note": "Earlier setup/experiment log, retained for completeness; no separate native receipt in this manifest."
+  }
+]

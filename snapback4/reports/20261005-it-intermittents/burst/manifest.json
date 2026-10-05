@@ -1,0 +1,153 @@
+{
+  "began": "2026-10-05T06:32:37.317Z",
+  "root": "/tmp/sb4-it-baseline",
+  "pid": 1183870,
+  "hogs": [
+    1183889,
+    1183890
+  ],
+  "affinity": "Cpus_allowed_list:\t74-77",
+  "cpuSample": {
+    "at": 1791181900.8974102,
+    "busyPercent": {
+      "68": 4.98,
+      "69": 1.68,
+      "71": 2.68,
+      "72": 1.99,
+      "73": 4,
+      "74": 1.34,
+      "75": 0.67,
+      "76": 1,
+      "77": 0.33,
+      "81": 2.01,
+      "90": 5.35,
+      "91": 1.35,
+      "92": 6.35,
+      "93": 4.71,
+      "94": 3.01,
+      "95": 1
+    }
+  },
+  "files": [
+    "read-through",
+    "read-through-upsert",
+    "readauth",
+    "read-through-provenance",
+    "keep-app-model",
+    "ordinary-search-oracle",
+    "worker-regressions",
+    "retained-history",
+    "asset-lists",
+    "social-starter",
+    "admit-before-identity",
+    "witness-acquire",
+    "store-reset-reconnect"
+  ],
+  "concurrency": 12,
+  "jobs": [
+    {
+      "file": "read-through",
+      "iteration": 1
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 1
+    },
+    {
+      "file": "readauth",
+      "iteration": 1
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 1
+    },
+    {
+      "file": "keep-app-model",
+      "iteration": 1
+    },
+    {
+      "file": "ordinary-search-oracle",
+      "iteration": 1
+    },
+    {
+      "file": "worker-regressions",
+      "iteration": 1
+    },
+    {
+      "file": "retained-history",
+      "iteration": 1
+    },
+    {
+      "file": "asset-lists",
+      "iteration": 1
+    },
+    {
+      "file": "social-starter",
+      "iteration": 1
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 1
+    },
+    {
+      "file": "witness-acquire",
+      "iteration": 1
+    },
+    {
+      "file": "store-reset-reconnect",
+      "iteration": 1
+    },
+    {
+      "file": "read-through",
+      "iteration": 2
+    },
+    {
+      "file": "read-through-upsert",
+      "iteration": 2
+    },
+    {
+      "file": "readauth",
+      "iteration": 2
+    },
+    {
+      "file": "read-through-provenance",
+      "iteration": 2
+    },
+    {
+      "file": "keep-app-model",
+      "iteration": 2
+    },
+    {
+      "file": "ordinary-search-oracle",
+      "iteration": 2
+    },
+    {
+      "file": "worker-regressions",
+      "iteration": 2
+    },
+    {
+      "file": "retained-history",
+      "iteration": 2
+    },
+    {
+      "file": "asset-lists",
+      "iteration": 2
+    },
+    {
+      "file": "social-starter",
+      "iteration": 2
+    },
+    {
+      "file": "admit-before-identity",
+      "iteration": 2
+    },
+    {
+      "file": "witness-acquire",
+      "iteration": 2
+    },
+    {
+      "file": "store-reset-reconnect",
+      "iteration": 2
+    }
+  ]
+}

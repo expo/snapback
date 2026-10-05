@@ -1,0 +1,8 @@
+{
+  "changedAt": 1791182007.856214,
+  "v1Sha256": "481ee5f6130d365b7155c3cfbec6c884a92155f19e9c90dbf929e2f8e139bfcf",
+  "v2Sha256": "281ad13782e128f565b120d4716df272c260b404d66f6507d6963dabfc9b91e1",
+  "reason": "Add read-only per-port listener and connection queue snapshots when a connection fails; no retry or healthy-path dispatch change. Each Node file loads its probe once at startup.",
+  "v2InitialSha256": "a39a10e18898f7903c5a48b351b1df0a75bb16519d2be8f806d0ad2e6ab935b7",
+  "v2FinalNote": "Immediately hardened descriptor-count diagnostics so an exhausted descriptor table cannot mask the original fetch error; both versions are retained."
+}

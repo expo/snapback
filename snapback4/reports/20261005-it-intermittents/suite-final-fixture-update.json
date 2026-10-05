@@ -1,0 +1,5 @@
+{
+  "at": 1791187814.05013,
+  "change": "The fixture DDL acquires its SQLite writer before CREATE/DROP TRIGGER. The second suite is still in Rust and has not reached its client pool.",
+  "workerFixtureSha256": "91fa8f61cc6326ed15e6485b6d0c5b09b213598fa86983d3c422232ccfacd2f7"
+}

@@ -1,0 +1,30 @@
+{
+  "phase": "baseline",
+  "verified": 1020,
+  "passed": 1017,
+  "failed": [
+    "worker-regressions-59",
+    "worker-regressions-60",
+    "worker-regressions-44"
+  ],
+  "perFile": {
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs": 60,
+    "packages/snapback4/test/read-through.test.mjs": 60,
+    "packages/snapback4/test/sync-overflow.test.mjs": 60,
+    "packages/snapback4/test/store-reset-reconnect.test.mjs": 60,
+    "packages/snapback4/test/read-through-provenance.test.mjs": 60,
+    "packages/snapback4/test/worker-regressions.test.mjs": 60,
+    "packages/snapback4/test/witness-acquire.test.mjs": 60,
+    "packages/snapback4/test/read-existence-integration.test.mjs": 60,
+    "packages/snapback4/test/retained-history.test.mjs": 60,
+    "packages/snapback4/test/keep-app-model.test.mjs": 60,
+    "packages/snapback4/test/admit-before-identity.test.mjs": 60,
+    "packages/snapback4/test/ephemeral-e2e.test.mjs": 60,
+    "packages/snapback4/test/readauth.test.mjs": 60,
+    "packages/snapback4/test/social-starter.test.mjs": 60,
+    "packages/snapback4/test/server-e2e.test.mjs": 60,
+    "packages/snapback4/test/read-through-upsert.test.mjs": 60,
+    "packages/snapback4/test/asset-lists.test.mjs": 60
+  },
+  "archiveSha256": "e68d6aa6e92f8a5b5cb97e1f33c4c9842571d91eb85d64b80e587aa4e8d0367f"
+}
