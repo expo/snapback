@@ -88126,3 +88126,21 @@ capability, budget, publication or push. Builds used the shared target with
 incremental compilation disabled; 1.78 GB of completed lane-local SQLite test
 sidecars were removed. No black M5 or office M1 use. See the
 [report](reports/20261006-ro-read-only/REPORT.md) for evidence and limits.
+
+## 2026-10-06 — RO Round 1: fold blind code reviews
+
+Fenced read-session openers across logout and persistence, permanently withdrew
+facades after account custody changed, and retained refresh successors privately
+through transient verification failures until notification/persistence completed.
+Consumed predecessor custody is dropped after persistence. Permanent tests derive
+from all four Astra reproduction scripts. Sign-in now collects read rows expired
+by either timestamp; read refresh still deletes only its own family.
+
+The legacy unflagged probe body is restored. Session JSON's `scope`, opt-in
+probe `kind`/`scope`, new POST probe, and stricter auth-body scope validation are
+now stated explicitly in LLP 3000.033 §7 and the report. Added forbidden-method,
+forged-scope, asset-overlap, detached-reader construction, held-poll revocation,
+and narrowing rollback coverage. The PostgreSQL adapter has no production mint
+path in this checkout; new scope and construction regressions are compile-only
+here because Docker, PostgreSQL tools and a configured database are absent.
+Round 1 verification and checkpoint commits are recorded in the lane report.

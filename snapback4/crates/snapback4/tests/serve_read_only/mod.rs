@@ -5,8 +5,9 @@ use snapback4_core::{Store, Value, value::object};
 use sha2::{Digest, Sha256};
 const NOW: i64 = 1_790_000_000_000;
 const EXTRA: &str = "\nuse identity\nuse server\nroute declared: post \"/declared\" wait 1s\neffect notify\naction external()\ntable typing:\n  owner: principal\n  ephemeral 4s\n  read <- allow\n  insert <- .owner = viewer\nmutation typeNow():\n  insert typing {owner: viewer}\nquery typingNow():\n  return typing first 10\nquery presence():\n  return exists connected[viewer]\nmutation push():\n  if not exists connected['member:bob']:\n    emit notify {recipient: 'member:bob'}\nquery history(c: cursor ?):\n  return messages where .chat = 'c1' first 2 by .ordinal after c\n";
-fn host() -> Host {
-    let h = Host::with_store(true, Store::memory().unwrap(), &format!("{}{}{}{}", include_str!("../../../snapback4-lang/tests/delivery/schema.q"), EXTRA, assets::SCHEMA,include_str!("receipts.q")));
+fn host() -> Host { host_with_store(Store::memory().unwrap()) }
+fn host_with_store(store: Store) -> Host {
+    let h = Host::with_store(true, store, &format!("{}{}{}{}", include_str!("../../../snapback4-lang/tests/delivery/schema.q"), EXTRA, assets::SCHEMA,include_str!("receipts.q")));
     lock(&h.shared.clock).freeze(NOW);
     let mut e = lock(&h.shared.engine);
     e.seed_at(std::iter::once(("chats".into(), object([("id", Value::Id("c1".into())), ("name", Value::String("chat".into()))]))), NOW).unwrap();
@@ -47,6 +48,22 @@ fn guard_barriers_replay_and_http_parity() {
         assert_eq!(snapshot(&h),before,"transient durable barrier for {path}");
         assert_eq!(body(&h.request("POST","/q/typingNow",FULL,"{\"args\":{}}"))["data"],eph,"ephemeral barrier");
     }
+    for (method, path) in [("GET", "/"), ("GET", "/api.ts"), ("GET", "/native.wasm"),
+        ("GET", "/future-route"), ("GET", "/q/raw"), ("GET", "/auth/refresh"), ("GET", "/auth/config"),
+        ("POST", "/schema"), ("POST", "/changes"), ("POST", "/assets/ordinary"),
+        ("PUT", "/probe"), ("DELETE", "/assets/ordinary"), ("HEAD", "/schema")] {
+        let before = snapshot(&h);
+        let response = h.request(method, path, &read, "{}");
+        assert_eq!(status(&response), 403, "{method} {path}: {response}");
+        if method != "HEAD" { assert_eq!(body(&response), json!({"denied": body(&response)["denied"]})); assert_eq!(body(&response)["denied"]["code"], "E_READ_ONLY"); }
+        assert_eq!(snapshot(&h), before);
+    }
+    let before = snapshot(&h);
+    let forged = body(&h.request("POST", "/m/edit", &read, r#"{"scope":"full","id":"forged","args":{}}"#));
+    assert_eq!(forged["denied"]["code"], "E_READ_ONLY"); assert_eq!(snapshot(&h), before);
+    let refreshed = body(&h.request("POST", "/auth/refresh", &read, r#"{"scope":"full"}"#));
+    assert_eq!(refreshed["session"]["scope"], "read");
+    let read = headers(&refreshed["session"]);
     let accepted=body(&h.request("POST","/m/edit",FULL,"{\"id\":\"read-refusal\",\"args\":{}}"));
     assert_eq!(accepted["state"],"sent","{accepted}"); assert_ne!(accepted["replayed"],true);
     let before=snapshot(&h);
@@ -65,7 +82,11 @@ fn guard_barriers_replay_and_http_parity() {
         assert_eq!(a,b,"entire HTTP answer parity for {op}");
     } }
     assert_eq!(body(&h.request("GET","/probe?scope=1",&read,""))["scope"],"read");
-    assert_eq!(body(&h.request("POST","/probe",FULL,"{}"))["scope"],"full");
+    assert_eq!(body(&h.request("POST","/probe?scope=1",FULL,"{}"))["scope"],"full");
+    for method in ["GET", "POST"] {
+        let legacy = body(&h.request(method, "/probe", FULL, "{}"));
+        assert_eq!(legacy, json!({"ok":true, "store_id":legacy["store_id"], "seq":legacy["seq"], "viewer":"member:bob"}));
+    }
     assert_eq!(status(&h.request("GET","/schema",&read,"")),200);
 }
 #[test]
@@ -189,7 +210,12 @@ fn read_polls_neither_enter_nor_leave_overlapping_full_presence() {
 
 #[test]
 fn request_manifest_construction_counter_alternates_on_reused_engine() {
-    let h=host(); let session=narrowed(&h);
+    let dir = std::env::temp_dir().join(format!("ro-manifests-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for disk in [false, true] {
+    let h = host_with_store(if disk { Store::open(&dir.join("store.sqlite")).unwrap() } else { Store::memory().unwrap() });
+    assert_eq!(h.shared.memory_store(), !disk);
+    let session=narrowed(&h);
     for read in [true,true,false,true,false] {
         let token=if read {session["token"].as_str().unwrap()} else {"full"};
         let before=snapback4_core::engine::delivery::manifest_constructions();
@@ -198,8 +224,10 @@ fn request_manifest_construction_counter_alternates_on_reused_engine() {
             .with_header(Header::from_bytes("Host","localhost").unwrap())
             .with_header(Header::from_bytes("Authorization",format!("Bearer {token}")).unwrap());
         handle(request.into(),&h.shared);
-        assert_eq!(snapback4_core::engine::delivery::manifest_constructions()-before,u64::from(!read));
+        assert_eq!(snapback4_core::engine::delivery::manifest_constructions()-before,u64::from(!read), "disk={disk}, read={read}");
     }
+    }
+    std::fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
@@ -223,4 +251,30 @@ fn password_guest_scope_unknown_scope_and_service_mint_are_explicit() {
     let header=format!("Authorization: Bearer {}\r\n",service.token);
     assert_eq!(body(&h.request("POST","/auth/narrow",&header,"{}"))["denied"]["code"],"E_AUTH");
     assert_eq!(body(&h.request("POST","/auth/session",&header,"{\"principal\":\"service:test\",\"kind\":\"service\",\"scope\":\"read\"}"))["denied"]["code"],"E_INPUT");
+}
+
+#[test]
+fn held_read_poll_rechecks_revoked_credential_at_completion() {
+    for disk in [false, true] {
+        let dir = std::env::temp_dir().join(format!("ro-poll-{}-{disk}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let h = host_with_store(if disk { Store::open(&dir.join("store.sqlite")).unwrap() } else { Store::memory().unwrap() });
+        let session = narrowed(&h); let header = headers(&session);
+        let head = lock(&h.shared.engine).seq().unwrap();
+        let (send, recv) = mpsc::channel();
+        *lock(&h.shared.poll_wait) = Some(Arc::new(move || { let _ = send.send(()); }));
+        let address = h.address;
+        let poll = thread::spawn(move || exchange(address, &format!("GET /changes?since={head}&wait=25 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{header}\r\n")));
+        recv.recv_timeout(Duration::from_secs(5)).expect("read poll is held");
+        *lock(&h.shared.poll_wait) = None;
+        // Mutate authority directly while held, then publish a commit wake. Only
+        // the completion recheck can refuse this already-authenticated poll.
+        lock(&h.shared.engine).store().conn().execute("DELETE FROM _read_sessions", []).unwrap();
+        h.request("POST", "/m/edit", FULL, r#"{"id":"wake","args":{}}"#);
+        let response = poll.join().unwrap();
+        assert_eq!(status(&response), 401, "disk={disk}: {response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
+        assert!(lock(&h.shared.presence.polls).is_empty());
+        drop(h); std::fs::remove_dir_all(dir).unwrap();
+    }
 }

@@ -5,6 +5,10 @@ use rusqlite::params;
 const DAY: i64 = 86_400_000;
 fn sample(now: i64) -> ServiceSample { ServiceSample { now, supervisor_revision: 0 } }
 fn digest(token: &str) -> String { format!("{:x}", Sha256::digest(token.as_bytes())) }
+fn read_rows(store: &Store) -> Vec<String> {
+    store.conn().prepare("SELECT token_digest FROM _read_sessions ORDER BY token_digest").unwrap()
+        .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect()
+}
 
 #[test]
 fn cap_scope_family_and_foreign_expiry_survive_rotation() {
@@ -64,16 +68,22 @@ fn eligibility_and_direct_signin_scope() {
     let mut store = Store::memory().unwrap();
     for kind in ["service", "action", "member", "account"] {
         let parent = identity::open_session(&store, "bob", kind, 0).unwrap();
+        let before = read_rows(&store);
         let narrowed = identity::narrow_session(&mut store, &parent.token, || sample(1));
         assert_eq!(narrowed.is_ok(), matches!(kind, "member" | "account"));
+        if narrowed.is_err() { assert_eq!(read_rows(&store), before, "refused narrowing committed no sibling"); }
     }
     let parent = identity::open_session(&store, "bob", "member", 0).unwrap();
     store.conn().execute("INSERT INTO _meta(key,value) VALUES (?1,'0')", [format!("worker:family:{}", digest(&parent.token))]).unwrap();
+    let before = read_rows(&store);
     assert!(identity::narrow_session(&mut store, &parent.token, || sample(1)).is_err());
+    assert_eq!(read_rows(&store), before);
     let read = identity::guest_scoped(&store, 1, &mut 0, SessionScope::Read).unwrap();
     assert_eq!(read.cap_expires_at, Some(read.expires_at));
     assert_eq!(identity::resolve(&store, &read.token, 2).unwrap().unwrap().2, SessionScope::Read);
+    let before = read_rows(&store);
     assert!(identity::narrow_session(&mut store, &read.token, || sample(2)).is_err());
+    assert_eq!(read_rows(&store), before);
     let rotated = identity::rotate_session(&store, &read.token, 3).unwrap().unwrap();
     assert_eq!(rotated.expires_at, read.expires_at);
     assert_eq!(rotated.cap_expires_at, read.cap_expires_at);
@@ -113,7 +123,28 @@ fn queued_narrow_samples_authority_after_writer_lock() {
         }
         locker.execute_batch("COMMIT").unwrap();
         assert!(worker.join().unwrap().is_err());
+        let siblings: i64 = locker.query_row("SELECT count(*) FROM _read_sessions", [], |r| r.get(0)).unwrap();
+        assert_eq!(siblings, 0, "expired/revoked parent committed no sibling");
         drop(locker);
         let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+#[test]
+fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
+    for scope in [SessionScope::Full, SessionScope::Read] {
+        let store = Store::memory().unwrap();
+        let read = identity::guest_scoped(&store, 0, &mut 0, SessionScope::Read).unwrap();
+        // Both inclusive boundaries independently qualify; a still-live foreign row survives.
+        for (id, expiry, cap) in [("expires", 10, 100), ("cap", 100, 10), ("live", 100, 100)] {
+            store.conn().execute("INSERT INTO _read_sessions VALUES (?1,'foreign','user',?1,0,?2,?3,0)", params![id, expiry, cap]).unwrap();
+        }
+        let rotated = identity::rotate_session(&store, &read.token, 10).unwrap().unwrap();
+        let rows = read_rows(&store);
+        for id in ["expires", "cap", "live"] { assert!(rows.contains(&id.to_string())); }
+        identity::guest_scoped(&store, 10, &mut 1, scope).unwrap();
+        let rows = read_rows(&store);
+        assert!(!rows.contains(&"expires".to_string())); assert!(!rows.contains(&"cap".to_string()));
+        assert!(rows.contains(&"live".to_string())); assert!(rows.contains(&digest(&rotated.token)));
     }
 }

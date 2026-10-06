@@ -5,7 +5,7 @@ import { createClient } from "./client.ts";
 import { login, signup, guest, sessionKey, memorySessionStore } from "./auth.ts";
 import { guardClient } from "./app-client.ts";
 import { storeLock, logoutEpoch } from "./app-storage.ts";
-import { readOnlyRefusal, verifyReadClient } from "./read-only.ts";
+import { readOnlyRefusal, verifyReadClient, registerReadCustody } from "./read-only.ts";
 import { defaultFetch } from "#fetch";
 
 // @ref LLP 3000.033#1.4 — read custody never constructs retirement, outbox or
@@ -82,7 +82,7 @@ export function createReadOnlyApp(options: AppOptions): App {
     current.refreshSession = async () => { const result = await refresh(); await persistence; return result; };
     current.close = close;
     current.signOut = async () => { await auth.logout(); };
-    const stopSession = candidate.onSession(async next => {
+    const adoptSession = async (next: Session | null) => {
       const previous = token;
       if (next) ownedTokens.add(next.token);
       try {
@@ -100,8 +100,9 @@ export function createReadOnlyApp(options: AppOptions): App {
         if (valid()) { loseCustody(); publish({ state: "signed-out", viewer: null, why: problem(error) }); }
       }
       if (!next && valid()) { fence(); publish({ state: "signed-out", viewer: null }); }
-    });
-    stop = stopSession;
+    };
+    registerReadCustody(candidate, adoptSession);
+    stop = candidate.onSession(next => { if (!next) void adoptSession(null); });
     publish({ state: "signed-in", viewer: candidate.viewer() });
     await start();
     return { ok: true, session: candidate.session() ?? session };

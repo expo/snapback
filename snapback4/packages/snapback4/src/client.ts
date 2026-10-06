@@ -1,4 +1,4 @@
-import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification, retireReadSession } from "./read-only.ts";
+import { commitReadCustody, ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification, retireReadSession } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
@@ -332,9 +332,10 @@ export function createClient(options: ClientOptions): Client {
     if (completingReadSession) return completingReadSession;
     const next = pendingReadSession;
     const work = (async () => {
-      await Promise.all([...sessionListeners].map(listener => listener(next)));
+      await commitReadCustody(client, next);
       if (closed || !credentials || storeRefusal || session !== next) return storeRefusal ?? auth();
       pendingReadSession = null;
+      for (const listener of [...sessionListeners]) listener(next);
       setLink("online");
       for (const watch of watches.values()) void scheduleRead(watch);
       scheduleRefresh();

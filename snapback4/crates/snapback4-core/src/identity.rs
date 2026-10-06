@@ -172,6 +172,9 @@ fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Sessi
 
 fn insert_session(conn: &Connection, session: &Session, now: i64) -> Result<(), RuntimeError> {
     conn.execute("DELETE FROM _sessions WHERE expires_at <= ?1", [now])?;
+    // @ref LLP 3000.033#1.3 — sign-in collects expired families; read rotation
+    // remains limited to its own family, including at the immutable cap.
+    conn.execute("DELETE FROM _read_sessions WHERE expires_at <= ?1 OR cap_expires_at <= ?1", [now])?;
     conn.execute(
         "INSERT OR IGNORE INTO _principals(id, kind, name, created_at) VALUES (?1, ?2, NULL, ?3)",
         params![session.principal, session.kind, now]

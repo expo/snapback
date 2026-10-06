@@ -183,7 +183,10 @@ export function instrument(destination) {
 // local's new device admission check is synchronous, before all host I/O.
 // read-only.test covers held/rejected probes, rotation/cancellation, store races
 // and local refusals; read-only-server covers real receipt invariance and HTTP
-// barriers. No outbox await, classification or fault recipe changes.
+// barriers. RO Round 1's read-custody hook awaits only the .read slot; public
+// session callbacks remain notifications. The new custody regression covers
+// held storage, permanent facade withdrawal and retry of a private successor.
+// No outbox await, classification or fault recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

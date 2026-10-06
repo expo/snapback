@@ -161,3 +161,20 @@ query typingNow():
   assert.equal((await post(read.session,'/m/write',{id:'same-id',args:{}})).denied.code,'E_READ_ONLY');
   assert.equal((await post(full.session,'/m/write',{id:'same-id',args:{}})).replayed,true);assert.equal(calls,1);
 });
+
+test('later sign-ins collect read families expired across repeated eight-day advances', { timeout: hangBudget(10) }, async t => {
+  const { url, dir } = await server(t, undefined, 'use identity\nquery who():\n  return viewer\n');
+  const db = new DatabaseSync(join(dir, '.snapback4/store.sqlite'), { readOnly: true });
+  t.after(() => db.close());
+  const account = { email: 'read@expiry.test', password, scope: 'read' };
+  const post = async (path, payload) => (await fetch(url + path, { method: 'POST', body: JSON.stringify(payload) })).json();
+  assert.ok((await post('/auth/signup', account)).session);
+  for (let i = 0; i < 3; i++) {
+    assert.equal((await post('/dev/clock/advance', { duration: '+8d' })).denied, undefined);
+    const result = await post('/auth/login', account);
+    assert.ok(result.session, JSON.stringify(result));
+    assert.equal(db.prepare('SELECT count(*) AS n FROM _read_sessions').get().n, 1);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM _read_sessions WHERE expires_at <= ? OR cap_expires_at <= ?')
+      .get(result.session.expiresAt - 7 * 86400000, result.session.expiresAt - 7 * 86400000).n, 0);
+  }
+});

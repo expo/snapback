@@ -992,7 +992,13 @@ fn handle(mut request: Request, shared: &Shared) {
             Ok(viewer) => {
                 let identity = shared.read_head();
                 match identity {
-                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer.0, "kind": viewer.1, "scope": viewer.2 })),
+                    Ok((store_id, seq)) => {
+                        let mut reply = json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer.0 });
+                        if query_params(&url).get("scope").is_some_and(|scope| scope == "1") {
+                            reply["kind"] = json!(viewer.1); reply["scope"] = json!(viewer.2);
+                        }
+                        respond_timed(request, shared, 200, reply)
+                    },
                     Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
                 }
             },

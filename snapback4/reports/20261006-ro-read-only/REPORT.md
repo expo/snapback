@@ -18,8 +18,11 @@ No push or publication. The external handoff report records the final commit.
 - The first authenticated read-token branch applies the closed allow-list
   before declared routes, mutation replay and development doors. The prefix
   selects that branch; stored scope remains authoritative. Refusals carry
-  neither head nor store identity. Existing full-session input-validation
-  ordering and wire responses are preserved.
+  neither head nor store identity. Full-session operation validation order is preserved. Session JSON adds
+  `scope` and read-session `capExpiresAt`; auth bodies strictly accept only an
+  absent scope, `"full"`, or `"read"`. `GET /probe?scope=1` adds `kind`/`scope`;
+  unflagged GET retains `{ok, store_id, seq, viewer}`. New `POST /probe` uses
+  the same flag and body shape (corrected in Round 1).
 - Read `/changes` neither enters nor leaves presence or writes effect presence.
   `/schema` remains available. The complete asset disclosure/Range/once ordering
   is preserved, with `E_ASSET_READ_ONLY` before opening unviewed once-media.

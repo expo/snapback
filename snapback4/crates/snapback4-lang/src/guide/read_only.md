@@ -29,7 +29,7 @@ presence snapshot. Four exceptions to answer identity: delivery manifests and
 view-once grants refuse; writes refuse.
 
 Session creation, refresh, expiry and logout change the reader's own auth family.
-Sign-in can collect expired sessions. Request logs and read meters still run.
+Sign-in collects expired full and read sessions; read refresh deletes only its own family. Request logs and read meters still run.
 Unauthenticated development doors/personas are outside this promise. A read
 bearer on a development write door is refused too.
 

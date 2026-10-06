@@ -34,9 +34,9 @@ fn fetch(h:&Host,id:&str,header:&str,range:bool)->String {
 }
 pub(super) fn matrix(h:&Host,read:Option<&str>) {
     if let Some(read)=read {
-        for id in ["missing","hidden","expired","released"] { for header in [FULL,read] {
-            let response=fetch(h,id,header,false);assert_eq!(status(&response),404,"{id}: {response}");assert_eq!(body(&response)["denied"]["code"],"E_ASSET_UNKNOWN");
-        } }
+        for id in ["missing","hidden","expired","released"] { for header in [FULL,read] { for range in [false,true] {
+            let response=fetch(h,id,header,range);assert_eq!(status(&response),404,"{id}: {response}");assert_eq!(body(&response)["denied"]["code"],"E_ASSET_UNKNOWN");
+        } } }
         for range in [false,true] {
             let a=fetch(h,"ordinary",FULL,range);let b=fetch(h,"ordinary",read,range);
             assert_eq!(status(&b),if range {206}else{200});assert_eq!(a.split_once("\r\n\r\n").unwrap().1,b.split_once("\r\n\r\n").unwrap().1);
@@ -49,7 +49,9 @@ pub(super) fn matrix(h:&Host,read:Option<&str>) {
         assert_eq!(status(&fetch(h,"once",read,false)),403);std::fs::write(path,bytes).unwrap();
     }
     assert_eq!(status(&fetch(h,"once",FULL,false)),200);
-    for header in std::iter::once(FULL).chain(read) {let response=fetch(h,"once",header,false);assert_eq!(status(&response),410);assert_eq!(body(&response)["denied"]["code"],"E_ASSET_VIEWED");}
+    for header in std::iter::once(FULL).chain(read) {
+        let ranged=fetch(h,"once",header,true); assert_eq!(status(&ranged),416); assert_eq!(body(&ranged)["denied"]["code"],"E_ASSET_RANGE");
+        let response=fetch(h,"once",header,false);assert_eq!(status(&response),410);assert_eq!(body(&response)["denied"]["code"],"E_ASSET_VIEWED");}
 }
 #[test]
 fn complete_asset_matrix_preserves_access_order_and_once_consumption() {

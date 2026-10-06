@@ -21,6 +21,12 @@ export function validateReadOptions(options: { readOnly?: boolean; persona?: str
   if (code) throw Object.assign(new Error(`${code}: ${readOnlyRefusal(code).message}`), { why: readOnlyRefusal(code) });
 }
 
+// App custody is awaited before publishing a verified refresh. Public onSession
+// listeners remain notifications: their returned work must never hold rotation.
+const custody = new WeakMap<Client, (session: Session) => Promise<void>>();
+export const registerReadCustody = (client: Client, commit: (session: Session) => Promise<void>) => { custody.set(client, commit); };
+export const commitReadCustody = (client: Client, session: Session) => custody.get(client)?.(session);
+
 const readiness = new WeakMap<Client, () => Promise<Refusal | undefined>>();
 export const registerReadVerification = (client: Client, verify: () => Promise<Refusal | undefined>) => { readiness.set(client, verify); };
 export const verifyReadClient = (client: Client) => readiness.get(client)?.() ?? Promise.resolve(undefined);

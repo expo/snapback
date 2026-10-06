@@ -109,3 +109,27 @@ test('successor verification recovers private custody, persists once and authent
   assert.equal(restarted.auth.state, 'signed-in');
   assert.ok('data' in await restarted.client.query(query, {}));
 });
+
+test('consumed predecessors leave custody after each persisted successor', async t => {
+  const original = session('bob', 'ro.0'), store = storage(original);
+  let sequence = 0;
+  const app = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/refresh') return Response.json({ session: session('bob', `ro.${++sequence}`) });
+    if (path === '/probe') return Response.json({ ok: true, scope: 'read', viewer: 'bob', store_id: 'test', seq: 0 });
+    return fetcher(input, init);
+  } });
+  t.after(() => app.close()); await app.ready;
+  // Callback work can itself await the client; notification must not hold rotation.
+  const notifications = [];
+  app.client.onSession(async next => { if (next) notifications.push(await app.client.query(query, {})); });
+  for (let i = 1; i <= 32; i++) {
+    assert.equal((await app.client.refreshSession()).ok, true);
+    assert.equal(JSON.parse(store.values.get(key)).token, `ro.${i}`);
+  }
+  await waitFor(() => notifications.length === 32);
+  // A peer restoring a consumed predecessor no longer matches our deletion authority.
+  await store.set(key, JSON.stringify(original));
+  await app.auth.logout();
+  assert.equal(JSON.parse(store.values.get(key)).token, original.token);
+});
