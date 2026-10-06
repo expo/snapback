@@ -260,3 +260,43 @@ checkpoint: `a8185931fe`. Every Round 1 commit has the requested Astra trailer.
 After completion, removed only this lane's 1,636 closed SQLite fixture sidecars
 (1,777,750,968 bytes), whose recorded test PIDs had exited. Shared compiler
 artifacts were left intact. No push or publication.
+
+
+## Round 2 — shared full-session custody (2026-10-06)
+
+Checkpoint `adde06ee5c` removes `app-read-only.ts`; `createApp` now uses one
+custody state machine for both modes. The policy selects `.read` session,
+epoch and retirement keys, scope verification, read-scoped sign-in and the
+cap-aware client, while omitting device/write owners and refusing global logout.
+The shared path owns logout epochs, provisional opening, rollback, facade
+ownership and auth publication before withdrawal notifications. Full-session
+sign-in bodies and default storage keys remain unchanged.
+
+Refreshes with a verification gate retain a private `snapback4Successor`
+receipt in the session record under the shared custody lock. Peers and restart
+recover that issued credential instead of refreshing a consumed predecessor.
+The active token and all public session/read/asset access remain gated until
+verification and commit; success removes the receipt atomically. Logout and
+replacement retain both tokens for scope-checked retirement. Ordinary close
+preserves pending custody. These details are recorded in RFC §1.4.
+
+Permanent tests cover all four Round 2 findings, both real-server reproductions,
+and the original Round 0 regressions. Variations include login/guest held during
+verification, subscriber withdrawal on same-app replacement, old facade calls
+during replacement verification, refresh peers arriving during response or
+persistence, repeated failed probes and recovery after close/restart. The shared
+full-session commit-result contract is preserved: a login whose durable commit
+finished may return success even when a concurrent logout prevents public
+adoption. The held-write regression asserts signed-out state, no credential and
+signed-out restart. Logout now leaves the shared noncredential epoch tombstone.
+
+The low finding now compares numeric `meter.heapBytes` (also requiring numeric
+examined/steps values). The unknown-query refusal has no meter and remains in
+whole-answer parity coverage. A positive read `/sync` test checks status 200,
+full-response equality and an unchanged application snapshot.
+
+Focused verification: 25 custody tests pass (18 races/variations, 4 original SDK
+regressions, 3 real-server cases); all 8 Rust read-only HTTP tests pass. Package
+typecheck/build pass. The full app/session selection and complete suite are
+running with default model counts. Wasm has already passed inside that suite;
+final counts and evidence will be appended when it finishes. No push.
