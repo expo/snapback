@@ -87949,3 +87949,39 @@ their prior pixel verdict. The Round 4 report binds final source, control result
 score margins and evidence custody; historical runs retain their source pins.
 No simulator segment was rerun because no archived detector verdict changed.
 Phase 2, scores and publication remain disabled. No push.
+
+
+### 2026-10-06 — PS: process inspection on large hosts
+
+The 0.4.14 Darwin dry run's two-second ps refusal reproduced through the
+injected runner in 2,005.6 ms. Retain full-table lstart and fail-closed custody:
+only ETIMEDOUT discards partial output and retries once with a 60-second bound;
+all other command failures and a failed retry still refuse. The existing three
+fresh routing snapshots, exact error evidence and keeper-only signaling stay
+unchanged. Synchronous inspection also blocks other files' progress IPC and
+can delay the keeper's cleanup pipe EOF, so the shared watchdog and cleanup's
+five-second wait window now exclude that time. Late progress cannot rearm a
+completed file's watchdog; two fresh empty group inspections remain mandatory.
+
+On eb1000 alone, taskset CPUs 56–79, seven samples at each population measured
+full ps medians of 47.257 / 96.377 / 293.893 / 530.598 ms for approximately
+1,170 / 2,174 / 6,173 / 11,176 rows. Temporary C children waited on our pipe and
+were all reaped after EOF. No other session's processes were changed. Omitting
+lstart barely changed Linux timings; the reported M5 timeout establishes that
+its two-second budget was insufficient, not a measured Darwin completion time.
+
+All 89 focused tests pass. The original runner fails both slow-inspection
+recovery phases and the queued-progress regression; restoring only its cleanup
+wall clock also fails slow cleanup. LLP references validate with zero errors.
+The [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md) records the
+complete-suite result and retained logs; the
+[ticket](../issues/closed/20261006-snapback4-ps-inspection-timeout.md) is closed.
+Wasm/product code, seeds and ownership are unchanged. No remote qualification,
+push or publication.
+
+PS closeout after session resumption: the focused pair passed 89/89 again in
+40.772 s. A fresh idle-CPU sample selected CPUs 0–31 and 48–79 for the complete
+suite using the existing build cache: **0 failures in 1,473 s**, including
+322/322 client files (6,452 passes, 47 declared skips), 79/79 serial model tests,
+and all native/build/typecheck/fixture stages. The report retains the complete
+compressed log. The repeated LLP reference check reports zero errors.

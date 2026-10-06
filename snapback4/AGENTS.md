@@ -89,7 +89,11 @@ Gotchas you cannot derive from the code:
   file and never authorizes a runner signal. Cleanup requires two consecutive
   inspections (50 ms apart) with no living group member. Observed leftovers
   fail as TEST_FILE_LEAK. Failed listings and unclassifiable PID/PPID/PGID
-  prefixes remain fail-closed. Precisely recognized exit-time routing anomalies
+  prefixes remain fail-closed. A ps timeout at two seconds retries once with a
+  60-second bound; all other command errors refuse immediately. The file stall
+  clock and cleanup's five-second retry window exclude synchronous inspection
+  time, including inspection for other files in the shared pool. Precisely
+  recognized exit-time routing anomalies
   discard the whole snapshot and retry at most twice, 50 ms apart; persistent
   anomalies refuse and never confer ownership (LLP 3000 §7, QF2).
   Metadata is validated for group members and

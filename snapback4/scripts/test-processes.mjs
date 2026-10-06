@@ -5,6 +5,10 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
 class TransientRouting extends Error {}
+let inspectionMs = 0;
+// All files in the pool share this event loop. Time spent synchronously
+// inspecting cannot be used to judge their undelivered progress events.
+export const inspectionClock = () => performance.now() - inspectionMs;
 
 // Only recognized exit-time routing anomalies get another snapshot. Never
 // drop a damaged row or let its apparent PID confer ownership/exemption.
@@ -70,14 +74,23 @@ function metadataFailure(pid, error, raw, exists) {
 // @ref LLP 3000#publication-suite-under-contention — classify every routing
 // prefix before validating metadata; unrelated rows cannot refuse a file.
 export function processTable(options = {}) {
-  return freshSnapshots(() => processSnapshot(options));
+  const started = performance.now();
+  try { return freshSnapshots(() => processSnapshot(options)); }
+  finally { inspectionMs += performance.now() - started; }
 }
 
 function processSnapshot({ run = spawnSync, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
-  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
-    timeout: 2000, maxBuffer: 16 * 1024 * 1024,
-    env: { ...process.env, LC_ALL: 'C' },
-  });
+  // A large Darwin table can exceed two seconds. Discard timed-out output
+  // and retry once with headroom; no other failure authorizes another call.
+  // This budget is independent of the three-fresh-snapshot routing retry.
+  let result;
+  for (const timeout of [2000, 60_000]) {
+    result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
+      timeout, maxBuffer: 16 * 1024 * 1024,
+      env: { ...process.env, LC_ALL: 'C' },
+    });
+    if (result.error?.code !== 'ETIMEDOUT') break;
+  }
   if (result.error || result.status !== 0 || !result.stdout?.toString().trim())
     throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
   // Split bytes, not decoded text, so a rejected row retains its exact bytes.
@@ -169,7 +182,9 @@ export function ownedProcesses(keeper, inspect = processTable, { includeKeeper =
 
 export async function cleanupProcesses(keeper, { inspect = processTable, release } = {}) {
   release(); // unconditional, even when preliminary inspection found no leak
-  const deadline = performance.now() + 5000;
+  // Pipe EOF needs the runner's event loop too. A slow synchronous inspection
+  // must not consume the time allowed to deliver it and verify group exit.
+  const deadline = inspectionClock() + 5000;
   const found = new Map();
   let empty = 0, remaining = [];
   do {
@@ -178,6 +193,6 @@ export async function cleanupProcesses(keeper, { inspect = processTable, release
     if (remaining.length) empty = 0;
     else if (++empty === 2) return [...found.values()];
     await sleep(50);
-  } while (performance.now() < deadline);
+  } while (inspectionClock() < deadline);
   throw new Error(`TEST_FILE_LEAK: no two consecutive empty group inspections: ${JSON.stringify(remaining)}`);
 }

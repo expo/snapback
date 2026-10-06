@@ -14,6 +14,108 @@ const table = platform => readFileSync(new URL(`${platform}.txt`, fixtures));
 const parse = (stdout, options = {}) => processTable({ run: () => ({ status: 0, stdout }), exists: () => true, ...options });
 const row = (pid, parent, group, metadata = '501 Sat Oct  3 01:02:03 2026 S /tmp/synthetic helper') => `${pid} ${parent} ${group} ${metadata}\n`;
 const exitingLinux = '1301666       0 4294967295 1000 Sun Oct  4 05:45:04 2026 X+ snapback4\n';
+const timedOut = () => ({ status: null, error: Object.assign(Error('spawnSync ps ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+  stdout: row(999, 1, 100), stderr: 'incomplete listing' });
+
+test('ps timeout discards partial output and retries once with a larger bounded budget', () => {
+  const budgets = [];
+  const rows = processTable({ run: (command, args, options) => {
+    assert.equal(command, 'ps');
+    assert.deepEqual(args, ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm=']);
+    assert.equal(options.env.LC_ALL, 'C');
+    assert.equal(options.maxBuffer, 16 * 1024 * 1024);
+    budgets.push(options.timeout);
+    return budgets.length === 1 ? timedOut() : { status: 0, stdout: row(100, 1, 100) };
+  } });
+  assert.deepEqual(budgets, [2000, 60_000]);
+  assert.deepEqual(rows.map(r => r.pid), [100]);
+});
+
+for (const failure of [timedOut(), { status: 2, stderr: 'ps refused' },
+  { status: 0, stdout: '' }, { status: null, error: Object.assign(Error('missing ps'), { code: 'ENOENT' }) }])
+test(`ps failure stays closed with bounded calls: ${failure.error?.code ?? `status ${failure.status}`}`, () => {
+  let calls = 0;
+  assert.throws(() => processTable({ run: () => { calls++; return failure; } }), /TEST_PROCESS_INSPECTION/);
+  assert.equal(calls, failure.error?.code === 'ETIMEDOUT' ? 2 : 1);
+});
+
+test('a nonzero exit after timeout still refuses instead of trusting its stdout', () => {
+  let calls = 0;
+  assert.throws(() => processTable({ run: () => ++calls === 1 ? timedOut()
+    : { status: 2, stdout: row(100, 1, 100), stderr: 'retry refused' } }), /TEST_PROCESS_INSPECTION: ps failed: status 2.*retry refused/);
+  assert.equal(calls, 2);
+});
+
+test('timeout recovery cannot renew the three-fresh-snapshot transient-routing budget', () => {
+  const budgets = [];
+  assert.throws(() => processTable({ platform: 'linux', run: (_command, _args, options) => {
+    budgets.push(options.timeout);
+    return budgets.length % 2 ? timedOut() : { status: 0, stdout: exitingLinux };
+  } }), error => error.message.includes(Buffer.from(exitingLinux.trimEnd()).toString('base64')));
+  assert.deepEqual(budgets, [2000, 60_000, 2000, 60_000, 2000, 60_000]);
+});
+
+for (const phase of ['before release', 'cleanup verification'])
+test(`a ps taking over two seconds recovers and passes the file (${phase})`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-slow-ps-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'healthy.test.mjs');
+  writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
+  let keeper, snapshots = 0;
+  const budgets = [], durations = [];
+  const result = await runFile(file, { timeout: 3000, onOutput: () => {}, onStart: child => { keeper = child; },
+    inspect: options => {
+      snapshots++;
+      return processTable({ ...options, run: (command, args, options) => {
+        if (budgets.length >= 2 || keeper.stdin.writableEnded !== (phase === 'cleanup verification'))
+          return spawnSync(command, args, options);
+        budgets.push(options.timeout);
+        // Exercise Node's real spawnSync timeout, then finish a fresh full ps
+        // inside the larger bound. No shell/sleep child can outlive the timeout.
+        const started = performance.now();
+        const result = spawnSync(process.execPath, ['-e', `setTimeout(() => {
+          const r = require('node:child_process').spawnSync(${JSON.stringify(command)}, ${JSON.stringify(args)},
+            {timeout:60000,maxBuffer:16*1024*1024});
+          if(r.stdout) process.stdout.write(r.stdout);
+          if(r.stderr) process.stderr.write(r.stderr);
+          process.exitCode = r.status ?? 1;
+        }, 3100);`], options);
+        durations.push(performance.now() - started);
+        return result;
+      } });
+    },
+  });
+  assert.deepEqual(budgets, [2000, 60_000]);
+  assert.ok(durations[0] >= 2000 && durations[1] >= 3100, JSON.stringify(durations));
+  assert.ok(snapshots >= 3, 'pre-release inspection plus two fresh cleanup snapshots');
+  assert.equal(result.counts.pass, 1);
+  assert.equal(result.code, 0, JSON.stringify(result));
+  assert.equal(result.passed, true, JSON.stringify(result));
+  assert.equal(result.reason, undefined, JSON.stringify(result));
+  assert.equal(result.keeperExit.cleanupAcknowledged, true, JSON.stringify(result));
+});
+
+for (const failure of ['timeout', 'nonzero exit'])
+test(`a passing test file fails closed when ps persistently returns ${failure}`, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-failed-ps-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'healthy.test.mjs');
+  writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
+  const budgets = [];
+  const result = await runFile(file, { onOutput: () => {}, inspect: options => processTable({ ...options,
+    run: (_command, _args, options) => {
+      budgets.push(options.timeout);
+      return failure === 'timeout' ? timedOut() : { status: 2, stderr: 'ps refused' };
+    },
+  }) });
+  assert.equal(result.counts.pass, 1);
+  assert.equal(result.code, 0);
+  assert.equal(result.passed, false);
+  assert.equal(result.reason, 'TEST_PROCESS_INSPECTION');
+  assert.match(result.inspectionFailure, failure === 'timeout' ? /ETIMEDOUT/ : /status 2.*ps refused/);
+  assert.deepEqual(budgets, failure === 'timeout' ? [2000, 60_000, 2000, 60_000] : [2000, 2000]);
+  assert.equal(result.keeperExit.cleanupAcknowledged, true, JSON.stringify(result));
+});
 
 // The bad snapshot must be discarded, never used as a source of ownership.
 // A fresh table, not the apparent PID's existence, decides whether we recover.
