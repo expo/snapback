@@ -1,0 +1,11 @@
+{
+  "name": "@snapback-bench/clique-native-instrument-tests",
+  "version": "0.4.0-native.2",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-test-renderer": "19.2.3"
+  }
+}

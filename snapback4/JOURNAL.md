@@ -88131,3 +88131,62 @@ on the Apartment mini; no real simulator, other worktree, remote host, push
 or publication was used. The [report](reports/20261006-rm-read-match/REPORT.md)
 contains the exhaustive state inventory, governing sections and verification
 logs. Changes are committed locally with the requested GPT-6 Astra trailer.
+
+## 2026-10-06 — NI2 reference/control repairs qualified; Phase 2 still pending
+
+Native.1 remains byte-frozen. Native.2 implements the four accepted repairs
+across fixture handoff, passive observation, the Expo/Release runtime baseline,
+and truthful startup evidence. Its base 28-segment live matrix and 52 artifact
+controls matched expectation. The sole deliberate carried-live change rejects
+`scroll-no-screen` as `screen-row-detached`. The Release runtime proof passed
+eight checks across two processes, including a real SecureStore write/read and
+restoration; its 45.62-second video contains 840 decoded frames. The final
+source identity, qualification anchor and evidence live in the
+[NI2 report](reports/20261006-ni2-native-instrument/README.md).
+
+Both retained Convex segments reproduce the intended missing-UIScene setup-null
+outcome. Both retained Snapback 4 segments reproduce the foreground missing
+SecureStore entitlement setup-null outcome. The unavailable-host control
+also passes and remains unmeasured. The instrument qualification records are
+complete. Fresh-packet readiness and the Phase-2 rerun remain pending.
+`scoredUse` is false; no pilot was launched and no push was made.
+
+## 2026-10-06 — NI2 packet and archive closeout after the eb1000 crash
+
+The fresh packet on the Apartment mini is sealed and dry-run ready: 633 files,
+seal `bdcdc5ead202ec15b4282164fe2eda78450a2882dc473fccbaacb4fe2dbd04e0`.
+Its retained 69 macOS harness selftests and cold/readiness receipt pass. Read-only
+recovery checks verified the seal, 86 prelaunch evidence files, the durable
+runner and cold builder lanes with empty attempts/results. The unavailable
+control in the preceding entry is specifically the unavailable simulator.
+
+Only the packet tarball transfer was incomplete. Resuming it brought all 3,821
+mini archive files into matching local custody. The finalized archive index
+covers 9,921 files / 2,200,649,648 bytes; every indexed hash passes. The
+[NI2 report](reports/20261006-ni2-native-instrument/README.md) links its committed
+index receipt and large-file hashes and records the exact future start command.
+It preserves the deliberate `scroll-no-screen` rejection and the first final
+M8 capture's unmeasured endpoint-coverage failure alongside its passing repeat.
+No evidence was lost, no qualification repeated, no pilot launched and no push
+made. `scoredUse` remains false; the Phase-2 rerun remains pending.
+
+## 2026-10-06 — NI2 Round 2 reviews folded; fresh packet resealed
+
+All seven Astra/Grok correction groups are implemented. The final instrument
+source is `8db637eb5929c7b58f76b34664256cd2bd3c9b3d`, inventory
+`7502936bea8367523b0f2ede4b6a0a49045cf75595c3129a6f2f9e40237a7659`. Qualification matched 30 live and 52
+artifact cases, passed 114 Python tests and both blind final-source reviews,
+and retained the exact-input eight-check runtime proof. Both unchanged
+independent apps reproduce their setup-null outcomes in M6/M8; neither is
+repaired or admitted. The two passive fault-control expectation repairs were
+rerun; earlier measured results retain their original source identities.
+
+The first retained M8 movie has a terminal sample and passes the corrected
+strictly sub-frame end tolerance on revalidation without an app rerun. Its
+original null receipts remain unchanged; it predates writer-flush custody.
+The new packet `/Users/ccheever/clique-native-pilot2-20261006-round2` is sealed and cold/readiness checked, with
+72 macOS selftests and no skips. The archive index binds 16,746
+files, including 346 evidence files over 1,000,000 bytes.
+See the [Round-2 report](reports/20261006-ni2-native-instrument/README.md#round-2).
+Native.1 is byte-unchanged, no pilot was launched, no push was made, and
+`scoredUse` stays false.

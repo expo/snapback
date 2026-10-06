@@ -1,0 +1,1295 @@
+{
+  "schemaVersion": "ni2-evidence-index.v1",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2",
+  "createdAt": "2026-10-06T10:54:49.454989+00:00",
+  "excludedDependencyAndSourceCaches": [
+    "__pycache__",
+    "node_modules",
+    "review-source",
+    "review-source-final",
+    "source-0909",
+    "source-a759",
+    "unit-final-source",
+    "unit-source",
+    "venv"
+  ],
+  "fileCount": 255,
+  "totalBytes": 1693539049,
+  "files": [
+    {
+      "path": "closeout/mini-integrity.json",
+      "bytes": 1626416,
+      "sha256": "005653557563fe468f35d303bf81b0c79fa5fc0b4389d662bda2fdbd961c2d4d"
+    },
+    {
+      "path": "closeout/remote-archive-before-transfer.json",
+      "bytes": 1528870,
+      "sha256": "e5f346da97dfb3a5ea4ee156a93677f946405dcfd899e0f45b713f646044fffa"
+    },
+    {
+      "path": "closeout/remote-archive-local-map.json",
+      "bytes": 1483016,
+      "sha256": "21981b30276a3288d9911e13ab63ac19e2ba05381848407d36b7f9255e524db8"
+    },
+    {
+      "path": "final-packet-preparation/runtime-baseline/built-app/main.jsbundle",
+      "bytes": 1445811,
+      "sha256": "f44ce3cc8df375b5407a7720f1d62b534e09fd3d961d5f9027af29279e6e0856"
+    },
+    {
+      "path": "final-packet-preparation/runtime-baseline/runtime-launch-through-restore.mp4",
+      "bytes": 11947440,
+      "sha256": "7cccd08df13f4c9f1249b6469a9abc727360a4ff2d1a964d8ca09928529ef4a8"
+    },
+    {
+      "path": "final-packet-source/native2-final-packet-inputs.tar.gz",
+      "bytes": 4014404,
+      "sha256": "19fb769a8505eb932e64ab32dd99347cbfb32e50baf6d1bffe223908e0301f10"
+    },
+    {
+      "path": "final-packet-source/stage/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "fresh-phase2-packet.tgz",
+      "bytes": 76362383,
+      "sha256": "7807caf9780c24ac8035e8e24e936b879b725eacd115ceea81c86c3e7368eb62"
+    },
+    {
+      "path": "independent-regressions-0909/convex-m6/evidence/startup-ios-screen.mp4",
+      "bytes": 1737764,
+      "sha256": "d1fa5479a8d5ad869ea238647d6f5eb9edba7407fcbc8e2c0daecb666bc18c16"
+    },
+    {
+      "path": "independent-regressions-0909/convex-m6/store/data.sqlite3",
+      "bytes": 4018176,
+      "sha256": "a4ec4f76b1db6e71d7331a113c0a67411c35d4f3fdec9052d785eb8026ee027d"
+    },
+    {
+      "path": "independent-regressions-0909/convex-m8/evidence/startup-ios-screen.mp4",
+      "bytes": 1890394,
+      "sha256": "b776fb9ace5e9ecb9ed6b8dc31cfb0b23c229bbd29d323fbe8c1622f94aa5735"
+    },
+    {
+      "path": "independent-regressions-0909/convex-m8/store/data.sqlite3",
+      "bytes": 4018176,
+      "sha256": "168353a0fcedd928b33c04c3ecb7ab6691134af27853510a3aa23edcf0dcd0d4"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m6/evidence/startup-ios-screen.mp4",
+      "bytes": 4522351,
+      "sha256": "5bd00d6018638776100845447feaffd16d47c5db539a6a0c172b67972613e27c"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m6/store/.snapback4/store.sqlite",
+      "bytes": 1245184,
+      "sha256": "02ec13f259d70e034c45c65f6bd3f0fd1429f308116cbcf0dc4fcc54a8532448"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m6/store/.snapback4/store.sqlite-wal",
+      "bytes": 4412552,
+      "sha256": "86ff1b50936e6db7e0af2ac44383c560f01c991c2bf599bcc944f1d2953c2c77"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m8/evidence/startup-ios-screen.mp4",
+      "bytes": 4935846,
+      "sha256": "7ccaa948ca81db257250542eab1c85dea95cc3620d60e2341324a3e7ceb33333"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m8/store/.snapback4/store.sqlite",
+      "bytes": 1351680,
+      "sha256": "94f3955e0dd2ee00800095169f96031a7aa6c87f41249960d11f3a428f5a89fc"
+    },
+    {
+      "path": "independent-regressions-0909/snapback4-m8/store/.snapback4/store.sqlite-wal",
+      "bytes": 4375472,
+      "sha256": "526a8e039468c166b332ce624e89c6c27d1b6c311514d0bf4cab256694fb3e35"
+    },
+    {
+      "path": "independent-regressions-first/convex-m6/store/data.sqlite3",
+      "bytes": 3665920,
+      "sha256": "8e76e7e3a76d3228122da457853d8373669cc5d4945a4736398e518d2e96e5de"
+    },
+    {
+      "path": "independent-regressions-r2/convex-m6/evidence/startup-ios-screen.mp4",
+      "bytes": 1722493,
+      "sha256": "f0563f85aa4c1dc41a19c582bd544aff7d8da9cbbb187b2ae2f9eaae742aa61c"
+    },
+    {
+      "path": "independent-regressions-r2/convex-m6/store/data.sqlite3",
+      "bytes": 4018176,
+      "sha256": "9cd7b84f53b7de4a570afa53392b311fd0e3198dbffa89fd290054b858c10f90"
+    },
+    {
+      "path": "mini-runs/exploratory-after-modal/none-m6-20261006-000834/evidence/m6-ios-screen.mp4",
+      "bytes": 9222008,
+      "sha256": "a9fd59e533a46c964328cb4df6ae4a9025cb2179d245dba68b41437857bdf26b"
+    },
+    {
+      "path": "mini-runs/exploratory-after-modal/none-m6-20261006-000834/evidence/startup-ios-screen.mp4",
+      "bytes": 4873044,
+      "sha256": "6a9620ce3fa33bca33e52a54933791b2c02f81aedc0510aef2383283679aeb19"
+    },
+    {
+      "path": "mini-runs/exploratory-after-modal/none-m6-20261006-000834/test.xcresult/Data/data.0~m93lHgMjy3srYUzYkeKnfdFgFdZyiGwccZj-MCLc5TB8CKaUqvKe-Kv-YZ__7y3x-B-zqG1VzMBiJrnw9kxbwQ==",
+      "bytes": 1322414,
+      "sha256": "bd1083ba0652c7f5360f579634ec7daca8a2d3cbaa047afd5da3eab7f1328829"
+    },
+    {
+      "path": "mini-runs/exploratory-reference/none-m6-20261005-235500/evidence/startup-ios-screen.mp4",
+      "bytes": 3437580,
+      "sha256": "7a240ca438ce0f723c0a8ebe7032a452befc4c1571e06a7825ed37086e6cdfc5"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/async-viewonce-m6-20261006-002946/evidence/m6-ios-screen.mp4",
+      "bytes": 2119141,
+      "sha256": "949db2ccfa01bf45fc41fd43fc5b958416e1b4a1621170cc7c19d51d6c3261dc"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/async-viewonce-m6-20261006-002946/evidence/startup-ios-screen.mp4",
+      "bytes": 3878528,
+      "sha256": "4ba6fbd97bd293eb7998fed9b14c225ff59a8fa14ba3a3ecf265467338e73c12"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/bob-wrong-conversation-m6-20261006-004612/evidence/m6-ios-screen.mp4",
+      "bytes": 8599555,
+      "sha256": "263972b6effaf394d4331bd280ec112ae372fd132f4bdbb4e4382f815c8882d1"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/bob-wrong-conversation-m6-20261006-004612/evidence/startup-ios-screen.mp4",
+      "bytes": 3847629,
+      "sha256": "9afb66a9b48ae8b934f65f9c618ba87de1de06544d5e412ddf279a082f85cb3f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/bob-wrong-conversation-m6-20261006-004612/test.xcresult/Data/data.0~43KHRk3D_hpPQo1n5RpzFDTW_6ucxPoN_8huo1-DYBv31RfRa49LRDJ8kRmnt02iyKzI5_HUA73ZlBGHb2vEQw==",
+      "bytes": 1305940,
+      "sha256": "9c612ba6826b9d39fe2196f44b109fc634d83f375ed0ddc1a950007cc2fdb833"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/bright-viewonce-m6-20261006-002354/evidence/m6-ios-screen.mp4",
+      "bytes": 2035389,
+      "sha256": "24e4c715190da72d10c9d229090553461bd309fb261b380de6ae3a5dde415c55"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/bright-viewonce-m6-20261006-002354/evidence/startup-ios-screen.mp4",
+      "bytes": 3933440,
+      "sha256": "1363c3ab526cd7ab782b5d28024c006312640c52f2d4d18632ccc50afcf90e9f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/collapsed-receipt-m6-20261006-004435/evidence/m6-ios-screen.mp4",
+      "bytes": 5807725,
+      "sha256": "b15e405776f15604e64e3f5cfcb10abdb488f18af445f689a5b3bfec9e42bf39"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/collapsed-receipt-m6-20261006-004435/evidence/startup-ios-screen.mp4",
+      "bytes": 3800638,
+      "sha256": "fcdb45598ec9dcd8ec7bdb3cdf5693e40e85d1475113b86816995d38f822e5e3"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-bob-m6-20261006-004813/evidence/m6-ios-screen.mp4",
+      "bytes": 8054906,
+      "sha256": "5a2cac08139e58114e080e9a8e4b3ca087a04afa95d868ea2f79cf24b04966f5"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-bob-m6-20261006-004813/evidence/startup-ios-screen.mp4",
+      "bytes": 3911790,
+      "sha256": "2248063c6e220dd24d7c0aa0ddcd24fe494278f8c244419ed41ae86d09039503"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-bob-m6-20261006-004813/test.xcresult/Data/data.0~uSEp3goTvYqkdoGyXxRDliTC05j53B3c20PCCV-9J47SS3wwmDvw8HNZSMKvuMBWbinBGpjski3JqZkZ9uJlgA==",
+      "bytes": 1297777,
+      "sha256": "af3f6753fbaa3cef3dd4a537678bb8d8a34c8e805f5f5a3e4e2c4cfdf458058c"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-refusal-m6-20261006-002450/evidence/m6-ios-screen.mp4",
+      "bytes": 8371313,
+      "sha256": "b34ed53fa39f1f69e0d94f79dfc48509519843591eee6adda6fe7c443ca6f863"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-refusal-m6-20261006-002450/evidence/startup-ios-screen.mp4",
+      "bytes": 4025473,
+      "sha256": "059730aae13063dbfa08d615f47423b54daf1b03f01840ceb191786e353220aa"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/delayed-refusal-m6-20261006-002450/test.xcresult/Data/data.0~BBbOgFCI1rSWlpPBs1Fmp6PanpmBwCYXA4YmwxGfephobJhDGp2fIJepg3PdU-cmA5cUL-iz4e9jHg1RbDUyTg==",
+      "bytes": 1348265,
+      "sha256": "6beb55f2c3f3ae74c65a5804cb698ba026b694810004b2b74c8b7539fea3c29b"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/duplicate-sends-m6-20261006-003636/evidence/m6-ios-screen.mp4",
+      "bytes": 8615449,
+      "sha256": "37f5697306d8e21b976b918b491f0ce20cdd4ea00995ea7f5095d8676b326e03"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/duplicate-sends-m6-20261006-003636/evidence/startup-ios-screen.mp4",
+      "bytes": 4262337,
+      "sha256": "36e9e68e20f976ae4b7ecb726c8f063a830d9a259c3e77a09d301b32ba1edafe"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/duplicate-sends-m6-20261006-003636/test.xcresult/Data/data.0~WZCNO4CIJZKQTMNXsUFs3oZM6rhuj4QUDsHo4_Vy5fRR_q9_oCfZjKHWMJH81PXNlGvrBLaTCVCyGZoUNLw8tg==",
+      "bytes": 1311023,
+      "sha256": "e6dcbd335fa7b994311ad38e1b76a38ed07b9246a49219e22cfd121a3e9883ac"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/elsewhere-viewonce-m6-20261006-002257/evidence/m6-ios-screen.mp4",
+      "bytes": 2605167,
+      "sha256": "d404d26273607bf4d84a8ef6fdbaa53a93f783e278163fa6c2a36df297e433f0"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/elsewhere-viewonce-m6-20261006-002257/evidence/startup-ios-screen.mp4",
+      "bytes": 3854841,
+      "sha256": "6c329533b51ee8ecc19515879a5d3234fe654eb9fccfb94e30adf7d9412c4b02"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/journal-failure-m6-20261006-010038/evidence/m6-ios-screen.mp4",
+      "bytes": 7561200,
+      "sha256": "d651822f8061c4f79e7759526cc759b71310e8f8c9aa1e861dd2e972da8a1de7"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/journal-failure-m6-20261006-010038/evidence/startup-ios-screen.mp4",
+      "bytes": 3832012,
+      "sha256": "d14135f0cad67feae3350268d77f83f27455526f570b818400dbad370edc9124"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/journal-overflow-m6-20261006-010145/evidence/m6-ios-screen.mp4",
+      "bytes": 8514350,
+      "sha256": "ed43bd92ec1a83e9f6cbfe4a79e6ecad614acd11186a85d07c3ac9e8fdf87138"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/journal-overflow-m6-20261006-010145/evidence/startup-ios-screen.mp4",
+      "bytes": 3827548,
+      "sha256": "54a11ed40164c51a08c3309ff60afad27656b8d6b5abf7016e31a3508b7050bc"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/late-bob-m6-20261006-005010/evidence/m6-ios-screen.mp4",
+      "bytes": 8429995,
+      "sha256": "86d337acef9df6d019475b16815f717adf21c7e33db867ca8ce2c3faeb3e61d0"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/late-bob-m6-20261006-005010/evidence/startup-ios-screen.mp4",
+      "bytes": 3964717,
+      "sha256": "1cdd90775418fcf538b9c291f443a82f059ec5607d01b52bf375a99473642db7"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/late-bob-m6-20261006-005010/test.xcresult/Data/data.0~gZTRS0qT-piQsCuRYndxKShy_kSESCQjEi_HAqGXiuWqxfNOiGNm-MXqKQGE_boutg5t7TgXEwnB4i-y3X0Bog==",
+      "bytes": 1300033,
+      "sha256": "697a2f9d38b537c8ff40970f3a11d278de8b460426be19da478a6d4ed1830fcb"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/navigation-claim-m6-20261006-004316/evidence/m6-ios-screen.mp4",
+      "bytes": 3162659,
+      "sha256": "c4631ca894ec3a7a8ea3c20d4033fc3cd35ce3f20176f6e6c678b78652e7ee2a"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/navigation-claim-m6-20261006-004316/evidence/startup-ios-screen.mp4",
+      "bytes": 3755931,
+      "sha256": "47a5edff0b142f7f51f1b23537b66c8f84718d76800def1fc83ff485786b5347"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/newest-first-m6-20261006-003046/evidence/m6-ios-screen.mp4",
+      "bytes": 9898669,
+      "sha256": "ae522ac9a6617553fc3f7b2f9c881db681eab4fe6d10a8fe1559ed280490267f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/newest-first-m6-20261006-003046/evidence/startup-ios-screen.mp4",
+      "bytes": 4639042,
+      "sha256": "31eab8fc13f61424b87ec9024e6e1f83ce3d3f4d87aa8cd9ec8c3d2fc05b51f0"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/newest-first-m6-20261006-003046/test.xcresult/Data/data.0~lMAJ-6CwPD9wmBI7C-jWNN8KcqiBnrXffYnU7oUJAYlSO4c4rNfnKkuZAtOVehJDBzXhSNhrIsKM9wxjERD1WQ==",
+      "bytes": 1323833,
+      "sha256": "83bb78c92b08e8e9e2c56f610c7fe47257a484628717e559fcae85ef89d8cb6f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m6-20261006-001826/evidence/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m6-20261006-001826/evidence/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m6-20261006-001826/test.xcresult/Data/data.0~9Tt7SphreK0cAIADPlzD3NiB-Rexi_Rr4GjTzLABS30sj-giDVLgRvA9xHMegj59ZwrNR03FXgHUm_OJEGO3iA==",
+      "bytes": 1302458,
+      "sha256": "f661f7734cd9d56e564e32213aa1375a01d04230d7fc68ca17a74db90618e1dd"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m8-20261006-002018/evidence/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m8-20261006-002018/evidence/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/none-m8-20261006-002018/test.xcresult/Data/data.0~cfOktqLoi5E-l-OAFBkF9Z5bMVm7A2xuE65ZGRFRxfpAOYMsfH35aR31KFvllAJ-bvwOmROSFbSO2P7YLcgaqw==",
+      "bytes": 1225559,
+      "sha256": "c5951965c41a31211e05c4cb18f833620005a2c28041867718eb74db5d73eea9"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/placeholder-m6-20261006-003345/evidence/m6-ios-screen.mp4",
+      "bytes": 1972804,
+      "sha256": "b918dec92409332a67c324d773d575567a1c93edcd59422a68321bbcdb4c9240"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/placeholder-m6-20261006-003345/evidence/startup-ios-screen.mp4",
+      "bytes": 3896076,
+      "sha256": "9ac50cb857e97fd4e7b5a73e378cb50d5d6086ec6cfc05301cf9124b50d87969"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/pre-reopen-viewonce-m6-20261006-002210/evidence/m6-ios-screen.mp4",
+      "bytes": 2450404,
+      "sha256": "c580f795c47174d047bf435d7b7f0813e2508602d9c7dae54a7c94f0101279de"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/pre-reopen-viewonce-m6-20261006-002210/evidence/startup-ios-screen.mp4",
+      "bytes": 3738912,
+      "sha256": "e3777af89e105effbc549f11b7e08d04817b2a49f8f2b80a7bba1948fb7b1dd2"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/recycling-m6-20261006-010300/evidence/m6-ios-screen.mp4",
+      "bytes": 2982542,
+      "sha256": "820a5db3e7295ea20dd8d3a84f903eb1463f77a45fb9984529f7f2e423644110"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/recycling-m6-20261006-010300/evidence/startup-ios-screen.mp4",
+      "bytes": 3851845,
+      "sha256": "94d0c164f46a04ee1f221f4a3f777e2b882853008d51f5572063deb9072fc9bd"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/reversed-sends-m6-20261006-003925/evidence/m6-ios-screen.mp4",
+      "bytes": 9336912,
+      "sha256": "423b148e017bb091c442a1f416a8a9a68f500b7d6450fe06a994cbb2ef446bce"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/reversed-sends-m6-20261006-003925/evidence/startup-ios-screen.mp4",
+      "bytes": 3909263,
+      "sha256": "8ea92d0518ed8e37e5733ccab43701ce73225b3e9856921ddfe60ec36d120414"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/reversed-sends-m6-20261006-003925/test.xcresult/Data/data.0~G6cex9Nb_KDxIwnq5UBy-zDY3Lnh4lysb9qm3druXhTio9YgDdEMOUdHWLIIPtKgjbVffaXqcuTJrEoW38yJMQ==",
+      "bytes": 1303015,
+      "sha256": "b398f26119353365c0c5810c10c3f14afd44f0fa7eceaf8503a3dd80acbef446"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/scroll-no-screen-m6-20261006-002650/evidence/m6-ios-screen.mp4",
+      "bytes": 3537501,
+      "sha256": "1fba72def3f56db74ef7e012a158fcb4a6c4132c6e78f5070e6e7b89be57e10c"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/scroll-no-screen-m6-20261006-002650/evidence/startup-ios-screen.mp4",
+      "bytes": 4688479,
+      "sha256": "fbf16fa66d5237a4490f7a4a9321aff2605c68e4bf14da60c0cfdce6ce06ecba"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/stale-restart-capture-m8-20261006-002754/evidence/m8-ios-screen.mp4",
+      "bytes": 15933423,
+      "sha256": "5073bcd6480779e0113f91a2b19d2bc14209ccbfed8926fd8ce63c7cc6851cdf"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/stale-restart-capture-m8-20261006-002754/evidence/startup-ios-screen.mp4",
+      "bytes": 3870280,
+      "sha256": "eabf2c4ecda345c7b9d119088946be0e487d29c9995fd257b8c29b38bc8155d0"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/stale-restart-capture-m8-20261006-002754/test.xcresult/Data/data.0~MKf0S0iZPeT_Iw1_2h3Q1AjwGsZs8xbf-l5vLECMgbADt2GaAuEfyiYMeKuaBByvLLcAQ6nUT3Kv7yUR5WRH4A==",
+      "bytes": 1226687,
+      "sha256": "0df9f05254b1f3f6599ee7aae914c1f4cec6dffcc81e36fb348c2ea78ee77345"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/stale-viewonce-m6-20261006-003248/evidence/m6-ios-screen.mp4",
+      "bytes": 2134571,
+      "sha256": "25a9c92752034048ca76831c7e842abc691b66ee9a574ee57d82e3f6b300934d"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/stale-viewonce-m6-20261006-003248/evidence/startup-ios-screen.mp4",
+      "bytes": 3949574,
+      "sha256": "bbd1acfe5fd5f52b7e85dc7bb2ea308f4b39662226a83b129bfef97f32017aec"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/undecodable-video-m6-20261006-005759/test.xcresult/Data/data.0~k3uQSERAYvpTUBL6RFUghTJQIAHhPrVlDvv9umwHxX6t7YNFsBnBSg6sAWWThmakI01q1CVX3hbgRHU5IDdixg==",
+      "bytes": 1304020,
+      "sha256": "f79ef0fadcfa66b7edbcaf94b94907ee8522f9d7359480cd91ff8e829e981a7a"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/volatile-outbox-m8-20261006-003440/evidence/m8-ios-screen.mp4",
+      "bytes": 18111804,
+      "sha256": "82a9cc676c7c1a4a0bd8f51ddc882a214548776e5f9b787adde38565a61d42fc"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/volatile-outbox-m8-20261006-003440/evidence/startup-ios-screen.mp4",
+      "bytes": 3948186,
+      "sha256": "b44a402f988265d20178361553b4505556f7fe49b1438b713058518645b1517f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/volatile-outbox-m8-20261006-003440/test.xcresult/Data/data.0~5_A_6sG4KpGooTK-eCiNRl2keynwVy_J_ufB6uWPgyYuOXSAHJALkF3x9dogNlOsShF7P9fkGDssFFzcVROuaQ==",
+      "bytes": 1272060,
+      "sha256": "226e2453e3f310f79170eea471720d7cfebc3d95af7bce8907fbfdc0171ca23f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-conversation-m6-20261006-004216/evidence/m6-ios-screen.mp4",
+      "bytes": 2577552,
+      "sha256": "ba396a90cedc92bf100ca34360658e61b04e4a93b00fec5b49f0d905e0fabae8"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-conversation-m6-20261006-004216/evidence/startup-ios-screen.mp4",
+      "bytes": 3843099,
+      "sha256": "f9b9e374225a809ec2e7348991cee9343fd4990566ce8ae744b518306d598b9f"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-fixture-m6-20261006-005939/evidence/startup-ios-screen.mp4",
+      "bytes": 11197906,
+      "sha256": "d943aae46e38f7a22ea0cf1964e25a35bfb6475190dd49f207a65a0249de17d4"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m6-20261006-005214/evidence/m6-ios-screen.mp4",
+      "bytes": 8692306,
+      "sha256": "9401961f82410c3bee25b36b6d2f9e9555221560c2bbd7c6f6f53b4ca9fed43d"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m6-20261006-005214/evidence/startup-ios-screen.mp4",
+      "bytes": 3752407,
+      "sha256": "45d6b6a2eba7871b17366da88727467001276c65f64f1fdac2f131f3a3065849"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m6-20261006-005214/test.xcresult/Data/data.0~qYCbi0IxmVmVAhK2ESoRDUmzKitbHFlqFbZsIpVzQcXw4sp72YigY8oKvZRJ3JlbOuJs1hBYHpf_yQGBe-34iA==",
+      "bytes": 1363724,
+      "sha256": "5e0b482576c839529dd9ad86a7adfa5ae811455a177a35c3e515dd6096807869"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m8-20261006-005508/evidence/m8-ios-screen.mp4",
+      "bytes": 15571545,
+      "sha256": "fa1adba0c5e00def13031059ff5d886813e4f5a167af70b7c26d03b3b906b9b9"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m8-20261006-005508/evidence/startup-ios-screen.mp4",
+      "bytes": 4070445,
+      "sha256": "b3c09f775beae946541c0f9c95925b771f19ee4faf9d4a7eca065b021b302f7b"
+    },
+    {
+      "path": "mini-runs/qualification-ca4a/reference-runs/wrong-receipts-m8-20261006-005508/test.xcresult/Data/data.0~xZNQtDBCsdwFA4huGQLpWG2CxwXS-YOt-lhHFuaLAou7rKiH5gIQDN_3L-_QDWpXBHr7Raa-P2uKOFUq_w09HA==",
+      "bytes": 1282535,
+      "sha256": "6fe536e23747d53760b841fa40cc5748354ffb5ea1c361d0b6b3e91a8d672a40"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m6-20261006-001341/evidence/m6-ios-screen.mp4",
+      "bytes": 8209543,
+      "sha256": "ac59be703eae6bb8b272bd153d7578564cbc537113a7407319ce4d9ef82abe97"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m6-20261006-001341/evidence/startup-ios-screen.mp4",
+      "bytes": 3932874,
+      "sha256": "f4b2a0a9f7e4fe8ebefa843fd3fd641da7de92cc7698d0d5c37b4e8763fa0066"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m6-20261006-001341/test.xcresult/Data/data.0~Qqr_xkCbbJxNwXOAB8OIvMy_hAKxuCSvF8PdAjYElpPKaRhrT3TJOh51JbyPReSX479s1AfZHxsuUVoepYX1DA==",
+      "bytes": 1301172,
+      "sha256": "0ef131ecb95c18bfbc6a2f2fc4a400310090c037a73347de2c892ec3f126badd"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m8-20261006-001535/evidence/m8-ios-screen.mp4",
+      "bytes": 15182004,
+      "sha256": "7aed921cbcb258e0e6d13869d769ad6c8b57961b7833375cdb7afc26fb02bdfd"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m8-20261006-001535/evidence/startup-ios-screen.mp4",
+      "bytes": 3712742,
+      "sha256": "05c89fad422e166c7215340977d0d6333dd44130b93549f85698b686c3763042"
+    },
+    {
+      "path": "mini-runs/reference-runs/none-m8-20261006-001535/test.xcresult/Data/data.0~9HxdsrJ4AWhD9g0afkE-OiT9I4VdN5WNXQAqcZEAWm23v6VMYFHd_1zBixM0YMC8kFRqUEDWKXAdBh4GgH2Njw==",
+      "bytes": 1225495,
+      "sha256": "45306cdda28f576f310fb96c03223160f6f7efab92bfe48cb96626cc261b78a9"
+    },
+    {
+      "path": "native2-runner-products-ca4a.tgz",
+      "bytes": 42677700,
+      "sha256": "f4841d348da7dd1301c7f796811383f1cf93e6787e378cac5527cf76a722f65a"
+    },
+    {
+      "path": "native2-runner-products.tgz",
+      "bytes": 8641292,
+      "sha256": "ff0b8891d41feb61b977cac07f1bd27ce7c421765e35506d37bbdbc715789d55"
+    },
+    {
+      "path": "native2-runtime-app-ca4a.tgz",
+      "bytes": 7707399,
+      "sha256": "0989cad461a913e4e80aa5864f69df96afae17b9b89cf08125ef104470b8c967"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m6-20261006-012324/evidence/m6-ios-screen.mp4",
+      "bytes": 8543456,
+      "sha256": "02b0e281a543c83c1cdb98fb9552292a1cbcc939a9b48210b5b3cc1eb6a4855f"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m6-20261006-012324/evidence/startup-ios-screen.mp4",
+      "bytes": 4180314,
+      "sha256": "5446cec2ce7437669efeab8d58e549fd625661cee01092783914510776b8e870"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m6-20261006-012324/test.xcresult/Data/data.0~Upk6BLERR9dEq8fZArWhRyQV4ZB9BokVYSOMs8Ot15Td2GSBHppM5ewNXea8bg31cNGu8pQwN2Gs6xHzkXDMGg==",
+      "bytes": 1309862,
+      "sha256": "bdc9748642e12e952ad1fb87d25575dd27c443ffba047f603799e70940594496"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m8-20261006-012520/evidence/m8-ios-screen.mp4",
+      "bytes": 15301433,
+      "sha256": "c9112dc61e09c0a48359ba61008469eed8e36018a12ba4fa68466761707f07ce"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m8-20261006-012520/evidence/startup-ios-screen.mp4",
+      "bytes": 3639338,
+      "sha256": "06e40423e6b57cb19a85d2b49d27346c89002470a1e1d7a45dfa8f368435964e"
+    },
+    {
+      "path": "qualification-0909/reference-runs/none-m8-20261006-012520/test.xcresult/Data/data.0~lXObVFkRWW6oaL0YTYtKIsZcLNSh1cAsu6ot6oXVXFj9NpX4H5on_e1DY-EYTTdynHl4xpWo8S-D5gAiBmZQPw==",
+      "bytes": 1228752,
+      "sha256": "0af676d9fdd3a8aac9bbe987d0801e2c136b54503bf703cb44d31bb7a4522d89"
+    },
+    {
+      "path": "qualification-0909-null/reference-runs/stale-restart-capture-m8-20261006-013019/evidence/m8-ios-screen.mp4",
+      "bytes": 14777304,
+      "sha256": "987df9ff9271a07c009d767111c9f165d175988329570136840adbbdc26e512c"
+    },
+    {
+      "path": "qualification-0909-null/reference-runs/stale-restart-capture-m8-20261006-013019/evidence/startup-ios-screen.mp4",
+      "bytes": 3708207,
+      "sha256": "fe6beb06c8f8b728cf45c5c7e1b688b1639244143ae30772fca77ca6d3bfd286"
+    },
+    {
+      "path": "qualification-0909-null/reference-runs/stale-restart-capture-m8-20261006-013019/test.xcresult/Data/data.0~5_cIo2Kb47_51YBVjyjCNRC-A8qVQ8Q9NXaJzkghYGmaeHm_FnRiSNoHHPqJr3Ng9q2MPTy8AZy1YN3X2Q2Raw==",
+      "bytes": 1222757,
+      "sha256": "9ba743ac5e1c6a1fbd53523faf3ec47293e60f78d1ac2f6a4b3774fed32b4022"
+    },
+    {
+      "path": "qualification-0909-null/reference-runs/undecodable-video-m6-20261006-013208/test.xcresult/Data/data.0~aufvlAGjg7AV2zJdwhAXl2O40Fx5koBnar7sV79a1FO8mSqwPOkpmJPCZ0Selfy0uvzWbtB-NXGLkIKiquZLzA==",
+      "bytes": 1305633,
+      "sha256": "92b160770c12200725f81dc1bfa0de2ab0f0a8015145355697999ae60b71eb97"
+    },
+    {
+      "path": "qualification-0909-null/reference-runs/wrong-fixture-m6-20261006-013348/evidence/startup-ios-screen.mp4",
+      "bytes": 11378427,
+      "sha256": "41fa8ce796320d6738d249cce38f803324de3ec7dc2493d2f09ac89db7342f55"
+    },
+    {
+      "path": "qualification-0909-repeat/reference-runs/none-m8-20261006-012828/evidence/m8-ios-screen.mp4",
+      "bytes": 14503475,
+      "sha256": "143a040b2deafe8288666fa55eba785b443c2c3f62117994c21efbc12101125e"
+    },
+    {
+      "path": "qualification-0909-repeat/reference-runs/none-m8-20261006-012828/evidence/startup-ios-screen.mp4",
+      "bytes": 3655522,
+      "sha256": "9dac5c34b5c5a6109e2c62ff7402321883ea3de9cb95ad46bcd2cef979f84423"
+    },
+    {
+      "path": "qualification-0909-repeat/reference-runs/none-m8-20261006-012828/test.xcresult/Data/data.0~5K0zrYqquEQijtnrhApS-0tpUcODrJjzx6TomdUE6ZdnUsz767x3tf9nvMR8J5RDhOLrVDKhn1LVDiaqzk8pPA==",
+      "bytes": 1228567,
+      "sha256": "5b691a736dc839d8692cb42570f44e34ac3738084b787b42049e657995df0960"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/async-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/async-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/buffered-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/buffered-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/clipped-bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/clipped-bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/contrast-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/contrast-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/driver-binary/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/driver-binary/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/driver-source/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/driver-source/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/elsewhere-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/elsewhere-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/empty-search/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/empty-search/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/extended-video-endpoint/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "c22b1597c550dbd1aa2cbc48494066443a9726403f8a41069d52cb8744d1d25d"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/extended-video-endpoint/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/framed-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/framed-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/hash-mismatched-video/m6-ios-screen.mp4",
+      "bytes": 8316064,
+      "sha256": "7b97266f116d8d749e9ec7b0e68ac1f51d9a2eb9227e0eb6e99153a94955c3b3"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/hash-mismatched-video/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/instrument-commit/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/instrument-commit/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/instrument-inventory/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/instrument-inventory/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/invented-video-sample/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "7b16fad7b5739be80d82095dde2bcfe8e5bf1f00b2db12683bfdb9972a71de4e"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/invented-video-sample/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/late-native-snapshot/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/late-native-snapshot/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/late-read/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/late-read/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/matted-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/matted-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/missing-post-scroll-screen/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/missing-post-scroll-screen/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/missing-video/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/old-viewonce-refusal/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/old-viewonce-refusal/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/one-wrong-receipt/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/online-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/online-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/pre-reopen-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/pre-reopen-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/replayed-events/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/replayed-events/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/retargeted-viewonce/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/retargeted-viewonce/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-025-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-025-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-050-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-050-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-0733-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-0733-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-090-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-090-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-098-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-098-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-125-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/scaled-125-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/search-claim-only/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/search-claim-only/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/search-retry/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/search-retry/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/sent-native-a05/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/sent-native-a05/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/sent-screen-receipts/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/sent-screen-receipts/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/short-duplicate-samples/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/short-duplicate-samples/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/short-duplicate-window/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/short-duplicate-window/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/signin-search/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/signin-search/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/stale-nonce/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/stale-nonce/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/stale-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/stale-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/truncated-video-rebound/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/undecodable-video/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-conversation/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-conversation/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-prime-pixels/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-prime-pixels/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-receipts/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-search-body/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m6/wrong-search-body/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/late-read/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/late-read/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/missing-restart-screen/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/missing-restart-screen/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/one-wrong-receipt/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/stale-restart-capture/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/stale-restart-capture/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/wrong-receipts/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/artifact-controls-m8/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m6-20261006-001826/evidence/m6-ios-screen.mp4",
+      "bytes": 8316058,
+      "sha256": "3d208ad0f3a5cea021242af08f8a749b8f85f1cb3a78556cf2236188dd8d2d43"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m6-20261006-001826/evidence/startup-ios-screen.mp4",
+      "bytes": 4033196,
+      "sha256": "ea5953d3a2f4abc5892a4b07302006909e182d279e82448182cd0bd22fb4d0c4"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m6-20261006-001826/test.xcresult/Data/data.0~9Tt7SphreK0cAIADPlzD3NiB-Rexi_Rr4GjTzLABS30sj-giDVLgRvA9xHMegj59ZwrNR03FXgHUm_OJEGO3iA==",
+      "bytes": 1302458,
+      "sha256": "f661f7734cd9d56e564e32213aa1375a01d04230d7fc68ca17a74db90618e1dd"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m8-20261006-002018/evidence/m8-ios-screen.mp4",
+      "bytes": 15512182,
+      "sha256": "e479604f0ae2d52d8c66f27a3751e092a6243d38fabc71044a0a9d59004a2783"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m8-20261006-002018/evidence/startup-ios-screen.mp4",
+      "bytes": 3988107,
+      "sha256": "bb2aefef1e1b84c86fa94fd82aed420fcdc5f360bf513e31b580c72e80ddf5fc"
+    },
+    {
+      "path": "qualification-ca4a/reference-runs/none-m8-20261006-002018/test.xcresult/Data/data.0~cfOktqLoi5E-l-OAFBkF9Z5bMVm7A2xuE65ZGRFRxfpAOYMsfH35aR31KFvllAJ-bvwOmROSFbSO2P7YLcgaqw==",
+      "bytes": 1225559,
+      "sha256": "c5951965c41a31211e05c4cb18f833620005a2c28041867718eb74db5d73eea9"
+    },
+    {
+      "path": "retained-independent-apps.tgz",
+      "bytes": 37006246,
+      "sha256": "8d90b140309204cf571b579f4db68ecfe9e668fcaf2b58c7757eb1bfdb957936"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/CliqueDriver-Runner.app/PlugIns/CliqueDriver.xctest.dSYM/Contents/Resources/DWARF/CliqueDriver",
+      "bytes": 1236798,
+      "sha256": "bdc4c8b217b3b25c8e31b2b21e1bda55112df26c0e965272f985cf80a347b8c8"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/Expo/libExpo.a",
+      "bytes": 2072856,
+      "sha256": "043b6daae7bb61597443aab6bc47c91b284c64d30e9b5a88c2d9376e6c6d741e"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/ExpoSQLite/libExpoSQLite.a",
+      "bytes": 6603224,
+      "sha256": "882aa1e3b0fd40c9558446aa870bd88ebcf051fb871043778b0bf9f46ff52bcd"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+      "bytes": 1138048,
+      "sha256": "22a03cb5ed0f9b60a29883061bb3018cf3b9f76db58fc867e80fed548dcee8e8"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+      "bytes": 3802736,
+      "sha256": "0fd30f547c8966bcf2a270021513fb3ededec8874cc34433b6804e7283a590e6"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/Frameworks/React.framework/React",
+      "bytes": 11993344,
+      "sha256": "7cb38905c98d1fb6039e15f0370691669ab1ab31332e03d9589a3807a790bc24"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "bytes": 1236656,
+      "sha256": "df125ae05db964b31a67345272d7ce0a390a6b404379f7ec29d922456879d150"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/Frameworks/hermesvm.framework/hermesvm",
+      "bytes": 5064800,
+      "sha256": "d85fe57c05efafc7e5c9d83838ac1e3296d3d6d07bbe758cfbbe0934ca440d0b"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/NIReference",
+      "bytes": 2303120,
+      "sha256": "d5186c741e06d92fe260f140dccffef13316f9163d17560c87f440d0f5f0ea24"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app/main.jsbundle",
+      "bytes": 1571872,
+      "sha256": "29af4be2a9fad064c3978082d9662f9ee1303d67314d3c66b821cdf06c3ba976"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/NIReference.app.dSYM/Contents/Resources/DWARF/NIReference",
+      "bytes": 10548999,
+      "sha256": "a553deec7e1cb1a7d45d34f26e8458bdb762ef090a07c45add36abf320580c8d"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoFileSystem/ExpoFileSystem.framework/ExpoFileSystem",
+      "bytes": 2270144,
+      "sha256": "0e1725fe736033926c13d09c49fc0dd11362c6eadb7c56b614b943feeed6f540"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoFileSystem/dSYMs/ExpoFileSystem.framework.dSYM/Contents/Resources/DWARF/ExpoFileSystem",
+      "bytes": 3857617,
+      "sha256": "1432fcc245c5481d63fb3029a0a257786d603d1425cc5012a20d5c72c556f29b"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoFont/dSYMs/ExpoFont.framework.dSYM/Contents/Resources/DWARF/ExpoFont",
+      "bytes": 1254437,
+      "sha256": "cb5c2f96486e60b2eb85c8944b35783f32fc1052ff65a8035397ed3c57968729"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/ExpoModulesCore.framework/ExpoModulesCore",
+      "bytes": 7603824,
+      "sha256": "f7fa9e210793110a680f4d438c9d8bbfbd10dbc4ce2065fefc7509eca651ae38"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/ExpoModulesCore.framework/Modules/ExpoModulesCore.swiftmodule/arm64-apple-ios-simulator.abi.json",
+      "bytes": 2273861,
+      "sha256": "d2d7fc9f67dd2102fe0cadef5c715327db4a467a988308bf7066b064f629a27b"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/ExpoModulesCore.framework/Modules/ExpoModulesCore.swiftmodule/x86_64-apple-ios-simulator.abi.json",
+      "bytes": 2273861,
+      "sha256": "d2d7fc9f67dd2102fe0cadef5c715327db4a467a988308bf7066b064f629a27b"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/dSYMs/ExpoModulesCore.framework.dSYM/Contents/Resources/DWARF/ExpoModulesCore",
+      "bytes": 23776610,
+      "sha256": "b2303621c3bf50d2c1305264fd2114a7279a89d0fbd74e3d899536320f4d8fa8"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/dSYMs/ExpoModulesCore.framework.dSYM/Contents/Resources/Relocations/aarch64/ExpoModulesCore.yml",
+      "bytes": 1180810,
+      "sha256": "b2a998d24eeb3ba350552a670715733cd2584fac11a88b7804a3241583f42a7a"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/dSYMs/ExpoModulesCore.framework.dSYM/Contents/Resources/Relocations/x86_64/ExpoModulesCore.yml",
+      "bytes": 1112537,
+      "sha256": "8e8dd10c90c1ac7885bda53c3b861195036270933afab8874fd0c9c5abc8ec46"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesJSI/ExpoModulesJSI.framework.dSYM/Contents/Resources/DWARF/ExpoModulesJSI",
+      "bytes": 8445760,
+      "sha256": "39f758a740be465b1889e663f3f65221d7caceb7b094d96c4eaaa91d493cc09c"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesWorklets/dSYMs/ExpoModulesWorklets.framework.dSYM/Contents/Resources/DWARF/ExpoModulesWorklets",
+      "bytes": 1168000,
+      "sha256": "51d12908c81c9213810648d4c6c064102363fdcd48c73d559ffca29e9daa19b4"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/React-Core-prebuilt/React.framework/React",
+      "bytes": 24451312,
+      "sha256": "7f5915406f8a30595831f037f16f5acc1d5b93a82d93d6479ef326b67c2eb0fd"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+      "bytes": 2474208,
+      "sha256": "c0e05576ebe3b55e35d83080a4b84b31588e6edfe01ea95c0724969ce6d20123"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/hermes-engine/Pre-built/hermesvm.framework/hermesvm",
+      "bytes": 10173208,
+      "sha256": "956af81e233d1ec4310a65d87c298d842093d18a053ffc6061ab1d32aa25a1a5"
+    },
+    {
+      "path": "runner/DerivedData/Build/Products/Release-iphonesimulator/main.jsbundle",
+      "bytes": 2288381,
+      "sha256": "d718a5ae98f226e84856a4305ff9df5154d5063dda1987ecf072bf7970b502f9"
+    },
+    {
+      "path": "runtime-development-evidence.tgz",
+      "bytes": 114173360,
+      "sha256": "e8efb5d1a8de3c10396a6477f89482a1b936ac512d429fe56aad12137e54ee52"
+    },
+    {
+      "path": "runtime-proof/runtime-launch-through-restore.mp4",
+      "bytes": 12159365,
+      "sha256": "dccf9d8a8eca5ca7dd75aca254647e0f1d8003358127ea59d35917ef1c302c1f"
+    },
+    {
+      "path": "runtime-proof-0909/built-app/main.jsbundle",
+      "bytes": 1445811,
+      "sha256": "f44ce3cc8df375b5407a7720f1d62b534e09fd3d961d5f9027af29279e6e0856"
+    },
+    {
+      "path": "runtime-proof-0909/runtime-launch-through-restore.mp4",
+      "bytes": 11947440,
+      "sha256": "7cccd08df13f4c9f1249b6469a9abc727360a4ff2d1a964d8ca09928529ef4a8"
+    },
+    {
+      "path": "runtime-proof-final/built-app/main.jsbundle",
+      "bytes": 1445811,
+      "sha256": "f44ce3cc8df375b5407a7720f1d62b534e09fd3d961d5f9027af29279e6e0856"
+    },
+    {
+      "path": "runtime-proof-final/runtime-launch-through-restore.mp4",
+      "bytes": 11729612,
+      "sha256": "27f684c1d1fbecba0c8c27ecab3256ea33af2f520786343b080c0cb60311fed1"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Native pilot: qualify the Expo launch path and retain startup evidence
 
 **Opened:** 2026-10-06, P2A Round 7
-**Status:** Open; no diagnostic product repair applied
+**Status:** Open; native.2 runtime repair qualified, independent Phase-2 rerun pending
 **Area:** shared pilot preparation, generic native driver's startup diagnostics
 **Related:** LLP 0201.000 §7, LLP 3000.030 §13;
 [Phase-2 results](../snapback4/reports/20261005-ni-native-protocol/PHASE-2-RESULTS.md)
@@ -62,3 +62,27 @@ Record the diagnostic subprocess environment so XCTest can find `simctl` even
 when the machine default developer directory is CommandLineTools. Requalify the
 affected driver/schema cases and fresh independent pilot milestones after the
 candidate changes; these retained null outcomes remain diagnostic only.
+
+## NI2 repair status — 2026-10-06
+
+The native.2 candidate ships the scene-lifecycle and app-target
+simulator-signing recipes to both builders, removes the global
+`CODE_SIGN_ENTITLEMENTS` example, retains startup video independently of
+measured video, records OS launch attempts separately from helper nonces, checks
+app state before failure capture, and pins the Apple tool environment for XCTest
+diagnostics.
+
+The packet prerequisite was exercised as a Release Expo 57.0.22 / RN 0.86.3 /
+iOS SDK 27 app through the generic launch path. Its eight checks covered a real
+SecureStore write/read, first-process termination and restoration in a second
+process. The final retained video decodes to 840 frames over 45.62 seconds. The
+[NI2 qualification report](../snapback4/reports/20261006-ni2-native-instrument/README.md)
+is the authority for the final source identity, qualification anchor and
+evidence.
+
+This qualifies the shared runtime baseline, not either retained builder app.
+Both retained Convex runs reproduced the expected UIScene setup-null outcome;
+both retained Snapback 4 runs reproduced the expected foreground SecureStore
+entitlement setup-null outcome. The fresh packet is sealed and dry-run ready; the
+Phase-2 rerun remains pending. `scoredUse` remains false, and no pilot was
+launched as part of NI2 qualification.

@@ -1,0 +1,79 @@
+{
+  "packet": "/Users/ccheever/clique-native-pilot2-20261006",
+  "host": "ccheever@100.64.36.16",
+  "simulatorUdid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+  "packetSealSha256": "bdcdc5ead202ec15b4282164fe2eda78450a2882dc473fccbaacb4fe2dbd04e0",
+  "sealedFiles": 633,
+  "verification": {
+    "valid": true,
+    "cold": true,
+    "launchReadinessChecked": true,
+    "scoredUse": false,
+    "sourceCommit": "090929f7e75d68fef01f61f35696e1f3f56e85d2",
+    "inventory": "0b94d74234df1e8c60caf61da6d9db85eecea547b0ee0fcf90eaecc7912358f3"
+  },
+  "harnessSelftests": {
+    "passed": 69,
+    "skipped": 0,
+    "platform": "darwin"
+  },
+  "builderLanesCold": true,
+  "attemptsEmpty": true,
+  "resultsEmpty": true,
+  "pilotLaunched": false,
+  "scoredUse": false,
+  "caps": {
+    "source": "LLP 0201 D7 / LLP 0201.000 Phase 2",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "milestones": [
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "m5",
+      "m6",
+      "m8"
+    ],
+    "wallSecondsPerMilestone": 14400,
+    "tokensPerMilestone": 2000000,
+    "tokenBasis": "non-cached input + output; reasoning included in output",
+    "cacheReadCapped": false,
+    "cacheWriteCapped": false,
+    "interpretation": "lead ruling 2026-10-05; REVISION-2.md",
+    "replayWallSeconds": 14400,
+    "operatorClockSeparate": true,
+    "setupReruns": 1,
+    "productRetries": 0,
+    "scoredUse": false
+  },
+  "source": {
+    "pilotSourceCommit": "28905325f00d927be32c1651d93f40c77fc95b7d",
+    "packetHeadCommit": "28905325f00d927be32c1651d93f40c77fc95b7d",
+    "qualificationRecordCommit": "28905325f00d927be32c1651d93f40c77fc95b7d",
+    "path": "benchmarks/native/0.4.0-native.2/pilot",
+    "historicalContinuationImported": false
+  },
+  "records": {
+    "final-packet-preparation/verify-cold-ready.json": {
+      "sha256": "587c0781ccfb14c4d5e16a8b65df12296c0f9ade27a4ccb9f6156f5b13159c15",
+      "bytes": 223
+    },
+    "final-packet-preparation/harness-selftest.console.log": {
+      "sha256": "d6f7b521cc9d2bea2c3e5327af698f9a01e2f1c9870424e9d1d86c04368051f0",
+      "bytes": 7443
+    },
+    "final-packet-preparation/runtime-proof-import.json": {
+      "sha256": "cc9af5fc29556038a38d904f5417254e88d6b61c61038e49bfb68377f977a2f9",
+      "bytes": 737
+    },
+    "final-packet-preparation/convex-preflight.console.json": {
+      "sha256": "db9ec1ad349b73c41bec74314b2795e09f91d039c46705319d7a8b5c20d92bfa",
+      "bytes": 990
+    },
+    "final-packet-preparation/no-app-preflight.console.json": {
+      "sha256": "309502ef3a5b9ab23b91b24ee1099148e6458038770873bd69f369f999cb678b",
+      "bytes": 541
+    }
+  }
+}
