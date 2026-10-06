@@ -6,13 +6,13 @@ import { globalFences, mergeFences, type GlobalFence, type SessionOrigin } from 
 
 type Journal = { tokens: string[]; all: string[]; fences: GlobalFence[] };
 type GlobalAttempt = { principal: string; epoch: string; covered: readonly string[] };
-type Saved = { token?: string; snapback4Retired?: string[]; snapback4LogoutAll?: string[]; snapback4GlobalFences?: GlobalFence[]; snapback4Backend?: string };
+type Saved = { token?: string; snapback4Successor?: { token?: string }; snapback4Retired?: string[]; snapback4LogoutAll?: string[]; snapback4GlobalFences?: GlobalFence[]; snapback4Backend?: string };
 const unique = (tokens: string[]) => [...new Set(tokens)];
 const strings = (tokens: unknown): tokens is string[] => Array.isArray(tokens) && tokens.every(token => typeof token === "string" && token.length > 0);
 
 export function sessionRevocations(url: string, store: SessionStore, fetcher: typeof fetch,
-  locked: <T>(work: () => Promise<T>) => Promise<T>) {
-  const session = sessionKey(url), key = session + ".revocations";
+  locked: <T>(work: () => Promise<T>) => Promise<T>, policy: { key?: string; readOnly?: boolean } = {}) {
+  const session = policy.key ?? sessionKey(url), key = session + ".revocations";
   // A failed comparison/persistence attempt retains this runtime's obligation.
   const deferred = new Set<string>();
   const origins = new Map<string, SessionOrigin>();
@@ -119,7 +119,8 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
         let global = false, confirmed = false, attempt: GlobalAttempt | undefined, work: Promise<unknown> | undefined;
         await locked(async () => {
           // I1: compare on EVERY dispatch, including a successful prior barrier.
-          if (decode(await store.get(session)).token === token) return;
+          const saved = decode(await store.get(session));
+          if (saved.token === token || saved.snapback4Successor?.token === token) return;
           // Another owner may have promoted this token to logout-all after the
           // first read. Ordinary logout must never consume its retry credential.
           // Resolve a late response's generation again on dispatch: the global
@@ -128,7 +129,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
           // bearer: the live runtime still owns it. Reads below must succeed.
           try { await stage([...deferred]); } catch { /* retain runtime custody */ }
           const latest = await obligations();
-          if (latest.all.includes(token)) {
+          if (!policy.readOnly && latest.all.includes(token)) {
             global = true;
             const fence = latest.fences.find(value => !value.complete && value.tokens.includes(token));
             if (fence) attempt = { principal: fence.principal, epoch: fence.epoch,
@@ -140,6 +141,16 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
             });
           } else {
             work = logout(url, token, async (input, init) => {
+              // Retirement has the same scope gate as ordinary traffic. A bad
+              // credential in the read namespace must never log out a full user.
+              if (policy.readOnly) {
+                const probe = await fetcher(url + "/probe?scope=1", { headers: { authorization: `Bearer ${token}` } });
+                const json = await probe.json() as { ok?: boolean; scope?: string; denied?: { code?: string } };
+                if (!probe.ok || json.ok !== true || json.scope !== "read") {
+                  confirmed = json.denied?.code === "E_AUTH" || json.scope === "full";
+                  return Response.json({ ok: confirmed }, { status: confirmed ? 200 : 503 });
+                }
+              }
               const response = await fetcher(input, init);
               const receipt = await response.clone().json() as { ok?: boolean; denied?: { code?: string } } | null;
               confirmed = (response.ok && receipt?.ok === true) || (response.status === 401 && receipt?.denied?.code === "E_AUTH");

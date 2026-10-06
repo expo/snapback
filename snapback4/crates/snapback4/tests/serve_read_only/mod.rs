@@ -75,7 +75,13 @@ fn guard_barriers_replay_and_http_parity() {
         let b=body(&h.request("POST",&format!("/q/{op}"),&read,"{\"args\":{}}"));
         assert!(b.get("delivery").is_none()); assert!(b["meter"].get("delivery").is_none());
         assert_eq!(a["data"],b["data"]); assert_eq!(a["next"],b["next"]); assert_eq!(a["complete"],b["complete"]);
-        for meter in ["examined","steps","heap"] { assert_eq!(a["meter"][meter],b["meter"][meter]); }
+        if op != "missingQuery" {
+            for meter in ["examined", "steps", "heapBytes"] {
+                assert!(a["meter"][meter].is_number(), "full {op} meter.{meter}: {a}");
+                assert!(b["meter"][meter].is_number(), "read {op} meter.{meter}: {b}");
+                assert_eq!(a["meter"][meter], b["meter"][meter], "{op} meter.{meter}");
+            }
+        }
         if op=="raw" { assert!(a.get("delivery").is_some()); }
         let mut a=a.clone();let mut b=b.clone();
         for reply in [&mut a,&mut b] {reply.as_object_mut().unwrap().remove("delivery");reply.as_object_mut().unwrap().remove("meter");}
@@ -88,6 +94,19 @@ fn guard_barriers_replay_and_http_parity() {
         assert_eq!(legacy, json!({"ok":true, "store_id":legacy["store_id"], "seq":legacy["seq"], "viewer":"member:bob"}));
     }
     assert_eq!(status(&h.request("GET","/schema",&read,"")),200);
+}
+#[test]
+fn read_sync_is_allow_listed_and_has_full_visibility_without_writes() {
+    let h = host();
+    let read = headers(&narrowed(&h));
+    let before = snapshot(&h);
+    let full = h.request("POST", "/sync", FULL, r#"{"from":0}"#);
+    let response = h.request("POST", "/sync", &read, r#"{"from":0}"#);
+    assert_eq!(status(&response), 200, "{response}");
+    let response = body(&response);
+    assert!(response.get("denied").is_none(), "{response}");
+    assert_eq!(response, body(&full));
+    assert_eq!(snapshot(&h), before);
 }
 #[test]
 fn paired_deterministic_reader_runs_have_equal_application_digest() {

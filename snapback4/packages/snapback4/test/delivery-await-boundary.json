@@ -31,21 +31,17 @@
     "count": 22,
     "sha256": "8c17fcad51caeace6a22452fc93b1ff800c9dff6a357d30f204e983cc56ed4d2"
   },
-  "app-read-only.ts": {
-    "count": 33,
-    "sha256": "cb3266bab8a2928ccdb9e55430c31b9cbe01f758ef2621a6b8d8b07f7ca6723d"
-  },
   "app-revocations.ts": {
-    "count": 28,
-    "sha256": "64804de083ed14408477e041e58151d3eb8462b631f3a754e4080490b277b6ce"
+    "count": 30,
+    "sha256": "5aa32544e4edb6c28139616a7534aa2743e121e7417bb30ba9437a6aee0b8653"
   },
   "app-storage.ts": {
     "count": 2,
     "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
   },
   "app.ts": {
-    "count": 74,
-    "sha256": "9f44129ad525bb81db278420e9b1b4c6fe56118c8ed3e770d9f215c5589dddaa"
+    "count": 82,
+    "sha256": "1852cfe0c34744d05d86ca8271a2cc48c34588ea46823c0f4fbdedab3d97ef67"
   },
   "asset-download.ts": {
     "count": 9,
@@ -57,7 +53,7 @@
   },
   "auth.ts": {
     "count": 13,
-    "sha256": "fd82574e83e65335f1b27f89a6a168f696fe00bc4bc72ebf23bbe64ebd803545"
+    "sha256": "31a872d064e6cca5b0fca97d6499c882f4b1caa462699b62a8027698871ac364"
   },
   "backend.ts": {
     "count": 0,

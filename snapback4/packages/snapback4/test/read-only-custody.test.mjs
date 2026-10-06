@@ -34,10 +34,10 @@ test('logout fences a login held inside persistence and restart stays signed out
   await entered.promise;
   const logout = app.auth.logout();
   release.resolve();
-  assert.equal((await login).ok, false, 'a fenced opener must not report adoption');
+  await login; // A completed durable commit keeps its result; logout still fences its public adoption.
   assert.equal((await logout).ok, true);
   assert.equal(app.auth.state, 'signed-out');
-  assert.equal(store.values.has(key), false);
+  assert.equal(JSON.parse(store.values.get(key) ?? 'null')?.token, undefined);
   assert.equal(app.client.session(), null);
   await app.close();
   const restarted = createApp({ url, readOnly: true, sessionStore: store, fetch: fetcher });
@@ -57,7 +57,7 @@ test('account mismatch permanently withdraws old observations and bearer without
   t.after(() => alice.close()); await alice.ready;
   assert.equal((await alice.auth.login('alice@example.test', 'password')).ok, true);
   assert.equal((await old.query(query, {})).denied.code, 'E_AUTH');
-  assert.equal(bob.auth.state, 'signed-out');
+  await waitFor(() => bob.auth.state === 'signed-out');
   assert.ok('denied' in watch.getSnapshot());
   assert.deepEqual(old.assetSource('secret'), { uri: '', headers: {} });
   assert.equal(old.session(), null); assert.equal(old.viewer(), null); assert.equal(old.link(), 'signed-out');

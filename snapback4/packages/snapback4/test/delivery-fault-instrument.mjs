@@ -173,8 +173,8 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
-// RO (LLP 3000.033 §1.4): app-read-only owns only its .read credential slot;
-// its awaits verify scope, serialize that slot, or close the online reader.
+// RO (LLP 3000.033 §1.4): app owns both namespaces through one custody
+// state machine; read policy awaits scope verification and serialized .read I/O.
 // read-only's gate and cancelled-rotation cleanup probe before admitting any
 // read or own-session logout. Neither module constructs delivery/write custody.
 // auth adds scoped sign-in and narrow response I/O. The read branch in client
@@ -187,6 +187,11 @@ export function instrument(destination) {
 // session callbacks remain notifications. The new custody regression covers
 // held storage, permanent facade withdrawal and retry of a private successor.
 // No outbox await, classification or fault recipe changes.
+// RO Round 2 removes the parallel app implementation. Shared app awaits now
+// include a private successor receipt under the session lock and the scope gate
+// before commit. Retirement probes read-namespace credentials before logout.
+// These awaits cannot acquire delivery/outbox custody; full-session awaits and
+// all delivery classifications/recipes retain their existing roles.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

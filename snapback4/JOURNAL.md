@@ -88151,3 +88151,17 @@ client files (6,486 passed, 47 labelled skips); both full-count models (52 + 27
 passed, no skips). Wasm remains 639,888 gzip bytes under 639,941. Final reference,
 line-limit and append-only checks pass. Removed 1.78 GB of this completed lane's
 SQLite fixture sidecars; shared build products remain. No push or publication.
+
+
+## 2026-10-06 — RO Round 2: one app custody implementation
+
+Removed app-read-only.ts. Read-only policy selects the `.read` namespace,
+verification gate, read-scoped sign-in, no device/write owners, capped refresh
+and conditional family retirement in the full-session app state machine.
+Logout epochs, provisional opening, facade guards and auth-before-withdrawal
+notifications now have one implementation. Refresh retains a private successor
+receipt under the shared storage lock through verification failures; peers and
+restart recover it without refreshing the consumed predecessor. The server
+parity assertion checks numeric heapBytes, and read /sync has a positive test.
+Round 0 and Round 2 reproductions and alternate interleavings are permanent.
+Validation results and checkpoint commits are recorded in the Round 2 report.

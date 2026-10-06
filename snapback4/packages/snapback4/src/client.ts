@@ -332,7 +332,8 @@ export function createClient(options: ClientOptions): Client {
     if (completingReadSession) return completingReadSession;
     const next = pendingReadSession;
     const work = (async () => {
-      await commitReadCustody(client, next);
+      try { await commitReadCustody(client, next); }
+      catch (error) { return (error as { why?: Refusal })?.why ?? transportRefusal(error); }
       if (closed || !credentials || storeRefusal || session !== next) return storeRefusal ?? auth();
       pendingReadSession = null;
       for (const listener of [...sessionListeners]) listener(next);

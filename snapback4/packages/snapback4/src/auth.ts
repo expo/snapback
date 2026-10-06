@@ -112,8 +112,8 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
 export const sessionKey = (url: string, readOnly = false) => storeKey("session", url.replace(/\/$/, "")) + (readOnly ? ".read" : "");
 
 /** The session kept for a server, if it has not expired. */
-export async function restoreSession(url: string, store: SessionStore = defaultSessionStore, now: () => number = Date.now): Promise<Session | null> {
-  const key = sessionKey(url);
+export async function restoreSession(url: string, store: SessionStore = defaultSessionStore, now: () => number = Date.now, readOnly = false): Promise<Session | null> {
+  const key = sessionKey(url, readOnly);
   const raw = await store.get(key);
   if (!raw || logoutEpoch(raw) !== null) return null;
   try {
@@ -126,12 +126,12 @@ export async function restoreSession(url: string, store: SessionStore = defaultS
   return null;
 }
 
-export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore): Promise<void> {
-  await store.set(sessionKey(url), JSON.stringify(session));
+export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore, readOnly = false): Promise<void> {
+  await store.set(sessionKey(url, readOnly), JSON.stringify(session));
 }
 
-export async function forgetSession(url: string, store: SessionStore = defaultSessionStore): Promise<void> {
-  await store.delete(sessionKey(url));
+export async function forgetSession(url: string, store: SessionStore = defaultSessionStore, readOnly = false): Promise<void> {
+  await store.delete(sessionKey(url, readOnly));
 }
 
 /** Best-effort server logout. A network failure or timeout cannot confirm
