@@ -300,3 +300,15 @@ regressions, 3 real-server cases); all 8 Rust read-only HTTP tests pass. Package
 typecheck/build pass. The full app/session selection and complete suite are
 running with default model counts. Wasm has already passed inside that suite;
 final counts and evidence will be appended when it finishes. No push.
+
+Round 2 additional checkpoints: `d806acc039` repairs a reproduced retirement
+race: after its scope probe, retirement rechecks custody under the lock at
+logout dispatch. `c006a6dc23` asserts no interactive-slot reads and makes
+fixture caps exactly equal to expiry. The final focused selection passes all
+46 tests. The full app/session selection passed 832 tests across 26 files,
+including 5,000 online and 5,000 local histories (52 model-file tests); its one
+labelled skip was the prior published binary, omitted from that focused command.
+The complete suite supplies that binary. The initial full run was deliberately
+stopped in Rust qualification for the retirement repair; the restarted run
+builds the final SDK source. Initial failure, focused successes and the stopped
+run's preflight log are retained under `evidence/round2-*`.
