@@ -1,0 +1,12 @@
+{
+  "version": "snapback.full-journey-scale-replay-receipt.v1",
+  "pass": false,
+  "actionLog": {
+    "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157
+  },
+  "settledPrefix": 0,
+  "failedActions": 1,
+  "checkpoints": [],
+  "failure": "Error: whoAmI: {\"code\":\"E_AUTH\",\"family\":\"auth\",\"message\":\"sign in to continue\"}"
+}

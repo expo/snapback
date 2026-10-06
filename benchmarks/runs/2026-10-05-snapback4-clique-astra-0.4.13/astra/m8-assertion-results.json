@@ -1,0 +1,112 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 — six lifetime totals on a fresh persona with grader-constructed ground truth matched exactly: posts 4, likesReceived 4, repostsReceived 2, repliesReceived 3, followers 2, following 1"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo — m8-a02-insights-like-refresh passed; beforeLikes 42 -> afterLikes 43, refreshMs 1411.9"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 — a post created now buckets under the current server UTC day (bucket 20733 == floor(asOf/86400000)), seven contiguous day keys"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8 — 6 of 7 buckets are all-zero and present rather than omitted; /insights renders exactly 7 sm-insights-day-row rows"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending — the 3-like post ranks index 0 ahead of two 2-like posts (likeCounts [3,2,2]); UI first trending row is the top post"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending — a 3-like post aged past the window by advancing the server clock 25 h is absent from trending"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending — on a 2-like tie the newer post sorts at index 1 and the older at index 2"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest — five fresh personas, all clients closed, clock advanced past periodEnd: exactly one digest each for a, b and d with periodStart/periodEnd matching the aligned 120 s period and counts a{f1,p1,m1,ch1} b{f1,p1,m0,ch0} d{f0,p0,m2,ch1}; the tombstoned message was correctly excluded from a's unread count"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest — persona e (no activity at all) received no digest; persona c (sent messages but had nothing to read, no new followers, no following posts) also correctly received none"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest — advancing a further full period with no activity emitted 0 digests for these personas"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-restart — backend SIGTERMed and relaunched mid-period with the clock offset preserved, then advanced past periodEnd: exactly one digest per user, no duplicates, effect idempotency keys unique"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest — a two-message chat between non-members c and d contributed nothing to a (unread 1/1, its own DM only) or b (unread 0); schema.q evaluates the job under \"as p.principal\" with recipient-authorized queries"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo — m8-a13-same-account-message-live passed, visibleMs 3270.7"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo — m8-a14-cross-device-read-state passed, clearVisibleMs 2264.7"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo — m8-a15-dual-offline-convergence passed, firstFlushMs 1071.8 secondFlushMs 2169.4, no loss and no duplicates"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo — m8-a16-dual-offline-receipts passed, firstReadMs 29.2 secondReadMs 30.3"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#simulator — ios-simulator-m8 status \"not-recorded\"",
+      "note": "No iOS-simulator artifact exists. The M8 choreography segment summary records supplementalExternal ios-simulator-m8 with pass:null, status \"not-recorded\", requiredForGreen:false; artifacts/m8/ios holds only a Hermes bundle export (.hbc), not a simulator recording. Per the frozen prompt, simulator assertions are scored from harness recordings and structured receipts only and are never grader-driven, so no evidence exists either way."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#simulator — ios-simulator-m8 status \"not-recorded\"",
+      "note": "No iOS-simulator artifact exists. The M8 choreography segment summary records supplementalExternal ios-simulator-m8 with pass:null, status \"not-recorded\", requiredForGreen:false; artifacts/m8/ios holds only a Hermes bundle export (.hbc), not a simulator recording. Per the frozen prompt, simulator assertions are scored from harness recordings and structured receipts only and are never grader-driven, so no evidence exists either way."
+    }
+  }
+}
