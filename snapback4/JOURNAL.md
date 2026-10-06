@@ -87972,3 +87972,85 @@ behavior was never reached. The report recommends rerunning Phase 2 after named
 contract/helper, launch/signing and diagnostic-evidence changes; it grants no
 scored admission. Large evidence is archived on eb1000 with a committed hash
 index. Charlie retains the admission ruling.
+### 2026-10-06 — PS: process inspection on large hosts
+
+The 0.4.14 Darwin dry run's two-second ps refusal reproduced through the
+injected runner in 2,005.6 ms. Retain full-table lstart and fail-closed custody:
+only ETIMEDOUT discards partial output and retries once with a 60-second bound;
+all other command failures and a failed retry still refuse. The existing three
+fresh routing snapshots, exact error evidence and keeper-only signaling stay
+unchanged. Synchronous inspection also blocks other files' progress IPC and
+can delay the keeper's cleanup pipe EOF, so the shared watchdog and cleanup's
+five-second wait window now exclude that time. Late progress cannot rearm a
+completed file's watchdog; two fresh empty group inspections remain mandatory.
+
+On eb1000 alone, taskset CPUs 56–79, seven samples at each population measured
+full ps medians of 47.257 / 96.377 / 293.893 / 530.598 ms for approximately
+1,170 / 2,174 / 6,173 / 11,176 rows. Temporary C children waited on our pipe and
+were all reaped after EOF. No other session's processes were changed. Omitting
+lstart barely changed Linux timings; the reported M5 timeout establishes that
+its two-second budget was insufficient, not a measured Darwin completion time.
+
+All 89 focused tests pass. The original runner fails both slow-inspection
+recovery phases and the queued-progress regression; restoring only its cleanup
+wall clock also fails slow cleanup. LLP references validate with zero errors.
+The [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md) records the
+complete-suite result and retained logs; the
+[ticket](../issues/closed/20261006-snapback4-ps-inspection-timeout.md) is closed.
+Wasm/product code, seeds and ownership are unchanged. No remote qualification,
+push or publication.
+
+PS closeout after session resumption: the focused pair passed 89/89 again in
+40.772 s. A fresh idle-CPU sample selected CPUs 0–31 and 48–79 for the complete
+suite using the existing build cache: **0 failures in 1,473 s**, including
+322/322 client files (6,452 passes, 47 declared skips), 79/79 serial model tests,
+and all native/build/typecheck/fixture stages. The report retains the complete
+compressed log. The repeated LLP reference check reports zero errors.
+
+
+### 2026-10-06 — PS Round 1: monotonic cleanup and watchdog deadlines
+
+Address Astra's P1 on `da6e7d9772`: remove the shared inspection-time discount
+entirely. Concurrent persistent groups now consume the same monotonic time as
+their polling sleeps and the file watchdog. The bounded 2/60-second ps retry,
+full-table identity and fail-closed refusals remain unchanged. The production
+stall floor remains 900 seconds; completed files cannot rearm a watchdog.
+The new concurrent-group regression needs its eight-second safety guard on
+Round 0 and delays the hung file to 10.426 s; the fix detects it in 2.778 s and
+both cleanup loops refuse after 5.242 / 5.146 s. All 89 focused tests pass,
+including timeout recovery in both inspection phases, repeated timeout and
+nonzero-exit refusals. LLP references pass. Full-suite results and evidence
+are retained in the [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md).
+
+PS Round 1 closeout: the complete eb1000 suite passed with **0 failures in
+1,486 s** on idle-sampled CPUs 0–31, 48–63 and 66–81. All 322 client files,
+79/79 serial model tests and native/build/typecheck/fixture stages passed.
+Under full-suite contention, the new regression detects the hung file in
+2.904 s and both cleanup deadlines expire at 5.175 / 5.072 s. Compressed logs
+are in the report. No push, remote qualification or publication.
+
+
+### 2026-10-06 — PS Round 2: asynchronous process inspection
+
+Resolve the follow-up P1/P2 on `b20a12719c`: spawn ps asynchronously, retain
+bounded 2/60-second timeout recovery and all full-table/routing refusals, and
+await Darwin identity rereads. A hung or aborted file releases its keeper before
+awaiting inspection. Cleanup uses a per-file monotonic deadline and completed
+post-deadline evidence: live groups refuse; two consecutive empty snapshots
+pass even when confirmation is late. No shared clock discount returns.
+
+All 93 focused tests pass three times (45.135 / 44.975 / 44.220 s). The restored
+3.1-second recovery passes; during a foreign listing lasting about 7.8 s with
+retry, siblings pass in 304–350 ms, a hung file fails in 1.261–1.279 s, and timers
+continue ticking. Persistent groups refuse at 5.001–5.190 s. Real repeated
+command timeouts, spawn errors, nonzero exit and overflow fail closed; the
+inspection children are reaped. Worker identity callers and LLP references
+pass. The [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md) retains
+full-suite verification and compressed evidence. Eb1000 only; no push.
+
+PS Round 2 closeout: the full eb1000 suite passed with **0 failures in 1,569 s**
+on 48 idle-sampled CPUs. All 322 client files (6,456 passes, 47 declared skips),
+79/79 serial model tests, and native/build/typecheck/fixture stages pass. Under
+the full concurrent pool, the foreign-listing sibling passes in 311 ms and its
+hung companion fails in 1.270 s; persistent groups refuse at 5.048 / 5.053 s.
+The report retains the complete compressed log. No push or publication.

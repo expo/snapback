@@ -520,16 +520,16 @@ appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n
   done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
   await until(()=>rows(join(f.dir,'starts')).length===1);
   const first=rows(join(f.dir,'starts'))[0];
-  const worker=identity(first.pid), helper=identity(first.helper);
+  const worker=await identity(first.pid), helper=await identity(first.helper);
   assert.ok(worker?.alive && helper?.alive, 'capture both live process identities before signaling');
   watchdog.kill(signal);await done;
-  assert.equal(live(worker),false);
+  assert.equal(await live(worker),false);
   // The watchdog reaps Node, but cannot waitpid Node's child. SIGKILL delivery
   // to that descendant can finish after the watchdog's exit event is observed.
   // PID reuse must not resurrect either process. Inspection errors and until's
   // TEST_HANG guard still throw; zombies count as exited on both platforms.
-  await until(() => !live(helper));
-  assert.equal(live(helper),false);
+  await until(async () => !(await live(helper)));
+  assert.equal(await live(helper),false);
 });
 
 test('ledger open waits for a busy writer before becoming ready', async t => {
