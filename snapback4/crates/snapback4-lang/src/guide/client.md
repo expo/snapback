@@ -1,28 +1,28 @@
 # Client: answers stay on screen
 
-**Start here:** `useQuery`/`usePage` and `readPresentation`; keep composers and receipts above transient rows.
+**Start here:** `useQuery`/`usePage` with `matchRead`; composers/receipts above transient rows.
 
 ```tsx
-import { usePage } from "snapback4/react";
-import { readPresentation } from "snapback4/contract";
+import { matchRead, usePage } from "snapback4/react"; import { readPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
-export function Inbox() { const page = usePage(api.inboxCards, {}), status = readPresentation(page.read);
-  return <>{status.existence}{status.incomplete && "Partial results"}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
+export function Inbox() { const page = usePage(api.inboxCards, {}), status = readPresentation(page.read); return <>{matchRead(page.read, { loading: () => "Loading…", denied: why => why.message,
+    absent: () => "No conversations", partial: () => "Partial results", present: rows => `${rows.length} conversations` })}
+    {status.incomplete && "Results may be incomplete"}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
 }
 ```
 
-- `E_OFFLINE`: server data is unavailable; show unavailable and reconnect.
+- `E_OFFLINE`: server data unavailable; show unavailable and reconnect.
 - `E_QUERY_RETRY`: one-shot settlement exhausted its budget; retry, using reactive hooks for screens.
 
 ## Reference
 ```tsx
 import { useState } from "react"; import { useMutation, useQuery } from "snapback4/react";
-import { existence, isReady } from "snapback4/contract";
+import { matchRead } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
   const [draft, setDraft] = useState(""); const send = useMutation(api.send);
   const member = useQuery(api.myMembership, { conversationId });
-  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  const blocked = matchRead(member, { denied: () => true, absent: read => read.fresh && !read.revalidating, partial: () => false, otherwise: () => false });
   const [submitted, setSubmitted] = useState("");
   async function submit() {
     if (blocked) return;
@@ -34,45 +34,45 @@ export function Composer({ conversationId }: { conversationId: string }) {
     {send.last?.state === "failed" && submitted && <p role="alert">Not sent: {submitted} <button onClick={() => setDraft(current => current ? current + " " + submitted : submitted)}>Edit</button> <button onClick={() => setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Membership with no horizon, in the conversation's own group and messages' audience, proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
-Only `denied` or fresh, non-revalidating `absent` disables Send; stale offline absence queues for sync authorization. `loading`/`partial` never disable.
+Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+`denied` always blocks. `existence(member) === "absent"` blocks only when fresh and non-revalidating. Stale absence queues; `loading`/`partial` never disable.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. Identity I/O: 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes FIFO; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
-Restore refused text into empty drafts; otherwise Edit/Dismiss. Predicted rows (`pending: true`): “Sending…”.
+Refused text: restore empty drafts or Edit/Dismiss. Predicted rows: “Sending…”.
 Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; then undefined is unknown. Never auto-resend. Dismiss after lookup settles. New attempts: new ids; replay omits historical results. Web/Expo starters journal this.
 
 `usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md).
 
 ## Honest read boundaries
-`query(op, args)` settles ready/denied after device/server evaluation and authority: four rounds/30 seconds including queues/approval while runnable, exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or immediate `E_OFFLINE`. Terminal refusals win; ready may be partial/stale.
-`existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
+`query(op, args)` settles ready/denied: four rounds/30 seconds including runnable queues/approval; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or immediate `E_OFFLINE`. Refusals win; ready may be partial/stale.
+`matchRead` requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)` gets Refusal; `absent(read)`/`loading(read)` get their arm. `otherwise(read)` covers omitted loading/absent/present only. Denied/partial remain explicit; metadata stays. `existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
 
 | Meaning | UI decision |
 | --- | --- |
 | `loading` | Withheld: keep composers/headers/routes mounted. |
 | `denied` | Show refusal; disable durable action. |
-| `present` | Render nonempty values; `incomplete` controls “Partial results”. |
+| `present` | Render values; `incomplete` controls “Partial results”. |
 | `absent` | Proven empty: resolve missing route/row. |
 | `partial` | Uncertain empty, never absence or denial; `incomplete` controls “Partial results”. |
 
-Top-level `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
-Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
-Answers stay `revalidating` until replaced unless evidence may revoke rows: deletes, policy-input changes and unknown/older evidence start a nonrenewable one-second bound. Inserts, non-policy updates and plain revalidation retain through slow/failed retries. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss immediately withdraws dependent groups; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
+`null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
+Route on `present`/`absent`; follow `useAuth().state`. Reset drafts on account/backend change. Retention grants no authority.
+Revalidation retains until replacement. Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Applied scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
-`guide social`: quoted-message point reads distinguish loading/absence/denial; bounded route-owned screens preserve drafts.
+`guide social`: quoted messages and bounded screens.
 
 ## Row queries
-Shared observations avoid repetition. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.
-At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
+Prefer shared observations/pages over 1,000 point reads. Authorization inputs remain dependencies.
+At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in queue; retries never replenish. Online evidence overtakes at most eight times; occupied slots can cause withdrawal.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
-Flashes: `inspect(client)` from `snapback4/inspection` compares `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
-Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
+Flashes: `inspect(client)` (`snapback4/inspection`): `queued`/`inFlight`, `revalidating`/`withdrawn`, `recentWithdrawals`. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max, 256 attempts; 64 withdrawals. Includes linger; excludes direct/presence.
+Overlay: `useInspection(import.meta.env.DEV)` (`snapback4/react`; Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
-Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
-Every milestone: `npm run export:ios` publishes `dist/`; native proof runs in the background. `witness status --wait` reports results. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs scenarios (`guide witness`).
+`nativeDevice`/`webDevice()`; Expo Go online. Acquisition/Workers: `guide sync`.
+Every milestone: `npm run export:ios` publishes `dist/`; proof runs in the background. `witness status --wait`: results. `npm run native:smoke`: rebuild. Acquisition/offline reopen/reconnect; write replay needs `guide witness`.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.
@@ -107,4 +107,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
   return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
 }
 ```
-`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`); handles expire. Start: `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
+`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`). Start: `snapback4 new my-social --template social`; `guide social`/`guide ephemeral`.

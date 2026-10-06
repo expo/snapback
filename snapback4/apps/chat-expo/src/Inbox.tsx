@@ -1,4 +1,4 @@
-import { existence } from "snapback4/contract";
+import { existence, matchRead } from "snapback4/contract";
 import { useRef } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { isReady } from "snapback4/contract";
@@ -10,9 +10,11 @@ export function Inbox({ onSelect }: { onSelect(id: string): void }) {
   const answered = useRef(false);
   if (isReady(inbox)) answered.current = true;
   return <View style={{ flex: 1 }}>
-    {existence(inbox) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
-    {"denied" in inbox ? <Text style={styles.note}>{inbox.denied.message}</Text> : null}
-    {existence(inbox) === "partial" ? <Text style={styles.note}>Conversations may be incomplete.</Text> : null}
+    {matchRead(inbox, {
+      loading: () => <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text>,
+      denied: why => <Text style={styles.note}>{why.message}</Text>,
+      partial: () => <Text style={styles.note}>Conversations may be incomplete.</Text>, otherwise: () => null,
+    })}
     <FlatList data={isReady(inbox) ? inbox.data : []}
       keyExtractor={row => row.conversationId}
       ListEmptyComponent={existence(inbox) === "absent" ? <Text style={styles.note}>No conversations yet.</Text> : null}

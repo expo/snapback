@@ -88093,3 +88093,41 @@ at 118 lines. Guide tests passed 113; headless/social tests passed 15;
 reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
+
+## 2026-10-06 — RM: exhaustive typed read rendering
+
+Added `matchRead` to `snapback4/contract` and re-exported it from
+`snapback4/react`. Five callbacks receive the existing narrowed read/data/refusal;
+explicit `otherwise` covers only omitted loading/absent/present callbacks.
+Denied and partial always require a decision. Points and pages share the same
+set; present pages can still be incomplete. This adds no subscription,
+classification, retention or read semantics. LLP 3000.031 §8 records the choice.
+
+Social quote, conversation status/send gate, feed, chats, profile and search
+now use it, with applicable web/Expo status lines and gates. Existing text,
+controls, composer ownership and the distinct starter membership policies are
+preserved. The online-only starter has no rendering branch to replace. The
+client card remains at 110 lines/1,199 words; package and starter documentation
+teach the exhaustive form and restricted fallback.
+
+Type tests reject missing arms and verify point/page/refusal narrowing and
+mixed return types. The runtime matrix exercises 3,458 cases. The affected
+12-file client/UI run passed 178 tests; expanded generated social tests passed
+15; starter generation passed 22; final guide tests passed 113 and the final
+one-shot/README run passed 80. The full Mac suite ran with Node 24.19.0 and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`: Rust (299 binaries,
+1,012 executions), both app typechecks, fixtures and both full-count models
+(79 tests) passed. Client files finished 324/324, with 6,504 passes, 2 failures
+and 6 skips; the overall run exited 1 after 2,895 seconds. One failure was RM's
+shortened proven-held-refusal wording, restored and rechecked above. The other
+is an unchanged process-cleanup fixture, reproduced separately and from the
+untouched base commit (53 inspections versus expected 2). It is recorded in
+`issues/20261006-snapback4-darwin-stale-empty-inspection-count.md`; no full-suite
+green claim is made and no process-custody code was changed.
+
+Wasm is byte-identical before/after the suite: 2,117,610 bytes raw / 639,941
+bytes gzip, unchanged budget. No Rust or device code changed. All work stayed
+on the Apartment mini; no real simulator, other worktree, remote host, push
+or publication was used. The [report](reports/20261006-rm-read-match/REPORT.md)
+contains the exhaustive state inventory, governing sections and verification
+logs. Changes are committed locally with the requested GPT-6 Astra trailer.
