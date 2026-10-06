@@ -303,9 +303,10 @@ Browser Web Locks serialize journal updates and session replacement/deletion
 across tabs. Journal observers re-read on both a broadcast and the journal's
 storage event: a broadcast can arrive before another tab sees a localStorage
 commit. Neither notification carries trusted intent or replaces durable custody.
-A refused bearer stops that runtime without deleting stored
-credentials; it cannot delete a successor saved by another tab. Explicit logout
-commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
+A refused bearer stops that runtime and conditionally tombstones its rejected
+credential; it preserves a peer's successor, including a pending read-refresh
+receipt. Explicit logout compares the owned principal and epoch, then commits a
+tombstone before revoking the credentials it displaces. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion

@@ -88206,3 +88206,16 @@ additional production change was needed. The native witness's existing open
 process-inspection issue also recurred in two tests; seven focused tests and
 the complete 326-test CLI unit target passed unchanged afterward. Original
 failures remain in the evidence and do not become a green complete-run receipt.
+
+Round 3 complete verification finished in 2,122 seconds, with full model counts.
+The run had two failed phases: two native witness inspection subtests and three
+client subtests (the revised logout expectation, await census, and an unchanged
+export-maintenance queue-drain timeout). Every failed target/file has a passing
+final rerun: CLI 326 passes / 4 ignores, app and fault matrix 417 passes, export
+58 passes / 36 platform skips. Original failures remain in the report; this is
+not a single-green qualification receipt. All 79 full-suite model tests passed,
+including 5,000 online and 5,000 local session histories. The existing native
+inspection ticket and a new export-maintenance ticket preserve the unresolved
+causes. Wasm remains 2,117,335 raw / 639,888 gzip bytes under 639,941, unchanged
+from Round 2. Final references, source limits and append-only checks pass.
+No push or publication.

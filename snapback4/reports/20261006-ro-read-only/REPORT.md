@@ -441,3 +441,60 @@ stays live, stored and restorable, matching the new permanent full-session
 controls and the requested principal/epoch rule. No production code changed.
 Both entire files passed their rerun: **417 tests, zero failures or skips**.
 The original failures remain in the complete-suite log.
+
+
+### Final Round 3 verification
+
+The complete `bash scripts/test.sh` finished in **2,122 seconds (35m22s)** at
+full default model counts. It reported **two failed phases / five failed
+subtests**; this is **not a single-green-run qualification receipt**. Every
+failed target/file has a passing final rerun, with original failures retained.
+
+- Rust: **300 test binaries / 1,013 executions plus workspace doctests**.
+  The CLI unit target had the two native witness `/proc` inspection failures
+  recorded above; its unchanged full rerun passed **326 tests / 4 existing
+  ignores**, and seven focused recovery tests also passed. All other Rust
+  targets and doctests passed. Rust phase: 1,093 seconds.
+- Client pool: **329/329 files executed**, **6,525 passed / 3 failed / 47
+  labelled skips** (628 seconds). All read-only SDK/server files, including
+  the 20 new real-server interleavings and published-binary test, passed.
+  The app logout-retry assertion and await census were corrected as described
+  above; their entire files passed **417 tests**, no skips. The third failure
+  was the unchanged export-background crash case `publication-handoff (off,
+  next Expo fails)`: its maintenance queue did not drain within 90 seconds.
+  The unchanged entire-file rerun passed **58 tests / 36 platform skips**
+  in 320 seconds. The new filesystem ticket
+  `issues/20261006-snapback4-export-maintenance-handoff-drain.md` retains the
+  signature and missing-evidence limit. A passing rerun does not establish
+  its cause or erase the original failure.
+- Full-suite models: **79 passed**, no skips (52 app/session + 27 online
+  client tests), in 316 seconds. The log records **5,000 online and 5,000
+  local session histories**, seeds 1–5,000. The independent affected model
+  run also passed all 52 tests at these counts.
+- Fixture wrappers: **9 passed**. Cargo build, wasm build/budget, documentation
+  budget, release guard, package typecheck/build, chat compilation and chat/Expo
+  typechecks passed. Focused SDK selection: 100 passed; expanded peer file:
+  20 passed. Source line limits, diff whitespace and pure-append JOURNAL checks
+  pass. Final reference audit: **529 LLP documents / 10,455 references**, zero
+  errors or unchecked references.
+
+Wasm remains **2,117,335 raw / 639,888 gzip bytes**, under the unchanged
+**639,941-byte** budget. SHA-256 remains
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+No device growth, schema capability changes or server production changes.
+
+The complete log is `evidence/round3-full-suite.log.gz`; focused, model,
+wasm, reference and rerun evidence use the same `round3-` prefix. The initial
+preflight run stopped to correct the witness helper is retained separately.
+The complete run used Node 24.13.1/Bun 1.3.14, `CARGO_INCREMENTAL=0`, shared
+`CARGO_TARGET_DIR=~/sb5-lanes/target`, dev/test debug info disabled and eight
+Cargo jobs. It supplied both this checkout's witness helper and the prior
+published 0.4.13 binary. Existing PostgreSQL/platform runtime limits remain;
+no new adapter runtime claim is made.
+
+Checkpoints: `63d6cf1400` (implementation and permanent regressions),
+`8c7b6da3ff` (affected full-count models), `5cd481643e` (native witness
+recurrence/reruns), `61e5655f07` (existing test expectation and await census).
+Every Round 3 commit carries the requested Astra co-author trailer. The code
+remained unchanged throughout complete-suite execution and the final reruns.
+No push or publication.
