@@ -583,3 +583,11 @@ failure remains in the full-suite evidence. The JavaScript implementation and
 full-count configuration are unchanged, and subsequent client tests use the
 corrected CLI. All other completed Rust executions passed, including the
 326-test CLI unit target (four existing ignores).
+
+The full client pool also found one obsolete Round 3 assertion in
+`read-only-custody.test.mjs`: after 32 rotations it still expected a newer epoch
+of Bob's credential to survive explicit logout. Updated it to require the
+tombstone and retirement of both the current rotation and the peer credential.
+The entire file passes **4/4**, with no production change. The original failure
+remains in the full-run log. The new 17-test Round 4 file, the 20-test peer file,
+and full-session app file all pass in the complete run.

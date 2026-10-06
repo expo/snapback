@@ -88254,3 +88254,10 @@ including invalid bearer/persona combinations. Early credential rejection now
 uses that endpoint's existing denial response; it still never enters minting.
 The complete 20-test `token_live` target passes after the correction. The
 original full-run failure is retained and the rest of the suite continues.
+
+The full client pool found one remaining Round 3 expectation in the 32-rotation
+custody test: it preserved the same user's newer epoch. Updated it to require a
+logout tombstone and retirement of both the owned rotation and the newer kept
+credential, matching the lead's ruling. The entire four-test file passes; no
+production change was required. The new Round 4 cases and full app tests pass
+inside the complete run.

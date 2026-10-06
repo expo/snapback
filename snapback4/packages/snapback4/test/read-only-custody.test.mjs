@@ -122,12 +122,14 @@ test('successor verification recovers private custody, persists once and authent
   assert.ok('data' in await restarted.client.query(query, {}));
 });
 
-test('logout after repeated rotations preserves a peer credential in a newer epoch', async t => {
+test('logout after repeated rotations retires the same user in a newer epoch', async t => {
   const original = session('bob', 'ro.0'), store = storage(original);
   let sequence = 0;
+  const retired = new Set();
   const app = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/auth/refresh') return Response.json({ session: session('bob', `ro.${++sequence}`) });
+    if (path === '/auth/logout') retired.add(new Headers(init.headers).get('authorization'));
     if (path === '/probe') return Response.json({ ok: true, scope: 'read', viewer: 'bob', store_id: 'test', seq: 0 });
     return fetcher(input, init);
   } });
@@ -140,8 +142,12 @@ test('logout after repeated rotations preserves a peer credential in a newer epo
     assert.equal(JSON.parse(store.values.get(key)).token, `ro.${i}`);
   }
   await waitFor(() => notifications.length === 32);
-  // Logout owns the principal only in its committed epoch, even after many rotations.
+  // The lead's ruling owns the same principal in every epoch, without a token lineage.
   await store.set(key, JSON.stringify({ ...original, snapback4Epoch: '1' }));
-  await app.auth.logout();
-  assert.equal(JSON.parse(store.values.get(key)).token, original.token);
+  assert.equal((await app.auth.logout()).ok, true);
+  const saved = JSON.parse(store.values.get(key));
+  assert.equal(saved.token, undefined);
+  assert.equal(saved.snapback4Successor, undefined);
+  assert.equal(saved.snapback4Logout, '2');
+  await waitFor(() => retired.has(`Bearer ${original.token}`) && retired.has('Bearer ro.32'));
 });
