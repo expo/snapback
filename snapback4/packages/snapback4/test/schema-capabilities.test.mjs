@@ -309,6 +309,32 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   t.diagnostic(`${f.name}: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed`);
 });
 
+for (const [name, source] of [
+  ['argument', 'mutation createGroup(peers: [principal] 1..49):\n  return peers\n'],
+  ['column', 'table groups:\n  peers: [principal] 1..49\n  public\nquery groups():\n  return groups first 10\n'],
+  ['nested', 'query peers(peers: [[principal] 1..49] <=2 ?):\n  return peers\n'],
+]) test(`published 0.2.33 list minimum fence: ${name}`, { skip: fenceSkip, timeout: hangBudget(8) }, async t => {
+  const { dir, legacy, current, native, app, run } = await harness(t);
+  const next = await app('lists', `use personas alice\n${source}`);
+  const unknownList = /unknown variant [`'"]?ListRange/;
+  const fresh = join(dir, 'legacy-list.sqlite');
+  const refused = native(legacy.binary, fresh, next.backend);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stdout + refused.stderr, unknownList);
+  assert.equal(existsSync(fresh), false, 'decode refuses before creating a store');
+  assert.throws(() => new legacy.wasm(JSON.stringify(next.backend), '[]'), unknownList);
+  const device = new current(JSON.stringify(next.backend), '[]'); device.free();
+  await next.server.stop();
+  if (name === 'column') {
+    const store = join(next.cwd, '.snapback4/store.sqlite'), before = dump(store);
+    // Doctor reads the persisted schema, independently of source parsing.
+    const result = run(legacy.binary, ['doctor', '--store', store], '', next.cwd);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout + result.stderr, unknownList);
+    assert.equal(dump(store), before, 'refused persisted schema preserves every table');
+  }
+});
+
 test('Linux schema-byte fixture is the published capability-free control source', () => {
   assert.equal(readFileSync(join(root,'crates/snapback4-core/tests/fixtures/capability-free.q'),'utf8'),
     'use identity guests\n'+ordinary);

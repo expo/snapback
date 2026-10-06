@@ -74,7 +74,7 @@ fn rust_type(kind: &ColumnType) -> String {
         ColumnType::Bool => "bool".into(),
         ColumnType::Json { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } => "snapback4_native::Json".into(),
         ColumnType::Optional(inner) => format!("Option<{}>", rust_type(inner)),
-        ColumnType::List { of, .. } => format!("Vec<{}>", rust_type(of)),
+        ColumnType::List { of, .. } | ColumnType::ListRange { of, .. } => format!("Vec<{}>", rust_type(of)),
     }
 }
 

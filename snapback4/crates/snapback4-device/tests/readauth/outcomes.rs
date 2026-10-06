@@ -103,7 +103,7 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
 fn create_room<H:Host>(mut h:H) {
     let (mut e,b)=compile(&format!("{}\n{TICK}",snapback4_lang::guide::language()));
     let mut d=acquire(&mut h,&mut e,b);
-    let input=json!({"name":"New","kind":"open","tags":[]});
+    let input=json!({"name":"New","kind":"open","tags":["demo"]});
     let q=admit(&mut d,"createRoom",input.clone());
     assert!(q.predictable,"the later membership authorizes the room: {q:?}");
     let room_id=q.predicted.iter().find_map(|key|key.strip_prefix("rooms/")).unwrap().to_owned();
@@ -156,12 +156,12 @@ fn retained_edit<H:Host>(mut h:H,source:&str,language:bool,write_forms:bool) {
     let rooms=if language {"rooms"} else {"conversations"};
     let source=format!("{source}\n{TICK}\nquery raw(messageId: messages):\n  return messages[messageId]\nmutation depart():\n  delete {members}[\"member\"]\n");
     let (mut e,b)=compile(&source);
-    let room=if language {json!({"id":"left","name":"Left","ownerId":"alice","kind":"open","tags":[],"createdAt":1})} else {json!({"id":"left","title":"Left","creatorId":"alice"})};
+    let room=if language {json!({"id":"left","name":"Left","ownerId":"alice","kind":"open","tags":["demo"],"createdAt":1})} else {json!({"id":"left","title":"Left","creatorId":"alice"})};
     let rows=[(rooms,room),(members,json!({"id":"member",group:"left","principal":"alice","role":"admin","joinedAt":1})),
         ("messages",json!({"id":"message",group:"left","authorId":"alice","body":"Old","at":1}))];
     for (table,row) in rows {e.seed([(table.into(),wire::row_from_json(&b.schema.tables[table],&row).unwrap())]).unwrap();}
     if write_forms {
-        for (table,row) in [(rooms,json!({"id":"active","name":"Active","ownerId":"alice","kind":"open","tags":[],"createdAt":1})),
+        for (table,row) in [(rooms,json!({"id":"active","name":"Active","ownerId":"alice","kind":"open","tags":["demo"],"createdAt":1})),
             (members,json!({"id":"active-member",group:"active","principal":"alice","role":"admin","joinedAt":1})),
             ("messages",json!({"id":"active-message",group:"active","authorId":"alice","body":"Active","at":1})),
             ("posts",json!({"id":"post","authorId":"alice","body":"Post","score":0,"at":1})),

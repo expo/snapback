@@ -84,6 +84,13 @@ pub enum ArgType {
         of: Option<Box<ArgType>>,
         max: u32,
     },
+    // @ref LLP 3000.007#5.4 — preserve List bytes at min zero; fail closed on older readers.
+    ListRange {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        of: Option<Box<ArgType>>,
+        min: u32,
+        max: u32,
+    },
     Enum { variants: Vec<String> },
     Decimal { scale: u8 },
     Money { currency: String, scale: u8 },
@@ -93,6 +100,7 @@ impl ArgType {
     pub fn bounds_valid(&self) -> bool {
         match self {
             Self::Text { min, max, .. } => min <= max,
+            Self::ListRange { of, min, max } => min <= max && of.as_ref().is_none_or(|of| of.bounds_valid()),
             Self::Optional(inner) | Self::List { of: Some(inner), .. } => inner.bounds_valid(),
             _ => true,
         }

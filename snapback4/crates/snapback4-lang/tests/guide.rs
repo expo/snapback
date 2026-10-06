@@ -750,7 +750,7 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(sent(&engine.mutate("leave", Some("v1"), Context::new(bob, args(&[("roomId", id("r1"))])).at(3_900)).unwrap()), &Value::Null);
     assert_eq!(failed(&engine.mutate("leave", Some("v2"), Context::new(bob, args(&[("roomId", id("r1"))])).at(3_950)).unwrap()), "NOT_FOUND");
     // nightly: chunks, `break` on the first room past the period, a helper call, `range`.
-    let later = engine.mutate("createRoom", Some("c2"), Context::new(alice, args(&[("name", text("Later")), ("kind", text("closed")), ("tags", Value::Array(vec![]))])).at(6_000).with_ids(["r2".to_owned(), "m4".to_owned()])).unwrap();
+    let later = engine.mutate("createRoom", Some("c2"), Context::new(alice, args(&[("name", text("Later")), ("kind", text("closed")), ("tags", Value::Array(vec![text("later")]))])).at(6_000).with_ids(["r2".to_owned(), "m4".to_owned()])).unwrap();
     assert_eq!(sent(&later).field("id").unwrap(), &id("r2"));
     let run = engine.run_job("nightly", args(&[("periodStart", Value::Int(0)), ("periodEnd", Value::Int(5_000))]), 7_000).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");

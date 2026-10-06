@@ -114,7 +114,7 @@ fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
-        if let ArgType::List { max, .. } = kind { a.result.bounds.arguments.insert(name.clone(), u64::from(*max)); }
+        if let ArgType::List { max, .. } | ArgType::ListRange { max, .. } = kind { a.result.bounds.arguments.insert(name.clone(), u64::from(*max)); }
     }
     if program.native || program.kind == ProgramKind::Action {
         a.growth(&program.name, "work in the external handler (no Quarry body to certify)".into(),

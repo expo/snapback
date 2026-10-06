@@ -350,7 +350,7 @@ pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
         ColumnType::Bytes { max } => u64::from(*max),
         ColumnType::Enum { variants } => variants.iter().map(|v| v.len() as u64).max().unwrap_or(0),
         ColumnType::Optional(inner) => column_copy_ceiling(inner),
-        ColumnType::List { of, max } => u64::from(*max).saturating_mul(std::mem::size_of::<Value>() as u64 + column_copy_ceiling(of)),
+        ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. } => u64::from(*max).saturating_mul(std::mem::size_of::<Value>() as u64 + column_copy_ceiling(of)),
         // Canonical JSON bytes bound owned strings/bytes and array slots at every
         // depth. Object subtrees, like image/video facts, are shared Arc values.
         ColumnType::Json { max_bytes } => u64::from(*max_bytes) * (std::mem::size_of::<Value>() as u64 + 1),

@@ -69,6 +69,10 @@ pub fn typescript(bound: &Bound) -> String {
             let horizon = fact.sites.iter().filter(|site| site.class == snapback4_core::schema::SiteClass::Horizon).map(|site| format!("{} by {} ({})", site.table, site.index, site.site)).collect::<Vec<_>>().join(", ");
             let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
             let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            let bounds = program.program.args.iter().filter(|(_, ty)| has_list_minimum(ty))
+                .map(|(name, ty)| format!("{name}: {}", arg_bound(ty)))
+                .collect::<Vec<_>>();
+            if !bounds.is_empty() { comment.push_str(&format!(" Bounds: {}.", bounds.join("; "))); }
             if fact.held { comment.push_str(" Held: device only; server refuses E_QUERY_HELD; no server fallback."); }
             if program.program.kind == ProgramKind::Query { comment.push_str(" Read.cut: meter | words | null, beside complete."); }
             if fact.connected_effects_only { comment.push_str(&format!(" {}.", crate::bind::residency::CONNECTED_EFFECTS)); }
@@ -120,6 +124,33 @@ pub fn typescript(bound: &Bound) -> String {
     out.push_str("};\n");
     receipts::emit(bound, &mut out);
     out
+}
+
+fn has_list_minimum(ty: &snapback4_core::ir::ArgType) -> bool {
+    use snapback4_core::ir::ArgType;
+    match ty {
+        ArgType::ListRange { .. } => true,
+        ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } => has_list_minimum(inner),
+        _ => false,
+    }
+}
+
+fn arg_bound(ty: &snapback4_core::ir::ArgType) -> String {
+    use snapback4_core::{ir::ArgType, schema::{TextFormat, arg_as_column}};
+    let item = |of: &Option<Box<ArgType>>| of.as_deref().map(arg_bound).unwrap_or("scalar".into());
+    match ty {
+        ArgType::Optional(inner) => format!("{} ?", arg_bound(inner)),
+        ArgType::List { of, max } => format!("[{}] <={max}", item(of)),
+        ArgType::ListRange { of, min, max } => format!("[{}] {min}..{max}", item(of)),
+        ArgType::Text { min, max, format } => {
+            let bound = if *min == 0 { format!("<={max}") } else { format!("{min}..{max}") };
+            let format = match format { Some(TextFormat::Handle) => " format handle", Some(TextFormat::Url) => " format url", None => "" };
+            format!("text {bound}{format}")
+        }
+        ArgType::Cursor => "cursor".into(),
+        ArgType::Scalar => "scalar".into(),
+        _ => arg_as_column(ty).expect("scalar argument has a column form").to_string(),
+    }
 }
 
 fn args_ts(args: &[(String, Ty)]) -> String {

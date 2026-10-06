@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 pub(super) fn leaf(kind: &ColumnType) -> &ColumnType {
     match kind {
-        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => leaf(inner),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => leaf(inner),
         other => other,
     }
 }
@@ -17,7 +17,7 @@ pub(super) fn leaf(kind: &ColumnType) -> &ColumnType {
 pub(super) fn contains(kind: &ColumnType, value: Option<&Value>, id: &str) -> bool {
     match (kind, value) {
         (ColumnType::Optional(inner), value) => contains(inner, value, id),
-        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values.iter().any(|v| contains(of, Some(v), id)),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(values))) => values.iter().any(|v| contains(of, Some(v), id)),
         (ColumnType::Image { .. } | ColumnType::Video { .. }, value) => asset_id(value) == Some(id),
         _ => false,
     }
@@ -26,7 +26,7 @@ pub(super) fn contains(kind: &ColumnType, value: Option<&Value>, id: &str) -> bo
 fn values<'a>(kind: &ColumnType, value: Option<&'a Value>, out: &mut BTreeMap<&'a str, &'a Value>) {
     match (kind, value) {
         (ColumnType::Optional(inner), value) => values(inner, value, out),
-        (ColumnType::List { of, .. }, Some(Value::Array(items))) => {
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(items))) => {
             for item in items { values(of, Some(item), out); }
         }
         (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(value)) => {
@@ -56,7 +56,7 @@ impl Runner<'_> {
     fn asset_facts(&self, table: &str, column: &str, kind: &ColumnType, value: &Value, before: &BTreeMap<&str, &Value>) -> Result<Value, RuntimeError> {
         let (wanted, max) = match kind {
             ColumnType::Optional(inner) if *value != Value::Null => return self.asset_facts(table, column, inner, value, before),
-            ColumnType::List { of, max } => {
+            ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. } => {
                 if let Value::Array(items) = value {
                     // Refuse oversized lists before allocating or touching the ledger.
                     if items.len() > *max as usize { return Err(RuntimeError::Input(format!("{table}.{column} takes at most {max} items"))); }

@@ -79,7 +79,7 @@ table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
-  tags: [text <=20] <=8               -- [type] <=N: a bounded list
+  tags: [text <=20] 1..8              -- [T] 1..N inclusive; [T] <=N means 0..N
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
   createdAt: time default now          -- omitted on insert; evaluated on the writing host
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
@@ -368,7 +368,7 @@ mutation pagePass(roomId: rooms): server
 mutation registerProfile(handle: text 3..20 format handle):
   return insert profiles { principal: viewer, handle }
 
-mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
+mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] 1..8):
   room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints; omitting id also mints
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
   upsert rooms[room.id] { createdAt: now }                            -- patches createdAt; other fields stay

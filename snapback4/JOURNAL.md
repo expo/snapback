@@ -88093,3 +88093,44 @@ at 118 lines. Guide tests passed 113; headless/social tests passed 15;
 reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
+
+## 2026-10-06 — LB: inclusive list lower bounds
+
+Quarry now accepts `[T] a..b` wherever it accepts `[T] <=N`; the latter stays
+`0..N`. Parser diagnostics reject negative, oversized and reversed bounds.
+Operation admission and column writes enforce both bounds through the shared
+server/device validators, including optional/nested lists. Short inputs report
+`E_INPUT: peers needs at least 1 item; got 0`; action results retain their
+`E_ACTION_RESULT` policy and addressed writes retain authority masking.
+The explicit `require count(peers) >= 1` form still works. Introducing a column
+minimum is checked narrowing; lowering/removing it can widen the schema.
+
+Positive minima use a new `ListRange { of, min, max }` serde variant in argument
+and column types, so older readers refuse the unknown tag. Zero minima preserve
+the old `List { of, max }` bytes. No value encoding, protocol or digest algorithm
+changes. The [LB report](reports/20261006-lb-list-lower-bounds/REPORT.md) cites
+the prior rules, governing code and exact catalog/persistence changes. Generated
+TypeScript argument comments state the bounds; both guide cards demonstrate
+them within existing budgets. LLP 3000.007 §5.4 records the decision.
+
+Tests first reproduced the prior syntax rejection. The verified Rust inventory
+has 5,080 passes and 33 declared ignores, including 1,488 language passes and
+113 guide tests. The requested full script ran every stage; its initial Rust
+compile failure exposed a missing disclosure-generator match arm and prevented
+two client fixtures from being generated. The complete Rust rerun then exposed
+six guide-based read-authority fixtures still supplying empty tags. Those
+fixtures now supply one tag, retaining every authority assertion; their whole
+81-test target passes. Both fixture-dependent client files pass all 48 tests.
+Across the full run and corrected reruns, all 324 ordinary client files are
+verified (6,460 passes, 50 declared skips), both serial models pass 79 tests,
+and the fixture wrapper passes nine. Build, release guard, docs budgets,
+package/app typechecks and reference audit pass. Compressed logs retain the
+initial failures and final results; the whole shell script was not repeated.
+The added published-engine Darwin fences await the user's Mac run.
+
+Linux wasm measures 2,122,648 B raw / 641,203 B gzip, growing 5,313 / 1,315 B
+from the same-worktree base. The cap is 641,333 B: Linux plus 130 B for macOS.
+Its 1,392 B increase also restores 77 B of allowance missing from the prior
+cap relative to the rebuilt base. No Mac measurement is claimed. All work
+stayed in the supplied eb1000 worktree; final disk use is 28 GiB. No push or
+publication.

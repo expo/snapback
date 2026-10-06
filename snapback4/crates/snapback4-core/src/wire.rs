@@ -69,7 +69,7 @@ pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
         (ArgType::Bool, Json::Bool(b)) => Value::Bool(*b),
         (ArgType::Json { .. } | ArgType::Scalar, other) => untyped(other)?,
         (ArgType::Image { .. } | ArgType::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
-        (ArgType::List { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| match of { Some(of) => from_json(of, item), None => untyped(item) }).collect::<Result<Vec<_>, _>>()?),
+        (ArgType::List { of, .. } | ArgType::ListRange { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| match of { Some(of) => from_json(of, item), None => untyped(item) }).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {}, got {}", describe(kind), other_kind(other))),
     })
 }
@@ -119,7 +119,7 @@ pub fn column_from_json(kind: &crate::schema::ColumnType, json: &Json) -> Result
         (C::Bool, Json::Bool(b)) => Value::Bool(*b),
         (C::Json { .. }, other) => untyped(other)?,
         (C::Image { .. } | C::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
-        (C::List { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| column_from_json(of, item)).collect::<Result<Vec<_>, _>>()?),
+        (C::List { of, .. } | C::ListRange { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| column_from_json(of, item)).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {kind}, got {}", other_kind(other))),
     })
 }
@@ -140,7 +140,7 @@ fn describe(kind: &ArgType) -> String {
         ArgType::Json { .. } => "json".into(),
         ArgType::Optional(inner) => format!("{} or null", describe(inner)),
         ArgType::Scalar => "a scalar".into(),
-        ArgType::List { .. } => "a list".into(),
+        ArgType::List { .. } | ArgType::ListRange { .. } => "a list".into(),
         ArgType::Enum { variants } => variants.iter().map(|v| format!("\"{v}\"")).collect::<Vec<_>>().join(" or "),
         ArgType::Decimal { .. } | ArgType::Money { .. } => "an integer amount in minor units".into(),
     }

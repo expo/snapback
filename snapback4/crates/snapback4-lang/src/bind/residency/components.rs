@@ -8,7 +8,7 @@ pub(super) fn plan(program: &Program) -> Vec<Component> {
 }
 
 fn cursor(arg: &ArgType) -> bool {
-    match arg { ArgType::Cursor => true, ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } => cursor(inner), _ => false }
+    match arg { ArgType::Cursor => true, ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } | ArgType::ListRange { of: Some(inner), .. } => cursor(inner), _ => false }
 }
 
 fn prove(program: &Program) -> Option<Vec<Component>> {
