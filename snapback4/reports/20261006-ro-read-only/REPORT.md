@@ -548,3 +548,26 @@ HTTP guard changed two full-session refusals; the final guard preserves those
 handlers' ordering, and both entire targets passed on the final HTTP rerun.
 Build and typecheck pass. Reference audit passes (529 docs, 10,457 references).
 Grok's round-4 `.exit` is not present yet; its completed review remains pending.
+
+### Round 4 Grok disposition and preflight
+
+Grok's `ro-c3.grok.exit` now records `EXIT=0`; read its complete review. It is
+READY WITH CHANGES with one low documentation finding at the public logout
+promise. Addressed in the public promise, guide and RFC §1.4. Its proposed
+principal-and-epoch wording is superseded by the lead's explicit principal-wide
+ruling, so newer same-user logins now retire instead of being preserved. Its
+held-refresh race released the response before awaiting logout; the permanent
+Astra reproduction additionally requires logout/tombstone completion while the
+response is still held. Both own and peer variants pass. No additional product
+finding was reported by Grok. Its mutation notes rely on violating the checked
+`ro.` mint invariant or overlap the existing atomic-narrowing barriers; no new
+adapter-runtime qualification is claimed.
+
+The complete suite is running from checkpoint `33c1f9ce28`. Its preflight passed
+cargo build, wasm build/budget, docs budget, release guard, package typecheck and
+build, chat compilation, both app typechecks and fixture wrappers. Wasm is
+**2,117,335 raw / 639,888 gzip bytes**, below **639,941 bytes**, with unchanged
+SHA-256 `2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+The complete Rust inventory is still compiling; no complete-suite result yet.
+All ten changed source/test files are below 1,500 lines, JOURNAL is a pure append,
+and diff whitespace checks pass.
