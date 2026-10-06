@@ -321,3 +321,47 @@ private receipt and verified adoption writes accurately. The final reference
 audit passes: 529 LLP documents, 10,453 references, no errors/unchecked refs.
 These completed-phase logs are durably committed; the client pool and final
 models continue in the complete run.
+
+
+### Final Round 2 verification
+
+The complete `bash scripts/test.sh` passed with **0 failures in 1,975 seconds**
+(32 minutes 55 seconds), on the final SDK source. Counts were not reduced.
+
+- Rust: **300 binaries / 1,013 executions plus workspace doctests**, all passed
+  (995 seconds); existing ignored cases remain labelled.
+- Client pool: **328/328 files**, **6,508 passed / 47 labelled skips / 0 failed**
+  (619 seconds). All five read-only SDK/server files passed, including the real
+  server custody regressions and the prior published-binary test with its path
+  supplied.
+- Models: **79 passed**, no skips (52 app/session tests plus 27 online-client
+  tests), in 297 seconds. The log explicitly records **5,000 online and 5,000
+  local session histories**, seeds 1–5,000.
+- Fixture wrappers: 9 passed. Cargo build, wasm build/budget, documentation
+  budget, release guard, package typecheck/build, chat compilation and chat/Expo
+  typechecks all passed in this same completed run.
+- Focused SDK/custody selection: 46 passed. Rust read-only HTTP selection:
+  8 passed. The retirement-after-probe regression has retained before-fix
+  failure evidence and passing final evidence.
+- Reference audit: 529 LLP documents, 10,453 references, zero errors/unchecked
+  references. Diff whitespace, source line limits and pure-append JOURNAL checks
+  pass. No server production code changed in Round 2.
+
+Wasm: **2,117,335 bytes raw / 639,888 gzip**, below the unchanged **639,941**
+budget. SHA-256 remains
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`:
+byte-for-byte equality with Round 1. No capability or budget changes.
+
+The full qualification log is `evidence/round2-full-suite.log.gz`. It supersedes
+the deliberately interrupted initial run, whose preflight log is retained
+separately. Builds used Node 24.13.1/Bun 1.3.14, `CARGO_INCREMENTAL=0`, shared
+`CARGO_TARGET_DIR=~/sb5-lanes/target`, dev/test debug info disabled and 8 Cargo
+jobs. The full run supplied both the local acquisition helper and published
+0.4.13 binary paths. Existing PostgreSQL/platform runtime limits from earlier
+rounds remain unchanged; no new adapter runtime claim is made.
+
+Implementation checkpoints: `adde06ee5c` (shared app custody and regressions),
+`d806acc039` (retirement dispatch comparison), `c006a6dc23` (interactive-read
+refusal assertion and deterministic caps). Evidence checkpoints: `28fe3afd32`,
+`d01e4f75d5`, `109cdfe055`. Every Round 2 commit carries the requested Astra
+co-author trailer. No push or publication.

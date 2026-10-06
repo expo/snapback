@@ -88171,3 +88171,12 @@ its token. The new regression failed before repair. Retirement now repeats its
 custody comparison under the shared lock immediately before logout dispatch.
 The complete suite was stopped during Rust qualification and restarted after
 this repair so its SDK build and execution use the same final source.
+
+Round 2 final verification: the complete suite passed with zero failures in
+1,975 seconds. All 300 Rust binaries / 1,013 executions plus doctests passed;
+328/328 client files passed (6,508 tests, 47 labelled skips); the 79 model tests
+passed with all 5,000 online and 5,000 local session histories. Wasm remains
+2,117,335 raw / 639,888 gzip bytes under 639,941, byte-identical to Round 1.
+Final references, source limits and append-only checks pass. The complete log
+and original failing retirement reproduction are retained in the Round 2
+report evidence. No push or publication.
