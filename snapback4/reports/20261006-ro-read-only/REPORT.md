@@ -312,3 +312,12 @@ The complete suite supplies that binary. The initial full run was deliberately
 stopped in Rust qualification for the retirement repair; the restarted run
 builds the final SDK source. Initial failure, focused successes and the stopped
 run's preflight log are retained under `evidence/round2-*`.
+
+The restarted complete run has passed its Rust phase: 300 test binaries,
+1,013 executions and workspace doctests in 995 seconds, including 326 CLI
+unit tests (4 existing ignored), 242 core unit tests (1 existing ignored),
+and all 8 read-only HTTP cases. The source assertion text now describes the
+private receipt and verified adoption writes accurately. The final reference
+audit passes: 529 LLP documents, 10,453 references, no errors/unchecked refs.
+These completed-phase logs are durably committed; the client pool and final
+models continue in the complete run.

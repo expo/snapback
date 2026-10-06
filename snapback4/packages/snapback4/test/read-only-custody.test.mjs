@@ -113,7 +113,7 @@ test('successor verification recovers private custody, persists once and authent
   assert.equal(app.client.session().token, 'ro.next');
   assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next');
   assert.deepEqual(events, ['ro.next']);
-  assert.equal(writes, 2, 'restore and successor each persist once');
+  assert.equal(writes, 2, 'the private successor receipt and verified adoption each persist once');
   await app.close();
   const restarted = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
   t.after(() => restarted.close());
