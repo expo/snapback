@@ -2,7 +2,8 @@ import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import ts from "typescript";
@@ -10,7 +11,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:http";
 import { createApp } from "snapback4/app";
 import { createClient, mintId } from "snapback4/client";
-import { memorySessionStore } from "snapback4/auth";
+import { login, memorySessionStore } from "snapback4/auth";
 import { webDevice, memoryPersistence } from "snapback4/web";
 import { createLocalClient } from "snapback4/local";
 import { processDevice } from "snapback4/native";
@@ -28,6 +29,58 @@ function starter(t) {
   }
   return dir;
 }
+
+test("social seed script creates two password accounts, signs in and refuses cross-user writes", { timeout: hangBudget(12) }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const password = "starter-headless-private-password";
+  const run = mode => promisify(execFile)(process.execPath, [join(generated, "scripts/seed.mjs")], {
+    cwd: generated, env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: password, SEED_USERS: "2", SEED_AUTH: mode },
+  });
+  await assert.rejects(run("singup"), error => {
+    assert.match(error.stderr, /SEED_AUTH must be signup or login/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
+  const created = await run("signup"), reused = await run("login");
+  const accounts = created.stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.equal(accounts.length, 2);
+  assert.notEqual(accounts[0].principal, accounts[1].principal);
+  assert.deepEqual(reused.stdout, created.stdout, "login reuses the same accounts");
+  await assert.rejects(run("signup"), error => {
+    assert.match(error.stderr, /Account 1: E_AUTH: that email already has an account; sign in instead/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
+  const clients = [];
+  for (const [n, account] of accounts.entries()) {
+    assert.deepEqual(Object.keys(account).sort(), ["email", "principal"]);
+    const signedIn = await login(url, account.email, password);
+    assert.equal(signedIn.ok, true);
+    assert.equal(signedIn.session.principal, account.principal);
+    const client = createClient({ url, session: signedIn.session });
+    clients.push(client);
+    t.after(() => client.signOut());
+    const profile = await client.query(api.profile, { principal: account.principal });
+    assert.equal(profile.data.name, `Seed ${n + 1}`, "the script wrote as this user");
+    assert.equal((created.stdout + created.stderr + reused.stdout + reused.stderr).includes(signedIn.session.token), false);
+  }
+  const [alice, bob] = clients;
+  for (const [owner, outsider] of [[alice, bob], [bob, alice]]) {
+    const room = await owner.mutate(api.createConversation, { title: "Private seed room" });
+    assert.equal(room.state, "sent");
+    const args = { conversation: room.result, text: "owner message", photo: null };
+    assert.equal((await owner.mutate(api.send, args)).state, "sent");
+    const refused = await outsider.mutate(api.send, { ...args, text: "cross-user message" });
+    assert.equal(refused.state, "failed");
+    assert.equal(refused.why.code, "NOT_MEMBER");
+    const history = await owner.query(api.history, { conversation: room.result });
+    assert.deepEqual(history.data.map(row => row.text), ["owner message"]);
+  }
+  assert.equal((created.stdout + created.stderr + reused.stdout + reused.stderr).includes(password), false);
+});
 test("new requires an explicit template and names what init creates", t => {
   const dir = mkdtempSync(join(root, ".social-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -113,7 +166,8 @@ test("published social starter and guide snippets typecheck against generated op
   }
   const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const program = ts.createProgram([...parsed.fileNames, join(dir, "scripts/seed.mjs")],
+    { ...parsed.options, allowJs: true, checkJs: true });
   const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
   assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
     getCanonicalFileName: name => name, getCurrentDirectory: () => dir, getNewLine: () => "\n",

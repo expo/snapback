@@ -88054,3 +88054,42 @@ on 48 idle-sampled CPUs. All 322 client files (6,456 passes, 47 declared skips),
 the full concurrent pool, the foreign-listing sibling passes in 311 ms and its
 hung companion fails in 1.270 s; persistent groups refuse at 5.048 / 5.053 s.
 The report retains the complete compressed log. No push or publication.
+
+
+## 2026-10-06 — HR: seed password accounts headlessly
+
+Calibration #31's browser-based account seeding was a discovery gap: the
+existing `signup` and `login` exports from `snapback4/auth` already work in
+Node and return a session for `createClient`. The auth/seed/replay card now
+teaches that path within its existing 118-line budget. Online, web and Expo
+starter READMEs point to it; the social starter emits `scripts/seed.mjs` for
+N accounts and authorized profile writes, with explicit login mode for reuse.
+The client reference links it from replay-adapter guidance. Passwords come
+from the environment; output contains only email/principal mappings. Ordinary
+Argon2 hashing, admission limits, schema opt-in and development-only doors
+are unchanged. LLP 3000.007 §8.5 records the chosen existing surface.
+
+The exact guide JS and installed starter script compile and run in Node.
+Two accounts sign in and write as themselves; forged ownership, hidden-row
+edits and sends into the other user's private conversation are refused.
+The affected client/session/starter run passed 40 tests, starter generation
+passed 22, and guide tests passed 113. The full `bash snapback4/scripts/test.sh`
+run passed with zero failures in 1,601 seconds: 323 parallel client files,
+6,442 passing tests and 47 existing skips, then both default-count models
+with 79 passing tests. Auth regressions also verify production rate limits.
+The final guide wording received a separate rebuild and executable check.
+Wasm is unchanged byte-for-byte: 2,117,335 B raw / 639,888 B gzip under the
+639,941 B cap, so no budget change. All work stayed in the supplied eb1000
+workspace; no other fleet host, push or publication. The
+[report](reports/20261006-hr-headless-registration/REPORT.md) cites the existing
+HTTP, SDK, CLI and development surfaces and retains verification logs.
+
+## 2026-10-06 — HR round 1: headless recipe discovery and refusal messages
+
+Added the five reviewed guide aliases, including quoted `replay adapter`,
+with CLI regressions. Both scripts show refusal messages and reject invalid
+`SEED_AUTH`; the replay sample now uses a password session. The auth card stays
+at 118 lines. Guide tests passed 113; headless/social tests passed 15;
+reference audit and diff checks passed. Full suite and wasm rebuild were not
+repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
+only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).

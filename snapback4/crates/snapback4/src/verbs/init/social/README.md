@@ -12,6 +12,32 @@ npm start
 # or npm run web, npm run ios:dev
 ```
 
+## Seed accounts headlessly
+
+After `npx snapback4 check`, with the backend running, set `SEED_PASSWORD`
+privately in your environment and run `node scripts/seed.mjs` (Node 24).
+`SEED_USERS=2` is the default; set it to N (1–1000) to create
+`seed1@example.test` through `seedN@example.test`. `SNAPBACK_URL` defaults to
+`http://127.0.0.1:4400`; use HTTPS for a remote backend.
+
+The script calls `signup` from `snapback4/auth`, opens a separate
+`createClient({ url, session })` for each returned session, and writes that
+user's profile through `api.saveProfile`. Extend that block with your own
+authorized mutations. It prints only email/principal mappings and signs out
+each client; never print passwords or session tokens. You can sign in through
+the app with those same accounts afterward. No browser signup or borrowed
+starter token is needed.
+
+For an existing seed set, run `SEED_AUTH=login node scripts/seed.mjs` with
+the same password and count. Signup creates credentials, so duplicates refuse;
+there is no automatic fallback on an arbitrary auth failure. A partially
+completed first run leaves its accounts in place; reconcile those accounts
+before rerunning. Sequential requests respect the concurrent Argon2 bound;
+`serve` also rate-limits attempts (`E_RATE_LIMIT`). Stop and wait for that
+window rather than retrying in a tight loop. `guide auth` explains the limits.
+Replay adapters use this same session path; `snapback4 dev --replay` suppresses
+new effects and holds schedules when replay must not deliver notifications.
+
 `snapback/workers/notifications.mjs`: dev/serve supervise the worker and inject its token.
 `ledger: true` records successful completions durably beside the backend store;
 keep that file with backups. Add your provider call, passing

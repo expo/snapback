@@ -23,6 +23,8 @@ fn shipped_files() -> BTreeSet<String> {
 // on repository files. Keep exact paths: accepting an entire src/ tree would
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
+    // The executable auth-card example and the installed social starter seed.
+    "seed.mjs", "scripts/seed.mjs",
     // The builder's own Expo inputs and generated native-proof outputs.
     "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json", "preparation-deadline.json",
     "artifacts/native-smoke/build.json",
