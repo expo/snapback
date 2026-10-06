@@ -13,7 +13,7 @@ import { defaultFetch } from "#fetch";
 export function createReadOnlyApp(options: AppOptions): App {
   const url = options.url.replace(/\/$/, ""), key = sessionKey(url, true);
   const store = options.sessionStore ?? memorySessionStore(), fetcher = options.fetch ?? defaultFetch;
-  const listeners = new Set<() => void>(), opening = new Set<Client>();
+  const listeners = new Set<() => void>(), opening = new Map<Client, string>();
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   let closed = false, revision = 0;
   let ownedTokens = new Set<string>();
@@ -37,7 +37,7 @@ export function createReadOnlyApp(options: AppOptions): App {
     const prepared = { url, session, readOnly: true, fetch: fetcher,
       ...(options.waitSeconds === undefined ? {} : { waitSeconds: options.waitSeconds }) };
     const { client: candidate, start } = await prepareClient(prepared, () => createClient(prepared));
-    opening.add(candidate);
+    opening.set(candidate, session.token);
     const why = await verifyReadClient(candidate);
     if (why || closed || expected !== revision) {
       opening.delete(candidate); await candidate.close();
@@ -48,12 +48,33 @@ export function createReadOnlyApp(options: AppOptions): App {
       await persist(async () => {
         if (closed || expected !== revision || (restoring && await keptToken() !== token)) throw { why: ended() };
         await store.set(key, JSON.stringify(candidate.session() ?? session));
+        // Logout may have fenced this opener while storage was writing. Delete
+        // only its credential, under the same lock, before releasing custody.
+        if (closed || expected !== revision) {
+          if (await keptToken() === token) await store.delete(key);
+          throw { why: ended() };
+        }
       });
     } catch (error) { opening.delete(candidate); await candidate.close(); return { ok: false, why: problem(error) }; }
+    if (closed || expected !== revision) { opening.delete(candidate); await candidate.close(); return { ok: false, why: ended() }; }
     fence(); stop(); await raw.close();
+    if (closed || expected !== revision) { opening.delete(candidate); await candidate.close(); return { ok: false, why: ended() }; }
     opening.delete(candidate); raw = candidate; ownedTokens = new Set([token]);
     const valid = () => !closed && expected === revision && raw === candidate;
-    const authorized = async () => valid() && await keptToken() === token;
+    const loseCustody = () => {
+      if (!valid()) return;
+      ++revision; fence(); stop(); ownedTokens.clear();
+      void candidate.close();
+      publish({ state: "signed-out", viewer: null, why: ended() });
+    };
+    const authorized = async () => {
+      await persistence;
+      if (!valid()) return false;
+      const kept = await keptToken();
+      if (!valid()) return false;
+      if (kept !== token) { loseCustody(); return false; }
+      return true;
+    };
     const guarded = guardClient(candidate, authorized, valid, ended);
     fence = guarded.fence;
     current = guarded.client;
@@ -61,14 +82,23 @@ export function createReadOnlyApp(options: AppOptions): App {
     current.refreshSession = async () => { const result = await refresh(); await persistence; return result; };
     current.close = close;
     current.signOut = async () => { await auth.logout(); };
-    const stopSession = candidate.onSession(next => {
+    const stopSession = candidate.onSession(async next => {
       const previous = token;
-      if (next) { token = next.token; ownedTokens.add(token); }
-      void persist(async () => {
-        if (!valid() || await keptToken() !== previous) return;
-        if (next) await store.set(key, JSON.stringify(next));
-        else await store.delete(key);
-      }).catch(error => { if (valid()) publish({ state: "signed-out", viewer: null, why: problem(error) }); });
+      if (next) ownedTokens.add(next.token);
+      try {
+        await persist(async () => {
+          if (!valid()) return;
+          if (await keptToken() !== previous) { loseCustody(); return; }
+          if (next) {
+            await store.set(key, JSON.stringify(next));
+            token = next.token;
+            // Consumed predecessors have no custody after this write completes.
+            ownedTokens.delete(previous);
+          } else await store.delete(key);
+        });
+      } catch (error) {
+        if (valid()) { loseCustody(); publish({ state: "signed-out", viewer: null, why: problem(error) }); }
+      }
       if (!next && valid()) { fence(); publish({ state: "signed-out", viewer: null }); }
     });
     stop = stopSession;
@@ -95,10 +125,10 @@ export function createReadOnlyApp(options: AppOptions): App {
     guest: () => signIn(() => guest(url, { scope: "read" }, fetcher)),
     async logout() {
       if (closed) return { ok: false, why: ended() };
-      const tokens = new Set(ownedTokens), expected = ++revision;
+      const tokens = new Set([...ownedTokens, ...opening.values()]), expected = ++revision;
       fence(); stop();
       // raw.signOut revokes only after its own exact-credential verification.
-      await raw.signOut();
+      await Promise.all([raw.signOut(), ...[...opening.keys()].map(client => client.signOut())]);
       await persist(async () => { if (expected === revision && tokens.has(await keptToken() ?? "")) await store.delete(key); });
       if (expected === revision) { ownedTokens.clear(); publish({ state: "signed-out", viewer: null }); }
       return { ok: true };
@@ -108,7 +138,7 @@ export function createReadOnlyApp(options: AppOptions): App {
   async function close() {
     if (closed) return;
     closed = true; ++revision; fence(); stop();
-    await Promise.all([raw.close(), ...[...opening].map(client => client.close())]); opening.clear(); await persistence;
+    await Promise.all([raw.close(), ...[...opening.keys()].map(client => client.close())]); opening.clear(); await persistence;
     listeners.clear();
   }
   const ready: Promise<AppResult> = (async () => {
