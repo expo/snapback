@@ -5,10 +5,6 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
 class TransientRouting extends Error {}
-let inspectionMs = 0;
-// All files in the pool share this event loop. Time spent synchronously
-// inspecting cannot be used to judge their undelivered progress events.
-export const inspectionClock = () => performance.now() - inspectionMs;
 
 // Only recognized exit-time routing anomalies get another snapshot. Never
 // drop a damaged row or let its apparent PID confer ownership/exemption.
@@ -74,9 +70,7 @@ function metadataFailure(pid, error, raw, exists) {
 // @ref LLP 3000#publication-suite-under-contention — classify every routing
 // prefix before validating metadata; unrelated rows cannot refuse a file.
 export function processTable(options = {}) {
-  const started = performance.now();
-  try { return freshSnapshots(() => processSnapshot(options)); }
-  finally { inspectionMs += performance.now() - started; }
+  return freshSnapshots(() => processSnapshot(options));
 }
 
 function processSnapshot({ run = spawnSync, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
@@ -182,9 +176,8 @@ export function ownedProcesses(keeper, inspect = processTable, { includeKeeper =
 
 export async function cleanupProcesses(keeper, { inspect = processTable, release } = {}) {
   release(); // unconditional, even when preliminary inspection found no leak
-  // Pipe EOF needs the runner's event loop too. A slow synchronous inspection
-  // must not consume the time allowed to deliver it and verify group exit.
-  const deadline = inspectionClock() + 5000;
+  // Keep a monotonic deadline: concurrent inspections must not extend it.
+  const deadline = performance.now() + 5000;
   const found = new Map();
   let empty = 0, remaining = [];
   do {
@@ -193,6 +186,6 @@ export async function cleanupProcesses(keeper, { inspect = processTable, release
     if (remaining.length) empty = 0;
     else if (++empty === 2) return [...found.values()];
     await sleep(50);
-  } while (inspectionClock() < deadline);
+  } while (performance.now() < deadline);
   throw new Error(`TEST_FILE_LEAK: no two consecutive empty group inspections: ${JSON.stringify(remaining)}`);
 }

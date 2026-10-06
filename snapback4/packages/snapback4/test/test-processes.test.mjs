@@ -71,7 +71,8 @@ test(`a ps taking over two seconds recovers and passes the file (${phase})`, asy
           return spawnSync(command, args, options);
         budgets.push(options.timeout);
         // Exercise Node's real spawnSync timeout, then finish a fresh full ps
-        // inside the larger bound. No shell/sleep child can outlive the timeout.
+        // inside the larger bound and the five-second cleanup deadline.
+        // No shell/sleep child can outlive the timeout.
         const started = performance.now();
         const result = spawnSync(process.execPath, ['-e', `setTimeout(() => {
           const r = require('node:child_process').spawnSync(${JSON.stringify(command)}, ${JSON.stringify(args)},
@@ -79,14 +80,14 @@ test(`a ps taking over two seconds recovers and passes the file (${phase})`, asy
           if(r.stdout) process.stdout.write(r.stdout);
           if(r.stderr) process.stderr.write(r.stderr);
           process.exitCode = r.status ?? 1;
-        }, 3100);`], options);
+        }, 2100);`], options);
         durations.push(performance.now() - started);
         return result;
       } });
     },
   });
   assert.deepEqual(budgets, [2000, 60_000]);
-  assert.ok(durations[0] >= 2000 && durations[1] >= 3100, JSON.stringify(durations));
+  assert.ok(durations[0] >= 2000 && durations[1] >= 2100, JSON.stringify(durations));
   assert.ok(snapshots >= 3, 'pre-release inspection plus two fresh cleanup snapshots');
   assert.equal(result.counts.pass, 1);
   assert.equal(result.code, 0, JSON.stringify(result));

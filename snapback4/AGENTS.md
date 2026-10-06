@@ -91,8 +91,8 @@ Gotchas you cannot derive from the code:
   fail as TEST_FILE_LEAK. Failed listings and unclassifiable PID/PPID/PGID
   prefixes remain fail-closed. A ps timeout at two seconds retries once with a
   60-second bound; all other command errors refuse immediately. The file stall
-  clock and cleanup's five-second retry window exclude synchronous inspection
-  time, including inspection for other files in the shared pool. Precisely
+  clock and cleanup's five-second retry window use monotonic time, including
+  synchronous inspection; concurrent inspections cannot extend either deadline. Precisely
   recognized exit-time routing anomalies
   discard the whole snapshot and retry at most twice, 50 ms apart; persistent
   anomalies refuse and never confer ownership (LLP 3000 §7, QF2).

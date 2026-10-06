@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
-import { identity, live, processTable } from '../../../scripts/test-processes.mjs';
+import { identity, live, processTable, cleanupProcesses } from '../../../scripts/test-processes.mjs';
 
 const nativeEnv = { ...process.env };
 delete nativeEnv.NODE_TEST_CONTEXT;
@@ -186,48 +186,60 @@ test('process inspection forces C locale and refuses empty output', () => {
   assert.ok(identity(process.pid)?.alive);
 });
 
-test('slow inspection cannot stall another file in the shared runner', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-shared-inspection-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const file = join(dir, 'progress.test.mjs'), ready = join(dir, 'ready');
-  writeFileSync(file, `import test from 'node:test';import {writeFileSync} from 'node:fs';
-    for(let i=0;i<15;i++) await test('progress '+i,async()=>{
-      writeFileSync(${JSON.stringify(ready)},'ready');
-      await new Promise(resolve=>setTimeout(resolve,100));
-    });`);
-  let hold = false, deliver;
-  const pending = [];
-  const result = runFile(file, { timeout: 1000, onOutput: () => {}, onStart: child => {
-    const emit = child.emit.bind(child);
-    deliver = () => { hold = false; for (const args of pending) emit('message', ...args); };
-    child.emit = (event, ...args) => {
-      if (hold && event === 'message' && !args[0].releasing) { pending.push(args); return true; }
-      return emit(event, ...args);
-    };
-  } });
-  const deadline = performance.now() + 5000;
-  while (!existsSync(ready) && performance.now() < deadline)
-    await new Promise(resolve => setTimeout(resolve, 10));
-  assert.ok(existsSync(ready));
-  hold = true;
-  // A timer callback doing an inspection holds the event loop beyond this
-  // file's stall bound while its native child continues completing subtests.
-  await new Promise((resolve, reject) => setTimeout(() => {
-    try {
-      processTable({ run: (...args) => {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000);
-        return spawnSync(...args);
-      } });
-      resolve();
-    } catch (error) { reject(error); }
-  }, 10));
-  // Deliver the queued IPC after the overdue watchdog's timer turn. Its
-  // decision must not depend on which ready callback libuv happens to run first.
-  await new Promise(resolve => setTimeout(() => { deliver(); resolve(); }, 20));
-  const finished = await result;
-  assert.equal(finished.passed, true, JSON.stringify(finished));
-  assert.equal(finished.reason, undefined, JSON.stringify(finished));
-  assert.equal(finished.counts.pass, 15);
+test('concurrent persistent groups cannot freeze cleanup deadlines or a hung file watchdog', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-concurrent-cleanup-'));
+  const file = join(dir, 'hung.test.mjs');
+  writeFileSync(file, `import test from 'node:test';
+    test('blocked',()=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0));`);
+  const groups = [], exits = [];
+  let guard, keeper, releasedByGuard = false;
+  const releaseGroups = () => { for (const child of groups) child.stdin.end(); };
+  try {
+    // These two groups deliberately ignore cleanup's release request. Only
+    // this test's own pipes are closed in finally (or by the failure guard).
+    for (let i = 0; i < 2; i++) {
+      const child = spawn(process.execPath, ['-e', 'process.stdin.resume();console.log("ready")'],
+        { detached: true, stdio: ['pipe', 'pipe', 'ignore'] });
+      groups.push(child); exits.push(once(child, 'exit'));
+      await once(child.stdout, 'data');
+    }
+    let inspections = 0;
+    const inspect = options => processTable({ ...options, run: (...args) => {
+      inspections++;
+      // Each inspection exceeds the other cleanup loop's 50 ms polling sleep.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      return spawnSync(...args);
+    } });
+    guard = setTimeout(() => { releasedByGuard = true; releaseGroups(); }, 8000);
+    const hung = runFile(file, { timeout: 1000, inspect, onOutput() {}, onStart: child => { keeper = child; } });
+    const cleanups = groups.map(async child => {
+      const started = performance.now();
+      try {
+        await cleanupProcesses(child, { inspect, release() {} });
+        return { passed: true, elapsed: performance.now() - started };
+      } catch (error) {
+        return { error: error.message, elapsed: performance.now() - started };
+      }
+    });
+    const [result, ...cleanupResults] = await Promise.all([hung, ...cleanups]);
+    t.diagnostic(JSON.stringify({ hungMs: result.elapsed, cleanupResults, inspections, releasedByGuard }));
+    assert.equal(releasedByGuard, false, 'deadlines must expire without the wall-time safety guard');
+    assert.equal(result.passed, false);
+    assert.equal(result.reason, 'TEST_FILE_HANG');
+    assert.ok(result.elapsed < 4000, `one-second watchdog plus cleanup margin: ${result.elapsed} ms`);
+    assert.equal(result.keeperExit.cleanupAcknowledged, true);
+    for (const cleanup of cleanupResults) {
+      assert.match(cleanup.error ?? '', /^TEST_FILE_LEAK:/);
+      assert.ok(cleanup.elapsed >= 5000 && cleanup.elapsed < 7000, JSON.stringify(cleanup));
+    }
+    assert.ok(inspections >= 10, 'exercise repeated, interleaved inspections');
+  } finally {
+    clearTimeout(guard); releaseGroups();
+    await Promise.all(exits);
+    rmSync(dir, { recursive: true, force: true });
+  }
+  for (const child of [...groups, keeper])
+    assert.deepEqual(processTable({ group: child.pid }).filter(row => row.alive && row.group === child.pid), [], 'all fixture groups exited');
 });
 
 test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {

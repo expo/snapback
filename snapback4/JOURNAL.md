@@ -87985,3 +87985,25 @@ suite using the existing build cache: **0 failures in 1,473 s**, including
 322/322 client files (6,452 passes, 47 declared skips), 79/79 serial model tests,
 and all native/build/typecheck/fixture stages. The report retains the complete
 compressed log. The repeated LLP reference check reports zero errors.
+
+
+### 2026-10-06 — PS Round 1: monotonic cleanup and watchdog deadlines
+
+Address Astra's P1 on `da6e7d9772`: remove the shared inspection-time discount
+entirely. Concurrent persistent groups now consume the same monotonic time as
+their polling sleeps and the file watchdog. The bounded 2/60-second ps retry,
+full-table identity and fail-closed refusals remain unchanged. The production
+stall floor remains 900 seconds; completed files cannot rearm a watchdog.
+The new concurrent-group regression needs its eight-second safety guard on
+Round 0 and delays the hung file to 10.426 s; the fix detects it in 2.778 s and
+both cleanup loops refuse after 5.242 / 5.146 s. All 89 focused tests pass,
+including timeout recovery in both inspection phases, repeated timeout and
+nonzero-exit refusals. LLP references pass. Full-suite results and evidence
+are retained in the [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md).
+
+PS Round 1 closeout: the complete eb1000 suite passed with **0 failures in
+1,486 s** on idle-sampled CPUs 0–31, 48–63 and 66–81. All 322 client files,
+79/79 serial model tests and native/build/typecheck/fixture stages passed.
+Under full-suite contention, the new regression detects the hung file in
+2.904 s and both cleanup deadlines expire at 5.175 / 5.072 s. Compressed logs
+are in the report. No push, remote qualification or publication.

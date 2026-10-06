@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, readFileSync, openSync, closeSync, writeSync } fro
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ownedProcesses, processTable, cleanupProcesses, inspectionClock } from './test-processes.mjs';
+import { ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
 
 export const FILE_STALL_FLOOR_MS = 15 * 60_000;
 // Largest SINGLE declared test guard, not the sum of sequential guards.
@@ -75,10 +75,10 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     child.stdin.end();
   };
   child.stdin.on('error', error => onOutput(`TEST_FILE_KEEPER_PIPE: ${error.message}\n`));
-  let lastProgress = inspectionClock(), progress = 'file startup', progressCount = 0, watching = true;
+  let lastProgress = performance.now(), progress = 'file startup', progressCount = 0, watching = true;
   const watchdog = () => {
     if (!watching) return;
-    const remaining = timeout - (inspectionClock() - lastProgress);
+    const remaining = timeout - (performance.now() - lastProgress);
     if (remaining <= 0) { void stop('TEST_FILE_HANG'); return; }
     timer = setTimeout(watchdog, remaining);
   };
@@ -90,7 +90,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
       if (result.releasing) { cleanupAcknowledged = true; return; }
       if (result.progress) {
         if (!watching) return;
-        lastProgress = inspectionClock(); progress = `${result.progress}: ${result.name}`; progressCount++;
+        lastProgress = performance.now(); progress = `${result.progress}: ${result.name}`; progressCount++;
         clearTimeout(timer); timer = setTimeout(watchdog, timeout);
         return;
       }
@@ -121,7 +121,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     if (cleanup) return cleanup;
     watching = false; clearTimeout(timer);
     reason = why;
-    onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms (excluding inspection); ${Math.round(inspectionClock() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
+    onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms; ${Math.round(performance.now() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
     cleanup = (async () => {
       try {
         const owned = ownedProcesses(child, inspectRows);
