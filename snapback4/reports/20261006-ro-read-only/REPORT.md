@@ -155,3 +155,60 @@ its completed current link is archived. JOURNAL is a pure append. Final referenc
 and diff audits are retained with the evidence. Completed lane-local orphaned
 SQLite test sidecars (1,777,750,968 bytes) were removed; shared build products
 belonging to other lanes were left intact. Incremental compilation stayed off.
+
+
+## Round 1 — code-review fixes (2026-10-06)
+
+Folded Astra's four reproduced failures and the Grok changes. Checkpoints
+`b75f3e6bb4` and `b5c4bd0a37` carry the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer. No push.
+
+- Logout fences pending openers, checks their revision after persistence and
+  before adoption, and conditionally deletes their credentials under the same
+  storage lock. A permanent held-write regression restarts signed out.
+- Account custody mismatch permanently fences the old facade, withdraws watches
+  and asset sources, closes its raw client, and publishes signed-out state. The
+  peer-account regression also checks that restoring the old token cannot revive
+  the facade and that logout leaves the peer's stored credential intact.
+- Refresh successors remain private across transient probe failures. Successful
+  re-verification awaits the private app custody hook before exposing the session,
+  notifying public listeners and scheduling. The regression recovers, persists
+  once, and authenticates after restart. Public notification callbacks are not
+  awaited; a callback may itself query without deadlocking rotation.
+- Consumed predecessors leave custody after successor persistence. A 32-rotation
+  regression checks that an old token no longer authorizes storage deletion.
+- `insert_session` deletes expired `_read_sessions` using
+  `expires_at <= now OR cap_expires_at <= now`. Both full and read sign-in collect;
+  full refresh uses that mint path too. Read refresh remains family-local. Tests
+  cover foreign expiry/cap boundaries and three repeated eight-day HTTP sign-ins.
+- Session JSON adds `scope` and read-session `capExpiresAt`. `GET /probe?scope=1`
+  adds `kind`/`scope`; unflagged GET now retains the legacy
+  `{ok, store_id, seq, viewer}` body. New `POST /probe` uses the same flag. Auth
+  bodies strictly accept only absent scope, `"full"`, or `"read"`, including
+  refresh/logout. Stored read authority wins over a `"scope":"full"` body.
+  These details correct the earlier broad unchanged-wire claim and RFC §7.
+- Added forbidden GET/method cases, hidden+ranged and viewed+ranged asset
+  precedence, construction counters in both memory and detached disk HTTP query
+  branches, revocation while `/changes` is held in both branches, and no-sibling
+  assertions on narrowing errors and writer races. All four `/tmp/ro-review-*`
+  reproductions now have permanent assertion-based tests.
+
+PostgreSQL limit: `docker ps` reports command not found; `pg_ctl`, `initdb`,
+`postgres`, `psql` and Podman are absent, the standard install locations contain
+no server tools, and `SNAPBACK4_EVAL_POSTGRES` is unset. Runtime integration could
+not run. The adapter has **no production session mint/sign-in/refresh path in
+this checkout**: only SQLite `identity::insert_session` mints; PostgreSQL test
+fixtures insert authority rows directly. There was therefore no PostgreSQL mint
+path to patch. Added ignored runtime regressions for stored scope/cap/generation
+and manifest construction; `cargo check -p snapback4-core --features postgres
+--tests` passes, compiling these tests. No PostgreSQL runtime or mint parity is
+claimed.
+
+Executed so far: core read-session tests **5 passed**, Rust HTTP RO tests **7
+passed**, SDK read/custody tests **24 passed**, package typecheck/build passed.
+The paired application digest remains
+`e15809273ad09307d18d1d0e443d46dd93a8a424aa9ceca31ab2b6bcb0930136`.
+Wasm is unchanged: **2,117,335 raw / 639,888 gzip bytes**, cap **639,941**.
+The complete `bash scripts/test.sh` is running; final evidence follows below.
+All builds use `CARGO_INCREMENTAL=0`, `CARGO_TARGET_DIR=~/sb5-lanes/target`,
+`CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8`.
