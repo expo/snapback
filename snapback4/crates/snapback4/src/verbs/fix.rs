@@ -1,4 +1,4 @@
-//! Apply only compiler-marked spelling repairs, preserving surrounding source.
+//! Apply compiler-marked repairs, preserving surrounding source.
 
 use crate::project::Project;
 use snapback4_lang::{Bound, Diagnostic, lexer::{self, Kind, Token}};
@@ -8,7 +8,7 @@ pub(super) fn checked(result: std::io::Result<Bound>) -> Result<Bound, i32> {
     result.map_err(|error| { eprintln!("cannot read snapback/: {error}"); 2 })
 }
 
-// @ref LLP 3000.007#8 — apply mechanical fixes and recompile; leave design choices to the author
+// @ref LLP 3000.013#2.2 — --fix also opts into a context-verified positional-key choice; recompile each edit
 pub fn compile(project: &Project) -> std::io::Result<Bound> {
     compile_observed(project, |_| {})
 }
@@ -98,6 +98,13 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     }
     // @ref LLP 3000.007#18.5 — exact repairs for missing indexes, argument once, wildcard repeats and empty operation parentheses
     if let Some(repair) = discovery_edit(sources, index, diagnostic, start) { return Some(repair); }
+    // @ref LLP 3000.013#2.2 — apply the exact context-verified span, including read modifiers.
+    if diagnostic.code == "E_QUARRY_POSITIONAL_SCAN" {
+        let (site, original) = diagnostic.verified_edit()?;
+        let start = offset(source, site.line, site.col)?;
+        let end = start.checked_add(original.len())?;
+        return (source.get(start..end)? == original).then(|| (index, start, end, diagnostic.rewrite.clone()));
+    }
     if diagnostic.code == "E_QUARRY_AMBIGUOUS" {
         let (old, by) = diagnostic.rewrite.rsplit_once(" by ")?;
         if by.is_empty() || !by.chars().all(|c| c.is_alphanumeric() || c == '_') { return None; }

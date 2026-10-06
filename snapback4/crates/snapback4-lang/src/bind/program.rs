@@ -510,15 +510,31 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
-        let normalized = super::mixed_keys::read(info, read, self.catalog)?;
+        let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
+        let types = if mixed {
+            let mut probe = self.clone();
+            let mut setup = setup::Body::default();
+            Some(read.keys.iter().take_while(|key| key.column.is_none()).map(|key| probe.expr(&key.value, &mut setup)
+                .map(|(expr, ty)| (ty, matches!(expr, Expr::Literal(Value::String(_)))))).collect::<Fallible<Vec<_>>>()?)
+        } else { None };
+        let normalized = super::mixed_keys::read_typed(info, read, self.catalog, types.as_deref())?;
         let read = normalized.as_ref();
         super::validate_key_names(read)?;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
-            let candidates = info.indexes.iter().filter(declared).filter(|index| match &read.index {
+            let mut candidates = info.indexes.iter().filter(declared).filter(|index| match &read.index {
                 Some(name) => &index.name == name,
                 None => index.unique && index.columns.len() == read.keys.len(),
             }).collect::<Vec<_>>();
+            // Bind once on the ordinary path. Speculate only to distinguish
+            // multiple keys, without emitting setup or consuming caller names.
+            if read.index.is_none() && candidates.len() > 1 {
+                let mut probe = self.clone();
+                let mut setup = setup::Body::default();
+                let types = read.keys.iter().map(|key| probe.expr(&key.value, &mut setup)
+                    .map(|(expr, ty)| (ty, matches!(expr, Expr::Literal(Value::String(_)))))).collect::<Fallible<Vec<_>>>()?;
+                candidates = super::positional_keys::candidates(info, read, &types, &self.catalog.synthesized);
+            }
             if read.index.is_none() && mode == ReadMode::Range && read.order_keys.is_empty() && candidates.len() == 1 {
                 let scan = info.indexes.iter().filter(declared).find(|index| !index.unique && index.is_plain() && index.columns.len() > read.keys.len());
                 let columns = scan.map(|index| index.columns.as_slice()).unwrap_or(&candidates[0].columns);
@@ -527,20 +543,15 @@ impl<'a> Binder<'a> {
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
             if candidates.len() != 1 {
-                // @ref LLP 3000.013#2.2 — naming columns cannot distinguish
-                // opposite index orders; verify explicit choices in context.
-                // An unknown explicit name must not empty the repair search.
-                let alternatives = if candidates.is_empty() && read.index.is_some() {
-                    info.indexes.iter().filter(declared).collect::<Vec<_>>()
-                } else { candidates.clone() };
-                let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
-                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; choose a compatible unique index explicitly", read.table, candidates.len(), read.keys.len()), "")
-                    .guide("reads").repair_read(&read.site, changes));
+                return Err(super::positional_keys::refusal(info, read, &candidates, self.catalog));
             }
             if read.index.is_none() {
                 let mut explicit = read.clone();
                 explicit.index = Some(candidates[0].name.clone());
-                return self.select_index(info, &explicit, mode, out).map(|(keys, index, _)| (keys, index, "only declared unique key of this arity".into()));
+                let reason = if info.indexes.iter().filter(declared).filter(|index| index.unique && index.columns.len() == read.keys.len()).count() == 1 {
+                    "only declared unique key of this arity"
+                } else { "unique positional key selected by argument types" };
+                return self.select_index(info, &explicit, mode, out).map(|(keys, index, _)| (keys, index, reason.into()));
             }
         }
         let point = mode != ReadMode::Range;

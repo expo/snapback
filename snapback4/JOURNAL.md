@@ -88093,3 +88093,47 @@ at 118 lines. Guide tests passed 113; headless/social tests passed 15;
 reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
+
+## 2026-10-06 — PK: positional keys resolve by argument type
+
+`T[x]` now selects identity for a generic id or a reference to T, even when
+T keeps secondary unique columns. Other positional arguments select one
+declared unique key by compatible types in column order, shared by program
+reads, keyed writes and rule probes. Mixed total keys retain their selected
+key before extra column tests. NL's named-key and nullable-point admission
+remain; genuinely ambiguous types still refuse. Diagnostics list named forms
+only after compiling each in its original context, and `check --fix` can apply
+a verified choice using its exact source span, preserving modifiers and write
+payloads. Existing serialized selection explanations remain stable.
+
+The first tests reproduced calibration #31's four read and two rule arity
+errors; implicit `byId` explains why one authored `unique slug` yielded two
+candidates. The seventh message (`conversations.slug is text <=80; got id`)
+is emitted by write-payload validation, not positional lookup selection.
+Its exact regression continues to refuse an id written into a text slug;
+a text payload repairs it while retaining uniqueness. The lost first draft
+is not claimed as recovered. LLP 3000.013 §2.2 and the reads, indexes, types
+and refusal cards record the new rule and this evidence.
+
+Linux wasm is 2,117,335 B raw / 639,888 B gzip, matching the base HR report.
+The inherited cap recorded Linux 639,811 + 130 B and left only 53 B above the
+current artifact. Raise it by the measured 77 B discrepancy to 640,018 B,
+exactly Linux + the requested 130 B macOS allowance. This reconciles inherited
+measurement drift; PK adds no device runtime code, plan/catalog encoding,
+wire fields or capabilities. No macOS build is claimed. All work stayed on
+eb1000; no push or publication. The [report](reports/20261006-pk-typed-positional-keys/REPORT.md)
+contains the before matrix, reconstructions, code references and server/device
+crossed-key witnesses.
+
+Verification completed: affected language/guide/repair tests 162 passed;
+CLI fix tests 27 passed; affected clients 12 passed with four Darwin-only
+skips. The final guide recheck passed 113. The complete suite, with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, exited 0 with zero
+failures in 1,569 s: Rust 5,077 passed / 33 ignored (language 1,486 / 11);
+fixture wrappers 9 passed; 324 client files with 6,467 passed / 47 skipped;
+both serial models 79 passed. Builds, docs budget, release guard, typechecks
+and wasm budget passed. The report retains the first nonqualifying run and
+explains its obsolete CLI expectation and overlapping-build artifact race;
+the final run repeated both affected phases successfully. Reference and diff
+audits passed. No plan/catalog encoding change; Darwin qualification remains
+for the operator's mini run. Commit only, no push.

@@ -152,7 +152,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
 
 - **Keys and search:** `unique handle` or `unique postId, principal` enforces
   a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible
-  collision's code and message. Named keys cover ambiguous arities. Use
+  collision's code and message. Named keys resolve ambiguous positional types. Use
   `search body, caption` for word-prefix search. Predicates and `by .at`
   choose access indexes automatically; `guide indexes` explains inspection
   and optional tuning. `unique principal, day(at)` gives calendar uniqueness.

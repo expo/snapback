@@ -4,7 +4,7 @@ use crate::{ast::*, bind, parser, Bound, Diagnostic, Site};
 use std::ops::Range;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ReadChange { Index(String), Point, SearchOrder { keys: Vec<String>, order: Vec<String> } }
+pub(crate) enum ReadChange { NamedKey { columns: Vec<String>, index: Option<String> }, Index(String), Point, SearchOrder { keys: Vec<String>, order: Vec<String> } }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReadRepair {
@@ -17,10 +17,26 @@ pub(crate) struct ReadRepair {
 pub(crate) fn verify_bound(documents: &[Document], diagnostics: &mut [Diagnostic]) {
     for diagnostic in diagnostics {
         let Some(repair) = diagnostic.read_repair.take() else { continue; };
-        diagnostic.rewrite = repair.changes.iter().find_map(|change| {
+        let verify = |change: &ReadChange| {
             let candidate = read_candidate(documents, &repair.site, change)?;
-            (check_context(documents, &candidate, true) == Check::Accepted).then_some(candidate.rewrite)
-        }).unwrap_or_default();
+            (check_context(documents, &candidate, true) == Check::Accepted).then_some(candidate)
+        };
+        let named = repair.changes.iter().filter(|change| matches!(change, ReadChange::NamedKey { .. }))
+            .filter_map(verify).collect::<Vec<_>>();
+        if !named.is_empty() {
+            diagnostic.message = format!("{}; choose a named form: {}", diagnostic.message.split(';').next().unwrap(), named.iter().map(|candidate| candidate.rewrite.as_str()).collect::<Vec<_>>().join(" or "));
+        }
+        let selected = named.into_iter().next().or_else(|| repair.changes.iter()
+            .filter(|change| !matches!(change, ReadChange::NamedKey { .. })).find_map(verify));
+        if let Some(candidate) = selected {
+            if diagnostic.code == "E_QUARRY_POSITIONAL_SCAN" {
+                let before = &candidate.source[..candidate.replacement.start];
+                let line = candidate.declaration_site.line + before.bytes().filter(|b| *b == b'\n').count() as u32;
+                let col = before.rsplit('\n').next().unwrap().chars().count() as u32 + 1;
+                diagnostic.verified_edit = Some((Site::new(&candidate.site.file, line, col), candidate.source[candidate.replacement].into()));
+            }
+            diagnostic.rewrite = candidate.rewrite;
+        } else { diagnostic.rewrite.clear(); }
         if diagnostic.rewrite.is_empty() { diagnostic.mechanical = false; }
     }
 }
@@ -30,6 +46,11 @@ fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> O
     let (read, text, grouped, start) = doc.source.read(site)?;
     let mut fixed = read.clone();
     match change {
+        ReadChange::NamedKey { columns, index } => {
+            if fixed.keys.len() != columns.len() { return None; }
+            for (key, column) in fixed.keys.iter_mut().zip(columns) { key.column = Some(column.clone()); }
+            fixed.index = index.clone();
+        }
         ReadChange::Index(index) => { fixed.index = Some(index.clone()); }
         ReadChange::SearchOrder { keys, order } => {
             if fixed.matching.is_none() || fixed.keys.len() > keys.len() { return None; }
@@ -59,7 +80,7 @@ fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> O
         let byte = lines.get(line)?.char_indices().map(|(i, _)| i).chain([lines[line].len()]).nth(column)?;
         let offset = lines[..line].iter().map(|s| s.len() + 1).sum::<usize>() + byte;
         let span = offset..offset.checked_add(text.len())?;
-        (source.get(span.clone())? == text).then_some((declaration_site, source.clone(), span))
+        (source.get(span.clone())? == text.as_str()).then_some((declaration_site, source.clone(), span))
     })?;
     Some(Candidate { site: site.clone(), declaration_site, source, replacement, rewrite, intended: None, message: None })
 }
