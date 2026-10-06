@@ -88247,3 +88247,10 @@ logout variations, and principal-switch interleavings. The public promise,
 guide and RFC §1.4 now state the lead's rule. Focused custody tests and the HTTP
 suite pass; complete-suite results and wasm evidence follow in the lane report.
 No push or publication.
+
+Round 4's full Rust run caught one early-guard compatibility regression:
+`token_live` requires the private-proof `/dev/token` endpoint's uniform 403,
+including invalid bearer/persona combinations. Early credential rejection now
+uses that endpoint's existing denial response; it still never enters minting.
+The complete 20-test `token_live` target passes after the correction. The
+original full-run failure is retained and the rest of the suite continues.

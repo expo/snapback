@@ -59,7 +59,7 @@ fn refusal(code: &str, family: &str, message: &str, rewrite: &str) -> Refusal {
     Refusal::new(code, family, message).site(ENDPOINT).rewrite(rewrite).guide("services")
 }
 
-fn denied(request: Request) {
+pub(super) fn denied(request: Request) {
     respond_with_cors(request, 403, json!({"denied": refusal("E_AUTH", "auth",
         "service token minting requires a loopback peer and this server's private store proof",
         "run snapback4 token --service <name> on the server host as the store owner (add --release <dir> for serve)")}), false);

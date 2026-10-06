@@ -571,3 +571,15 @@ SHA-256 `2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
 The complete Rust inventory is still compiling; no complete-suite result yet.
 All ten changed source/test files are below 1,500 lines, JOURNAL is a pure append,
 and diff whitespace checks pass.
+
+The complete Rust run found one introduced compatibility regression in
+`token_live::public_listeners_refuse_remote_peers_and_missing_wrong_duplicate_or_browser_proofs`:
+the early guard returned 401 instead of the private-proof door's uniform 403.
+The guard now delegates its rejection to the existing `/dev/token` denial
+response, preserving the indistinguishable refusal without entering minting.
+The **entire 20-test token_live target passed** after rebuilding the CLI.
+This small server-only correction happened during the full run; the original
+failure remains in the full-suite evidence. The JavaScript implementation and
+full-count configuration are unchanged, and subsequent client tests use the
+corrected CLI. All other completed Rust executions passed, including the
+326-test CLI unit target (four existing ignores).

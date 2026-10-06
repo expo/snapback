@@ -864,6 +864,8 @@ fn handle(mut request: Request, shared: &Shared) {
         match principal_of(&request, shared) {
             Ok((_, _, snapback4_core::identity::SessionScope::Read)) if !read_permitted(&method, &path) =>
                 return respond_timed(request, shared, 403, json!({"denied": Refusal::new("E_READ_ONLY", "auth", "this read session permits reads only; use a full session for writes").guide("read-only")})),
+            // @ref LLP 3000.019#3.4 — the private-proof door keeps one indistinguishable refusal.
+            Err(_) if path == token::ENDPOINT => return token::denied(request),
             Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": refusal_json(&why)})),
             _ => {}
         }
