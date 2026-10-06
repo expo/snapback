@@ -40,3 +40,26 @@ live metadata or a disappearing process. Preserve fail-closed ownership and
 group-drain checks. The earlier
 [QF JavaScript inspection ticket](closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
 addresses a separate parser and is not a resolution for this native path.
+
+## 2026-10-06 — RO Round 3 recurrence
+
+The complete RO Round 3 suite at implementation commit `63d6cf1400` reported
+this same diagnostic in two CLI unit tests, at `preparation.rs:418:106` while
+spawning the preparation process:
+
+- `recovery_shell_shim_drains_final_empty_snapshot_joiner`
+- `recovery_volta_style_shim_drains_late_group_member`
+
+The target reported 324 passed, two failed and four ignored. The witness code
+is unchanged from Round 2 head `929086afde`; Round 3 changes SDK session custody
+and documentation. All seven `preparation::tests::recovery_` tests passed on one
+unchanged rerun, followed by an entire CLI unit rerun with 326 passed and four
+ignored. These reruns do not erase the full-suite failures or identify their
+cause. No rejected stat snapshot was retained, and no separate baseline binary
+was run in this round. Ownership checks were not changed.
+
+Evidence is retained under
+[`reports/20261006-ro-read-only/evidence/`](../snapback4/reports/20261006-ro-read-only/evidence/):
+`round3-full-suite.log.gz`, `round3-witness-rerun.log.gz` and
+`round3-cli-rerun.log.gz`. See that report's Round 3 section for the complete
+run's final disposition.

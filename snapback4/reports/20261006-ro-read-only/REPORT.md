@@ -417,3 +417,15 @@ The first full-suite launch was stopped during preflight to correct its witness
 helper path; its log is retained separately. The restarted full run supplies
 `packages/snapback4/bin/witness-acquire.js` and the published 0.4.13 binary.
 No completed full-suite result is claimed yet.
+
+The full run's CLI unit target hit two native witness inspection failures:
+`recovery_shell_shim_drains_final_empty_snapshot_joiner` and
+`recovery_volta_style_shim_drains_late_group_member`, both
+`E_WITNESS_PROCESS: invalid /proc process group` at `preparation.rs:418:106`.
+This matches the existing open ticket
+`issues/20261004-snapback4-native-witness-proc-group-inspection.md`, updated with
+this recurrence. The witness path is unchanged by Round 3. Seven focused recovery
+tests passed on an unchanged rerun; the entire CLI unit target then passed
+326 tests with four existing ignores. The rejected stat snapshot was not retained,
+so the exact cause remains unknown. These reruns do not erase the original
+failures. The complete run continues through all remaining phases.
