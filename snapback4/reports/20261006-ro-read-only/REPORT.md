@@ -404,3 +404,16 @@ peer file: 20 passed. Package typecheck/build passed. The complete suite and
 an affected app/session model run are underway with full default history counts.
 Final counts, wasm result and evidence will be appended after completion.
 No push or publication.
+
+Implementation checkpoint: `63d6cf1400` (Astra trailer). The affected app/session
+model file passed all 52 tests, including 5,000 online and 5,000 local histories,
+in 280 seconds; no counts were reduced and nothing was skipped. The full-suite
+wasm check passed at 2,117,335 raw / 639,888 gzip bytes under the unchanged
+639,941-byte cap. SHA-256 is unchanged from Round 2:
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+Reference audit: 529 LLP documents, 10,455 references, zero errors or unchecked
+references. Diff, source line limits and pure-append JOURNAL checks pass.
+The first full-suite launch was stopped during preflight to correct its witness
+helper path; its log is retained separately. The restarted full run supplies
+`packages/snapback4/bin/witness-acquire.js` and the published 0.4.13 binary.
+No completed full-suite result is claimed yet.
