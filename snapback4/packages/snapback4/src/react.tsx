@@ -1,3 +1,4 @@
+import { readOnlyRefusal } from "./read-only.ts";
 import { pendingItems, pendingState, observeIntents, intentReadSequence, type PendingItemsOptions, type PendingStateOptions, type PendingIntent, type MutationArgs } from "./pending-items.ts";
 import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
@@ -478,6 +479,7 @@ export function useSeen<M extends { id: string; pending?: boolean }, S extends s
   family: ReceiptFamily<M, S, T>, options: SeenOptions,
 ): SeenSnapshot & { retry(): void } {
   const client = useClient();
+  if (client.readOnly && options.active !== false) throw Object.assign(new Error("E_READ_ONLY: active useSeen requires a full session"), { why: readOnlyRefusal() });
   const owner = useMemo(() => new SeenOwner(client, family as unknown as ConstructorParameters<typeof SeenOwner>[1], options.scope), [client, family, options.scope]);
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getServerSnapshot);
   useEffect(() => { owner.update(options.through, options.active); });

@@ -13,10 +13,13 @@ use argon2::Argon2;
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 
-const DAY_MS: i64 = 86_400_000;
+pub(super) const DAY_MS: i64 = 86_400_000;
 /// Ordinary guest and password sessions expire after one week. Service and
 /// application-owned sessions keep the explicit duration their issuer chose.
 pub const SESSION_DAYS: i64 = 7;
+mod read_sessions;
+pub use read_sessions::{narrow_session, SessionScope, Capability};
+
 pub const BOUND_SESSION_INTENT: &str = "identity-session/v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -25,6 +28,9 @@ pub struct Session {
     pub kind: String,
     pub token: String,
     pub expires_at: i64,
+    pub scope: SessionScope,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cap_expires_at: Option<i64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,7 +46,7 @@ pub struct ServiceSample {
 pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
     let token_digest = digest(token);
     let Some(session) = authority::live_session(tx, &token_digest, sample.now)? else { return Ok(None) };
-    if session.kind != "service" || !is_service(&session.principal) { return Ok(None); }
+    if session.scope != SessionScope::Full || session.kind != "service" || !is_service(&session.principal) { return Ok(None); }
     if !supervisor_current(tx, &session.family, sample.supervisor_revision)? { return Ok(None); }
     Ok(Some(session.principal))
 }
@@ -61,23 +67,23 @@ pub(crate) fn supervisor_current(tx: &Tx<'_>, family: &str, revision: usize) -> 
     Ok(true)
 }
 
-pub(crate) fn resolve_session_tx(tx: &Tx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<(String, String)>, RuntimeError> {
+pub(crate) fn resolve_session_tx(tx: &Tx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
     let Some(session) = authority::live_session(tx, token_digest, now)? else { return Ok(None); };
     if let Some(revision) = revision {
         if !supervisor_current(tx, &session.family, revision)? { return Ok(None); }
     }
-    Ok(Some((session.principal, session.kind)))
+    Ok(Some((session.principal, session.kind, session.scope)))
 }
 
 /// Host authentication, including ordinary queries and mutations.
-pub fn resolve_supervised(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<(String, String)>, RuntimeError> {
+pub fn resolve_supervised(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<Capability>, RuntimeError> {
     let tx = store.authority_transaction()?;
     let resolved = resolve_session_tx(&tx, &digest(token), sample.now, Some(sample.supervisor_revision))?;
     tx.rollback()?;
     Ok(resolved)
 }
 
-pub fn resolve_read_only_supervised(store: &Store, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+pub fn resolve_read_only_supervised(store: &Store, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
     store.resolve_session_snapshot(&digest(token), sample.now, expected_store_id, Some(sample.supervisor_revision))
 }
 
@@ -105,6 +111,7 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
             expires_at INTEGER NOT NULL, family TEXT NOT NULL, principal_generation INTEGER NOT NULL,
             PRIMARY KEY(invocation, intent)
         ) WITHOUT ROWID;")?;
+    read_sessions::initialize(conn)?;
     Ok(())
 }
 
@@ -158,6 +165,8 @@ fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Sessi
         kind: kind.to_owned(),
         token: base64url(&random_bytes(32)?),
         expires_at: now + days.clamp(1, 3_650) * DAY_MS,
+        scope: SessionScope::Full,
+        cap_expires_at: None,
     })
 }
 
@@ -167,6 +176,9 @@ fn insert_session(conn: &Connection, session: &Session, now: i64) -> Result<(), 
         "INSERT OR IGNORE INTO _principals(id, kind, name, created_at) VALUES (?1, ?2, NULL, ?3)",
         params![session.principal, session.kind, now]
     )?;
+    if session.scope == SessionScope::Read {
+        return read_sessions::insert(conn, session, now, None);
+    }
     conn.execute(
         "INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at, family) VALUES (?1, ?2, ?3, ?4, ?5, ?1)",
         params![digest(&session.token), session.principal, session.kind, now, session.expires_at],
@@ -196,7 +208,7 @@ pub(crate) fn action_session(conn: &Connection, principal: &str, now: i64, expir
 }
 
 /// The principal behind a bearer token, if the session is live.
-pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
+pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
     let token_digest = digest(token);
     let resolved = resolve_digest(store, &token_digest, now)?;
     if resolved.is_none() { store.invalidate_expired_authority_session(&token_digest, now)?; }
@@ -207,19 +219,20 @@ pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, S
 /// maintenance. Application catalog adoption does not revoke sessions; a store
 /// identity change does. The serving writer retains custody of cleanup.
 // @ref LLP 3000.017#3.3 — ephemeral-only poll wakes finish without the engine mutex.
-pub fn resolve_read_only(store: &Store, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+pub fn resolve_read_only(store: &Store, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
     store.resolve_session_snapshot(&digest(token), now, expected_store_id, None)
 }
 
-fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
+fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
     let tx = store.authority_transaction()?;
-    let resolved = authority::live_session(&tx, token_digest, now)?.map(|session| (session.principal, session.kind));
+    let resolved = authority::live_session(&tx, token_digest, now)?.map(|session| (session.principal, session.kind, session.scope));
     tx.rollback()?;
     Ok(resolved)
 }
 
 pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
     store.conn().execute("DELETE FROM _sessions WHERE token_digest = ?1", params![digest(token)])?;
+    store.conn().execute("DELETE FROM _read_sessions WHERE token_digest = ?1", params![digest(token)])?;
     Ok(())
 }
 
@@ -248,6 +261,8 @@ pub fn rotate_session(
     old_token: &str,
     now: i64,
 ) -> Result<Option<Session>, RuntimeError> {
+    // @ref LLP 3000.033#1.3 — read rotation has immutable authority and no foreign sweep.
+    if old_token.starts_with("ro.") { return read_sessions::rotate(store, old_token, now); }
     let old_digest = digest(old_token);
     let found: Option<(String, String, i64, String)> = store.conn().query_row(
         "SELECT principal, kind, expires_at - created_at, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
@@ -284,8 +299,15 @@ pub fn rotate_session(
 
 /// A guest: a principal with no credential, minted on request.
 pub fn guest(store: &Store, now: i64, entropy: &mut u64) -> Result<Session, RuntimeError> {
+    guest_scoped(store, now, entropy, SessionScope::Full)
+}
+pub fn guest_scoped(store: &Store, now: i64, entropy: &mut u64, scope: SessionScope) -> Result<Session, RuntimeError> {
     let id = crate::ids::mint(now, entropy)?;
-    open_session(store, &format!("guest:{id}"), "guest", now)
+    let session = read_sessions::scoped_session(&format!("guest:{id}"), "guest", now, scope)?;
+    let tx = store.conn().unchecked_transaction()?;
+    insert_session(&tx, &session, now)?;
+    tx.commit()?;
+    Ok(session)
 }
 
 fn hash_password(password: &str) -> Result<String, RuntimeError> {
@@ -343,8 +365,11 @@ pub fn finish_signup(
     now: i64,
     entropy: &mut u64,
 ) -> Result<Session, RuntimeError> {
+    finish_signup_scoped(store, prepared, now, entropy, SessionScope::Full)
+}
+pub fn finish_signup_scoped(store: &Store, prepared: PreparedSignup, now: i64, entropy: &mut u64, scope: SessionScope) -> Result<Session, RuntimeError> {
     let principal = format!("user:{}", crate::ids::mint(now, entropy)?);
-    let session = new_session(&principal, "user", now, SESSION_DAYS)?;
+    let session = read_sessions::scoped_session(&principal, "user", now, scope)?;
     let tx = store.conn().unchecked_transaction()?;
     let taken: Option<String> = tx
         .query_row("SELECT principal FROM _credentials WHERE email = ?1",
@@ -409,7 +434,10 @@ fn bad_login() -> RuntimeError {
 
 /// Recheck the credential after verifying outside the database guard.
 pub fn finish_login(store: &Store, checked: Credential, now: i64) -> Result<Session, RuntimeError> {
-    let session = new_session(&checked.principal, "user", now, SESSION_DAYS)?;
+    finish_login_scoped(store, checked, now, SessionScope::Full)
+}
+pub fn finish_login_scoped(store: &Store, checked: Credential, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
+    let session = read_sessions::scoped_session(&checked.principal, "user", now, scope)?;
     let tx = store.conn().unchecked_transaction()?;
     let current: Option<String> = tx
         .query_row(
@@ -444,7 +472,7 @@ mod tests {
         let session = guest(&store, 1_000, &mut entropy).unwrap();
         assert!(session.principal.starts_with("guest:"));
         assert_eq!(session.expires_at, 1_000 + SESSION_DAYS * DAY_MS);
-        assert_eq!(resolve(&store, &session.token, 2_000).unwrap(), Some((session.principal.clone(), "guest".into())));
+        assert_eq!(resolve(&store, &session.token, 2_000).unwrap(), Some((session.principal.clone(), "guest".into(), SessionScope::Full)));
         assert_eq!(resolve(&store, "nope", 2_000).unwrap(), None);
         close_session(&store, &session.token).unwrap();
         assert_eq!(resolve(&store, &session.token, 2_000).unwrap(), None);
@@ -461,7 +489,7 @@ mod tests {
         assert_eq!(resolve(&store, &original.token, 2_001).unwrap(), None);
         assert_eq!(
             resolve(&store, &rotated.token, 2_001).unwrap(),
-            Some(("user:one".into(), "user".into()))
+            Some(("user:one".into(), "user".into(), SessionScope::Full))
         );
         assert!(
             rotate_session(&store, &original.token, 2_001)
@@ -592,6 +620,7 @@ pub struct SessionMintBinding {
 
 struct SessionMintRecord {
     input_digest: String,
+    scope: String,
     principal: String,
     kind: String,
     days: i64,
@@ -602,9 +631,9 @@ struct SessionMintRecord {
 
 fn mint_binding_record(conn: &Connection, invocation: &str, intent: &str) -> Result<Option<SessionMintRecord>, RuntimeError> {
     Ok(conn.query_row(
-        "SELECT input_digest, principal, kind, days, expires_at, family, principal_generation FROM _session_mint_bindings WHERE invocation = ?1 AND intent = ?2",
+        "SELECT input_digest, principal, kind, days, expires_at, family, principal_generation, scope FROM _session_mint_bindings WHERE invocation = ?1 AND intent = ?2",
         params![invocation, intent],
-        |row| Ok(SessionMintRecord { input_digest: row.get(0)?, principal: row.get(1)?, kind: row.get(2)?, days: row.get(3)?, expires_at: row.get(4)?, family: row.get(5)?, principal_generation: row.get(6)? }),
+        |row| Ok(SessionMintRecord { scope: row.get(7)?, input_digest: row.get(0)?, principal: row.get(1)?, kind: row.get(2)?, days: row.get(3)?, expires_at: row.get(4)?, family: row.get(5)?, principal_generation: row.get(6)? }),
     ).optional()?)
 }
 
@@ -632,6 +661,7 @@ pub fn bound_custom_session(
     {
         return Err(RuntimeError::Input("binding requires a valid invocationId and intent identity-session/v1".into()));
     }
+    // @ref LLP 3000.033#1.3 — scope is bound separately; preserve legacy input digests for recoverable full mints.
     let input = serde_json::json!({ "principal": principal, "kind": kind, "days": days });
     let input_digest = crate::store::payload_digest(&input);
     let service_digest = digest(service_token);
@@ -652,13 +682,13 @@ pub fn bound_custom_session(
             insert_session(tx.conn(), &session, now)?;
             let family = digest(&session.token);
             tx.conn().execute(
-                "INSERT INTO _session_mint_bindings(invocation, intent, input_digest, principal, kind, days, expires_at, family, principal_generation) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                "INSERT INTO _session_mint_bindings(invocation, intent, input_digest, principal, kind, days, expires_at, family, principal_generation, scope) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'full')",
                 params![binding.invocation_id, binding.intent, input_digest, principal, kind, days, session.expires_at, family, target_generation],
             )?;
             session
         }
         Some(previous) => {
-            if previous.input_digest != input_digest || previous.principal != principal
+            if previous.scope != "full" || previous.input_digest != input_digest || previous.principal != principal
                 || previous.kind != kind || previous.days != days
             {
                 return Err(RuntimeError::Input("this action intent already binds different session inputs".into()));
@@ -694,7 +724,8 @@ pub fn bound_custom_session(
 pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeError> {
     let tx = store.conn().unchecked_transaction()?;
     tx.execute("INSERT INTO _principal_generations(principal, generation) VALUES (?1, 1) ON CONFLICT(principal) DO UPDATE SET generation = generation + 1", [principal])?;
-    let removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64;
+    let removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64
+        + tx.execute("DELETE FROM _read_sessions WHERE principal = ?1", params![principal])? as u64;
     tx.commit()?;
     Ok(removed)
 }
@@ -709,12 +740,12 @@ mod service_tests {
         let ranker = service_session(&store, "ranker", 1_000, 30).unwrap();
         assert_eq!((ranker.principal.as_str(), ranker.kind.as_str()), ("service:ranker", "service"));
         assert!(is_service(&ranker.principal));
-        assert_eq!(resolve(&store, &ranker.token, 2_000).unwrap(), Some(("service:ranker".into(), "service".into()))
+        assert_eq!(resolve(&store, &ranker.token, 2_000).unwrap(), Some(("service:ranker".into(), "service".into(), SessionScope::Full))
         );
         assert!(matches!(service_session(&store, "not a name", 1_000, 30), Err(RuntimeError::Auth(_))));
         let member = custom_session(&store, "member:42", "member", 1_000, 30).unwrap();
         assert!(!is_service(&member.principal));
-        assert_eq!(resolve(&store, &member.token, 2_000).unwrap(), Some(("member:42".into(), "member".into())));
+        assert_eq!(resolve(&store, &member.token, 2_000).unwrap(), Some(("member:42".into(), "member".into(), SessionScope::Full)));
         assert!(matches!(custom_session(&store, "user:42", "member", 1_000, 30), Err(RuntimeError::Auth(_))), "the engine's namespaces are its own");
         assert!(matches!(custom_session(&store, "system", "member", 1_000, 30), Err(RuntimeError::Auth(_))));
         assert_eq!(custom_session(&store, "member:short", "member", 1_000, 0).unwrap().expires_at, 1_000 + DAY_MS);

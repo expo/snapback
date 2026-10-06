@@ -88093,3 +88093,36 @@ at 118 lines. Guide tests passed 113; headless/social tests passed 15;
 reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
+
+
+## 2026-10-06 — RO: server-enforced read-only clients (LLP 3000.033)
+
+Implemented Accepted revision 3: independent capped read families and generation
+revocation, atomic narrowing, capability triples in both authority adapters, a
+closed HTTP allow-list, presence-free changes polls, view-once refusal and
+request-scoped manifest skipping. The online SDK verifies scope before any other
+traffic or asset credential export, isolates `.read` custody, omits write owners,
+and refuses read tokens on device paths before opening or persisting. Added the
+read-only guide, receipt/client entries and five registered diagnostics. Extracted
+HTTP identity resolution to keep `serve.rs` below 1,500 lines; shared the local
+result type with `local-types.ts` to keep the local client below that limit.
+
+The acceptance tests cover real receipts, barriers and idempotency, overlapping
+polls, narrowing writer races, published 0.4.13 downgrade/logoutAll/re-upgrade,
+offline and SecureStore admission, refresh caps and late-successor cleanup,
+ephemeral-schema live queries, HTTP parity, asset disclosure and construction
+counters. The Phase-2 oracle equivalent signs Bob in fresh and pages a generated
+query without moving his delivered watermark; the original was read over SSH
+from the Apartment mini without writing there. Paired application digests,
+including `_ops` and every full session, equal
+`e15809273ad09307d18d1d0e443d46dd93a8a424aa9ceca31ab2b6bcb0930136`.
+
+The complete Rust/JS suite ran; its initial failures were addressed and every
+failed target/file has passing scoped evidence. Both full-count client models
+passed. The report preserves initial failures as well as final reruns; this is
+not a single-green-run publication receipt. PostgreSQL builds. Wasm is unchanged
+byte-for-byte at 2,117,335 raw / 639,888 gzip bytes (cap 639,941). No schema
+capability, budget, publication or push. Builds used the shared target with
+incremental compilation disabled; 1.78 GB of completed lane-local SQLite test
+sidecars were removed. No black M5 or office M1 use. See the
+[report](reports/20261006-ro-read-only/REPORT.md) for evidence and limits.

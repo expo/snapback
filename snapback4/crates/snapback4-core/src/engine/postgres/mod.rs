@@ -102,6 +102,7 @@ impl PostgresEngine {
     }
 
     fn attach(mut client: Client, mut schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
+        client.batch_execute(store::READ_SESSIONS_DDL)?;
         client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1")?;
         client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS through_shortened TEXT NOT NULL DEFAULT '{}'")?;
         let held=client.query_one("SELECT generation,schema,programs FROM _backend WHERE singleton",&[])?.to_owned();
@@ -146,7 +147,11 @@ impl PostgresEngine {
             prefetch_bytes_transferred: self.store.prefetch_bytes.get() }
     }
 
-    pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
+    pub fn query(&mut self, name: &str, context: Context) -> Result<QueryOutcome, Refusal> {
+        self.query_with_delivery(name, context, super::DeliveryManifest::Build)
+    }
+
+    pub fn query_with_delivery(&mut self, name: &str, mut context: Context, manifest: super::DeliveryManifest) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation();
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.into()))?;
         if program.kind != ProgramKind::Query {
@@ -161,7 +166,7 @@ impl PostgresEngine {
         runner.meter.used = self.precharge;
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
-        let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+        let (delivery, delivery_meter) = match manifest { super::DeliveryManifest::Build => runner.delivery_manifest(&data), super::DeliveryManifest::Skip => (None, None) };
         let outcome = QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none()

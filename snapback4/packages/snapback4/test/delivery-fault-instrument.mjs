@@ -173,6 +173,17 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// RO (LLP 3000.033 §1.4): app-read-only owns only its .read credential slot;
+// its awaits verify scope, serialize that slot, or close the online reader.
+// read-only's gate and cancelled-rotation cleanup probe before admitting any
+// read or own-session logout. Neither module constructs delivery/write custody.
+// auth adds scoped sign-in and narrow response I/O. The read branch in client
+// gates existing query/asset/refresh I/O and fences late rotation successors;
+// full-client delivery still reaches the unchanged classified transport sites.
+// local's new device admission check is synchronous, before all host I/O.
+// read-only.test covers held/rejected probes, rotation/cancellation, store races
+// and local refusals; read-only-server covers real receipt invariance and HTTP
+// barriers. No outbox await, classification or fault recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

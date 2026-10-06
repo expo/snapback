@@ -3,6 +3,11 @@
 //! watermark; the online tier long-polls `GET /changes`. Typed states, no
 //! silent state (LLP 2000.000 §8). Development personas ride a header on
 //! loopback; `dev` re-compiles the schema when a `.q` file changes.
+#[path = "serve_identity.rs"]
+mod session_identity;
+pub(crate) use session_identity::principal_of;
+use session_identity::{mutation_authority, read_permitted};
+
 use crate::project::{Project, persona_principal};
 use snapback4_core::error::Refusal;
 use snapback4_core::ir::ProgramKind;
@@ -564,6 +569,10 @@ fn default_session_kind() -> String { "account".into() }
 fn default_session_days() -> i64 { snapback4_core::identity::SESSION_DAYS }
 
 fn session_mint_wire(request: &Request, payload: &Json) -> Result<SessionMintWire, (u16, Refusal)> {
+    // @ref LLP 3000.033#1.3 — service minting cannot silently widen a requested scope.
+    if payload.get("scope").is_some_and(|scope| scope != "full") {
+        return Err((400, Refusal::new("E_INPUT", "input", "service minting accepts only full scope; narrow an eligible account session").guide("read-only")));
+    }
     let has_lease = request.headers().iter().any(|header| header.field.as_str().as_str().eq_ignore_ascii_case("x-snapback-action-lease"));
     let has_binding = payload.as_object().is_some_and(|object| object.contains_key("binding"));
     if !has_lease && !has_binding {
@@ -575,7 +584,9 @@ fn session_mint_wire(request: &Request, payload: &Json) -> Result<SessionMintWir
             days: payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS),
         });
     }
-    let parsed = serde_json::from_value::<BoundSessionWire>(payload.clone()).map_err(|_| (400,
+    let mut bound_payload = payload.clone();
+    if let Some(fields) = bound_payload.as_object_mut() { fields.remove("scope"); }
+    let parsed = serde_json::from_value::<BoundSessionWire>(bound_payload).map_err(|_| (400,
         Refusal::new("E_INPUT", "input", "a bound session requires exactly { principal, kind?: string, days?: integer, binding: { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean } }")))?;
     if parsed.binding.intent != snapback4_core::identity::BOUND_SESSION_INTENT
         || parsed.binding.invocation_id.is_empty() || parsed.binding.invocation_id.len() > 128
@@ -783,77 +794,6 @@ pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
     serde_json::to_value(refusal).unwrap_or(Json::Null)
 }
 
-/// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
-pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
-    principal_with_owner(request, shared, None)
-}
-
-fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engine>) -> Result<String, Refusal> {
-    dev_request(request, shared)?;
-    let mut persona = None;
-    let mut bearer = None;
-    for header in request.headers() {
-        let name = header.field.as_str().as_str().to_ascii_lowercase();
-        let value = header.value.as_str().trim();
-        if name == "x-snapback-persona" {
-            if persona.is_some()
-                || value.is_empty()
-                || !value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-            {
-                return Err(Refusal::new("E_AUTH", "auth", "send exactly one valid x-snapback-persona header").guide("personas"));
-            }
-            persona = Some(value.to_owned());
-        }
-        if name == "authorization" {
-            let Some(token) = value.strip_prefix("Bearer ").map(str::trim).filter(|token| !token.is_empty()) else {
-                return Err(Refusal::new("E_AUTH", "auth", "send Authorization: Bearer <token>").guide("personas"));
-            };
-            if bearer.replace(token.to_owned()).is_some() {
-                return Err(Refusal::new("E_AUTH", "auth", "send exactly one Authorization header").guide("personas"));
-            }
-        }
-    }
-    if persona.is_some() && bearer.is_some() {
-        return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
-    }
-    if let Some(persona) = persona {
-        if shared.personas {
-            return Ok(persona_principal(&persona));
-        }
-        return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
-    }
-    if let Some(token) = bearer {
-        // Reads may authenticate against the committed generation during adoption.
-        // Keep write authentication behind the writer: time queued for adoption
-        // must not preserve a session that expired or was revoked in that wait.
-        let path = request.url().split('?').next().unwrap_or("");
-        let read = detached_request(request.method(), path);
-        let resolved = if let Some(engine) = owner {
-            snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) })
-        } else if read { match shared.reader() {
-            Ok((epoch, reader)) => {
-                let identity = lock(&shared.wake).store_id.clone();
-                let result = snapback4_core::identity::resolve_read_only_supervised(reader.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }, identity.as_deref());
-                lock(&shared.readers).put(&epoch, reader.into_inner());
-                result
-            }
-            Err(_) if shared.memory_store() => snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }),
-            Err(error) => return Err(error.refusal()),
-        } } else { snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }) };
-        return match resolved {
-            Ok(Some((principal, _))) => Ok(principal),
-            Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
-            Err(error) => Err(error.refusal()),
-        };
-    }
-    Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
-}
-
-// @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
-fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
-    if principal_with_owner(request, shared, Some(engine))? == principal { Ok(()) }
-    else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
-}
 
 fn query_params(url: &str) -> BTreeMap<String, String> {
     fn decode(text: &str) -> String {
@@ -912,6 +852,20 @@ fn handle(mut request: Request, shared: &Shared) {
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
     let _evidence = dev_refusals::response::begin(shared, &path);
+    // @ref LLP 3000.033#1.2 — closed read allow-list precedes every handler,
+    // declared route, dev door and idempotency replay. Refusals carry no head.
+    // Read minting always adds ro.; full tokens never contain a dot. Use that
+    // invariant only to select scope verification, never as read authority.
+    // Full-token handlers retain their pre-auth input validation and wire shapes.
+    if request.headers().iter().any(|h| h.field.equiv("authorization")
+        && h.value.as_str().trim().strip_prefix("Bearer ").is_some_and(|token| token.trim().starts_with("ro."))) {
+        match principal_of(&request, shared) {
+            Ok((_, _, snapback4_core::identity::SessionScope::Read)) if !read_permitted(&method, &path) =>
+                return respond_timed(request, shared, 403, json!({"denied": Refusal::new("E_READ_ONLY", "auth", "this read session permits reads only; use a full session for writes").guide("read-only")})),
+            Err(why) => return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied": refusal_json(&why)})),
+            _ => {}
+        }
+    }
     if path == token::ENDPOINT { return token::handle(request, shared); }
     // This exact declared POST path is the only non-loopback development
     // exception. Core doors, mismatched methods and query variants stay fenced.
@@ -1034,11 +988,11 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, "/effects/claim") => effects::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/effects/") => effects::post(request, shared, path, &body),
         (Method::Get, "/effects") => effects::list(request, shared, &url),
-        (Method::Get, "/probe") => match principal_of(&request, shared) {
+        (Method::Get | Method::Post, "/probe") => match principal_of(&request, shared) {
             Ok(viewer) => {
                 let identity = shared.read_head();
                 match identity {
-                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer })),
+                    Ok((store_id, seq)) => respond_timed(request, shared, 200, json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer.0, "kind": viewer.1, "scope": viewer.2 })),
                     Err(error) => respond_timed(request, shared, 500, json!({ "denied": refusal_json(&error) })),
                 }
             },
@@ -1103,13 +1057,14 @@ fn handle(mut request: Request, shared: &Shared) {
             if path.starts_with("/m/") && lock(&shared.bound).schema.operations.get(&op).is_some_and(|f| f.ephemeral) {
                 return ephemeral::serve(request, shared, &op, &body);
             }
-            let principal = match principal_of(&request, shared) {
+            let (principal, _kind, scope) = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
                     respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
                     return;
                 }
             };
+            let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
             let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { &body }) {
                 Ok(json) => json,
                 Err(error) => {
@@ -1233,7 +1188,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
-                        let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
+                        let (outcome, cut, current) = reader.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
@@ -1251,7 +1206,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
-                        let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
+                        let (outcome, cut, current) = engine.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
@@ -1429,7 +1384,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")
-        | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") => {
+        | (Method::Post, "/auth/narrow") | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") => {
             crate::auth::handle(request, shared, &path, &body);
         }
         (Method::Post, "/seed") => {

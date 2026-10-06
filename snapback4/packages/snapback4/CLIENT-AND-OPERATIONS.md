@@ -495,6 +495,22 @@ receives it. A persona client's `session()` is null; a bare-token client's
 is null until `refreshSession()` returns the session. Applications that
 persist an online session keep its replacements from `onSession`.
 
+**Read-only observers.** Sign in with `{ scope: "read" }`, or narrow a password/guest session without revoking its full credential. Use the returned credential with `readOnly: true`. Startup verifies server scope before queries, assets or refresh; `createApp` uses a separate `.read` session key. Read clients have no device or write queue, cannot consume once-media, and do not advance delivered/seen watermarks or presence. See `guide read-only` for the expiry cap and allowed routes.
+
+```ts
+import { createClient } from "snapback4/client";
+import { login, narrowSession } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+const url = "http://127.0.0.1:4400";
+const signedIn = await login(url, "bob@example.com", "a-long-password");
+if (!signedIn.ok) throw new Error(signedIn.why.message);
+const narrowed = await narrowSession(url, signedIn.session);
+if (!narrowed.ok) throw new Error(narrowed.why.message);
+const observer = createClient({ url, session: narrowed.session, readOnly: true });
+await observer.query(api.history, { conversation: "conversation-id" });
+await observer.signOut();
+```
+
 **Node.** `dir` is required, and a blank string refuses the same way, before the opener is returned; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
 
 ```ts
@@ -2405,7 +2421,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists or prints cards: language, app, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire,
   assets, client, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, receipts, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.

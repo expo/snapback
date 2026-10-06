@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQuery`/`usePage` and `readPresentation`; keep composers and receipts above transient rows.
+**Start here:** `useQuery`/`usePage`, `readPresentation`; keep composers/receipts above transient rows.
 
 ```tsx
 import { usePage } from "snapback4/react";
@@ -63,16 +63,18 @@ Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (l
 `guide social`: quoted-message point reads distinguish loading/absence/denial; bounded route-owned screens preserve drafts.
 
 ## Row queries
-Shared observations avoid repetition. Prefer pages to 1,000 point reads. Authorization inputs remain dependencies.
+Share observations; page large lists. Authorization inputs remain dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
-Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
+Server/composed scopes preserve unrelated rooms; unknown selectors withdraw all.
 Flashes: `inspect(client)` from `snapback4/inspection` compares `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max over 256 attempts; last 64 withdrawals. Includes linger; excludes direct/presence.
-Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
+Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled: null; enabled: 250-ms samples, without arguments/values.
 
 ## Expo and acquisition
 Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
 Every milestone: `npm run export:ios` publishes `dist/`; native proof runs in the background. `witness status --wait` reports results. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs scenarios (`guide witness`).
+
+`createClient`/online `createApp`: `readOnly: true` (`guide read-only`). Keep `useSeen` inactive when read-only.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.

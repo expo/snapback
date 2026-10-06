@@ -14,10 +14,12 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let began = Instant::now();
     let deadline = began + Duration::from_secs(wait);
     let paced = began + Duration::from_millis(100);
-    let connected = match principal_of(&request, shared) {
+    let capability = match principal_of(&request, shared) {
         Ok(principal) => principal,
         Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
+    let connected = &capability.0;
+    let present = capability.2 == snapback4_core::identity::SessionScope::Full;
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false, shared };
     let initial = { let wake=lock(&shared.wake); (wake.seq,wake.eph.version.clone(),wake.generation) };
@@ -27,10 +29,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
     let mut reader = {
         let mut engine = lock(&shared.engine);
-        if let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
+        if present && let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
         }
-        shared.presence.enter(&connected);
+        if present { shared.presence.enter(&connected); }
         shared.open_reader(&engine).ok()
     };
     let refresh = |reader: &mut Option<snapback4_core::Engine>| {
@@ -83,7 +85,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             let (_wake, _timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
         }
     })();
-    shared.presence.leave(&connected);
+    // @ref LLP 3000.033#1.2 — a reader never enters OR leaves presence.
+    if present { shared.presence.leave(&connected); }
     // Recheck bearer liveness on the detached connection. Ephemeral-only
     // wakes must not reacquire the serving engine merely to finish a poll.
     let auth_store_id = lock(&shared.wake).store_id.clone();
@@ -91,10 +94,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         let _timing = super::latency::EngineSpan::new();
         if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|h.value.as_str().strip_prefix("Bearer ")) {
             match snapback4_core::identity::resolve_read_only_supervised(reader.store(),token.trim(),snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) },auth_store_id.as_deref()) {
-                Ok(Some(_))=>Ok(()),Ok(None)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),
+                Ok(Some(current)) if current == capability => Ok(()),Ok(_)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),
             }
         } else {Ok(())}
-    } else {principal_of(response.request.as_ref().unwrap(),shared).map(|_|())};
+    } else {principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) })};
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
         Ok(((seq,store_id,tables,preserved),generation,ephemeral))=>{

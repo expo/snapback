@@ -1,3 +1,5 @@
+import { createReadOnlyApp } from "./app-read-only.ts";
+import { refuseReadDevice, validateReadOptions } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
 import { prepareAdmissionAuthority } from "./admission-authority.ts";
@@ -48,10 +50,12 @@ export interface App {
 /** Local configuration (including assets and waitSeconds) applies only with a
  * device; the online tier ignores it. Identity is owned by app.auth. */
 export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "session" | "guest"> {
+  readonly readOnly?: boolean;
   readonly device?: DeviceOpener | undefined;
 }
 
 function problem(error: unknown): Refusal {
+  if ((error as { why?: Refusal })?.why?.code.startsWith("E_READ_ONLY")) return (error as { why: Refusal }).why;
   if (error instanceof StorageWarning) return error.why;
   const message = error instanceof Error ? error.message : String(error);
   const code = message.includes("E_AUTH:") ? "E_AUTH" : "E_CLIENT";
@@ -67,6 +71,8 @@ class SessionEpochChanged extends StorageWarning {
 }
 
 export function createApp(options: AppOptions): App {
+  validateReadOptions(options);
+  if (options.readOnly) return createReadOnlyApp(options);
   let assets: AssetRetention | undefined, configurationError: StorageWarning | undefined;
   try { if (options.device) assets = assetRetention(options.assets); }
   catch (error) {
@@ -292,6 +298,7 @@ export function createApp(options: AppOptions): App {
       return inactive();
     };
     scopes.add(scope);
+    if (options.device) refuseReadDevice(session);
     let restoreToken = restoring ? session.token : undefined;
     let preparing = true, committing = false;
     const scopedStore: SessionStore = {

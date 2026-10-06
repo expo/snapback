@@ -2,6 +2,11 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_READ_ONLY", &["Use a full session for writes."]),
+    ("E_READ_ONLY_CREDENTIAL", &["Supply a read session and upgrade older servers."]),
+    ("E_READ_ONLY_UNSUPPORTED", &["Supply a read session and upgrade older servers."]),
+    ("E_READ_ONLY_DEVICE", &["Use an online read-only client without a device."]),
+    ("E_ASSET_READ_ONLY", &["Fetch ordinary assets or use a full session."]),
     ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
     ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),

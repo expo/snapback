@@ -1,3 +1,4 @@
+import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification, retireReadSession } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
@@ -43,6 +44,7 @@ import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
 import { sha256, utf8 } from "./sha256.ts";
 
 export interface ClientOptions {
+  readonly readOnly?: boolean;
   /** Delivery reports refused by the application; these are separate from onWrite. */
   readonly onDeliveryRefused?: (event: import("./delivery-state.ts").DeliveryRefused) => void;
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -162,10 +164,17 @@ export function idFrom(key: string): string {
 }
 
 export function createClient(options: ClientOptions): Client {
+  validateReadOptions(options);
   const clock = serverClock(options.fetch ?? defaultFetch);
   // @ref LLP 3000.017#3.3 — ordinary responses discover schema capability without changing durable traffic.
   const transport = clock.wrap(options.fetch ?? defaultFetch);
   const doFetch: typeof fetch = async (...args) => {
+    if (readGate) {
+      const why = await readGate.verify();
+      if (why) return Response.json({ denied: why }, { status: 403 });
+      const sent = new Headers(args[1]?.headers).get("authorization");
+      if (sent !== headers.authorization) return Response.json({ denied: auth() }, { status: 401 });
+    }
     const response = await transport(...args);
     if (!closed && response.headers.get("x-snapback-ephemeral") === "1" && !ephemeralAdvertised) {
       ephemeralAdvertised = true;
@@ -193,6 +202,9 @@ export function createClient(options: ClientOptions): Client {
   let seq = 0;
   let minimumReadSeq = 0, queryEpoch = 0;
   let storeIdentity: string | undefined;
+  const readGate = options.readOnly ? new ReadScopeGate(base, transport,
+    () => ({ token: headers.authorization?.slice(7), revision: credentialRevision, store: storeIdentity, closed: closed || !!storeRefusal || !credentials }),
+    json => { observeStore(json, minimumReadSeq); if (typeof json.viewer === "string") setViewer(json.viewer as Principal); }, aborter.signal) : undefined;
   const dispatch: DispatchState = { identify: async () => {
     if (!storeIdentity && !probed) await waitForCaller(probe(), aborter.signal);
   } };
@@ -201,19 +213,19 @@ export function createClient(options: ClientOptions): Client {
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
-  const history = new WriteHistory();
-  const mutationIds = new MutationIds();
+  const history = options.readOnly ? undefined : new WriteHistory();
+  const mutationIds = options.readOnly ? undefined : new MutationIds();
   const pendingEvents = pendingChanges();
   let intentEpoch = 0;
   const intentScope = () => closed || !credentials || storeRefusal ? undefined : `${viewer}:${storeIdentity}`;
-  const intentPresentation = new OnlineIntentPresentation(intentScope, pendingEvents.notify);
+  const intentPresentation = options.readOnly ? undefined : new OnlineIntentPresentation(intentScope, pendingEvents.notify);
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
-    history.remember(write);
-    mutationIds.finish(write.id);
+    history?.remember(write);
+    mutationIds?.finish(write.id);
     const entry = pending.find(entry => entry.id === write.id);
-    if (entry && !entry.retired && entry.owner === viewer) intentPresentation.settled(write, { id: entry.id, op: entry.op.name, args: entry.args, state: entry.state, predicted: [] });
-    intentPresentation.release(write.id);
+    if (entry && !entry.retired && entry.owner === viewer) intentPresentation?.settled(write, { id: entry.id, op: entry.op.name, args: entry.args, state: entry.state, predicted: [] });
+    intentPresentation?.release(write.id);
     if (entry) entry.done = true;
     pendingEvents.notify();
     for (const listener of writeListeners) listener(write);
@@ -221,7 +233,7 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const resetWatches = (publish = true, cause = "schema-reset") => {
-    intentEpoch++; intentPresentation.items(); pendingEvents.notify();
+    intentEpoch++; intentPresentation?.items(); pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }, false, cause); scheduleExpiry(watch, null, null); }
@@ -289,7 +301,7 @@ export function createClient(options: ClientOptions): Client {
       if (backendLoaded && !closed && !storeRefusal && credentials) for (const watch of watches.values()) void scheduleRead(watch);
     }
   }
-  const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
+  const ephemeral = options.readOnly ? undefined : ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
 
@@ -325,7 +337,7 @@ export function createClient(options: ClientOptions): Client {
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
-    intentPresentation.clear();
+    intentPresentation?.clear();
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setViewer(null);
@@ -352,7 +364,7 @@ export function createClient(options: ClientOptions): Client {
     });
     deliver();
     for (const watch of changed) notify(watch);
-    ephemeral.linkChanged();
+    ephemeral?.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
       void delivery?.reconnect();
@@ -369,7 +381,7 @@ export function createClient(options: ClientOptions): Client {
       if (viewer !== null) entry.retired = true;
       else if (!entry.retired) entry.owner = next;
     }
-    if (viewer !== null) intentPresentation.clear();
+    if (viewer !== null) intentPresentation?.clear();
     viewer = next;
     void delivery?.reset(true);
     resetWatches(true, "viewer");
@@ -384,7 +396,7 @@ export function createClient(options: ClientOptions): Client {
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
     if (storeRefusal) return;
-    intentPresentation.clear();
+    intentPresentation?.clear();
     void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
       message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
@@ -436,7 +448,14 @@ export function createClient(options: ClientOptions): Client {
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
-    if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
+    if (closed || storeRefusal || !credentials || !session || session.kind === "action" || (readGate && !readGate.verified)) return;
+    if ((readGate || session.token.startsWith("ro.")) && session.expiresAt >= (session.capExpiresAt ?? session.expiresAt)) {
+      const remaining = session.expiresAt - clock.issuedDeviceNow();
+      if (remaining <= 0) { endCredentials(); return; }
+      refreshTimer = setTimeout(() => scheduleRefresh(), Math.min(remaining, 2_147_000_000));
+      (refreshTimer as { unref?: () => void }).unref?.();
+      return;
+    }
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - refreshBeforeExpiry);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -450,6 +469,7 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000#7 — both client tiers keep short-lived sessions and rotate the bearer before expiry.
   function refreshCurrent(): Promise<SignIn> {
+    if (readGate && !readGate.verified) return readGate.verify().then(why => why ? { ok: false, why } : refreshCurrent());
     if (closed || storeRefusal) return Promise.resolve({ ok: false, why: storeRefusal ?? ended() });
     if (refreshing) return refreshing;
     const token = headers.authorization?.slice("Bearer ".length);
@@ -457,14 +477,15 @@ export function createClient(options: ClientOptions): Client {
     const expectedPrincipal = viewer;
     credentialRevision += 1;
     const deliverReset = resetWatches(false, "credentials");
-    const rotation = rotateSession(base, token, doFetch);
+    const rotation = rotateSession(base, token, readGate ? transport : doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
       if (retired || (!result.ok && (credentials || !result.why.retryable))) return;
       retired = true;
       // Only sign-out owns old-bearer cleanup after a transport rejection.
       // Store replacement keeps that bearer for createApp's recovery probe.
-      void logout(base, result.ok ? result.session.token : token, doFetch);
+      if (readGate) void retireReadSession(base, result.ok ? result.session.token : token, expectedPrincipal, storeIdentity, transport);
+      else void logout(base, result.ok ? result.session.token : token, doFetch);
     };
     // Never abort rotation: the server may already have consumed the old
     // token. Keep reading so a cancelled caller's successor can be revoked.
@@ -489,6 +510,7 @@ export function createClient(options: ClientOptions): Client {
       session = refreshed.session;
       headers.authorization = `Bearer ${session.token}`;
       setViewer(session.principal as Principal);
+      if (readGate) { const why = await readGate.verify(); if (why) return { ok: false, why }; }
       for (const listener of [...sessionListeners]) listener(session);
       if (!closed) {
         setLink("online");
@@ -638,6 +660,7 @@ export function createClient(options: ClientOptions): Client {
   };
 
   function acceptDelivery<R>(result: QueryResult<R> & { retryExhausted?: boolean }, read: Read<unknown>) {
+    if (options.readOnly) return;
     if ("data" in result.read && !result.transportOffline && !result.retryExhausted) {
       const scope = intentScope();
       offerIntentRead(read, scope, result.seq, () => scope != null && scope === intentScope() && currentRead(result));
@@ -1003,16 +1026,18 @@ export function createClient(options: ClientOptions): Client {
     sweepExpiries();
     scheduleRefresh();
   });
-  delivery = onlineDelivery({ offline: () => setLink("offline"), url: base, fetch: doFetch, mint: mintId,
+  if (!options.readOnly) delivery = onlineDelivery({ offline: () => setLink("offline"), url: base, fetch: doFetch, mint: mintId,
     ready: () => !closed && credentials && !storeRefusal && !refreshing && link === "online" && !!storeIdentity,
     current: () => !closed && credentials && !storeRefusal, headers: () => ({ ...headers }), revision: () => credentialRevision,
     floor: () => minimumReadSeq, store: () => storeIdentity, observe: (json, floor) => observeStore(json, floor, true),
     obsolete: obsoleteRefusal, refresh: () => refreshing, onRefused: options.onDeliveryRefused });
-  void delivery.start();
+  void delivery?.start();
   const client: Client = {
+    readOnly: options.readOnly ?? false,
     async residency() { return null; },
     now: clock.issuedDeviceNow,
     act(op, args, options) {
+      if (readGate) return Promise.resolve({ state: "failed", id: options?.id ?? mintId(), why: readOnlyRefusal() });
       const response = closingResponses.request();
       return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
     },
@@ -1026,7 +1051,7 @@ export function createClient(options: ClientOptions): Client {
         acceptDelivery(result, result.read);
         return result.read;
       };
-    }, () => terminalQueryRefusal({ scope: null, store: storeRefusal, closed: closed ? ended() : null,
+    }, () => terminalQueryRefusal({ scope: null, store: readGate?.refusal ?? storeRefusal, closed: closed ? ended() : null,
       session: !credentials || link === "signed-out" ? auth() : null, changes: changesRefusal,
       partition: null, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
@@ -1042,25 +1067,26 @@ export function createClient(options: ClientOptions): Client {
         watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },
-    mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+    mutate: routeMutations(options.readOnly ? () => Promise.resolve({ state: "failed", id: mintId(), why: readOnlyRefusal() }) : ephemeral!.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
+      if (readGate) return failedAdmission(id, readOnlyRefusal());
       if (closed || !credentials || link === "signed-out" || storeRefusal) {
         const failed = { state: "failed" as const, id, why: storeRefusal ?? (closed ? ended() : auth()) };
-        return Object.assign(Promise.resolve(mutationIds.knows(id) ? failed : emitWrite(failed)), failed);
+        return Object.assign(Promise.resolve(mutationIds?.knows(id) ? failed : emitWrite(failed)), failed);
       }
       // The bare online transport has no browser admission journal. An app's
       // private online custody may replay an intent it already persisted.
       if (browserAdmission() && !dispatch.owner) return failedAdmission<R>(id, admissionRefusal(
         "this online client has no synchronous browser admission journal", "client.mutate",
         "use createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }) on the web"));
-      return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
+      return mutationIds!.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });
         const entry: (typeof pending)[number] = { owner: viewer, id, op: op as Mutation<unknown, unknown>, args, state: "queued", response: closingResponses.request(), resolve: settle };
         pending.push(entry);
-        intentPresentation.admit(id);
+        intentPresentation?.admit(id);
         pendingEvents.notify();
-        history.remember(write);
+        history?.remember(write);
         const attempt = flush();
         const wait = mutationWaitSeconds(options?.waitSeconds);
         if (link !== "online" || wait === 0) return write;
@@ -1073,7 +1099,7 @@ export function createClient(options: ClientOptions): Client {
         } finally { clearTimeout(timer); }
       });
     }),
-    async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
+    async write(id) { const receipt = await history?.read(id); return !closed && credentials ? receipt : undefined; },
     async pendingWrites() {
       return closed || !credentials || storeRefusal ? [] : pending.filter(entry => !entry.done && !entry.retired && entry.owner === viewer).map(entry => ({
         id: entry.id, op: entry.op.name, args: JSON.parse(JSON.stringify(entry.args)), state: entry.state,
@@ -1084,6 +1110,7 @@ export function createClient(options: ClientOptions): Client {
     acquired: false,
     onAcquired: () => () => {},
     async upload(bytes) {
+      if (readGate) return { ok: false, why: readOnlyRefusal() };
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
@@ -1101,6 +1128,7 @@ export function createClient(options: ClientOptions): Client {
       return uploaded;
     },
     async asset(id) {
+      if (readGate) { const why = await readGate.verify(); if (why) return { denied: why }; }
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
@@ -1130,7 +1158,7 @@ export function createClient(options: ClientOptions): Client {
       }
       return read;
     },
-    assetSource: (id) => storeRefusal || closed ? { uri: "", headers: {} } : assetSource(base, headers, id),
+    assetSource: (id) => storeRefusal || closed || (readGate && (refreshing || !readGate.verified)) ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);
@@ -1152,6 +1180,7 @@ export function createClient(options: ClientOptions): Client {
     },
     refreshSession: refreshCurrent,
     async logoutAll() {
+      if (readGate) return { ok: false, why: readOnlyRefusal() };
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
@@ -1175,12 +1204,12 @@ export function createClient(options: ClientOptions): Client {
       // Stop ordinary work synchronously; only delivery's own signals receive
       // the bounded grace period. endCredentials/close must not abort them.
       delivery = undefined;
-      const bearer = headers.authorization?.slice("Bearer ".length);
+      const bearer = !readGate || readGate.verified ? headers.authorization?.slice("Bearer ".length) : undefined;
       endCredentials();
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
-      if (bearer) void logout(base, bearer, doFetch);
+      if (bearer) void logout(base, bearer, readGate ? transport : doFetch);
       await Promise.all([closing, draining]);
     },
     close() {
@@ -1188,7 +1217,7 @@ export function createClient(options: ClientOptions): Client {
       cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
       closed = true;
-      intentPresentation.clear();
+      intentPresentation?.clear();
       void delivery?.stop();
       closeWatchAnswers(watches, storeRefusal ?? ended())();
       pendingEvents.notify(); pendingEvents.clear();
@@ -1207,7 +1236,7 @@ export function createClient(options: ClientOptions): Client {
         if (entry === sending) continue;
         const outcome = { state: "pending", id: entry.id } as const;
         entry.resolve(outcome);
-        history.remember(outcome);
+        history?.remember(outcome);
       }
       writeListeners.clear();
       closing = Promise.allSettled([flushing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); closingResponses.finish(); });
@@ -1217,18 +1246,20 @@ export function createClient(options: ClientOptions): Client {
   trackDispatch(client, dispatch);
   readWork.bind(client, watches);
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
-  const start = () => {
+  const start = async () => {
     if (closed) return;
-    if (session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
+    if (readGate && await readGate.verify()) return;
+    if (session && ((!readGate && !session.token.startsWith("ro.")) || session.expiresAt < (session.capExpiresAt ?? session.expiresAt)) && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
+  if (readGate) registerReadVerification(client, () => readGate.verify());
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();
-  registerPendingIntents(client, { scope: intentScope, revision: () => `${credentialRevision}:${intentEpoch}`, retain: intentPresentation.retain, read: async () => {
+  if (intentPresentation) registerPendingIntents(client, { scope: intentScope, revision: () => `${credentialRevision}:${intentEpoch}`, retain: intentPresentation.retain, read: async () => {
     const scope = intentScope(), epoch = intentEpoch, revision = credentialRevision, pending = await client.pendingWrites();
     return scope != null && scope === intentScope() && epoch === intentEpoch && revision === credentialRevision ? intentPresentation.sync(pending) : [];
   } });
-  registerIntentObserver(client, ids => intentPresentation.observed(ids));
+  if (intentPresentation) registerIntentObserver(client, ids => intentPresentation.observed(ids));
   return client;
 }

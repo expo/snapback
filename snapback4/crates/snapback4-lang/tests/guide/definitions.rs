@@ -137,6 +137,11 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_READ_ONLY", "Everything else returns 403 `E_READ_ONLY`"),
+    ("E_READ_ONLY_CREDENTIAL", "A full credential or persona refuses `E_READ_ONLY_CREDENTIAL`"),
+    ("E_READ_ONLY_UNSUPPORTED", "an older server refuses `E_READ_ONLY_UNSUPPORTED`"),
+    ("E_READ_ONLY_DEVICE", "a read session cannot open any device."),
+    ("E_ASSET_READ_ONLY", "successful non-ranged view-once grant returns `E_ASSET_READ_ONLY` (403)"),
     ("E_JOB_VIEWER_CONTEXT", "as belongs inside a job sweep and cannot nest"),
     ("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal"),
     ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),

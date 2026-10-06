@@ -95,7 +95,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(admitted.status, 200);
       const body = await admitted.json();
-      assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id, viewer: "dev:alice" });
+      assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id, viewer: "dev:alice", kind: "persona", scope: "full" });
       assert.match(body.store_id, /^[0-9a-f]{32}$/);
     });
     await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
