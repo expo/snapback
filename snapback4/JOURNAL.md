@@ -88093,3 +88093,39 @@ at 118 lines. Guide tests passed 113; headless/social tests passed 15;
 reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
+
+## 2026-10-06 — PD: Darwin stale-row regression distinguishes identity reads
+
+Reproduced the 0.4.14 publication blocker on the Apartment mini with Node
+24.18.0: PS's stale-row test counted 47 empty inspector calls instead of two.
+Darwin reuses the injected inspector for its fresh per-PID lookup; Linux
+reads `/proc` independently. The fixture replayed its old living rows into
+both Darwin enumeration and identity calls, fabricating a live group through
+the cleanup deadline. With stale enumeration alone, the unchanged runner
+already discounts exited rows and completes two empty confirmations.
+
+Correct the fixture under the commissioned test-only exception. Separate
+enumerations from identity reads, preserve fresh scoped lookups, require two
+empty confirmations with no reset, bound the extra identity reads, and refuse
+any inspection/deadline error while retaining the observed `TEST_FILE_LEAK`.
+Exercise Darwin identity on Linux too, parsing each host's real ps output with
+its own routing rules. Production runner and Linux behavior are unchanged;
+LLP 3000 §7 records the fixture distinction.
+
+The final reproduction passed five times, including during the full client
+pool; the runner/process pair passed 93/93 twice and both files passed inside
+that pool. Negative controls reject trusting stale rows and accepting only
+one empty snapshot. The canonical six-slot pool completed all 323 files in
+1,466 s. Two module-load failures were missing fresh-tree event-slot traces;
+after their native producer ran, both files passed through the runner (48/48).
+Across the pool and those prerequisite rechecks: 6,499 passes, six declared
+skips, no unresolved failure. The original pool exit remains recorded as 1;
+it is not represented as a single green run. Both default-count serial models
+then passed 79/79 with no skips. LLP references and diff checks pass.
+
+The [PD report](reports/20261006-pd-darwin-stale-rows/REPORT.md) retains the
+code diagnosis, original failing trace, final repetitions, negative controls,
+focused tests, complete pool and model logs. Builds used the packaged SQLite
+flag; wasm remained at the existing 639,941 B gzip budget. No full native
+suite or publication dry run is claimed. All work stayed in this mini worktree;
+no other host, simulator, X27R worktree, push or publication was involved.
