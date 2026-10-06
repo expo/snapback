@@ -1,0 +1,391 @@
+{
+  "at": "2026-10-06T05:24:24Z",
+  "hostname": "expose-builder-pixel",
+  "interval_s": 1,
+  "cpus": [
+    {
+      "cpu": 0,
+      "busy_pct": 1.1
+    },
+    {
+      "cpu": 1,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 2,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 3,
+      "busy_pct": 92.0
+    },
+    {
+      "cpu": 4,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 5,
+      "busy_pct": 12.1
+    },
+    {
+      "cpu": 6,
+      "busy_pct": 22.4
+    },
+    {
+      "cpu": 7,
+      "busy_pct": 18.0
+    },
+    {
+      "cpu": 8,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 9,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 10,
+      "busy_pct": 19.2
+    },
+    {
+      "cpu": 11,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 12,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 13,
+      "busy_pct": 46.0
+    },
+    {
+      "cpu": 14,
+      "busy_pct": 28.3
+    },
+    {
+      "cpu": 15,
+      "busy_pct": 21.4
+    },
+    {
+      "cpu": 16,
+      "busy_pct": 60.4
+    },
+    {
+      "cpu": 17,
+      "busy_pct": 59.4
+    },
+    {
+      "cpu": 18,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 19,
+      "busy_pct": 99.0
+    },
+    {
+      "cpu": 20,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 21,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 22,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 23,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 24,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 25,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 26,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 27,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 28,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 29,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 30,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 31,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 32,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 33,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 34,
+      "busy_pct": 22.8
+    },
+    {
+      "cpu": 35,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 36,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 37,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 38,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 39,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 40,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 41,
+      "busy_pct": 4.0
+    },
+    {
+      "cpu": 42,
+      "busy_pct": 19.4
+    },
+    {
+      "cpu": 43,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 44,
+      "busy_pct": 4.0
+    },
+    {
+      "cpu": 45,
+      "busy_pct": 40.0
+    },
+    {
+      "cpu": 46,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 47,
+      "busy_pct": 55.6
+    },
+    {
+      "cpu": 48,
+      "busy_pct": 55.2
+    },
+    {
+      "cpu": 49,
+      "busy_pct": 24.5
+    },
+    {
+      "cpu": 50,
+      "busy_pct": 15.5
+    },
+    {
+      "cpu": 51,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 52,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 53,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 54,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 55,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 56,
+      "busy_pct": 86.9
+    },
+    {
+      "cpu": 57,
+      "busy_pct": 8.1
+    },
+    {
+      "cpu": 58,
+      "busy_pct": 82.0
+    },
+    {
+      "cpu": 59,
+      "busy_pct": 27.8
+    },
+    {
+      "cpu": 60,
+      "busy_pct": 7.0
+    },
+    {
+      "cpu": 61,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 62,
+      "busy_pct": 11.0
+    },
+    {
+      "cpu": 63,
+      "busy_pct": 10.1
+    },
+    {
+      "cpu": 64,
+      "busy_pct": 4.0
+    },
+    {
+      "cpu": 65,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 66,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 67,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 68,
+      "busy_pct": 99.0
+    },
+    {
+      "cpu": 69,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 70,
+      "busy_pct": 4.0
+    },
+    {
+      "cpu": 71,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 72,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 73,
+      "busy_pct": 85.0
+    },
+    {
+      "cpu": 74,
+      "busy_pct": 48.0
+    },
+    {
+      "cpu": 75,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 76,
+      "busy_pct": 55.6
+    },
+    {
+      "cpu": 77,
+      "busy_pct": 28.3
+    },
+    {
+      "cpu": 78,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 79,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 80,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 81,
+      "busy_pct": 3.0
+    },
+    {
+      "cpu": 82,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 83,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 84,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 85,
+      "busy_pct": 4.0
+    },
+    {
+      "cpu": 86,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 87,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 88,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 89,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 90,
+      "busy_pct": 1.0
+    },
+    {
+      "cpu": 91,
+      "busy_pct": 100.0
+    },
+    {
+      "cpu": 92,
+      "busy_pct": 2.0
+    },
+    {
+      "cpu": 93,
+      "busy_pct": 0.0
+    },
+    {
+      "cpu": 94,
+      "busy_pct": 11.1
+    },
+    {
+      "cpu": 95,
+      "busy_pct": 1.0
+    }
+  ]
+}

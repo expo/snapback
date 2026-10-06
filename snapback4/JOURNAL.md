@@ -87972,3 +87972,52 @@ behavior was never reached. The report recommends rerunning Phase 2 after named
 contract/helper, launch/signing and diagnostic-evidence changes; it grants no
 scored admission. Large evidence is archived on eb1000 with a committed hash
 index. Charlie retains the admission ruling.
+
+
+## 2026-10-06 — FH: sparse Following history, design handoff
+
+The guide-equivalent historical Following query fails on 50,000 originals
+across 1,000 principals when the followed author is sparse: no data or next,
+5,789 charged examinations, heap cut at 16 MiB, 22.859 ms warm median. It scans
+time ranges across actors and filters follows. An existing-IR merge over the
+owned actor-time event index returns 20 rows in 23 examinations / 0.105 ms and
+walks all 1,101 relevant events against a full-scan oracle. Adding 48,900
+unrelated posts changes none of its seven meter dimensions. These are shared
+eb1000, CPU-2-confined engine samples, not an implemented-feature speedup.
+
+Two counterexamples prevent paving that control: 8,200 follows exhaust head
+discovery without continuation, and a quiet actor's time-0 event makes the
+inbox end below another actor's 101 uncopied events. A global older-than-tail
+handoff would lose those events. Following has no authored follow cap.
+
+[LLP 3000.026 §9](../llp/3000.026-following-over-a-populated-store.rfc.md#9-exact-on-demand-history-design-handoff)
+proposes resumable author discovery/refill, a private metered frontier, finite
+birth domain and revision-bound publication. The recommended initial reader
+is online and reconciles exact history from the top at the inbox end. A new
+traversal capability and that handoff require the author's decision; the task
+explicitly says to stop at this design gate. No reader, certificate format,
+persisted schema/catalog, slot, cursor or device contract changes. Existing
+copying and prediction/acquisition fences remain. The guide now explains the
+current limitation without promising complete history. The random mutation/
+block oracle and new-reader device parity remain implementation qualification,
+not claimed results of this research.
+
+Both Linux wasm build environments measure 2,117,335 B raw / 639,888 B gzip;
+all 481 checked tracked core/device/build inputs match base 547c6113bd. Reconcile
+the inherited cap by 77 B to 640,018 B, preserving exactly the user's 130 B
+macOS allowance. This is inherited measurement drift, not feature bytes added;
+no runtime ceiling is raised. No Mac, other worktree or process was changed.
+The [report](reports/20261006-fh-following-history/REPORT.md) holds raw samples,
+compiler certificates, design choices and the final verification record.
+Research cases, reference audit and wasm family/absence checks pass. Full-suite
+completion is recorded in the closeout below. No push or publication.
+
+**FH closeout, 2026-10-06:** the full `bash snapback4/scripts/test.sh` passes,
+exit 0 with zero failures in 5,002 s. All 300 Rust test binaries (1,013
+scheduled executions), doctests and timeline/Following tests pass. The client
+pool passes 322 files (6,440 tests pass, 47 explicit skips, including the four
+published Darwin witnesses on Linux); both full-count model files pass all
+79 tests. The separate three-case history research run also passes. Existing
+suite models do not qualify the proposed history reader or replace its pending
+mutation/block oracle. Worktree disk use is about 14 GiB. The author decision
+in §9 remains the handoff; no production history implementation is claimed.

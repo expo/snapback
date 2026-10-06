@@ -50,7 +50,7 @@ query profile(actor: principal, c: cursor ?):
   return posts where .authorId = actor and not .removed last 20 by .at after c
 ```
 
-Planned `home` serves server pages over a moderate corpus, with no per-follower inbox or offline floor. Behind many newer unrelated posts it can hit the meter and fail closed: `complete: false`, no `next`, never a complete empty page.
+Planned `home` scans global time indexes and filters by follows; it is not a guaranteed complete-history reader. Unrelated posts consume work. Sparse history can exhaust the 16 MiB heap or 8,192-examination meter: `complete: false`, no `next`, never a complete empty page. An inbox cursor cannot continue this different reader. Starting below the inbox's oldest event can skip uncopied events from another author. Use the profile reader above for older posts.
 
 ## Following: a view for the reader
 

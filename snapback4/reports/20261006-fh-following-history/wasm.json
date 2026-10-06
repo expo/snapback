@@ -1,0 +1,17 @@
+{
+  "base": "547c6113bdab6a68c3b8628d79fa6c0b6eb0ce53",
+  "checked_tracked_inputs": 481,
+  "inputs_different_from_base": [],
+  "raw_bytes": 2117335,
+  "gzip_script_bytes": 639888,
+  "macos_allowance": 130,
+  "required_cap": 640018,
+  "existing_cap": {
+    "gzip": 639941,
+    "set": "2026-10-05"
+  },
+  "sha256": "2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944",
+  "reconciled_cap": 640018,
+  "cap_adjustment": 77,
+  "feature_input_delta": 0
+}
