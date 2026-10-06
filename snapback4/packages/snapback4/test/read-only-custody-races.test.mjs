@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createApp } from '../dist/app.js';
 import { sessionKey } from '../dist/auth.js';
+import { waitFor as until } from './helpers/wait.mjs';
 const url='https://review-ro.invalid', key=sessionKey(url,true), query={kind:'query',name:'secret'};
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const session=(who,token=`ro.${who}`)=>({token,principal:who,kind:'user',scope:'read',expiresAt:Date.now()+86400000,capExpiresAt:Date.now()+86400000});
@@ -14,7 +15,6 @@ const base=async(input,init)=>{const path=new URL(input).pathname, token=init?.h
  if(path==='/q/secret') return Response.json({data:`${who}-secret`,complete:true,seq:0,store_id:'test'});
  if(path==='/changes') return new Promise((resolve,reject)=>{const abort=()=>reject(Error('aborted'));if(init.signal.aborted)abort();else init.signal.addEventListener('abort',abort,{once:true});});
  return Response.json({ok:true});};
-async function until(fn){for(let i=0;i<100;i++){if(await fn())return;await delay(10)}throw Error('condition timeout')}
 for(const trigger of ['logout','peer switch','close','replacement']) test(`fence notifies a subscribed rendered value on ${trigger}`,async t=>{
  const store=storage(session('bob')), app=createApp({url,readOnly:true,sessionStore:store,fetch:base});t.after(()=>app.close());await app.ready;
  const old=app.client, watch=old.observe(query,{});let rendered=watch.getSnapshot(), notices=0;
@@ -47,17 +47,17 @@ for(const scenario of ['logout during successor persistence','peer switch during
 });
 
 test('two read apps rotating one saved token retain the successful successor',{timeout:5000},async t=>{
- const store=storage(session('bob','ro.old')),entered=deferred(),release=deferred();t.after(()=>release.resolve());let rotations=0,live='ro.old';
+ const store=storage(session('bob','ro.old')),entered=deferred(),release=deferred();t.after(()=>release.resolve());let rotations=0,live='ro.old',probes=0;const peerProbe=deferred();
  const transport=async(input,init)=>{const path=new URL(input).pathname,token=init.headers.authorization.slice(7);
   if(path==='/auth/refresh'){
    if(rotations++===0){live='ro.next';return Response.json({session:session('bob',live)})}
    return Response.json({denied:{code:'E_AUTH',family:'auth',message:'consumed predecessor'}},{status:401});
   }
-  if(path==='/probe'&&token==='ro.next'){entered.resolve();await release.promise;return Response.json({ok:true,scope:'read',viewer:'bob',store_id:'test',seq:0})}
+  if(path==='/probe'&&token==='ro.next'){if(++probes===2)peerProbe.resolve();entered.resolve();await release.promise;return Response.json({ok:true,scope:'read',viewer:'bob',store_id:'test',seq:0})}
   return base(input,init);
  };
  const a=createApp({url,readOnly:true,sessionStore:store,fetch:transport}),b=createApp({url,readOnly:true,sessionStore:store,fetch:transport});t.after(()=>Promise.all([a.close(),b.close()]));await Promise.all([a.ready,b.ready]);
- const first=a.client.refreshSession();await entered.promise;const second=b.client.refreshSession();await delay(10);release.resolve();const [result,peer]=await Promise.all([first,second]);assert.equal(result.ok,true);assert.equal(peer.ok,true);assert.equal(rotations,1);
+ const first=a.client.refreshSession();await entered.promise;const second=b.client.refreshSession();await peerProbe.promise;release.resolve();const [result,peer]=await Promise.all([first,second]);assert.equal(result.ok,true);assert.equal(peer.ok,true);assert.equal(rotations,1);
 
  assert.equal(JSON.parse(store.values.get(key)??'null')?.token,'ro.next');
 });
@@ -171,4 +171,27 @@ test('a peer recovers a successor after the first app repeatedly fails verificat
   t.after(() => b.close()); assert.equal((await b.ready).ok, true);
   assert.equal((await b.client.query(query, {})).data, 'bob-secret');
   assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next'); assert.equal(rotations, 1);
+});
+
+test('retirement rechecks custody after its held verification probe', async t => {
+  const store = storage(session('bob')), entered = deferred(), release = deferred();
+  let hold = false;
+  const logouts = [];
+  const app = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
+    const path = new URL(input).pathname, token = new Headers(init?.headers).get('authorization');
+    if (hold && path === '/probe' && token === 'Bearer ro.bob') { entered.resolve(); await release.promise; }
+    if (path === '/auth/logout') logouts.push(token);
+    return base(input, init);
+  } });
+  t.after(async () => { release.resolve(); await app.close(); }); await app.ready;
+  hold = true;
+  assert.equal((await app.auth.login('alice@example.test', 'password')).ok, true);
+  await entered.promise;
+  // A peer restores this credential while retirement is verifying its scope.
+  await store.set(key, JSON.stringify(session('bob')));
+  release.resolve();
+  await app.close();
+  await delay(20);
+  assert.ok(!logouts.includes('Bearer ro.bob'), 'a probe is not the retirement dispatch linearization point');
+  assert.equal(JSON.parse(store.values.get(key)).token, 'ro.bob');
 });

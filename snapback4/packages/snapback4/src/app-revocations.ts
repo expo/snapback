@@ -151,7 +151,17 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
                   return Response.json({ ok: confirmed }, { status: confirmed ? 200 : 503 });
                 }
               }
-              const response = await fetcher(input, init);
+              let request: Promise<Response> | undefined;
+              if (policy.readOnly) {
+                // Verification awaited outside the lock. Recheck on dispatch:
+                // a peer may have reclaimed this token while the probe waited.
+                await locked(async () => {
+                  const saved = decode(await store.get(session));
+                  if (saved.token !== token && saved.snapback4Successor?.token !== token) request = fetcher(input, init);
+                });
+                if (!request) return Response.json({ ok: false }, { status: 503 });
+              } else request = fetcher(input, init);
+              const response = await request;
               const receipt = await response.clone().json() as { ok?: boolean; denied?: { code?: string } } | null;
               confirmed = (response.ok && receipt?.ok === true) || (response.status === 401 && receipt?.denied?.code === "E_AUTH");
               return response;

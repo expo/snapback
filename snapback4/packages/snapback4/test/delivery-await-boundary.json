@@ -32,8 +32,8 @@
     "sha256": "8c17fcad51caeace6a22452fc93b1ff800c9dff6a357d30f204e983cc56ed4d2"
   },
   "app-revocations.ts": {
-    "count": 30,
-    "sha256": "5aa32544e4edb6c28139616a7534aa2743e121e7417bb30ba9437a6aee0b8653"
+    "count": 32,
+    "sha256": "13a50f0eca23c6d56f9ae8a4cb8db6ac5c022cfcb23c1b03325801580f2995d3"
   },
   "app-storage.ts": {
     "count": 2,

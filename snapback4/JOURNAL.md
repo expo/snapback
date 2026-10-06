@@ -88165,3 +88165,9 @@ restart recover it without refreshing the consumed predecessor. The server
 parity assertion checks numeric heapBytes, and read /sync has a positive test.
 Round 0 and Round 2 reproductions and alternate interleavings are permanent.
 Validation results and checkpoint commits are recorded in the Round 2 report.
+
+Round 2 self-review also held the read retirement probe while a peer reclaimed
+its token. The new regression failed before repair. Retirement now repeats its
+custody comparison under the shared lock immediately before logout dispatch.
+The complete suite was stopped during Rust qualification and restarted after
+this repair so its SDK build and execution use the same final source.
