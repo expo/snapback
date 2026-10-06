@@ -88144,3 +88144,10 @@ and narrowing rollback coverage. The PostgreSQL adapter has no production mint
 path in this checkout; new scope and construction regressions are compile-only
 here because Docker, PostgreSQL tools and a configured database are absent.
 Round 1 verification and checkpoint commits are recorded in the lane report.
+
+Round 1 final verification: the complete suite passed with zero failures in
+1,993 seconds: 300 Rust binaries / 1,013 executions plus doctests; all 326
+client files (6,486 passed, 47 labelled skips); both full-count models (52 + 27
+passed, no skips). Wasm remains 639,888 gzip bytes under 639,941. Final reference,
+line-limit and append-only checks pass. Removed 1.78 GB of this completed lane's
+SQLite fixture sidecars; shared build products remain. No push or publication.

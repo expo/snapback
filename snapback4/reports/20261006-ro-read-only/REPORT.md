@@ -209,6 +209,54 @@ passed**, SDK read/custody tests **24 passed**, package typecheck/build passed.
 The paired application digest remains
 `e15809273ad09307d18d1d0e443d46dd93a8a424aa9ceca31ab2b6bcb0930136`.
 Wasm is unchanged: **2,117,335 raw / 639,888 gzip bytes**, cap **639,941**.
-The complete `bash scripts/test.sh` is running; final evidence follows below.
+At the focused-evidence checkpoint the complete suite was running; its passing
+final result is recorded below.
 All builds use `CARGO_INCREMENTAL=0`, `CARGO_TARGET_DIR=~/sb5-lanes/target`,
 `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8`.
+
+
+### Final Round 1 verification
+
+The complete `bash scripts/test.sh` passed with **0 failures in 1,993 seconds**
+(33 minutes 13 seconds), with incremental compilation disabled and the shared
+target throughout:
+
+- Full Rust inventory: **300 binaries, 1,013 executions, plus workspace
+  doctests**, all passed (992 seconds). Existing ignored cases remain labelled.
+  This includes the core library (242 passed / 1 ignored), CLI unit tests
+  (325 passed / 4 ignored), guide (113 passed), native construction tests and
+  the strengthened read-session/HTTP cases.
+- Client pool: **326/326 files passed**, **6,486 tests passed, 47 labelled
+  skips, zero failures** (619 seconds). The real published 0.4.13 downgrade
+  test ran with `SNAPBACK4_PREVIOUS_PUBLISHED_BIN` set. The witness helper was
+  supplied from this checkout because the binary lives in the shared target.
+- Full-count models: **52 app/session + 27 online tests passed**, no skips
+  (305 seconds); history counts were not reduced. Fixture wrappers: 9 passed.
+- Build, wasm budget, docs budget, release guard, package typecheck/build,
+  chat/Expo typechecks and chat compilation all passed in the same run.
+- Focused reruns: 12 Rust tests and 55 JS tests passed. The successor recovery
+  test additionally holds the persistence write and asserts no session, query,
+  public notification or asset bearer escapes before it completes.
+- `cargo check -p snapback4-core --features postgres --tests` passes, including
+  the new ignored adapter runtime regressions. Availability evidence is retained
+  in `evidence/round1-postgres-availability.log.gz`; the PostgreSQL limits above
+  still apply.
+- Final `./ref-check --verbose`: **529 LLP documents, 10,451 references,
+  zero errors/unchecked references**. `git diff --check`, affected-source line
+  limits and the pure-append JOURNAL check pass.
+
+The final wasm remains **2,117,335 bytes raw / 639,888 gzip**, under the unchanged
+**639,941-byte** budget. SHA-256:
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+The full log is `evidence/round1-full-suite.log.gz`; focused and availability
+logs use the same `round1-` prefix. The preflight wasm log is an independent
+budget result, not the full-suite receipt. A first focused command named a
+nonexistent `refresh.test.mjs`; the corrected `refresh-behavior.test.mjs` run
+passed all 31 server/HTTP/refresh tests. No product-test failure needed repair
+in the final full run.
+
+Source checkpoints: `b75f3e6bb4`, `b5c4bd0a37`, and `1e9aec5c47`; focused evidence
+checkpoint: `a8185931fe`. Every Round 1 commit has the requested Astra trailer.
+After completion, removed only this lane's 1,636 closed SQLite fixture sidecars
+(1,777,750,968 bytes), whose recorded test PIDs had exited. Shared compiler
+artifacts were left intact. No push or publication.
