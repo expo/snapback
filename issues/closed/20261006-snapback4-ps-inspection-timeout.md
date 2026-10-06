@@ -2,7 +2,7 @@
 
 **Opened:** 2026-10-06
 **Closed:** 2026-10-06
-**Status:** Closed — bounded timeout recovery with monotonic deadlines
+**Status:** Closed — asynchronous timeout recovery and completed cleanup evidence
 **Area:** Snapback 4 client test runner / publication qualification
 **Related:** LLP 3000 §7, publication suite under contention
 
@@ -46,3 +46,17 @@ Round 1 verification: 89/89 focused tests and the complete eb1000 suite pass
 model tests. The new regression also passes under the full concurrent pool;
 no safety guard fires and all fixture groups exit. LLP references and
 `git diff --check` pass.
+
+Round 2 addresses the follow-up P1/P2: ps and Darwin identity rereads are
+asynchronous, so a slow listing does not block siblings, watchdogs or keeper
+EOF delivery. Cleanup refuses from completed post-deadline live evidence;
+two consecutive empty completed snapshots pass even when the second is late.
+The 3.1-second timeout/retry recovery, late empty confirmation, foreign listing
+over five seconds, persistent groups and hung-file timers are covered. All
+93 focused tests pass three times, and the worker identity callers pass.
+The report retains Round 2 full-suite verification and logs.
+
+Round 2 closeout: full suite exit 0, **0 failures in 1,569 s**. All 322 client
+files and 79/79 serial model tests pass; the new regressions also pass under the
+16-file concurrent pool. Source changes are confined to runner tooling, tests
+and documentation. No push or publication.

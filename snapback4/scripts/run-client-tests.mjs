@@ -124,7 +124,8 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     onOutput(`\n${why}: ${file}; ${Math.round(performance.now() - started)} ms elapsed; stall bound ${timeout} ms; ${Math.round(performance.now() - lastProgress)} ms without progress; last progress ${progress}\nlast output:\n${tail}\n`);
     cleanup = (async () => {
       try {
-        const owned = ownedProcesses(child, inspectRows);
+        release();
+        const owned = await ownedProcesses(child, inspectRows);
         onOutput(`owned processes: ${JSON.stringify(owned)}\n`);
         await cleanupProcesses(child, { inspect: inspectRows, release });
       } catch (error) { diagnose(error); emergencyCleanup(); }
@@ -144,17 +145,19 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
     if (cleanup) await cleanup;
     else {
       try {
-        const remaining = ownedProcesses(child, inspectRows);
-        if (remaining.length) await stop('TEST_FILE_LEAK');
+        const remaining = await ownedProcesses(child, inspectRows);
+        if (cleanup) await cleanup; // an abort may arrive during enumeration
+        else if (remaining.length) await stop('TEST_FILE_LEAK');
         else {
           const found = await cleanupProcesses(child, { inspect: inspectRows, release });
           if (found.length) {
-            reason = 'TEST_FILE_LEAK';
+            reason ??= 'TEST_FILE_LEAK';
             onOutput(`TEST_FILE_LEAK: ${file}; found during group cleanup: ${JSON.stringify(found)}\n`);
           }
         }
       } catch (error) { diagnose(error); await stop(reason); }
     }
+    if (cleanup) await cleanup; // also join an abort during normal verification
     // Pipes are inherited by helpers. Even failed inspection cannot wedge the
     // reporting path; failure remains recorded if EOF cannot be established.
     let closeTimer;

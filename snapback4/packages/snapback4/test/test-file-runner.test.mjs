@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runFile, fileStallTimeout, largestGuard } from '../../../scripts/run-client-tests.mjs';
-import { identity, live, processTable, cleanupProcesses } from '../../../scripts/test-processes.mjs';
+import { identity, live, processTable, cleanupProcesses, processExists, runProcess } from '../../../scripts/test-processes.mjs';
 
 const nativeEnv = { ...process.env };
 delete nativeEnv.NODE_TEST_CONTEXT;
@@ -38,8 +39,8 @@ test('stuck fixture', async () => {
   assert.match(output, /FIXTURE_READY/);
   if (block === 'leaked handle') assert.match(output, /original assertion failure/);
   const pid = Number(readFileSync(pidFile, 'utf8'));
-  const current = identity(pid);
-  assert.equal(current && live(current) || false, false, 'group child must be gone before the runner returns');
+  const current = await identity(pid);
+  assert.equal(current && (await live(current)) || false, false, 'group child must be gone before the runner returns');
 });
 
 test('file runner preserves test failures and continues to a following healthy file', async t => {
@@ -85,13 +86,13 @@ test('a stale parent link cannot claim or signal a process outside the file grou
   const path = join(dir, 'healthy.test.mjs');
   writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
   let keeper;
-  const result = await runFile(path, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: options => {
-    const siblingRows = processTable({ pid: sibling.pid });
+  const result = await runFile(path, { onOutput: () => {}, onStart: child => { keeper = child; }, inspect: async options => {
+    const siblingRows = await processTable({ pid: sibling.pid });
     assert.equal(siblingRows.length, 1, 'the external sibling must be present in the injected snapshot');
-    return [...processTable(options), { ...siblingRows[0], parent: keeper.pid }];
+    return [...(await processTable(options)), { ...siblingRows[0], parent: keeper.pid }];
   } });
   assert.equal(result.passed, true, JSON.stringify(result));
-  assert.ok(identity(sibling.pid)?.alive, 'runner left our separately launched sibling alone');
+  assert.ok((await identity(sibling.pid))?.alive, 'runner left our separately launched sibling alone');
 });
 
 test('a cancelled test cannot pass by overriding its exit status', async t => {
@@ -127,8 +128,8 @@ test('leaked child', async () => {
   const result = await runFile(path, { onOutput: text => { output += text; } });
   assert.equal(result.passed, false); assert.equal(result.reason, 'TEST_FILE_LEAK');
   assert.match(output, /TEST_FILE_LEAK/);
-  const current = identity(Number(readFileSync(pidFile, 'utf8')));
-  assert.equal(current && live(current) || false, false);
+  const current = await identity(Number(readFileSync(pidFile, 'utf8')));
+  assert.equal(current && (await live(current)) || false, false);
 });
 
 // The shell exits before inspection. Neither sleep nor its intermediate parent
@@ -151,8 +152,8 @@ test('double fork', () => {
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, stalled ? 'TEST_FILE_HANG' : 'TEST_FILE_LEAK', output);
   assert.match(output, /ORPHAN_READY/);
-  const current = identity(Number(readFileSync(pidFile, 'utf8')));
-  assert.equal(current && live(current) || false, false, 'reparented helper must be dead before return');
+  const current = await identity(Number(readFileSync(pidFile, 'utf8')));
+  assert.equal(current && (await live(current)) || false, false, 'reparented helper must be dead before return');
 });
 
 for (const fault of ['exit', 'timeout', 'malformed']) test(`process inspection ${fault} cannot establish a passing cleanup`, async t => {
@@ -164,26 +165,26 @@ import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bin/sh', ['-c', 'sleep 600 </dev/null >/dev/null 2>&1 & echo $!'])));`);
   let inspections = 0, output = '';
-  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: options => {
-    if (++inspections > 1) return processTable(options);
-    return processTable({ ...options, run: () => fault === 'exit' ? {status:2,stderr:'injected ps exit'}
+  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: async options => {
+    if (++inspections > 1) return await processTable(options);
+    return await processTable({ ...options, run: () => fault === 'exit' ? {status:2,stderr:'injected ps exit'}
       : fault === 'timeout' ? {status:null,error:Error('injected ps timeout')}
       : {status:0,stdout:'broken process row'} });
   } });
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_PROCESS_INSPECTION', output);
   assert.match(output, /TEST_PROCESS_INSPECTION/);
-  const current = identity(Number(readFileSync(pidFile, 'utf8')));
-  assert.equal(current && live(current) || false, false);
+  const current = await identity(Number(readFileSync(pidFile, 'utf8')));
+  assert.equal(current && (await live(current)) || false, false);
 });
 
-test('process inspection forces C locale and refuses empty output', () => {
-  assert.throws(() => processTable({ run: (_command, _args, options) => {
+test('process inspection forces C locale and refuses empty output', async () => {
+  await assert.rejects(async () => await processTable({ run: (_command, _args, options) => {
     assert.equal(options.env.LC_ALL, 'C');
     assert.ok(options.timeout > 0);
     return { status: 0, stdout: '' };
   } }), /TEST_PROCESS_INSPECTION/);
-  assert.ok(identity(process.pid)?.alive);
+  assert.ok((await identity(process.pid))?.alive);
 });
 
 test('concurrent persistent groups cannot freeze cleanup deadlines or a hung file watchdog', { timeout: 20000 }, async t => {
@@ -204,11 +205,11 @@ test('concurrent persistent groups cannot freeze cleanup deadlines or a hung fil
       await once(child.stdout, 'data');
     }
     let inspections = 0;
-    const inspect = options => processTable({ ...options, run: (...args) => {
+    const inspect = async options => await processTable({ ...options, run: async (...args) => {
       inspections++;
       // Each inspection exceeds the other cleanup loop's 50 ms polling sleep.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-      return spawnSync(...args);
+      await sleep(100);
+      return await runProcess(...args);
     } });
     guard = setTimeout(() => { releasedByGuard = true; releaseGroups(); }, 8000);
     const hung = runFile(file, { timeout: 1000, inspect, onOutput() {}, onStart: child => { keeper = child; } });
@@ -239,7 +240,62 @@ test('concurrent persistent groups cannot freeze cleanup deadlines or a hung fil
     rmSync(dir, { recursive: true, force: true });
   }
   for (const child of [...groups, keeper])
-    assert.deepEqual(processTable({ group: child.pid }).filter(row => row.alive && row.group === child.pid), [], 'all fixture groups exited');
+    assert.deepEqual((await processTable({ group: child.pid })).filter(row => row.alive && row.group === child.pid), [], 'all fixture groups exited');
+});
+
+test('a foreign listing over five seconds leaves sibling cleanup and watchdog timers running', { timeout: 20000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-async-inspection-'));
+  const healthy = join(dir, 'healthy.test.mjs'), blocked = join(dir, 'blocked.test.mjs');
+  writeFileSync(healthy, "import test from 'node:test';test('healthy',()=>{});");
+  writeFileSync(blocked, "import test from 'node:test';test('blocked',()=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0));");
+  let keeper, hungKeeper, foreign, hung, startTimer, ticks = 0, foreignDone = false;
+  const budgets = [], heartbeat = setInterval(() => ticks++, 20);
+  const started = performance.now();
+  try {
+    const sibling = await runFile(healthy, { timeout: 1000, onOutput() {}, onStart: child => { keeper = child; },
+      inspect: async options => {
+        const rows = await processTable(options);
+        if (keeper.stdin.writableEnded && !startTimer && !rows.some(row => row.alive && row.group === keeper.pid)) {
+          // Start the foreign listing on the next turn, while this sibling is
+          // in its 50 ms sleep between the two empty cleanup snapshots.
+          startTimer = setTimeout(() => {
+            foreign = processTable({ group: keeper.pid, run: async (command, args, options) => {
+              budgets.push(options.timeout);
+              return runProcess(process.execPath, ['-e', `setTimeout(() => {
+                const r = require('node:child_process').spawnSync(${JSON.stringify(command)}, ${JSON.stringify(args)},
+                  {timeout:60000,maxBuffer:16*1024*1024});
+                if(r.stdout) process.stdout.write(r.stdout);
+                if(r.stderr) process.stderr.write(r.stderr);
+                process.exitCode = r.status ?? 1;
+              }, 5500);`], options);
+            } }).then(rows => { foreignDone = true; return { rows }; }, error => ({ error }));
+            hung = runFile(blocked, { timeout: 1000, onOutput() {}, onStart: child => { hungKeeper = child; } });
+          }, 0);
+        }
+        return rows;
+      },
+    });
+    assert.ok(foreign, 'foreign listing started between the empty snapshots');
+    assert.equal(sibling.passed, true, JSON.stringify(sibling));
+    assert.ok(sibling.elapsed < 3000, JSON.stringify(sibling));
+    assert.equal(foreignDone, false, 'sibling finishes during the listing');
+    const result = await hung;
+    assert.equal(result.reason, 'TEST_FILE_HANG');
+    assert.ok(result.elapsed < 3000, JSON.stringify(result));
+    assert.equal(foreignDone, false, 'hung file fails during the listing');
+    const listing = await foreign;
+    assert.equal(listing.error, undefined, listing.error?.stack);
+    assert.deepEqual(budgets, [2000, 60_000]);
+    assert.ok(ticks > 100, `heartbeat kept running: ${ticks}`);
+    t.diagnostic(JSON.stringify({ siblingMs: sibling.elapsed, hungMs: result.elapsed,
+      listingMs: Math.round(performance.now() - started), ticks }));
+    for (const child of [keeper, hungKeeper])
+      assert.deepEqual((await processTable({ group: child.pid })).filter(row => row.alive && row.group === child.pid), []);
+  } finally {
+    clearTimeout(startTimer); clearInterval(heartbeat);
+    await Promise.all([foreign, hung]);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {
@@ -284,8 +340,8 @@ test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bi
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_PROCESS_INSPECTION', output);
   assert.match(result.inspectionFailure, /persistent injected failure/);
-  const current = identity(Number(readFileSync(pidFile, 'utf8')));
-  assert.equal(current && live(current) || false, false);
+  const current = await identity(Number(readFileSync(pidFile, 'utf8')));
+  assert.equal(current && (await live(current)) || false, false);
 });
 
 // Keep this interleaving deterministic: the real ps snapshot contains a shell
@@ -303,19 +359,24 @@ test('owned helper', () => {
   let inspections = 0, output = '', orphan;
   const { existsSync } = await import('node:fs');
   const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
-  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: options => {
-    const snapshot = processTable(options);
+  const result = await runFile(path, { onOutput: text => { output += text; }, inspect: async options => {
+    const snapshot = await processTable(options);
     if (++inspections === 1) {
       assert.ok(existsSync(ready));
       writeFileSync(go, 'go');
       const deadline = performance.now() + 5000;
       while ((!existsSync(pidFile) || !readFileSync(pidFile, 'utf8').trim()) && performance.now() < deadline) pause();
-      orphan = identity(Number(readFileSync(pidFile, 'utf8')));
+      orphan = (await identity(Number(readFileSync(pidFile, 'utf8'))));
       assert.ok(orphan?.alive);
       assert.equal(snapshot.some(row => row.pid === orphan.pid), false);
       // Ensure the intermediate parent really exited before returning ps data.
-      while (snapshot.some(row => row.group === orphan.group && row.pid !== orphan.group && identity(row.pid)?.alive) && performance.now() < deadline) pause();
-      assert.equal(snapshot.some(row => row.group === orphan.group && row.pid !== orphan.group && identity(row.pid)?.alive), false);
+      const livingParent = async () => {
+        for (const row of snapshot)
+          if (row.group === orphan.group && row.pid !== orphan.group && (await identity(row.pid))?.alive) return true;
+        return false;
+      };
+      while (await livingParent() && performance.now() < deadline) await sleep(10);
+      assert.equal(await livingParent(), false);
     }
     return snapshot;
   } });
@@ -325,8 +386,8 @@ test('owned helper', () => {
   assert.equal(result.passed, result.reason === undefined, output);
   if (result.reason) assert.equal(result.reason, 'TEST_FILE_LEAK', output);
   assert.ok(inspections >= 3, 'two fresh empty snapshots after the stale snapshot');
-  assert.equal(live(orphan), false, output);
-  assert.equal(processTable({ group: orphan.group }).some(row => row.group === orphan.group && row.alive), false);
+  assert.equal(await live(orphan), false, output);
+  assert.equal((await processTable({ group: orphan.group })).some(row => row.group === orphan.group && row.alive), false);
 });
 
 test('sequential and nested subtests keep progressing beyond the file stall interval', { timeout: 20000 }, async t => {
@@ -357,7 +418,7 @@ test('console chatter cannot keep a stalled file alive; diagnostics include prog
   assert.ok(result.elapsed >= 1500 && result.elapsed < 8000, output);
   assert.match(output, /without progress; last progress test:dequeue: stuck with output/);
   assert.match(output, /owned processes:/);
-  assert.equal(processTable({ group }).some(row => row.group === group && row.alive), false);
+  assert.equal((await processTable({ group })).some(row => row.group === group && row.alive), false);
 });
 
 test('stale exited members do not reset empty snapshots; observed live leaks remain failures', async t => {
@@ -366,8 +427,8 @@ test('stale exited members do not reset empty snapshots; observed live leaks rem
   const path = join(dir, 'leak.test.mjs');
   writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
   let inspections = 0, emptyInspections = 0, group, before, output = '';
-  const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: options => {
-    const current = processTable(options);
+  const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: async options => {
+    const current = await processTable(options);
     inspections++;
     if (inspections === 1) before = current;
     // runFile discovers, stop diagnoses, then cleanup verifies. A stale row
@@ -423,38 +484,38 @@ test('a process exiting after enumeration is absent at identity inspection', asy
   const exited = once(child, 'exit');
   try {
     await once(child.stdout, 'data');
-    const row = processTable({ pid: child.pid }).find(row => row.pid === child.pid);
+    const row = (await processTable({ pid: child.pid })).find(row => row.pid === child.pid);
     assert.ok(row?.alive);
     child.stdin.end(); await exited;
-    assert.equal(identity(row.pid), undefined);
+    assert.equal(await identity(row.pid), undefined);
     // Exercise the same vanished PID against partial kernel/ps snapshots.
     for (const raw of [Buffer.alloc(0), Buffer.from(`${row.pid} (truncated`), Buffer.from('unparsable\xff', 'latin1')]) {
-      assert.equal(identity(row.pid, {platform:'linux',read:()=>raw}), undefined);
+      assert.equal(await identity(row.pid, {platform:'linux',read:()=>raw}), undefined);
     }
     for (const code of ['ENOENT', 'ESRCH', 'EIO']) {
-      assert.equal(identity(row.pid, {platform:'linux',read:()=>{throw Object.assign(Error(code),{code});}}), undefined);
+      assert.equal(await identity(row.pid, {platform:'linux',read:()=>{throw Object.assign(Error(code),{code});}}), undefined);
     }
-    assert.deepEqual(processTable({run:()=>({status:0,stdout:`${row.pid} 1 2 truncated\n`})}), []);
+    assert.deepEqual(await processTable({run:()=>({status:0,stdout:`${row.pid} 1 2 truncated\n`})}), []);
   } finally { if (child.exitCode === null) child.kill('SIGKILL'); await exited; }
 });
 
-test('stat comm may contain closing and opening parentheses and spaces', () => {
+test('stat comm may contain closing and opening parentheses and spaces', async () => {
   const fields = ['S', ...Array(49).fill('0')];
   fields[1]='12'; fields[2]='34'; fields[3]='56'; fields[19]='789';
   const raw = Buffer.from(`123 (name ) ( with spaces) ${fields.join(' ')}\n`);
-  assert.deepEqual(identity(123,{platform:'linux',read:()=>raw,exists:()=>{throw Error('valid stat needs no retry');}}),
+  assert.deepEqual(await identity(123,{platform:'linux',read:()=>raw,exists:()=>{throw Error('valid stat needs no retry');}}),
     {pid:123,parent:12,group:34,session:56,start:'789',alive:true});
 });
 
-test('ps preserves command spaces and parentheses and validates start and parent metadata', () => {
+test('ps preserves command spaces and parentheses and validates start and parent metadata', async () => {
   const line = `${process.pid} 1 2 ${process.getuid()} Sat Oct  3 01:02:03 2026 S /tmp/a name ) ( helper`;
   const run = () => ({status:0,stdout:line+'\n'});
-  assert.equal(processTable({run})[0].executable,'/tmp/a name ) ( helper');
+  assert.equal((await processTable({run}))[0].executable,'/tmp/a name ) ( helper');
   for (const malformed of [line.replace('Sat Oct','bad day'), line.replace(`${process.pid} 1 2`,`${process.pid} bad 2`)]) {
-    assert.throws(()=>processTable({run:()=>({status:0,stdout:malformed})}),/malformed ps row/);
+    await assert.rejects(async ()=>await processTable({run:()=>({status:0,stdout:malformed})}),/malformed ps row/);
     if (malformed.includes('bad 2'))
-      assert.throws(()=>processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}), /pid\/ppid\/pgid/);
-    else assert.deepEqual(processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}),[]);
+      await assert.rejects(async ()=>await processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}), /pid\/ppid\/pgid/);
+    else assert.deepEqual(await processTable({run:()=>({status:0,stdout:malformed}),exists:()=>false}),[]);
   }
 });
 
@@ -465,10 +526,10 @@ for (const source of ['stat','ps']) test(`present PID with malformed ${source} r
   writeFileSync(path,"import test from 'node:test';test('healthy',()=>{});");
   const raw=Buffer.concat([Buffer.from(`${process.pid} (bad ) ( metadata) `),Buffer.from([0xff,0,13])]);
   let output='',attempts=0;
-  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:()=>{
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:async ()=>{
     if (++attempts>1) throw Error('TEST_PROCESS_INSPECTION: secondary cleanup error');
-    if(source==='stat')identity(process.pid,{platform:'linux',read:()=>raw});
-    else processTable({run:()=>({status:0,stdout:raw})});
+    if(source==='stat')await identity(process.pid,{platform:'linux',read:()=>raw});
+    else await processTable({run:()=>({status:0,stdout:raw})});
     throw Error('malformed metadata unexpectedly accepted');
   }});
   assert.equal(result.passed,false,output);
@@ -481,12 +542,12 @@ for (const source of ['stat','ps']) test(`present PID with malformed ${source} r
   assert.deepEqual(Buffer.from(diagnostic.rawBase64,'base64'),raw);
 });
 
-test('present PID with empty, truncated or missing stat still refuses', () => {
+test('present PID with empty, truncated or missing stat still refuses', async () => {
   for (const raw of [Buffer.alloc(0),Buffer.from(`${process.pid} (partial) S 1 2`)]) {
-    assert.throws(()=>identity(process.pid,{platform:'linux',read:()=>raw}), error =>
+    await assert.rejects(async ()=>await identity(process.pid,{platform:'linux',read:()=>raw}), error =>
       error.message.includes('malformed /proc/') && error.message.includes(`"rawBase64":"${raw.toString('base64')}"`));
   }
-  for(const code of ['ENOENT','ESRCH']) assert.throws(()=>identity(process.pid,{platform:'linux',read:()=>{throw Object.assign(Error(`first ${code}`),{code});}}),new RegExp(`first ${code}`));
+  for(const code of ['ENOENT','ESRCH']) await assert.rejects(async ()=>await identity(process.pid,{platform:'linux',read:()=>{throw Object.assign(Error(`first ${code}`),{code});}}),new RegExp(`first ${code}`));
 });
 
 test('a completed file passes when its enumerated group member has exited', async t => {
@@ -499,15 +560,15 @@ test('transient child',async()=>{
   const child=spawn(process.execPath,['-e','process.stdin.resume();console.log("ready")'],{stdio:['pipe','pipe','ignore']});
   const exited=once(child,'exit');await once(child.stdout,'data');
   try {
-    writeFileSync(${JSON.stringify(snapshot)},JSON.stringify(processTable({pid:child.pid}).find(row=>row.pid===child.pid)));
+    writeFileSync(${JSON.stringify(snapshot)},JSON.stringify((await processTable({pid:child.pid})).find(row=>row.pid===child.pid)));
   } finally { child.stdin.end();await exited; }
 });`);
   let output='',inspections=0;
-  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:options=>{
-    const rows=processTable(options);
+  const result=await runFile(path,{onOutput:text=>{output+=text},inspect:async options=>{
+    const rows=await processTable(options);
     if(++inspections===1) {
       const stale=JSON.parse(readFileSync(snapshot,'utf8'));
-      assert.equal(identity(stale.pid),undefined);
+      assert.equal(await identity(stale.pid),undefined);
       rows.push(stale);
     }
     return rows;
@@ -565,7 +626,7 @@ test('a test killing its own group fails without any runner signal', async t => 
 test('reaped keeper before its exit callback cannot make the runner send a signal', {timeout:20000}, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-reaped-keeper-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const first = spawn(process.execPath, ['-e', 'process.stdin.resume();console.log("ready")'], {stdio:['pipe','pipe','ignore']});
+  const first = spawn(process.execPath, ['-e', 'process.stdin.once("data",()=>process.exit(0));console.log("ready")'], {stdio:['pipe','pipe','ignore']});
   const firstDone = once(first, 'exit');
   await once(first.stdout, 'data');
   const controller = new AbortController(), calls = [], kill = process.kill;
@@ -575,19 +636,27 @@ test('reaped keeper before its exit callback cannot make the runner send a signa
   });
   let keeper, probe;
   first.on('exit', () => {
-    probe = { present: !!identity(keeper.pid), exitCode: keeper.exitCode, signalCode: keeper.signalCode };
+    probe = { present: processExists(keeper.pid), exitCode: keeper.exitCode, signalCode: keeper.signalCode };
     controller.abort();
   });
   const path = join(dir, 'healthy.test.mjs');
   writeFileSync(path, "import test from 'node:test';test('healthy',()=>{});");
   const result = await runFile(path, { signal:controller.signal, onOutput:()=>{}, onStart: child => {
     keeper = child;
-    child.stdin.end(); first.stdin.end();
+    // A write reaches the children before blocking JS; end() may defer EOF.
+    child.stdin.write('release'); first.stdin.write('release');
     // Hold JS until both exit; libuv then reaps both before calling the first
     // handle's exit listener, leaving the keeper's JS fields temporarily null.
     const deadline = performance.now() + 5000;
-    while ((identity(first.pid)?.alive || identity(child.pid)?.alive) && performance.now() < deadline)
+    while (performance.now() < deadline) {
+      // This fixture deliberately blocks its own JS to expose the reaping
+      // window. Query only its two children; production inspection is async.
+      const states = spawnSync('ps', ['-p', `${first.pid},${child.pid}`, '-o', 'stat='], { encoding: 'utf8', timeout: 2000 });
+      assert.equal(states.error, undefined);
+      assert.ok(states.status === 0 || states.status === 1);
+      if (states.stdout.trim().split(/\s+/).every(state => !state || state.startsWith('Z'))) break;
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
   } });
   await firstDone;
   assert.deepEqual(probe, {present:false,exitCode:null,signalCode:null}, 'exercise the actual libuv reaping window');
@@ -614,9 +683,9 @@ await runFile(${JSON.stringify(path)}, {onStart:child=>console.log(child.pid),on
   while (!existsSync(pidFile) && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,20));
   assert.ok(existsSync(pidFile));
   runner.kill('SIGKILL'); await exited;
-  while (processTable({group}).some(row=>row.group===group && row.alive) && performance.now()<deadline)
+  while ((await processTable({group})).some(row=>row.group===group && row.alive) && performance.now()<deadline)
     await new Promise(resolve=>setTimeout(resolve,20));
-  assert.equal(processTable({group}).some(row=>row.group===group && row.alive),false);
+  assert.equal((await processTable({group})).some(row=>row.group===group && row.alive),false);
 });
 
 

@@ -141,3 +141,55 @@ fresh idle-CPU sample on eb1000. It passed with **0 failures in 1,486 s**, exit 
 model tests. Native tests took 464 s, client files 653 s, and serial models 325 s.
 `git diff --check` passes. No product/Wasm source, seeds, remote host, unrelated
 process, push or publication is involved.
+
+## Round 2 — asynchronous inspection and completed cleanup evidence
+
+Base `b20a12719c`. The reviews found that synchronous ps could consume a clean
+file's cleanup window or block a sibling between empty snapshots. Replace it
+with bounded asynchronous spawn, retaining the 2/60-second timeout retry,
+full-table parsing, C locale, 16 MiB output limit and three fresh routing
+snapshots. Timeout/overflow kills only that command child, closes its pipes and
+awaits reaping; failed or partial listings never establish an empty group.
+Darwin identity rereads and all callers now await inspection. A hung or aborted
+file releases its keeper before awaiting diagnostic listings.
+
+Cleanup keeps a per-file monotonic deadline. After expiry it completes another
+snapshot: live owned processes refuse, while an empty snapshot needs another
+consecutive empty confirmation, 50 ms later. The pair passes even when its second
+snapshot completes after the deadline. This explicitly resolves the late-success
+finding and prevents a deadline from inventing a leak with no live processes.
+Existing refusals for observed non-keeper leftovers and failed metadata remain.
+There is no inspection-time discount or synchronous ps in the production runner.
+
+The old 3.1-second delay now passes in both inspection phases, including a real
+two-second command timeout and successful retry beyond the cleanup window.
+Across three focused runs:
+
+| Regression | Observed result |
+| --- | --- |
+| Two persistent groups plus a one-second hung file | Both groups refuse at 5.001–5.190 s; hung file fails at 1.564–1.566 s; safety guard never fires |
+| Foreign 5.5-second listing, after its first timeout | Sibling passes at 304–350 ms; hung file fails at 1.261–1.279 s while listing remains pending; the whole overlap case lasts 7.793–7.842 s with 387–389 heartbeat ticks |
+| Late second empty snapshot | Passes after both snapshots complete, at 5.156 s |
+| Repeated timeout, nonzero exit, spawn failure, buffer overflow | `TEST_PROCESS_INSPECTION`; timed-out command children reaped |
+
+Both focused files passed **93/93 three times**, zero skips, in
+**45.135 / 44.975 / 44.220 s**, with `taskset -c 56-79`
+([run 1](./round2-focused-1.log.gz), [run 2](./round2-focused-2.log.gz),
+[run 3](./round2-focused-3.log.gz)). The three worker-watchdog identity callers
+also pass ([log](./round2-worker-identities.log.gz)). The reaped-keeper fixture
+still proves the real exit-callback window: it delivers control bytes before
+deliberately blocking its own JS; its synchronous, PID-selected probe is test-only.
+LLP validation reports 528 documents, 10,419 references, zero errors or unchecked
+references. Full-suite verification used 48 idle-sampled eb1000 CPUs:
+`taskset -c 13-14,17-18,21-32,34-35,38,40-41,44-47,56-64,66-68,80-81,84-85,87-93 bash snapback4/scripts/test.sh`.
+
+The full suite passed with **0 failures in 1,569 s**, exit 0
+([complete log](./round2-suite.log.gz)): all 1,012 native executions and doctests,
+**322/322 client files** (6,456 passes, 47 declared skips), and **79/79** serial
+model tests. Native checks took 490 s, the 16-slot client pool 728 s, and serial
+models 306 s. Under the full pool, the foreign-listing case passes with a 311 ms
+sibling, 1.270 s hung file and 388 heartbeat ticks; persistent groups refuse at
+5.048 / 5.053 s while their hung sibling fails in 1.575 s. No safety guard fires.
+`git diff --check` passes. Product/Wasm source and seeds are unchanged; no remote
+host, unrelated process, push or publication was involved. This is Linux and
+injected Darwin coverage, not a new Darwin publication qualification.

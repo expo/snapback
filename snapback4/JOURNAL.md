@@ -88007,3 +88007,29 @@ PS Round 1 closeout: the complete eb1000 suite passed with **0 failures in
 Under full-suite contention, the new regression detects the hung file in
 2.904 s and both cleanup deadlines expire at 5.175 / 5.072 s. Compressed logs
 are in the report. No push, remote qualification or publication.
+
+
+### 2026-10-06 — PS Round 2: asynchronous process inspection
+
+Resolve the follow-up P1/P2 on `b20a12719c`: spawn ps asynchronously, retain
+bounded 2/60-second timeout recovery and all full-table/routing refusals, and
+await Darwin identity rereads. A hung or aborted file releases its keeper before
+awaiting inspection. Cleanup uses a per-file monotonic deadline and completed
+post-deadline evidence: live groups refuse; two consecutive empty snapshots
+pass even when confirmation is late. No shared clock discount returns.
+
+All 93 focused tests pass three times (45.135 / 44.975 / 44.220 s). The restored
+3.1-second recovery passes; during a foreign listing lasting about 7.8 s with
+retry, siblings pass in 304–350 ms, a hung file fails in 1.261–1.279 s, and timers
+continue ticking. Persistent groups refuse at 5.001–5.190 s. Real repeated
+command timeouts, spawn errors, nonzero exit and overflow fail closed; the
+inspection children are reaped. Worker identity callers and LLP references
+pass. The [PS report](./reports/20261005-ps-inspection-timeout/REPORT.md) retains
+full-suite verification and compressed evidence. Eb1000 only; no push.
+
+PS Round 2 closeout: the full eb1000 suite passed with **0 failures in 1,569 s**
+on 48 idle-sampled CPUs. All 322 client files (6,456 passes, 47 declared skips),
+79/79 serial model tests, and native/build/typecheck/fixture stages pass. Under
+the full concurrent pool, the foreign-listing sibling passes in 311 ms and its
+hung companion fails in 1.270 s; persistent groups refuse at 5.048 / 5.053 s.
+The report retains the complete compressed log. No push or publication.
