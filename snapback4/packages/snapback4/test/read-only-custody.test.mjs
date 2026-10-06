@@ -73,11 +73,14 @@ test('account mismatch permanently withdraws old observations and bearer without
 });
 test('successor verification recovers private custody, persists once and authenticates after restart', async t => {
   const store = storage(session('bob', 'ro.old')), recovered = deferred(), entered = deferred();
-  let live = 'ro.old', fail = true, hold = true, writes = 0;
+  const persisting = deferred(), persisted = deferred();
+  t.after(() => { recovered.resolve(); persisted.resolve(); });
+  let live = 'ro.old', fail = true, hold = true, writes = 0, queries = 0;
   const write = store.set;
-  store.set = async (...args) => { writes++; await write(...args); };
+  store.set = async (...args) => { if (++writes === 2) { persisting.resolve(); await persisted.promise; } await write(...args); };
   const transport = async (input, init) => {
     const path = new URL(input).pathname, token = init.headers.authorization.slice(7);
+    if (path.startsWith("/q/")) queries++;
     if (token !== live) return Response.json({ denied: { code: 'E_AUTH', family: 'auth', message: 'not live' } }, { status: 401 });
     if (path === '/auth/refresh') { live = 'ro.next'; return Response.json({ session: session('bob', live) }); }
     if (path === '/probe' && live === 'ro.next') {
@@ -97,6 +100,12 @@ test('successor verification recovers private custody, persists once and authent
   const read = app.client.query(query, {}); await entered.promise;
   assert.deepEqual(app.client.assetSource('secret'), { uri: '', headers: {} });
   hold = false; recovered.resolve();
+  await persisting.promise;
+  assert.equal(app.client.session(), null, 'verified successor stays private until persisted');
+  assert.deepEqual(app.client.assetSource('secret'), { uri: '', headers: {} });
+  assert.deepEqual(events, []);
+  assert.equal(queries, 0, 'public transport is gated through persistence');
+  persisted.resolve();
   assert.ok('data' in await read);
   assert.equal(app.client.session().token, 'ro.next');
   assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next');
