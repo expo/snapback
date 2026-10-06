@@ -37,7 +37,7 @@ test('logout fences a login held inside persistence and restart stays signed out
   await entered.promise;
   const logout = app.auth.logout();
   release.resolve();
-  await login; // A completed durable commit keeps its result; logout still fences its public adoption.
+  assert.equal((await login).ok, true); // A completed durable commit keeps its result; logout still fences its public adoption.
   assert.equal((await logout).ok, true);
   assert.equal(app.auth.state, 'signed-out');
   assert.equal(JSON.parse(store.values.get(key) ?? 'null')?.token, undefined);
@@ -122,7 +122,7 @@ test('successor verification recovers private custody, persists once and authent
   assert.ok('data' in await restarted.client.query(query, {}));
 });
 
-test('consumed predecessors leave custody after each persisted successor', async t => {
+test('logout after repeated rotations preserves a peer credential in a newer epoch', async t => {
   const original = session('bob', 'ro.0'), store = storage(original);
   let sequence = 0;
   const app = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
@@ -140,8 +140,8 @@ test('consumed predecessors leave custody after each persisted successor', async
     assert.equal(JSON.parse(store.values.get(key)).token, `ro.${i}`);
   }
   await waitFor(() => notifications.length === 32);
-  // A peer restoring a consumed predecessor no longer matches our deletion authority.
-  await store.set(key, JSON.stringify(original));
+  // Logout owns the principal only in its committed epoch, even after many rotations.
+  await store.set(key, JSON.stringify({ ...original, snapback4Epoch: '1' }));
   await app.auth.logout();
   assert.equal(JSON.parse(store.values.get(key)).token, original.token);
 });

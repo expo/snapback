@@ -365,3 +365,42 @@ Implementation checkpoints: `adde06ee5c` (shared app custody and regressions),
 refusal assertion and deterministic caps). Evidence checkpoints: `28fe3afd32`,
 `d01e4f75d5`, `109cdfe055`. Every Round 2 commit carries the requested Astra
 co-author trailer. No push or publication.
+
+## Round 3 — cross-app rotation interleavings (2026-10-06)
+
+Explicit logout now owns its last committed principal and epoch under the shared
+storage lock. Peer rotation stays in that epoch, so logout tombstones and retires
+its successor and fences peer logins already pending. Different principals and
+later same-principal logins survive a stale logout. The real-server controls found
+that full sessions had the latter latent replacement-deletion bug; the shared fix
+covers both modes. Legacy epoch markers remain supported. No token lineage list
+is needed; the old injected-predecessor test now exercises a genuinely newer epoch.
+
+Rejection cleanup preserves a pending successor not included in the rejected
+credentials, without advancing its epoch. Ordinary read transport recovers an
+observed pending or completed peer rotation through the existing refresh probe
+and awaited persistence, then retries at the new credential revision. A rejection
+from an already-dispatched predecessor can still sign its runtime out but cannot
+discard the successful peer's pending receipt. Committed login success is asserted
+alongside signed-out state and restart in both modes.
+
+Read Grok's completed review after `ro-c2.grok.exit` appeared (`EXIT=0`). Folded
+its two additional low findings: malformed `.read` JSON now reaches restore's
+existing garbage collection, with full-session controls; the guide and RFC now
+name the isolated `.read.revocations` queue. Used the user's principal/epoch rule
+instead of Grok's proposed unbounded token lineage.
+
+Permanent real-server regressions come from `/tmp/ro-c2-peer-rotation.test.mjs`:
+20 cases including both modes, pending peer login, two peer rotations, replacement
+accounts/epochs, late predecessor rejection, legacy epochs and malformed storage.
+Before-fix evidence records the two findings plus full-session replacement failures
+and completed-peer recovery failure. Two initial full-session assertions compared
+missing legacy epoch to explicit `0`; normalized them to the existing epoch format.
+The first invocation used the wrong working-directory-relative path and ran no
+tests; the retained before log is the corrected invocation.
+
+Focused selection: 100 tests passed across 11 files, no skips; expanded final
+peer file: 20 passed. Package typecheck/build passed. The complete suite and
+an affected app/session model run are underway with full default history counts.
+Final counts, wasm result and evidence will be appended after completion.
+No push or publication.

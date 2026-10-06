@@ -18,7 +18,7 @@ import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
-import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
+import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
 import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } from "./contract.ts";
 
 export type AuthState = "restoring" | "signed-out" | "signed-in";
@@ -126,16 +126,20 @@ export function createApp(options: AppOptions): App {
   };
   const captureEpoch = () => persist(() => storeLock(custodyKey, openingEpoch));
   const revocations = sessionRevocations(url, storage, fetcher, work => persist(() => storeLock(custodyKey, work)), { key: custodyKey, readOnly });
-  let lastOwnedToken: string | undefined;
+  let lastOwned: SessionOrigin | undefined;
   let logoutBarrier: Promise<void> = Promise.resolve();
   const revokeRetired = (token: string, origin?: SessionOrigin) => { void revocations.retire(token, origin).catch(report); };
   // Replacement and deletion share one lock across tabs. A server refusal
   // only owns its rejected token, never a successor kept by another runtime.
-  const removeSession = (expectedToken?: string | readonly string[], restoring = false, global?: { session: Session; epoch: string; consumed?: string | undefined }) => persist(() => storeLock(custodyKey, async () => {
+  const removeSession = (expectedToken?: string | readonly string[], restoring = false, global?: { session: Session; epoch: string; consumed?: string | undefined }, explicitLogout = false) => persist(() => storeLock(custodyKey, async () => {
     const commit = async () => {
       const text = await storage.get(custodyKey);
       let token: string | undefined, kept: StoredSession | undefined;
       try { kept = text ? JSON.parse(text) : undefined; if (typeof kept?.token === "string") token = kept.token; } catch {}
+      // @ref LLP 3000.033#1.4 — logout owns a principal in its committed epoch,
+      // including peer rotations. Read after any already-admitted session commit
+      // finishes; a replacement account or a later login is never ours to delete.
+      if (explicitLogout && lastOwned && (kept?.principal !== lastOwned.principal || await readEpoch() !== lastOwned.epoch)) return;
       // Choose under the same lock as the fence. A peer may have saved a
       // successor; our raw client may instead own a newer, unpersisted one.
       if (global && token && kept?.principal !== global.session.principal) throw new SessionEpochChanged();
@@ -153,6 +157,13 @@ export function createApp(options: AppOptions): App {
       }
       const globalToken = global ? (token && token !== global.consumed ? token : global.session.token) : undefined;
       if (expectedToken !== undefined && !(typeof expectedToken === "string" ? [expectedToken] : expectedToken).includes(token ?? "")) {
+        if (restoring) throw new RestorationChanged();
+        return;
+      }
+      // A refusal of the consumed predecessor does not reject its pending
+      // successor. Only explicit logout or rejection of that successor owns it.
+      if (expectedToken !== undefined && kept?.snapback4Successor &&
+        !(typeof expectedToken === "string" ? [expectedToken] : expectedToken).includes(kept.snapback4Successor.token)) {
         if (restoring) throw new RestorationChanged();
         return;
       }
@@ -189,8 +200,10 @@ export function createApp(options: AppOptions): App {
         epoch = await openingEpoch();
         bytes = await storage.get(key);
         if (readOnly && bytes) {
-          const saved = JSON.parse(bytes) as StoredSession;
-          if (saved.snapback4Successor) return JSON.stringify(saved.snapback4Successor);
+          try {
+            const saved = JSON.parse(bytes) as StoredSession | null;
+            if (saved?.snapback4Successor) return JSON.stringify(saved.snapback4Successor);
+          } catch { /* restoreSession owns malformed-record garbage collection. */ }
         }
         return bytes;
       })),
@@ -339,7 +352,7 @@ export function createApp(options: AppOptions): App {
         // A close/save of the predecessor cannot erase a private successor.
         if (!replacing && kept?.snapback4Successor && next.token === kept.token) return;
         if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url }));
-        lastOwnedToken = next.token;
+        lastOwned = { principal: next.principal, epoch: nextEpoch };
         epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next; scope.consumed = undefined;
         scope.issued.clear(); scope.issued.add(next.token);
         if (restoreToken !== undefined) restoreToken = next.token;
@@ -367,8 +380,7 @@ export function createApp(options: AppOptions): App {
             if (preparing || !readOnly) return true;
             const bytes = await storage.get(custodyKey);
             const saved = bytes ? JSON.parse(bytes) as StoredSession : undefined;
-            return saved?.principal === scope.session.principal &&
-              (saved.token === scope.session.token || saved.snapback4Successor?.token === scope.session.token);
+            return !!saved?.token && saved.principal === scope.session.principal;
           }
           const { marker, raw } = await authority.readScope(custodyKey);
           const stored = sessionEpoch(raw) ?? "0", legacy = marker ?? "0";
@@ -413,6 +425,22 @@ export function createApp(options: AppOptions): App {
       }
       if (scope.sealing && path === new URL(url + "/auth/refresh").pathname) throw new Error("global logout is selecting its retry credential");
       if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+      if (readOnly && !preparing && path !== new URL(url + "/probe").pathname && !path.startsWith(new URL(url + "/auth/").pathname)) {
+        const recover = await persist(() => storeLock(custodyKey, async () => {
+          if (!scope.valid || await readEpoch() !== epoch) return false;
+          const bytes = await storage.get(custodyKey);
+          const saved = bytes ? JSON.parse(bytes) as StoredSession : undefined;
+          const successor = saved?.snapback4Successor ?? saved;
+          return successor?.principal === scope.session.principal && successor.token !== scope.session.token;
+        }));
+        if (recover && raw) {
+          // Reuse refresh's receipt recovery, exact-bearer probe and awaited
+          // persistence. Returning E_AUTH retries the read at its new revision;
+          // the predecessor is never dispatched after this observed receipt.
+          const result = await raw.refreshSession();
+          return Response.json({ denied: result.ok ? new SessionEpochChanged().why : result.why }, { status: 401 });
+        }
+      }
       // The epoch check awaits storage. A concurrent response can retire this
       // store while it waits; never dispatch a fresh request through that gap.
       if (changedStore && !path.startsWith("/auth/")) return Response.json({ denied: changedStore });
@@ -714,9 +742,7 @@ export function createApp(options: AppOptions): App {
       hide(closed ? "signed-out" : "restoring");
       // Credential deletion is deliberately outside the auth/network queue.
       // Constructors and retiring clients can no longer write this session.
-      logoutBarrier = readOnly && lastOwnedToken
-        ? removeSession([lastOwnedToken, ...[...scopes].filter(scope => scope.valid).flatMap(scope => [...scope.issued])])
-        : forgetSession(url, sessionStore, readOnly);
+      logoutBarrier = removeSession(undefined, false, undefined, true);
       for (const scope of scopes) {
         scope.logout = logoutBarrier;
         scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();

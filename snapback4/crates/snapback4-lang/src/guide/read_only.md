@@ -42,7 +42,9 @@ backends. The SDK does not sync or open a device in this mode.
 `signup` and `guest` accept the same `{ scope: "read" }` option. Ordinary
 sign-in defaults to full. A read-only online `createApp` signs in with read
 scope and stores sessions under `sessionKey(url) + ".read"`; it never opens
-an interactive write journal or revocation queue.
+an interactive write journal. Its `.read.revocations` queue retires only verified
+read credentials. Logout includes peer rotations in the owned epoch and preserves
+a replacement account. Rejected predecessors preserve pending successors.
 
 ## Dashboard: narrow the interactive credential
 

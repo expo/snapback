@@ -88180,3 +88180,20 @@ passed with all 5,000 online and 5,000 local session histories. Wasm remains
 Final references, source limits and append-only checks pass. The complete log
 and original failing retirement reproduction are retained in the Round 2
 report evidence. No push or publication.
+
+## 2026-10-06 — RO Round 3: peer rotation and logout epochs
+
+Explicit logout now compares the owned principal and committed epoch under the
+storage lock in both modes. It includes a peer's rotations and fences pending
+peer logins; stale logout preserves another principal or a later same-principal
+login. Full sessions had the latter latent replacement-deletion gap too.
+Terminal rejection of a consumed predecessor preserves a pending successor and
+its epoch. Ordinary reads recover an observed successor through the existing
+refresh probe and commit before dispatching again. Malformed read-session JSON
+reaches restore's existing garbage collection. The read-only guide now names
+its isolated retirement queue.
+
+The permanent real-server reproductions include full-session controls, late
+predecessor rejection, pending login, replacement epochs and committed-login
+success assertions. Round 3 evidence and full-suite results are recorded in the
+lane report. No server production changes, push or publication.

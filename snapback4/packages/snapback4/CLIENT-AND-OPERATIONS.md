@@ -120,7 +120,9 @@ session lock:
 
 - **I1 — stored bearer protection.** A runtime never sends revocation for the
   currently stored bearer. Explicit logout first commits a logout tombstone,
-  then revokes the displaced session in the background.
+  then revokes the displaced session in the background. Logout compares its last
+  committed principal and epoch under the lock: peer rotations belong to that
+  epoch; a replacement principal or later login does not.
 - **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
   logout preserves the session bytes and epoch. The sole logout intermediate
   state is a tombstone; every reader recognizes it as signed out.
@@ -143,7 +145,9 @@ session lock:
   rotation save, with a logout tombstone. Later opens, online or
   offline, stay signed out without opening that replica. An existing client
   loses access as soon as it learns the refusal. Cleanup cannot delete a
-  different stored successor. A transient failed refusal commit is retried
+  different stored successor, including a private read-refresh receipt beside
+  the rejected predecessor. Reads recover that receipt before reusing the
+  predecessor. A transient failed refusal commit is retried
   once under the session lock; any remaining storage error is reported.
 - **I8 — revoked public handles.** Hiding an account permanently fences every
   exposed client facade and its observations before notifying subscribers.
