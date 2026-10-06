@@ -429,3 +429,15 @@ tests passed on an unchanged rerun; the entire CLI unit target then passed
 326 tests with four existing ignores. The rejected stat snapshot was not retained,
 so the exact cause remains unknown. These reruns do not erase the original
 failures. The complete run continues through all remaining phases.
+
+The full client pool found two checks to reconcile with the fix. The await
+boundary seal needed the five new custody waits classified: one logout epoch
+read and four read-only receipt-recovery waits, none acquiring delivery/outbox
+custody. Updated only `app.ts` in the existing seal and documented the review;
+all delivery fault sites and recipes remain unchanged. An older full-session
+logout-retry test still expected a peer's replacement guest to be revoked. It
+now requires the original deferred token to be revoked while the replacement
+stays live, stored and restorable, matching the new permanent full-session
+controls and the requested principal/epoch rule. No production code changed.
+Both entire files passed their rerun: **417 tests, zero failures or skips**.
+The original failures remain in the complete-suite log.

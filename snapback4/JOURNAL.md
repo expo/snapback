@@ -88197,3 +88197,12 @@ The permanent real-server reproductions include full-session controls, late
 predecessor rejection, pending login, replacement epochs and committed-login
 success assertions. Round 3 evidence and full-suite results are recorded in the
 lane report. No server production changes, push or publication.
+
+Round 3 qualification reconciled the await census with five new auth/read-only
+custody waits and updated the old full-session logout-retry fixture to preserve
+a peer's replacement account while still revoking the deferred original token.
+All 417 tests in the affected app and delivery-fault files passed on rerun; no
+additional production change was needed. The native witness's existing open
+process-inspection issue also recurred in two tests; seven focused tests and
+the complete 326-test CLI unit target passed unchanged afterward. Original
+failures remain in the evidence and do not become a green complete-run receipt.

@@ -192,6 +192,12 @@ export function instrument(destination) {
 // before commit. Retirement probes read-namespace credentials before logout.
 // These awaits cannot acquire delivery/outbox custody; full-session awaits and
 // all delivery classifications/recipes retain their existing roles.
+// RO Round 3: explicit logout reads the committed epoch under the custody lock;
+// the other four new waits recover a peer's read-only successor before dispatch.
+// They touch session storage and scope verification, never delivery/outbox I/O.
+// Real-server peer-rotation tests cover delayed rejection and logout/replacement;
+// app tests and full-count session models cover storage faults and deferred
+// retirement. Existing delivery sites, classifications and recipes are unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {
