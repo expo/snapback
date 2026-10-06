@@ -17,9 +17,8 @@ An email-and-password product declares `use identity password`; plain `use ident
 
 ## Seed accounts headlessly
 
-With the schema above, run `snapback4 check` then `snapback4 dev`; save the script as `seed.mjs` beside `snapback/`.
-In another terminal run `node seed.mjs` (Node 24) with `SEED_PASSWORD` set privately; never log credentials.
-Signup returns a live session; use `SEED_AUTH=login` for an existing account (duplicate signup refuses).
+Run `snapback4 check` then `snapback4 dev` with the schema above. Save as `seed.mjs` beside `snapback/`.
+Set `SEED_PASSWORD` privately and run `node seed.mjs` (Node 24). Signup returns a session; use `SEED_AUTH=login` for existing accounts (duplicate signup refuses).
 
 ```js
 import { signup, login } from "snapback4/auth";
@@ -28,23 +27,24 @@ import { api } from "./snapback/generated/api.ts";
 const url = process.env.SNAPBACK_URL ?? "http://127.0.0.1:4400";
 const password = process.env.SEED_PASSWORD;
 if (!password) throw Error("Set SEED_PASSWORD");
-const authenticate = process.env.SEED_AUTH === "login" ? login : signup;
+const mode = process.env.SEED_AUTH ?? "signup";
+if (mode !== "signup" && mode !== "login") throw Error("SEED_AUTH must be signup or login");
+const authenticate = mode === "signup" ? signup : login;
 const result = await authenticate(url, "seed1@example.test", password);
-if (!result.ok) throw Error(result.why.code);
+if (!result.ok) throw Error(result.why.message);
 const client = createClient({ url, session: result.session });
 try {
   const me = await client.query(api.whoAmI, {});
-  if ("denied" in me) throw Error(me.denied.code);
+  if ("denied" in me) throw Error(me.denied.message);
   console.log(client.viewer()); // Only the principal, never the bearer.
 } finally { await client.signOut(); }
 ```
 
-Use your generated mutations through `client.mutate(api.operation, args)` to act as that user; check for `state: "sent"` or `"failed"` (with `why`); `"pending"` is not success. Create a separate client per account. No
-browser, borrowed starter token, persona or `/seed` is needed. The social starter includes `scripts/seed.mjs`
-for N users and profile writes; replay adapters use this same path. These SDK calls POST `{email, password}` to
-`/auth/signup` or `/auth/login`, returning `{ok, session}` or `{ok: false, why}`. The wire returns `{session}`
-or `{denied}`. Use HTTPS off loopback. There is no `snapback4 auth create` verb; `run --as` and `/seed` do not
-create password credentials.
+Use `client.mutate(api.operation, args)` for writes; require `state: "sent"` or handle `"failed"` with `why`;
+`"pending"` is not success. Use one client per account. The social starter's `scripts/seed.mjs` creates N users
+and profiles; replay adapters use the same path. No browser, borrowed token, persona or `/seed` is needed.
+SDK calls POST `{email, password}` to `/auth/signup` or `/auth/login`: `{ok: true, session}` or `{ok: false, why}`
+(wire: `{session}` or `{denied}`). Use HTTPS off loopback. There is no `snapback4 auth create`; `run --as` and `/seed` do not create password credentials.
 
 Ordinary guest and password sessions last seven days. `refreshSession` atomically exchanges a live token;
 `logoutAll` revokes every session for the principal. The client refreshes near expiry and uses an in-memory

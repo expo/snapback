@@ -1190,17 +1190,26 @@ the same valid id on every client and host, so a replay needs no ledger.
 For real password accounts, use the [headless account recipe](#seed-accounts-headlessly-node)
 and a separate `createClient({ url, session })` per account. Signup and login work
 in Node; a replay adapter needs no browser or token borrowed from a starter UI.
-The persona example below is local development only. Use `snapback4 dev --replay`
-when new effects must never be delivered and schedules must stay held.
+The example below signs in to an account created by that recipe. Use
+`snapback4 dev --replay` when new effects must never be delivered and schedules must stay held.
 
 ```ts
+import { login } from "snapback4/auth";
 import { createClient, idFrom } from "snapback4/client";
-import { api } from "../snapback/generated/api";
+import { api } from "../snapback/generated/api.ts";
 
 async function replaySeed() {
-  const client = createClient({ url: "http://127.0.0.1:4400", persona: "alice" });
-  // Replaying the seed returns the recorded outcome; it never sends twice.
-  await client.mutate(api.send, { conversationId: "c1", body: "hello" }, { id: idFrom("seed:c1:hello") });
+  const url = process.env.SNAPBACK_URL ?? "http://127.0.0.1:4400";
+  const password = process.env.SEED_PASSWORD;
+  if (!password) throw Error("Set SEED_PASSWORD privately in the environment");
+  const result = await login(url, "seed1@example.test", password);
+  if (!result.ok) throw Error(result.why.message);
+  const client = createClient({ url, session: result.session });
+  try {
+    // This account must already belong to c1. Replay returns the recorded outcome.
+    const write = await client.mutate(api.send, { conversationId: "c1", body: "hello" }, { id: idFrom("seed:c1:hello") });
+    if (write.state !== "sent") throw Error(write.state === "failed" ? write.why.message : "Seed write pending");
+  } finally { await client.signOut(); }
 }
 ```
 

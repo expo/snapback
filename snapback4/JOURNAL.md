@@ -88001,3 +88001,13 @@ Wasm is unchanged byte-for-byte: 2,117,335 B raw / 639,888 B gzip under the
 workspace; no other fleet host, push or publication. The
 [report](reports/20261006-hr-headless-registration/REPORT.md) cites the existing
 HTTP, SDK, CLI and development surfaces and retains verification logs.
+
+## 2026-10-06 — HR round 1: headless recipe discovery and refusal messages
+
+Added the five reviewed guide aliases, including quoted `replay adapter`,
+with CLI regressions. Both scripts show refusal messages and reject invalid
+`SEED_AUTH`; the replay sample now uses a password session. The auth card stays
+at 118 lines. Guide tests passed 113; headless/social tests passed 15;
+reference audit and diff checks passed. Full suite and wasm rebuild were not
+repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
+only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).

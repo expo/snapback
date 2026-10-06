@@ -17,6 +17,12 @@ const root = resolve(import.meta.dirname, "../../..");
 test("guide auth runs headlessly; two password accounts sign in and enforce own-row writes", { timeout: hangBudget(12) }, async t => {
   const guide = spawnSync(binary, ["guide", "auth"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
+  for (const alias of ["headless", "signup", "sign-up", "register", "replay adapter"]) {
+    // One argument also exercises the quoted multi-word CLI spelling.
+    const found = spawnSync(binary, ["guide", alias], { encoding: "utf8" });
+    assert.equal(found.status, 0, `${alias}: ${found.stderr}`);
+    assert.equal(found.stdout, guide.stdout, `${alias} opens the auth recipe`);
+  }
   const quarry = [...guide.stdout.matchAll(/```quarry\n([\s\S]*?)```/g)].map(m => m[1]);
   const scripts = [...guide.stdout.matchAll(/```js\n([\s\S]*?)```/g)].map(m => m[1]);
   assert.equal(quarry.length, 1);
@@ -51,11 +57,22 @@ query list():
   const password = "headless-private-test-password";
   const run = mode => exec(process.execPath, [script], { cwd: dir,
     env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: password, SEED_AUTH: mode } });
+  await assert.rejects(run("singup"), error => {
+    assert.match(error.stderr, /SEED_AUTH must be signup or login/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
   const registered = await run("signup"), signedIn = await run("login");
   const first = registered.stdout.trim();
   assert.match(first, /^user:/);
   assert.equal(signedIn.stdout.trim(), first, "login recovers the guide's account");
-  await assert.rejects(run("signup"), e => e.stderr.includes("E_AUTH"));
+  await assert.rejects(run("signup"), error => {
+    assert.match(error.stderr, /E_AUTH: that email already has an account; sign in instead/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
   const second = await signup(url, "seed2@example.test", password);
   assert.equal(second.ok, true);
   assert.notEqual(second.session.principal, first);

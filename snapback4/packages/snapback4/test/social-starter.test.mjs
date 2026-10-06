@@ -37,12 +37,23 @@ test("social seed script creates two password accounts, signs in and refuses cro
   const run = mode => promisify(execFile)(process.execPath, [join(generated, "scripts/seed.mjs")], {
     cwd: generated, env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: password, SEED_USERS: "2", SEED_AUTH: mode },
   });
+  await assert.rejects(run("singup"), error => {
+    assert.match(error.stderr, /SEED_AUTH must be signup or login/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
   const created = await run("signup"), reused = await run("login");
   const accounts = created.stdout.trim().split("\n").map(line => JSON.parse(line));
   assert.equal(accounts.length, 2);
   assert.notEqual(accounts[0].principal, accounts[1].principal);
   assert.deepEqual(reused.stdout, created.stdout, "login reuses the same accounts");
-  await assert.rejects(run("signup"), error => error.stderr.includes("E_AUTH"));
+  await assert.rejects(run("signup"), error => {
+    assert.match(error.stderr, /Account 1: E_AUTH: that email already has an account; sign in instead/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
   const clients = [];
   for (const [n, account] of accounts.entries()) {
     assert.deepEqual(Object.keys(account).sort(), ["email", "principal"]);

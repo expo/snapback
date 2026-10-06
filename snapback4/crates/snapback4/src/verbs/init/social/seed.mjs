@@ -17,12 +17,12 @@ const authenticate = mode === "signup" ? signup : login;
 for (let n = 1; n <= count; n++) {
   const email = `seed${n}@example.test`;
   const result = await authenticate(url, email, password);
-  if (!result.ok) throw Error(`Account ${n}: ${result.why.code}`);
+  if (!result.ok) throw Error(`Account ${n}: ${result.why.message}`);
   // Signup already returns a session; a separate login is only for later runs.
   const client = createClient({ url, session: result.session });
   try {
     const write = await client.mutate(api.saveProfile, { name: `Seed ${n}` });
-    if (write.state !== "sent") throw Error(write.state === "failed" ? write.why.code : "Profile write pending");
+    if (write.state !== "sent") throw Error(write.state === "failed" ? write.why.message : "Profile write pending");
     console.log(JSON.stringify({ email, principal: client.viewer() }));
   } finally {
     await client.signOut(); // Clears this client's credentials; remote logout is best effort.

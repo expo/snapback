@@ -5,8 +5,10 @@ mod published;
 #[test]
 fn headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card() {
     let auth = card("auth").unwrap();
-    assert_eq!(card("seed"), Some(auth));
-    assert_eq!(card("replay"), Some(auth));
+    for alias in ["seed", "replay", "headless", "signup", "sign-up", "register", "replay adapter"] {
+        assert_eq!(card(alias), Some(auth), "{alias}");
+        assert!(snapback4_lang::guide::listing().contains(alias), "{alias}");
+    }
     assert!(auth.lines().count() <= 118, "{} lines", auth.lines().count());
     assert!(auth.contains("## Seed accounts headlessly"));
     assert!(auth.contains("from \"snapback4/auth\""));

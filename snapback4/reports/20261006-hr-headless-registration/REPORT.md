@@ -149,3 +149,38 @@ multi-account transaction. It stops on refusal and documents partial-run
 recovery. Passwords are supplied by the caller. The script does not implement
 production bulk provisioning or a browser/native UI proof. No new runtime or
 security qualification is claimed beyond the affected and full-suite evidence.
+
+## Round 1 — review fixes (2026-10-06)
+
+Base: `a7e08ed9b1`. Addressed the Astra P2 and Grok Medium/Low findings in
+`~/sb4-intent/reviews/hr-r0.{astra,grok}.md` on the same eb1000 worktree.
+
+- Added `headless`, `signup`, `sign-up`, `register` and `replay adapter` aliases
+  to the auth card. Guide tests check every mapping and its listing; the Node
+  test invokes each through the CLI, including `replay adapter` as one quoted
+  argument, and requires successful output identical to `guide auth`.
+- Both scripts now surface the supplied refusal message. Duplicate signup
+  explains "that email already has an account; sign in instead". The first
+  focused run caught a repeated `E_AUTH` prefix: the server message already
+  contains it, so the final scripts use the message directly.
+- The guide now rejects unknown `SEED_AUTH` values just like the starter.
+  Both executable tests try `singup` before creating accounts and require a
+  clear refusal, no stdout and no password in stderr. Duplicate-account
+  failures also check the message and absence of password output.
+- The replay sample now uses environment-supplied password login, a session
+  client, checked write outcomes and `signOut()` in `finally`. Its comment
+  makes the existing conversation membership prerequisite explicit.
+
+After rebuilding the CLI, `cargo test -p snapback4-lang --test guide` passed
+**113 tests**, including the unchanged **118-line** auth-card budget. Running
+`node --test packages/snapback4/test/headless-registration.test.mjs packages/snapback4/test/social-starter.test.mjs`
+from `snapback4/` passed **15 tests** (1 headless, 14 social), with no failures
+or skips. The literal guide script and generated seed script typecheck and run.
+`./ref-check --verbose` passed with 528 documents, 10,421 references and zero
+errors; `git diff --check` passed. Retained evidence:
+[guide](round1-guide.log.gz), [client/starter](round1-client.log.gz),
+[reference audit](round1-ref-check.log.gz).
+
+No auth implementation, device source or wasm build input changed; the wasm
+cap is unchanged. The full suite and wasm rebuild were not repeated for this
+scoped review follow-up. Nothing was pushed or published.
