@@ -92,7 +92,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let auth_store_id = lock(&shared.wake).store_id.clone();
     let authenticated = if let Some(reader)=reader.as_ref() {
         let _timing = super::latency::EngineSpan::new();
-        if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|h.value.as_str().strip_prefix("Bearer ")) {
+        if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|crate::auth::parse_bearer(h.value.as_str())) {
             match snapback4_core::identity::resolve_read_only_supervised(reader.store(),token.trim(),snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) },auth_store_id.as_deref()) {
                 Ok(Some(current)) if current == capability => Ok(()),Ok(_)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),
             }

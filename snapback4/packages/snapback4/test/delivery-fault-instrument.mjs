@@ -198,6 +198,13 @@ export function instrument(destination) {
 // Real-server peer-rotation tests cover delayed rejection and logout/replacement;
 // app tests and full-count session models cover storage faults and deferred
 // retirement. Existing delivery sites, classifications and recipes are unchanged.
+// RO Round 4: rotation selection and successor commit each await the session
+// lock, with the network awaited under a separate rotation lock. Logout removes
+// its epoch ownership comparison. Sign-in captures principal sign-out watermarks;
+// stale logout preserves another account while saving its caller's watermark.
+// These are auth-only waits; read clients have
+// no delivery/outbox owner. Held-response self/peer logout and full-session
+// controls cover the split; delivery sites and fault recipes are unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

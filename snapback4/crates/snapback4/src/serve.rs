@@ -854,11 +854,13 @@ fn handle(mut request: Request, shared: &Shared) {
     let _evidence = dev_refusals::response::begin(shared, &path);
     // @ref LLP 3000.033#1.2 — closed read allow-list precedes every handler,
     // declared route, dev door and idempotency replay. Refusals carry no head.
-    // Read minting always adds ro.; full tokens never contain a dot. Use that
-    // invariant only to select scope verification, never as read authority.
-    // Full-token handlers retain their pre-auth input validation and wire shapes.
+    // Read tokens and malformed credentials always enter this guard. Otherwise
+    // authenticated full-token handlers retain their input/refusal ordering.
+    // Public and dev doors must resolve any supplied credential before dispatch.
+    let public_door = path.starts_with("/dev/") || matches!(path.as_str(), "/seed" | "/auth/signup" | "/auth/login" | "/auth/guest")
+        || path == token::ENDPOINT || routes::declared(shared, &url).is_some();
     if request.headers().iter().any(|h| h.field.equiv("authorization")
-        && h.value.as_str().trim().strip_prefix("Bearer ").is_some_and(|token| token.trim().starts_with("ro."))) {
+        && (public_door || crate::auth::parse_bearer(h.value.as_str()).is_none_or(|token| token.starts_with("ro.")))) {
         match principal_of(&request, shared) {
             Ok((_, _, snapback4_core::identity::SessionScope::Read)) if !read_permitted(&method, &path) =>
                 return respond_timed(request, shared, 403, json!({"denied": Refusal::new("E_READ_ONLY", "auth", "this read session permits reads only; use a full session for writes").guide("read-only")})),

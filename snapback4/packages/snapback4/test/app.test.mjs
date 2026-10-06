@@ -815,7 +815,7 @@ test("logout retry revokes a discarded login after its token-comparison read thr
   await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${issued.token}` } })).json()).denied?.code === "E_AUTH", "retry revoked the login token deferred by the failed comparison");
 });
 
-test("logout retry drains deferred revocation while preserving the replacement account", { timeout: hangBudget(15) }, async t => {
+test("logout retry drains deferred revocation after a newer login of the same account", { timeout: hangBudget(15) }, async t => {
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let broken = false, failedFence = false, compared = false;
   const revocations = [];
@@ -831,7 +831,7 @@ test("logout retry drains deferred revocation while preserving the replacement a
     return fetch(input, init);
   } });
   t.after(() => a.close());
-  await a.ready; await a.auth.guest();
+  await a.ready; await a.auth.signup("logout-retry@example.test", "logout-retry-password");
   const original = a.client.session();
   broken = true;
   assert.equal((await a.auth.logout()).ok, false);
@@ -840,16 +840,13 @@ test("logout retry drains deferred revocation while preserving the replacement a
   assert.equal((await a.auth.logout()).ok, false, "another failed fence must not discard the deferred token");
   broken = false;
   const b = createApp({ url, sessionStore: memory }); t.after(() => b.close());
-  await b.ready; const replacement = await b.auth.guest(); assert.equal(replacement.ok, true);
+  await b.ready; const replacement = await b.auth.login("logout-retry@example.test", "logout-retry-password"); assert.equal(replacement.ok, true);
   assert.notEqual(replacement.session.token, original.token);
   assert.equal((await a.auth.logout()).ok, true);
   await until(() => revocations.includes(`Bearer ${original.token}`), "retry drains the retired owner's deferred token too");
-  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${original.token}` } })).json()).denied?.code === "E_AUTH");
-  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${replacement.session.token}` } })).json()).ok, true);
-  assert.equal((await restoreSession(url, memory)).token, replacement.session.token);
-  const restart = createApp({ url, sessionStore: memory }); t.after(() => restart.close());
-  assert.equal((await restart.ready).ok, true);
-  assert.equal(restart.auth.viewer, replacement.session.principal);
+  assert.equal(replacement.session.principal, original.principal);
+  for (const token of [original.token, replacement.session.token]) await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${token}` } })).json()).denied?.code === "E_AUTH");
+  assert.equal(await restoreSession(url, memory), null);
 });
 
 test("sign-in keeps the tombstone until its epoch promotion is durable", { timeout: hangBudget(16) }, async t => {

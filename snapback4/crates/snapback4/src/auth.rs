@@ -163,6 +163,15 @@ enum Outcome {
     LogoutAll(u64),
 }
 
+// RFC 7235: the authentication scheme is case-insensitive. Accept HTTP
+// whitespace consistently at every entry, including detached poll rechecks.
+pub(crate) fn parse_bearer(value: &str) -> Option<&str> {
+    let mut words = value.split_ascii_whitespace();
+    let scheme = words.next()?;
+    let token = words.next()?;
+    (scheme.eq_ignore_ascii_case("Bearer") && words.next().is_none()).then_some(token)
+}
+
 pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
     let mut headers = request
         .headers()
@@ -176,12 +185,7 @@ pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
             "send exactly one Authorization header".into(),
         ));
     }
-    value
-        .value
-        .as_str()
-        .strip_prefix("Bearer ")
-        .map(str::trim)
-        .filter(|token| !token.is_empty())
+    parse_bearer(value.value.as_str())
         .ok_or_else(|| RuntimeError::Auth("send Authorization: Bearer <token>".into()))
 }
 

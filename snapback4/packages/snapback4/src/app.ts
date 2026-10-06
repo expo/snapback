@@ -124,7 +124,12 @@ export function createApp(options: AppOptions): App {
     await authority?.reconcileEpoch(custodyKey);
     return readEpoch();
   };
-  const captureEpoch = () => persist(() => storeLock(custodyKey, openingEpoch));
+  const signOuts = (bytes: string | null): Record<string, number> => {
+    try { return JSON.parse(bytes ?? "null")?.snapback4SignOuts ?? {}; } catch { return {}; }
+  };
+  const captureEpoch = () => persist(() => storeLock(custodyKey, async () => ({
+    epoch: await openingEpoch(), signOuts: signOuts(await storage.get(custodyKey)),
+  })));
   const revocations = sessionRevocations(url, storage, fetcher, work => persist(() => storeLock(custodyKey, work)), { key: custodyKey, readOnly });
   let lastOwned: SessionOrigin | undefined;
   let logoutBarrier: Promise<void> = Promise.resolve();
@@ -136,10 +141,17 @@ export function createApp(options: AppOptions): App {
       const text = await storage.get(custodyKey);
       let token: string | undefined, kept: StoredSession | undefined;
       try { kept = text ? JSON.parse(text) : undefined; if (typeof kept?.token === "string") token = kept.token; } catch {}
-      // @ref LLP 3000.033#1.4 — logout owns a principal in its committed epoch,
+      // @ref LLP 3000.033#1.4 — logout owns this principal in every epoch,
       // including peer rotations. Read after any already-admitted session commit
-      // finishes; a replacement account or a later login is never ours to delete.
-      if (explicitLogout && lastOwned && (kept?.principal !== lastOwned.principal || await readEpoch() !== lastOwned.epoch)) return;
+      // finishes; only a different principal's replacement is protected.
+      if (explicitLogout && lastOwned && kept?.token && kept.principal !== lastOwned.principal) {
+        // Preserve this account's token and epoch while fencing an older user's
+        // sign-in responses. The watermark travels with later session commits.
+        const prior = signOuts(text);
+        await storage.set(custodyKey, JSON.stringify({ ...kept,
+          snapback4SignOuts: { ...prior, [lastOwned.principal]: (prior[lastOwned.principal] ?? 0) + 1 } }));
+        return;
+      }
       // Choose under the same lock as the fence. A peer may have saved a
       // successor; our raw client may instead own a newer, unpersisted one.
       if (global && token && kept?.principal !== global.session.principal) throw new SessionEpochChanged();
@@ -175,6 +187,7 @@ export function createApp(options: AppOptions): App {
       const all = [...new Set([...revocations.global(text), ...(globalToken ? [globalToken] : [])])];
       const fences = mergeFences(revocations.fences(text), global && globalToken ? [{ principal: global.session.principal, epoch, tokens: [globalToken] }] : []);
       await storage.set(custodyKey, JSON.stringify({ snapback4Logout: epoch, snapback4Backend: url,
+        ...(Object.keys(signOuts(text)).length ? { snapback4SignOuts: signOuts(text) } : {}),
         snapback4Retired: [...new Set([...retired, ...revocations.pending(), ...(token ? [token] : []), ...(kept?.snapback4Successor ? [kept.snapback4Successor.token] : [])])].filter(token => !all.includes(token)),
         ...(all.length ? { snapback4LogoutAll: all } : {}), ...(fences.length ? { snapback4GlobalFences: fences } : {}) }));
     };
@@ -212,7 +225,8 @@ export function createApp(options: AppOptions): App {
       delete: key => persist(() => storeLock(key, async () => {
         if (await storage.get(key) !== bytes) throw new RestorationChanged();
         const keptEpoch = sessionEpoch(bytes);
-        if (keptEpoch !== null) await storage.set(key, JSON.stringify({ snapback4Logout: keptEpoch }));
+        if (keptEpoch !== null) await storage.set(key, JSON.stringify({ snapback4Logout: keptEpoch,
+          ...(Object.keys(signOuts(bytes)).length ? { snapback4SignOuts: signOuts(bytes) } : {}) }));
         else await storage.delete(key);
       })),
     };
@@ -299,7 +313,7 @@ export function createApp(options: AppOptions): App {
       if (revision === expected) publish("signed-out", null, error.why);
     }).catch(report);
   }
-  async function open(session: Session, expected: number, epoch: string, restoring = false): Promise<SignIn> {
+  async function open(session: Session, expected: number, epoch: string, restoring = false, openingSignOuts?: Record<string, number>): Promise<SignIn> {
     if (closed || revision !== expected) { revokeRetired(session.token); return inactive(); }
     const previous = owner, previousVisible = snapshot.state === "signed-in";
     hide("restoring", false);
@@ -328,7 +342,8 @@ export function createApp(options: AppOptions): App {
         const saved = await storage.get(key);
         let kept: StoredSession | undefined;
         try { kept = saved ? JSON.parse(saved) : undefined; } catch {}
-        if (!scope.valid || await readEpoch() !== epoch) {
+        if (!scope.valid || await readEpoch() !== epoch || (openingSignOuts &&
+          (signOuts(saved)[session.principal] ?? 0) !== (openingSignOuts[session.principal] ?? 0))) {
           retire(next.token);
           const error = new SessionEpochChanged(); fence(scope, error);
           throw restoreToken !== undefined ? new RestorationChanged() : error;
@@ -351,7 +366,8 @@ export function createApp(options: AppOptions): App {
         // I2/I5: no separate epoch write and no fallible opening after this set.
         // A close/save of the predecessor cannot erase a private successor.
         if (!replacing && kept?.snapback4Successor && next.token === kept.token) return;
-        if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url }));
+        if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url,
+          ...(Object.keys(signOuts(saved)).length ? { snapback4SignOuts: signOuts(saved) } : {}) }));
         lastOwned = { principal: next.principal, epoch: nextEpoch };
         epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next; scope.consumed = undefined;
         scope.issued.clear(); scope.issued.add(next.token);
@@ -448,25 +464,38 @@ export function createApp(options: AppOptions): App {
       if (!scope.valid && !path.startsWith("/auth/")) throw new Error("app opener was cancelled");
       if (path !== "/schema") {
         const response = readOnly && path === new URL(url + "/auth/refresh").pathname
-          ? await persist(() => storeLock(custodyKey, async () => {
-            if (!scope.valid || await readEpoch() !== epoch) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
-            const bytes = await storage.get(custodyKey);
-            const saved = bytes ? JSON.parse(bytes) as StoredSession : undefined;
-            if (!saved?.token || saved.principal !== scope.session.principal) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
-            // @ref LLP 3000.033#1.4 — verification can outlive a refresh call.
-            // Keep its issued successor in private custody under the shared lock.
-            // Peers and restart recover this receipt; none reconsume its predecessor.
-            const successor = saved.snapback4Successor ?? (saved.token !== scope.session.token ? saved : undefined);
+          ? await storeLock(custodyKey + ".rotation", async () => {
+            // @ref LLP 3000.033#1.4 — serialize rotations separately from session
+            // commits. Network work owns neither persistence nor the session lock;
+            // logout can fence this reservation before the response arrives.
+            const selected = await persist(() => storeLock(custodyKey, async () => {
+              if (!scope.valid || await readEpoch() !== epoch) return undefined;
+              const bytes = await storage.get(custodyKey);
+              const saved = bytes ? JSON.parse(bytes) as StoredSession : undefined;
+              return saved?.token && saved.principal === scope.session.principal ? saved : undefined;
+            }));
+            const refused = () => Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+            if (!selected) return refused();
+            const successor = selected.snapback4Successor ?? (selected.token !== scope.session.token ? selected : undefined);
             if (successor) return Response.json({ session: successor });
             const response = await fetcher(input, init);
             const json = await response.clone().json() as { session?: Session };
-            if (response.ok && json.session) {
-              scope.issued.add(json.session.token);
-              scope.consumed = saved.token;
-              await storage.set(custodyKey, JSON.stringify({ ...saved, snapback4Successor: json.session }));
+            const issued = json.session;
+            if (response.ok && issued) {
+              scope.issued.add(issued.token);
+              scope.consumed = selected.token;
+              const saved = await persist(() => storeLock(custodyKey, async () => {
+                if (!scope.valid || await readEpoch() !== epoch) return false;
+                const bytes = await storage.get(custodyKey);
+                const kept = bytes ? JSON.parse(bytes) as StoredSession : undefined;
+                if (kept?.token !== selected.token || kept.principal !== scope.session.principal || issued.principal !== scope.session.principal) return false;
+                await storage.set(custodyKey, JSON.stringify({ ...kept, snapback4Successor: issued }));
+                return true;
+              }));
+              if (!saved) { retire(issued.token); return refused(); }
             }
             return response;
-          })) : await fetcher(input, init);
+          }) : await fetcher(input, init);
         if (path === new URL(url + "/auth/refresh").pathname) {
           try {
             const issued = (await response.clone().json() as { session?: Session }).session;
@@ -698,7 +727,7 @@ export function createApp(options: AppOptions): App {
       if (closed || revision !== expected) return inactive();
       try {
         if (configurationError) throw configurationError;
-        const epoch = await captureEpoch();
+        const captured = await captureEpoch();
         if (closed || revision !== expected) return inactive();
         // Cancel only this wait. A committed login/guest response still owns
         // a bearer, which must be read and revoked if this opener was retired.
@@ -717,7 +746,7 @@ export function createApp(options: AppOptions): App {
           if (snapshot.state === "restoring") publish("signed-out", null, result.why);
           return result;
         }
-        return await open(result.session, expected, epoch);
+        return await open(result.session, expected, captured.epoch, false, captured.signOuts);
       } catch (error) {
         if (revision !== expected) return inactive();
         if (snapshot.state === "restoring") publish("signed-out", null, problem(error));

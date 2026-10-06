@@ -26,7 +26,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
             persona = Some(value.to_owned());
         }
         if name == "authorization" {
-            let Some(token) = value.strip_prefix("Bearer ").map(str::trim).filter(|token| !token.is_empty()) else {
+            let Some(token) = crate::auth::parse_bearer(value) else {
                 return Err(Refusal::new("E_AUTH", "auth", "send Authorization: Bearer <token>").guide("personas"));
             };
             if bearer.replace(token.to_owned()).is_some() {

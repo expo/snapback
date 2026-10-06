@@ -61,7 +61,7 @@ for (const readOnly of [true, false]) {
     await signedOutRestart(f);
   });
   for (const replacement of ['same principal, new epoch', 'different principal']) {
-    test(`stale logout preserves replacement ${replacement}; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
+    test(`stale logout follows principal ruling for ${replacement}; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
       const f = await fixture(t, readOnly), a = f.app(), b = f.app();
       await Promise.all([a.ready, b.ready]);
       const opened = replacement === 'different principal'
@@ -69,11 +69,16 @@ for (const readOnly of [true, false]) {
       assert.equal(opened.ok, true);
       const saved = f.saved(); assert.ok(BigInt(saved.snapback4Epoch) > 0n);
       assert.equal((await a.auth.logout()).ok, true);
-      assert.equal(f.saved().token, saved.token);
-      assert.equal(f.saved().snapback4Epoch, saved.snapback4Epoch);
-      const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
-      assert.equal((await restarted.client.query(query, {})).data, opened.session.principal);
-      assert.equal((await f.probe(opened.session.token)).ok, true);
+      if (replacement === 'same principal, new epoch') {
+        await signedOutRestart(f);
+        await until(async () => (await f.probe(opened.session.token)).denied?.code === 'E_AUTH', 'newer same-user login retired');
+      } else {
+        assert.equal(f.saved().token, saved.token);
+        assert.equal(f.saved().snapback4Epoch, saved.snapback4Epoch);
+        const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
+        assert.equal((await restarted.client.query(query, {})).data, opened.session.principal);
+        assert.equal((await f.probe(opened.session.token)).ok, true);
+      }
     });
   }
   test(`committed login stays successful across logout without public adoption; readOnly=${readOnly}`, { timeout: 15000 }, async t => {

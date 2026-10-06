@@ -88219,3 +88219,31 @@ inspection ticket and a new export-maintenance ticket preserve the unresolved
 causes. Wasm remains 2,117,335 raw / 639,888 gzip bytes under 639,941, unchanged
 from Round 2. Final references, source limits and append-only checks pass.
 No push or publication.
+
+## 2026-10-06 — RO Round 4: principal logout and unblocked retirement
+
+The lead's ruling supersedes Round 3's epoch-scoped explicit logout: both full
+and read apps sign the user out of shared custody, including newer same-user
+logins, peer rotations, pending successors and in-flight same-user sign-ins.
+A different principal's later login remains live. When Alice is already stored,
+Bob's stale logout preserves her token/epoch and records Bob's sign-out watermark
+in the same record; a pending Bob login cannot replace her, even across Alice's
+rotation. A later deliberate sign-in remains allowed. The full-session retry
+regression again requires both same-user credentials to be retired; it now uses
+password login so the two principals are actually the same.
+
+Bearer parsing is shared and case-insensitive, including detached poll checks.
+Read and malformed credentials pass the early guard; public/dev doors resolve
+all supplied credentials. Full authenticated handlers keep their established
+input-validation and refusal ordering. Raw sign-out retains an unverified
+successor for independent verified retirement. Read rotation holds a separate
+rotation lock; session selection and successor persistence use short custody
+transactions around network work. Logout completes while refresh is held, and
+its late successor is retired rather than adopted.
+
+The permanent Round 4 file incorporates all three Astra reproductions, controls
+for full sessions, whitespace/case matrices, failed-verification and own/peer
+logout variations, and principal-switch interleavings. The public promise,
+guide and RFC §1.4 now state the lead's rule. Focused custody tests and the HTTP
+suite pass; complete-suite results and wasm evidence follow in the lane report.
+No push or publication.

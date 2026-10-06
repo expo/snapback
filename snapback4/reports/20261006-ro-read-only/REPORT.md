@@ -3,7 +3,7 @@
 Date: 2026-10-06. Branch: `sb5/ro-read-only`. Base: `9bcf6cfb63`.
 Implemented Accepted revision 3, including all three review dispositions.
 No RFC deviation. No requested implementation or acceptance work is deferred.
-No push or publication. The external handoff report records the final commit.
+No push or publication. Final commit: `86370692480ff439d5e5bfab081c05bae8bab532`. Requested co-author trailer is present; working tree is clean.
 
 ## What changed
 
@@ -18,11 +18,8 @@ No push or publication. The external handoff report records the final commit.
 - The first authenticated read-token branch applies the closed allow-list
   before declared routes, mutation replay and development doors. The prefix
   selects that branch; stored scope remains authoritative. Refusals carry
-  neither head nor store identity. Full-session operation validation order is preserved. Session JSON adds
-  `scope` and read-session `capExpiresAt`; auth bodies strictly accept only an
-  absent scope, `"full"`, or `"read"`. `GET /probe?scope=1` adds `kind`/`scope`;
-  unflagged GET retains `{ok, store_id, seq, viewer}`. New `POST /probe` uses
-  the same flag and body shape (corrected in Round 1).
+  neither head nor store identity. Existing full-session input-validation
+  ordering and wire responses are preserved.
 - Read `/changes` neither enters nor leaves presence or writes effect presence.
   `/schema` remains available. The complete asset disclosure/Range/once ordering
   is preserved, with `E_ASSET_READ_ONLY` before opening unviewed once-media.
@@ -156,6 +153,8 @@ and diff audits are retained with the evidence. Completed lane-local orphaned
 SQLite test sidecars (1,777,750,968 bytes) were removed; shared build products
 belonging to other lanes were left intact. Incremental compilation stayed off.
 
+Durable report and compressed evidence: [REPORT.md](/home/ccheever/sb5-lanes/lane-ro/snapback4/reports/20261006-ro-read-only/REPORT.md).
+
 
 ## Round 1 — code-review fixes (2026-10-06)
 
@@ -261,6 +260,8 @@ After completion, removed only this lane's 1,636 closed SQLite fixture sidecars
 (1,777,750,968 bytes), whose recorded test PIDs had exited. Shared compiler
 artifacts were left intact. No push or publication.
 
+Final Round 1 head: `c8c419a0d5f189b6a788cdcef111848bc144b073`. Working tree clean; no push.
+
 
 ## Round 2 — shared full-session custody (2026-10-06)
 
@@ -365,6 +366,8 @@ Implementation checkpoints: `adde06ee5c` (shared app custody and regressions),
 refusal assertion and deterministic caps). Evidence checkpoints: `28fe3afd32`,
 `d01e4f75d5`, `109cdfe055`. Every Round 2 commit carries the requested Astra
 co-author trailer. No push or publication.
+
+Final Round 2 head: `929086afde25cfd2c9495229b357423b6c23386e`. Working tree clean; no push.
 
 ## Round 3 — cross-app rotation interleavings (2026-10-06)
 
@@ -498,3 +501,50 @@ recurrence/reruns), `61e5655f07` (existing test expectation and await census).
 Every Round 3 commit carries the requested Astra co-author trailer. The code
 remained unchanged throughout complete-suite execution and the final reruns.
 No push or publication.
+
+Final Round 3 head: `f0e047dd766f1ced9cccafd7a055208c5522091a`. Working tree clean; no push.
+
+## Round 4
+
+The lead's principal-wide logout ruling supersedes Round 3's epoch exception.
+Implemented the three reproduced medium findings and the ruling in the shared
+custody machine. Pending full-count suite and wasm verification are not yet
+claimed as complete.
+
+Orientation (`llp-orient`): scope is the HTTP identity guard and online/app
+session custody. Governing constraints are LLP 3000.033 §§1.2, 1.4 and 3,
+LLP 3000.013 §6 (shared app custody), and LLP 3000 §7 (full-session compatibility
+and wasm budget). The lead's explicit ruling overrides Round 3's epoch-owned
+logout text; public documentation is updated in the implementation commit.
+No new design document or hand-off is needed.
+
+- One bearer parser handles scheme capitalization and HTTP whitespace in
+  principal resolution, auth operations and detached poll rechecks. Read tokens
+  and malformed credentials enter the closed guard; public/dev write doors
+  authenticate every supplied credential. Full authenticated handlers retain
+  existing pre-auth validation and ephemeral failure envelopes.
+- Raw sign-out retains the unverified refresh successor and gives it to the
+  independent scope/principal/store-verifying retirement helper. Held and
+  retryable failed verification both have permanent server tests.
+- Read rotations reserve ownership with a separate cross-tab rotation lock.
+  Selection and commit take the custody lock; network work holds neither that
+  lock nor the persistence queue. Epoch/principal/predecessor are checked again
+  before saving. Own and peer logout complete while the response is held; late
+  successors are retired and restart stays signed out.
+- Explicit logout owns all same-principal credentials, regardless of epoch.
+  Newer same-user logins are retired; another principal is protected. A stale
+  Bob facade also records a sign-out watermark while Alice is stored, so a Bob
+  login already in flight cannot replace Alice. Alice's rotation carries the
+  watermark forward; a new deliberate Bob login after logout remains allowed.
+- Restored the full-session logout-retry test's both-credentials-retired
+  expectation using two password logins of the same user. Its former two guest
+  logins were different principals and would contradict the new protection.
+
+Initial verification: 57 custody tests passed; the additional two tests for
+Bob's in-flight return while Alice is stored passed. App and delivery matrix:
+417 passed before the watermark addition (the final full run will recheck it).
+HTTP unit selection: 150 passed, three existing ignores. The initial broader
+HTTP guard changed two full-session refusals; the final guard preserves those
+handlers' ordering, and both entire targets passed on the final HTTP rerun.
+Build and typecheck pass. Reference audit passes (529 docs, 10,457 references).
+Grok's round-4 `.exit` is not present yet; its completed review remains pending.

@@ -109,9 +109,13 @@ work; correct the options and create the app again. Kept credentials remain inta
 Identity and sessions remain owned by
 `app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
 client options, not app configuration.
-`app.auth.logout()` fences restoration and session writes immediately, deletes
-local credentials without waiting for network requests, and revokes remotely
-in the background.
+`app.auth.logout()` signs this user out of the shared session storage. It
+fences restoration and same-principal sign-ins already in flight, commits a
+logout tombstone without waiting for network requests, and retires every
+same-principal credential in that custody in the background: peer rotations,
+pending successors and newer deliberate logins, whatever their epoch. A stale
+Bob facade cannot delete or revoke Alice's later login. This rule is shared by
+full and read-only apps; their separate storage namespaces remain isolated.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
@@ -120,9 +124,9 @@ session lock:
 
 - **I1 — stored bearer protection.** A runtime never sends revocation for the
   currently stored bearer. Explicit logout first commits a logout tombstone,
-  then revokes the displaced session in the background. Logout compares its last
-  committed principal and epoch under the lock: peer rotations belong to that
-  epoch; a replacement principal or later login does not.
+  then revokes the displaced sessions in the background. Logout compares its last
+  committed principal under the lock: it owns that principal's credentials in
+  every epoch, including newer logins, and preserves a different principal.
 - **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
   logout preserves the session bytes and epoch. The sole logout intermediate
   state is a tombstone; every reader recognizes it as signed out.
@@ -305,8 +309,11 @@ storage event: a broadcast can arrive before another tab sees a localStorage
 commit. Neither notification carries trusted intent or replaces durable custody.
 A refused bearer stops that runtime and conditionally tombstones its rejected
 credential; it preserves a peer's successor, including a pending read-refresh
-receipt. Explicit logout compares the owned principal and epoch, then commits a
-tombstone before revoking the credentials it displaces. Custom stores shared across independent non-browser
+receipt. Explicit logout compares the owned principal, then commits a tombstone
+before retiring every same-principal credential it displaces, whatever its epoch.
+Read rotations reserve ownership under a separate rotation lock; network work
+holds neither the session lock nor the persistence queue. A response arriving
+after logout is retired and never adopted. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion

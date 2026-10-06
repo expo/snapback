@@ -1235,11 +1235,16 @@ export function createClient(options: ClientOptions): Client {
       // the bounded grace period. endCredentials/close must not abort them.
       delivery = undefined;
       const bearer = !readGate || readGate.verified ? headers.authorization?.slice("Bearer ".length) : undefined;
+      const pendingRetirement = pendingReadSession;
+      const retirementPrincipal = viewer;
       endCredentials();
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
-      if (bearer) void logout(base, bearer, readGate ? transport : doFetch);
+      // @ref LLP 3000.033#1.4 — a received successor stays in retirement custody
+      // while verification is pending or retryable; cancellation cannot abandon it.
+      if (readGate && pendingRetirement) void retireReadSession(base, pendingRetirement.token, retirementPrincipal, storeIdentity, transport);
+      else if (bearer) void logout(base, bearer, readGate ? transport : doFetch);
       await Promise.all([closing, draining]);
     },
     close() {

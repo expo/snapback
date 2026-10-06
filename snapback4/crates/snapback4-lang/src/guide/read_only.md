@@ -31,7 +31,8 @@ view-once grants refuse; writes refuse.
 Session creation, refresh, expiry and logout change the reader's own auth family.
 Sign-in collects expired full and read sessions; read refresh deletes only its own family. Request logs and read meters still run.
 Unauthenticated development doors/personas are outside this promise. A read
-bearer on a development write door is refused too.
+bearer on a development write door is refused too, with any capitalization of
+`Bearer`. Malformed or invalid credentials cannot become anonymous dev writes.
 
 Only these routes are allowed: `POST /q/<op>`, `GET /changes`, `POST /sync`,
 `GET /assets/<id>`, `GET` or `POST /probe`, `GET /schema`, `POST /auth/refresh`,
@@ -43,8 +44,14 @@ backends. The SDK does not sync or open a device in this mode.
 sign-in defaults to full. A read-only online `createApp` signs in with read
 scope and stores sessions under `sessionKey(url) + ".read"`; it never opens
 an interactive write journal. Its `.read.revocations` queue retires only verified
-read credentials. Logout includes peer rotations in the owned epoch and preserves
-a replacement account. Rejected predecessors preserve pending successors.
+read credentials. In both full and read modes, explicit app logout signs this
+user out of that shared storage: it tombstones and retires every same-principal
+credential, whatever its epoch, including peer rotations, pending successors and
+newer deliberate logins, and fences same-principal sign-ins already in flight.
+It never deletes or revokes a different principal's later login: a stale Bob
+facade cannot sign Alice out. Logout completes while a refresh response is held;
+its late successor is retired, never adopted. Rejected predecessors preserve
+pending successors.
 
 ## Dashboard: narrow the interactive credential
 
