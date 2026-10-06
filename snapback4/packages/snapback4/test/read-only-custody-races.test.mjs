@@ -7,7 +7,10 @@ import { sessionKey } from '../dist/auth.js';
 import { waitFor as until } from './helpers/wait.mjs';
 const url='https://review-ro.invalid', key=sessionKey(url,true), query={kind:'query',name:'secret'};
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
-const session=(who,token=`ro.${who}`)=>({token,principal:who,kind:'user',scope:'read',expiresAt:Date.now()+86400000,capExpiresAt:Date.now()+86400000});
+const session = (who, token = `ro.${who}`) => {
+  const expiresAt = Date.now() + 86400000;
+  return { token, principal: who, kind: 'user', scope: 'read', expiresAt, capExpiresAt: expiresAt };
+};
 const storage=(initial)=>{const values=new Map([[key,JSON.stringify(initial)]]);return {values,async get(k){return values.get(k)??null},async set(k,v){values.set(k,v)},async delete(k){values.delete(k)}}};
 const base=async(input,init)=>{const path=new URL(input).pathname, token=init?.headers?.authorization?.slice(7),who=['ro.old','ro.next'].includes(token)?'bob':token?.slice(3);
  if(path==='/auth/login') return Response.json({session:session(JSON.parse(init.body).email.split('@')[0])});

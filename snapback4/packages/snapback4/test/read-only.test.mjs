@@ -74,6 +74,11 @@ test('successful custody is SecureStore-legal and cannot consume the interactive
   const session = read(), interactive = JSON.stringify(full()), journal = '{"pending":[{"id":"kept","op":"send","args":{}}]}';
   const writeKey = storeKey('writes', url, 'bob'), requests = [];
   const store = alphabetStore([[sessionKey(url), interactive], [sessionKey(url, true), JSON.stringify(session)], [writeKey, journal]]);
+  const get = store.get;
+  store.get = async key => {
+    assert.ok(key.startsWith(sessionKey(url, true)), `read custody accessed interactive storage: ${key}`);
+    return get(key);
+  };
   const app = createApp({ url, readOnly: true, sessionStore: store, fetch: async input => {
     const path = new URL(input).pathname; requests.push(path);
     return path === '/probe' ? probe('read') : path === '/auth/refresh' ? Response.json({ session: { ...session, token: 'ro.next' } }) : answer();

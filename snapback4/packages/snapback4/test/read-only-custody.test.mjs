@@ -7,7 +7,10 @@ import { waitFor } from './helpers/wait.mjs';
 const url = 'https://read-custody.invalid', key = sessionKey(url, true);
 const query = { kind: 'query', name: 'secret' };
 const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
-const session = (who, token = `ro.${who}`) => ({ token, principal: who, kind: 'user', scope: 'read', expiresAt: Date.now() + 86400000, capExpiresAt: Date.now() + 86400000 });
+const session = (who, token = `ro.${who}`) => {
+  const expiresAt = Date.now() + 86400000;
+  return { token, principal: who, kind: 'user', scope: 'read', expiresAt, capExpiresAt: expiresAt };
+};
 function storage(initial) {
   const values = new Map(initial ? [[key, JSON.stringify(initial)]] : []);
   return { values, async get(k) { return values.get(k) ?? null; }, async set(k, v) { values.set(k, v); }, async delete(k) { values.delete(k); } };
