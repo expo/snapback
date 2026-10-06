@@ -3,6 +3,23 @@ use super::{card, quarry, compile, guide_context};
 mod published;
 
 #[test]
+fn headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card() {
+    let auth = card("auth").unwrap();
+    assert_eq!(card("seed"), Some(auth));
+    assert_eq!(card("replay"), Some(auth));
+    assert!(auth.lines().count() <= 118, "{} lines", auth.lines().count());
+    assert!(auth.contains("## Seed accounts headlessly"));
+    assert!(auth.contains("from \"snapback4/auth\""));
+    assert!(auth.contains("createClient({ url, session: result.session })"));
+    for block in quarry(auth) {
+        let bound = compile(&block);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        assert!(bound.schema.auth.password && !bound.schema.auth.guests);
+    }
+}
+
+#[test]
 fn client_aliases_keep_typing_on_ephemeral() {
     let client = card("client").unwrap();
     assert!(client.lines().count() <= 130);

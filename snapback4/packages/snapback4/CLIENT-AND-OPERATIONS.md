@@ -1187,6 +1187,11 @@ binding before any journal or current-device identity, including after replaceme
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent, or name a fixture's write with `idFrom(label)`: the same label gives
 the same valid id on every client and host, so a replay needs no ledger.
+For real password accounts, use the [headless account recipe](#seed-accounts-headlessly-node)
+and a separate `createClient({ url, session })` per account. Signup and login work
+in Node; a replay adapter needs no browser or token borrowed from a starter UI.
+The persona example below is local development only. Use `snapback4 dev --replay`
+when new effects must never be delivered and schedules must stay held.
 
 ```ts
 import { createClient, idFrom } from "snapback4/client";
@@ -1766,6 +1771,28 @@ memory zeroization or removal of decoder copies. Upload Blobs remain owned by
 the caller.
 
 ### Sign-in (`snapback4/auth`)
+
+#### Seed accounts headlessly (Node)
+
+`signup` and `login` below work in Node 24 with the same server password hashing,
+rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
+for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,
+then import `signup`/`login` from `snapback4/auth` and `createClient` from
+`snapback4/client`. Signup returns the new account **and its live session**;
+pass it to `createClient({ url, session: result.session })`, then use the generated
+`api` for authorized writes. Open one client per user and call `signOut()` in
+`finally` to close it and clear local credentials (remote logout is best effort).
+Node 24 can import `./snapback/generated/api.ts` directly from an `.mjs` script.
+
+The social starter (`snapback4 new <dir> --template social`) includes
+`scripts/seed.mjs`. Set `SEED_PASSWORD` privately, choose `SEED_USERS=N`, and
+run `node scripts/seed.mjs`; it creates N accounts and writes each one's profile.
+`SEED_AUTH=login` reuses an existing set; duplicate signup refuses. Stop on
+refusal, including `E_RATE_LIMIT`, rather than blindly retrying or assuming an
+account exists. Keep passwords and bearer sessions out of logs; use HTTPS off
+loopback. Ordinary SDK auth works in `dev` and `serve`; only development personas
+and system-principal `/seed` bypass account signup. Neither creates a password
+credential, and there is no `snapback4 auth create` command.
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
 password)` and `refreshSession(url, token)` return `{ ok: true, session

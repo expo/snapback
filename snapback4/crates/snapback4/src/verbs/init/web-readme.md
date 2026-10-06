@@ -6,6 +6,11 @@ still writes only a schema. Run `npm install`, `npx snapback4 check`, then
 The inbox starts empty; seed conversations and memberships through `POST /seed`
 in development. A deployed app uses guest sessions and needs its own onboarding.
 
+For password accounts in seed scripts or replay adapters, run `snapback4 guide auth`:
+Node can call `signup`/`login` from `snapback4/auth` and pass the returned session
+to `createClient({ url, session })` from `snapback4/client` to act as each user.
+The schema already enables passwords. No browser signup or borrowed UI token is needed.
+
 Build with `VITE_SNAPBACK_URL=https://your-backend npm run build`, then serve
 `dist/` over HTTPS (localhost also works). The build ends with `snapback4 web-shell dist`, which precaches every exported
 file and registers the worker in every HTML entry. For a subpath, run
