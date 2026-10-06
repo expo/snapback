@@ -88261,3 +88261,17 @@ logout tombstone and retirement of both the owned rotation and the newer kept
 credential, matching the lead's ruling. The entire four-test file passes; no
 production change was required. The new Round 4 cases and full app tests pass
 inside the complete run.
+
+Round 4 complete verification finished in 1,956 seconds at full default counts.
+All 300 Rust binaries / 1,013 executions and doctests ran; only the corrected
+private-proof refusal failed in that run (20/20 on the final target rerun).
+All 330 client files ran: 6,544 passes, the one superseded custody assertion
+(four-test file passes after correction), and 47 labelled skips. All 79 model
+tests passed, including 5,000 online and 5,000 local session histories plus
+3,000 online-client sequences. Fixture wrappers and all preflight checks passed.
+The original two failures remain in the complete log; this is not a single-green
+qualification receipt. Wasm is unchanged at 2,117,335 raw / 639,888 gzip bytes
+against 639,941. Final references, source limits and pure-append checks pass.
+Grok's completed review contributed only the public logout wording finding,
+resolved under the lead's overriding ruling. The lane report retains the full
+run and passing corrected target/file evidence. No push or publication.

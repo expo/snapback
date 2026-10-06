@@ -591,3 +591,54 @@ tombstone and retirement of both the current rotation and the peer credential.
 The entire file passes **4/4**, with no production change. The original failure
 remains in the full-run log. The new 17-test Round 4 file, the 20-test peer file,
 and full-session app file all pass in the complete run.
+
+### Final Round 4 verification
+
+The complete `bash scripts/test.sh` finished at full default counts in
+**1,956 seconds (32m36s)**. It exited 1 with **two failed phases / two failed
+subtests**, both corrected with passing complete target/file reruns. This is
+**not a single-green-run qualification receipt**; the original failures remain
+in the committed evidence.
+
+- Rust: **300 test binaries / 1,013 executions plus workspace doctests**,
+  970 seconds. The sole failure was `/dev/token`'s uniform-refusal regression.
+  Its corrected complete target passed **20/20**. Every other Rust target and
+  the doctests passed, including the 326-test CLI unit target with its four
+  existing ignores. No recurrence of Round 3's native process-inspection failures.
+- Client pool: **330/330 files**, **6,544 passed / 1 failed / 47 labelled skips**,
+  619 seconds. The sole failure was the superseded 32-rotation same-user epoch
+  assertion. Its corrected entire file passed **4/4**. All new **17 Round 4
+  reproductions/variations/controls**, the peer rotation file, app file and
+  delivery fault matrix passed in this complete run. Round 3's export-background
+  timeout did not recur; that unchanged file passed.
+- Full-count models: **79/79**, no skips, 302 seconds. The log confirms
+  **5,000 online and 5,000 local session histories**, seeds 1–5,000, plus
+  **3,000 online-client sequences**, seeds 1–3,000. No count overrides/reductions.
+- Fixture wrappers: **9/9**. Cargo build, wasm build/budget, docs budget, release
+  guard, package typecheck/build, chat compilation and chat/Expo typechecks passed.
+- Final source audit: all **12 changed source/test files** are below 1,500 lines;
+  JOURNAL is a pure append and diff whitespace checks pass. The reference audit
+  passes with **529 LLP documents / 10,458 references**, zero errors or unchecked
+  references. I11 now explicitly names `logoutEverywhere()` so its existing global
+  epoch rule cannot be confused with ordinary logout's principal-wide rule.
+
+Wasm is **2,117,335 raw / 639,888 gzip bytes**, under the unchanged
+**639,941-byte** budget, with **53 bytes** of headroom. SHA-256 remains
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+The server-only uniform-refusal correction changes no device code.
+
+Evidence: `evidence/round4-full-suite.log.gz` retains the complete run;
+`round4-token-live.log.gz` and `round4-custody-rerun.log.gz` retain both complete
+corrected target/file reruns. Other affected, HTTP, build and reference records
+use the same `round4-` prefix. The full run used Node 24.13.1, Bun 1.3.14,
+Rust 1.97.0, `CARGO_INCREMENTAL=0`, shared `CARGO_TARGET_DIR=~/sb5-lanes/target`,
+dev/test debug info disabled and eight Cargo jobs. It supplied this checkout's
+witness helper and the verified prior published 0.4.13 binary. Existing
+PostgreSQL/platform runtime qualification limits are unchanged.
+
+Checkpoints: `33c1f9ce28` (implementation and permanent regressions),
+`884568857f` (review dispositions and affected evidence), `48ad735824`
+(private-proof refusal compatibility), `5deead52b1` (remaining Round 3 test
+expectation). All commits carry the requested Astra co-author trailer.
+Both reviews have been folded; no open Round 4 finding remains. No push or
+publication.

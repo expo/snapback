@@ -175,13 +175,14 @@ session lock:
   credentials covered by each dispatch. Its acknowledgement removes only that
   snapshot, including on cleanup retry. Tokens attached later retain individual
   retirement custody; they may have been minted after the server's revocation.
-- **I11 — epoch-scoped authority.** An operation cannot select an account epoch
-  newer than its calling scope. Global logout may adopt another tab's rotated
+- **I11 — global logout authority.** `logoutEverywhere()` cannot select an account
+  epoch newer than its calling scope. It may adopt another tab's rotated
   bearer within the same epoch; a later login, even of the same principal, is
   fenced from the stale caller's authority. Selection reads the principal's
   inline and journaled global watermarks under the session lock, and checks the
   selected session's committed scope. The shared legacy counter alone cannot
   distinguish another principal's logout from this account's replacement.
+  Ordinary `logout()` follows I1's principal-wide custody rule.
 - **I12 — known dispatched outcomes.** Fencing refuses new calls. Close waits
   only for local cleanup, never for a held network response. A mutation or
   action whose response arrives before public `app.close()` completes keeps its own full outcome,
