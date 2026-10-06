@@ -1,4 +1,4 @@
-import { existence } from "../dist/contract.js";
+import { existence, matchRead } from "../dist/contract.js";
 import { readyRead } from "../dist/read-existence.js";
 import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
@@ -244,7 +244,7 @@ test("client card composer clears at submit and offers refused text without repl
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      existence, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, matchRead, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -291,7 +291,7 @@ test("client card composer disables only denied or fresh non-revalidating absent
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, existence, isReady: read => "data" in read, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, matchRead, isReady: read => "data" in read, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },

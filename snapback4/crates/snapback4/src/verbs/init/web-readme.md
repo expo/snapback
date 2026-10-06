@@ -66,3 +66,14 @@ helpers there. `process.cwd()` starts at `SNAPBACK_PROJECT_DIR` (project root
 in dev, active release in serve). Write application files under that root's
 `data/`, never relative to `import.meta.url`. Host-installed packages are shared;
 arbitrary environment variables are stripped. See `snapback4 guide effects`.
+
+## Rendering read states
+
+Use `matchRead` from `snapback4/react` or `snapback4/contract` with the current
+read (`page.read` for pages). All five handlers are required: loading, denied,
+absent, partial and present. Present/partial receive `(data, read)`, denied gets
+`(why, read)`, and absent/loading get `read`. An explicit `otherwise(read)` may
+cover omitted loading/absent/present handlers; denied and partial stay explicit.
+Ready metadata remains available; present pages can still be incomplete.
+The room and thread match their status without unmounting the composer. This
+starter's membership gate blocks absent or denied and allows loading/partial.

@@ -1,4 +1,4 @@
-import { existence } from "snapback4/contract";
+import { matchRead } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { mintId } from "snapback4/client";
@@ -19,7 +19,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
   // No-horizon membership shares the messages' group and audience; loading is acquisition.
   const membership = useQuery(api.myMembership, { conversationId });
-  const member = existence(membership), blocked = member === "absent" || member === "denied";
+  const blocked = matchRead(membership, { denied: () => true, absent: () => true, partial: () => false, otherwise: () => false });
   const answered = useRef(false);
   if ("data" in read) answered.current = true;
   const journal = useMemo(() => new IntentJournal(intentStorage, backend, viewer,
@@ -70,9 +70,11 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
       <Button title="Back" onPress={onBack} />
       {"data" in read && !read.fresh ? <Text style={styles.note}>As of {read.since ? new Date(read.since).toLocaleTimeString() : "the last sync"}</Text> : null}
     </View>
-    {existence(read) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
-    {"denied" in read ? <Text style={styles.alert}>{read.denied.message}</Text> : null}
-    {existence(read) === "partial" ? <Text style={styles.note}>History may be incomplete.</Text> : null}
+    {matchRead(read, {
+      loading: () => <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text>,
+      denied: why => <Text style={styles.alert}>{why.message}</Text>,
+      partial: () => <Text style={styles.note}>History may be incomplete.</Text>, otherwise: () => null,
+    })}
     <FlatList inverted data={"denied" in read ? [] : items}
       keyExtractor={message => message.id} onEndReached={hasMore ? loadMore : undefined}
       renderItem={({ item }) => <View style={[styles.bubble, item.authorId === viewer ? styles.own : null, item.pending ? styles.pending : null]}>
@@ -83,7 +85,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
       <TextInput style={styles.input} value={body} onChangeText={setBody} placeholder="Message" />
       <Button title="Send" disabled={blocked || !!submitting || !body.trim()} onPress={() => { void submit(); }} />
     </View>
-    {"denied" in membership ? <Text style={styles.alert}>{membership.denied.message}</Text> : member === "absent" ? <Text style={styles.note}>Not a member. Your draft stays here.</Text> : null}
+    {matchRead(membership, { denied: why => <Text style={styles.alert}>{why.message}</Text>, absent: () => <Text style={styles.note}>Not a member. Your draft stays here.</Text>, partial: () => null, otherwise: () => null })}
     {problem ? <Text style={styles.alert}>{problem}</Text> : null}
     <View accessibilityLabel="Writes"><Text>Writes</Text>
       {intents.map(intent => <Receipt key={intent.id} intent={intent} outcome={outcomes[intent.id]} submitting={submitting === intent.id} dismiss={dismiss} edit={text => setBody(current => current ? `${current} ${text}` : text)} />)}

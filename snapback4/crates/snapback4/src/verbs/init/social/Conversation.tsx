@@ -1,4 +1,4 @@
-import { existence, isReady } from "snapback4/contract";
+import { matchRead, existence, isReady } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
 import { useClient, useSeen, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
@@ -65,7 +65,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
   }, [journal, restore]);
   const currentMember = isReady(member) && member.existence === "present" && !member.revalidating;
   // Custody is not authority: only a confirmed absence/refusal blocks a send.
-  const canSend = !(existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating));
+  const canSend = matchRead(member, { denied: () => false, absent: read => !read.fresh || !!read.revalidating, partial: () => true, otherwise: () => true });
   useEffect(() => { setSelected(undefined); }, [conversation]);
   useEffect(() => { if (!visible) typing.stop(); }, [visible]);
   async function send() {
@@ -85,8 +85,8 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed, other
   }
   return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
     {proposals.some(p => !p.canonical) && <ResolveProposal conversation={conversation} resolve={resolve} />}
-    <Text accessibilityRole="header">{isReady(room) && room.existence === "present" ? room.data.title : "Conversation"}</Text>
-    <Text>{existence(room) === "loading" ? "Loading…" : existence(room) === "partial" ? "Partial results" : "denied" in room ? room.denied.message : ""}</Text><Text>{link}</Text>
+    <Text accessibilityRole="header">{matchRead(room, { present: data => data.title, denied: () => "Conversation", partial: () => "Conversation", otherwise: () => "Conversation" })}</Text>
+    <Text>{matchRead(room, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{link}</Text>
     {/* Composer lives above every transient read and the recycled message list. */}
     <TextInput testID="composer" accessibilityLabel="Message" value={draft} multiline
       onChangeText={text => { setDraft(text); typing.change(text); }} onBlur={typing.stop} />
@@ -156,7 +156,7 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
   const byId = new Map("data" in receipts ? receipts.data.map(row => [row.id, row.receipt]) : []);
   const next = "data" in history ? history.next : null;
   return <View>
-    <Text>{existence(history) === "loading" ? "Loading…" : existence(history) === "partial" ? "Partial results" : "denied" in history ? history.denied.message : ""}</Text><Text>{existence(receipts) === "loading" ? "Loading…" : existence(receipts) === "partial" ? "Partial results" : "denied" in receipts ? receipts.denied.message : ""}</Text>
+    <Text>{matchRead(history, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{matchRead(receipts, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
     {"data" in history && <FlatList testID={c ? `history-${c}` : "history"} data={rows} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
       renderItem={({ item: row }) => <View testID={`message-${row.id}`}>
         <Text>{row.text}{row.pending ? " · Sending…" : byId.has(row.id) ? ` · ${byId.get(row.id)}` : ""}</Text>

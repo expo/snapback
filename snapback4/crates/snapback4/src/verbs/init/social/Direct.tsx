@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { mintId } from "snapback4/client";
 import { useClient, usePendingWrites, useQuery, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-import { existence } from "snapback4/contract";
+import { matchRead } from "snapback4/contract";
 import { url } from "./client";
 
 // @ref LLP 3000.028#8 — resolve once into navigation; never cache protected answers.
@@ -56,5 +56,5 @@ function Resolve({ other }: { other: string }) {
       } });
     })().catch(error => { if (alive.current) setProblem(`Opening outcome unknown: ${String(error)}`); });
   }, [client, other, read, creation]);
-  return <><Text>{existence(read) === "loading" ? "Loading…" : existence(read) === "partial" ? "Partial results" : "denied" in read ? read.denied.message : ""}</Text><Text>{problem || "Opening direct message…"}</Text></>;
+  return <><Text>{matchRead(read, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{problem || "Opening direct message…"}</Text></>;
 }

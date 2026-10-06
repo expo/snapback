@@ -1,4 +1,4 @@
-import { existence, isReady } from "snapback4/contract";
+import { matchRead, isReady } from "snapback4/contract";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Button, ScrollView, Text, TextInput } from "react-native";
@@ -14,7 +14,7 @@ export default function Profile() {
   const [name, setName] = useState(""), [principal, setPrincipal] = useState("");
   return <ScrollView contentContainerStyle={{ padding: 16 }}>
     <Text selectable>{viewer}</Text><Text>Share this account ID to follow or invite.</Text>
-    <Text>{existence(profile) === "loading" ? "Loading…" : existence(profile) === "partial" ? "Partial results" : "denied" in profile ? profile.denied.message : ""}</Text>
+    <Text>{matchRead(profile, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
     {isReady(profile) && profile.existence === "present" && <><Text>{profile.data.name}</Text><Avatar id={profile.data.avatar?.id ?? null} /></>}
     <TextInput accessibilityLabel="Display name" value={name} onChangeText={setName} maxLength={80} />
     <Button title="Save profile" disabled={!name.trim() || save.inFlight} onPress={() => void save.run({ name })} />
@@ -31,6 +31,6 @@ export default function Profile() {
 function Person({ principal }: { principal: string }) {
   const profile = useQuery(api.profile, { principal });
   const name = "data" in profile ? profile.data?.name : null;
-  return <><Text>{existence(profile) === "loading" ? "Loading…" : existence(profile) === "partial" ? "Partial results" : "denied" in profile ? profile.denied.message : ""}</Text><Button title={`Message ${name ?? principal}`}
+  return <><Text>{matchRead(profile, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Button title={`Message ${name ?? principal}`}
     onPress={() => router.push({ pathname: "/dm/[other]", params: { other: principal } })} /></>;
 }
