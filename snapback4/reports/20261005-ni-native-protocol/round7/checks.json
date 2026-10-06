@@ -1,0 +1,35 @@
+{
+  "resultChecks": [
+    {
+      "backend": "convex",
+      "resultFilesMatchRetainedBinding": true,
+      "seedOnlyDiffAndFinalSeedHashMatch": true,
+      "bothActualFixtureBodiesValid": true,
+      "installedIdentitiesMatchBuild": true,
+      "allRawAssertionsUnmeasured": true
+    },
+    {
+      "backend": "snapback4",
+      "resultFilesMatchRetainedBinding": true,
+      "seedOnlyDiffAndFinalSeedHashMatch": true,
+      "bothActualFixtureBodiesValid": true,
+      "installedIdentitiesMatchBuild": true,
+      "allRawAssertionsUnmeasured": true
+    }
+  ],
+  "archiveFilesVerified": 1164,
+  "archiveBytes": 641759737,
+  "allCommittedEvidenceAtMost1MB": true,
+  "pythonSyntax": true,
+  "reportLocalLinks": true,
+  "negativeControlsRerun": false,
+  "reason": "No observation suggested a qualified control lost separation; no qualified source changed.",
+  "refCheck": {
+    "passed": true,
+    "documents": 528,
+    "references": 10421,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "gitDiffCheck": true
+}

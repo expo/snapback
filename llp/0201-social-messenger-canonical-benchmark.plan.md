@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-10-04 (link the pending NP2 native-protocol proposal; no instrument change); 2026-08-21 (o — D0.6 instrument registration: per LLP 0295
+**Revised:** 2026-10-06 (P2A Round 5 cumulative replay budget, retained Convex authoring and SB4 pre-launch fixture diagnosis); 2026-10-05 (P2A Round 4 source-refusal ruling, sealed audit inputs and diagnostic continuation); 2026-10-05 (P2A lead interpretation of native-pilot safety tokens and harness-defect void); 2026-10-04 (link the pending NP2 native-protocol proposal; no instrument change); 2026-08-21 (o — D0.6 instrument registration: per LLP 0295
 D0.6, the D2 record schema commissions per-milestone-boundary usage,
 semantic-action, episode, restart/reseed, browser-wait, host-load, and
 orientation fields, harness-native and without cross-harness normalization;
@@ -815,6 +815,87 @@ Reviews:
 **Revised:** 2026-08-08 (a — initial draft)
 
 ## Dated amendments
+
+### 2026-10-05 — P2A source-audit refusal and diagnostic continuation
+
+Round 4 lead ruling: retain SB4's native outcome as
+`handoff-refused-by-source-audit`, not a void or setup failure. Its send awaits
+the observation journal and its oracle's SDK query can post delivery receipts.
+Preserve every original finding and record one initial re-audit with the exact
+sealed contents/hash of mandated `~/.snapback-env.sh`. Both lanes' auditors
+must admit that operator input, distinguish fixed operator environment choices
+from builder-authored binary substitutions, and still flag the latter.
+
+Continue unchanged Convex authoring and gating after-builder, then run the full
+SB4 operator path on the retained work copy, with a recorded non-gating prepared
+audit. Every artifact is `diagnostic: audit-refused, never admissible, no pass
+claimed`. This is neither a product retry nor a setup rerun; preserve the builder
+tree and all failures. Earlier setup failures cannot drop the diagnostic unless
+the host/simulator is unusable. [Revision 5](../benchmarks/native/0.4.0-native.1/pilot/REVISION-5.md)
+records the sealed amendment, custody admission, labeling and serial continuation.
+
+### 2026-10-06 — cumulative native-pilot replay budget and both authoring records retained
+
+P2A Round 5 supersedes the single-interval restriction below: any number of
+non-overlapping replay intervals after the M6 boundary share one cumulative
+14,400-second ceiling, including the inherited brief's required post-M8 rerun.
+An interval end or milestone transition cannot reset it. Adapter authoring
+and token accounting remain within their existing milestone budgets.
+
+Convex completed its M6 replay (1875.4523 supervisor seconds), reached M8
+terminal green at 1791242650, and was terminated for requesting its second
+replay at 1791242650.875353. Reclassify it as completed authoring; post-M8
+replay not executed and essay/final report absent due to the harness; no
+setup rerun consumed. Preserve its original logs, lane and M6 replay. The
+post-M8 replay/report asymmetry with SB4 is resolved, without claiming equal
+total replay evidence. Admit Convex through the ordinary gating native path.
+
+SB4's retained diagnostic reveals a builder seed fixture defect before
+launch, not a launch crash: its queued bodies violate the qualified nonce
+contract. The later XCTest snapshot and missing-simctl diagnostics are
+secondary. No launch-environment repair justifies a diagnostic rerun.
+The qualified schema's refusal of legitimately empty launches is recorded
+for Phase-2 triage; no qualified bytes change. See
+[revision 6](../benchmarks/native/0.4.0-native.1/pilot/REVISION-6.md) for custody,
+evidence and the one-use Convex continuation.
+
+### 2026-10-05 — completed native-pilot authoring survives replay harness defect
+
+Historical P2A Round 3 ruling (single-interval rule superseded above): replay adapter authoring belongs to M6's budget;
+replay execution may run once during M6 or after M8 on its separate four-hour
+clock. Repeated/reset intervals remain forbidden. The revision-3 Snapback 4
+builder reached M8 green at 1791231956, then the harness incorrectly rejected
+its replay-start request at 1791231965.8406022. Retain and measure that completed
+authoring through the ordinary native custody/build/driver/validation path;
+do not void it or charge a setup rerun. Preserve the original stopped tree and
+historical termination, with a sealed, verifiable reclassification and one-shot
+chain resume. O5 is not-executed (harness defect); essay.md and final-report.md
+are absent for the same reason. Convex keeps its original prompt and inputs
+under the corrected rule. Disclose this asymmetry; native measurement remains
+unchanged. [Revision 4](../benchmarks/native/0.4.0-native.1/pilot/REVISION-4.md)
+records the custody basis, authored build-wrapper admission and retained seals.
+
+### 2026-10-05 — native-pilot safety accounting (P2A lead ruling)
+
+For the unscored native qualification pilot only, interpret D7's 2M-token
+safety ceiling as **non-cached input plus output**. Cache reads and cache writes
+are retained in full per phase and never capped; reasoning is part of output,
+not an additional charge. The Codex adapter already separates both cache buckets
+from input, so the harness caps its normalized `input + output`. The four-hour
+wall ceiling per milestone and separate replay wall ceiling are unchanged.
+This is a disclosed pilot interpretation, not a rewrite of historical scored
+accounting or previously frozen instruments.
+
+The 2026-10-05 first Snapback native-pilot attempt was voided for two harness
+defects: cache reads prematurely exhausted the token ceiling, and incomplete
+process cleanup left the builder's own dev server occupying its assigned port.
+At 409 seconds it had 135,613 non-cached tokens, not 2,009,917 capped tokens.
+Retain the complete attempt as a **harness-defect void**, with no product outcome
+and zero setup reruns consumed. Restart from a pristine authoring lane only after
+preserving the original seal and disclosing/resealing the harness revision.
+[The P2A revision record](../benchmarks/native/0.4.0-native.1/pilot/REVISION-2.md)
+documents custody, review findings, corrections and restart admission. Qualified
+native driver/validator/helper/kit bytes remain unchanged.
 
 ### 2026-10-04 — native protocol proposal, awaiting owner ruling
 

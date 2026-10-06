@@ -1,0 +1,15 @@
+{
+  "archiveHost": "eb1000",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-p2/round7",
+  "fileCount": 1164,
+  "totalBytes": 641759737,
+  "chunks": [
+    {
+      "path": "archive-index-000.jsonl",
+      "bytes": 207541,
+      "sha256": "eae6855e8839b12319605c725eed1c0de98038feccbf53de05d6f2b980afc957"
+    }
+  ],
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "note": "Round-7 result booleans are diagnostic observations only. Historical authoring/qualification records retain their original classifications."
+}

@@ -1,0 +1,17 @@
+{
+  "source": "/Users/ccheever/clique-native-pilot-20261005/lanes/convex",
+  "work": "/tmp/clique-round7-convex-ry8co7t_/app",
+  "links": [
+    {
+      "path": ".native-derived/ModuleCache.noindex/1T2E4KWDWVLBB/ExpoAsset-1KL7LVOC61JSP.pcm.lock",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/convex/.native-derived/ModuleCache.noindex/1T2E4KWDWVLBB/ExpoAsset-1KL7LVOC61JSP.pcm.lock-9fdd6644",
+      "after": "ExpoAsset-1KL7LVOC61JSP.pcm.lock-9fdd6644"
+    },
+    {
+      "path": ".native-derived/ModuleCache.noindex/29EZ9XY596WFL/RNScreens-3HUHPULMGBJWK.pcm.lock",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/convex/.native-derived/ModuleCache.noindex/29EZ9XY596WFL/RNScreens-3HUHPULMGBJWK.pcm.lock-424f069a",
+      "after": "RNScreens-3HUHPULMGBJWK.pcm.lock-424f069a"
+    }
+  ],
+  "scope": "internal link relocation only; original lane and custody unchanged"
+}

@@ -1,0 +1,7 @@
+{
+  "exitCode": 2,
+  "valid": false,
+  "pass": null,
+  "reason": "schema-invalid:run:launches",
+  "requiredForGreen": false
+}

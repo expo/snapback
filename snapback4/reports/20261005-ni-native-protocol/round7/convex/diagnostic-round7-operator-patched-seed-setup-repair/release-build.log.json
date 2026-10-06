@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "bash",
+    "scripts/native-build.sh",
+    "/tmp/clique-round7-convex-r2t8ufix/DerivedData"
+  ],
+  "cwd": "/tmp/clique-round7-convex-r2t8ufix/app",
+  "start": 1791260922.359864,
+  "end": 1791261034.2728162,
+  "wallSeconds": 111.91295218467712,
+  "exitCode": 0,
+  "pid": 98000,
+  "error": null
+}

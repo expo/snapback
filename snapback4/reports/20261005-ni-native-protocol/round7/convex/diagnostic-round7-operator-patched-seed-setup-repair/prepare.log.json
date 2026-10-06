@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/sandbox-exec",
+    "-f",
+    "/tmp/clique-round7-convex-r2t8ufix/protect-originals.sb",
+    "bash",
+    "scripts/native-prepare.sh"
+  ],
+  "cwd": "/tmp/clique-round7-convex-r2t8ufix/app",
+  "start": 1791260686.3491142,
+  "end": 1791260712.366542,
+  "wallSeconds": 26.017427921295166,
+  "exitCode": 0,
+  "pid": 95010,
+  "error": null
+}

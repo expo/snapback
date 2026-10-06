@@ -1,0 +1,16 @@
+{
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "backend": "convex",
+  "startedAt": 1791260018.905112,
+  "segments": {},
+  "admissible": false,
+  "passClaimed": false,
+  "scoredUse": false,
+  "nativeOutcome": "handoff-refused-by-source-audit",
+  "outcome": "diagnostic-incomplete",
+  "failureStage": "release-build",
+  "reason": "command-failed:/Users/ccheever/clique-native-pilot-20261005/results/convex/diagnostic-round7-operator-patched-seed/release-build.log",
+  "endedAt": 1791260456.75554,
+  "operatorWallSeconds": 437.85042786598206,
+  "retainedScratch": "/tmp/clique-round7-convex-ry8co7t_"
+}

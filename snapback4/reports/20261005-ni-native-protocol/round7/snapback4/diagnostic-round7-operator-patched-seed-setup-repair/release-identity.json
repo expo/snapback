@@ -1,0 +1,15 @@
+{
+  "bundleId": "dev.clique.pilot.snapback4",
+  "nativeSha256": "146232a37edd617b014edef016966e0b6ee9f54fb898017c94dfc72af1f0b70d",
+  "hermesSha256": "4aaff63c52a905c484f2301d74062eb2a0fff2b012ee06e399e451675356857d",
+  "platform": {
+    "platform": "iphonesimulator",
+    "archs": [
+      "arm64"
+    ],
+    "configuration": "Release",
+    "arm64BuildVersion": "/private/tmp/clique-round7-snapback4-v71yzdzv/DerivedData/Build/Products/Release-iphonesimulator/Clique.app/Clique (architecture arm64):\nLoad command 11\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOSSIMULATOR\n    minos 16.4\n      sdk 27.0\n   ntools 1\n     tool LD\n  version 27037.1\n",
+    "derivedData": "/tmp/clique-round7-snapback4-v71yzdzv/DerivedData",
+    "installation": "qualified driver installs and verifies identity on dedicated UDID before seeding"
+  }
+}

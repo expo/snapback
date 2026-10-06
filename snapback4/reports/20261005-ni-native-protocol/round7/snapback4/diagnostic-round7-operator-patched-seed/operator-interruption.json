@@ -1,0 +1,5 @@
+{
+  "at": 1791260535.715511,
+  "reason": "operator-only nested sandbox repair; interrupted before prepare/build/native execution",
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed"
+}

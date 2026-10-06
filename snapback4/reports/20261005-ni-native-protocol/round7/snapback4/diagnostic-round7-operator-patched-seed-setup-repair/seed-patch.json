@@ -1,0 +1,21 @@
+{
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "changedPaths": [
+    "scripts/native-seed.mjs"
+  ],
+  "before": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 3032,
+    "sha256": "224384635181686a88e47d80e5b6e3116fa6ab1b8952479ba1db0e7719e093e3"
+  },
+  "after": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 3004,
+    "sha256": "0c2c51f5ee2b1df1c5b597c12087a95af8dc81efccbae57d4e1c163a20ca90a2"
+  },
+  "diffSha256": "3cdad9a4bb97886c73215ad7da3a0308d93c87ed1c084a238783f03ade9b7e85",
+  "custodyManifest": "/Users/ccheever/clique-native-pilot-20261005/results/snapback4/attempt-01/custody.clone.json",
+  "custodyManifestSha256": "107f32dde8d16fe3c1b98a64e35b456f7f734e7c5024c2a6dd43db7d77292b20"
+}

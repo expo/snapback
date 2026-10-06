@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/sandbox-exec",
+    "-f",
+    "/tmp/clique-round7-snapback4-v71yzdzv/protect-originals.sb",
+    "bash",
+    "scripts/native-prepare.sh"
+  ],
+  "cwd": "/tmp/clique-round7-snapback4-v71yzdzv/app",
+  "start": 1791261309.229695,
+  "end": 1791261347.275747,
+  "wallSeconds": 38.04605197906494,
+  "exitCode": 0,
+  "pid": 7344,
+  "error": null
+}

@@ -1,0 +1,26 @@
+{
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "admissible": false,
+  "passClaimed": false,
+  "driverExit": 0,
+  "driverStatus": {
+    "id": "ios-simulator-m8",
+    "pass": null,
+    "receipt": "m8-ios-run.json",
+    "reason": "sign-in",
+    "requiredForGreen": false,
+    "cost": {
+      "wallSeconds": 55.011,
+      "nativeCommands": 6,
+      "enteredSteps": 0,
+      "operatorInvocations": 1
+    }
+  },
+  "validation": {
+    "exitCode": 0,
+    "valid": true,
+    "pass": null,
+    "reason": "sign-in",
+    "requiredForGreen": false
+  }
+}

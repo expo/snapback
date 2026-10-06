@@ -1,0 +1,9 @@
+--- a/scripts/native-seed.mjs
++++ b/scripts/native-seed.mjs
+@@ -17,5 +17,5 @@
+  for(let i=0;i<90;i++)await put(i%2?alice:bob,key('row:'+i),'Conversation history row '+i+' '+input.runId);
+  async function image(which,path,once){const messageId=key(which),bytes=await readFile(path);let row=(await query(bob.client,'messageById',{message:messageId})).data;if(!row){const u=await bob.client.upload(new Blob([bytes],{type:'image/png'}));if(!u.ok)throw Error(u.why.code);await mutate(bob.client,once?'sendOnce':'sendMedia',{messageId,conversation:conversationId,text:once?'One look':'An ordinary photo',photo:{id:u.asset.id},...once?{}:{video:null,poster:null}},{id:key('write:'+which)});row=(await query(bob.client,'messageById',{message:messageId})).data}return {messageId,assetId:(once?row.oncePhoto:row.photo).id,sha256:createHash('sha256').update(bytes).digest('hex')}}
+  const ordinary=await image('ordinary','native-fixtures/ordinary.png',false),viewOnce=await image('once','native-fixtures/once.png',true);
+- console.log(JSON.stringify({protocol:input.protocol,runId:input.runId,bundleId:input.bundleId,origin:input.origin,alice:alice.session.principal,bob:bob.session.principal,conversationId,chatValue:'dm:bob',history,ordinary,viewOnce,search:{token:'coffeetrail',messageId:history.messageId},queuedBodies:['Native queued first '+input.runId,'Native queued second '+input.runId]}));
++ console.log(JSON.stringify({protocol:input.protocol,runId:input.runId,bundleId:input.bundleId,origin:input.origin,alice:alice.session.principal,bob:bob.session.principal,conversationId,chatValue:'dm:bob',history,ordinary,viewOnce,search:{token:'coffeetrail',messageId:history.messageId},queuedBodies:[input.runId+':first',input.runId+':second']}));
+ }finally{await alice.client.close();await bob.client.close()}

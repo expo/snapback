@@ -1,0 +1,94 @@
+{
+  "version": "0.4.0-native.1",
+  "protocol": "clique-native/1",
+  "runId": "b8294599-f9ed-45c6-999f-39bec7c64b09",
+  "segment": "m6",
+  "qualificationOnly": true,
+  "instrument": {
+    "commit": "958f7bf4a9cdf8732fc0b74914b2c05b9d90896b",
+    "inventorySha256": "88aeda6949779dfa06b81a6fcf179630184621bca5384e341a584c60e71672f6",
+    "instrumentPin": "social-messenger@0.4.0-native.1",
+    "scoredUse": false
+  },
+  "driverSourceSha256": "d87a505830d02b5ba07a566dce77c37e13ce6649b39d0d17fc011853443773e5",
+  "driverBinarySha256": "ab31fc90aa1265e49d1c14b6f7bb0aaa6555fc07c031d4e68d8be38ad0fab7f9",
+  "build": {
+    "bundleId": "dev.clique.pilot.snapback4",
+    "nativeSha256": "146232a37edd617b014edef016966e0b6ee9f54fb898017c94dfc72af1f0b70d",
+    "hermesSha256": "4aaff63c52a905c484f2301d74062eb2a0fff2b012ee06e399e451675356857d"
+  },
+  "installedBefore": {
+    "bundleId": "dev.clique.pilot.snapback4",
+    "nativeSha256": "146232a37edd617b014edef016966e0b6ee9f54fb898017c94dfc72af1f0b70d",
+    "hermesSha256": "4aaff63c52a905c484f2301d74062eb2a0fff2b012ee06e399e451675356857d"
+  },
+  "installedAfter": {
+    "bundleId": "dev.clique.pilot.snapback4",
+    "nativeSha256": "146232a37edd617b014edef016966e0b6ee9f54fb898017c94dfc72af1f0b70d",
+    "hermesSha256": "4aaff63c52a905c484f2301d74062eb2a0fff2b012ee06e399e451675356857d"
+  },
+  "simulator": {
+    "udid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+  },
+  "host": {
+    "name": "MacMini-Apt101-M5-A",
+    "xcode": "Xcode 27.0\nBuild version 27A266a"
+  },
+  "backend": {
+    "argv": [
+      "bash",
+      "scripts/native-backend.sh",
+      "/tmp/clique-round7-snapback4-v71yzdzv/m6-store",
+      "http://127.0.0.1:49540"
+    ],
+    "origin": "http://127.0.0.1:49540",
+    "cwd": "/tmp/clique-round7-snapback4-v71yzdzv/app"
+  },
+  "storeBefore": {
+    "path": "/private/tmp/clique-round7-snapback4-v71yzdzv/m6-store",
+    "device": 16777233,
+    "inode": 138687600
+  },
+  "storeAfter": {
+    "path": "/private/tmp/clique-round7-snapback4-v71yzdzv/m6-store",
+    "device": 16777233,
+    "inode": 138687600
+  },
+  "launches": [
+    {
+      "processNonce": "fe70ffe1-000f-4d43-8bbb-1d1c246f5e6a",
+      "at": 1791261632.027329
+    }
+  ],
+  "prime": {
+    "complete": false
+  },
+  "steps": [],
+  "offlineProbes": [],
+  "assertionEvidence": {},
+  "video": null,
+  "reinstalledDuringMeasurement": false,
+  "failure": {
+    "reason": "sign-in",
+    "outcomeClass": "setup"
+  },
+  "cost": {
+    "wallSeconds": 55.686,
+    "nativeCommands": 6,
+    "enteredSteps": 0,
+    "operatorInvocations": 1
+  },
+  "files": {
+    "backend.log": "cf62edea1baa12641bc8286acfdc91353a903d1a65556c15c47e4225f0b655ea",
+    "xctest.log": "0acd42546955dc3c0de7c3aed3db9235ddedff3df28ecb88459edb929e35d88d",
+    "viewonce-fixture.png": "f0e403aaa541a4d50b35dc46ccc01c9903c96106faaa70ab96d69cb8887d44ef",
+    "native-fixture.json": "95dee0342e7da03c4981b896bd76261ffabe84343f0ddd75a3134bfa69c2ae08",
+    "failure.png": "454eac022537bd002cdf91c544eccd8b5b69b826e03aa99f38fe9fa320c74333",
+    "failure.json": "07f7983198bce41da2844945fc45dd59b74450740074da57e204ed2ccb6549b7",
+    "ordinary-fixture.png": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+    "host.jsonl": "fece7a2b7855160d14aa7740922f00eb7aa8ba7661ebc5a13ddcba56d195f6a4",
+    "native-observations.jsonl": "82bb078f9b42833996df0c7b322a7f01d6fbc9d9d62d740bf306ecf502a006cb",
+    "m6-ios-receipts.jsonl": "da8cf2ee6d2439e095d03901cc2c3b1c30a94f5a46a1410670fd8c16dee18e09"
+  }
+}

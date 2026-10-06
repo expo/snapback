@@ -1,0 +1,106 @@
+{
+  "valid": true,
+  "backend": "convex",
+  "work": "/tmp/clique-round7-convex-r2t8ufix/app",
+  "scratch": "/tmp/clique-round7-convex-r2t8ufix",
+  "checks": [
+    {
+      "gate": "handoff-json",
+      "admitted": true
+    },
+    {
+      "gate": "bundle-id",
+      "admitted": true
+    },
+    {
+      "gate": "work-copy-symlinks",
+      "admitted": true
+    },
+    {
+      "gate": "m6:prepareArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:buildArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:backendArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:webArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:seedArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:oracleArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m6:backend-binding",
+      "admitted": true
+    },
+    {
+      "gate": "m8:prepareArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:buildArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:backendArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:webArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:seedArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:oracleArgv",
+      "admitted": true
+    },
+    {
+      "gate": "m8:backend-binding",
+      "admitted": true
+    },
+    {
+      "gate": "app-path",
+      "admitted": true
+    },
+    {
+      "gate": "fresh-derived-data",
+      "admitted": true
+    },
+    {
+      "gate": "build-wrapper-or-direct-target",
+      "admitted": true
+    },
+    {
+      "gate": "ordinaryImage",
+      "admitted": true
+    },
+    {
+      "gate": "viewOnceImage",
+      "admitted": true
+    }
+  ],
+  "refusals": [],
+  "existingDerivedData": false,
+  "freshnessRequired": true,
+  "sourceAuditRequired": true,
+  "deferred": [
+    "gating source audit and prepared-source audit",
+    "prepared project and dependency inputs",
+    "built simulator arm64 Release identity",
+    "dedicated simulator installation and driver evidence"
+  ]
+}

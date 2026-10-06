@@ -1,0 +1,941 @@
+{
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "reviewer": "P2A operator",
+  "segments": [
+    {
+      "backend": "convex",
+      "segment": "m6",
+      "driver": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "selector-not-hittable",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 85.061,
+          "nativeCommands": 4,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "exitCode": 2,
+        "valid": false,
+        "pass": null,
+        "reason": "schema-invalid:run:launches",
+        "requiredForGreen": false
+      },
+      "prime": {
+        "complete": false
+      },
+      "qualifiedHelperLaunches": [],
+      "assertions": {
+        "m6-a01": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a02": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a04": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a03": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a05": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a06": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m6-a07": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        }
+      },
+      "protocolVideoExists": false,
+      "fullVideoInspection": "all retained XCTest frames visually inspected",
+      "falsePassObserved": false,
+      "falseFailObserved": false,
+      "unmeasuredWhenMeasurableObserved": false,
+      "conversationAndRecycledRows": "not reached; no exposure claim",
+      "fileBindings": {
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/m6-ios-run.json": "654469f5b1fba6fa2324b4e34d15852e1acc2ecfbfd9f2627d9c3d2325d6a7f2",
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/m6-ios-receipts.jsonl": "0971e8cfe593adff30aa97d389f3ab88b03624fff8aee4073196a7830084081b",
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m6/independent-validation.json": "5f2dab1bdc479296599ce289231e43421c916c8c3133f94fa9529967504b87f5"
+      },
+      "nativeTreeNodesInspected": 0,
+      "nativeTreeMissingReason": "App exited; failed XCTest query-chain descriptions retained instead"
+    },
+    {
+      "backend": "convex",
+      "segment": "m8",
+      "driver": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "selector-not-hittable",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 83.129,
+          "nativeCommands": 4,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "exitCode": 2,
+        "valid": false,
+        "pass": null,
+        "reason": "schema-invalid:run:launches",
+        "requiredForGreen": false
+      },
+      "prime": {
+        "complete": false
+      },
+      "qualifiedHelperLaunches": [],
+      "assertions": {
+        "m8-a17": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        },
+        "m8-a18": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; app exits at launch"
+        }
+      },
+      "protocolVideoExists": false,
+      "fullVideoInspection": "all retained XCTest frames visually inspected",
+      "falsePassObserved": false,
+      "falseFailObserved": false,
+      "unmeasuredWhenMeasurableObserved": false,
+      "conversationAndRecycledRows": "not reached; no exposure claim",
+      "fileBindings": {
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/m8-ios-run.json": "9556d6c6e40915cca05b6acace8958035f15a4c6ba2efa43ead39046d6892708",
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/m8-ios-receipts.jsonl": "ebf3cd3deedb50547f8bd4a386b19f40373f5b3e3c871ebeb7241cb12056ae54",
+        "results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m8/independent-validation.json": "5f2dab1bdc479296599ce289231e43421c916c8c3133f94fa9529967504b87f5"
+      },
+      "nativeTreeNodesInspected": 0,
+      "nativeTreeMissingReason": "App exited; failed XCTest query-chain descriptions retained instead"
+    },
+    {
+      "backend": "snapback4",
+      "segment": "m6",
+      "driver": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "sign-in",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.686,
+          "nativeCommands": 6,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "exitCode": 0,
+        "valid": true,
+        "pass": null,
+        "reason": "sign-in",
+        "requiredForGreen": false
+      },
+      "prime": {
+        "complete": false
+      },
+      "qualifiedHelperLaunches": [
+        {
+          "processNonce": "fe70ffe1-000f-4d43-8bbb-1d1c246f5e6a",
+          "at": 1791261632.027329
+        }
+      ],
+      "assertions": {
+        "m6-a01": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a02": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a04": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a03": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a05": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a06": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m6-a07": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        }
+      },
+      "protocolVideoExists": false,
+      "fullVideoInspection": "unavailable: no protocol video; XCTest attachment export empty",
+      "falsePassObserved": false,
+      "falseFailObserved": false,
+      "unmeasuredWhenMeasurableObserved": false,
+      "conversationAndRecycledRows": "not reached; no exposure claim",
+      "fileBindings": {
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/failure.png": "454eac022537bd002cdf91c544eccd8b5b69b826e03aa99f38fe9fa320c74333",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/failure.json": "07f7983198bce41da2844945fc45dd59b74450740074da57e204ed2ccb6549b7",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/native-observations.jsonl": "82bb078f9b42833996df0c7b322a7f01d6fbc9d9d62d740bf306ecf502a006cb",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/m6-ios-run.json": "3671e75978051084a7eedd98835bb791318c33b8d639422c29c01ccc15d6e535",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/evidence/m6-ios-receipts.jsonl": "da8cf2ee6d2439e095d03901cc2c3b1c30a94f5a46a1410670fd8c16dee18e09",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m6/independent-validation.json": "334db6d62b415d92559a7ee45718cc947a1f29100075306731854d5d94d5b80f"
+      },
+      "nativeTreeNodesInspected": 87,
+      "nativeIDs": {
+        "sm-auth": 1,
+        "sm-auth-email": 1,
+        "sm-auth-password": 1,
+        "sm-auth-error": 1,
+        "sm-auth-submit": 1,
+        "sm-auth-toggle": 1,
+        "inputView": 1,
+        "SystemInputAssistantView": 1,
+        "CenterPageView": 1,
+        "kb-autofill-key": 1,
+        "UIKeyboardLayoutStar Preview": 1,
+        "shift": 1,
+        "delete": 1,
+        "more": 1,
+        "space": 1,
+        "Return": 1,
+        "dictation": 1
+      },
+      "visibleError": [
+        "FunctionCallException: Calling the 'getValueWithKeyAsync' function has failed (at ExpoModulesCore/AsyncFunctionDefinition.swift:123)\n\u2192 Caused by: KeyChainException: A required entitlement is not present. (at ExpoSecureStore/SecureStoreModule.swift:168)"
+      ]
+    },
+    {
+      "backend": "snapback4",
+      "segment": "m8",
+      "driver": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "sign-in",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 55.011,
+          "nativeCommands": 6,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "exitCode": 0,
+        "valid": true,
+        "pass": null,
+        "reason": "sign-in",
+        "requiredForGreen": false
+      },
+      "prime": {
+        "complete": false
+      },
+      "qualifiedHelperLaunches": [
+        {
+          "processNonce": "3dc462a9-3a39-4ebc-bb53-8a6a203308a5",
+          "at": 1791261688.051384
+        }
+      ],
+      "assertions": {
+        "m8-a17": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        },
+        "m8-a18": {
+          "rawPass": null,
+          "judgmentMatchesAvailableEvidence": true,
+          "basis": "No authenticated prime or measured steps; rendered auth error prevents sign-in"
+        }
+      },
+      "protocolVideoExists": false,
+      "fullVideoInspection": "unavailable: no protocol video; XCTest attachment export empty",
+      "falsePassObserved": false,
+      "falseFailObserved": false,
+      "unmeasuredWhenMeasurableObserved": false,
+      "conversationAndRecycledRows": "not reached; no exposure claim",
+      "fileBindings": {
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/failure.png": "e6d6b1ff85b06642f6fd145fe6c1ed04d03a7ac5666b96c0085197517f301463",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/failure.json": "d0b2b261e5eaefecebd8bc482fc49befbb8880ef3312943f9045eae9b7aaf7f3",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/native-observations.jsonl": "268a5b56ca4c3893ea8b610db0b90220c16cc342a7ca282f52199571400f7020",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/m8-ios-run.json": "e87e5dcf7bdef0773930f24caa415b49241c3659386f55731096e8e69b08b782",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/evidence/m8-ios-receipts.jsonl": "f384c668df1185815ba2a13d946c195ad8ecb6f0a281294b897e8a027ee3e05a",
+        "results/snapback4/diagnostic-round7-operator-patched-seed-setup-repair/m8/independent-validation.json": "334db6d62b415d92559a7ee45718cc947a1f29100075306731854d5d94d5b80f"
+      },
+      "nativeTreeNodesInspected": 87,
+      "nativeIDs": {
+        "sm-auth": 1,
+        "sm-auth-email": 1,
+        "sm-auth-password": 1,
+        "sm-auth-error": 1,
+        "sm-auth-submit": 1,
+        "sm-auth-toggle": 1,
+        "inputView": 1,
+        "SystemInputAssistantView": 1,
+        "CenterPageView": 1,
+        "kb-autofill-key": 1,
+        "UIKeyboardLayoutStar Preview": 1,
+        "shift": 1,
+        "delete": 1,
+        "more": 1,
+        "space": 1,
+        "Return": 1,
+        "dictation": 1
+      },
+      "visibleError": [
+        "FunctionCallException: Calling the 'getValueWithKeyAsync' function has failed (at ExpoModulesCore/AsyncFunctionDefinition.swift:123)\n\u2192 Caused by: KeyChainException: A required entitlement is not present. (at ExpoSecureStore/SecureStoreModule.swift:168)"
+      ]
+    }
+  ],
+  "videoDecode": [
+    {
+      "video": "convex/m6/attachments/B2B63989-14B0-47FE-939C-F8C534FC349F.mp4",
+      "sha256": "11e909e9ff4147d4d16a6cd8866f88604b71d5f3cc09790e5b7ccde9fe127c37",
+      "declaredFrames": 58,
+      "decodedFrames": 58,
+      "everyFrameIncluded": true,
+      "pages": [
+        "convex/m6/all-frames/page-00.jpg",
+        "convex/m6/all-frames/page-01.jpg",
+        "convex/m6/all-frames/page-02.jpg"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "seconds": 2.5183333333333335,
+          "decodedPixelsSha256": "b42fc3174f1b11be5dd3d5768399e81f6a794286d6e9655700ea95ae682a8935"
+        },
+        {
+          "index": 1,
+          "seconds": 3.3333333333333335,
+          "decodedPixelsSha256": "c0f066c89ce441123fbe70cf3ac7e2c160d33319efd981db1c1c0d22fbf3c40e"
+        },
+        {
+          "index": 2,
+          "seconds": 3.3350000000000004,
+          "decodedPixelsSha256": "49e9458bb4319bd9606c201bb961600cdc2bea5ddd79ced00dfa729e1498138c"
+        },
+        {
+          "index": 3,
+          "seconds": 3.3400000000000003,
+          "decodedPixelsSha256": "3b9b5b628ad526096f44e4579bf0e029a65b3e9de81497f2566a4822807113f8"
+        },
+        {
+          "index": 4,
+          "seconds": 3.351666666666667,
+          "decodedPixelsSha256": "53fe736100393af748e010dff57fccf08685b9a0c77bc960225d43a114679b64"
+        },
+        {
+          "index": 5,
+          "seconds": 3.3666666666666667,
+          "decodedPixelsSha256": "44af9815558487ede24da42256be90ea6da2ffde5242ae5c281fcf0b43b31ff3"
+        },
+        {
+          "index": 6,
+          "seconds": 3.3866666666666667,
+          "decodedPixelsSha256": "3c55b31deae347b9ebc6125fd0f9d5eed476f67fe5bc0ffa326ba19cd3a7ba47"
+        },
+        {
+          "index": 7,
+          "seconds": 3.401666666666667,
+          "decodedPixelsSha256": "36a3c42182e0ea58a772e0d7147e1748345f4d273872a144993fa7ae61a305fc"
+        },
+        {
+          "index": 8,
+          "seconds": 3.421666666666667,
+          "decodedPixelsSha256": "c15082250370fb8d9b3a26d411213bb84dd0cd5a5258d3fc8df0848f8efd60be"
+        },
+        {
+          "index": 9,
+          "seconds": 3.435,
+          "decodedPixelsSha256": "5ea1e4c0bd7aff8343e66628e116cb1089a05911fc1570cdde9fbcf1a3f9f38f"
+        },
+        {
+          "index": 10,
+          "seconds": 3.451666666666667,
+          "decodedPixelsSha256": "5b7d4f05a37af436bd72e92f44d4180fd93cc574e76791e343cd9ee9b42bef4b"
+        },
+        {
+          "index": 11,
+          "seconds": 3.468333333333334,
+          "decodedPixelsSha256": "71a3f8d36aa56ca6e814e1e16148b472766bc7fc162a37fadb859c18b0a02964"
+        },
+        {
+          "index": 12,
+          "seconds": 3.4850000000000003,
+          "decodedPixelsSha256": "2ebbedc46cef0fda110b2545921ea84e388ef614fa74698dddd269d5e1011bf5"
+        },
+        {
+          "index": 13,
+          "seconds": 3.501666666666667,
+          "decodedPixelsSha256": "717fdea844df9f8df9a6af61e5e3d8c6e0bab752dc538d7019b1abd2c966ce24"
+        },
+        {
+          "index": 14,
+          "seconds": 3.5183333333333335,
+          "decodedPixelsSha256": "a52b8c0ff18792095375d529ae7664f332213657bd44833946d68001868088a9"
+        },
+        {
+          "index": 15,
+          "seconds": 3.535,
+          "decodedPixelsSha256": "b44803edb00a66fa14406e5168c6c11440c45d49ff577fa35f344be5a8f61caa"
+        },
+        {
+          "index": 16,
+          "seconds": 3.5516666666666667,
+          "decodedPixelsSha256": "c0fd4c49dea18825edec8ae68dd467d667ddae38f002a33f309e3cc528d5a752"
+        },
+        {
+          "index": 17,
+          "seconds": 3.5683333333333334,
+          "decodedPixelsSha256": "c164014e6457dd0cbec226acd7840a4f87c7b4a732e38170d5361e78fc1185a7"
+        },
+        {
+          "index": 18,
+          "seconds": 3.586666666666667,
+          "decodedPixelsSha256": "03c85418aa32f3fbef045f928be27164d7e5327554d52ddd3f93d98cbd5853d7"
+        },
+        {
+          "index": 19,
+          "seconds": 3.6050000000000004,
+          "decodedPixelsSha256": "f7980acb1230a20cf18997e7d11a55a0c6b3aaed1b8a4968405506ae8d645595"
+        },
+        {
+          "index": 20,
+          "seconds": 3.6233333333333335,
+          "decodedPixelsSha256": "674839d54d4de0eaf5ef6f32ea94d1ceecde572896c8d1f59358760f88ad9eb1"
+        },
+        {
+          "index": 21,
+          "seconds": 3.6383333333333336,
+          "decodedPixelsSha256": "57d4042f45efab4d0004c1acdc91b444493ea3041ea851d0c829aa6a1bb3405a"
+        },
+        {
+          "index": 22,
+          "seconds": 3.651666666666667,
+          "decodedPixelsSha256": "680fdad2f5a7afba4942cd3287083a57bfeca5d89e78616af209c8ee5d3bf0bf"
+        },
+        {
+          "index": 23,
+          "seconds": 3.6683333333333334,
+          "decodedPixelsSha256": "dea51b84ada7fe444658d7ab6ca7e9b538fe4b88defe6b57bcf8e6b56951c5ac"
+        },
+        {
+          "index": 24,
+          "seconds": 3.685,
+          "decodedPixelsSha256": "e05643dafe712a9bb41b4122fb86bffa0b760b78492c34d6285e687020dcc563"
+        },
+        {
+          "index": 25,
+          "seconds": 3.7033333333333336,
+          "decodedPixelsSha256": "47816c80a5c813037f104f428201437a0cb66d8e9db3f07fb0ae129be3407419"
+        },
+        {
+          "index": 26,
+          "seconds": 3.718333333333334,
+          "decodedPixelsSha256": "00bb1f8ee67904c3a7d14b908caf32224f420d2222e1b4f5dad11c7c68593e12"
+        },
+        {
+          "index": 27,
+          "seconds": 3.7350000000000003,
+          "decodedPixelsSha256": "999fa226eea311b0e42cb99263527648919c18bc1615b3b40e80aa202dd6d925"
+        },
+        {
+          "index": 28,
+          "seconds": 3.7533333333333334,
+          "decodedPixelsSha256": "624aa721d677af95aa5677cabc4e4f9fbf30c44108da4cd3dfb46521a46627c4"
+        },
+        {
+          "index": 29,
+          "seconds": 3.765,
+          "decodedPixelsSha256": "9a76a4c3b187863141db7d1e53da03adc8d75bff3d7a663c0e6097f4bf977ee0"
+        },
+        {
+          "index": 30,
+          "seconds": 3.7816666666666667,
+          "decodedPixelsSha256": "e374c35ff23f46dd64cb3d303eddf2edf626b4fb98d632e5598932c073b5ef36"
+        },
+        {
+          "index": 31,
+          "seconds": 3.798333333333334,
+          "decodedPixelsSha256": "de2d1dceb8ef2d5c3c7570c5b8e0d5bd5865238c9db3b68dfc5dfef46a080981"
+        },
+        {
+          "index": 32,
+          "seconds": 3.816666666666667,
+          "decodedPixelsSha256": "aa0192bbe41bf86750c7b1c5c553c157302d5572d093a39424d365aff9fe751f"
+        },
+        {
+          "index": 33,
+          "seconds": 3.831666666666667,
+          "decodedPixelsSha256": "ea507d81baabbcbc8718a3d811b46dd8e9c08ce696dc4b44a9753e28251cd385"
+        },
+        {
+          "index": 34,
+          "seconds": 3.9466666666666668,
+          "decodedPixelsSha256": "00604d653a5071046095064a8517bf985d6844fe7c590bc561c8cdef2e671d43"
+        },
+        {
+          "index": 35,
+          "seconds": 4.648333333333333,
+          "decodedPixelsSha256": "00604d653a5071046095064a8517bf985d6844fe7c590bc561c8cdef2e671d43"
+        },
+        {
+          "index": 36,
+          "seconds": 4.795,
+          "decodedPixelsSha256": "dd8ea5e397e46b030e6e9b1eb979136d807ba9f0a789a5f357f41c32e6776914"
+        },
+        {
+          "index": 37,
+          "seconds": 4.8116666666666665,
+          "decodedPixelsSha256": "fd9740f0a283f0704b6fe49171caed69a5d624a144956ff75b9e91c6b198797d"
+        },
+        {
+          "index": 38,
+          "seconds": 4.828333333333334,
+          "decodedPixelsSha256": "87349342af4811093d5c27c205bb6bfe8004ac42ec9c26e837e9d4bbeadd2576"
+        },
+        {
+          "index": 39,
+          "seconds": 4.843333333333334,
+          "decodedPixelsSha256": "ebdae21861665ee9275beccab90754c0773d1c70dda44340a2fe60a1b210ab88"
+        },
+        {
+          "index": 40,
+          "seconds": 4.86,
+          "decodedPixelsSha256": "949a5db49155809af637b77c1e4ab4299db58294c912466467f0c3f5695e6ea7"
+        },
+        {
+          "index": 41,
+          "seconds": 4.876666666666667,
+          "decodedPixelsSha256": "8bcaf7b5230b20b73aa495764ce24cd9d73368c1abaa86cc787e352f8dfbff5d"
+        },
+        {
+          "index": 42,
+          "seconds": 4.8933333333333335,
+          "decodedPixelsSha256": "cc9f36947d469365b2f9989d14b307d75c74dc335f98d4d885b665648c54f07d"
+        },
+        {
+          "index": 43,
+          "seconds": 4.91,
+          "decodedPixelsSha256": "149f651fc5f36dc92274226f66fec14ed4b5a31e19fd46241051bac7da7db35b"
+        },
+        {
+          "index": 44,
+          "seconds": 4.926666666666667,
+          "decodedPixelsSha256": "72666b02f6e12eecb95c1617af2a59e20c7ddf5217c4654797c8b352b4dc8c9f"
+        },
+        {
+          "index": 45,
+          "seconds": 4.943333333333333,
+          "decodedPixelsSha256": "b69026c7f05cbc57d2685b0a3ea437c7a980b19b2a81122ad81812f23bf07a26"
+        },
+        {
+          "index": 46,
+          "seconds": 4.96,
+          "decodedPixelsSha256": "870593993a72281a85adb94e1cbc226e068876624b17d04cdf9e9bad3deb0382"
+        },
+        {
+          "index": 47,
+          "seconds": 4.976666666666667,
+          "decodedPixelsSha256": "eac6427dd8db4438ca17807b630041dd193cc3b26f123ffecf546c5e392266a9"
+        },
+        {
+          "index": 48,
+          "seconds": 4.993333333333334,
+          "decodedPixelsSha256": "aa804dc21d83c14cb80dab97386977db4e2df44306433fb16d79d28868338c58"
+        },
+        {
+          "index": 49,
+          "seconds": 5.010000000000001,
+          "decodedPixelsSha256": "910d06db115cc543e36a8b17eaa41a85287f5e351cc1d9639dc0381d7c52d5f6"
+        },
+        {
+          "index": 50,
+          "seconds": 5.026666666666667,
+          "decodedPixelsSha256": "f6e15c5ce68114142e973d5a5d7030b330243bff47ee9eff25d30448226a8b50"
+        },
+        {
+          "index": 51,
+          "seconds": 5.043333333333334,
+          "decodedPixelsSha256": "95d3b018aef4e13ce3e033c1ef3995c376a98b25eb8452f1619db689c7f14308"
+        },
+        {
+          "index": 52,
+          "seconds": 5.0600000000000005,
+          "decodedPixelsSha256": "baccc392309a91d553e40eeb74457cb51775ab84f36d25072cd03418fa35f450"
+        },
+        {
+          "index": 53,
+          "seconds": 5.076666666666667,
+          "decodedPixelsSha256": "443c2aa2c3e03df890a00b30a0876a38bcd5b6b9de1d36fe0c2bc905518f29d8"
+        },
+        {
+          "index": 54,
+          "seconds": 5.093333333333334,
+          "decodedPixelsSha256": "b08bb44b921d46861ec36e06e1d88b8ef4fbb403fa87a8bc664f5079812c7732"
+        },
+        {
+          "index": 55,
+          "seconds": 5.11,
+          "decodedPixelsSha256": "91a454c88be070d720ede99f890c0021a898505fe75f3492244bf40d6add544b"
+        },
+        {
+          "index": 56,
+          "seconds": 5.126666666666667,
+          "decodedPixelsSha256": "6850964fde5a07937f345360e43e003b394b5965e010c411015520abfd08326c"
+        },
+        {
+          "index": 57,
+          "seconds": 5.1433333333333335,
+          "decodedPixelsSha256": "635a5bc372440cb777bed64c2346f31a4a51b60698d59662a9a90d38dbae04a6"
+        }
+      ]
+    },
+    {
+      "video": "convex/m8/attachments/FEE72A4C-80D2-4B27-A62F-87C02F71AC34.mp4",
+      "sha256": "ca0191745e22fcbf124f4c7504b7b495da0b94ef01de63c3850c6c78e0f205df",
+      "declaredFrames": 59,
+      "decodedFrames": 59,
+      "everyFrameIncluded": true,
+      "pages": [
+        "convex/m8/all-frames/page-00.jpg",
+        "convex/m8/all-frames/page-01.jpg",
+        "convex/m8/all-frames/page-02.jpg"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "seconds": 1.1933333333333334,
+          "decodedPixelsSha256": "698de083700230c7c64ef9beb08ef77d4cb209a3b059a56ad2868300e684db1e"
+        },
+        {
+          "index": 1,
+          "seconds": 2.0333333333333337,
+          "decodedPixelsSha256": "ced9d6229ebea8672df09dca0b25e4e127a3f8e707309bf2acbb6707ca9a2653"
+        },
+        {
+          "index": 2,
+          "seconds": 2.0383333333333336,
+          "decodedPixelsSha256": "be68a9b3a6dce89a408afbe6204a109a79e63b011193bc34d618d23d6fcdae22"
+        },
+        {
+          "index": 3,
+          "seconds": 2.06,
+          "decodedPixelsSha256": "3110d008d23851050772db00bae31b6d4b8a45ef7a285adc4b13a552a3ada49a"
+        },
+        {
+          "index": 4,
+          "seconds": 2.0733333333333333,
+          "decodedPixelsSha256": "a188189730fa92487de802b7185bc5d6c71f9f300e5c4373228d62af3520774c"
+        },
+        {
+          "index": 5,
+          "seconds": 2.091666666666667,
+          "decodedPixelsSha256": "4b312e8be30d0add8416122567b777922326a2ea5adbcd8e5bae65ccfd5e5cd8"
+        },
+        {
+          "index": 6,
+          "seconds": 2.106666666666667,
+          "decodedPixelsSha256": "19d7658e7a349fa5d6b6c062604023a99119debe65918493b4a67b9596517045"
+        },
+        {
+          "index": 7,
+          "seconds": 2.1100000000000003,
+          "decodedPixelsSha256": "6dd55a25e3b23b7069904ad2bd7de1718a767923c4e33007f255d1ac85b02198"
+        },
+        {
+          "index": 8,
+          "seconds": 2.1233333333333335,
+          "decodedPixelsSha256": "580917291430787eb3fea93fdcc6911da0ea7a4cae82709a2b415891d58fb774"
+        },
+        {
+          "index": 9,
+          "seconds": 2.14,
+          "decodedPixelsSha256": "53e1a13d5c0d768aa2eeaf4dd13455bdd3a633a698fb400e8e2f38a9e13e3658"
+        },
+        {
+          "index": 10,
+          "seconds": 2.1566666666666667,
+          "decodedPixelsSha256": "ba99a502bf226172c7531cb91e62c9cdc9f0d926788650abea4000d9a391ec1a"
+        },
+        {
+          "index": 11,
+          "seconds": 2.1733333333333333,
+          "decodedPixelsSha256": "0d81723d96067113e8b1188a3e6291ba8d7a45251bb990519bc6a7f77bb7cd80"
+        },
+        {
+          "index": 12,
+          "seconds": 2.19,
+          "decodedPixelsSha256": "cc9141caad75f65ca5019953895f85a2456bdffedc93bf71462cb6d435e40b37"
+        },
+        {
+          "index": 13,
+          "seconds": 2.205,
+          "decodedPixelsSha256": "32ab4a84ed8d03cbb4f54bf8efcac2ba057d35d0c46a824cd06e9eeaafd6af3a"
+        },
+        {
+          "index": 14,
+          "seconds": 2.2233333333333336,
+          "decodedPixelsSha256": "33a06265bbdd8b912db291e9ec8880949f586ebba308a826596b05bc8e6322a3"
+        },
+        {
+          "index": 15,
+          "seconds": 2.2383333333333333,
+          "decodedPixelsSha256": "7119e05b43e24b1195aae6b02a6ca5e09f8b17eeca946f6e177ec451649d8b14"
+        },
+        {
+          "index": 16,
+          "seconds": 2.256666666666667,
+          "decodedPixelsSha256": "dc9f183b7e0418369f42d969f4d3deb6520cf32cee437c82452002f784d2fc6f"
+        },
+        {
+          "index": 17,
+          "seconds": 2.2733333333333334,
+          "decodedPixelsSha256": "62bb593a57d6a75cc3738983aa34c97e53757177292e8dab1d05fd2a24e1a6e4"
+        },
+        {
+          "index": 18,
+          "seconds": 2.29,
+          "decodedPixelsSha256": "813419846aab4646e92504f7baad819979c854ffffcfdca5d3c6109aab28289f"
+        },
+        {
+          "index": 19,
+          "seconds": 2.3066666666666666,
+          "decodedPixelsSha256": "8e251f5b8a4df26929ee2db128cb0324e9256b705d4557f2c1c03837e48ee562"
+        },
+        {
+          "index": 20,
+          "seconds": 2.3233333333333337,
+          "decodedPixelsSha256": "c6b3530097daa50d29158c80cfdac559a6e5928b365e1d836eba36dd25feb2a9"
+        },
+        {
+          "index": 21,
+          "seconds": 2.3400000000000003,
+          "decodedPixelsSha256": "6e1f7a201006068960069efecce5d78812f74ced09d7f7e339d5062f538cad57"
+        },
+        {
+          "index": 22,
+          "seconds": 2.356666666666667,
+          "decodedPixelsSha256": "c68bcfcded348b19260ff0c0fc96d5406392fbebd65e071e313bedd229716a06"
+        },
+        {
+          "index": 23,
+          "seconds": 2.3733333333333335,
+          "decodedPixelsSha256": "51687caec0dc015c303d9cd22214ab1a75541b2616ea5b002d079ca723dae48f"
+        },
+        {
+          "index": 24,
+          "seconds": 2.39,
+          "decodedPixelsSha256": "215e38437c4789e879d07e20de0040489d29129635c6cb9bd05511a9d32304a1"
+        },
+        {
+          "index": 25,
+          "seconds": 2.4083333333333337,
+          "decodedPixelsSha256": "20646b2265e725208582d772da4e90c3e8501e4d9b7c88ff175850b3905bcc69"
+        },
+        {
+          "index": 26,
+          "seconds": 2.4250000000000003,
+          "decodedPixelsSha256": "316181957479d7f8f51232c813e6282afdc9c10731972b517fd52407c815b476"
+        },
+        {
+          "index": 27,
+          "seconds": 2.441666666666667,
+          "decodedPixelsSha256": "1ebaced4f5d95f960bca0077685e69c699e158a3e08757468fad26f5c35fc7e8"
+        },
+        {
+          "index": 28,
+          "seconds": 2.4583333333333335,
+          "decodedPixelsSha256": "1a655450d56b2438370d0dd74894a14d03c9bc6b9be18addfc7ae8b72f31fcbc"
+        },
+        {
+          "index": 29,
+          "seconds": 2.461666666666667,
+          "decodedPixelsSha256": "10faa491b10be0ddf1e8d187d20fc147d20d29c8cd989c1d78f19a345aaba838"
+        },
+        {
+          "index": 30,
+          "seconds": 2.4650000000000003,
+          "decodedPixelsSha256": "33524bf41362527b70fb19f54e96ad04a5d3d9c5d22c40a9bcb57168547abb24"
+        },
+        {
+          "index": 31,
+          "seconds": 2.47,
+          "decodedPixelsSha256": "062e5ff6b4cc17e33c7c392c539e7715540fc8585c049f515176ab234596db34"
+        },
+        {
+          "index": 32,
+          "seconds": 2.486666666666667,
+          "decodedPixelsSha256": "3215a218e3f849915cedef6412acb3d16998d54a1cee2338a81d240e2977dabe"
+        },
+        {
+          "index": 33,
+          "seconds": 2.5033333333333334,
+          "decodedPixelsSha256": "0a45d4f2a3a58d8e153833b82fcf4e43043dcd6177794312575d7384a2bb4e39"
+        },
+        {
+          "index": 34,
+          "seconds": 2.52,
+          "decodedPixelsSha256": "4b45dc1bf252cf6a529c07920d746b3dd9c9b28a53dec93f0201dae5023059b1"
+        },
+        {
+          "index": 35,
+          "seconds": 2.5366666666666666,
+          "decodedPixelsSha256": "536488abf65b8f66ccbbe63700c9e10f36cd30cc912d89ac2bf710ea7ac57b51"
+        },
+        {
+          "index": 36,
+          "seconds": 2.6166666666666667,
+          "decodedPixelsSha256": "b8436c8b1230decfe968ab451be55a9ee27376e875803c324aa3306c882e0c30"
+        },
+        {
+          "index": 37,
+          "seconds": 3.461666666666667,
+          "decodedPixelsSha256": "1081673261f6a4360ac3fac78a6d4fa4f1a5dda9b0e6a271ccaaac90ac556619"
+        },
+        {
+          "index": 38,
+          "seconds": 3.4783333333333335,
+          "decodedPixelsSha256": "2f71e35ce65813df62602fddb1b45a8ee0e54fca299986b367eb1bf93c21eefe"
+        },
+        {
+          "index": 39,
+          "seconds": 3.4933333333333336,
+          "decodedPixelsSha256": "eb1fece619402a9a1f19357a84239f45ece7f50bb1c5f23f389531f38da1fd7c"
+        },
+        {
+          "index": 40,
+          "seconds": 3.5083333333333337,
+          "decodedPixelsSha256": "bf73ecfc98cf88290a0df6b919b96811a0de95b97546303b4361d3e1750f9ba8"
+        },
+        {
+          "index": 41,
+          "seconds": 3.5250000000000004,
+          "decodedPixelsSha256": "b6b59695b33f2363a91f427c7014b1c0edc353764627ccec866a7915b8196020"
+        },
+        {
+          "index": 42,
+          "seconds": 3.541666666666667,
+          "decodedPixelsSha256": "2de2538742649e3d8c569b1f1d116f7bc4acb71f4559beb3d24c28b9613853d2"
+        },
+        {
+          "index": 43,
+          "seconds": 3.56,
+          "decodedPixelsSha256": "68b80a62edc368419fd779d955ba51fff133c85f328c6ec7240a19bced2ac3a8"
+        },
+        {
+          "index": 44,
+          "seconds": 3.575,
+          "decodedPixelsSha256": "59ef76d297202a482a29551f3b89deedd08de4d8927c045503096ce80760def5"
+        },
+        {
+          "index": 45,
+          "seconds": 3.591666666666667,
+          "decodedPixelsSha256": "4ecc955c668b821e2331ef4896ede1e9bebd8c054b660fef284cbd18fe83d5b8"
+        },
+        {
+          "index": 46,
+          "seconds": 3.6083333333333334,
+          "decodedPixelsSha256": "13e0eb93738a2fdb7b667bdfa6ed7b935b7736540f4217bcc0a5a9048c087d0c"
+        },
+        {
+          "index": 47,
+          "seconds": 3.626666666666667,
+          "decodedPixelsSha256": "4b1b6b41e976679c794be5837e1a5f33fea1d5e49732bab75b83f20de339e24a"
+        },
+        {
+          "index": 48,
+          "seconds": 3.641666666666667,
+          "decodedPixelsSha256": "73733478642e2655d59a6ec0d26b914e6bc099ce53c64ce1ebe7f040248cac6c"
+        },
+        {
+          "index": 49,
+          "seconds": 3.6583333333333337,
+          "decodedPixelsSha256": "2e4bdab315913967dc7a0dcf5f8f79a57c6fdb5565fca48ccefc47ab4546e413"
+        },
+        {
+          "index": 50,
+          "seconds": 3.6750000000000003,
+          "decodedPixelsSha256": "5e265d587966cf874ad2386043415dbdc95c0b2f652b81d1bb1967dc1e80a5ef"
+        },
+        {
+          "index": 51,
+          "seconds": 3.691666666666667,
+          "decodedPixelsSha256": "54d6e47d8554f441df6f07644b04dc0356629f4394c14873e452044e5b2f21a6"
+        },
+        {
+          "index": 52,
+          "seconds": 3.7083333333333335,
+          "decodedPixelsSha256": "42c8eabf860a3655eb70c1246387413794c97a067354bed872d962382a2a8f05"
+        },
+        {
+          "index": 53,
+          "seconds": 3.726666666666667,
+          "decodedPixelsSha256": "a1f4bd701bfc067ce3ce04b4b31bcce65e5b633b879dfc633040f13cc64e2dd0"
+        },
+        {
+          "index": 54,
+          "seconds": 3.7433333333333336,
+          "decodedPixelsSha256": "f8fb92975e38d7698db7883de236acdc83843daf1ab0c680a174ecb93b6f823e"
+        },
+        {
+          "index": 55,
+          "seconds": 3.7600000000000007,
+          "decodedPixelsSha256": "5904d8bee75345db023e58f1450c0917c63bf61ec42e56587027f8f53bacf2f2"
+        },
+        {
+          "index": 56,
+          "seconds": 3.7750000000000004,
+          "decodedPixelsSha256": "25629a03982bba7bca3331babf5242a36ad456fb83df51ae73916f685a7e6413"
+        },
+        {
+          "index": 57,
+          "seconds": 3.7933333333333334,
+          "decodedPixelsSha256": "bcd57946d8b0d369e609e27a6b0b0de7796d2885deb56f1c310fc1b941946fa3"
+        },
+        {
+          "index": 58,
+          "seconds": 3.81,
+          "decodedPixelsSha256": "f486c61f23054a47f56cc189aa6bec15a8529c8462e8a259fc9ba6940441a168"
+        }
+      ]
+    }
+  ]
+}

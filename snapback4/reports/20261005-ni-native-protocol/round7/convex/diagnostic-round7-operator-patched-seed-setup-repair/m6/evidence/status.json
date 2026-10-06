@@ -1,0 +1,13 @@
+{
+  "id": "ios-simulator-m6",
+  "pass": null,
+  "receipt": "m6-ios-run.json",
+  "reason": "selector-not-hittable",
+  "requiredForGreen": false,
+  "cost": {
+    "wallSeconds": 85.061,
+    "nativeCommands": 4,
+    "enteredSteps": 0,
+    "operatorInvocations": 1
+  }
+}

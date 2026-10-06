@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/usr/bin/sandbox-exec",
+    "-f",
+    "/tmp/clique-round7-convex-ry8co7t_/protect-originals.sb",
+    "bash",
+    "scripts/native-build.sh",
+    "/tmp/clique-round7-convex-ry8co7t_/DerivedData"
+  ],
+  "cwd": "/tmp/clique-round7-convex-ry8co7t_/app",
+  "start": 1791260375.84262,
+  "end": 1791260456.755261,
+  "wallSeconds": 80.9126410484314,
+  "exitCode": 65,
+  "pid": 89152,
+  "error": null
+}

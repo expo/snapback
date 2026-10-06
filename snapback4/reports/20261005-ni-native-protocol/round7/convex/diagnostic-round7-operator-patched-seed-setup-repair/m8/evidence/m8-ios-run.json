@@ -1,0 +1,87 @@
+{
+  "version": "0.4.0-native.1",
+  "protocol": "clique-native/1",
+  "runId": "198be529-2511-4a4d-b199-11ec09c9cb31",
+  "segment": "m8",
+  "qualificationOnly": true,
+  "instrument": {
+    "commit": "958f7bf4a9cdf8732fc0b74914b2c05b9d90896b",
+    "inventorySha256": "88aeda6949779dfa06b81a6fcf179630184621bca5384e341a584c60e71672f6",
+    "instrumentPin": "social-messenger@0.4.0-native.1",
+    "scoredUse": false
+  },
+  "driverSourceSha256": "d87a505830d02b5ba07a566dce77c37e13ce6649b39d0d17fc011853443773e5",
+  "driverBinarySha256": "ab31fc90aa1265e49d1c14b6f7bb0aaa6555fc07c031d4e68d8be38ad0fab7f9",
+  "build": {
+    "bundleId": "dev.clique.pilot.convex",
+    "nativeSha256": "32a6cc990fb20b323c9bdc2764790e105e8a2ac4b58fd9530c4ba9b4a4be636d",
+    "hermesSha256": "7201ff00eea4cf8cf6668e039165422de9fb98cad85bd85fa93fd6562ad26f65"
+  },
+  "installedBefore": {
+    "bundleId": "dev.clique.pilot.convex",
+    "nativeSha256": "32a6cc990fb20b323c9bdc2764790e105e8a2ac4b58fd9530c4ba9b4a4be636d",
+    "hermesSha256": "7201ff00eea4cf8cf6668e039165422de9fb98cad85bd85fa93fd6562ad26f65"
+  },
+  "installedAfter": {
+    "bundleId": "dev.clique.pilot.convex",
+    "nativeSha256": "32a6cc990fb20b323c9bdc2764790e105e8a2ac4b58fd9530c4ba9b4a4be636d",
+    "hermesSha256": "7201ff00eea4cf8cf6668e039165422de9fb98cad85bd85fa93fd6562ad26f65"
+  },
+  "simulator": {
+    "udid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+  },
+  "host": {
+    "name": "MacMini-Apt101-M5-A",
+    "xcode": "Xcode 27.0\nBuild version 27A266a"
+  },
+  "backend": {
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+      "/Users/ccheever/clique-native-pilot-20261005/scripts/convex-owned.py",
+      "/tmp/clique-round7-convex-r2t8ufix/m8-store",
+      "http://127.0.0.1:49560",
+      "/Users/ccheever/clique-native-pilot-20261005/results/convex/diagnostic-round7-operator-patched-seed-setup-repair/m8/backend-images.jsonl"
+    ],
+    "origin": "http://127.0.0.1:49560",
+    "cwd": "/tmp/clique-round7-convex-r2t8ufix/app"
+  },
+  "storeBefore": {
+    "path": "/private/tmp/clique-round7-convex-r2t8ufix/m8-store",
+    "device": 16777233,
+    "inode": 138507111
+  },
+  "storeAfter": {
+    "path": "/private/tmp/clique-round7-convex-r2t8ufix/m8-store",
+    "device": 16777233,
+    "inode": 138507111
+  },
+  "launches": [],
+  "prime": {
+    "complete": false
+  },
+  "steps": [],
+  "offlineProbes": [],
+  "assertionEvidence": {},
+  "video": null,
+  "reinstalledDuringMeasurement": false,
+  "failure": {
+    "reason": "selector-not-hittable",
+    "outcomeClass": "setup"
+  },
+  "cost": {
+    "wallSeconds": 83.129,
+    "nativeCommands": 4,
+    "enteredSteps": 0,
+    "operatorInvocations": 1
+  },
+  "files": {
+    "backend.log": "7d42f043aac46cc0f019c7ffe694d42b4fc1f75607696953745790ef299b5638",
+    "xctest.log": "55565aa37ae76e33d2e41e5e6890e6b478ad08c4fc5ca1ce7ea902b933055bc7",
+    "viewonce-fixture.png": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+    "native-fixture.json": "b8b86e5303eb55b1a2aacc8da62d14de59b8e9af7e22fcd9305d1d7fb85106a6",
+    "ordinary-fixture.png": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+    "host.jsonl": "1d556dcb1dbd8a4df14d46dfd330e826e4b59bb55ded312f46e407abbff07057",
+    "m8-ios-receipts.jsonl": "ebf3cd3deedb50547f8bd4a386b19f40373f5b3e3c871ebeb7241cb12056ae54"
+  }
+}

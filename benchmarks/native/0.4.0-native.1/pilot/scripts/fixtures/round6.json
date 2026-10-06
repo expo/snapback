@@ -1,0 +1,14 @@
+{
+  "source": "Apartment mini /Users/ccheever/clique-native-pilot-20261005/lanes/<backend>",
+  "copiedWithoutEdits": true,
+  "files": {
+    "convex": {
+      "operator.json": "a6aa5e125d76a79ac771911dca907dfdcb39e4f8e24914ed04b711dc17a41d19",
+      "build.sh": "421f84e08c4609666075274d79801da731d784f0a21422ef2a409e942e9f1825"
+    },
+    "snapback4": {
+      "operator.json": "6c32b87bec8257fb5b6321b157a772b576ab735c8c7172f477b4b00a4c6b66f5",
+      "build.sh": "43de67e81f9f99601ad71b6681d8ebdc25795f0aecfcd66e15b0c76a7d00b7f8"
+    }
+  }
+}

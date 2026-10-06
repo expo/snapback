@@ -1,0 +1,318 @@
+{
+  "snapback4": {
+    "startedAt": 1791225100.72654,
+    "endedAt": 1791231969.0148532,
+    "wallSeconds": 6868.288313865662,
+    "tokens": {
+      "input": 466951,
+      "output": 123401,
+      "cacheRead": 38087936,
+      "cacheWrite": 0,
+      "reasoning": 35396,
+      "nonCachedTokens": 590352
+    },
+    "phaseSafetySampling": {
+      "windows": [
+        {
+          "phase": "m1",
+          "at": 1791225100.72654
+        },
+        {
+          "phase": "m2",
+          "at": 1791225578.5679958
+        },
+        {
+          "phase": "m3",
+          "at": 1791226232.189752
+        },
+        {
+          "phase": "m4",
+          "at": 1791227957.1619
+        },
+        {
+          "phase": "m5",
+          "at": 1791229575.617575
+        },
+        {
+          "phase": "m6",
+          "at": 1791230486.848293
+        },
+        {
+          "phase": "m8",
+          "at": 1791231365.683245
+        }
+      ],
+      "tokens": {
+        "m1": 133339,
+        "m2": 64230,
+        "m3": 42523,
+        "m4": 77527,
+        "m5": 105567,
+        "m6": 105985,
+        "m8": 61181
+      },
+      "usageByPhase": {
+        "m1": {
+          "input": 119557,
+          "output": 13782,
+          "cacheRead": 3422336,
+          "cacheWrite": 0,
+          "reasoning": 679,
+          "nonCachedTokens": 133339
+        },
+        "m2": {
+          "input": 49158,
+          "output": 15072,
+          "cacheRead": 7401856,
+          "cacheWrite": 0,
+          "reasoning": 2062,
+          "nonCachedTokens": 64230
+        },
+        "m3": {
+          "input": 31047,
+          "output": 11476,
+          "cacheRead": 2757504,
+          "cacheWrite": 0,
+          "reasoning": 2908,
+          "nonCachedTokens": 42523
+        },
+        "m4": {
+          "input": 52092,
+          "output": 25435,
+          "cacheRead": 11954048,
+          "cacheWrite": 0,
+          "reasoning": 11732,
+          "nonCachedTokens": 77527
+        },
+        "m5": {
+          "input": 92698,
+          "output": 12869,
+          "cacheRead": 3363840,
+          "cacheWrite": 0,
+          "reasoning": 1915,
+          "nonCachedTokens": 105567
+        },
+        "m6": {
+          "input": 79945,
+          "output": 26040,
+          "cacheRead": 5351808,
+          "cacheWrite": 0,
+          "reasoning": 7856,
+          "nonCachedTokens": 105985
+        },
+        "m8": {
+          "input": 42454,
+          "output": 18727,
+          "cacheRead": 3836544,
+          "cacheWrite": 0,
+          "reasoning": 8244,
+          "nonCachedTokens": 61181
+        }
+      },
+      "tokenBasis": "non-cached-input-plus-output; cache reads/writes uncapped; reasoning included in output",
+      "purpose": "pilot safety; scored first-green settlement attribution not claimed"
+    },
+    "terminals": [
+      "1791225578 milestone=m1 terminal=green evidence=evidence/m1-choreo-node24.log,evidence/m1-suite.json,artifacts/m1-ios",
+      "1791226232 milestone=m2 terminal=green evidence=evidence/m2-suite.json,evidence/m2-choreo-attempt2.log,artifacts/m2-ios",
+      "1791227957 milestone=m3 terminal=green evidence=evidence/m3-suite.json,evidence/m3-choreo-attempt2.log,artifacts/m3-ios skips=evidence/m3-skips.json",
+      "1791229574 milestone=m4 terminal=green evidence=evidence/m4-suite.json,evidence/m4-choreo-attempt6.log,artifacts/m4-ios",
+      "1791230486 milestone=m5 terminal=green evidence=evidence/m5-suite.json,evidence/m5-choreo-attempt1.log,artifacts/m5-ios skips=evidence/m5-skips.json",
+      "1791231365 milestone=m6 terminal=green evidence=evidence/m6-suite.json,evidence/m6-choreo-attempt1.log,artifacts/m6-ios release=evidence/m6-release-hashes.json nativeExecution=operator-pending",
+      "1791231956 milestone=m8 terminal=green evidence=evidence/m8-suite.json,evidence/m8-choreo-attempt1.log,artifacts/m8-ios,evidence/m8-release-hashes.json digest=evidence/m8-digest-proof.json nativeExecution=operator-pending"
+    ],
+    "boundaries": [
+      {
+        "phase": "m2",
+        "at": 1791225578.9368908
+      },
+      {
+        "phase": "m3",
+        "at": 1791226232.302001
+      },
+      {
+        "phase": "m4",
+        "at": 1791227957.5348969
+      },
+      {
+        "phase": "m5",
+        "at": 1791229574.8513012
+      },
+      {
+        "phase": "m6",
+        "at": 1791230486.595584
+      },
+      {
+        "phase": "m8",
+        "at": 1791231366.021801
+      },
+      {
+        "phase": "replay-start",
+        "at": 1791231965.8406022
+      }
+    ]
+  },
+  "convex": {
+    "startedAt": 1791235050.714678,
+    "endedAt": 1791242654.1277409,
+    "wallSeconds": 7603.413064002991,
+    "tokens": {
+      "input": 565116,
+      "output": 188735,
+      "cacheRead": 45056000,
+      "cacheWrite": 0,
+      "reasoning": 70192,
+      "nonCachedTokens": 753851
+    },
+    "phaseSafetySampling": {
+      "windows": [
+        {
+          "phase": "m1",
+          "at": 1791235050.714678
+        },
+        {
+          "phase": "m2",
+          "at": 1791235542.9474292
+        },
+        {
+          "phase": "m3",
+          "at": 1791236541.097219
+        },
+        {
+          "phase": "m4",
+          "at": 1791236928.6221938
+        },
+        {
+          "phase": "m5",
+          "at": 1791237420.607601
+        },
+        {
+          "phase": "m6",
+          "at": 1791238912.267124
+        },
+        {
+          "phase": "m8",
+          "at": 1791241768.103887
+        }
+      ],
+      "tokens": {
+        "m1": 113130,
+        "m2": 99445,
+        "m3": 44520,
+        "m4": 44824,
+        "m5": 144594,
+        "m6": 234813,
+        "m8": 72525
+      },
+      "usageByPhase": {
+        "m1": {
+          "input": 96960,
+          "output": 16170,
+          "cacheRead": 2790144,
+          "cacheWrite": 0,
+          "reasoning": 1577,
+          "nonCachedTokens": 113130
+        },
+        "m2": {
+          "input": 68083,
+          "output": 31362,
+          "cacheRead": 7878656,
+          "cacheWrite": 0,
+          "reasoning": 11371,
+          "nonCachedTokens": 99445
+        },
+        "m3": {
+          "input": 30153,
+          "output": 14367,
+          "cacheRead": 2323712,
+          "cacheWrite": 0,
+          "reasoning": 4534,
+          "nonCachedTokens": 44520
+        },
+        "m4": {
+          "input": 27889,
+          "output": 16935,
+          "cacheRead": 3435264,
+          "cacheWrite": 0,
+          "reasoning": 7399,
+          "nonCachedTokens": 44824
+        },
+        "m5": {
+          "input": 111907,
+          "output": 32687,
+          "cacheRead": 6220672,
+          "cacheWrite": 0,
+          "reasoning": 13602,
+          "nonCachedTokens": 144594
+        },
+        "m6": {
+          "input": 186840,
+          "output": 47973,
+          "cacheRead": 17823872,
+          "cacheWrite": 0,
+          "reasoning": 16068,
+          "nonCachedTokens": 234813
+        },
+        "m8": {
+          "input": 43284,
+          "output": 29241,
+          "cacheRead": 4583680,
+          "cacheWrite": 0,
+          "reasoning": 15641,
+          "nonCachedTokens": 72525
+        }
+      },
+      "tokenBasis": "non-cached-input-plus-output; cache reads/writes uncapped; reasoning included in output",
+      "purpose": "pilot safety; scored first-green settlement attribution not claimed"
+    },
+    "terminals": [
+      "1791235543 m1 terminal green: evidence/suite-m1-1791235510949.json; evidence/m1-choreo-console-3.log and timestamped JSONL; Hermes evidence/m1-export. No instrument skips reported.",
+      "1791236540 m2 terminal green: evidence/m2-acceptance-console-4.log, evidence/m2-choreo-console-4.log and timestamped receipts; Hermes evidence/m2-ios-green-candidate. No skips. helper bytes/hashes verified evidence/helper-inventory.json.",
+      "1791236928 m3 terminal green: suite-m3-1791236774467.json; evidence/m3-choreo-console-2.log plus timestamped receipts; Hermes evidence/m3-ios-final. Membership keepalive correction verified.",
+      "1791237419 m4 terminal green: suite-m4-1791237266101.json; evidence/m4-choreo-console-2.log plus timestamped receipts; Hermes evidence/m4-ios-final. No skips.",
+      "1791238912 m5 terminal green acceptance evidence/suite-m5-1791238245579.json choreography evidence/m5-choreo-console-3.log Hermes evidence/m5-ios-cache-fix; native Release environment-blocked evidence/m5-release-build.log; native fixture repeat stable evidence/native-adapter-idempotency.log",
+      "1791239507 m6 first-green acceptance suite-m6-1791239346712.json + choreography evidence/m6-choreo-console-2.log. Continuing owned-process outage validation and scale checkpoint adapter before terminal.",
+      "1791239892 m6 terminal green: suite-m6-1791239346712.json; choreography m6-choreo-console-terminal.log; Hermes m6-ios-release-candidate; owned-outage-result.json; revocation m6-revocation-2.log. Start clock correction: actual boundary epoch=1791238912 retained in diary; earlier prose start entry was later implementation update. Replay adapter/checkpoint authoring complete.",
+      "1791242250 m8 first-green suite-m8-1791242003767.json + m8-choreo-console-2.log. Same-account live/read state and dual-offline convergence/receipts passed. Continuing digest no-client/restart verification and final native export.",
+      "1791242650 m8 terminal green: suite-m8-1791242533394.json choreography m8-choreo-console-final.log Hermes m8-ios-handoff. Digest/restart/quiet-period checks passed digest-verification.json. Native helper linked in Podfile.lock0.4.0, unchanged7475bytes. Native runtime unmeasured; Release compile environment limitation retained."
+    ],
+    "boundaries": [
+      {
+        "phase": "m2",
+        "at": 1791235543.136645
+      },
+      {
+        "phase": "m3",
+        "at": 1791236540.827383
+      },
+      {
+        "phase": "m4",
+        "at": 1791236928.0284731
+      },
+      {
+        "phase": "m5",
+        "at": 1791237419.675028
+      },
+      {
+        "phase": "m6",
+        "at": 1791238912.623378
+      },
+      {
+        "phase": "replay-start",
+        "at": 1791239892.642598
+      },
+      {
+        "phase": "replay-end",
+        "at": 1791241768.000488
+      },
+      {
+        "phase": "m8",
+        "at": 1791241768.1748211
+      },
+      {
+        "phase": "replay-start",
+        "at": 1791242650.875353
+      }
+    ]
+  }
+}

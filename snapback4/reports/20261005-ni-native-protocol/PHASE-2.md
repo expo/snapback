@@ -1,4 +1,10 @@
-# Phase 2 — unscored two-app/two-backend pilot (not run)
+# Phase 2 — unscored two-app/two-backend pilot plan
+
+**Execution record, 2026-10-06:** see [PHASE-2-RESULTS.md](PHASE-2-RESULTS.md).
+Both handoffs were source-audit refused; operator-patched diagnostics remain
+never admissible. The original plan below is retained as the commissioned
+procedure, not a current claim that the pilot has not run. Scored admission
+remains pending Charlie's ruling after the recommended changes and rerun.
 
 Owner: the next assigned instrument lane, after NI's driver qualification review.
 Earliest scheduling: after the Phase-1 code/evidence is accepted; no pilot date

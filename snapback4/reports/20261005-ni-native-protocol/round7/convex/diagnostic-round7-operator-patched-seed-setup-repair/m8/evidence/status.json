@@ -1,0 +1,13 @@
+{
+  "id": "ios-simulator-m8",
+  "pass": null,
+  "receipt": "m8-ios-run.json",
+  "reason": "selector-not-hittable",
+  "requiredForGreen": false,
+  "cost": {
+    "wallSeconds": 83.129,
+    "nativeCommands": 4,
+    "enteredSteps": 0,
+    "operatorInvocations": 1
+  }
+}

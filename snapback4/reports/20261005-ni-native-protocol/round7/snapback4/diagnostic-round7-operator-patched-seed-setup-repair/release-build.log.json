@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "bash",
+    "scripts/native-build.sh",
+    "/tmp/clique-round7-snapback4-v71yzdzv/DerivedData",
+    "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B"
+  ],
+  "cwd": "/tmp/clique-round7-snapback4-v71yzdzv/app",
+  "start": 1791261545.844733,
+  "end": 1791261625.698868,
+  "wallSeconds": 79.8541350364685,
+  "exitCode": 0,
+  "pid": 10137,
+  "error": null
+}

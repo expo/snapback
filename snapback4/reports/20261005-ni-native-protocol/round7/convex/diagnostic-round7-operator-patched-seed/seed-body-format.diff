@@ -1,0 +1,8 @@
+--- a/scripts/native-seed.mjs
++++ b/scripts/native-seed.mjs
+@@ -20,4 +20,4 @@
+ for(let i=0;i<85;i++)await send('history-'+i,'Conversation history '+String(i).padStart(3,'0'));
+ async function media(kind,file){const existing=await client.query('chat:find',{token:bob.token,key:input.runId+'-'+kind});const bytes=readFileSync(file);let asset=existing?.media,id=existing?._id;if(!id){const url=await client.mutation('auth:upload',{token:bob.token});const r=await fetch(url,{method:'POST',headers:{'Content-Type':'image/png'},body:bytes});if(!r.ok)throw Error('Upload failed');asset=(await r.json()).storageId;await client.action('media:validate',{token:bob.token,storage:asset,kind:'image'});id=await send(kind,kind==='ordinary'?'A shared photograph':'A private photograph',{kind:'image',media:asset,viewOnce:kind==='once'});}return {messageId:id,assetId:asset,sha256:createHash('sha256').update(bytes).digest('hex')};}
+ const ordinary=await media('ordinary','native-fixtures/ordinary.png'),viewOnce=await media('once','native-fixtures/once.png');
+-console.log(JSON.stringify({protocol:input.protocol,runId:input.runId,bundleId:input.bundleId,origin:input.origin,alice:alice.userId,bob:bob.userId,conversationId:chat,chatValue:'dm:bob',history:{messageId:history,body},ordinary,viewOnce,search:{token:'rendezvous',messageId:history},queuedBodies:['First queued message '+input.runId,'Second queued message '+input.runId]}));
++console.log(JSON.stringify({protocol:input.protocol,runId:input.runId,bundleId:input.bundleId,origin:input.origin,alice:alice.userId,bob:bob.userId,conversationId:chat,chatValue:'dm:bob',history:{messageId:history,body},ordinary,viewOnce,search:{token:'rendezvous',messageId:history},queuedBodies:[input.runId+':first',input.runId+':second']}));

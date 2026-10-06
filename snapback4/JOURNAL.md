@@ -87949,3 +87949,26 @@ their prior pixel verdict. The Round 4 report binds final source, control result
 score margins and evidence custody; historical runs retain their source pins.
 No simulator segment was rerun because no archived detector verdict changed.
 Phase 2, scores and publication remain disabled. No push.
+
+
+## 2026-10-06 — P2A Round 7: seed-only diagnostics and Phase-2 report
+
+Both independent native pilot handoffs remain source-audit refused. Operator
+diagnostics changed only queued-body literals in fresh custody work copies,
+then ran Convex M6/M8 followed by SB4 M6/M8 on the dedicated Apartment mini
+simulator. All four remain unmeasured: Convex exits on the SDK-27 scene-lifecycle
+requirement; SB4 stays on sign-in with a SecureStore entitlement error. No
+hook/oracle/origin/UI/signing repair or qualified-instrument change was made.
+The initial diagnostic protection sandbox blocked Convex's macro compilation;
+its retained operator-setup repair used the normal build environment and fresh
+source/output without changing authored build argv. Both final Release builds
+succeeded. Both builder lanes, custody, sealed packet and runner remain intact.
+
+The [Phase-2 report](reports/20261005-ni-native-protocol/PHASE-2-RESULTS.md) records
+authoring clocks/tokens, audit/static outcomes, harness revisions, all diagnostics
+and per-assertion inspection. Convex's full retained XCTest videos were inspected;
+SB4 has failure frames/trees but no retained full video. Conversation/recycled-row
+behavior was never reached. The report recommends rerunning Phase 2 after named
+contract/helper, launch/signing and diagnostic-evidence changes; it grants no
+scored admission. Large evidence is archived on eb1000 with a committed hash
+index. Charlie retains the admission ruling.

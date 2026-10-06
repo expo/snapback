@@ -1,0 +1,37 @@
+{
+  "at": 1791261870.314118,
+  "label": "diagnostic: operator-patched seed body format; audit-refused; never admissible; no pass claimed",
+  "packet": {
+    "valid": true,
+    "cold": false,
+    "launchReadinessChecked": true,
+    "scoredUse": false,
+    "sourceCommit": "958f7bf4a9cdf8732fc0b74914b2c05b9d90896b",
+    "inventory": "88aeda6949779dfa06b81a6fcf179630184621bca5384e341a584c60e71672f6"
+  },
+  "packetSha256": "0607c763791eaee6581b05d3214693b84d5cdaa84b4c881073635ac7e914d263",
+  "exclusiveOperatorAndSimulatorLeases": true,
+  "lanes": {
+    "convex": {
+      "builderLaneUnchanged": true,
+      "custodyUnchanged": true,
+      "allAssignedPortsFree": true,
+      "installationAbsent": true,
+      "summarySha256": "7c0d23212e241aaf18f2d03d57691e4bef1c5aeb7c30f6974f6ef08c891b945f"
+    },
+    "snapback4": {
+      "builderLaneUnchanged": true,
+      "custodyUnchanged": true,
+      "allAssignedPortsFree": true,
+      "installationAbsent": true,
+      "summarySha256": "846079f4ba541153439a65933d8f2c05cddba2104306e05f73c7ef4bd277598e"
+    }
+  },
+  "manifestSandboxPreference": null,
+  "originalPreferenceRestored": true,
+  "qualifiedRunner": {
+    "binary": "/Users/ccheever/native-runner-0.4.0-native.1/DerivedData/Build/Products/Release-iphonesimulator/CliqueDriver-Runner.app/PlugIns/CliqueDriver.xctest/CliqueDriver",
+    "xctestrun": "/Users/ccheever/native-runner-0.4.0-native.1/DerivedData/Build/Products/CliqueDriver_iphonesimulator27.0-arm64.xctestrun"
+  },
+  "complete": true
+}

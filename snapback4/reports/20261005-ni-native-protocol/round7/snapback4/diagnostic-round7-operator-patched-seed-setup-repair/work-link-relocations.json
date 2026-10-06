@@ -1,0 +1,27 @@
+{
+  "source": "/Users/ccheever/clique-native-pilot-20261005/lanes/snapback4",
+  "work": "/tmp/clique-round7-snapback4-v71yzdzv/app",
+  "links": [
+    {
+      "path": "evidence/native-adapter-store/node_modules",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/snapback4/node_modules",
+      "after": "../../node_modules"
+    },
+    {
+      "path": "evidence/digest-store-1791231660399/node_modules",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/snapback4/node_modules",
+      "after": "../../node_modules"
+    },
+    {
+      "path": "evidence/trending-clock-1791231616971/node_modules",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/snapback4/node_modules",
+      "after": "../../node_modules"
+    },
+    {
+      "path": "scale-instance/node_modules",
+      "before": "/Users/ccheever/clique-native-pilot-20261005/lanes/snapback4/node_modules",
+      "after": "../node_modules"
+    }
+  ],
+  "scope": "internal link relocation only; original lane and custody unchanged"
+}
