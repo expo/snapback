@@ -88626,3 +88626,36 @@ unknown-progress expectation. No other lane/host/process touched, no simulator
 run, no push. No engine/device Rust input, persisted byte format, native ABI or
 wasm budget change. iOS Release recheck remains the operator's next step; see
 the [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-2--sealed-responses-and-bounded-wait-explanations-2026-10-07).
+
+## 2026-10-07 — UA round 3: keep the wait explanation through backoff
+
+Continued on eb1000 from df8ec3e6fa. Both round-2 reviews found that callback
+order does not ensure React commits: a busy thread can deliver the 4,999 ms
+notice and 5,000 ms abort before React renders, leaving only unexplained
+backoff. On entering backoff, useAsset now snapshots the overdue stage from
+its clock/progress even if the notice callback has not run. waiting.why carries
+E_ASSET_WAIT; waiting.interrupted retains its stage, progress, timestamps and
+refusal while waiting.stage remains backoff. Backoff can add its own notice
+without losing that snapshot. The next attempt clears both; terminal outcomes
+replace loading. Transport limits, native conversion, once safety and Blob
+ownership are unchanged. Opaque waits keep their fifteen-second notice and
+full buffered allowance.
+
+Added three no-act busy-frame regressions: empty first stream, empty restarted
+stream and partial stream. Both callbacks run in one timer advance with only
+microtask checkpoints, then the real React commit/DOM is checked. Each also
+runs abort-first. The round-2 control fails all three (four reported failures
+including the parent); the fix passes them, including carried byte counts,
+retry clearing and timer cleanup. Kept the act-separated tests and opaque
+expiry case. Updated the type test, LLP 3000.008.002.000 §6, guide/code lookup,
+client documentation, closed issue, report and operator fixture labels.
+
+Final requested checks: 250 affected client cases (Blob 64, retry 38, buffered
+1, avatars/lists/pressure 66, React 70, read-types 11), 339 delivery-fault/census
+cases and 113 guide tests, all passing with no skips. Client typecheck/build,
+docs budget, reference audit and fixture TSX syntax pass. No census or budget
+change. No whole-suite or new iOS qualification claimed. Work stayed within
+this lane and host; no other worktree/process touched, no simulator, no push.
+The operator's iOS Release recheck is pending; the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-3--wait-explanations-survive-react-batching-2026-10-07)
+retains the red control, final evidence and current reproduction instructions.

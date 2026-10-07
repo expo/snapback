@@ -23,10 +23,16 @@ const initial: AssetState = { status: 'loading' };
 const published: PublishedAssetState = initial;
 const back: AssetState = published;
 const withWait: PublishedAssetState = { status: 'loading', waiting: { stage: 'body', since: 0, diagnosticAt: 5000, received: 1, total: 2 } };
+const withBackoff: PublishedAssetState = { status: 'loading', waiting: { stage: 'backoff', since: 5010, diagnosticAt: 10010,
+  interrupted: { stage: 'body', since: 0, diagnosticAt: 4999, progress: 'bytes', received: 0, total: 12,
+    why: { code: 'E_ASSET_WAIT', family: 'client', message: 'No observable progress', site: 'useAsset.body' } } } };
+const sourceBackoff: AssetState = withBackoff;
 function show(state: AssetState) {
   if (state.status === 'loading') {
     const received: number | undefined = state.waiting?.received;
     const progress: 'bytes' | 'unknown' | undefined = state.waiting?.progress;
+    const interruptedBytes: number | undefined = state.waiting?.interrupted?.received;
+    const interruptedSite: string | undefined = state.waiting?.interrupted?.why.site;
     return state.waiting?.why?.message ?? state.waiting?.stage ?? 'loading';
   }
   if (state.status === 'ready') return state.url;

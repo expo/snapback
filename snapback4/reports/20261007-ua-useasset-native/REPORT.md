@@ -1,6 +1,108 @@
 # UA — ordinary native images and visible asset waits
 
+## Round 3 — wait explanations survive React batching, 2026-10-07
+
+Base `df8ec3e6fae9a416f67556369cbbf1ab0af2a543`, same UA branch/worktree on
+eb1000 (`expose-builder-pixel`). Read both round-2 reviews, Astra's no-act
+probe source/log and Grok's matching busy-pre-byte/busy-restart finding.
+Work stayed on this host and in this lane. No simulator or other host/worktree
+was used; local commit only, no push. **The operator's iOS Release recheck is
+still pending.** Native rendering evidence remains round 0.
+
+### Fix and contract
+
+A diagnostic callback before an abort callback does not imply a React commit
+between them. Round 2's one-millisecond lead could still produce only a backoff
+commit, without E_ASSET_WAIT. The hook now captures the overdue preceding stage
+when entering backoff, using its clock and progress rather than an earlier
+state commit or diagnostic callback. The backoff loading state has:
+
+- `waiting.stage = "backoff"` and the current backoff timestamps;
+- `waiting.why` carrying the interrupted stage's E_ASSET_WAIT immediately;
+- `waiting.interrupted` retaining that stage, its progress/known bytes,
+  original timestamps and diagnostic.
+
+Backoff can add its own five-second notice while retaining the interrupted
+snapshot. A new attempt clears both notices and the snapshot; a terminal
+outcome replaces loading. An early reset before the deadline invents no stall
+notice. The new interrupted field is optional; older loading literals remain
+source-compatible. The diagnostic is independent of React scheduling and does not change transport timers,
+retry limits, authority, retention, once-view rules or Blob ownership.
+Opaque progress remains unknown, with a fifteen-second notice and the full
+buffered transfer allowance. No downloader or native conversion code changed.
+
+Governing context remains LLP 3000 §7 and LLP 3000.008.002.000 §6. Updated the
+latter, assets guide/code lookup, client documentation, closed issue and living
+recheck instructions together. No new design document, native ABI, persisted
+format, Rust device change or wasm measurement is involved.
+
+### Regressions and evidence
+
+Three cases use the reviewers' busy-thread probe shape: empty first body,
+partial body followed by a completely empty restarted body, and a stalled
+partially received body. Each jumps to ten milliseconds after both deadlines,
+then delivers the overdue callbacks with microtask checkpoints and **no act()
+or React flush between them**. After React commits normally, the DOM must show
+E_ASSET_WAIT in backoff with the original stage, byte count, known total and
+deadline. Each also runs abort-first to prove capture does not depend on the
+notice callback firing first. A safe retry clears the snapshot, restarts the
+full range and resets byte counts; unmount/close releases every owned timer.
+
+Before the fix, all three failed because the committed DOM showed only loading:
+[round-2 control](round3/react-before.log.gz), 66 passes and four reported
+failures (three new subtests plus their containing test). After the fix, the
+same probes pass in both callback orders. Existing act-separated tests remain,
+including opaque expiry, with added assertions that backoff retains the notice.
+Type coverage still compiles old loading literals through source and dist
+imports, and now checks access to the interrupted snapshot.
+
+| Check | Final result | Evidence |
+| --- | --- | --- |
+| Blob lifecycle, including installed Expo/RN mutable/sealed/frozen paths | 64 passed | [affected](round3/affected-final.log) |
+| Asset retry / buffered HTTP / avatars, lists, pressure | 38 / 1 / 66 passed | [affected](round3/affected-final.log) |
+| React / read-types | 70 / 11 passed | [affected](round3/affected-final.log) |
+| Delivery-fault matrix and await census | 339 passed | [delivery](round3/delivery-fault.log) |
+| Guide | 113 passed | [guide](round3/guide.log.gz) |
+| Client typecheck/build, docs budget and reference audit | Passed | [types](round3/typecheck.log), [build](round3/build-client.log), [budget](round3/docs-budget.log), [refs](round3/ref-check.log) |
+| Updated Expo fixture TSX syntax | Passed; no native execution | [fixture](round3/fixture-syntax.log) |
+
+Final totals: **250 affected client + 339 delivery cases**, zero failures or
+skips; **113 guide tests**, zero failures or ignores. No whole-suite or new iOS
+qualification claim. The focused React run also passed 70/70 before the final
+affected run: [focused](round3/react-final.log). The final requested suites
+needed no census regeneration, assertion weakening or budget changes.
+
+Commands from `snapback4/` (Node 24.13.1, Bun 1.3.14, Rust 1.97.0):
+
+```sh
+bun run --cwd packages/snapback4 typecheck
+bun run --cwd packages/snapback4 build
+TMPDIR="$PWD/target/ua-round3" node --test --test-concurrency=4 \
+  packages/snapback4/test/asset-blob-lifecycle.test.mjs \
+  packages/snapback4/test/asset-retry.test.mjs \
+  packages/snapback4/test/asset-buffered.test.mjs \
+  packages/snapback4/test/asset-avatars.test.mjs \
+  packages/snapback4/test/asset-lists.test.mjs \
+  packages/snapback4/test/asset-pressure.test.mjs \
+  packages/snapback4/test/react.test.mjs \
+  packages/snapback4/test/read-types.test.mjs
+TMPDIR="$PWD/target/ua-round3" node --test packages/snapback4/test/delivery-fault-matrix.test.mjs
+CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+  LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-lang --test guide
+CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+  LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT node scripts/docs-budget.mjs
+```
+
+Ran `./ref-check --verbose` at the repository root. Reused this lane's existing
+CLI/wasm prerequisites. The operator fixture labels now identify round 3;
+[Release recheck steps](#repeating-the-fixture--operators-round-3-recheck) still
+require stock native conversion and separately recorded image-load evidence.
+
 ## Round 2 — sealed responses and bounded wait explanations, 2026-10-07
+
+Historical qualification: round 3 supersedes the claim below that deadline order
+guarantees a rendered explanation. These tests flushed React between timers;
+the busy-thread regression and final state contract are recorded above.
 
 Base `6eb514cd91f2f1fd9365e325c942fbd8f2ac8a99`, same UA branch/worktree on
 eb1000 (`expose-builder-pixel`). Node 24.13.1, Bun 1.3.14, Rust 1.97.0.
@@ -269,7 +371,7 @@ included to connect the observations. The Debug screenshot includes Expo's
 first-run developer-menu overlay; the app's ready state and image are visible
 behind it, and the image-load event supplies the independent render observation.
 
-### Repeating the fixture — operator's round-2 recheck
+### Repeating the fixture — operator's round-3 recheck
 
 The small [schema](repro/schema.q), [Expo app](repro/ExpoApp.tsx),
 [web app](repro/WebApp.tsx), [dependency pins](repro/expo-package.json),
@@ -329,12 +431,12 @@ config JSON inside Metro's app root. Successful build log sizes/hashes are in
 `target/ua/` in this worktree.
 
 The retained fixture now reads optional `mode` from `ua-config.json` and labels
-traces `release-r2-<mode>` or `debug-r2-<mode>`. Rebuild Release after changing
+traces `release-r3-<mode>` or `debug-r3-<mode>`. Rebuild Release after changing
 config/mode, and uninstall/reinstall the app between cases to clear its media
 store. The proxy writes `mode` from `UA_MODE` (default `ordinary`); it can also
 deliver successful asset bodies in twelve chunks with `UA_CHUNK_MS=500`.
 
-| Operator case | Expected round-2 result |
+| Operator case | Expected round-3 result |
 | --- | --- |
 | `ordinary` | One GET/206, ready and image-load; online throughout. |
 | `ordinary` with `UA_CHUNK_MS=500` on the proxy | Six-second healthy transfer, no E_ASSET_WAIT, ready/image-load and one GET. Native opaque conversion exposes stage/known total, not fabricated received bytes. |
@@ -351,7 +453,15 @@ the Node regressions above execute Expo's **actual** duplicate-module fallback
 and injected native-store conversion. Do not describe a fixture injection as
 a second observed stock iOS defect. Return to `ordinary` for the final Release
 success record. Stop only owned server PIDs and shut down/delete only the run's
-owned simulator afterward. Round-2 operator results are not yet present here.
+owned simulator afterward. Round-3 operator results are not yet present here.
+
+Retain complete hook waiting objects in the trace, including any
+`waiting.interrupted` snapshot during backoff. The busy-thread streaming cases
+are qualified by the round-3 Node/browser regressions: React commits backoff
+with E_ASSET_WAIT after both overdue timers run without an intervening flush.
+Stock RN uses opaque native conversion and retains the fifteen-second notice
+and existing buffered allowance. Do not replace its Blob constructor to force
+the streaming timing case on iOS; the Release recheck still uses stock Expo/RN.
 
 ## Change and diagnostic contract
 
@@ -364,18 +474,25 @@ refusal bodies use `Response.json()`. Remaining stream assembly errors are
 E_CLIENT and never mark the device offline. Blob ownership, late cancellation,
 ordinary retention and once-view no-replay rules remain in force.
 
-Every loading hook result contains (round-2 contract):
+Every loading hook result contains (round-3 contract):
 
 ```ts
-waiting: { stage, since, diagnosticAt, received?, total?, progress?, why? }
+waiting: { stage, since, diagnosticAt, received?, total?, progress?, why?, interrupted? }
 ```
 
 `stage` is a typed union: scheduled, client, session, media, refresh, queue,
 headers, body, backoff, retention or display. `since` and `diagnosticAt` are
 wall-clock milliseconds for its latest progress interval. Stage transitions or
-nonempty received chunks restart the deadline and clear stale diagnostics.
+nonempty received chunks restart the deadline and clear stale diagnostics,
+except for backoff: it keeps any overdue preceding stage in
+`waiting.interrupted` (stage, timestamps, progress and E_ASSET_WAIT). Its own
+`waiting.stage` remains backoff, and `waiting.why` carries the preceding
+explanation until backoff diagnoses its own five-second wait. The interrupted
+snapshot survives that notice. Capture uses elapsed time, independent of timer
+order or an earlier React commit. The next attempt clears both notices and the
+snapshot; terminal outcomes replace loading.
 Streams expose received bytes and a known total; opaque transfers do not invent
-byte counts. Streams diagnose after **4,999 ms**, strictly before the unchanged
+byte counts. Streaming diagnostics are due after **4,999 ms**, with an unchanged
 five-second abort; other non-opaque stages diagnose after **5,000 ms**. Opaque
 header/body waits set `progress: "unknown"` and explain that uncertainty after
 **15,000 ms** without a stage change, while keeping the existing size-based

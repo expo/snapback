@@ -402,16 +402,27 @@ export function useAsset(id: string | null | undefined): AssetState {
     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
     let stage: AssetStage = "scheduled", since = owner.since;
     let detail: AssetProgressDetail = {};
+    let interrupted: AssetWaiting["interrupted"];
     const lifetime = { live: true };
     let read: AssetRead | null = null;
     const publish = (state: AssetState) => setResolved({ owner, state, lifetime });
-    const publishWaiting = () => { if (live) publish({ status: "loading", waiting: assetWaiting(stage, since, Date.now(), detail) }); };
+    const publishWaiting = () => {
+      if (!live) return;
+      const waiting = assetWaiting(stage, since, Date.now(), detail);
+      publish({ status: "loading", waiting: interrupted ? { ...waiting, why: waiting.why ?? interrupted.why, interrupted } : waiting });
+    };
     const diagnose = () => {
       clearTimeout(diagnosticTimer);
       diagnosticTimer = setTimeout(publishWaiting, Math.max(0, since + assetWaitDelay(detail) - Date.now()));
     };
     const progress = (next: AssetStage, update: AssetProgressDetail = {}) => {
       if (!live) return;
+      // Snapshot from the clock and progress, not a prior React commit or timer
+      // callback: the abort may supersede an uncommitted diagnostic update.
+      if (next === "backoff" && stage !== next) {
+        const previous = assetWaiting(stage, since, Date.now(), detail);
+        interrupted = previous.why ? { ...previous, why: previous.why } : undefined;
+      } else if (next !== "backoff") interrupted = undefined;
       if (stage !== next || (update.received ?? 0) > (detail.received ?? 0)) since = Date.now();
       stage = next; detail = update;
       publishWaiting(); diagnose();

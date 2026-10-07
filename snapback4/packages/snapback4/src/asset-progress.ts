@@ -12,12 +12,15 @@ export interface AssetWaiting {
   readonly stage: AssetStage;
   /** Wall-clock time of the latest stage change or received bytes. */
   readonly since: number;
-  /** Wall-clock time at which the hook adds an E_ASSET_WAIT diagnostic. */
+  /** Wall-clock time at which this stage gets its own E_ASSET_WAIT diagnostic. */
   readonly diagnosticAt: number;
   readonly received?: number;
   readonly total?: number;
   readonly progress?: "bytes" | "unknown";
+  /** Current diagnostic, or the interrupted stage's while backoff is still young. */
   readonly why?: Refusal;
+  /** During backoff, the overdue stage it interrupted, including its diagnostic. */
+  readonly interrupted?: Omit<AssetWaiting, "interrupted"> & { readonly why: Refusal };
 }
 const descriptions: Record<AssetStage, string> = {
   scheduled: "the hook's scheduled dispatch has not run",
@@ -33,8 +36,8 @@ const descriptions: Record<AssetStage, string> = {
   display: "constructing a display URI from the downloaded bytes",
 };
 export const assetDiagnosticDelay = 5000;
-// Publish before the streaming abort even on an empty/restarted body. Opaque
-// transfers get a bounded explanation, not a claim that their bytes stalled.
+// The stream notice is due before abort; useAsset also carries it into backoff
+// because React can batch both callbacks. Opaque notices do not prove a stall.
 export const assetWaitDelay = (detail: AssetProgressDetail): number => detail.progress === "unknown" ? 15_000
   : detail.progress === "bytes" ? assetDiagnosticDelay - 1 : assetDiagnosticDelay;
 export function assetWaiting(stage: AssetStage, since: number, now = Date.now(), detail: AssetProgressDetail = {}): AssetWaiting {

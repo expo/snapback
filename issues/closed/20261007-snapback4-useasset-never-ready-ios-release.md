@@ -1,7 +1,7 @@
 # Snapback 4: useAsset never became ready for an ordinary image in an iOS Release app
 
 **Opened:** 2026-10-07, from the native Phase-2 rerun (LLP 0201.000, native.2)
-**Status:** Resolved in Lane UA; round-2 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
+**Status:** Resolved in Lane UA; round-3 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
 **Area:** `snapback4-expo` / `snapback4` asset hooks (`useAsset`) on iOS Release builds
 **Related:** LLP 0201.000; the pilot packet on the Apartment mini, `~/clique-native-pilot2-20261006-round2`, which holds `results/snapback4/attempt-02/m6` and `attempt-03/m8`, plus `preparation/revision10/DIAGNOSIS.md`
 
@@ -108,3 +108,21 @@ Final requested checks pass: 247 affected client tests, 339 delivery-fault tests
 retains the initial frozen-getter failures and their green rerun. Operator
 fixture modes now cover sealed/frozen failures and 16.2-second opaque waits.
 No iOS run or push; the operator's Release recheck remains pending.
+
+## Round-3 review correction — 2026-10-07, eb1000
+
+The one-millisecond diagnostic lead ordered callbacks but did not guarantee
+separate React commits. A busy thread could deliver notice and abort together,
+then commit only backoff without the explanation. Backoff now retains the
+preceding overdue stage's E_ASSET_WAIT in waiting.why and its complete stage,
+progress and timing snapshot in waiting.interrupted. Capture uses the elapsed
+clock even if the notice callback has not run. The next attempt clears the
+snapshot; transport allowances and once-view safety are unchanged.
+
+Three new regressions (empty first body, empty restarted body and partial body)
+failed against round 2 with a committed DOM showing only loading. They pass
+with the fix, in deadline order and abort-first order, with no React flush
+between callbacks. Existing act-separated and opaque-expiry cases remain and
+also assert that backoff retains the earlier explanation. The report records
+requested suite results and current Release recheck steps. No simulator or
+other host was used; the operator's iOS recheck remains pending. Nothing pushed.

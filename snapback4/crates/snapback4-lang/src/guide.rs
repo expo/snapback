@@ -557,14 +557,20 @@ Every hook `loading` result has `waiting.stage`, `since` and `diagnosticAt`;
 `waiting` is optional in AssetState so older loading literals still typecheck.
 Stages name scheduling, session-store checks, media reconciliation, refresh,
 queue, headers/body, backoff, retention and display conversion; custom clients
-report `client`. Stage changes and received bytes restart the deadline and clear
-old diagnostics. Streaming bodies expose `waiting.received` and, when known,
+report `client`. Stage changes and received bytes restart the deadline; backoff
+preserves an overdue stage's explanation as described below. Streaming bodies expose `waiting.received` and, when known,
 `waiting.total` bytes. `waiting.why` adds E_ASSET_WAIT with the stage's explanation:
-streams diagnose after 4,999 ms without bytes, just before the five-second abort;
+streams diagnose after 4,999 ms without bytes, with a five-second abort;
 other stages use five seconds. Opaque headers/body waits report
 `waiting.progress: "unknown"` and diagnose after fifteen seconds without a stage
 change, while keeping the full buffered allowance below. Unknown progress is
 not proof of a stalled network; a healthy long opaque transfer can show this notice.
+When abort and diagnostic updates share a React commit, backoff still carries
+`waiting.why`. `waiting.interrupted` preserves the preceding stage, progress,
+timestamps and diagnostic, while `waiting.stage` names `backoff`. Capture uses
+the elapsed deadline even if the diagnostic callback has not run. Backoff can
+add its own notice after five seconds; the interrupted snapshot stays until the
+next attempt, which clears both notices. Terminal outcomes replace loading.
 Render it instead of hiding all non-ready states. This is
 a diagnostic of the still-pending request, not a retry or consumed-view verdict;
 healthy long transfers may finish. Unmount cancels the diagnostic timer, and

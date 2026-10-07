@@ -1,6 +1,103 @@
 // @ref LLP 3000.008.002.000#6 — actual downloader cooldowns and one recovery per event.
 // Inserted into react-harness so these cases share its mounted React fixture.
+// The busy-frame probes from both round-2 reviews deliberately allow only
+// microtasks between overdue callbacks: act() there would hide the regression.
+const busyWaitCase = kind => `
+  async "useAsset retains the ${kind} stream diagnosis when a busy thread delivers both deadlines"() {
+    const kind = ${JSON.stringify(kind)};
+    const originalNow = Date.now, originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout, originalRandom = Math.random;
+    let now = 1000000;
+    const timers = new Map();
+    Date.now = () => now; Math.random = () => 0;
+    globalThis.setTimeout = (cb, delay, ...args) => {
+      if (delay < 250) return originalTimeout(cb, delay, ...args);
+      const id = {}; timers.set(id, { at: now + delay, run: () => cb(...args) }); return id;
+    };
+    globalThis.clearTimeout = id => { if (!timers.delete(id)) originalClear(id); };
+    const advance = async ms => {
+      const end = now + ms;
+      for (;;) {
+        const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next || next[1].at > end) break;
+        now = next[1].at; timers.delete(next[0]); await act(async () => next[1].run());
+      }
+      now = end;
+    };
+    try {
+      for (const order of ["deadline", "abort-first"]) {
+        let state, stream;
+        const requests = [], commits = [], client = controlled();
+        const transport = createClient({ url: "https://assets.invalid", persona: "test", fetch: async (_url, init) => {
+          requests.push({ range: init.headers.range, signal: init.signal });
+          return new Response(new ReadableStream({ start(value) { stream = value; } }),
+            { status: 206, headers: { "content-length": "12" } });
+        } });
+        client.asset = transport.asset;
+        function Probe() {
+          state = useAsset("photo");
+          useLayoutEffect(() => { commits.push(state); }, [state]);
+          return h("span", null, state.waiting?.why?.code ?? state.status);
+        }
+        try {
+          await mount(h(Probe), client);
+          equal(requests.length, 1, "initial dispatch");
+          if (kind !== "empty") {
+            await advance(500);
+            await act(async () => stream.enqueue(new Uint8Array([1, 2, 3])));
+            equal(state.waiting.received, 3, "partial bytes observed");
+            if (kind === "restart") {
+              await act(async () => stream.error(Error("connection reset")));
+              equal(state.waiting.why, undefined, "an early reset has no stall diagnostic");
+              equal(state.waiting.interrupted, undefined, "an early reset invents no stalled stage");
+              await advance(400);
+              equal(requests.length, 2, "safe reset restarted");
+              equal(state.waiting.received, 0, "restarted body is empty");
+            }
+          }
+          const stalled = state.waiting, request = requests.at(-1), requestCount = requests.length;
+          now = stalled.since + 5010;
+          const due = [...timers].filter(([, timer]) => timer.at <= now).sort((a, b) => a[1].at - b[1].at);
+          equal(due.map(([, timer]) => timer.at), [stalled.since + 4999, stalled.since + 5000], "both deadlines are overdue in one advance");
+          // Also prove capture works if the abort runs before the diagnostic.
+          if (order === "abort-first") due.reverse();
+          globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+          for (const [id, timer] of due) {
+            timers.delete(id); timer.run();
+            for (let i = 0; i < 15; i++) await Promise.resolve();
+          }
+          await awaitState(() => commits.at(-1)?.waiting?.stage === "backoff", "busy-frame backoff commit");
+          globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+          equal(request.signal.aborted, true, "unchanged inactivity limit aborts");
+          equal(requests.length, requestCount, "notice does not replay the transfer");
+          equal(host.textContent, "E_ASSET_WAIT", "backoff commits the diagnostic to the DOM");
+          equal(state.waiting.stage, "backoff", "current stage remains visible");
+          equal(state.waiting.why?.code, "E_ASSET_WAIT", "backoff preserves the explanation without an intermediate commit");
+          equal(state.waiting.why?.site, "useAsset.body", "explanation names its originating stage");
+          const interrupted = state.waiting.interrupted;
+          equal(interrupted, { ...stalled, why: state.waiting.why }, "originating stage, progress and deadline survive intact");
+          equal(interrupted.received, kind === "partial" ? 3 : 0, "snapshot preserves the interrupted attempt's bytes");
+          equal(interrupted.total, 12, "known total survives backoff");
+          await advance(500);
+          equal(requests.length, requestCount + 1, "existing safe backoff admits the next attempt");
+          equal(requests.map(r => r.range), Array(requests.length).fill("bytes=0-"), "every attempt restarts the full range");
+          equal(state.waiting.stage, "body", "next body starts normally");
+          equal(state.waiting.why, undefined, "new attempt clears the old diagnostic");
+          equal(state.waiting.interrupted, undefined, "new attempt clears its origin snapshot");
+          equal(state.waiting.received, 0, "new attempt resets received bytes");
+        } finally {
+          globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+          await unmount(); await act(async () => transport.close());
+        }
+        equal(timers.size, 0, "owned timers released");
+      }
+    } finally {
+      Date.now = originalNow; Math.random = originalRandom;
+      globalThis.setTimeout = originalTimeout; globalThis.clearTimeout = originalClear;
+    }
+  },
+`;
 export const assetRecoveryHarness = `
+  ${["empty", "restart", "partial"].map(busyWaitCase).join("\n")}
   async "useAsset diagnoses empty and restarted streams before abort, and opaque waits before expiry"() {
     const originalNow = Date.now, originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
     let now = 100000;
@@ -65,6 +162,8 @@ export const assetRecoveryHarness = `
             await advance(1);
             equal(request.signal.aborted, true, "transport still aborts at five seconds");
             equal(state.waiting.stage, "backoff", "safe retry follows the visible diagnosis");
+            equal(state.waiting.why.code, "E_ASSET_WAIT", "backoff retains the diagnosis already committed");
+            equal(state.waiting.interrupted.stage, "body", "backoff records the interrupted stage");
           } else {
             equal(state.waiting.stage, kind === "headers" ? "headers" : "body", "opaque stage is named");
             equal(state.waiting.progress, "unknown", "do not fabricate opaque byte progress");
@@ -84,6 +183,8 @@ export const assetRecoveryHarness = `
               await advance(1);
               equal(requests[0].signal.aborted, true, "opaque allowance still expires");
               equal(state.waiting.stage, "backoff", "expiry cannot erase the earlier observation");
+              equal(state.waiting.why.code, "E_ASSET_WAIT", "opaque diagnosis survives expiry");
+              equal(state.waiting.interrupted.progress, "unknown", "opaque origin keeps unknown progress");
             }
           }
           check(observations.some(s => s.waiting?.why?.code === "E_ASSET_WAIT"), kind + ": React rendered the diagnostic");
