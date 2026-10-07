@@ -8,6 +8,7 @@ import after, builder, chain, common, processes, restart, isolation, derived_dat
 import audit as source_audit
 import operator_inputs, source_ruling
 import round5
+from cleanup_selftest import CleanupSafety
 
 def native_component_root():
     """Resolve fixtures in both the assembled packet and source checkout."""
@@ -533,6 +534,9 @@ print('native allowances and denials passed')
         gap = common.read(native_component_root() / 'tests/fixtures/fixture-schema-gap.json')
         foreign = 'f2106546-215d-4063-a277-99b0e0a36d4e'
         cases = {
+            'passing': (lambda requested: (requested, [requested + ':first', requested + ':second']), None),
+            'cleanup-after-success': (lambda requested: (requested, [requested + ':first', requested + ':second']), None),
+            'validator-unavailable': (lambda requested: (requested, [requested + ':first', requested + ':second']), None),
             'convex-round7': (lambda requested: (requested, gap['convex']['queuedBodies']),
                               'fixture-queued-bodies-current-run'),
             'snapback4-round7': (lambda requested: (requested, gap['snapback4']['queuedBodies']),
@@ -558,6 +562,7 @@ print('native allowances and denials passed')
 
                 def invoke(argv, **kwargs):
                     if argv[0] == 'node':
+                        if name == 'validator-unavailable': raise OSError('validator spawn failed')
                         return real_run(argv, **kwargs)
                     self.assertEqual(argv, ['inert-seed'])
                     requested = json.loads(kwargs['input'])['runId']
@@ -580,17 +585,38 @@ print('native allowances and denials passed')
                     return SimpleNamespace(pid=123, poll=lambda: None)
 
                 def validate_then_build():
-                    after.validate_handoff_descriptor('snapback4', handoff, work, scratch, attempt,
+                    result = after.validate_handoff_descriptor('snapback4', handoff, work, scratch, attempt,
                                                       os.environ.copy(), lambda argv: argv)
+                    self.assertTrue(result['valid'])
+                    self.assertTrue(common.read(attempt / 'semantic-handoff/result.json')['pass'])
+                    common.require_cleanup(result['cleanupErrors'])
                     build_stages.append('release-build')
 
                 with patch.object(after, 'NATIVE', native_component_root()), \
                      patch.object(after.subprocess, 'Popen', side_effect=launch), \
                      patch.object(after.subprocess, 'run', side_effect=invoke), \
-                     patch.object(after.socket, 'socket', ReadySocket), patch.object(after, 'stop'):
-                    with self.assertRaisesRegex(RuntimeError, 'semantic-handoff-refused'):
+                     patch.object(after.socket, 'socket', ReadySocket), patch.object(after, 'stop',
+                         side_effect=PermissionError(1, 'Operation not permitted') if name == 'cleanup-after-success' else None):
+                    if name == 'passing':
                         validate_then_build()
+                    else:
+                        with self.assertRaises(Exception) as raised: validate_then_build()
+                        summary = {'segments': {}, 'observedProductFailure': False, 'outcome': 'setup-failure'}
+                        after.classify_failure(summary, raised.exception, 'builder-handoff-semantic')
+                        if expected_code:
+                            self.assertIsInstance(raised.exception, after.SemanticHandoffRefused)
+                            self.assertEqual(summary['outcome'], 'handoff-refused-by-semantic-validator')
+                        else:
+                            self.assertEqual(summary['outcome'], 'harness-defect')
+                            self.assertEqual(summary['failureStage'], 'operator-setup')
+                            self.assertFalse(summary['observedProductFailure'])
+                if name == 'passing':
+                    self.assertEqual(build_stages, ['release-build']); continue
                 self.assertEqual(build_stages, [])
+                if name == 'cleanup-after-success':
+                    self.assertTrue(common.read(attempt / 'semantic-handoff/result.json')['pass'])
+                    self.assertFalse(common.read(attempt / 'semantic-handoff/cleanup.json')['complete'])
+                if not expected_code: continue
                 validator = common.read(attempt / 'semantic-handoff/validator-exit.json')
                 self.assertEqual(validator['exitCode'], 2)
                 refusal = json.loads((attempt / 'semantic-handoff/validator.stderr').read_text())
