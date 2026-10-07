@@ -74,7 +74,7 @@ Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `use
 Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
 Every milestone: `npm run export:ios` publishes `dist/`; native proof runs in the background. `witness status --wait` reports results. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs scenarios (`guide witness`).
 
-`createClient`/online `createApp`: `readOnly: true` (`guide read-only`). Keep `useSeen` inactive when read-only.
+`createClient`/online `createApp`: `readOnly: true` (`guide read-only`). Keep `useSeen` inactive when read-only. Read sessions never refresh or rotate in the SDK; `refreshSession()` refuses `E_READ_ONLY_REFRESH`. At `expiresAt`, reads surface `E_AUTH`: sign in again or narrow a full session again.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.

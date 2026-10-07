@@ -22,17 +22,18 @@ for(const readOnly of [true,false]) test(`peer logout vs held committed login, r
  assert.equal(result.ok,false);assert.ok('denied' in answer);
  assert.equal(restart.auth.state,'signed-out');
 });
-test('two simultaneous read refreshes cannot delete the successful custody',{timeout:10000},async t=>{
- const {url,key,store,values,initial}=await fixture(t),entered=deferred(),release=deferred();t.after(()=>release.resolve());let next;
- const a=createApp({url,readOnly:true,sessionStore:store,fetch:async(input,init)=>{
-  const path=new URL(input).pathname,token=new Headers(init.headers).get('authorization');
-  const response=await fetch(input,init);
-  if(path==='/auth/refresh'&&response.ok)next=(await response.clone().json()).session;
-  if(path==='/probe'&&token!==`Bearer ${initial.token}`){entered.resolve();await release.promise}
-  return response;
- }}),b=createApp({url,readOnly:true,sessionStore:store});t.after(()=>Promise.all([a.close(),b.close()]));await Promise.all([a.ready,b.ready]);
- const first=a.client.refreshSession();await entered.promise;const second=b.client.refreshSession();release.resolve();const [result,peer]=await Promise.all([first,second]);assert.equal(result.ok,true);assert.equal(peer.ok,true);
- const live=await(await fetch(url+'/probe?scope=1',{headers:{authorization:`Bearer ${next.token}`}})).json();
- assert.equal(live.ok,true);assert.equal(JSON.parse(values.get(key)).token,next.token);const restart=createApp({url,readOnly:true,sessionStore:store});t.after(()=>restart.close());assert.equal((await restart.ready).ok,true);assert.equal((await restart.client.query({kind:'query',name:'who'},{})).data,initial.principal);
- assert.ok(values.has(key),'successful successor must remain restorable');
+test('simultaneous read refresh refusals preserve live custody across restart', { timeout: 10000 }, async t => {
+  const { url, key, store, values, initial } = await fixture(t), requests = [];
+  const transport = async (input, init) => { requests.push(new URL(input).pathname); return fetch(input, init); };
+  const a = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
+  const b = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
+  t.after(() => Promise.all([a.close(), b.close()])); await Promise.all([a.ready, b.ready]);
+  for (const result of await Promise.all([a.client.refreshSession(), b.client.refreshSession()])) assert.equal(result.why.code, 'E_READ_ONLY_REFRESH');
+  const live = await (await fetch(url + '/probe?scope=1', { headers: { authorization: `Bearer ${initial.token}` } })).json();
+  assert.equal(live.ok, true); assert.equal(JSON.parse(values.get(key)).token, initial.token);
+  await b.close();
+  const restart = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
+  t.after(() => restart.close()); assert.equal((await restart.ready).ok, true);
+  assert.equal((await restart.client.query({ kind: 'query', name: 'who' }, {})).data, initial.principal);
+  assert.ok(!requests.includes('/auth/refresh'));
 });

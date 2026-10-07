@@ -29,7 +29,7 @@ presence snapshot. Four exceptions to answer identity: delivery manifests and
 view-once grants refuse; writes refuse.
 
 Session creation, refresh, expiry and logout change the reader's own auth family.
-Sign-in collects expired full and read sessions; read refresh deletes only its own family. Request logs and read meters still run.
+Sign-in collects expired full and read sessions; raw HTTP read refresh deletes only its own family. The SDK never refreshes read sessions. Request logs and read meters still run.
 Unauthenticated development doors/personas are outside this promise. A read
 bearer on a development write door is refused too, with any capitalization of
 `Bearer`. Malformed or invalid credentials cannot become anonymous dev writes.
@@ -46,12 +46,12 @@ scope and stores sessions under `sessionKey(url) + ".read"`; it never opens
 an interactive write journal. Its `.read.revocations` queue retires only verified
 read credentials. In both full and read modes, explicit app logout signs this
 user out of that shared storage: it tombstones and retires every same-principal
-credential, whatever its epoch, including peer rotations, pending successors and
-newer deliberate logins, and fences same-principal sign-ins already in flight.
+credential, whatever its epoch, including newer deliberate logins and full-session
+peer rotations or pending successors, and fences same-principal sign-ins already in flight.
 It never deletes or revokes a different principal's later login: a stale Bob
-facade cannot sign Alice out. Logout completes while a refresh response is held;
-its late successor is retired, never adopted. Rejected predecessors preserve
-pending successors.
+facade cannot sign Alice out. Full-session logout completes while a refresh response is held;
+its late successor is retired, never adopted. Read clients keep their original
+bearer across peers and restarts, without successor custody.
 
 ## Dashboard: narrow the interactive credential
 
@@ -78,7 +78,7 @@ try { return await reader.query(api.history, { conversation, c: null }); }
 finally { await reader.close(); }
 ```
 
-The SDK probes scope before any read, refresh or exported asset credential.
+The SDK probes scope before any read or exported asset credential.
 A full credential or persona refuses `E_READ_ONLY_CREDENTIAL`; an older server
 refuses `E_READ_ONLY_UNSUPPORTED`. Caller-edited Session.scope is never trusted.
 Supply a read session and upgrade older servers. Legacy sessions without scope remain valid persisted data.
@@ -87,10 +87,11 @@ Supply a read session and upgrade older servers. Legacy sessions without scope r
 refused even offline, regardless of its scope field. Use an online read-only
 client without a device.
 
-Refresh rotates only this read family, never extending its immutable
-`capExpiresAt`. Automatic refresh stops when `expiresAt` reaches that cap;
-a missing cap on a verified read credential means `expiresAt`. Explicit refresh
-can rotate a live at-cap token. At expiry, sign in again (`E_AUTH`).
+The SDK never refreshes or rotates a read session, automatically or explicitly.
+`client.refreshSession()` and the auth helper refuse `E_READ_ONLY_REFRESH`:
+sign in again or narrow a full session again. The client runs until `expiresAt`,
+then surfaces `E_AUTH`, even if `capExpiresAt` is later. Raw HTTP
+`POST /auth/refresh` still rotates only this family under its immutable cap.
 
 Active `useSeen` throws `E_READ_ONLY` during render, before subscribing. With
 `active: false`, it may observe the receipt row but never posts.

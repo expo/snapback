@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createApp } from '../dist/app.js';
 import { createLocalClient } from '../dist/local.js';
-import { login, signup, guest, narrowSession, restoreSession, sessionKey } from '../dist/auth.js';
+import { login, signup, guest, refreshSession, narrowSession, restoreSession, sessionKey } from '../dist/auth.js';
 import { verifyReadClient } from '../dist/read-only.js';
 import { storeKey } from '../dist/app-storage.js';
 import { waitFor } from './helpers/wait.mjs';
@@ -33,7 +33,7 @@ test('held probe gates near-expiry startup, query, observe, asset, refresh and e
   held.resolve();
   assert.equal((await pending).denied.code, 'E_READ_ONLY_CREDENTIAL');
   assert.equal((await asset).denied.code, 'E_READ_ONLY_CREDENTIAL');
-  assert.equal((await refresh).why.code, 'E_READ_ONLY_CREDENTIAL');
+  assert.equal((await refresh).why.code, 'E_READ_ONLY_REFRESH');
   await client.signOut();
   assert.deepEqual(requests, ['/probe?scope=1'], 'failed validation cannot rotate or log out the full bearer');
 });
@@ -55,20 +55,21 @@ test('local write refusals, no manifest acceptance and no at-cap automatic rotat
   assert.deepEqual(requests, ['/probe', '/q/history']);
   assert.equal(client.assetSource('photo').headers.authorization, 'Bearer ro.reader');
 });
-test('rotation withdraws sources and verifies the successor', async t => {
-  const requests = [], held = deferred(), session = read();
-  const client = createClient({ url, session, readOnly: true, fetch: async (input, init) => {
-    const path = new URL(input).pathname; requests.push([path, init.headers.authorization]);
-    if (path === '/auth/refresh') { await held.promise; return Response.json({ session: { ...session, token: 'ro.next' } }); }
-    return probe('read');
+test('explicit refresh leaves the verified bearer and asset source unchanged', async t => {
+  const requests = [], session = read();
+  const client = createClient({ url, session, readOnly: true, fetch: async input => {
+    requests.push(new URL(input).pathname); return probe('read');
   } });
   t.after(() => client.close());
   assert.equal(await verifyReadClient(client), undefined);
-  const rotating = client.refreshSession();
-  await waitFor(() => requests.some(([p]) => p === '/auth/refresh'), 'rotation dispatched');
-  assert.deepEqual(client.assetSource('once'), { uri: '', headers: {} }); held.resolve();
-  assert.equal((await rotating).session.token, 'ro.next');
-  assert.deepEqual(requests.at(-1), ['/probe', 'Bearer ro.next']);
+  const before = client.assetSource('photo');
+  const result = await client.refreshSession();
+  assert.equal(result.why.code, 'E_READ_ONLY_REFRESH');
+  assert.match(result.why.message, /sign in again.*narrow/);
+  assert.equal(client.session().token, session.token);
+  assert.deepEqual(client.assetSource('photo'), before);
+  assert.deepEqual(requests, ['/probe']);
+  assert.equal((await refreshSession(url, session.token, async () => { throw Error('must not send'); })).why.code, 'E_READ_ONLY_REFRESH');
 });
 test('successful custody is SecureStore-legal and cannot consume the interactive journal', async t => {
   const session = read(), interactive = JSON.stringify(full()), journal = '{"pending":[{"id":"kept","op":"send","args":{}}]}';
@@ -85,12 +86,12 @@ test('successful custody is SecureStore-legal and cannot consume the interactive
   } });
   t.after(() => app.close());
   assert.equal((await app.ready).ok, true);
-  assert.equal((await app.client.refreshSession()).ok, true);
+  assert.equal((await app.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   assert.ok('data' in await app.client.query(query, {})); await app.close();
   assert.equal(store.values.get(sessionKey(url)), interactive); assert.equal(store.values.get(writeKey), journal);
-  assert.equal(JSON.parse(store.values.get(sessionKey(url, true))).token, 'ro.next');
+  assert.equal(JSON.parse(store.values.get(sessionKey(url, true))).token, session.token);
   assert.ok(store.writes.every(k => k.startsWith(sessionKey(url, true))));
-  assert.ok(!requests.some(p => p.startsWith('/m/') || p.includes('logout')));
+  assert.ok(!requests.some(p => p.startsWith('/m/') || p.includes('logout') || p === '/auth/refresh'));
 });
 test('failed app startup preserves full credentials without retirement', async t => {
   const interactive = JSON.stringify(full()), requests = [], store = alphabetStore([[sessionKey(url), interactive], [sessionKey(url, true), interactive]]);
@@ -135,9 +136,9 @@ test('useSeen throws during an active render before observation; inactive render
   assert.equal(render(false),''); assert.equal(writes,0);
 });
 
-for (const capPresent of [true,false]) test(`capped read session expires without renewal (cap hint ${capPresent})`, async t=>{
+for (const cap of [undefined, 0, 86400_000]) test(`read session expires without renewal (cap offset ${cap})`, async t=>{
   const requests=[],session={...read(),expiresAt:Date.now()+100};
-  if(capPresent)session.capExpiresAt=session.expiresAt;else delete session.capExpiresAt;
+  if(cap !== undefined)session.capExpiresAt=session.expiresAt+cap;else delete session.capExpiresAt;
   const client=createClient({url,session,readOnly:true,fetch:async input=>{requests.push(new URL(input).pathname);return probe('read');}});t.after(()=>client.close());
   await verifyReadClient(client);
   await waitFor(()=>client.session()===null,'read expiry');
@@ -145,14 +146,17 @@ for (const capPresent of [true,false]) test(`capped read session expires without
   assert.deepEqual(requests,['/probe']);
 });
 
-test('automatic read refresh extends once, verifies its successor, then stops at the cap', async t=>{
-  const first=read(),cap=Date.now()+7*86400_000;first.capExpiresAt=cap;
-  const requests=[],client=createClient({url,session:first,readOnly:true,fetch:async input=>{
-    const path=new URL(input).pathname;requests.push(path);
-    return path==='/auth/refresh'?Response.json({session:{...first,token:'ro.next',expiresAt:cap,capExpiresAt:cap}}):probe('read');
-  }});t.after(()=>client.close());
-  await waitFor(()=>client.session()?.token==='ro.next','automatic capped successor');
-  await delay(30);assert.deepEqual(requests,['/probe','/auth/refresh','/probe']);
+for (const readOnly of [true, false]) test(`read bearer never auto-refreshes even below cap; readOnly=${readOnly}`, async t => {
+  const first = read(); first.capExpiresAt += 7 * 86400_000;
+  const requests = [], client = createClient({ url, session: first, readOnly, fetch: async input => {
+    requests.push(new URL(input).pathname); return probe('read');
+  } });
+  t.after(() => client.close());
+  if (readOnly) await verifyReadClient(client);
+  await delay(30);
+  assert.equal(client.session().token, first.token);
+  assert.equal((await client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+  assert.deepEqual(requests, readOnly ? ['/probe'] : []);
 });
 
 test('legacy full session restores offline and rejects a read successor before persistence', async t=>{
@@ -178,16 +182,52 @@ for(const mode of ['guest','refresh'])test(`device ${mode} refuses a read creden
   assert.deepEqual(requests,[`/auth/${mode}`]);assert.equal(opened,0);assert.deepEqual(store.writes,[]);
 });
 
-for(const scope of ['read','full'])test(`cancelled read rotation verifies its late successor before cleanup (${scope})`,async()=>{
-  const held=deferred(),requests=[],session=read();
-  const client=createClient({url,session,readOnly:true,fetch:async(input,init)=>{
-    const path=new URL(input).pathname;requests.push([path,init.headers.authorization]);
-    if(path==='/auth/refresh'){await held.promise;return Response.json({session:{...session,token:'ro.late'}});}
-    if(path==='/auth/logout')return Response.json({ok:true});
-    return probe(init.headers.authorization==='Bearer ro.late'?scope:'read');
-  }});
-  await verifyReadClient(client);const refresh=client.refreshSession();await waitFor(()=>requests.some(([p])=>p==='/auth/refresh'),'rotation begun');
-  await client.signOut();held.resolve();await refresh;
-  await waitFor(()=>requests.some(([p,t])=>p==='/probe'&&t==='Bearer ro.late'),'late credential verified');await delay(10);
-  assert.equal(requests.filter(([p])=>p==='/auth/logout').length,scope==='read'?1:0);
+for (const method of ['signOut', 'close']) test(`refused read refresh cannot issue a late successor after ${method}`, async () => {
+  const requests = [], session = read();
+  const client = createClient({ url, session, readOnly: true, fetch: async input => {
+    const path = new URL(input).pathname; requests.push(path);
+    return path === '/probe' ? probe('read') : Response.json({ ok: true });
+  } });
+  await verifyReadClient(client);
+  const refresh = client.refreshSession();
+  await client[method]();
+  assert.equal((await refresh).why.code, 'E_READ_ONLY_REFRESH');
+  assert.deepEqual(requests, method === 'signOut' ? ['/probe', '/auth/logout'] : ['/probe']);
+});
+
+for (const cap of ['missing', 'at expiry', 'later']) test(`crossing the automatic refresh window never rotates a read session (${cap})`, async t => {
+  const now = Date.now(), day = 86400_000;
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now });
+  const session = { ...read(), expiresAt: now + 3 * day };
+  if (cap === 'missing') delete session.capExpiresAt;
+  else session.capExpiresAt = session.expiresAt + (cap === 'later' ? day : 0);
+  const requests = [], client = createClient({ url, session, readOnly: true, fetch: async input => {
+    requests.push(new URL(input).pathname); return probe('read');
+  } });
+  t.after(() => client.close()); await verifyReadClient(client);
+  t.mock.timers.tick(2 * day);
+  assert.equal((await client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+  assert.equal(client.session().token, session.token);
+  t.mock.timers.tick(day);
+  assert.equal(client.session(), null);
+  assert.equal((await client.query(query, {})).denied.code, 'E_AUTH');
+  assert.deepEqual(requests, ['/probe']);
+});
+
+test('retryable scope-probe failures never create a successor or trigger refresh recovery', async t => {
+  const requests = [], session = read(); let failures = 3;
+  const client = createClient({ url, session, readOnly: true, fetch: async input => {
+    requests.push(new URL(input).pathname);
+    return failures-- > 0 ? Response.json({ denied: { code: 'E_RATE_LIMIT', family: 'capacity', message: 'busy', retryable: true } }, { status: 503 }) : probe('read');
+  } });
+  t.after(() => client.close());
+  for (let i = 0; i < 3; i++) {
+    assert.equal((await verifyReadClient(client)).retryable, true);
+    assert.equal((await client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+    assert.equal(client.session().token, session.token);
+    assert.deepEqual(client.assetSource('photo'), { uri: '', headers: {} });
+  }
+  assert.equal(await verifyReadClient(client), undefined);
+  assert.equal(client.assetSource('photo').headers.authorization, `Bearer ${session.token}`);
+  assert.deepEqual(requests, ['/probe', '/probe', '/probe', '/probe']);
 });

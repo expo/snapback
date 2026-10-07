@@ -49,9 +49,12 @@ export function login(url: string, email: string, password: string, options: Sig
   return post(url, "/auth/login", { email, password, ...args.options }, args.doFetch);
 }
 
-/** Replace one live bearer token. The server invalidates `token` before it
+/** Replace one live full-session bearer token. The server invalidates `token` before it
  * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
+  // @ref LLP 3000.033#1.3 — SDK read credentials live until expiry, without rotation.
+  if (token.startsWith("ro.")) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
+    message: "read sessions cannot refresh; sign in again or narrow a full session again" } };
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
     const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };

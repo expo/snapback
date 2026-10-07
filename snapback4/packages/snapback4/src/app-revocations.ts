@@ -6,7 +6,7 @@ import { globalFences, mergeFences, type GlobalFence, type SessionOrigin } from 
 
 type Journal = { tokens: string[]; all: string[]; fences: GlobalFence[] };
 type GlobalAttempt = { principal: string; epoch: string; covered: readonly string[] };
-type Saved = { token?: string; snapback4Successor?: { token?: string }; snapback4Retired?: string[]; snapback4LogoutAll?: string[]; snapback4GlobalFences?: GlobalFence[]; snapback4Backend?: string };
+type Saved = { token?: string; snapback4Retired?: string[]; snapback4LogoutAll?: string[]; snapback4GlobalFences?: GlobalFence[]; snapback4Backend?: string };
 const unique = (tokens: string[]) => [...new Set(tokens)];
 const strings = (tokens: unknown): tokens is string[] => Array.isArray(tokens) && tokens.every(token => typeof token === "string" && token.length > 0);
 
@@ -120,7 +120,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
         await locked(async () => {
           // I1: compare on EVERY dispatch, including a successful prior barrier.
           const saved = decode(await store.get(session));
-          if (saved.token === token || saved.snapback4Successor?.token === token) return;
+          if (saved.token === token) return;
           // Another owner may have promoted this token to logout-all after the
           // first read. Ordinary logout must never consume its retry credential.
           // Resolve a late response's generation again on dispatch: the global
@@ -157,7 +157,7 @@ export function sessionRevocations(url: string, store: SessionStore, fetcher: ty
                 // a peer may have reclaimed this token while the probe waited.
                 await locked(async () => {
                   const saved = decode(await store.get(session));
-                  if (saved.token !== token && saved.snapback4Successor?.token !== token) request = fetcher(input, init);
+                  if (saved.token !== token) request = fetcher(input, init);
                 });
                 if (!request) return Response.json({ ok: false }, { status: 503 });
               } else request = fetcher(input, init);

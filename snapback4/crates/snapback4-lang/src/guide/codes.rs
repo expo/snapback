@@ -1,5 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_READ_ONLY", "this read session cannot write; use a full session for writes; guide read-only."),
+    ("E_READ_ONLY_REFRESH", "the SDK does not refresh read sessions; sign in again or narrow a full session again; guide read-only."),
     ("E_READ_ONLY_CREDENTIAL", "readOnly needs a server-verified read session, without a persona; sign in with scope read or narrow a full session; guide read-only."),
     ("E_READ_ONLY_DEVICE", "a read session cannot open a device; use the online read-only client; guide read-only."),
     ("E_READ_ONLY_UNSUPPORTED", "the server cannot verify read sessions; upgrade the server before using readOnly; guide read-only."),

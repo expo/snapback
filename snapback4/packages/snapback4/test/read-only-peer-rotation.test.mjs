@@ -1,4 +1,4 @@
-// @ref LLP 3000.033#3 — Round 3 real-server peer rotation and rejection interleavings.
+// @ref LLP 3000.033#3 — Full-session peer rotation controls and read-session refusal interleavings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../dist/app.js';
@@ -32,19 +32,21 @@ async function signedOutRestart(f) {
   assert.equal(f.saved().snapback4Successor, undefined);
 }
 for (const readOnly of [true, false]) {
-  test(`logout after peer completed refresh; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
+  test(`logout after peer refresh attempt; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
     const f = await fixture(t, readOnly), a = f.app(), b = f.app();
     await Promise.all([a.ready, b.ready]);
     const epoch = f.saved().snapback4Epoch ?? '0';
-    const rotated = await b.client.refreshSession(); assert.equal(rotated.ok, true);
-    await until(() => f.saved().token === rotated.session.token);
+    const rotated = await b.client.refreshSession();
+    if (readOnly) assert.equal(rotated.why.code, 'E_READ_ONLY_REFRESH'); else assert.equal(rotated.ok, true);
+    const kept = readOnly ? f.initial : rotated.session;
+    await until(() => f.saved().token === kept.token);
     assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
     assert.equal((await a.auth.logout()).ok, true);
     await signedOutRestart(f);
     assert.ok(BigInt(f.saved().snapback4Logout) > BigInt(epoch));
-    await until(async () => (await f.probe(rotated.session.token)).denied?.code === 'E_AUTH', 'successor retirement');
+    await until(async () => (await f.probe(kept.token)).denied?.code === 'E_AUTH', 'successor retirement');
   });
-  test(`peer refresh then logout fences a pending login; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
+  test(`peer refresh attempt then logout fences a pending login; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
     const f = await fixture(t, readOnly), entered = defer(), release = defer();
     t.after(() => release.resolve());
     const a = f.app(), b = f.app({ fetch: async (input, init) => {
@@ -53,8 +55,10 @@ for (const readOnly of [true, false]) {
       return response;
     } });
     await Promise.all([a.ready, b.ready]);
-    const rotated = await b.client.refreshSession(); assert.equal(rotated.ok, true);
-    await until(() => f.saved().token === rotated.session.token);
+    const rotated = await b.client.refreshSession();
+    if (readOnly) assert.equal(rotated.why.code, 'E_READ_ONLY_REFRESH'); else assert.equal(rotated.ok, true);
+    const kept = readOnly ? f.initial : rotated.session;
+    await until(() => f.saved().token === kept.token);
     const opening = b.auth.login('bob@example.test', password); await entered.promise;
     assert.equal((await a.auth.logout()).ok, true);
     release.resolve(); assert.equal((await opening).ok, false);
@@ -98,13 +102,14 @@ for (const readOnly of [true, false]) {
     await signedOutRestart(f);
   });
 }
-test('a read peer recovers a completed refresh', { timeout: 15000 }, async t => {
+test('a read peer stays usable after both clients refuse refresh', { timeout: 15000 }, async t => {
   const f = await fixture(t), a = f.app(), b = f.app(); await Promise.all([a.ready, b.ready]);
-  assert.equal((await a.client.refreshSession()).ok, true);
-  assert.equal((await b.client.refreshSession()).ok, true);
+  assert.equal((await a.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+  assert.equal((await b.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   assert.equal((await b.client.query(query, {})).data, f.initial.principal);
+  assert.equal(f.saved().token, f.initial.token);
 });
-for (const readOnly of [true, false]) {
+for (const readOnly of [false]) {
   test(`ordinary peer query during rotation verification preserves successor; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
     const f = await fixture(t, readOnly), entered = defer(), release = defer();
     t.after(() => release.resolve()); let next, predecessorQueries = 0;
@@ -122,16 +127,8 @@ for (const readOnly of [true, false]) {
     await Promise.all([a.ready, b.ready]);
     const epoch = f.saved().snapback4Epoch ?? '0';
     const rotation = a.client.refreshSession();
-    if (readOnly) {
-      await entered.promise;
-      assert.equal(f.saved().token, f.initial.token);
-      assert.equal(f.saved().snapback4Successor.token, next.token);
-    } else { assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token); }
+    assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token);
     const answer = await b.client.query(query, {});
-    if (readOnly) {
-      assert.equal(answer.data, f.initial.principal);
-      assert.equal(predecessorQueries, 0, 'recover the receipt before dispatch with the consumed predecessor');
-    }
     assert.equal(f.saved().token, next.token);
     assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
     assert.equal((await f.probe(next.token)).ok, true);
@@ -156,17 +153,11 @@ for (const readOnly of [true, false]) {
     await Promise.all([a.ready, b.ready]);
     const epoch = f.saved().snapback4Epoch ?? '0', reading = b.client.query(query, {}); await queryEntered.promise;
     const rotation = a.client.refreshSession();
-    if (readOnly) await probeEntered.promise;
-    else { assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token); }
+    assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token);
     queryRelease.resolve();
     const answer = await reading;
-    if (readOnly) {
-      assert.equal(answer.data, f.initial.principal);
-      assert.equal(b.auth.state, 'signed-in');
-    } else {
-      assert.equal(answer.denied.code, 'E_AUTH');
-      await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
-    }
+    assert.equal(answer.denied.code, 'E_AUTH');
+    await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
     assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
     assert.equal(f.saved().token, next.token);
     assert.equal((await f.probe(next.token)).ok, true);
@@ -190,11 +181,11 @@ for (const readOnly of [true, false]) test(`logout honors the legacy committed e
   assert.equal((await app.auth.logout()).ok, true);
   await signedOutRestart(f); assert.equal(f.saved().snapback4Logout, '8');
 });
-test('logout owns two completed peer rotations without retaining a token lineage', { timeout: 15000 }, async t => {
+test('logout owns the unchanged credential after two peer refresh refusals', { timeout: 15000 }, async t => {
   const f = await fixture(t), a = f.app(), b = f.app(); await Promise.all([a.ready, b.ready]);
-  const first = await b.client.refreshSession(); assert.equal(first.ok, true);
-  const second = await b.client.refreshSession(); assert.equal(second.ok, true);
-  assert.notEqual(first.session.token, second.session.token);
+  const first = await b.client.refreshSession(); assert.equal(first.why.code, 'E_READ_ONLY_REFRESH');
+  const second = await b.client.refreshSession(); assert.equal(second.why.code, 'E_READ_ONLY_REFRESH');
+  assert.equal(b.client.session().token, f.initial.token);
   assert.equal((await a.auth.logout()).ok, true); await signedOutRestart(f);
-  await until(async () => (await f.probe(second.session.token)).denied?.code === 'E_AUTH', 'second successor retirement');
+  await until(async () => (await f.probe(f.initial.token)).denied?.code === 'E_AUTH', 'second successor retirement');
 });

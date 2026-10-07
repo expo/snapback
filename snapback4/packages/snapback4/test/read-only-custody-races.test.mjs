@@ -30,41 +30,6 @@ for(const trigger of ['logout','peer switch','close','replacement']) test(`fence
  assert.ok(notices>before,'withdrawal must notify the subscriber');assert.ok(authAtWithdrawal.length);assert.ok(authAtWithdrawal.every(state=>state!=='signed-in'),'auth publishes before withdrawal callbacks');
  assert.equal('data' in rendered,false,'a subscribed consumer must withdraw the previous principal without unrelated renders');
 });
-for(const scenario of ['logout during successor persistence','peer switch during successor probe','repeated successor probe failures'])test(scenario,{timeout:5000},async t=>{
- const store=storage(session('bob','ro.old')), entered=deferred(),release=deferred();t.after(()=>release.resolve());let live='ro.old',failures=3,writes=0;
- const orig=store.set;store.set=async(...args)=>{writes++;if(scenario==='logout during successor persistence'&&args[0]===key&&JSON.parse(args[1]).token==='ro.next'){entered.resolve();await release.promise}await orig(...args)};
- const transport=async(input,init)=>{const path=new URL(input).pathname,token=init.headers.authorization.slice(7);
-  if(path==='/auth/refresh'){live='ro.next';return Response.json({session:session('bob',live)})}
-  if(path==='/probe'&&token==='ro.next'){
-   if(scenario==='peer switch during successor probe'){entered.resolve();await release.promise;}
-   if(scenario==='repeated successor probe failures'&&failures-->0)throw Error('outage');
-   return Response.json({ok:true,scope:'read',viewer:'bob',store_id:'test',seq:0});
-  }
-  return base(input,init);
- };
- const app=createApp({url,readOnly:true,sessionStore:store,fetch:transport});t.after(()=>app.close());await app.ready;
- const old=app.client;const rotation=old.refreshSession();
- if(scenario==='logout during successor persistence'){await entered.promise;const logout=app.auth.logout();release.resolve();await logout;await rotation;assert.equal(JSON.parse(store.values.get(key)??'null')?.token,undefined);assert.equal(app.auth.state,'signed-out')}
- if(scenario==='peer switch during successor probe'){await entered.promise;const peer=createApp({url,readOnly:true,sessionStore:store,fetch:base});t.after(()=>peer.close());await peer.ready;await peer.auth.login('alice@example.test','password');release.resolve();await rotation;assert.equal(JSON.parse(store.values.get(key)).principal,'alice');await until(()=>app.auth.state==='signed-out');assert.deepEqual(old.assetSource('secret'),{uri:'',headers:{}})}
- if(scenario==='repeated successor probe failures'){assert.equal((await rotation).ok,false);for(let i=0;i<2;i++){assert.ok('denied' in await old.query(query,{}));assert.equal(old.session(),null);assert.deepEqual(old.assetSource('secret'),{uri:'',headers:{}})}assert.ok('data' in await old.query(query,{}));assert.equal(JSON.parse(store.values.get(key)).token,'ro.next');assert.equal(writes,2)}
-});
-
-test('two read apps rotating one saved token retain the successful successor',{timeout:5000},async t=>{
- const store=storage(session('bob','ro.old')),entered=deferred(),release=deferred();t.after(()=>release.resolve());let rotations=0,live='ro.old',probes=0;const peerProbe=deferred();
- const transport=async(input,init)=>{const path=new URL(input).pathname,token=init.headers.authorization.slice(7);
-  if(path==='/auth/refresh'){
-   if(rotations++===0){live='ro.next';return Response.json({session:session('bob',live)})}
-   return Response.json({denied:{code:'E_AUTH',family:'auth',message:'consumed predecessor'}},{status:401});
-  }
-  if(path==='/probe'&&token==='ro.next'){if(++probes===2)peerProbe.resolve();entered.resolve();await release.promise;return Response.json({ok:true,scope:'read',viewer:'bob',store_id:'test',seq:0})}
-  return base(input,init);
- };
- const a=createApp({url,readOnly:true,sessionStore:store,fetch:transport}),b=createApp({url,readOnly:true,sessionStore:store,fetch:transport});t.after(()=>Promise.all([a.close(),b.close()]));await Promise.all([a.ready,b.ready]);
- const first=a.client.refreshSession();await entered.promise;const second=b.client.refreshSession();await peerProbe.promise;release.resolve();const [result,peer]=await Promise.all([first,second]);assert.equal(result.ok,true);assert.equal(peer.ok,true);assert.equal(rotations,1);
-
- assert.equal(JSON.parse(store.values.get(key)??'null')?.token,'ro.next');
-});
-
 test('a peer logout fences a login already waiting for its response',{timeout:5000},async t=>{
  const store=storage(session('bob')),entered=deferred(),release=deferred();t.after(()=>release.resolve());
  const transport=async(input,init)=>{if(new URL(input).pathname==='/auth/login'){entered.resolve();await release.promise;return Response.json({session:session('bob','ro.newlogin')})}return base(input,init)};
@@ -125,55 +90,31 @@ for (const method of ['signOut', 'close']) test(`old ${method} during replacemen
   assert.ok(!requests.some(([path, token]) => path === '/auth/logout' && token === 'Bearer ro.alice'));
 });
 
-for (const held of ['response', 'persistence']) test(`peer refresh waits through held successor ${held}`, async t => {
-  const store = storage(session('bob', 'ro.old')), entered = deferred(), release = deferred();
-  let rotations = 0;
-  const originalSet = store.set;
-  store.set = async (key, bytes) => {
-    if (held === 'persistence' && JSON.parse(bytes).token === 'ro.next') { entered.resolve(); await release.promise; }
-    await originalSet(key, bytes);
-  };
-  const transport = async (input, init) => {
-    const path = new URL(input).pathname;
-    if (path === '/auth/refresh') {
-      rotations++;
-      if (held === 'response') { entered.resolve(); await release.promise; }
-      return rotations === 1 ? Response.json({ session: session('bob', 'ro.next') })
-        : Response.json({ denied: { code: 'E_AUTH', family: 'auth', message: 'consumed' } }, { status: 401 });
-    }
-    return base(input, init);
-  };
+for (const held of ['probe', 'storage']) test(`peer refresh refuses during held ${held} on restart`, async t => {
+  const original = session('bob'), store = storage(original), entered = deferred(), release = deferred();
+  const requests = [];
+  const transport = async (input, init) => { requests.push(new URL(input).pathname); return base(input, init); };
   const a = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
-  const b = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
-  t.after(async () => { release.resolve(); await Promise.all([a.close(), b.close()]); });
-  await Promise.all([a.ready, b.ready]);
-  const first = a.client.refreshSession(); await entered.promise;
-  const second = b.client.refreshSession(); await delay(10); release.resolve();
-  assert.equal((await first).ok, true); await second;
-  assert.equal(rotations, 1); assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next');
-  assert.equal((await a.client.query(query, {})).data, 'bob-secret');
-});
-
-test('a peer recovers a successor after the first app repeatedly fails verification and closes', async t => {
-  const store = storage(session('bob', 'ro.old'));
-  let rotations = 0;
-  const transport = async (input, init) => {
-    if (new URL(input).pathname === '/auth/refresh') { rotations++; return Response.json({ session: session('bob', 'ro.next') }); }
-    return base(input, init);
+  t.after(() => a.close()); await a.ready;
+  const get = store.get;
+  let gated = false;
+  store.get = async k => {
+    if (held === 'storage' && k === key && !gated) { gated = true; entered.resolve(); await release.promise; }
+    return get(k);
   };
-  const a = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
-    if (new URL(input).pathname === '/probe' && new Headers(init?.headers).get('authorization') === 'Bearer ro.next') throw Error('offline');
+  const b = createApp({ url, readOnly: true, sessionStore: store, fetch: async (input, init) => {
+    if (held === 'probe' && new URL(input).pathname === '/probe') { entered.resolve(); await release.promise; }
     return transport(input, init);
   } });
-  t.after(() => a.close()); await a.ready;
-  assert.equal((await a.client.refreshSession()).ok, false);
-  assert.ok('denied' in await a.client.query(query, {}));
-  assert.equal(a.client.session(), null); assert.deepEqual(a.client.assetSource('secret'), { uri: '', headers: {} });
-  await a.close();
-  const b = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
-  t.after(() => b.close()); assert.equal((await b.ready).ok, true);
+  t.after(async () => { release.resolve(); await b.close(); });
+  await entered.promise;
+  assert.equal((await a.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+  assert.equal(a.client.session().token, original.token);
+  release.resolve(); assert.equal((await b.ready).ok, true);
+  assert.equal((await b.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   assert.equal((await b.client.query(query, {})).data, 'bob-secret');
-  assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next'); assert.equal(rotations, 1);
+  assert.equal(JSON.parse(store.values.get(key)).token, original.token);
+  assert.ok(!requests.includes('/auth/refresh'));
 });
 
 test('retirement rechecks custody after its held verification probe', async t => {

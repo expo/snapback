@@ -88314,3 +88314,27 @@ with four existing ignores. Its existing ticket records the recurrence without
 claiming a cause or erasing the original failure. The report retains both logs,
 so this is not a single-green-run qualification receipt. Final reference, source
 and append-only audits pass. Grok's output remains progress-only. No push.
+
+
+### 2026-10-07 — RO Round 6: no SDK read-session rotation
+
+The lead amended LLP 3000.033 §1.3/§1.4 as revision 4 (implementation
+simplification). Read clients retain their credential until expiresAt, then
+surface E_AUTH. Explicit refresh refuses E_READ_ONLY_REFRESH locally and tells
+the caller to sign in or narrow again. The SDK auth helper refuses ro. tokens
+too. Server refresh remains available over raw HTTP with its existing cap,
+family, generation and no-sweep rules.
+
+Removed the read successor receipt, rotation lock, waiting-peer recovery,
+successor verification/retirement owner and cap-aware refresh scheduling. The
+app facade refuses refresh without waiting for session storage. Scope probes,
+asset gating, isolated custody, principal-wide logout and different-principal
+protection remain. Full-session rotation and retirement behavior is unchanged.
+
+Converted the read-refresh races to assert stable tokens and no refresh traffic
+across simultaneous peers, held reads, restoration probes, storage waits, close,
+logout and restart. Full-session controls and the custody, device, asset and
+allocation coverage remain. All four live resolver entry points now assert
+Read scope before the generation-revocation assertions. The RFC, guide and
+client cards describe fixed read-session lifetimes. Complete-suite results and
+net removals follow in the Round 6 lane report. No push or publication.

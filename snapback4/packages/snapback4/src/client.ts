@@ -1,4 +1,4 @@
-import { commitReadCustody, ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification, retireReadSession } from "./read-only.ts";
+import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
@@ -170,7 +170,7 @@ export function createClient(options: ClientOptions): Client {
   const transport = clock.wrap(options.fetch ?? defaultFetch);
   const doFetch: typeof fetch = async (...args) => {
     if (readGate) {
-      const why = await verifyReadScope();
+      const why = await readGate.verify();
       if (why) return Response.json({ denied: why }, { status: 403 });
       const sent = new Headers(args[1]?.headers).get("authorization");
       if (sent !== headers.authorization) return Response.json({ denied: auth() }, { status: 401 });
@@ -322,30 +322,6 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
-  let pendingReadSession: Session | null = null;
-  let completingReadSession: Promise<Refusal | undefined> | undefined;
-  // @ref LLP 3000.033#1.4 — retain a consumed token's successor privately until
-  // verification recovers, then finish custody exactly once before public reads.
-  async function verifyReadScope(): Promise<Refusal | undefined> {
-    const why = await readGate!.verify();
-    if (why || !pendingReadSession) return why;
-    if (completingReadSession) return completingReadSession;
-    const next = pendingReadSession;
-    const work = (async () => {
-      try { await commitReadCustody(client, next); }
-      catch (error) { return (error as { why?: Refusal })?.why ?? transportRefusal(error); }
-      if (closed || !credentials || storeRefusal || session !== next) return storeRefusal ?? auth();
-      pendingReadSession = null;
-      for (const listener of [...sessionListeners]) listener(next);
-      setLink("online");
-      for (const watch of watches.values()) void scheduleRead(watch);
-      scheduleRefresh();
-      return undefined;
-    })();
-    completingReadSession = work;
-    try { return await work; }
-    finally { if (completingReadSession === work) completingReadSession = undefined; }
-  }
   let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
     stopRefresh = why => resolve({ ok: false, why });
@@ -357,7 +333,6 @@ export function createClient(options: ClientOptions): Client {
     void delivery?.stop();
     if (!credentials) return;
     session = null;
-    pendingReadSession = null;
     stopRefresh(auth());
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -473,8 +448,9 @@ export function createClient(options: ClientOptions): Client {
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
-    if (closed || storeRefusal || !credentials || !session || session.kind === "action" || (readGate && (!readGate.verified || pendingReadSession))) return;
-    if ((readGate || session.token.startsWith("ro.")) && session.expiresAt >= (session.capExpiresAt ?? session.expiresAt)) {
+    if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
+    // @ref LLP 3000.033#1.3 — read sessions expire without any SDK rotation.
+    if (readGate || session.token.startsWith("ro.")) {
       const remaining = session.expiresAt - clock.issuedDeviceNow();
       if (remaining <= 0) { endCredentials(); return; }
       refreshTimer = setTimeout(() => scheduleRefresh(), Math.min(remaining, 2_147_000_000));
@@ -494,8 +470,7 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000#7 — both client tiers keep short-lived sessions and rotate the bearer before expiry.
   function refreshCurrent(): Promise<SignIn> {
-    if (readGate && pendingReadSession) return verifyReadScope().then(why => why ? { ok: false, why } : { ok: true, session: session! });
-    if (readGate && !readGate.verified) return verifyReadScope().then(why => why ? { ok: false, why } : refreshCurrent());
+    if (readGate || headers.authorization?.startsWith("Bearer ro.")) return Promise.resolve({ ok: false, why: readOnlyRefusal("E_READ_ONLY_REFRESH") });
     if (closed || storeRefusal) return Promise.resolve({ ok: false, why: storeRefusal ?? ended() });
     if (refreshing) return refreshing;
     const token = headers.authorization?.slice("Bearer ".length);
@@ -503,15 +478,14 @@ export function createClient(options: ClientOptions): Client {
     const expectedPrincipal = viewer;
     credentialRevision += 1;
     const deliverReset = resetWatches(false, "credentials");
-    const rotation = rotateSession(base, token, readGate ? transport : doFetch);
+    const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
       if (retired || (!result.ok && (credentials || !result.why.retryable))) return;
       retired = true;
       // Only sign-out owns old-bearer cleanup after a transport rejection.
       // Store replacement keeps that bearer for createApp's recovery probe.
-      if (readGate) void retireReadSession(base, result.ok ? result.session.token : token, expectedPrincipal, storeIdentity, transport);
-      else void logout(base, result.ok ? result.session.token : token, doFetch);
+      void logout(base, result.ok ? result.session.token : token, doFetch);
     };
     // Never abort rotation: the server may already have consumed the old
     // token. Keep reading so a cancelled caller's successor can be revoked.
@@ -536,11 +510,6 @@ export function createClient(options: ClientOptions): Client {
       session = refreshed.session;
       headers.authorization = `Bearer ${session.token}`;
       setViewer(session.principal as Principal);
-      if (readGate) {
-        pendingReadSession = session;
-        const why = await verifyReadScope();
-        return why ? { ok: false, why } : refreshed;
-      }
       for (const listener of [...sessionListeners]) listener(session);
       if (!closed) {
         setLink("online");
@@ -1158,7 +1127,7 @@ export function createClient(options: ClientOptions): Client {
       return uploaded;
     },
     async asset(id) {
-      if (readGate) { const why = await verifyReadScope(); if (why) return { denied: why }; }
+      if (readGate) { const why = await readGate.verify(); if (why) return { denied: why }; }
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
@@ -1188,7 +1157,7 @@ export function createClient(options: ClientOptions): Client {
       }
       return read;
     },
-    assetSource: (id) => storeRefusal || closed || (readGate && (refreshing || pendingReadSession || !readGate.verified)) ? { uri: "", headers: {} } : assetSource(base, headers, id),
+    assetSource: (id) => storeRefusal || closed || (readGate && !readGate.verified) ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);
@@ -1203,7 +1172,7 @@ export function createClient(options: ClientOptions): Client {
       writeListeners.add(listener);
       return () => writeListeners.delete(listener);
     },
-    session: () => pendingReadSession ? null : session,
+    session: () => session,
     onSession(listener) {
       sessionListeners.add(listener);
       return () => sessionListeners.delete(listener);
@@ -1235,16 +1204,11 @@ export function createClient(options: ClientOptions): Client {
       // the bounded grace period. endCredentials/close must not abort them.
       delivery = undefined;
       const bearer = !readGate || readGate.verified ? headers.authorization?.slice("Bearer ".length) : undefined;
-      const pendingRetirement = pendingReadSession;
-      const retirementPrincipal = viewer;
       endCredentials();
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
-      // @ref LLP 3000.033#1.4 — a received successor stays in retirement custody
-      // while verification is pending or retryable; cancellation cannot abandon it.
-      if (readGate && pendingRetirement) void retireReadSession(base, pendingRetirement.token, retirementPrincipal, storeIdentity, transport);
-      else if (bearer) void logout(base, bearer, readGate ? transport : doFetch);
+      if (bearer) void logout(base, bearer, readGate ? transport : doFetch);
       await Promise.all([closing, draining]);
     },
     close() {
@@ -1283,11 +1247,11 @@ export function createClient(options: ClientOptions): Client {
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
   const start = async () => {
     if (closed) return;
-    if (readGate && await verifyReadScope()) return;
-    if (session && ((!readGate && !session.token.startsWith("ro.")) || session.expiresAt < (session.capExpiresAt ?? session.expiresAt)) && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
+    if (readGate) { scheduleRefresh(); await readGate.verify(); return; }
+    if (session && !session.token.startsWith("ro.") && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
-  if (readGate) registerReadVerification(client, () => verifyReadScope());
+  if (readGate) registerReadVerification(client, () => readGate.verify());
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) start();

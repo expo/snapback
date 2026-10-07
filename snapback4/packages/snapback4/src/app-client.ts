@@ -67,6 +67,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     onLink: listener => listen(raw.onLink, listener, "signed-out"),
     onAcquired: listener => listen(raw.onAcquired, listener, false),
     async refreshSession() {
+      if (raw.readOnly) return raw.refreshSession();
       const denied = await refusal();
       if (denied) return { ok: false, why: denied };
       return raw.refreshSession();

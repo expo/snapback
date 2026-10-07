@@ -34,7 +34,7 @@ async function signedOutRestart(f) {
   assert.equal(f.saved().snapback4Successor, undefined);
 }
 
-for (const readOnly of [true, false]) for (const caller of ["self", "peer"]) test(`logout must complete while ${caller} refresh response is held; readOnly=${readOnly}`, {timeout: 10000}, async t => {
+for (const readOnly of [false]) for (const caller of ["self", "peer"]) test(`logout must complete while ${caller} refresh response is held; readOnly=${readOnly}`, {timeout: 10000}, async t => {
  const f=await fixture(t,readOnly), entered=defer(), release=defer(); let next;
  t.after(()=>release.resolve());
  const a=f.app({fetch:async(input,init)=>{
@@ -54,43 +54,20 @@ for (const readOnly of [true, false]) for (const caller of ["self", "peer"]) tes
  assert.ok(saved.snapback4Logout,'local logout must durably fence before the held refresh returns');
 });
 
-test('three read apps: logout while two successor verifications are held', {timeout:10000}, async t=>{
- const f=await fixture(t), first=defer(), second=defer(), release=defer();
- t.after(()=>release.resolve()); let next;
- const held=(barrier)=>async(input,init)=>{
-  const r=await fetch(input,init), path=new URL(input).pathname;
-  if(path==='/auth/refresh') next=(await r.clone().json()).session;
-  if(path==='/probe' && new Headers(init?.headers).get('authorization')!==`Bearer ${f.initial.token}`){barrier.resolve();await release.promise;}
-  return r;
- };
- const a=f.app({fetch:held(first)}), b=f.app({fetch:held(second)}), c=f.app();
- await Promise.all([a.ready,b.ready,c.ready]);
- const rotating=a.client.refreshSession(); await first.promise;
- const recovering=b.client.query(query,{}); await second.promise;
- assert.equal((await c.auth.logout()).ok,true);
- assert.ok(f.saved().snapback4Logout);
- release.resolve(); await Promise.all([rotating,recovering]);
- await signedOutRestart(f);
- await until(async()=> (await f.probe(next.token)).denied?.code==='E_AUTH');
-});
-
-test('three read apps: newer rotation survives late recovery', {timeout:10000}, async t=>{
- const f=await fixture(t), entered=defer(), release=defer();t.after(()=>release.resolve()); let next;
- const a=f.app({fetch:async(input,init)=>{
-  const r=await fetch(input,init),path=new URL(input).pathname;
-  if(path==='/auth/refresh') next=(await r.clone().json()).session;
-  if(path==='/probe'&&new Headers(init?.headers).get('authorization')!==`Bearer ${f.initial.token}`){entered.resolve();await release.promise;}
-  return r;
- }}), b=f.app(),c=f.app();
- await Promise.all([a.ready,b.ready,c.ready]);
- const rotating=a.client.refreshSession();await entered.promise;
- assert.equal((await b.client.query(query,{})).data,f.initial.principal);
- const newer=await b.client.refreshSession();assert.equal(newer.ok,true);assert.notEqual(newer.session.token,next.token);
- assert.equal((await c.client.query(query,{})).data,f.initial.principal);
- release.resolve();await rotating;
- assert.equal(f.saved().token,newer.session.token);
- assert.equal((await f.probe(newer.session.token)).ok,true);
- const restart=f.app();assert.equal((await restart.ready).ok,true);assert.equal((await restart.client.query(query,{})).data,f.initial.principal);
+test('three read apps refuse refresh and share the original credential until logout', { timeout: 10000 }, async t => {
+  const f = await fixture(t), requests = [];
+  const fetcher = async (input, init) => { requests.push(new URL(input).pathname); return fetch(input, init); };
+  const apps = [f.app({ fetch: fetcher }), f.app({ fetch: fetcher }), f.app({ fetch: fetcher })];
+  await Promise.all(apps.map(a => a.ready));
+  for (const a of apps) {
+    assert.equal((await a.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+    assert.equal((await a.client.query(query, {})).data, f.initial.principal);
+    assert.equal(a.client.session().token, f.initial.token);
+  }
+  assert.equal((await apps[2].auth.logout()).ok, true);
+  await signedOutRestart(f);
+  await until(async () => (await f.probe(f.initial.token)).denied?.code === 'E_AUTH');
+  assert.ok(!requests.includes('/auth/refresh'));
 });
 
 for (const readOnly of [true, false]) for (const held of [true, false]) {
@@ -116,13 +93,16 @@ for (const readOnly of [true, false]) for (const held of [true, false]) {
     t.after(() => client.close());
     assert.equal((await client.query(query, {})).data, f.initial.principal);
     const rotating = client.refreshSession();
-    if (held) await entered.promise;
-    else assert.equal((await rotating).ok, !readOnly);
-    if (readOnly) assert.equal(client.session(), null);
+    if (readOnly) {
+      assert.equal((await rotating).why.code, 'E_READ_ONLY_REFRESH');
+      assert.equal(client.session().token, f.initial.token); next = f.initial;
+    } else if (held) await entered.promise;
+    else assert.equal((await rotating).ok, true);
     await client.signOut();
     release.resolve(); await rotating;
     await until(async () => (await f.probe(next.token)).denied?.code === 'E_AUTH', 'raw successor logout');
     assert.ok(sent.includes('/auth/logout'));
+    if (readOnly) assert.ok(!sent.includes('/auth/refresh'));
     assert.equal(client.session(), null);
     assert.ok('denied' in await client.query(query, {}));
   });
@@ -208,12 +188,14 @@ for (const readOnly of [true, false]) test(`Bob logout preserves Alice and fence
   await facade.signOut();
   assert.equal(f.saved().token, alice.session.token);
   // A current account's rotation must carry the sign-out watermark forward.
-  const rotated = await peer.client.refreshSession(); assert.equal(rotated.ok, true);
-  await until(() => f.saved().token === rotated.session.token);
+  const rotated = await peer.client.refreshSession();
+  if (readOnly) assert.equal(rotated.why.code, 'E_READ_ONLY_REFRESH'); else assert.equal(rotated.ok, true);
+  const kept = readOnly ? alice.session : rotated.session;
+  await until(() => f.saved().token === kept.token);
   release.resolve(); assert.equal((await login).ok, false);
   await until(async () => (await f.probe(pending.token)).denied?.code === 'E_AUTH');
   const restart = f.app(); assert.equal((await restart.ready).ok, true);
   assert.equal((await restart.client.query(query, {})).data, alice.session.principal);
-  assert.equal((await f.probe(rotated.session.token)).ok, true);
+  assert.equal((await f.probe(kept.token)).ok, true);
   assert.equal((await restart.auth.login('bob@example.test', password)).ok, true, 'a deliberately started login after logout is allowed');
 });

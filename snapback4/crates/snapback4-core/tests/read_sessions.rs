@@ -53,9 +53,13 @@ fn independent_logout_and_generation_revocation() {
     let mut store = Store::memory().unwrap();
     let parent = identity::open_session(&store, "bob", "member", 0).unwrap();
     let read = identity::narrow_session(&mut store, &parent.token, || sample(1)).unwrap();
+    let id = store.meta("store_id").unwrap();
+    assert_eq!(identity::resolve(&store, &read.token, 2).unwrap().unwrap().2, SessionScope::Read);
+    assert_eq!(identity::resolve_supervised(&store, &read.token, sample(2)).unwrap().unwrap().2, SessionScope::Read);
+    assert_eq!(identity::resolve_read_only_supervised(&store, &read.token, sample(2), id.as_deref()).unwrap().unwrap().2, SessionScope::Read);
+    assert_eq!(identity::resolve_read_only(&store, &read.token, 2, id.as_deref()).unwrap().unwrap().2, SessionScope::Read);
     // Exactly the old executable's revoke-principal transaction: it knows no read table.
     store.conn().execute_batch("BEGIN IMMEDIATE; INSERT INTO _principal_generations VALUES ('bob',1); DELETE FROM _sessions WHERE principal='bob'; COMMIT;").unwrap();
-    let id = store.meta("store_id").unwrap();
     assert!(identity::resolve(&store, &read.token, 2).unwrap().is_none());
     assert!(identity::resolve_supervised(&store, &read.token, sample(2)).unwrap().is_none());
     assert!(identity::resolve_read_only_supervised(&store, &read.token, sample(2), id.as_deref()).unwrap().is_none());

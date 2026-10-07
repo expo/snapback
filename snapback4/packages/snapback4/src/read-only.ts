@@ -1,9 +1,10 @@
-import { logout, refreshSession } from "./auth.ts";
+import { refreshSession } from "./auth.ts";
 import type { Client, Refusal, Session } from "./contract.ts";
 import { readResponse, transportRefusal } from "./http-response.ts";
 
 export const readOnlyRefusal = (code = "E_READ_ONLY"): Refusal => ({ code, family: "auth", guide: "read-only",
   message: ({ E_READ_ONLY: "this read session permits reads only; use a full session for writes",
+    E_READ_ONLY_REFRESH: "read sessions cannot refresh; sign in again or narrow a full session again",
     E_READ_ONLY_DEVICE: "a read session cannot open a device; use the online read-only client",
     E_READ_ONLY_CREDENTIAL: "readOnly needs a server-verified read session, without a persona",
     E_READ_ONLY_UNSUPPORTED: "this server cannot verify read sessions; upgrade it before using readOnly" } as Record<string, string>)[code] ?? code });
@@ -21,17 +22,11 @@ export function validateReadOptions(options: { readOnly?: boolean; persona?: str
   if (code) throw Object.assign(new Error(`${code}: ${readOnlyRefusal(code).message}`), { why: readOnlyRefusal(code) });
 }
 
-// App custody is awaited before publishing a verified refresh. Public onSession
-// listeners remain notifications: their returned work must never hold rotation.
-const custody = new WeakMap<Client, (session: Session) => Promise<void>>();
-export const registerReadCustody = (client: Client, commit: (session: Session) => Promise<void>) => { custody.set(client, commit); };
-export const commitReadCustody = (client: Client, session: Session) => custody.get(client)?.(session);
-
 const readiness = new WeakMap<Client, () => Promise<Refusal | undefined>>();
 export const registerReadVerification = (client: Client, verify: () => Promise<Refusal | undefined>) => { readiness.set(client, verify); };
 export const verifyReadClient = (client: Client) => readiness.get(client)?.() ?? Promise.resolve(undefined);
 
-// @ref LLP 3000.033#1.4 — nothing passes this gate, including refresh and
+// @ref LLP 3000.033#1.4 — nothing passes this gate, including
 // exported asset credentials, before the exact bearer/revision/store is verified.
 export class ReadScopeGate {
   private accepted: string | undefined;
@@ -69,17 +64,4 @@ export class ReadScopeGate {
     void work.finally(() => { if (this.pending?.work === work) this.pending = undefined; });
     return work;
   }
-}
-
-// @ref LLP 3000.033#1.4 — a cancelled rotation can still produce a live successor. Cleanup is limited
-// to that returned credential, after a fresh probe of its scope, owner and store.
-export async function retireReadSession(url: string, token: string, principal: string | null, store: string | undefined, transport: typeof fetch): Promise<void> {
-  if (!principal || !store) return;
-  const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 5000);
-  try {
-    const response = await transport(`${url}/probe?scope=1`, { headers: { authorization: `Bearer ${token}` }, signal: abort.signal });
-    const json = await readResponse(response);
-    if (response.ok && json.ok === true && json.scope === "read" && json.viewer === principal && json.store_id === store) await logout(url, token, transport);
-  } catch { /* The capped family expires if its server cannot be reached. */ }
-  finally { clearTimeout(timer); }
 }

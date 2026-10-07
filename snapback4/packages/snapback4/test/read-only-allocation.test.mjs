@@ -54,7 +54,7 @@ test('read-only apps allocate no write owners, including unused WriteHistory', {
   assert.equal((await app.ready).ok, true);
   assert.equal((await app.auth.signup('reader@example.test', password)).ok, true);
   assert.equal((await app.client.query({ kind: 'query', name: 'who' }, {})).data, app.auth.viewer);
-  assert.equal((await app.client.refreshSession()).ok, true);
+  assert.equal((await app.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   await app.close();
   const restored = createApp({ url, sessionStore, readOnly: true });
   t.after(() => restored.close());

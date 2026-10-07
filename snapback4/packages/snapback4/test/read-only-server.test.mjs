@@ -76,7 +76,7 @@ test('Phase-2 oracle: fresh read-only Bob login and generated pagination leave d
     [storeKey('writes',url,bob.session.principal),'pending interactive journal']]);
   const original=new Map(stored);
   const app=createApp({url,readOnly:true,sessionStore:{async get(k){return stored.get(k)??null;},async set(k,v){assert.match(k,/^[A-Za-z0-9._-]+$/);stored.set(k,v);},async delete(k){stored.delete(k);}}});
-  assert.ok((await app.ready).ok);assert.ok((await app.client.refreshSession()).ok);await app.close();
+  assert.ok((await app.ready).ok);assert.equal((await app.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');await app.close();
   assert.equal(stored.get(sessionKey(url)),original.get(sessionKey(url)));
   assert.equal(stored.get(storeKey('writes',url,bob.session.principal)),'pending interactive journal');
   assert.equal((await full.mutate(api.send,{conversation,text:'interactive still live'})).state,'sent');
@@ -138,7 +138,7 @@ query typingNow():
   const reading=mistaken.query({kind:'query',name:'typingNow'},{}),asset=mistaken.asset('once'),refresh=mistaken.refreshSession();
   const stopWatch=mistaken.observe({kind:'query',name:'typingNow'},{}).subscribe(()=>{});
   await until(()=>startup.length===1,'held probe');assert.deepEqual(startup,['/probe']);assert.deepEqual(mistaken.assetSource('once'),{uri:'',headers:{}});
-  release();assert.equal((await reading).denied.code,'E_READ_ONLY_CREDENTIAL');assert.equal((await asset).denied.code,'E_READ_ONLY_CREDENTIAL');assert.equal((await refresh).why.code,'E_READ_ONLY_CREDENTIAL');stopWatch();await mistaken.close();
+  release();assert.equal((await reading).denied.code,'E_READ_ONLY_CREDENTIAL');assert.equal((await asset).denied.code,'E_READ_ONLY_CREDENTIAL');assert.equal((await refresh).why.code,'E_READ_ONLY_REFRESH');stopWatch();await mistaken.close();
   assert.deepEqual(startup,['/probe']);
   const seat=spawnSync(binary,['token','--service','provider','--days','1'],{cwd:dir,encoding:'utf8'});assert.equal(seat.status,0,seat.stderr);
   const stop=new AbortController();let claimCycles=0;

@@ -1,4 +1,4 @@
-// @ref LLP 3000.033#3 — Round 5: rejected peer reads wait for rotation custody; obsolete sign-out watermarks are bounded.
+// @ref LLP 3000.033#3 — Round 6: read credentials survive refresh attempts and restarts; obsolete sign-out watermarks are bounded.
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
@@ -34,77 +34,73 @@ async function signedOutRestart(f) {
 }
 
 
-for (const timing of ['after refresh consumes predecessor', 'read dispatched before refresh']) {
-  test(`peer read recovers held refresh: ${timing}`, { timeout: 15000 }, async t => {
-    const f = await fixture(t), entered = defer(), release = defer(), readEntered = defer(), readRelease = defer(), rejected = defer();
-    t.after(() => { release.resolve(); readRelease.resolve(); });
-    let next, predecessorReads = 0;
-    const a = f.app({ fetch: async (input, init) => {
-      const response = await fetch(input, init);
-      if (new URL(input).pathname === '/auth/refresh') {
-        next = (await response.clone().json()).session;
-        entered.resolve(); await release.promise;
-      }
-      return response;
-    } }), b = f.app({ fetch: async (input, init) => {
-      const predecessor = new URL(input).pathname === '/q/who' && new Headers(init?.headers).get('authorization') === `Bearer ${f.initial.token}`;
-      if (predecessor) {
-        predecessorReads++; readEntered.resolve();
-        if (timing === 'read dispatched before refresh') await readRelease.promise;
-      }
-      const response = await fetch(input, init);
-      if (predecessor) { assert.equal((await response.clone().json()).denied.code, 'E_AUTH'); rejected.resolve(); }
-      return response;
-    } }), c = f.app();
-    await Promise.all([a.ready, b.ready, c.ready]);
-    const epoch = f.saved().snapback4Epoch ?? '0';
-    let reading;
-    if (timing === 'read dispatched before refresh') { reading = b.client.query(query, {}); await readEntered.promise; }
-    const rotating = a.client.refreshSession(); await entered.promise;
-    if (!reading) reading = b.client.query(query, {});
-    readRelease.resolve(); await rejected.promise;
-    assert.equal(await Promise.race([reading.then(() => 'settled'), delay(100).then(() => 'waiting')]), 'waiting');
-    assert.equal(f.saved().token, f.initial.token);
-    assert.equal(f.saved().snapback4Successor, undefined, 'owner has not received its response');
-    release.resolve();
-    assert.equal((await rotating).ok, true);
-    assert.equal((await reading).data, f.initial.principal);
-    assert.equal(predecessorReads, 1);
-    assert.equal(b.auth.state, 'signed-in');
-    assert.equal(b.client.session().token, next.token);
-    assert.equal(f.saved().token, next.token);
-    assert.equal(f.saved().snapback4Epoch, epoch);
-    assert.equal(f.saved().snapback4Logout, undefined);
+// The Round 5/6 liveness failures required a consumed predecessor. Hold each
+// boundary while peers ask to refresh: none can consume the read credential.
+for (const boundary of ['read before dispatch', 'read response', 'restart probe']) {
+  for (const ordering of ['refresh first', 'peer first']) test(`no read rotation: ${boundary}, ${ordering}`, { timeout: 15000 }, async t => {
+    const f = await fixture(t), entered = defer(), release = defer(), requests = [];
+    t.after(() => release.resolve());
+    const transport = async (input, init) => { requests.push(new URL(input).pathname); return fetch(input, init); };
+    const a = f.app({ fetch: transport }), b = f.app({ fetch: transport });
+    await Promise.all([a.ready, b.ready]);
+    const saved = f.saved(), facade = b.client;
+    const refuse = async client => assert.equal((await client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+    if (ordering === 'refresh first') await refuse(a.client);
+    let peer = b, reading;
+    if (boundary === 'restart probe') {
+      await b.close();
+      peer = f.app({ fetch: async (input, init) => {
+        const response = await transport(input, init);
+        if (new URL(input).pathname === '/probe') { entered.resolve(); await release.promise; }
+        return response;
+      } });
+    } else {
+      await b.close();
+      peer = f.app({ fetch: async (input, init) => {
+        const held = new URL(input).pathname === '/q/who';
+        if (held && boundary === 'read before dispatch') { entered.resolve(); await release.promise; }
+        const response = await transport(input, init);
+        if (held && boundary === 'read response') { entered.resolve(); await release.promise; }
+        return response;
+      } });
+      await peer.ready; reading = peer.client.query(query, {});
+    }
+    await entered.promise;
+    await refuse(a.client);
+    // A third app must remain usable while another peer waits or restarts.
+    const c = f.app({ fetch: transport }); assert.equal((await c.ready).ok, true);
+    await refuse(c.client);
     assert.equal((await c.client.query(query, {})).data, f.initial.principal);
-    const restart = f.app(); assert.equal((await restart.ready).ok, true);
-    assert.equal(restart.auth.state, 'signed-in');
-    assert.equal((await restart.client.query(query, {})).data, f.initial.principal);
+    release.resolve(); assert.equal((await peer.ready).ok, true);
+    assert.equal((await (reading ?? peer.client.query(query, {}))).data, f.initial.principal);
+    await refuse(peer.client); await refuse(a.client);
+    assert.equal((await a.client.query(query, {})).data, f.initial.principal);
+    assert.equal(peer.auth.state, 'signed-in'); assert.equal(a.auth.state, 'signed-in');
+    assert.equal(f.saved().token, saved.token); assert.equal(f.saved().snapback4Epoch, saved.snapback4Epoch);
+    assert.equal(f.saved().snapback4Successor, undefined);
+    assert.equal((await f.probe(saved.token)).ok, true);
+    assert.ok(!requests.includes('/auth/refresh'));
   });
 }
 
-for (const caller of ['waiting peer', 'third app']) test(`logout bypasses rejected read waiting for rotation: ${caller}`, { timeout: 15000 }, async t => {
-  const f = await fixture(t), entered = defer(), release = defer(), rejected = defer(); let next;
+for (const caller of ['waiting peer', 'third app']) test(`logout cancels a held read after refresh refusal: ${caller}`, { timeout: 15000 }, async t => {
+  const f = await fixture(t), entered = defer(), release = defer(), requests = [];
   t.after(() => release.resolve());
-  const a = f.app({ fetch: async (input, init) => {
-    const response = await fetch(input, init);
-    if (new URL(input).pathname === '/auth/refresh') { next = (await response.clone().json()).session; entered.resolve(); await release.promise; }
+  const transport = async (input, init) => { requests.push(new URL(input).pathname); return fetch(input, init); };
+  const a = f.app({ fetch: transport }), b = f.app({ fetch: async (input, init) => {
+    const response = await transport(input, init);
+    if (new URL(input).pathname === '/q/who') { entered.resolve(); await release.promise; }
     return response;
-  } }), b = f.app({ fetch: async (input, init) => {
-    const response = await fetch(input, init);
-    if (new URL(input).pathname === '/q/who') { assert.equal((await response.clone().json()).denied.code, 'E_AUTH'); rejected.resolve(); }
-    return response;
-  } }), c = f.app();
+  } }), c = f.app({ fetch: transport });
   await Promise.all([a.ready, b.ready, c.ready]);
-  const rotating = a.client.refreshSession(); await entered.promise;
-  const reading = b.client.query(query, {}); await rejected.promise;
-  assert.equal(await Promise.race([reading.then(() => 'settled'), delay(100).then(() => 'waiting')]), 'waiting');
+  const reading = b.client.query(query, {}); await entered.promise;
+  assert.equal((await a.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   const logout = (caller === 'waiting peer' ? b : c).auth.logout();
-  assert.equal((await Promise.race([logout, delay(500).then(() => ({ ok: false }))])).ok, true, 'logout must not wait for rotation or its waiting peer');
+  assert.equal((await Promise.race([logout, delay(500).then(() => ({ ok: false }))])).ok, true);
   await signedOutRestart(f);
-  release.resolve(); assert.equal((await rotating).ok, false);
-  assert.ok('denied' in await reading);
-  await signedOutRestart(f);
-  await until(async () => (await f.probe(next.token)).denied?.code === 'E_AUTH', 'late successor retirement');
+  release.resolve(); assert.ok('denied' in await reading);
+  await until(async () => (await f.probe(f.initial.token)).denied?.code === 'E_AUTH');
+  assert.ok(!requests.includes('/auth/refresh'));
 });
 
 for (const readOnly of [true, false]) test(`24 account switches bound sign-out watermarks; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
@@ -118,7 +114,8 @@ for (const readOnly of [true, false]) test(`24 account switches bound sign-out w
     await stale.auth.logout(); await stale.close();
     assert.deepEqual(f.saved().snapback4SignOuts, { [prior]: 1 }, `bounded after switch ${i + 1}`);
     const currentEpoch = f.saved().snapback4Epoch;
-    assert.equal((await active.client.refreshSession()).ok, true);
+    const refreshed = await active.client.refreshSession();
+    if (readOnly) assert.equal(refreshed.why.code, 'E_READ_ONLY_REFRESH'); else assert.equal(refreshed.ok, true);
     await until(() => f.saved().token === active.client.session().token);
     assert.equal(f.saved().snapback4Epoch, currentEpoch);
     assert.deepEqual(f.saved().snapback4SignOuts, { [prior]: 1 }, 'same-epoch rotation retains the fence');

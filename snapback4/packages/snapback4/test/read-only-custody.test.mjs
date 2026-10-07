@@ -74,55 +74,28 @@ test('account mismatch permanently withdraws old observations and bearer without
   await bob.auth.logout();
   assert.equal(JSON.parse(store.values.get(key)).principal, 'alice');
 });
-test('successor verification recovers private custody, persists once and authenticates after restart', async t => {
-  const store = storage(session('bob', 'ro.old')), recovered = deferred(), entered = deferred();
-  const persisting = deferred(), persisted = deferred();
-  t.after(() => { recovered.resolve(); persisted.resolve(); });
-  let live = 'ro.old', fail = true, hold = true, writes = 0, queries = 0;
-  const write = store.set;
-  store.set = async (...args) => { if (++writes === 2) { persisting.resolve(); await persisted.promise; } await write(...args); };
-  const transport = async (input, init) => {
-    const path = new URL(input).pathname, token = init.headers.authorization.slice(7);
-    if (path.startsWith("/q/")) queries++;
-    if (token !== live) return Response.json({ denied: { code: 'E_AUTH', family: 'auth', message: 'not live' } }, { status: 401 });
-    if (path === '/auth/refresh') { live = 'ro.next'; return Response.json({ session: session('bob', live) }); }
-    if (path === '/probe' && live === 'ro.next') {
-      if (fail) { fail = false; throw Error('temporary outage after rotation'); }
-      if (hold) { entered.resolve(); await recovered.promise; }
-    }
-    if (path === "/probe") return Response.json({ ok: true, scope: "read", viewer: "bob", store_id: "test", seq: 0 });
-    return fetcher(input, init);
-  };
+test('refused refresh preserves custody and authenticates after restart without a save', async t => {
+  const original = session('bob'), store = storage(original), requests = [];
+  let writes = 0;
+  const write = store.set; store.set = async (...args) => { writes++; await write(...args); };
+  const transport = async (input, init) => { requests.push(new URL(input).pathname); return fetcher(input, init); };
   const app = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
-  t.after(() => app.close()); await app.ready;
-  const events = []; app.client.onSession(s => events.push(s?.token));
-  assert.equal((await app.client.refreshSession()).ok, false);
-  assert.equal(app.client.session(), null, 'unverified successor stays private');
-  assert.deepEqual(app.client.assetSource('secret'), { uri: '', headers: {} });
-  assert.equal(JSON.parse(store.values.get(key)).token, 'ro.old');
-  const read = app.client.query(query, {}); await entered.promise;
-  assert.deepEqual(app.client.assetSource('secret'), { uri: '', headers: {} });
-  hold = false; recovered.resolve();
-  await persisting.promise;
-  assert.equal(app.client.session(), null, 'verified successor stays private until persisted');
-  assert.deepEqual(app.client.assetSource('secret'), { uri: '', headers: {} });
-  assert.deepEqual(events, []);
-  assert.equal(queries, 0, 'public transport is gated through persistence');
-  persisted.resolve();
-  assert.ok('data' in await read);
-  assert.equal(app.client.session().token, 'ro.next');
-  assert.equal(JSON.parse(store.values.get(key)).token, 'ro.next');
-  assert.deepEqual(events, ['ro.next']);
-  assert.equal(writes, 2, 'the private successor receipt and verified adoption each persist once');
+  t.after(() => app.close()); assert.equal((await app.ready).ok, true);
+  const before = writes, events = []; app.client.onSession(s => events.push(s?.token));
+  assert.equal((await app.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+  assert.equal(app.client.session().token, original.token);
+  assert.equal(app.client.assetSource('secret').headers.authorization, `Bearer ${original.token}`);
+  assert.equal((await app.client.query(query, {})).data, 'bob-secret');
+  assert.deepEqual(events, []); assert.equal(writes, before);
   await app.close();
   const restarted = createApp({ url, readOnly: true, sessionStore: store, fetch: transport });
-  t.after(() => restarted.close());
-  assert.equal((await restarted.ready).ok, true);
-  assert.equal(restarted.auth.state, 'signed-in');
-  assert.ok('data' in await restarted.client.query(query, {}));
+  t.after(() => restarted.close()); assert.equal((await restarted.ready).ok, true);
+  assert.equal((await restarted.client.query(query, {})).data, 'bob-secret');
+  assert.equal(JSON.parse(store.values.get(key)).token, original.token);
+  assert.ok(!requests.includes('/auth/refresh'));
 });
 
-test('logout after repeated rotations retires the same user in a newer epoch', async t => {
+test('logout after repeated refresh refusals retires the same user in a newer epoch', async t => {
   const original = session('bob', 'ro.0'), store = storage(original);
   let sequence = 0;
   const retired = new Set();
@@ -134,20 +107,20 @@ test('logout after repeated rotations retires the same user in a newer epoch', a
     return fetcher(input, init);
   } });
   t.after(() => app.close()); await app.ready;
-  // Callback work can itself await the client; notification must not hold rotation.
+  // Refused refresh never publishes a new session notification.
   const notifications = [];
   app.client.onSession(async next => { if (next) notifications.push(await app.client.query(query, {})); });
   for (let i = 1; i <= 32; i++) {
-    assert.equal((await app.client.refreshSession()).ok, true);
-    assert.equal(JSON.parse(store.values.get(key)).token, `ro.${i}`);
+    assert.equal((await app.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
+    assert.equal(JSON.parse(store.values.get(key)).token, original.token);
   }
-  await waitFor(() => notifications.length === 32);
+  assert.deepEqual(notifications, []); assert.equal(sequence, 0);
   // The lead's ruling owns the same principal in every epoch, without a token lineage.
-  await store.set(key, JSON.stringify({ ...original, snapback4Epoch: '1' }));
+  await store.set(key, JSON.stringify({ ...original, token: 'ro.new-login', snapback4Epoch: '1' }));
   assert.equal((await app.auth.logout()).ok, true);
   const saved = JSON.parse(store.values.get(key));
   assert.equal(saved.token, undefined);
   assert.equal(saved.snapback4Successor, undefined);
   assert.equal(saved.snapback4Logout, '2');
-  await waitFor(() => retired.has(`Bearer ${original.token}`) && retired.has('Bearer ro.32'));
+  await waitFor(() => retired.has(`Bearer ${original.token}`) && retired.has('Bearer ro.new-login'));
 });
