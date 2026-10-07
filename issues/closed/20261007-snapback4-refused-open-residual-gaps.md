@@ -18,7 +18,7 @@ Lane RS restored the darwin fence: a refused adoption no longer creates `_read_s
 - Complete every fallible construction read inside the accepting transaction, before any upgrade commits. Add malformed-metadata regressions, including the release pointer.
 - Decide the WAL-byte contract: either avoid pre-acceptance writes that spill, or state the narrower guarantee (logical data and main-file bytes) explicitly in LLP 3000.033 and the fence. Add a spill-sized regression.
 
-## Resolution — 2026-10-07, lane SG
+## Round-0 resolution — superseded in part by round 1
 
 Closed with the task's permitted logical-data/main-file-byte contract:
 
@@ -45,3 +45,29 @@ Closed with the task's permitted logical-data/main-file-byte contract:
 The [SG report](../../snapback4/reports/20261007-sg-refused-open-guarantee/REPORT.md)
 records commands, negative controls, full-suite results and wasm identity.
 The operator owns the Darwin run; this lane uses eb1000 only and pushes nothing.
+
+## Final resolution — 2026-10-07, SG round 1
+
+Remains closed. Both reviews confirmed the protected version check and the
+pre-commit metadata/release fix. Their two follow-ups are resolved:
+
+- In-place adoption releases the hub before entering SQLite activation. A
+  DELETE-mode reader can finish while commit waits for its shared SQLite lock;
+  a WAL reader with an old snapshot fails closed after adoption rebinds the hub.
+  Existing hub poison refuses before activation. Poison racing the accepting
+  commit is discarded by a complete ephemeral-state reset, so it cannot return
+  a post-commit refusal. Deterministic regressions cover both modes and the
+  poison race.
+- LLP 3000.033 §1.3 now promises no committed change: identical schema, tables,
+  rows and `_meta`, intact integrity and unchanged freelist count. Only
+  pre-existing free-page contents and journal/WAL residue may differ physically.
+  SQLite intentionally does not restore freelist leaves on rollback. Avoiding
+  every late write would require migration-sized memory or a second-database
+  publication protocol, disproportionate for unallocated bytes. Linux refusal
+  tests use the logical/integrity/freelist contract. A spill-sized migration with
+  4 MiB of committed free space additionally verifies every changed main-file
+  page was a pre-existing free leaf and checks subsequent successful migration.
+
+The [round-1 report](../../snapback4/reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
+records verification. Darwin assertions remain unchanged (comments only); the
+operator reported 10/10 on the mini. This lane ran only on eb1000 and pushed nothing.

@@ -1,6 +1,6 @@
-// Refusal byte comparisons cover the main database, alongside complete logical
-// snapshots. Large rollback migrations may append uncommitted WAL frames;
-// LLP 3000.033 §1.3 and the native spill regression define that boundary.
+// These fixtures compare logical snapshots and sometimes main-file bytes.
+// The general refusal contract preserves committed state; free-page contents
+// and journal/WAL residue may differ (LLP 3000.033 §1.3, native spill regression).
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';

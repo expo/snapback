@@ -273,7 +273,7 @@ impl HubState {
     fn publish(&self) {
         if let Some(publish) = &self.publisher { publish(self.snapshot()); }
     }
-    pub(super) fn rebind(&mut self, identity: String, generation: u64, schema: &Schema) {
+    fn rebind(&mut self, identity: String, generation: u64, schema: &Schema) {
         let publisher = self.publisher.take();
         *self = Self::new(identity, generation, schema);
         self.publisher = publisher;
@@ -361,6 +361,17 @@ impl Hub {
     ) -> Result<(), RuntimeError> {
         self.lock()?.rebind(identity, generation, schema);
         Ok(())
+    }
+    // @ref LLP 3000.033#1.3 — never hold the hub across SQLite activation.
+    // Readers take SQLite before the hub. Even BEGIN IMMEDIATE only reserves
+    // the DELETE-mode writer: commit/spill still needs readers to release it.
+    // Adoption checks poison before activation, then releases the hub. A panic
+    // racing that check cannot turn a committed adoption into a refusal: rebind
+    // replaces all ephemeral state, so discard poisoned state and clear poison.
+    pub(super) fn rebind_committed(&self, identity: String, generation: u64, schema: &Schema) {
+        let mut hub = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        hub.rebind(identity, generation, schema);
+        self.state.clear_poison();
     }
     pub fn sweep(&self, now: i64) -> Result<usize, RuntimeError> {
         self.lock()?.sweep(now)

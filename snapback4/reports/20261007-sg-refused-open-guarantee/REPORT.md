@@ -1,5 +1,10 @@
 # SG — refusal acceptance and SQLite spill
 
+**Round-0 record, corrected by [round 1](round1/REPORT.md).** The main-file-byte
+guarantee below was too broad for DELETE-mode free pages, and holding the hub
+across activation introduced a lock inversion. Round 1 supersedes those two
+claims; the original evidence below is retained as the historical record.
+
 Date: 2026-10-07. Base: `0945fec86037acc61faf44b55df9c83ee85bba4e`.
 Branch: `sb4-intent/sg-refused-open-guarantee`.
 All implementation and verification ran on eb1000 (`expose-builder-pixel`) in

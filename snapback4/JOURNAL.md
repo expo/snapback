@@ -89303,3 +89303,44 @@ the default work counts. All ten read-only client files also passed 119/119 with
 an integrity-verified npm Linux 0.4.13 binary, covering the optional downgrade
 control separately with no skip. Final source/dist wasm comparison, references,
 whitespace, source limits and JOURNAL-prefix checks pass.
+
+## 2026-10-07 — SG round 1: adoption lock order and DELETE free pages
+
+Addressed both round-0 review findings on eb1000. In-place adoption now checks
+and releases the ephemeral hub before SQLite activation, then resets it after
+commit with the validated identity/generation. DELETE-mode commit can wait for
+a detached reader without holding the hub that reader needs. Existing poison
+still refuses before activation; poison racing the accepting commit is cleared
+by replacing all ephemeral state, so it cannot produce a post-commit refusal.
+The under-lock publisher and generation fence remain. A deterministic real
+reader/adoption regression passes in DELETE and WAL; round-0 production code
+fails the same DELETE case with `DatabaseBusy`. A separate poison-at-commit
+regression passes in both modes.
+
+This corrects the preceding entry's general main-file-byte claim. SQLite does
+not restore freelist leaf contents on rollback. LLP 3000.033 §1.3 now guarantees
+no committed change: identical schema, tables, rows and `_meta`, intact integrity
+and unchanged freelist count; only free-page contents and journal/WAL residue
+may differ physically. Avoiding every late write would require migration-sized
+memory or a separate-database publication protocol, disproportionate for
+unallocated contents. LLP 3000.017 clarifies the adoption lock order. Linux
+refusal tests compare logical dumps, integrity and freelist count. The expanded
+spill fixture has 4 MiB of committed free space: DELETE changes six of 1,024
+free leaves and no allocated page; WAL keeps all 17,551,360 main-file bytes and
+grows from 8,272 to 11,470,112 bytes. Both retain logical state and later migrate
+successfully. The checkpoint-on-refusal and small retained-WAL fences remain.
+
+Focused checks passed: 293 core/store/identity/read-session/adoption tests,
+89 device tests, 327 server tests, 53 JavaScript fence/adoption checks (seven
+Darwin-only skips), and all 119 read-only client tests with the verified npm
+0.4.13 downgrade control. The full suite passed with **0 failures in 2,160 seconds**:
+312 Rust binaries / 1,025 executions plus doctests, all 340 client files
+(6,675 passed / 54 labelled skips), and 79 serial model tests at normal counts.
+Wasm remains byte-identical to pre-SG: SHA-256
+`a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83`,
+2,135,164 raw / 645,264 gzip bytes, unchanged budget 645,564. Darwin assertions
+are unchanged (comments only); the operator reports the mini passed 10/10.
+PostgreSQL is untouched. The ticket's final resolution and the
+[round-1 report](reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
+record the contract correction, review dispositions and logs. No other lane,
+worktree or host was used; nothing pushed.

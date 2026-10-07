@@ -1,5 +1,5 @@
 //! Acceptance includes lock-protected admission and every construction read.
-// @ref LLP 3000.033#1.3 — compare logical state and main-file bytes on refusal.
+// @ref LLP 3000.033#1.3 — compare schema/rows, integrity and freelist count on refusal.
 use rusqlite::{Connection, config::DbConfig, types::Value};
 use snapback4_core::{Engine, Store, error::RuntimeError, schema::Schema};
 use std::{path::{Path, PathBuf}, sync::atomic::{AtomicBool, AtomicUsize, Ordering}, time::{Duration, Instant}};
@@ -19,7 +19,6 @@ impl Fixture {
     }
     fn path(&self) -> PathBuf { self.0.join("store.sqlite") }
     fn db(&self) -> Connection { Connection::open(self.path()).unwrap() }
-    fn bytes(&self) -> Vec<u8> { std::fs::read(self.path()).unwrap() }
     fn wal(&self) -> Option<Vec<u8>> { std::fs::read(self.0.join("store.sqlite-wal")).ok() }
 }
 impl Drop for Fixture {
@@ -30,14 +29,19 @@ fn dump(db: &Connection) -> Vec<(String, Vec<String>)> {
     let mut tables = vec!["sqlite_schema".to_owned()];
     tables.extend(db.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").unwrap()
         .query_map([], |r| r.get::<_, String>(0)).unwrap().map(Result::unwrap));
-    tables.into_iter().map(|name| {
+    let mut snapshot = tables.into_iter().map(|name| {
         let mut statement = db.prepare(&format!("SELECT * FROM \"{}\"", name.replace('"', "\"\""))).unwrap();
         let columns = statement.column_count();
         let mut rows = statement.query_map([], |r| (0..columns).map(|n| r.get::<_, Value>(n)).collect::<rusqlite::Result<Vec<_>>>())
             .unwrap().map(|r| format!("{:?}", r.unwrap())).collect::<Vec<_>>();
         rows.sort();
         (name, rows)
-    }).collect()
+    }).collect::<Vec<_>>();
+    let integrity: String = db.query_row("PRAGMA integrity_check", [], |r| r.get(0)).unwrap();
+    assert_eq!(integrity, "ok");
+    let free: i64 = db.query_row("PRAGMA freelist_count", [], |r| r.get(0)).unwrap();
+    snapshot.push(("PRAGMA integrity_check/freelist_count".into(), vec![integrity, free.to_string()]));
+    snapshot
 }
 
 fn open(store: Store, entry: &str, previous: Option<u64>) -> Result<Engine, RuntimeError> {
@@ -72,13 +76,11 @@ fn malformed_construction_metadata_never_commits_upgrades_or_release() {
                     if entry == "repair" { db.execute("DELETE FROM _meta WHERE key='live_sum_candidates'", []).unwrap(); }
                     drop(db);
                     let before = read_dump(&fixture.path());
-                    let bytes = fixture.bytes();
                     let wal = fixture.wal();
                     if mode == "WAL" { assert!(wal.as_ref().is_some_and(|w| w.len() > 32)); }
                     let error = open(Store::open(&fixture.path()).unwrap(), entry, previous).err().expect("malformed metadata must refuse");
                     assert!(matches!(error, RuntimeError::Sql(rusqlite::Error::InvalidColumnType(..))), "{mode}/{entry}/{key}: {error:?}");
                     assert_eq!(read_dump(&fixture.path()), before, "{mode}/{entry}/{key}/{previous:?}: includes the release pointer");
-                    assert_eq!(fixture.bytes(), bytes, "main-file bytes");
                     // This small migration does not spill. Keep RS's stronger
                     // retained-WAL witness; the spill-sized case has its own test.
                     assert_eq!(fixture.wal(), wal, "small refusal retains WAL bytes");
@@ -160,7 +162,6 @@ fn concurrent_openers_recheck_version_and_backend_after_the_writer_wait() {
                 db.execute_batch(sql).unwrap();
                 let before = dump(&db);
                 db.execute_batch("COMMIT").unwrap();
-                let bytes = fixture.bytes();
                 let wal = fixture.wal();
                 RELEASE.store(true, Ordering::SeqCst);
                 let outcomes: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
@@ -174,7 +175,6 @@ fn concurrent_openers_recheck_version_and_backend_after_the_writer_wait() {
                 }
                 if change != "none" {
                     assert_eq!(dump(&db), before, "{mode}/{entry}/{change}: refusal changed schema/rows");
-                    assert_eq!(fixture.bytes(), bytes, "main file");
                     assert_eq!(fixture.wal(), wal, "small refusal WAL");
                 } else {
                     assert!(db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_effect_steps')", [], |r| r.get::<_, bool>(0)).unwrap());
@@ -222,13 +222,11 @@ fn repair_rechecks_the_backend_after_releasing_its_validated_snapshot() {
                 _ => unreachable!(),
             }).unwrap();
             let before = dump(&db);
-            let bytes = fixture.bytes();
             let wal = fixture.wal();
             release.send(()).unwrap();
             let error = thread.join().unwrap().err().expect("repair must reject the changed admission inputs");
             assert_eq!(error.code(), if change == "version" { "E_STORE" } else { "E_GENERATION" }, "{error}");
             assert_eq!(dump(&db), before, "{mode}/{change}: no upgrade after stale validation");
-            assert_eq!(fixture.bytes(), bytes);
             assert_eq!(fixture.wal(), wal);
         }
     }
@@ -247,9 +245,104 @@ fn in_place_adoption_refuses_bad_metadata_or_a_poisoned_hub_before_commit() {
             engine.store().conn().execute("INSERT OR REPLACE INTO _meta VALUES (?1,X'80')", [refusal]).unwrap();
         }
         let before = dump(engine.store().conn());
-        let bytes = fixture.bytes();
         assert!(engine.adopt(Schema::default(), []).is_err());
         assert_eq!(dump(engine.store().conn()), before);
-        assert_eq!(fixture.bytes(), bytes);
+    }
+}
+
+#[test]
+fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
+    use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
+    use snapback4_core::engine::Context;
+    use std::sync::mpsc;
+    for mode in ["DELETE", "WAL"] {
+        let fixture = Fixture::new(mode);
+        let bound = snapback4_lang::compile(&[("schema.q".into(),
+            "table typing:\n  owner: principal\n  unique owner\n  read <- allow\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  ephemeral 4s\nmutation setTyping():\n  upsert typing[owner = viewer] {}\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let programs: Vec<_> = bound.programs.into_iter().map(|p| p.program).collect();
+        let mut engine = Engine::new(Store::open(&fixture.path()).unwrap(), bound.schema.clone(), programs.clone()).unwrap();
+        let generation = engine.generation();
+        let mut reader = engine.reader().unwrap();
+        let hub = engine.ephemeral_hub();
+        let (reading, at_read) = mpsc::sync_channel(1);
+        let (resume, proceed) = mpsc::sync_channel(1);
+        let mut paused = false;
+        reader.store().conn().authorizer(Some(move |context: AuthContext<'_>| {
+            if !paused && matches!(context.action, AuthAction::Read { table_name: "_commits", .. }) {
+                // mutate_ephemeral has already established its SQLite snapshot
+                // and read identity/generation, but has not taken the hub yet.
+                paused = true;
+                reading.send(()).unwrap();
+                if proceed.recv_timeout(Duration::from_secs(20)).is_err() { return Authorization::Deny; }
+            }
+            Authorization::Allow
+        })).unwrap();
+        let reading = std::thread::spawn(move || reader.mutate_ephemeral("setTyping", Context::new("alice", Default::default()).at(1000)));
+        at_read.recv_timeout(Duration::from_secs(10)).unwrap();
+        let (committing, at_commit) = mpsc::sync_channel(1);
+        engine.store().conn().busy_timeout(Duration::from_secs(2)).unwrap();
+        engine.store().conn().authorizer(Some(move |context: AuthContext<'_>| {
+            // rusqlite 0.40 maps COMMIT to Unknown. The authorizer runs before
+            // SQLite tries to promote the writer lock; commit_hook is too late.
+            if matches!(context.action, AuthAction::Transaction { operation: TransactionOperation::Unknown }) {
+                committing.send(()).unwrap();
+            }
+            Authorization::Allow
+        })).unwrap();
+        let mut schema = bound.schema;
+        schema.tables.get_mut("typing").unwrap().columns.insert("note".into(), snapback4_core::schema::ColumnType::Optional(Box::new(snapback4_core::schema::ColumnType::Text { max: 64 })));
+        let adopting = std::thread::spawn(move || {
+            let result = engine.adopt_at(schema, programs, 1001);
+            (engine, result)
+        });
+        at_commit.recv_timeout(Duration::from_secs(10)).unwrap();
+        let (engine, result, read_result) = if mode == "DELETE" {
+            // DELETE commit needs the reader's shared SQLite lock. Adoption
+            // must leave the hub available so that reader can finish.
+            resume.send(()).unwrap();
+            let read_result = reading.join().unwrap();
+            let (engine, result) = adopting.join().unwrap();
+            (engine, result, read_result)
+        } else {
+            // WAL can commit with the old read snapshot still held. Once the
+            // hub is rebound, that old reader must fail closed.
+            let (engine, result) = adopting.join().unwrap();
+            resume.send(()).unwrap();
+            (engine, result, reading.join().unwrap())
+        };
+        assert_eq!(result.unwrap(), generation + 1, "{mode}");
+        if mode == "DELETE" { read_result.unwrap(); }
+        else { assert_eq!(read_result.err().expect("stale WAL reader").code(), "E_GENERATION"); }
+        assert_eq!(engine.store().meta("generation").unwrap(), Some((generation + 1).to_string()));
+        assert_eq!(hub.snapshot().unwrap().generation, generation + 1);
+        let reopened = Engine::open(Store::open(&fixture.path()).unwrap()).unwrap();
+        assert!(reopened.schema().tables["typing"].columns.contains_key("note"));
+    }
+}
+
+#[test]
+fn hub_poison_racing_acceptance_is_reset_without_post_commit_refusal() {
+    for mode in ["DELETE", "WAL"] {
+        let fixture = Fixture::new(mode);
+        let mut engine = Engine::open(Store::open(&fixture.path()).unwrap()).unwrap();
+        let hub = engine.ephemeral_hub();
+        let poisoning = hub.clone();
+        let generation = engine.generation();
+        let incarnation = hub.snapshot().unwrap().version.incarnation;
+        engine.store().conn().commit_hook(Some(move || {
+            let hub = poisoning.clone();
+            assert!(std::thread::spawn(move || { let _held = hub.lock().unwrap(); panic!("concurrent reader poisoned hub"); }).join().is_err());
+            false
+        })).unwrap();
+        let mut schema = Schema::default();
+        schema.tables.insert("new_table".into(), snapback4_core::schema::public_table(
+            [("id".into(), snapback4_core::schema::ColumnType::Id)].into(),
+            [("byId".into(), snapback4_core::schema::Index::of(&["id"], true))].into()));
+        assert_eq!(engine.adopt(schema, []).unwrap(), generation + 1);
+        let after = hub.snapshot().expect("replacement state clears poison");
+        assert_eq!(after.generation, generation + 1);
+        assert_ne!(after.version.incarnation, incarnation);
+        assert_eq!(engine.store().meta("generation").unwrap(), Some((generation + 1).to_string()));
     }
 }

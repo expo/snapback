@@ -571,13 +571,13 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let mut hub = self.ephemeral.lock()?;
+        drop(self.ephemeral.lock()?);
         let (generation, metadata) = Self::activate(&mut self.store, &schema, &programs, None, now, true, None, None)?;
         self.timeline_schedule = timeline::Schedule::default();
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
-        hub.rebind(metadata.store_id, generation, &self.schema);
+        self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
         Ok(generation)
     }
 

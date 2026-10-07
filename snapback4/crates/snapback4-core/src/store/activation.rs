@@ -104,8 +104,8 @@ impl Store {
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
         check(&sql)?;
         // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
-        // Dirty-page spill may append uncommitted WAL frames; logical state
-        // and the main file are restored, not the WAL's physical byte length.
+        // Rollback restores schema/rows and freelist count. It may leave
+        // changed free-page contents or journal/WAL residue, not committed data.
         Self::initialize_schema(&sql)?;
         if programs.is_some() { Self::initialize_change_evidence(&sql)?; }
         index_key_guards(&sql)?;
