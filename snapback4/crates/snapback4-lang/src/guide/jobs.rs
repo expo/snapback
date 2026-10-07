@@ -255,6 +255,8 @@ commit evidence can outlive deleted rows. It reads at most 4 KiB of table metada
 per commit and lists up to eight table names (128 bytes each); omitted names are
 marked. The reported largest lead covers only this window. This is advice, not a
 data repair: restarting resets the clock, not already written timestamps.
+If inspection fails, startup reports "store-ahead inspection unavailable" and continues;
+normal store/schema admission still applies. Unparsable row images are never read by this check.
 `check --store` checks schema adoption, not a running process's clock.
 
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.

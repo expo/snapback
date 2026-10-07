@@ -667,7 +667,9 @@ export function createApp(options: AppOptions): App {
       drainRevocations();
       return { ok: true, session: raw.session() ?? next };
     } catch (error) {
-      if (revision === expected) hide("restoring", false);
+      const why = problem(error);
+      if (revision === expected) hide("restoring", false,
+        !previous?.valid && why.code === "E_AUTH" && !why.retryable ? why : undefined);
       // Abort only the provisional owner. The previous durable session and
       // epoch are unchanged; every issued successor remains in retirement custody.
       scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();

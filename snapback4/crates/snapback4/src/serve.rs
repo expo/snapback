@@ -297,8 +297,10 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     }.map_err(|e| e.to_string())?;
     adoption::report(&engine);
     if dev {
-        if let Some(note) = crate::dev_clock_store::ahead(&engine, clock.now()).map_err(|e| e.to_string())? {
-            snapback4_core::diagnostic!("{note}");
+        match crate::dev_clock_store::ahead(&engine, clock.now()) {
+            Ok(Some(note)) => snapback4_core::diagnostic!("{note}"),
+            Ok(None) => {},
+            Err(error) => snapback4_core::diagnostic!("clock     store-ahead inspection unavailable: {error}"),
         }
     }
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;

@@ -89,10 +89,13 @@ including before this server started. Sign in again and discard saved tokens fro
 earlier store. Expiry is identified when the session record remains; absent records
 cannot distinguish expiry from sign-out or store replacement. No token history is kept.
 SDK local/online clients and the app online arm preserve that message after terminal
-refusal. Ordinary signed-out clients still ask you to sign in. Serve and untrusted dev
+refusal, including a device app restoring a saved foreign-store token and a later
+local logout-everywhere call. Ordinary signed-out clients still ask you to sign in. Serve and untrusted dev
 requests, including declared public POST routes, use identical text for every cause:
 "this session is not live; sign in again", without disclosing whether a token was issued here.
-E_AUTH and family `auth` stay unchanged; no new field is needed. Do not branch on diagnostic prose.
+Refused session tokens on data and identity doors (logout, narrow, refresh and logout-all)
+use HTTP 401, E_AUTH, family `auth` and `guide: personas`, without an E_AUTH prefix
+inside the message. No new field is needed. Do not branch on diagnostic prose.
 
 
 E_OIDC_BINDING means begin did not receive a 43-character base64url SHA-256

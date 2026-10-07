@@ -720,3 +720,32 @@ fn matching_appointment_values_never_become_commit_clock_evidence() {
     let _host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
     assert!(!output_json(f.command(&["doctor", "--json"])).to_string().contains("N_CLOCK_STORE_AHEAD"));
 }
+
+#[test]
+fn startup_clock_advice_ignores_bad_row_images_and_reports_inspection_failure() {
+    for bad_commit in [false, true] {
+        let f = Fixture::new(if bad_commit { "bad-commit" } else { "bad-image" });
+        fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  at: time\n  public\n  online only\n").unwrap();
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+        assert_eq!(host.post("/seed", json!([{"table":"notes","row":{"id":"n","at":0}}]))["seeded"], 1);
+        drop(host);
+        let conn = rusqlite::Connection::open(f.0.join(".snapback4/store.sqlite")).unwrap();
+        conn.execute("UPDATE r SET data = 'unparsable row image'", []).unwrap();
+        if bad_commit { conn.execute("UPDATE _commits SET at = 'unparsable commit stamp'", []).unwrap(); }
+        drop(conn);
+        let log = f.0.join("startup.log");
+        let mut child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--hold-schedules", "--port", "0"])
+            .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let text = fs::read_to_string(&log).unwrap();
+        assert!(line.starts_with("http://"), "{text}");
+        let _host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+        if bad_commit {
+            assert!(text.contains("store-ahead inspection unavailable"), "{text}");
+            assert!(!text.contains("N_CLOCK_STORE_AHEAD"), "{text}");
+        } else {
+            assert!(text.contains("N_CLOCK_STORE_AHEAD") && text.contains("tables: notes"), "{text}");
+            assert!(!text.contains("store-ahead inspection unavailable"), "{text}");
+        }
+    }
+}

@@ -1383,7 +1383,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async logoutAll() {
       if (refreshing) await refreshing;
       if (closed) return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } };
-      if (sessionDead || !session) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+      if (sessionDead || !session) return { ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
       const revision = credentialRevision;
       const revoked = await revokeAllSessions(base, session.token, doFetch);
       if (revoked.ok) {

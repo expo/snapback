@@ -89993,3 +89993,38 @@ DK round-1 final evidence: the 100,001-row production benchmark measured
 interleaved runs each); SQLite schema remained unchanged. All 52 app-session
 model tests passed at 5,000 sequences per tier. The final ref-check passed
 531 LLP documents and 10,539 references with zero errors/unchecked.
+
+## 2026-10-07 — DK round 2: refusal custody on restored apps and identity doors
+
+Astra's round-1 review found that a device app restoring a saved foreign-store
+token kept the repair in ready/auth but lost it on the signed-out online facade.
+The failed-opening path now passes the terminal refusal into that facade when
+no valid previous owner is being restored. A real two-store startup regression
+checks query, mutate and act, then proves a new sign-in replaces the cause.
+Never-signed-in online/device apps stay generic. Local logout-everywhere also
+keeps an already retained terminal cause, addressing Grok's round-0 finding.
+
+Logout/narrow retain their transactional authority checks and now use the same
+HTTP 401 E_AUTH/auth envelope and personas guide as the data doors. Refresh's
+fallback and logout-all's recheck preserve the actual refusal instead of
+stringifying it. Expanded door controls check status, wording, guide and public
+privacy; a deterministic expiry between refresh resolution and rotation covers
+the rare fallback. Live wrong-kind credentials retain their operation-specific
+explanation. No session authority or stored format changed.
+
+Round 1 already avoided all application row images during clock inspection.
+A new real-startup control confirms an unparsable image cannot break that check.
+Other inspection failures now print unavailable and allow dev startup to continue;
+a malformed commit-stamp control proves it. Ordinary store/schema admission
+still applies. The bounded query and its documented limitations are unchanged.
+Focused tests, 193 affected HTTP tests, 23 clock integrations, session-security
+and read-only regressions, 113 guide tests and ref-check passed. LLP 3000.007
+§20.2/§20.12 and Revised were updated with the guide/client docs. Final model
+counts and commands are in [the report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-2 final evidence: all 52 app-session model tests passed at 5,000
+sequences per tier; 92 restoration/account-custody regressions also passed.
+The SDK selection passed 231 tests with one optional 0.4.13 downgrade test
+skipped because that verified binary was not supplied. Ref-check passed 531 LLP
+documents and 10,540 references with zero errors/unchecked.

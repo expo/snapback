@@ -56,6 +56,7 @@ for (const mode of ['online', 'local', 'app-online', 'app-device']) {
       assert.deepEqual((await client.query(q, {})).denied, why, 'subsequent query keeps cause');
       assert.deepEqual((await client.mutate(m, {})).why, why, 'subsequent signal keeps cause');
       assert.deepEqual((await client.act(a, {})).denied, why, 'subsequent action keeps cause');
+      if (mode === 'local' || mode === 'online') assert.deepEqual((await client.logoutAll()).why, why, 'logout everywhere keeps the terminal cause');
       if (mode === 'app-online') {
         await until(() => app.auth.state === 'signed-out');
         assert.deepEqual(app.auth.why, why);
@@ -86,4 +87,36 @@ test('real dev unknown-store bearer keeps the repair through online query and sa
   assert.equal((await client.query(q, {})).denied.message, messages.unknown);
   const sessions = memorySessionStore(); await keepSession(url, foreign, sessions);
   await assert.rejects(createLocalClient({ url, sessionStore: sessions, device: device() }), /unknown to this store.*discard saved tokens/);
+});
+
+test('device app restoring a foreign-store token keeps its refusal on the signed-out online facade', { timeout: hangBudget(20) }, async t => {
+  const { url } = await server(t, undefined, source);
+  const earlier = await server(t, undefined, source);
+  const issued = await guest(earlier.url); assert.equal(issued.ok, true);
+  const sessions = memorySessionStore(); await keepSession(url, issued.session, sessions);
+  const app = createApp({ url, sessionStore: sessions, device: device() });
+  t.after(() => app.close());
+  const ready = await app.ready;
+  assert.equal(ready.ok, false);
+  const why = ready.why;
+  assert.equal(why.code, 'E_AUTH');
+  assert.ok(why.message.includes(messages.unknown), why.message);
+  assert.equal(app.auth.state, 'signed-out');
+  assert.deepEqual(app.auth.why, why);
+  assert.deepEqual((await app.online.query(q, {})).denied, why);
+  assert.deepEqual((await app.online.mutate(m, {})).why, why);
+  assert.deepEqual((await app.online.act(a, {})).denied, why);
+  assert.equal((await app.auth.guest()).ok, true, 'new sign-in replaces the stale refusal');
+  assert.ok('data' in await app.online.query(q, {}));
+});
+
+for (const withDevice of [false, true]) test(`ordinary never-signed-in app stays generic (device: ${withDevice})`, async t => {
+  const app = createApp({ url: 'https://signed-out.invalid', sessionStore: memorySessionStore(),
+    fetch: () => { throw Error('unexpected request'); }, ...(withDevice ? { device: device() } : {}) });
+  t.after(() => app.close());
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.auth.why, undefined);
+  for (const result of [await app.online.query(q, {}), await app.online.mutate(m, {}), await app.online.act(a, {})]) {
+    assert.equal((result.denied ?? result.why).message, 'sign in to continue');
+  }
 });
