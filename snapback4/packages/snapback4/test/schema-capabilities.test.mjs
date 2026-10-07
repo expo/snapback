@@ -1,3 +1,6 @@
+// These fixtures compare logical snapshots and sometimes main-file bytes.
+// The general refusal contract preserves committed state; free-page contents
+// and journal/WAL residue may differ (LLP 3000.033 §1.3, native spill regression).
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';

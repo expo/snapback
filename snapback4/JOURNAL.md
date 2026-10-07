@@ -89838,3 +89838,93 @@ first pages were 44.42 and 317.60 ms. These are shared-host observations.
 Work stayed on eb1000, pinned to sampled idle CPUs, at 28.54 GB total disk use.
 Darwin measurement/fence remains the operator's check. Push nothing.
 [Conflict dispositions and complete evidence](reports/20261006-fh-following-history/round-6/REPORT.md).
+
+## 2026-10-07 — SG: refused-open acceptance and the SQLite spill boundary
+
+Closed the three residual gaps from RS's round-1 Astra review. SQLite fast
+attachment now retains its validation transaction through upgrades and final
+construction reads. Version and catalog are checked after the writer wait.
+If attachment needs semantic repair, activation checks the exact captured
+backend and selected release under its writer lock before upgrading; all
+activation paths, including device installation, recheck the stored version.
+Server open/new/new_release carry validated identity and release metadata out
+of the accepting transaction, including identities generated during migration.
+Malformed metadata can no longer retain upgrades or a release-pointer change.
+In-place adoption also takes its fallible ephemeral-hub lock before activation.
+
+Used the task's explicit WAL-contract option: LLP 3000.033 and the fence comments
+promise complete logical state and main-file bytes, while allowing invisible
+uncommitted WAL frames from a rolled-back migration. Disabling spill would cost
+memory proportional to migration size; staging a copy would require a separate
+publication protocol for live SQLite owners. Existing small retained-WAL tests
+still require exact bytes. A new 1,500-row legacy native migration reproduces
+WAL growth from 8,272 to 11,470,112 bytes while preserving the entire logical
+dump and all 13,357,056 main-file bytes. DELETE also preserves its main file;
+correcting the refusal permits a subsequent successful migration.
+
+Eight-opener lock barriers cover changed versions/metadata/backend/catalog and
+successful concurrent legacy attachment. Another barrier changes admission
+inputs between validated attachment and semantic repair. Malformed metadata
+regressions cover all server constructors in both journal modes, with absent
+or existing releases; successful controls check generated identities through
+the constructed hub and reopen. The original code fails the new race and
+malformed-construction tests; the corrected implementation passes.
+
+Focused verification passes 286 core tests (plus its nested subprocess check),
+81 device tests and 20 JavaScript fence/round4 tests; seven Darwin-only cases
+remain for the operator's mini run. The final full-suite result and all retained
+logs are in the [SG report](reports/20261007-sg-refused-open-guarantee/REPORT.md).
+Source and packaged wasm are byte-identical to baseline: SHA-256
+`a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83`,
+2,135,164 raw / 645,264 gzip bytes against the unchanged 645,564-byte budget.
+The ticket is closed under `issues/closed/`. No PostgreSQL, SDK or web-device
+implementation changed. Work stayed in lane-sg on eb1000; nothing pushed.
+
+The complete canonical suite subsequently passed in one run: **0 failures in
+2,188 seconds**, Rust 312 binaries / 1,025 executions plus doctests, all 340
+client files (6,674 passed, 55 labelled skips), and all 79 serial model tests at
+the default work counts. All ten read-only client files also passed 119/119 with
+an integrity-verified npm Linux 0.4.13 binary, covering the optional downgrade
+control separately with no skip. Final source/dist wasm comparison, references,
+whitespace, source limits and JOURNAL-prefix checks pass.
+
+## 2026-10-07 — SG round 1: adoption lock order and DELETE free pages
+
+Addressed both round-0 review findings on eb1000. In-place adoption now checks
+and releases the ephemeral hub before SQLite activation, then resets it after
+commit with the validated identity/generation. DELETE-mode commit can wait for
+a detached reader without holding the hub that reader needs. Existing poison
+still refuses before activation; poison racing the accepting commit is cleared
+by replacing all ephemeral state, so it cannot produce a post-commit refusal.
+The under-lock publisher and generation fence remain. A deterministic real
+reader/adoption regression passes in DELETE and WAL; round-0 production code
+fails the same DELETE case with `DatabaseBusy`. A separate poison-at-commit
+regression passes in both modes.
+
+This corrects the preceding entry's general main-file-byte claim. SQLite does
+not restore freelist leaf contents on rollback. LLP 3000.033 §1.3 now guarantees
+no committed change: identical schema, tables, rows and `_meta`, intact integrity
+and unchanged freelist count; only free-page contents and journal/WAL residue
+may differ physically. Avoiding every late write would require migration-sized
+memory or a separate-database publication protocol, disproportionate for
+unallocated contents. LLP 3000.017 clarifies the adoption lock order. Linux
+refusal tests compare logical dumps, integrity and freelist count. The expanded
+spill fixture has 4 MiB of committed free space: DELETE changes six of 1,024
+free leaves and no allocated page; WAL keeps all 17,551,360 main-file bytes and
+grows from 8,272 to 11,470,112 bytes. Both retain logical state and later migrate
+successfully. The checkpoint-on-refusal and small retained-WAL fences remain.
+
+Focused checks passed: 293 core/store/identity/read-session/adoption tests,
+89 device tests, 327 server tests, 53 JavaScript fence/adoption checks (seven
+Darwin-only skips), and all 119 read-only client tests with the verified npm
+0.4.13 downgrade control. The full suite passed with **0 failures in 2,160 seconds**:
+312 Rust binaries / 1,025 executions plus doctests, all 340 client files
+(6,675 passed / 54 labelled skips), and 79 serial model tests at normal counts.
+Wasm remains byte-identical to pre-SG: SHA-256
+`a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83`,
+2,135,164 raw / 645,264 gzip bytes, unchanged budget 645,564. Darwin assertions
+are unchanged (comments only); the operator reports the mini passed 10/10.
+PostgreSQL is untouched. The ticket's final resolution and the
+[round-1 report](reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
+record the contract correction, review dispositions and logs. No other lane,
+worktree or host was used; nothing pushed.

@@ -36,6 +36,7 @@ mod authority;
 mod successor;
 mod sequences;
 mod ownership;
+pub(crate) mod opening;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -328,28 +329,10 @@ impl Store {
         Ok(())
     }
 
-    /// Complete a validated server open without an application-schema change.
-    pub(crate) fn finish_open(&mut self, expected_release: Option<u64>) -> Result<(), RuntimeError> {
-        // Inspection (doctor/sql) attaches through a read-only connection and
-        // must never attempt physical upgrades, even after backend validation.
-        if self.conn.is_readonly("main")? {
-            let tx = self.read_transaction()?;
-            Self::check_selected_release(tx.conn(), expected_release)?;
-            return tx.rollback();
-        }
-        let tx = self.transaction()?;
-        Self::check_selected_release(tx.conn(), expected_release)?;
-        Self::initialize_schema(tx.conn())?;
-        Self::initialize_change_evidence(tx.conn())?;
-        tx.commit()?;
-        self.accept_open();
-        Ok(())
-    }
-
     // Closing an accepted backend may checkpoint normally. Failure to restore
     // this optional close-time optimization leaves the conservative setting;
     // it must not turn a committed acceptance into a returned refusal.
-    pub(super) fn accept_open(&self) {
+    pub(crate) fn accept_open(&self) {
         let _ = self.conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false);
     }
 

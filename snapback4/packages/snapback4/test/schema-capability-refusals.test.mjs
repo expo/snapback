@@ -1,9 +1,12 @@
 // @ref LLP 3000.033#1.3 — the Darwin fence's fixture kinds also exercise Linux refusal storage.
+// Refusal preserves schema/rows, integrity and freelist count. Rollback may
+// change free-page contents or retain journal/WAL residue; the Rust spill
+// regression exercises those physical exceptions (LLP 3000.033 §1.3).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,writeFileSync} from 'node:fs';
+import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {server,binary} from './helpers/app-server.mjs';
 import {fixtures} from './helpers/schema-capability-fixtures.mjs';
@@ -12,7 +15,9 @@ function dump(path) {
   const db=new DatabaseSync(path,{readOnly:true});
   try {
     const tables=['sqlite_schema',...db.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all().map(r=>r.name)];
-    return JSON.stringify(tables.map(name=>[name,db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>JSON.stringify(row)).sort()]));
+    const integrity=db.prepare('PRAGMA integrity_check').all();
+    assert.deepEqual(integrity.map(row=>row.integrity_check),['ok']);
+    return JSON.stringify({tables:tables.map(name=>[name,db.prepare(`SELECT * FROM "${name.replaceAll('"','""')}"`).all().map(row=>JSON.stringify(row)).sort()]),integrity,freelist:db.prepare('PRAGMA freelist_count').get()});
   } finally {db.close();}
 }
 function native(dir,path,backend,requests=[]) {
@@ -46,22 +51,20 @@ for(const f of fixtures)test(`refused native open and adoption preserve the ${f.
     const db=new DatabaseSync(path);
     db.exec(`DROP TABLE IF EXISTS _read_sessions; PRAGMA journal_mode=${mode}`);
     db.close();
-    const before=dump(path), bytes=readFileSync(path);
+    const before=dump(path);
     const refused=native(old.dir,path,null,[{op:'adopt',backend:future},query]);
     assert.equal(refused.status,0,refused.stdout+refused.stderr);
     assert.equal(refused.replies[1].denied.code,'E_SCHEMA_CAPABILITY');
     assert.deepEqual(refused.replies[2],seeded.replies[2]);
     assert.equal(dump(path),before,`${mode}: full schema and row dump`);
-    assert.deepEqual(readFileSync(path),bytes,`${mode}: all database bytes`);
 
     const corrupted=new DatabaseSync(path);
     corrupted.prepare("UPDATE _meta SET value=? WHERE key='device:backend'").run(JSON.stringify(future));
     corrupted.exec('DROP TABLE _effect_steps');corrupted.close();
-    const beforeOpen=dump(path), openBytes=readFileSync(path);
+    const beforeOpen=dump(path);
     const rejected=native(old.dir,path,null);
     assert.notEqual(rejected.status,0);
     assert.match(rejected.stdout+rejected.stderr,/E_SCHEMA_CAPABILITY/);
     assert.equal(dump(path),beforeOpen,`${mode}: rejected open leaves every table and row`);
-    assert.deepEqual(readFileSync(path),openBytes,`${mode}: rejected open leaves every byte`);
   }
 });

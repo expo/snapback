@@ -1,0 +1,8 @@
+{
+  "package": "snapback4-linux-x64",
+  "version": "0.4.13",
+  "tarball": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.13.tgz",
+  "integrity": "sha512-CmSkNA2mU7PbWjoAR2hYlH+lPJyTc9nvhGqEvSJa5gxHmKQvNMnYApsBbLAgpYueFiL189Kv/IE6EiR+3LFD0Q==",
+  "verified": true,
+  "binary_sha256": "3aaf491b83dd97ddf974e10055920121440236e1e0df8866a857d6964208006e"
+}

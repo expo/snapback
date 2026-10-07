@@ -71,16 +71,20 @@ impl Store {
         self.activate_transaction(schema, programs, reset, now, true, build)
     }
 
-    pub(crate) fn activate_at_with_launch(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&Connection) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<(u64, R), RuntimeError> {
         let budget = if programs.is_some() { super::activation_cache::configured_mib()? } else { 0 };
         // The server builder owns only transaction-local work. Recreate all of
         // it on retry, with the same schema/programs/activation time.
         self.with_activation_cache(budget, |store| {
-            store.activate_transaction(schema, programs, reset, now, allow_launch, &mut build)
+            store.activate_transaction_with(schema, programs, reset, now, allow_launch, &check, &mut build, &finish)
         })
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), build, |_| Ok(())).map(|(generation, ())| generation)
+    }
+
+    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<(u64, R), RuntimeError> {
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
         if programs.is_some() {
@@ -93,9 +97,15 @@ impl Store {
         report.phase("read-only advice", &mut phase);
         self.check_ownership()?;
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        // Low-level preparation may precede a writer-lock wait. Recheck all
+        // opening admission under the lock that owns the upgrades.
+        Self::check_version(&sql)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        check(&sql)?;
         // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
+        // Rollback restores schema/rows and freelist count. It may leave
+        // changed free-page contents or journal/WAL residue, not committed data.
         Self::initialize_schema(&sql)?;
         if programs.is_some() { Self::initialize_change_evidence(&sql)?; }
         index_key_guards(&sql)?;
@@ -347,6 +357,7 @@ impl Store {
             }
         }
         let after = identity(tx.conn())?;
+        let result = finish(&tx)?;
         report.phase("metadata", &mut phase);
         tx.commit()?;
         report.phase("commit", &mut phase);
@@ -357,7 +368,7 @@ impl Store {
         self.catalog = catalog;
         self.identity = after;
         self.accept_open();
-        Ok(generation)
+        Ok((generation, result))
     }
 }
 
