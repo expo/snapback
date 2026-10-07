@@ -14,13 +14,14 @@ import { chromiumExecutable } from '../../../witness/lib.mjs';
 const root = resolve(import.meta.dirname, '../../..');
 const require = createRequire(join(root, 'package.json'));
 // Product measurements use only the page's clock; retrieval uses hangBudget().
-// The 1.8 s highlight allows initial layout invalidation/retry; the 4 s
-// failure allows a retry tick and rendering. These bounds never use Node time.
+// The 1.8 s highlight's span allows initial layout invalidation/retry; gaps
+// are not illuminated time. The 4 s failure allows a retry tick and rendering.
+// These bounds never use Node time or import the product's timing constants.
 const ARRIVAL_LIMIT_MS = 2000;
 const COMPOSER_KEYS = ['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Space', 'Home', 'End'];
 const EDITABLE_TARGETS = ['input', 'select', 'contenteditable', 'textbox', 'searchbox', 'combobox', 'spinbutton', 'slider'];
 const EDIT_ROOMS = [...COMPOSER_KEYS.map(key => 'edit-' + key), ...EDITABLE_TARGETS.map(target => 'edit-' + target)];
-const HIGHLIGHT_RANGE_MS = [1700, 2300], FAILURE_RANGE_MS = [3900, 4500];
+const HIGHLIGHT_SPAN_RANGE_MS = [1700, 2300], HIGHLIGHT_ON_LIMIT_MS = 2300, FAILURE_RANGE_MS = [3900, 4500];
 // Actual RN-web layout/virtualization, published hooks, generated Quarry and HTTP.
 // DOM mounting alone cannot satisfy the quote-jump regression.
 test('social quote jumps with real FlatList layout and history reads', { timeout: hangBudget(150) }, async t => {
@@ -34,11 +35,11 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
   // Mutation controls alter only this disposable generated app. They must make
   // the unchanged assertions fail, including when the driver is descheduled.
   const mutation = process.env.QJ_TEST_MUTATION;
+  const hook = join(dir, 'src/useJumpToMessage.ts');
+  let source = readFileSync(hook, 'utf8');
+  const replace = (before, after) => { assert.ok(source.includes(before), before); source = source.replace(before, after); };
   if (mutation) {
-    assert.ok(['timeout-8s', 'highlight-100ms', 'astra-both', 'arrival-8s', 'list-only-keys', 'short-far-highlight', 'late-highlight', 'editable-keys-cancel'].includes(mutation), mutation);
-    const hook = join(dir, 'src/useJumpToMessage.ts');
-    let source = readFileSync(hook, 'utf8');
-    const replace = (before, after) => { assert.ok(source.includes(before), before); source = source.replace(before, after); };
+    assert.ok(['timeout-8s', 'highlight-100ms', 'astra-both', 'arrival-8s', 'list-only-keys', 'short-far-highlight', 'late-highlight', 'blink-restart', 'editable-keys-cancel'].includes(mutation), mutation);
     if (['timeout-8s', 'astra-both'].includes(mutation)) replace('JUMP_TIMEOUT_MS = 4000', 'JUMP_TIMEOUT_MS = 8000');
     if (['highlight-100ms', 'astra-both'].includes(mutation)) replace('HIGHLIGHT_MS = 1800', 'HIGHLIGHT_MS = 100');
     if (mutation === 'arrival-8s') {
@@ -51,10 +52,17 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
     }
     if (mutation === 'short-far-highlight') replace('request.highlightUntil = performance.now() + HIGHLIGHT_MS;', 'request.highlightUntil = performance.now() + (conversation === "visible" ? HIGHLIGHT_MS : 100);');
     if (mutation === 'late-highlight') replace('performance.now() < request.highlightUntil! ? request.id : undefined', '(performance.now() < request.highlightUntil! || performance.now() > request.highlightUntil! + 1000) ? request.id : undefined');
+    if (mutation === 'blink-restart') replace('performance.now() < request.highlightUntil! ? request.id : undefined', '(performance.now() < request.highlightUntil! || (performance.now() > request.highlightUntil! + 40 && performance.now() < request.highlightUntil! + 240)) ? request.id : undefined');
     if (mutation === 'editable-keys-cancel') replace('if (isEditableTarget(event.target)) return;', '// Deliberate regression: editing cancels the jump.');
-    writeFileSync(hook, source);
     t.diagnostic(`NEGATIVE_CONTROL: generated fixture only; ${mutation}`);
   }
+  // Observe the existing expiry in the disposable app only. DOM first-on can
+  // lag that timestamp; inferring expiry from it would miss a brief restart.
+  // This classifies transitions, while independent span/on-time bounds above
+  // still reject a wrong deadline. No shipped hook or timing behavior changes.
+  replace('setCompleted(request.id); setJumping(false);',
+    '(window as any).jumpHighlightDeadline = { id: request.id, at: request.highlightUntil }; setCompleted(request.id); setJumping(false);');
+  writeFileSync(hook, source);
   const { url } = await server(t, undefined, readFileSync(join(dir, 'snapback/schema.q'), 'utf8'));
   const signed = await guest(url); assert.equal(signed.ok, true);
   const session = signed.session, owner = session.principal, rows = [];
@@ -143,6 +151,7 @@ window.fixtureReady=true;
       await quote(name).evaluate((button, id) => {
         window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);
         const evidence=window.jumpEvidence={id,highlightTransitions:[]};
+        window.jumpHighlightDeadline=undefined;
         let wasHighlighted=false;
         button.addEventListener('click',()=>{evidence.started=performance.now();},{once:true,capture:true});
         const record=()=>{
@@ -171,7 +180,10 @@ window.fixtureReady=true;
           if(first&&!evidence.highlight&&((settled&&!highlighted)||now-first.at>=5000)){
             let duration=0;
             for(let i=0;i<transitions.length;i+=2)duration+=(transitions[i+1]?.at??now)-transitions[i].at;
-            evidence.highlight={duration,span:transitions.at(-1).at-first.at,stillOn:highlighted,settled,observedFor:now-first.at,transitions:transitions.slice()};
+            const deadline=window.jumpHighlightDeadline,highlightUntil=deadline?.id===id?deadline.at:undefined;
+            const expiryOff=transitions.find(transition=>!transition.on&&transition.at>=highlightUntil);
+            const restarts=expiryOff?transitions.filter(transition=>transition.on&&transition.at>expiryOff.at):[];
+            evidence.highlight={duration,span:transitions.at(-1).at-first.at,highlightUntil,expiryOff,restarts,stillOn:highlighted,settled,observedFor:now-first.at,transitions:transitions.slice()};
           }
           if(!evidence.arrived&&bubble.id==='jump-completed-'+id&&visible&&highlighted){
             evidence.arrived={at:now,elapsed:now-evidence.started,top:target.top,bottom:target.bottom,viewportTop:v.top,viewportBottom:v.bottom,color};
@@ -208,8 +220,10 @@ window.fixtureReady=true;
       await page.waitForFunction(()=>window.jumpEvidence.highlight!=null,null,{timeout:hangBudget()});
       const observed=await page.evaluate(()=>window.jumpEvidence.highlight);
       t.diagnostic(JSON.stringify({tier,highlight:observed}));
-      assert.ok(observed.settled&&!observed.stillOn&&observed.duration>=HIGHLIGHT_RANGE_MS[0]&&observed.duration<=HIGHLIGHT_RANGE_MS[1]&&observed.span<=HIGHLIGHT_RANGE_MS[1],
-        `highlight duration outside ${HIGHLIGHT_RANGE_MS.join('–')} ms: ${JSON.stringify(observed)}`);
+      assert.ok(observed.settled&&!observed.stillOn&&observed.span>=HIGHLIGHT_SPAN_RANGE_MS[0]&&observed.span<=HIGHLIGHT_SPAN_RANGE_MS[1]&&observed.duration<=HIGHLIGHT_ON_LIMIT_MS,
+        `highlight span outside ${HIGHLIGHT_SPAN_RANGE_MS.join('–')} ms or on-time above ${HIGHLIGHT_ON_LIMIT_MS} ms: ${JSON.stringify(observed)}`);
+      assert.ok(Number.isFinite(observed.highlightUntil)&&observed.expiryOff,`highlight expiry was not observed: ${JSON.stringify(observed)}`);
+      assert.deepEqual(observed.restarts,[],`highlight restarted after expiry: ${JSON.stringify(observed)}`);
     };
     await t.test('30 intervening messages: original enters viewport and draft keeps its owner', async () => {
       await quote('far').waitFor();

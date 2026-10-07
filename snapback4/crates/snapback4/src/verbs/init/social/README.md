@@ -268,12 +268,13 @@ No read/window change replaces the composer, draft, reply selection or once view
 Browser tests seed an original, 30 messages and a reply. An observer armed before
 tapping records `performance.now()` for arrival, highlight transitions and the
 failure notice. This fixture requires arrival/completion within two seconds,
-1.7–2.3 seconds of actual highlight, and the four-second failure notice within
-3.9–4.5 seconds, allowing measurement/render and retry ticks. It retains every
-highlight on/off transition, including initial layout invalidation; repeated
-unhighlighted frames never extend a duration. Both visible and distant cases
-track all intervals until the actual settle owner ends, rejecting later highlight
-restarts as well as short flashes. These browser measurements remain
+1.7–2.3 seconds from first highlight on to final off, at most 2.3 seconds of
+summed on-time, and the four-second failure notice within 3.9–4.5 seconds.
+Initial layout gaps are not illuminated time, so the lower bound uses the span.
+Both visible and distant cases track every interval until the settle owner ends.
+The disposable fixture records the actual expiry timestamp: any off-to-on
+transition after the first expiry-time off fails, even a brief restart inside
+the duration caps. Pre-expiry layout gaps remain allowed. These measurements stay
 independent of generous driver waits, checked with deliberately broken fixtures;
 the `jump-completed-<id>` native ID persists after the highlight, so delayed test
 drivers can poll completion and current geometry without racing the highlight.

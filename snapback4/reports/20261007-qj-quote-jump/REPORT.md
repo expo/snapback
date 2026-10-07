@@ -1,7 +1,10 @@
 # QJ — jump to a quoted message
 
+**Round 4:** [span calibration and brief-restart rejection](round4/REPORT.md)
+contains the latest verification and test-precision corrections.
+
 **Round 3:** [editable keys, complete highlight observations and OA merge](round3/REPORT.md)
-contains the latest verification and review corrections.
+records the preceding product fix and main merge.
 
 **Round 2:** [browser timing, mutation controls and keyboard focus](round2/REPORT.md)
 records the earlier timing-oracle corrections.

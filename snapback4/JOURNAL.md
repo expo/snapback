@@ -89114,3 +89114,33 @@ typing/query tests pass; native UI layout, scrolling and gestures remain
 unverified on eb1000. The full suite was not rerun this round. Work stayed in this
 worktree at 15.31 GB before log compression, below 30 GB. No push or publication.
 [Round-3 report and evidence](reports/20261007-qj-quote-jump/round3/REPORT.md).
+
+## 2026-10-07 — QJ round 4: calibrate the highlight span and reject brief restarts
+
+Addressed Grok's round-3 timing-oracle changes after Astra returned READY. This
+round changes tests and their documentation only. The starter's TS/TSX/Quarry
+files match the round-3 parent byte-for-byte, including HIGHLIGHT_MS = 1800.
+
+The lower bound now uses first-on/final-off span (1.7–2.3 seconds), with separate
+2.3-second caps on span and summed on-time. The initial roughly 93 ms layout gap
+is still excluded from illuminated time. Observed unthrottled distant spans were
+1802.4–1804.6 ms, restoring about 100 ms of lower-bound slack instead of about
+9 ms for the closest case. A generated-fixture-only observation records the
+actual highlight expiry; any on transition after the first expiry-time off now
+fails, while initial pre-expiry layout gaps remain allowed.
+
+The new blink-restart mutation illuminates again during expiry+40 to expiry+240
+ms. All four measured cases (distant/visible, online/replica) remain below the
+sum/span caps but fail the new restart assertion. All nine mutation controls
+exit 1 for their intended assertions under the 2.3-second driver delay, including
+the short-far and long-restart cases.
+
+Starter/browser/quote tests pass 79/79. Four complete 38-case quote runs pass,
+counting that batch, including driver delay and delay plus 6× CPU throttle. Guide
+113/113, workspace build, client typecheck and docs-budget checks pass. The
+reference audit retains the unrelated LLP 3000.035 broken anchor inherited from
+main. Wasm and generated bindings match all four original hashes; no rebuild was
+needed. Native UI scrolling remains unverified; the full suite was not rerun in
+this test-only round. Work stayed on eb1000 in this worktree at about 15.34 GB,
+below 30 GB. Nothing pushed or published.
+[Round-4 report and evidence](reports/20261007-qj-quote-jump/round4/REPORT.md).

@@ -113,8 +113,10 @@ poll the durable completion marker and current rectangle with a generous hang
 guard. Use in-page `performance.now()` for arrival, highlight on/off transitions
 and the failure notice: generous driver waits do not relax product bounds. Track
 highlight intervals through settle completion for visible and distant targets;
-reject later restarts, short highlights and slow-deadline mutations. Keep 30 intervening messages,
-delayed expansion and draft survival in the witness.
+use first-on/final-off span for the lower bound and cap span and summed on-time.
+Reject any restart after an expiry-time off, including a brief blink, while
+allowing pre-expiry layout gaps. Keep 30 intervening messages, delayed expansion
+and draft survival in the witness; reject short-highlight and slow-deadline mutations.
 
 ```tsx
 // src/QuotedMessage.tsx
