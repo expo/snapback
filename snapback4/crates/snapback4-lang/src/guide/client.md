@@ -11,8 +11,8 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 }
 ```
 
-- `E_OFFLINE`: server data is unavailable; show unavailable and reconnect.
-- `E_QUERY_RETRY`: one-shot settlement exhausted its budget; retry, using reactive hooks for screens.
+- `E_OFFLINE`: server unavailable; show unavailable, reconnect.
+- `E_QUERY_RETRY`: settlement exhausted; retry. Use reactive screen hooks.
 
 ## Reference
 ```tsx
@@ -63,7 +63,7 @@ Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (l
 `guide social`: quoted-message point reads distinguish loading/absence/denial; bounded route-owned screens preserve drafts.
 
 ## Row queries
-Share observations; page large lists. Authorization inputs remain dependencies.
+Share observations; paginate. Authorization inputs remain dependencies.
 At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw all.
@@ -74,7 +74,7 @@ Overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `use
 Social: `nativeDevice`/`webDevice()`; Expo Go online. `guide sync` covers acquisition/Workers.
 Every milestone: `npm run export:ios` publishes `dist/`; native proof runs in the background. `witness status --wait` reports results. `npm run native:smoke` rebuilds. Acquisition/offline reopen/reconnect; write replay needs scenarios (`guide witness`).
 
-`createClient`/online `createApp`: `readOnly: true` (`guide read-only`). Keep `useSeen` inactive when read-only. Read sessions never refresh or rotate in the SDK; `refreshSession()` refuses `E_READ_ONLY_REFRESH`. At `expiresAt`, reads surface `E_AUTH`: sign in again or narrow a full session again.
+`readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`. Sign in or narrow again.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Keep retained history and live decorations independent.

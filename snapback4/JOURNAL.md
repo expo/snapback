@@ -88338,3 +88338,11 @@ allocation coverage remain. All four live resolver entry points now assert
 Read scope before the generation-revocation assertions. The RFC, guide and
 client cards describe fixed read-session lifetimes. Complete-suite results and
 net removals follow in the Round 6 lane report. No push or publication.
+
+The full Round 6 run found the new code's missing default-card mapping and
+definition/action pins, plus a client-card word-budget overflow. Completed the
+diagnostic registration and shortened the client card to its unchanged
+1,200-word limit. The complete affected guide, CLI check and CLI unit targets
+now pass: 113, 89 and 326 tests respectively, with four existing CLI ignores.
+The original full-run failures remain in the evidence. The auth helper also
+refuses padded read tokens, matching the server's bearer whitespace handling.
