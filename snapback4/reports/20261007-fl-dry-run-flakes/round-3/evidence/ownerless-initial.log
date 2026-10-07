@@ -1,0 +1,58 @@
+✖ retention repairs an ownerless publication before exchange without worker respawn (7557.93765ms)
+✖ retention repairs an ownerless publication after exchange without worker respawn (7539.713595ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15154.777324
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-background.test.mjs:835:39
+✖ retention repairs an ownerless publication before exchange without worker respawn (7557.93765ms)
+  AssertionError [ERR_ASSERTION]: PID must identify this fixture publisher command
+  + actual - expected
+
+    [
+      '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4',
+      'witness',
+      'export-publish',
+      '/tmp/sb4-background-4iM9XQ/artifacts/native-smoke/1791388975317-292828/publication-export',
+      '/tmp/sb4-background-4iM9XQ/dist',
+  +   '--environment-skip'
+    ]
+
+      at inspectPublisher (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/helpers/publication-barrier.mjs:21:12) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4', 'witness', 'export-publish', '/tmp/sb4-background-4iM9XQ/artifacts/native-smoke/1791388975317-292828/publication-export', '/tmp/sb4-background-4iM9XQ/dist', '--environment-skip' ],
+    expected: [ '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4', 'witness', 'export-publish', '/tmp/sb4-background-4iM9XQ/artifacts/native-smoke/1791388975317-292828/publication-export', '/tmp/sb4-background-4iM9XQ/dist' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/export-background.test.mjs:835:39
+✖ retention repairs an ownerless publication after exchange without worker respawn (7539.713595ms)
+  AssertionError [ERR_ASSERTION]: PID must identify this fixture publisher command
+  + actual - expected
+
+    [
+      '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4',
+      'witness',
+      'export-publish',
+      '/tmp/sb4-background-cFDSxJ/artifacts/native-smoke/1791388982920-294971/publication-export',
+      '/tmp/sb4-background-cFDSxJ/dist',
+  +   '--environment-skip'
+    ]
+
+      at inspectPublisher (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/helpers/publication-barrier.mjs:21:12) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4', 'witness', 'export-publish', '/tmp/sb4-background-cFDSxJ/artifacts/native-smoke/1791388982920-294971/publication-export', '/tmp/sb4-background-cFDSxJ/dist', '--environment-skip' ],
+    expected: [ '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4', 'witness', 'export-publish', '/tmp/sb4-background-cFDSxJ/artifacts/native-smoke/1791388982920-294971/publication-export', '/tmp/sb4-background-cFDSxJ/dist' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

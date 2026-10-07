@@ -89081,3 +89081,34 @@ and appended to its open ticket. The failed fixture's recorded actors were gone.
 The user's approximately 15-run Mac soak remains pending. No push or publication.
 
 [Round-2 report, complete audit and evidence](reports/20261007-fl-dry-run-flakes/round-2/REPORT.md).
+
+## 2026-10-07 — FL round 3: complete publisher PID barriers
+
+Astra found a P2 missed by the round-2 audit: both ownerless-publication cases
+could observe the C barrier after fopen but before fprintf, turn empty bytes
+into PID 0, and later signal their own process group. The audit's affected row
+and blanket conclusion are now explicitly corrected.
+
+The fixture publishes its complete PID through a temporary file and rename.
+Tests require a positive PID, the exact fixture command and matching process
+birth before requesting a fault. They no longer send SIGKILL to a PID read from
+disk: a private request makes the paused C publisher SIGKILL itself at the same
+namespace boundary. This also closes the inspection-to-signal PID-reuse window.
+The related publication-custody test now releases its lock and awaits its
+recorded publisher's exit instead of using a cached numeric cleanup kill.
+The file/shared-helper signal audit is recorded in the report. No product code
+or timeout changed; rounds 0–2's read, custody and simulator assertions remain.
+
+Both new permanent before/after barrier regressions passed 20 loaded rounds
+on eb1000, with four reaped busy loops confined to CPUs 80–81. The private old
+fixture mutation fails both tests at the incomplete-record assertion without
+signalling PID 0 or leaking a group. Invalid, stale, exited and wrong-command
+identities cannot create a fault request. Five export suites passed 82 tests
+with 33 existing platform skips; the final publication file also passed 6/6.
+All 42 read-corruption controls reject, bounded-retry controls behave correctly,
+and dev_refusals passes 22/22 after source restoration. Disabled-custody and
+timeout controls fail and reap their fixtures; round-2 simulator recovery
+positives/negatives still behave as required. No Darwin execution or publication
+qualification is claimed; the user's mini soak remains pending. Nothing pushed.
+
+[Round-3 report, corrected audit and controls](reports/20261007-fl-dry-run-flakes/round-3/REPORT.md).

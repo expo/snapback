@@ -1,5 +1,9 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-3 PID-barrier correction:** [round 3](round-3/REPORT.md) closes Astra's
+P2, corrects the round-2 audit, and verifies the complete publisher record and
+fault-request protocol. Rounds 0–2's read and custody assertions remain intact.
+
 **Round-2 Mac follow-up:** [round 2](round-2/REPORT.md) fixes simulator-cleanup
 observation, audits all 94 background cases, and records Linux recovery controls.
 The round-1 strict read comparison and round-0 custody cases remain intact;

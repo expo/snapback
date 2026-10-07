@@ -7,6 +7,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
+import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
 
 const binary = new URL('../../../target/debug/snapback4', import.meta.url).pathname;
 const wrapper = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname;
@@ -833,6 +834,7 @@ function assertRetentionBound(f) {
 }
 for(const point of ['before','after'])test(`retention repairs an ownerless publication ${point} exchange without worker respawn`,{timeout:120000},async()=>{
   const f=fixture();let held,wrapperChild,wrapperExit,publisher;
+  const barrier=path.join(f.root,'publisher-paused');
   try {
     skipMode(f,'off');held=await holdRetention(f);await seedQueuedExports(f);
     const previous=f.latest(),root=path.join(f.root,'artifacts/native-smoke');
@@ -846,16 +848,17 @@ if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRA
 const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
 process.exit(r.status??1);
 `,0o755);
-    const barrier=path.join(f.root,'publisher-paused');
     wrapperChild=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,SNAPBACK4_BIN:path.join(f.root,'dispatch.mjs'),SB4_FAULT:'pause-'+point,SB4_FAULT_TARGET:path.join(f.root,'dist'),SB4_FAULT_BARRIER:barrier},stdio:['ignore','pipe','pipe']});
     let output='';wrapperChild.stdout.on('data',x=>output+=x);wrapperChild.stderr.on('data',x=>output+=x);wrapperExit=once(wrapperChild,'exit');
-    await until(()=>fs.existsSync(barrier),'our publisher paused at the namespace boundary');publisher=Number(fs.readFileSync(barrier,'utf8'));
+    await until(()=>read(path.join(root,'publication-pending.json')),'publisher recorded its pending transaction');
+    const args=[binary,'witness','export-publish',read(path.join(root,'publication-pending.json')).source,path.join(f.root,'dist'),'--environment-skip'];
+    publisher=await waitForPublisher(barrier,args);
     assert.ok(fs.existsSync(path.join(root,'publication-pending.json')));
     const observer=read(path.join(root,'maintenance-next.json')).process.pid;
     held.child.stdin.end();await held.exited;held=null;
     const end=Date.now()+2200;
     while(Date.now()<end){await pause();assert.ok(alive(observer));assert.equal(read(path.join(root,'maintenance-active.json'))?.attempt??0,0,'live publication waits passively');}
-    process.kill(publisher,'SIGKILL');publisher=null;
+    await killPausedPublisher(barrier,publisher,args);publisher=null;
     const [code]=await wrapperExit;assert.notEqual(code,0,output);wrapperChild=null;
     const repairStarted=Date.now();await maintenanceIdle(f);
     assert.ok(Date.now()-repairStarted<30000,'ownerless transaction repaired without a later export');
@@ -867,7 +870,7 @@ process.exit(r.status??1);
     for(let i=0;i<10;i++){await pause();assert.equal(read(path.join(root,'maintenance-active.json')).attempt,1);}
     console.log(JSON.stringify({interruptedPublication:point,workerStarts:1,repairMs:Date.now()-repairStarted,full:5,compressed:20}));
   } finally {
-    if(publisher&&alive(publisher))process.kill(publisher,'SIGKILL');
+    releasePublisherBarrier(barrier);
     if(wrapperChild)await wrapperExit;
     if(held){held.child.stdin.end();await held.exited;}
     await cleanup(f);

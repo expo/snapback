@@ -1,5 +1,10 @@
 # FL round 2 — observe completed simulator cleanup
 
+**Round-3 audit correction:** Astra found a missed incomplete publisher-PID
+barrier in both ownerless-publication cases. The corrected row and conclusion
+below supersede their round-2 audit claims. [Round 3](../round-3/REPORT.md) records
+the atomic barrier, identity validation, self-directed fault and regressions.
+
 2026-10-07, against `fc9f9f2740`. All work stayed on eb1000
 (`expose-builder-pixel`) in `lane-fl`. Nothing pushed. No remote machine,
 other worktree or other lane's process was used.
@@ -118,7 +123,7 @@ proof receipt is not treated as evidence that later maintenance has completed.
 | repeated skipped exports… (2); skipped maintenance drains… (3); held retention coalesces… (2) | 7 | Final counts follow explicit maintenance idle; signal cases also wait for all recorded group members. Log assertion follows custodian exit. Timing/deadline assertions unchanged. |
 | held exclusive/shared publication lock… | 2 | Held locks are acknowledged before inspection; counts and attempt number follow release plus queue idle. |
 | failed maintenance retains a parked request… | 1 | Error receipt is followed by `maintenanceIdle(f,true)` before parked-state assertions. Queue producers have exited. |
-| retention repairs ownerless publication before/after exchange… | 2 | Explicit publisher barrier, owner exit and queue idle precede repair assertions. |
+| retention repairs ownerless publication before/after exchange… | 2 | **Round-3 correction:** the former existence-only barrier wait could capture an empty PID file as zero before the C fixture wrote it. This was missed in round 2. Round 3 publishes the complete PID atomically, validates command/birth, and requests the private publisher to SIGKILL itself; owner exit and queue idle still precede the unchanged repair assertions. |
 | live retention owner… (launch gate true / false) | 2 | **Changed:** preserve exit/deadline assertions, then await pipe closure before checking the parked diagnostic. |
 | retention cannot remove a run during initialization…; stuck initializer refusal… | 2 | Held initialization lease/barrier protects immediate invariants. Completion checks follow wrapper return and/or maintenance idle. |
 | sole maintenance custodian/observer SIGKILL… | 2 | Explicit whole-group drain followed by queue idle precedes counts and resumption-attempt assertions. |
@@ -130,8 +135,9 @@ proof receipt is not treated as evidence that later maintenance has completed.
 | handoff-pending / handoff-busy × observer/custodian death | 4 | Victim exit and barrier release precede queue idle; scan exit is also awaited before final status/count assertions. |
 | next export repairs parked maintenance… (3 modes) | 3 | Recorded observer exit precedes state surgery; synchronous failed export plus queue idle precedes counts and absence of simulator calls. |
 
-No other early-marker/later-state assertion was found. In particular, remaining
-child `exit` waits either observe processes without captured pipes or use output
+The round-2 blanket assertion that no other early-marker/later-state race
+remained was incorrect: the ownerless-publication PID barrier above is one.
+The output-delivery findings remain: remaining child `exit` waits either observe processes without captured pipes or use output
 only as failure diagnostics; they do not assert complete pipe content. Barrier
 invariant checks were not converted into eventual-success polls. No case, skip,
 result expectation, custody check or product deadline was removed.

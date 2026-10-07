@@ -16,9 +16,20 @@ static void boundary(const char *target, int after) {
     if (!fault) return;
     if ((!after && !strcmp(fault, "pause-before")) || (after && !strcmp(fault, "pause-after"))) {
         const char *barrier = getenv("SB4_FAULT_BARRIER");
-        FILE *out = barrier ? fopen(barrier, "w") : NULL;
-        if (out) { fprintf(out, "%d", getpid()); fclose(out); }
-        for (;;) usleep(10000);
+        char temporary[4096], request[4096];
+        if (!barrier || snprintf(temporary, sizeof(temporary), "%s.tmp.XXXXXX", barrier) >= sizeof(temporary)
+            || snprintf(request, sizeof(request), "%s.kill", barrier) >= sizeof(request)) _exit(125);
+        int fd = mkstemp(temporary);
+        FILE *out = fd >= 0 ? fdopen(fd, "w") : NULL;
+        if (!out) _exit(125);
+        int written = fprintf(out, "%ld\n", (long)getpid());
+        int closed = fclose(out);
+        if (written < 0 || closed != 0 || rename(temporary, barrier) != 0) _exit(125);
+        // The private barrier belongs to this one paused publisher. A request
+        // kills the observing process itself: no cached PID can be recycled
+        // between the parent's validation and delivery of the fault.
+        while (access(request, F_OK) != 0) usleep(10000);
+        raise(SIGKILL); _exit(137);
     }
     if ((!after && !strcmp(fault, "before")) || (after && !strcmp(fault, "after"))) {
         kill(getpid(), SIGTERM); _exit(143);
