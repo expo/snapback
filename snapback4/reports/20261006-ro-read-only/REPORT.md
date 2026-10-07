@@ -970,3 +970,44 @@ Evidence is retained under `snapback4/reports/20261006-ro-read-only/evidence/`
 with the `round7-` prefix. PostgreSQL/platform scope is unchanged from prior
 rounds. The commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 **No push or publication.**
+
+
+## Round 8 (merge)
+
+Merged `origin/main` at `8e530ff2419387cb97ff841b4a2aa8b7828c7229` into the reviewed lane head `0ef89c2c5146cfb86b0f354c231ebefd9ecdc666` with real merge commit `92cd5ddd9bddbb5df04d2eff118c050199f35054`. Both parents are recorded. The commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push or publication.
+
+Conflict resolution:
+
+- `snapback4/JOURNAL.md` is exactly main's 5,544,898 bytes followed by the lane's 20,661-byte pure append, in original order. The common-base prefix was asserted before constructing the result.
+- The client card retains main's typed `matchRead` examples and the lane's fixed-lifetime read-only guidance. It is 1,198 words against the unchanged 1,200-word budget. The initial combined card failed that budget; the shortened card passes the complete guide suite.
+- `guide/codes.rs` retains all six read-only diagnostic entries and main's current three-hop `E_QUARRY_RULE_HOP` guidance. Default mappings, definition homes, action pins and fact homes remain consistent; the guide's 113 tests pass. The automatic merges in the PostgreSQL adapter, diagnostics, language card, fact homes, definitions/actions, client reference, contract and React hooks were inspected.
+- LLP 3000.033 now has exactly `Status: Implemented`; its Revised line records this landing merge and revision 4's simplification: no SDK read-session refresh or rotation.
+
+Root generated artifacts and inherited inventory failures:
+
+Ran `bun install --frozen-lockfile`, the existing workspace-hoist helper and `scripts/check-generated-artifacts` on both the merged tree and an isolated main control at `/home/ccheever/sb5-lanes/ro-round8-main`. Generated-artifact checks pass on both with no tracked demo/binding changes. The guide generator regenerates diagnostics and the symbol registry (exact runtime parity), then refuses the identical seven corpus errors on both trees: six stale authoring-profile baselines and `guide/capabilities.md` at 63,496 bytes against 63,488. It never writes a replacement manifest over that red corpus.
+
+All 61 changed registry/projection files were byte-identical with and without RO. The regenerated diagnostics remove four entries emitted only by absent packaged admin artifacts; the inventory checker correctly refuses their unrecorded removal. The full regenerated patch and hashes are retained as evidence. Restored the unchanged committed main projections rather than land partial, unqualified generated output. No Snapback 4 delivery await-boundary inventory change was needed.
+
+Final `node scripts/check-inventories.mjs` exits 1 in both trees with byte-identical 5,774-byte logs (SHA-256 `476130166ca87a571c2308c0955b443a3cfaaab6d579d57e3c1143514c71e351`). The same failure groups are scripts-test (`scripts/caps.test.mjs` unregistered), demo-catalog (eight-byte capability overflow), and guide-manifest (the six legacy baselines, that overflow, and the stale diagnostics projections). There is no RO-only failure. The after-regeneration pair also has byte-identical logs.
+
+Verification runs at the existing full counts and default runtime concurrency. Main changed shared engine/device code beyond the named auto-merges, so this round runs the complete `bash scripts/test.sh`. It passes with **0 failures in 2,116 seconds (35m16s)**. This is one complete green run of the merged implementation.
+
+| Check | Result |
+| --- | --- |
+| Rust inventory and workspace doctests | 308 binaries / 1,021 executions, all passed |
+| Guide | 113/113; code mappings, definition/action pins and word budgets pass |
+| CLI check and CLI unit target | 89/89 check tests; 327 unit tests passed, four existing ignores |
+| Read-only server, SDK and custody | 119/119 across ten client files, no skips; real published 0.4.13 downgrade/re-upgrade control executed |
+| Full-session app and delivery | app file 78/78; online-session 14/14; session-security 7/7; delivery matrix 339/339 |
+| Complete client pool | 338/338 files; 6,599 passed, zero failed, 54 labelled skips |
+| Full-count models | 79/79, no skips; 5,000 online session histories, 5,000 local histories, 3,000 online-client sequences |
+| Build and application controls | Workspace build, wasm, release guard, package build/typecheck, chat check, chat/Expo typechecks and nine fixture tests pass |
+
+Additional verification: PostgreSQL `cargo check -p snapback4-core --features postgres --tests` passes (compile evidence, no PostgreSQL runtime claim). Wasm is 2,135,164 raw / 645,264 gzip bytes against main's unchanged-in-this-round 645,564-byte cap. The published control's installed executable equals the retained npm 0.4.13 tarball member; its SRI still matches the original verified artifact. Root references pass (530 LLPs, 11,104 references, zero errors or unchecked references after artifact preparation).
+
+Environment: Node 24.13.1, Bun 1.3.14, Rust 1.97.0; existing shared Cargo target, incremental disabled, dev/test debug info disabled, eight Cargo build jobs, `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`; 96 available CPUs, default 24 Rust processes / 24 client-file slots. Explicit witness-helper and published 0.4.13 binary paths are recorded. No histories or case counts are reduced.
+
+Evidence is retained under `snapback4/reports/20261006-ro-read-only/evidence/` with the `round8-` prefix. `round8-summary.json` joins the result counts; `round8-merge-proof.json` records the parents and exact journal concatenation; the inventory comparison JSONs bind the byte-identical logs, and the generated-artifact comparison hashes all 61 regenerated files. The original guide-budget failure and unprepared generator failures are retained alongside final results. The final report and compressed logs preserve the full run.
+
+All 1,998 tracked verification inputs match their suite-start hashes; no runtime or test source changed after that snapshot. The diff against merged main passes whitespace checks. The branch was not pushed; the lead owns landing.

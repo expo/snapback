@@ -1,0 +1,13 @@
+{
+  "main": "8e530ff2419387cb97ff841b4a2aa8b7828c7229",
+  "merged": "92cd5ddd9bddbb5df04d2eff118c050199f35054",
+  "exit": 1,
+  "byteIdenticalLogs": true,
+  "bytes": 5774,
+  "sha256": "476130166ca87a571c2308c0955b443a3cfaaab6d579d57e3c1143514c71e351",
+  "failureGroups": [
+    "[check-inventories] FAIL scripts-test",
+    "[check-inventories] FAIL demo-catalog",
+    "[check-inventories] FAIL guide-manifest"
+  ]
+}
