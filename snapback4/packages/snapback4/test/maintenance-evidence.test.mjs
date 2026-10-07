@@ -29,9 +29,11 @@ test('maintenance snapshots bound tails, files, inventory, bytes and retained hi
   process.env.SNAPBACK4_MAINTENANCE_EVIDENCE=base;
   try {
     fs.writeFileSync(path.join(f.native,'maintenance.log'),Buffer.alloc(16*1024*1024,120));
+    fs.writeFileSync(path.join(f.native,'maintenance-wakeup.json'),'{"expiresAt":12345,"awake":0}');
     for(let i=0;i<400;i++)fs.writeFileSync(path.join(f.native,`record-${i}.json`),JSON.stringify({value:'x'.repeat(16000)}));
     const out=await maintenanceEvidence(f,'probe');assert.ok(out);
     const meta=read(path.join(out,'snapshot.json')),files=tree(out);
+    assert.deepEqual(read(path.join(out,'files/maintenance-wakeup.json')),{expiresAt:12345,awake:0},'the wakeup is prioritized even when inventory truncates');
     assert.ok(fs.statSync(path.join(out,'files/maintenance.log')).size<=16384);
     assert.match(fs.readFileSync(path.join(out,'files/maintenance.log'),'utf8'),/^\[truncated: omitted/);
     assert.ok(meta.files.length<=256);assert.ok(meta.capturedFiles<=64);

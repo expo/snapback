@@ -1,0 +1,537 @@
+{
+  "unfixed-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406537334070333-8ca40e9c-failure-drain-timeout": {
+    "snapshot": {
+      "at": 1791406537.339231,
+      "reason": "drain-timeout",
+      "root": "/tmp/sb4-em-wakeup-SAXGhf/artifacts/native-smoke",
+      "platform": "linux",
+      "limits": {
+        "bytes": 1048576,
+        "fileBytes": 16384,
+        "files": 64,
+        "inventory": 256,
+        "depth": 4,
+        "failures": 4,
+        "cleanups": 4,
+        "seconds": 1.25
+      },
+      "truncated": [],
+      "capturedFiles": 8,
+      "copyAttempts": 8,
+      "entriesVisited": 15,
+      "reservedBytesBeforeManifest": 1639,
+      "elapsedMs": 5.089,
+      "inventoryEntries": 11
+    },
+    "processes": {
+      "processes": [],
+      "rejected": [
+        {
+          "pid": 4072968,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 4072966,
+          "reason": "birth-or-command-mismatch"
+        }
+      ],
+      "truncated": [],
+      "limits": {
+        "processes": 24,
+        "descriptorsPerProcess": 16
+      }
+    },
+    "queue": {
+      "maintenance-wakeup.json": {
+        "awake": 0,
+        "expiresAt": 1791410047054
+      },
+      "maintenance-parked.json": {},
+      "maintenance-request.json": {
+        "attempts": 0,
+        "producer": {
+          "pid": 4072968,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13012979"
+          ]
+        },
+        "state": "pending"
+      }
+    },
+    "drains": [
+      {
+        "at": 1791406447276,
+        "pid": 4072959,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.05192800000003217
+        }
+      }
+    ]
+  },
+  "unfixed-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406628885545355-b8a4b16b-failure-drain-timeout": {
+    "snapshot": {
+      "at": 1791406628.897129,
+      "reason": "drain-timeout",
+      "root": "/tmp/sb4-em-wakeup-818Yy9/artifacts/native-smoke",
+      "platform": "linux",
+      "limits": {
+        "bytes": 1048576,
+        "fileBytes": 16384,
+        "files": 64,
+        "inventory": 256,
+        "depth": 4,
+        "failures": 4,
+        "cleanups": 4,
+        "seconds": 1.25
+      },
+      "truncated": [],
+      "capturedFiles": 9,
+      "copyAttempts": 9,
+      "entriesVisited": 17,
+      "reservedBytesBeforeManifest": 1978,
+      "elapsedMs": 11.489,
+      "inventoryEntries": 11
+    },
+    "processes": {
+      "processes": [],
+      "rejected": [
+        {
+          "pid": 4099084,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 4098960,
+          "reason": "birth-or-command-mismatch"
+        }
+      ],
+      "truncated": [],
+      "limits": {
+        "processes": 24,
+        "descriptorsPerProcess": 16
+      }
+    },
+    "queue": {
+      "maintenance-wakeup.json": {
+        "awake": 0,
+        "expiresAt": 1791410138630
+      },
+      "maintenance-next.json": {
+        "process": {
+          "pid": 4098960,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13022062"
+          ]
+        },
+        "expiresAt": 1791406538585
+      },
+      "maintenance-request.json": {
+        "attempts": 0,
+        "producer": {
+          "pid": 4099084,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13022136"
+          ]
+        },
+        "state": "pending"
+      }
+    },
+    "drains": [
+      {
+        "at": 1791406538801,
+        "pid": 4072959,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.009485000002314337
+        }
+      }
+    ]
+  },
+  "stall-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406547745964929-90b13959-failure-drain-timeout": {
+    "snapshot": {
+      "at": 1791406547.7502844,
+      "reason": "drain-timeout",
+      "root": "/tmp/sb4-background-klPpOj/artifacts/native-smoke",
+      "platform": "linux",
+      "limits": {
+        "bytes": 1048576,
+        "fileBytes": 16384,
+        "files": 64,
+        "inventory": 256,
+        "depth": 4,
+        "failures": 4,
+        "cleanups": 4,
+        "seconds": 1.25
+      },
+      "truncated": [],
+      "capturedFiles": 21,
+      "copyAttempts": 21,
+      "entriesVisited": 31,
+      "reservedBytesBeforeManifest": 21020,
+      "elapsedMs": 4.254,
+      "inventoryEntries": 24
+    },
+    "processes": {
+      "processes": [
+        {
+          "pid": 4075537,
+          "parent": 1,
+          "group": 4075537,
+          "state": "S",
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13014039"
+          ],
+          "program": "snapback4",
+          "fds": [
+            {
+              "fd": 0,
+              "target": "pipe:[64656497]",
+              "flags": "00",
+              "locks": []
+            },
+            {
+              "fd": 1,
+              "target": "<fixture>/artifacts/native-smoke/maintenance.log",
+              "flags": "0102001",
+              "locks": []
+            },
+            {
+              "fd": 2,
+              "target": "<fixture>/artifacts/native-smoke/maintenance.log",
+              "flags": "0102001",
+              "locks": []
+            },
+            {
+              "fd": 3,
+              "target": "<fixture>/artifacts/native-smoke/maintenance-next.lock",
+              "flags": "02100002",
+              "locks": [
+                "lock:\t1: FLOCK  ADVISORY  WRITE 4075534 103:06:30938452 0 EOF"
+              ]
+            },
+            {
+              "fd": 5,
+              "target": "<fixture>/artifacts/native-smoke/retention.lock",
+              "flags": "02100002",
+              "locks": []
+            }
+          ],
+          "arguments": [
+            "witness",
+            "export-maintain",
+            "<fixture>"
+          ]
+        },
+        {
+          "pid": 4075265,
+          "parent": 4075210,
+          "group": 4075117,
+          "state": "S",
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13013988"
+          ],
+          "program": "python3.12",
+          "fds": [
+            {
+              "fd": 0,
+              "target": "socket:[64653948]",
+              "flags": "02",
+              "locks": []
+            },
+            {
+              "fd": 1,
+              "target": "/dev/null",
+              "flags": "0100002",
+              "locks": []
+            },
+            {
+              "fd": 2,
+              "target": "socket:[64652663]",
+              "flags": "02",
+              "locks": []
+            },
+            {
+              "fd": 3,
+              "target": "<fixture>/artifacts/native-smoke/retention.lock",
+              "flags": "02102001",
+              "locks": [
+                "lock:\t1: FLOCK  ADVISORY  WRITE 4075265 103:06:30935097 0 EOF"
+              ]
+            }
+          ],
+          "arguments": [
+            "<fixture>",
+            "<fixture>"
+          ]
+        }
+      ],
+      "rejected": [
+        {
+          "pid": 4075534,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 4075290,
+          "reason": "birth-or-command-mismatch"
+        }
+      ],
+      "truncated": [],
+      "limits": {
+        "processes": 24,
+        "descriptorsPerProcess": 16
+      }
+    },
+    "queue": {
+      "maintenance-next.json": {
+        "at": 1791406457657,
+        "expiresAt": 1791410057655,
+        "process": {
+          "pid": 4075537,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13014039"
+          ]
+        },
+        "state": "pending"
+      },
+      "maintenance-request.json": {
+        "attempts": 0,
+        "producer": {
+          "pid": 4075534,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13014038"
+          ]
+        },
+        "state": "pending"
+      }
+    },
+    "drains": [
+      {
+        "at": 1791406457674,
+        "pid": 4075210,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.030246000000033746
+        }
+      }
+    ]
+  },
+  "stall-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406638670591126-fcf9bed8-failure-drain-timeout": {
+    "snapshot": {
+      "at": 1791406638.6832566,
+      "reason": "drain-timeout",
+      "root": "/tmp/sb4-background-nYXN7v/artifacts/native-smoke",
+      "platform": "linux",
+      "limits": {
+        "bytes": 1048576,
+        "fileBytes": 16384,
+        "files": 64,
+        "inventory": 256,
+        "depth": 4,
+        "failures": 4,
+        "cleanups": 4,
+        "seconds": 1.25
+      },
+      "truncated": [],
+      "capturedFiles": 21,
+      "copyAttempts": 21,
+      "entriesVisited": 31,
+      "reservedBytesBeforeManifest": 4364,
+      "elapsedMs": 12.568,
+      "inventoryEntries": 24
+    },
+    "processes": {
+      "processes": [],
+      "rejected": [
+        {
+          "pid": 4101677,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 4101680,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 4101621,
+          "reason": "birth-or-command-mismatch"
+        }
+      ],
+      "truncated": [],
+      "limits": {
+        "processes": 24,
+        "descriptorsPerProcess": 16
+      }
+    },
+    "queue": {
+      "maintenance-next.json": {
+        "at": 1791406548508,
+        "expiresAt": 1791410148508,
+        "process": {
+          "pid": 4101680,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13023124"
+          ]
+        },
+        "state": "pending"
+      },
+      "maintenance-request.json": {
+        "attempts": 0,
+        "producer": {
+          "pid": 4101677,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13023124"
+          ]
+        },
+        "state": "pending"
+      }
+    },
+    "drains": [
+      {
+        "at": 1791406548570,
+        "pid": 4075210,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.01852800000051502
+        }
+      }
+    ]
+  },
+  "affected-load/run-015/maintenance-cb65a433eb364227/snapshot-1791407041809853746-f03c4516-failure-drain-timeout": {
+    "snapshot": {
+      "at": 1791407041.836821,
+      "reason": "drain-timeout",
+      "root": "/tmp/sb4-background-KvWWAR/artifacts/native-smoke",
+      "platform": "linux",
+      "limits": {
+        "bytes": 1048576,
+        "fileBytes": 16384,
+        "files": 64,
+        "inventory": 256,
+        "depth": 4,
+        "failures": 4,
+        "cleanups": 4,
+        "seconds": 1.25
+      },
+      "truncated": [
+        "inventory",
+        "inventory-or-time"
+      ],
+      "capturedFiles": 64,
+      "copyAttempts": 64,
+      "entriesVisited": 256,
+      "reservedBytesBeforeManifest": 23418,
+      "elapsedMs": 26.872,
+      "inventoryEntries": 246
+    },
+    "processes": {
+      "processes": [],
+      "rejected": [
+        {
+          "pid": 168048,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 168252,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 167938,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 167743,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 152389,
+          "reason": "birth-or-command-mismatch"
+        },
+        {
+          "pid": 166577,
+          "reason": "birth-or-command-mismatch"
+        }
+      ],
+      "truncated": [],
+      "limits": {
+        "processes": 24,
+        "descriptorsPerProcess": 16
+      }
+    },
+    "queue": {
+      "maintenance-result.json": {
+        "error": "E_WITNESS_PROCESS: invalid /proc process group",
+        "finishedAt": 1791406952431,
+        "pending": true
+      },
+      "maintenance-parked.json": {
+        "attempts": 1,
+        "state": "claimed"
+      },
+      "maintenance-active.json": {
+        "at": 1791406952432,
+        "attempt": 2,
+        "process": {
+          "pid": 168252,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13063481"
+          ]
+        },
+        "state": "handoff"
+      },
+      "maintenance-next.json": {
+        "at": 1791406951562,
+        "expiresAt": 1791410551555,
+        "process": {
+          "pid": 168048,
+          "start": [
+            "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+            "13063429"
+          ]
+        },
+        "state": "pending"
+      }
+    },
+    "drains": [
+      {
+        "at": 1791406950021,
+        "pid": 106710,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.007830999995348975
+        }
+      },
+      {
+        "at": 1791406950876,
+        "pid": 106710,
+        "step": "test-drain-end",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 855.3142309999967
+        }
+      },
+      {
+        "at": 1791406951752,
+        "pid": 106710,
+        "step": "test-drain-start",
+        "detail": {
+          "allowParked": false,
+          "elapsedMs": 0.004387000008136965
+        }
+      }
+    ]
+  }
+}

@@ -1,5 +1,14 @@
 # EM — export maintenance drain investigation, 2026-10-07
 
+The [round-3 report](round3/REPORT.md) records product fixes and deterministic
+positive/negative controls for both wakeup windows identified in round 2. Both
+defects now reproduce as stranded requests without their fixes and drain with
+them. Attribution to the historical incidents remains unconfirmed; both tickets
+stay open for the macOS soak. A later loaded run also failed because native
+process-group inspection refused cleanup and parked a claim; its snapshot is
+retained in round 3 and linked to the existing inspection ticket. The earlier
+investigation below is historical.
+
 The [round-2 report](round2/REPORT.md) supersedes this report's diagnostic capture
 implementation and safety claims. It fixes the review's unbounded capture,
 stale-process disclosure and FIFO trace blockage. The investigation results

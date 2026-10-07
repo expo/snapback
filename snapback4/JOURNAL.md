@@ -89996,3 +89996,50 @@ claim that the exit/request recheck was intact; no reproducer or attribution to
 the historical incidents exists yet. The parent report and three open tickets
 now retain these suspects. Queue changes and a deterministic interleaving test
 remain separate from this diagnostic hardening commit.
+
+
+## 2026-10-07 — EM round 3: close maintenance exit/wakeup races
+
+Fixed both coalescing windows recorded in round 2. An empty second runnable
+check releases the pending lease and rechecks in a loop. Fresh producers seeing
+a busy lease atomically record one bounded wakeup and retry the lease before
+coalescing. Successful observer guards consume that wakeup before examining
+work; all observation exits release the lease before handing off any unobserved
+fresh request. Handoffs inherit the fresh producer's absolute deadline and sleep
+clock. Automatic peers cannot renew the old budget; expiry and cancellation
+without a new producer remain stops. Request/claim acknowledgement, retention
+selection and native custody are unchanged.
+
+Debug-only barriers force a producer to commit/coalesce while each exiting
+holder still has the lease. A scratch build removing just the two exit fixes
+strands both requests and fails the unchanged 90-second drain assertion. The
+fixed build drains both. Six permanent regressions passed 30 repetitions each
+under CPU/disk work confined to four cores, including cancellation, reversed
+notification/exit ordering and unchanged stops without a fresh producer. Both
+independent held-lease/missing-observer controls still reject. The shared
+export-background test file, its guard and lane FL's identity checks are untouched.
+
+The complete export-background file passed 58 tests with 36 Darwin skips in
+462.01 seconds. Four retention, 14 recovery/inspection, five diagnostics and the
+sleep-clock tests pass, as do debug builds, release checks and ref-check. The
+collector now prioritizes the new wakeup record within its existing limits;
+its large-inventory regression verifies that record survives truncation.
+
+Thirty loaded repetitions of each historical affected case produced 119 passes
+and one failure. The publication-handoff failure now has retained evidence:
+native work finished in 142 ms, group cleanup refused with
+`E_WITNESS_PROCESS: invalid /proc process group`, and maintenance parked the claim
+before the observer exited. The 90-second assertion then correctly rejected
+that parked state. This is linked to the existing native inspection ticket;
+the rejected stat bytes/PID are still unavailable, and no ownership check is
+weakened. Subsequent passes do not erase this failure or establish the causes
+of the old incidents. Both commissioned tickets remain open for macOS soak.
+
+The [round-3 report](reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+retains the exact mutant diff, positive/negative evidence, real failure snapshot,
+commands and source/binary/archive hashes. All CLI runs used immutable copies;
+a final formatting-only native rebuild is bound separately. The optional root
+inventory check reports untouched Snapback 1 inventory/guide failures and
+missing generated-demo prerequisites, with its log retained. Work stayed in
+lane-em on eb1000. No other worktree, remote host or other lane's process was
+changed; nothing was pushed or published.

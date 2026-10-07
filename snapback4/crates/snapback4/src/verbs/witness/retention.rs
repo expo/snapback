@@ -123,32 +123,68 @@ fn ready_run(dir: &Path) -> Result<bool> {
     let journal = recovery::read(&dir.join("live.json"));
     Ok(!recovery::alive(&journal["owner"]) && !recovery::alive(&journal["wrapper"]))
 }
-fn kick(root: &Path) -> Result<Value> { kick_until(root, now() + OBSERVER_BUDGET.as_millis()) }
-fn kick_until(root: &Path, expires: u128) -> Result<Value> {
-    if !runnable(root) { return Ok(Value::Null); }
-    if now() >= expires {
-        return Err(error("E_WITNESS_ARTIFACT", "retention observation exceeded its 60-minute deadline; request parked for a later export"));
+fn kick(root: &Path) -> Result<Value> { kick_with(root, now() + OBSERVER_BUDGET.as_millis(), true) }
+fn kick_until(root: &Path, expires: u128) -> Result<Value> { kick_with(root, expires, false) }
+// @ref LLP 3000.030#15 — publish a fresh wake before trusting a busy observer.
+// Its successful guard consumes this bit before looking at runnable work. A
+// stopping holder releases custody before checking it; the producer retries the
+// lease after publication, covering a holder that already finished its check.
+fn kick_with(root: &Path, mut expires: u128, fresh: bool) -> Result<Value> {
+    let mut notified = false;
+    loop {
+        if !runnable(root) { return Ok(Value::Null); }
+        if now() >= expires {
+            return Err(error("E_WITNESS_ARTIFACT", "retention observation exceeded its 60-minute deadline; request parked for a later export"));
+        }
+        let queued = lock_file(root, "maintenance-next.lock")?;
+        if !try_lock(&queued)? {
+            if fresh && !notified {
+                checkpoint(root, "kick-notifying");
+                atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": expires, "awake": background::sleep_clock() }))?;
+                notified = true;
+                checkpoint(root, "kick-notified");
+                continue;
+            }
+            checkpoint(root, "kick-coalesced");
+            return Ok(recovery::read(&root.join("maintenance-next.json")));
+        }
+        checkpoint(root, "kick-locked");
+        if !runnable(root) {
+            checkpoint(root, "kick-empty");
+            // No child inherits this lease. Any producer that saw it busy must be
+            // covered by our post-release check, or acquire it on its own retry.
+            drop(queued);
+            if let Some(fresh_expires) = unobserved_deadline(root) { expires = expires.max(fresh_expires); }
+            continue;
+        }
+        let log = OpenOptions::new().create(true).append(true).open(root.join("maintenance.log")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        #[cfg(target_os = "macos")]
+        let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(background::executable()); c };
+        #[cfg(not(target_os = "macos"))]
+        let mut command = Command::new(background::executable());
+        command.args(["witness", "export-maintain"]).arg(root).arg(expires.to_string()).stdin(Stdio::piped())
+            .stdout(log.try_clone().map_err(|e| error("E_WITNESS_ARTIFACT", e))?).stderr(log);
+        let mut child = background::spawn_owned(command, &queued, None, true)?;
+        let record = json!({ "state": "pending", "process": recovery::identity(child.id()), "at": now(), "expiresAt": expires });
+        atomic_record(&root.join("maintenance-next.json"), &record)?;
+        trace!(root, "observer-launched", record.clone());
+        drop(queued);
+        child.stdin.take().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
+        return Ok(record);
     }
-    let queued = lock_file(root, "maintenance-next.lock")?;
-    if !try_lock(&queued)? {
-        trace!(root, "kick-coalesced", Value::Null);
-        return Ok(recovery::read(&root.join("maintenance-next.json")));
-    }
-    if !runnable(root) { return Ok(Value::Null); }
-    let log = OpenOptions::new().create(true).append(true).open(root.join("maintenance.log")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    #[cfg(target_os = "macos")]
-    let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(background::executable()); c };
-    #[cfg(not(target_os = "macos"))]
-    let mut command = Command::new(background::executable());
-    command.args(["witness", "export-maintain"]).arg(root).arg(expires.to_string()).stdin(Stdio::piped())
-        .stdout(log.try_clone().map_err(|e| error("E_WITNESS_ARTIFACT", e))?).stderr(log);
-    let mut child = background::spawn_owned(command, &queued, None, true)?;
-    let record = json!({ "state": "pending", "process": recovery::identity(child.id()), "at": now(), "expiresAt": expires });
-    atomic_record(&root.join("maintenance-next.json"), &record)?;
-    trace!(root, "observer-launched", record.clone());
-    drop(queued);
-    child.stdin.take().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
-    Ok(record)
+}
+
+fn unobserved_deadline(root: &Path) -> Option<u128> {
+    let wake = recovery::read(&root.join("maintenance-wakeup.json"));
+    let expires = wake["expiresAt"].as_u64()? as u128;
+    let awake = wake["awake"].as_u64()?;
+    // Only an explicit fresh producer can authorize another observation budget.
+    // Never renew the old chain's expiry or resume an intent across host sleep.
+    (now() < expires && !background::slept(awake, background::sleep_clock())).then_some(expires)
+}
+fn resume_unobserved(root: &Path) -> Result<()> {
+    if let Some(expires) = unobserved_deadline(root) { kick_until(root, expires)?; }
+    Ok(())
 }
 
 // Called after publication releases its lock. A busy request records pending
@@ -185,93 +221,102 @@ pub(super) fn maintain(args: &[String]) -> i32 {
         let held = queued.metadata().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let named = fs::metadata(root.join("maintenance-next.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if held.dev() != named.dev() || held.ino() != named.ino() || !try_lock(&queued)? { return Err(error("E_WITNESS_PROCESS", "maintenance does not own the pending queue lease")); }
-        let awake = background::sleep_clock();
-        let mut gate = libc::pollfd { fd: 0, events: libc::POLLIN, revents: 0 };
-        loop {
-            observation_guard(started, expires, awake)?;
-            let polled = unsafe { libc::poll(&mut gate, 1, 100) };
-            if polled > 0 { break; }
-            if polled < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
-                return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error()));
-            }
-        }
-        let mut start = [0];
-        std::io::stdin().read_exact(&mut start).map_err(|e| error("E_WITNESS_PROCESS", e))?;
-        if start != [b's'] { return Err(error("E_WITNESS_PROCESS", "missing maintenance launch gate")); }
-        trace!(&root, "observer-started", json!({ "expiresAt": expires }));
-        let mut failed_starts = 0;
-        let mut retiring: Vec<Child> = Vec::new();
-        loop {
-            observation_guard(started, expires, awake)?;
-            retiring.retain_mut(|child| !child.try_wait().is_ok_and(|status| status.is_some()));
-            if !runnable(&root) {
-                drop(queued);
-                trace!(&root, "observer-idle", Value::Null);
-                // Close the ordinary exit/request race. A contender either
-                // owns next or sees us; recheck after releasing our lease.
-                kick_until(&root, expires)?;
-                return Ok(());
-            }
-            let active = lock_file(&root, "maintenance.lock")?;
-            if !try_lock(&active)? { trace!(&root, "wait-active", Value::Null); sleep(Duration::from_millis(100)); continue; }
-            let available = lock_file(&root, "retention.lock")?;
-            if !try_lock(&available)? { trace!(&root, "wait-retention", Value::Null); drop(active); sleep(Duration::from_millis(100)); continue; }
-            if !ready(&root)? { drop(available); drop(active); sleep(Duration::from_millis(100)); continue; }
-            drop(available);
-            let mut command = Command::new(background::executable());
-            command.args(["witness", "export-maintain-scan"]).arg(&root).arg(expires.to_string());
-            // Keep the pending lease here. The separate scan custodian owns
-            // native work; either peer survives the other's unexpected death.
-            let mut child = background::spawn_owned(command, &active, None, false)?;
-            trace!(&root, "scan-launched", json!(child.id()));
-            drop(active);
-            let scan_started = Instant::now();
-            let mut cancellation = None;
-            let mut handed_off = false;
-            let mut forced = false;
-            loop {
-                if let Some(status) = child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))? {
-                    trace!(&root, "scan-exited", json!({ "pid": child.id(), "success": status.success() }));
-                    failed_starts = if status.success() { 0 } else { failed_starts + 1 };
-                    break;
-                }
-                let handoff = recovery::read(&root.join("maintenance-active.json"));
-                if handoff["process"] == recovery::identity(child.id()).unwrap_or(Value::Null) && handoff["state"] == "handoff" {
-                    // Native work has drained. Keep this peer alive while we
-                    // probe readiness; it retires only after the next live scan
-                    // owns the baton, or after the queue is completely covered.
-                    handed_off = true; failed_starts = 0; break;
-                }
-                if cancellation.is_none() {
-                    cancellation = observation_guard(started, expires, awake).err();
-                    if cancellation.is_some() { unsafe { libc::kill(child.id() as i32, libc::SIGTERM); } }
-                }
-                // 30 s work + existing 60 s maximum group drain + launch slack.
-                // This is our unreaped direct child, never a discovered PID.
-                if scan_started.elapsed() >= Duration::from_secs(105) {
-                    return Err(error("E_WITNESS_PROCESS", "maintenance custodian did not exit after bounded cancellation; claim preserved"));
-                }
-                if !forced && scan_started.elapsed() >= Duration::from_secs(100) {
-                    child.kill().map_err(|e| error("E_WITNESS_PROCESS", e))?;
-                    forced = true;
-                }
-                sleep(Duration::from_millis(100));
-            }
-            if handed_off { retiring.push(child); }
-            if let Some(e) = cancellation {
-                drop(queued);
-                if !e.contains("host slept") { let _ = kick_until(&root, expires); }
-                return Err(e);
-            }
-            if failed_starts >= 3 {
-                if root.join("maintenance-claimed.json").exists() { park(&root)?; }
-                return Err(error("E_WITNESS_ARTIFACT", "maintenance custodian failed three times; request parked for a later export"));
-            }
-            // Even a lock acquired after readiness cannot create a hot loop.
-            sleep(Duration::from_millis(100));
-        }
+        let result = observe(&root, expires, started);
+        // Release before EVERY ordinary/error exit recheck. No failed guard or
+        // I/O error can coalesce a producer against a lease we are abandoning.
+        drop(queued);
+        let handoff = if result.is_ok() { kick_until(&root, expires).map(|_| ()) } else { Ok(()) };
+        if let Err(e) = resume_unobserved(&root) { eprintln!("witness: evidence cleanup deferred: {e}"); }
+        result.and(handoff)
     })();
     match result { Ok(()) => 0, Err(e) => { eprintln!("witness: evidence cleanup deferred: {e}"); 1 } }
+}
+
+// The caller owns the queue lease until this entire observation returns.
+fn observe(root: &Path, expires: u128, started: Instant) -> Result<()> {
+    let awake = background::sleep_clock();
+    let mut gate = libc::pollfd { fd: 0, events: libc::POLLIN, revents: 0 };
+    loop {
+        observation_guard(started, expires, awake)?;
+        let polled = unsafe { libc::poll(&mut gate, 1, 100) };
+        if polled > 0 { break; }
+        if polled < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
+            return Err(error("E_WITNESS_PROCESS", std::io::Error::last_os_error()));
+        }
+    }
+    let mut start = [0];
+    std::io::stdin().read_exact(&mut start).map_err(|e| error("E_WITNESS_PROCESS", e))?;
+    if start != [b's'] { return Err(error("E_WITNESS_PROCESS", "missing maintenance launch gate")); }
+    trace!(&root, "observer-started", json!({ "expiresAt": expires }));
+    let mut failed_starts = 0;
+    let mut retiring: Vec<Child> = Vec::new();
+    loop {
+        if let Err(e) = observation_guard(started, expires, awake) {
+            checkpoint(root, "observer-guard-failed");
+            return Err(e);
+        }
+        recovery::remove(&root.join("maintenance-wakeup.json"))?;
+        retiring.retain_mut(|child| !child.try_wait().is_ok_and(|status| status.is_some()));
+        if !runnable(&root) {
+            trace!(&root, "observer-idle", Value::Null);
+            return Ok(());
+        }
+        let active = lock_file(&root, "maintenance.lock")?;
+        if !try_lock(&active)? { trace!(&root, "wait-active", Value::Null); sleep(Duration::from_millis(100)); continue; }
+        let available = lock_file(&root, "retention.lock")?;
+        if !try_lock(&available)? { trace!(&root, "wait-retention", Value::Null); drop(active); sleep(Duration::from_millis(100)); continue; }
+        if !ready(&root)? { drop(available); drop(active); sleep(Duration::from_millis(100)); continue; }
+        drop(available);
+        let mut command = Command::new(background::executable());
+        command.args(["witness", "export-maintain-scan"]).arg(&root).arg(expires.to_string());
+        // Keep the pending lease here. The separate scan custodian owns
+        // native work; either peer survives the other's unexpected death.
+        let mut child = background::spawn_owned(command, &active, None, false)?;
+        trace!(&root, "scan-launched", json!(child.id()));
+        drop(active);
+        let scan_started = Instant::now();
+        let mut cancellation = None;
+        let mut handed_off = false;
+        let mut forced = false;
+        loop {
+            if let Some(status) = child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))? {
+                trace!(&root, "scan-exited", json!({ "pid": child.id(), "success": status.success() }));
+                failed_starts = if status.success() { 0 } else { failed_starts + 1 };
+                break;
+            }
+            let handoff = recovery::read(&root.join("maintenance-active.json"));
+            if handoff["process"] == recovery::identity(child.id()).unwrap_or(Value::Null) && handoff["state"] == "handoff" {
+                // Native work has drained. Keep this peer alive while we
+                // probe readiness; it retires only after the next live scan
+                // owns the baton, or after the queue is completely covered.
+                handed_off = true; failed_starts = 0; break;
+            }
+            if cancellation.is_none() {
+                cancellation = observation_guard(started, expires, awake).err();
+                if cancellation.is_some() { unsafe { libc::kill(child.id() as i32, libc::SIGTERM); } }
+            }
+            // 30 s work + existing 60 s maximum group drain + launch slack.
+            // This is our unreaped direct child, never a discovered PID.
+            if scan_started.elapsed() >= Duration::from_secs(105) {
+                return Err(error("E_WITNESS_PROCESS", "maintenance custodian did not exit after bounded cancellation; claim preserved"));
+            }
+            if !forced && scan_started.elapsed() >= Duration::from_secs(100) {
+                child.kill().map_err(|e| error("E_WITNESS_PROCESS", e))?;
+                forced = true;
+            }
+            sleep(Duration::from_millis(100));
+        }
+        if handed_off { retiring.push(child); }
+        if let Some(e) = cancellation {
+            return Err(e);
+        }
+        if failed_starts >= 3 {
+            if root.join("maintenance-claimed.json").exists() { park(&root)?; }
+            return Err(error("E_WITNESS_ARTIFACT", "maintenance custodian failed three times; request parked for a later export"));
+        }
+        // Even a lock acquired after readiness cannot create a hot loop.
+        sleep(Duration::from_millis(100));
+    }
 }
 
 // Internal scan custodian. Its parent owns the pending lease. If the parent
@@ -408,12 +453,17 @@ pub(super) fn worker(args: &[String]) -> i32 {
 pub(super) fn checkpoint(root: &Path, point: &'static str) {
     trace!(root, point, Value::Null);
     #[cfg(debug_assertions)]
-    if std::env::var("SNAPBACK4_TEST_RETENTION_POINT").as_deref() == Ok(point) {
-        let path = root.join("maintenance-test-point.json");
-        if let Ok(mut file) = OpenOptions::new().create_new(true).write(true).open(&path) {
-            let _ = write!(file, "{}", json!({ "point": point, "process": recovery::identity(std::process::id()) }));
-            let started = Instant::now();
-            while !root.join("maintenance-test-resume").exists() && started.elapsed() < Duration::from_secs(20) { sleep(Duration::from_millis(20)); }
+    if let Ok(points) = std::env::var("SNAPBACK4_TEST_RETENTION_POINT") {
+        if points.split(',').any(|p| p == point) {
+            let (marker, resume) = if points.contains(',') {
+                (format!("maintenance-test-{point}.json"), format!("maintenance-test-{point}-resume"))
+            } else { ("maintenance-test-point.json".into(), "maintenance-test-resume".into()) };
+            let path = root.join(marker);
+            if let Ok(mut file) = OpenOptions::new().create_new(true).write(true).open(&path) {
+                let _ = write!(file, "{}", json!({ "point": point, "process": recovery::identity(std::process::id()) }));
+                let started = Instant::now();
+                while !root.join(resume.as_str()).exists() && started.elapsed() < Duration::from_secs(20) { sleep(Duration::from_millis(20)); }
+            }
         }
     }
     let _ = (root, point);
@@ -475,6 +525,23 @@ mod tests {
         assert!(!root.join("maintenance-parked.json").exists());
         recovery::remove(&root.join("maintenance-claimed.json")).unwrap();
         assert!(!pending(&root));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fresh_wakeup_preserves_its_deadline_and_expired_wakeup_cannot_restart() {
+        let root = std::env::temp_dir().join(format!("sb4-retention-wakeup-{}-{}", std::process::id(), now()));
+        fs::create_dir_all(&root).unwrap();
+        request(&root).unwrap();
+        assert!(unobserved_deadline(&root).is_none());
+        let expires = now() + 60_000;
+        atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": expires, "awake": background::sleep_clock() })).unwrap();
+        assert_eq!(unobserved_deadline(&root), Some(expires));
+        atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": now() - 1, "awake": background::sleep_clock() })).unwrap();
+        assert!(unobserved_deadline(&root).is_none());
+        resume_unobserved(&root).unwrap();
+        assert!(runnable(&root));
+        assert!(!root.join("maintenance-next.json").exists());
         fs::remove_dir_all(root).unwrap();
     }
 

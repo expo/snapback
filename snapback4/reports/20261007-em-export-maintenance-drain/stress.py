@@ -11,6 +11,7 @@ p.add_argument('--load', type=int, default=4)
 p.add_argument('--io-workers', type=int, default=1)
 p.add_argument('--burst-seconds', type=float, default=0, help='Alternate CPU/disk work and idle phases; zero means continuous')
 p.add_argument('--binary', default='target/debug/snapback4')
+p.add_argument('--test-file', default='packages/snapback4/test/export-background.test.mjs')
 p.add_argument('--pattern', default=r'maintenance crash matrix: publication-handoff \(off, next Expo fails\)|failed Expo exports and dead wrapper journals never occupy keep slots \(off\)|skipped maintenance never blocks publication and drains under deadline \(off\)')
 p.add_argument('--keep-going', action='store_true')
 a=p.parse_args()
@@ -23,7 +24,7 @@ digest=hashlib.sha256(binary.read_bytes()).hexdigest()
 pinned=pathlib.Path('target/em/binaries',digest,'snapback4').resolve()
 pinned.parent.mkdir(parents=True,exist_ok=True)
 if not pinned.exists(): shutil.copy2(binary,pinned)
-sources=['packages/snapback4/test/export-background.test.mjs','packages/snapback4/test/helpers/maintenance-evidence.mjs']
+sources=[a.test_file,'packages/snapback4/test/helpers/maintenance-evidence.mjs']
 (out/'host.json').write_text(json.dumps(dict(host=os.uname().nodename, cpus=a.cpus, loadWorkers=a.load, jobs=a.jobs, start=time.time(), binarySha256=digest, pinned=str(pinned), sources={s:hashlib.sha256(pathlib.Path(s).read_bytes()).hexdigest() for s in sources}, args=vars(a)),indent=2))
 io_files=[]
 try:
@@ -37,7 +38,7 @@ try:
         env={**os.environ,'SNAPBACK4_EXPORT_TEST_BINARY':str(pinned),'SNAPBACK4_DEBUG_RETENTION':'1','SNAPBACK4_MAINTENANCE_EVIDENCE':str(out/f'run-{n:03d}')}
         started=time.time()
         with (out/f'run-{n:03d}.log').open('w') as log:
-            proc=subprocess.Popen(affinity+['node','--test','--test-reporter=tap','--test-name-pattern='+a.pattern,'packages/snapback4/test/export-background.test.mjs'],env=env,stdout=log,stderr=subprocess.STDOUT)
+            proc=subprocess.Popen(affinity+['node','--test','--test-reporter=tap','--test-name-pattern='+a.pattern,a.test_file],env=env,stdout=log,stderr=subprocess.STDOUT)
             code=proc.wait()
         result=dict(run=n,code=code,elapsed=time.time()-started)
         with (out/'results.jsonl').open('a') as f: f.write(json.dumps(result)+'\n')

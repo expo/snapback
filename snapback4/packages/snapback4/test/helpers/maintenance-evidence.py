@@ -7,7 +7,7 @@ from maintenance_processes import capture
 LIMITS=dict(bytes=1024*1024, fileBytes=16*1024, files=64, inventory=256, depth=4,
             failures=4, cleanups=4, seconds=1.25)
 PRIORITY=['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json',
-          'maintenance-next.json','maintenance-active.json','maintenance-result.json',
+          'maintenance-next.json','maintenance-wakeup.json','maintenance-active.json','maintenance-result.json',
           'maintenance-done.json','maintenance.log','retention-trace.jsonl',
           'maintenance-next.lock','maintenance.lock','retention.lock']
 

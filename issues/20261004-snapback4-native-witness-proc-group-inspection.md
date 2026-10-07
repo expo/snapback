@@ -115,3 +115,28 @@ Ownership and process-group checks remain unchanged.
 
 Evidence: `round5-full-suite.log.gz` and `round5-cli-rerun.log.gz` under the
 [RO report evidence](../snapback4/reports/20261006-ro-read-only/evidence/).
+
+
+## 2026-10-07 — EM round 3: parked export maintenance with retained state
+
+The four-core CPU/disk cohort's invocation 15 failed
+`maintenance crash matrix: publication-handoff (off, next Expo fails)` after
+104.99 seconds. The other three selected cases in that invocation passed. The
+maintenance result records `E_WITNESS_PROCESS: invalid /proc process group`;
+the strict 90-second drain check finds a parked claim after the observer exits.
+Native work itself returned successfully in 142 ms, but its group cleanup
+refused and left the `.retention-*` journal directory. The scan then recorded
+the error and handed off with the claim parked, as designed for a known failure.
+
+The [EM round-3 report](../snapback4/reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+links the complete TAP and bounded failure snapshot. It retains queue/result
+journals, trace timestamps and verified fixture-process observations. The
+rejected `/proc` row itself is still unavailable: no claim is made about its
+contents, PID, a disappearing process or an owned leak. EM changes queue wakeup
+handoffs, not `recovery.rs` or native inspection. The recorded CLI is SHA-256
+`121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c`.
+
+This connects the known native inspection refusal to an observed maintenance
+drain assertion, without identifying the earlier incidents' causes. Keep this
+ticket open. No process-group or parked-drain check is weakened; the recurrence
+remains a failure even if later repetitions pass.

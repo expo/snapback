@@ -72,3 +72,33 @@ request to coalesce against an exiting holder. A guard unwind can similarly
 follow a fresh producer's coalescing attempt (guard cancellation/expiry itself
 is a documented stop). Neither candidate was reproduced or attributed to this
 incident. Keep both in the next regression/audit; no queue fix is included here.
+
+
+EM round 3, 2026-10-07: **still open pending macOS soak.** The
+[round-3 report](../snapback4/reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+now demonstrates both wakeup defects deterministically. A scratch binary with
+the exit fixes removed reaches each forced coalescing window, leaves the request
+pending with no observer, and fails the unchanged 90-second drain check. The
+fixed binary drains both. These are demonstrated product defects consistent
+with the symptom, but the missing historical snapshots still prevent attribution
+to this incident.
+
+An empty second runnable check releases the pending lease and rechecks in a loop.
+A fresh producer that sees a busy lease records a bounded wakeup and retries the
+lease before coalescing; a stopped observer releases custody before handing off
+an unobserved wakeup using that producer's absolute deadline. Successful guards
+consume the wakeup before observing work. No fresh producer means cancellation,
+sleep and expiry remain stops. Automatic peer chains cannot renew their budget.
+Debug barriers are inert in release. The original drain predicate/90-second
+guard and round-2 diagnostic safety fixes remain unchanged; lane FL's shared
+process-identity checks are untouched. Retained evidence and validation counts
+are in the report. No push or publication occurred.
+
+A loaded EM round-3 repetition also produced this drain assertion with a
+**parked cleanup error**, `E_WITNESS_PROCESS: invalid /proc process group`.
+The retained result/trace shows native work finished after 142 ms, cleanup
+refused, and the claim parked before the observer exited. This recurrence is
+linked to the existing [native inspection ticket](20261004-snapback4-native-witness-proc-group-inspection.md).
+It is retained as a failure, not a successful soak or proof of either wakeup
+race in the historical runs. Native ownership checks and the refusal to treat
+parked maintenance as drained remain intact.
