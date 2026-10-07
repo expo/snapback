@@ -134,15 +134,21 @@ def observe_driver(seg, summary, segment, code):
         row['driverStatus'] = read(path)
         manifest = seg / 'evidence' / (segment + '-ios-run.json')
         failure = read(manifest).get('failure') if manifest.exists() else None
+        row['driverFailure'] = failure
         row['outcomeClass'] = (failure or {}).get('outcomeClass', row['driverStatus'].get('outcomeClass'))
         if row['driverStatus'].get('pass') is False: summary['observedProductFailure'] = True
     put(seg / 'driver-observed.json', row)
 
-def driver_verdict(code, status, validation):
+def driver_verdict(code, status, validation, failure=None):
     if code not in (0, 1) or code != (1 if status.get('pass') is False else 0):
         raise RuntimeError('unexpected-driver-exit:' + str(code))
-    if not validation['valid'] or status.get('pass') is None:
-        raise RuntimeError('native-setup-or-instrument-failure:' + str(validation.get('reason')))
+    if not validation['valid']:
+        raise HarnessDefect('native-setup-or-instrument-failure:' + str(validation.get('reason')))
+    if status.get('pass') is None:
+        from product_resume import app_setup_failure
+        if validation.get('pass') is not None or not app_setup_failure(status, failure):
+            raise HarnessDefect('native-setup-or-instrument-failure:' + str(validation.get('reason')))
+        return None  # Retain unmeasured assertions; app failure is a chain result.
     if validation['pass'] != status['pass']: raise RuntimeError('independent-verdict-disagreement')
     return validation['pass']
 
@@ -415,7 +421,9 @@ def diagnostic_audit(work, attempt, env):
         put(attempt / 'prepared-source-audit-error.json', {'label': source_ruling.LABEL,
             'gating': False, 'error': str(error), 'passClaimed': False})
 
-def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resume_cleanup_refusal=False):
+def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resume_cleanup_refusal=False, resume_product_setup=False):
+    if resume_product_setup and (b != "snapback4" or repair or diagnostic or resume_wrapper_refusal or resume_cleanup_refusal):
+        raise RuntimeError("product-setup-resume-is-snapback4-only")
     if resume_cleanup_refusal and (b != 'snapback4' or repair or diagnostic or resume_wrapper_refusal):
         raise RuntimeError('cleanup-refusal-resume-is-snapback4-only')
     if resume_wrapper_refusal and (b != 'convex' or repair or diagnostic):
@@ -427,7 +435,12 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
     lease = lock('authoring-or-operator.lock')
     parent = ROOT / 'results' / b; parent.mkdir(exist_ok=True)
     previous = [] if diagnostic else sorted(parent.glob('attempt-*'))
-    if resume_cleanup_refusal:
+    if resume_product_setup:
+        from product_resume import verify_record as verify_product_setup
+        product_receipt = verify_product_setup(ROOT)
+        if [p.name for p in previous] != ['attempt-01', 'attempt-02']:
+            raise RuntimeError('product-setup-resume-already-consumed')
+    elif resume_cleanup_refusal:
         from cleanup_recovery import verify_record as verify_cleanup_refusal
         cleanup_receipt = verify_cleanup_refusal(ROOT)
         if [p.name for p in previous] != ['attempt-01']:
@@ -450,6 +463,12 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
             nativeOutcome=source_ruling.OUTCOME, productRetry=False, setupRerun=False, **{'pass': None})
         put(attempt / 'DIAGNOSTIC.md', source_ruling.LABEL + '\n\nApplies to EVERY artifact in this directory and the retained scratch tree.\n'
             'Raw driver/validator verdicts are diagnostic observations only. No pilot pass can be claimed.\n')
+    if resume_product_setup:
+        from product_resume import OLD
+        summary['productSetupAdmission'] = product_receipt
+        summary['segments']['m6'] = read(ROOT / OLD / 'summary.json')['segments']['m6']
+        summary['segments']['m6'].update(disposition='app-unmeasured', attribution='application', retained=True)
+        summary['observedProductFailure'] = True
     if resume_wrapper_refusal: summary['wrapperRefusalAdmission'] = wrapper_receipt
     if resume_cleanup_refusal: summary['cleanupRefusalAdmission'] = cleanup_receipt
     if end and 'measurementAdmission' in end: summary['measurementAdmission'] = end['measurementAdmission']
@@ -460,71 +479,88 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
         return ['/usr/bin/sandbox-exec', '-f', str(profile), *argv] if profile else argv
     try:
         free_ports(b)
-        snapshot = ROOT / 'attempts' / (b + '-builder-completed')
-        if diagnostic:
-            ruling = source_ruling.verify_retained(ROOT)
-            work = Path(ruling['work']); scratch = work.parent
-            # Round-7 repair: Expo Swift macro expansion requires the normal
-            # operator build environment. The retained custody hashes below
-            # still detect any change to builder/source evidence.
-            profile = None
-            # Same proven SwiftPM accommodation as the builder's serial lease.
-            # The auditor keeps its own read-only sandbox, outside this profile.
-            xcode_setting = {'before': derived_data.manifest_setting()}
-            put(attempt / 'xcode-setting.json', {**xcode_setting, 'label': source_ruling.LABEL})
-            derived_data.set_manifest_setting(True)
-            put(attempt / 'custody-reuse.json', {'label': source_ruling.LABEL, 'work': str(work),
-                'rulingSha256': sha(ROOT / source_ruling.RULING), 'originalAuditUnchanged': True,
-                'operatorBuildEnvironment': 'normal; no outer diagnostic sandbox'})
-            put(scratch / 'DIAGNOSTIC.md', source_ruling.LABEL + '\nAll preparation/build/store/app artifacts below are diagnostic only.\n')
-        elif not previous:
-            clone(ROOT / 'lanes' / b, snapshot, attempt / 'custody')
+        if resume_product_setup:
+            from product_resume import OLD
+            prior = ROOT / OLD
+            scratch = Path(read(prior / 'scratch.json')['path']); work = scratch / 'app'
+            handoff = read(work / 'native-operator.json')
+            build = expand(handoff, handoff_mapping(b, work, scratch))
+            app = Path(build['app']); expected_bundle = build['bundleId']
+            origin = handoff_mapping(b, work, scratch)['ORIGIN']
+            web_origin = handoff_mapping(b, work, scratch)['WEB_ORIGIN']
+            identity = read(prior / 'release-identity.json')
+            if app_hash(app, expected_bundle) != {k: identity[k] for k in ('bundleId', 'nativeSha256', 'hermesSha256')}:
+                raise HarnessDefect('retained-release-changed')
+            env = execution_environment(b)
+            put(attempt / 'release-reuse.json', {'priorAttempt': OLD, 'identity': identity,
+                'rebuild': False, 'rerunM6': False, 'sourceAuditsAndSemanticHandoff': 'retained passing evidence'})
+            put(attempt / 'scratch.json', {'path': str(scratch), 'retained': True})
         else:
-            if inventory(snapshot) != read(previous[0] / 'custody.clone.json'): raise RuntimeError('custody-changed')
-        if not diagnostic:
-            scratch = Path(tempfile.mkdtemp(prefix='clique-native-pilot-' + b + '-', dir='/tmp'))
-            work = scratch / 'app'
-            clone(snapshot, work, attempt / 'work-copy')
-            # APFS preserves absolute links verbatim. Relocate internal links only.
-            relocate_work_links(work, ROOT / 'lanes' / b, attempt / 'work-link-relocations.json')
-        put(attempt / 'scratch.json', {'path': str(scratch), 'retained': True,
-            **({'label': source_ruling.LABEL} if diagnostic else {})})
-        stage = 'builder-handoff'
-        handoff = read(work / 'native-operator.json')
-        if repair: put(attempt / 'repair.json', check_repair(previous[-1], repair))
-        admission_report = static_admission(b, work, scratch, attempt)
-        put(attempt / 'static-admission.json', admission_report)
-        if not admission_report['valid']:
-            raise RuntimeError('static-admission-refused:' + json.dumps(admission_report['refusals']))
-        mapping = handoff_mapping(b, work, scratch)
-        expected_bundle = mapping['BUNDLE_ID']; origin = mapping['ORIGIN']; web_origin = mapping['WEB_ORIGIN']
-        build = expand(handoff, mapping)
-        args = build['buildArgv']
-        wrapper = build_wrapper(args, work, scratch / 'DerivedData')
-        env = execution_environment(b)
-        if not diagnostic: audit(work, attempt, env=env)
-        stage = 'builder-prepare'
-        run(native_command(build['prepareArgv']), work, attempt / 'prepare.log', env)
-        # Both dependency tree and every source/config file are bound before build.
-        put(attempt / 'prepared-inputs.json', inventory(work))
-        stage = 'builder-build'
-        app = Path(build['app']); app = app if app.is_absolute() else work / app
-        derived = scratch / 'DerivedData'
-        check_release_target(args, app, derived, wrapper)
-        if diagnostic: diagnostic_audit(work, attempt, env)
-        else: audit(work, attempt, name='prepared-source-audit', env=env)
-        stage = 'builder-handoff-semantic'
-        semantic = validate_handoff_descriptor(b, handoff, work, scratch, attempt, env, native_command)
-        summary['semanticHandoff'] = semantic
-        require_cleanup((semantic or {}).get('cleanupErrors', []))
-        if derived.exists() or derived.is_symlink():
-            raise RuntimeError('semantic-handoff-must-precede-compilation')
-        stage = 'builder-build'
-        run(native_command(args), work, attempt / 'release-build.log', env)
-        app = Path(build['app']); app = app if app.is_absolute() else work / app
-        identity = app_hash(app, expected_bundle)
-        identity.update(simulator_product(app, derived))
-        put(attempt / 'release-identity.json', identity)
+            snapshot = ROOT / 'attempts' / (b + '-builder-completed')
+            if diagnostic:
+                ruling = source_ruling.verify_retained(ROOT)
+                work = Path(ruling['work']); scratch = work.parent
+                # Round-7 repair: Expo Swift macro expansion requires the normal
+                # operator build environment. The retained custody hashes below
+                # still detect any change to builder/source evidence.
+                profile = None
+                # Same proven SwiftPM accommodation as the builder's serial lease.
+                # The auditor keeps its own read-only sandbox, outside this profile.
+                xcode_setting = {'before': derived_data.manifest_setting()}
+                put(attempt / 'xcode-setting.json', {**xcode_setting, 'label': source_ruling.LABEL})
+                derived_data.set_manifest_setting(True)
+                put(attempt / 'custody-reuse.json', {'label': source_ruling.LABEL, 'work': str(work),
+                    'rulingSha256': sha(ROOT / source_ruling.RULING), 'originalAuditUnchanged': True,
+                    'operatorBuildEnvironment': 'normal; no outer diagnostic sandbox'})
+                put(scratch / 'DIAGNOSTIC.md', source_ruling.LABEL + '\nAll preparation/build/store/app artifacts below are diagnostic only.\n')
+            elif not previous:
+                clone(ROOT / 'lanes' / b, snapshot, attempt / 'custody')
+            else:
+                if inventory(snapshot) != read(previous[0] / 'custody.clone.json'): raise RuntimeError('custody-changed')
+            if not diagnostic:
+                scratch = Path(tempfile.mkdtemp(prefix='clique-native-pilot-' + b + '-', dir='/tmp'))
+                work = scratch / 'app'
+                clone(snapshot, work, attempt / 'work-copy')
+                # APFS preserves absolute links verbatim. Relocate internal links only.
+                relocate_work_links(work, ROOT / 'lanes' / b, attempt / 'work-link-relocations.json')
+            put(attempt / 'scratch.json', {'path': str(scratch), 'retained': True,
+                **({'label': source_ruling.LABEL} if diagnostic else {})})
+            stage = 'builder-handoff'
+            handoff = read(work / 'native-operator.json')
+            if repair: put(attempt / 'repair.json', check_repair(previous[-1], repair))
+            admission_report = static_admission(b, work, scratch, attempt)
+            put(attempt / 'static-admission.json', admission_report)
+            if not admission_report['valid']:
+                raise RuntimeError('static-admission-refused:' + json.dumps(admission_report['refusals']))
+            mapping = handoff_mapping(b, work, scratch)
+            expected_bundle = mapping['BUNDLE_ID']; origin = mapping['ORIGIN']; web_origin = mapping['WEB_ORIGIN']
+            build = expand(handoff, mapping)
+            args = build['buildArgv']
+            wrapper = build_wrapper(args, work, scratch / 'DerivedData')
+            env = execution_environment(b)
+            if not diagnostic: audit(work, attempt, env=env)
+            stage = 'builder-prepare'
+            run(native_command(build['prepareArgv']), work, attempt / 'prepare.log', env)
+            # Both dependency tree and every source/config file are bound before build.
+            put(attempt / 'prepared-inputs.json', inventory(work))
+            stage = 'builder-build'
+            app = Path(build['app']); app = app if app.is_absolute() else work / app
+            derived = scratch / 'DerivedData'
+            check_release_target(args, app, derived, wrapper)
+            if diagnostic: diagnostic_audit(work, attempt, env)
+            else: audit(work, attempt, name='prepared-source-audit', env=env)
+            stage = 'builder-handoff-semantic'
+            semantic = validate_handoff_descriptor(b, handoff, work, scratch, attempt, env, native_command)
+            summary['semanticHandoff'] = semantic
+            require_cleanup((semantic or {}).get('cleanupErrors', []))
+            if derived.exists() or derived.is_symlink():
+                raise RuntimeError('semantic-handoff-must-precede-compilation')
+            stage = 'builder-build'
+            run(native_command(args), work, attempt / 'release-build.log', env)
+            app = Path(build['app']); app = app if app.is_absolute() else work / app
+            identity = app_hash(app, expected_bundle)
+            identity.update(simulator_product(app, derived))
+            put(attempt / 'release-identity.json', identity)
         stage = 'operator-setup'
         runner = runner_config(); python = str(ROOT / 'runtime/venv/bin/python')
         run(['xcrun', 'swiftc', str(NATIVE / 'driver/video.swift'), '-o', str(scratch / 'video-check')],
@@ -539,7 +575,7 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
         if selected[0]['state'] != 'Booted':
             run(['xcrun', 'simctl', 'boot', UDID], work, attempt / 'simulator-boot.log', env)
             run(['xcrun', 'simctl', 'bootstatus', UDID, '-b'], work, attempt / 'simulator-ready.log', env)
-        for segment in ['m6', 'm8']:
+        for segment in (['m8'] if resume_product_setup else ['m6', 'm8']):
             seg = attempt / segment; seg.mkdir(); store = scratch / (segment + '-store'); store.mkdir()
             if diagnostic: put(seg / 'DIAGNOSTIC.md', source_ruling.LABEL + '\nApplies to all raw evidence and validation below.\n')
             cfg = expand(build, {'STORE': store, 'SEGMENT': segment, 'BACKEND_EVIDENCE': seg / 'backend-images.jsonl'})
@@ -576,11 +612,15 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
                 status = summary['segments'][segment].get('driverStatus', {})
                 summary['segments'][segment].update(validation=validation, evidence=str(seg / 'evidence'))
                 if checked.returncode: raise RuntimeError('independent-validator-exit:' + str(checked.returncode))
-                verdict = driver_verdict(code, status, validation)
+                verdict = driver_verdict(code, status, validation, summary['segments'][segment].get('driverFailure'))
                 if diagnostic:
                     summary['segments'][segment].update(passClaimed=False, admissible=False,
                         label=source_ruling.LABEL, diagnosticDriverVerdict=verdict)
-                else: summary['segments'][segment]['pass'] = verdict
+                else:
+                    summary['segments'][segment]['pass'] = verdict
+                    if verdict is None:
+                        summary['segments'][segment].update(disposition='app-unmeasured', attribution='application')
+                        summary['observedProductFailure'] = True
                 if binding: verify_backend_evidence(seg / 'backend-images.jsonl', binding, require_restart=verdict is True)
                 if binding and bind_backend(b, config['backendArgv'], store, origin, seg / 'backend-images.jsonl') != binding:
                     raise RuntimeError('convex-backend-changed')
@@ -605,7 +645,8 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
         binary_identity = {key: identity[key] for key in ('bundleId', 'nativeSha256', 'hermesSha256')}
         if app_hash(app, expected_bundle) != binary_identity: raise RuntimeError('built-app-changed')
         summary['outcome'] = ('diagnostic-completed' if diagnostic else
-            'product-failure' if any(x['pass'] is False for x in summary['segments'].values()) else 'measured-review-pending')
+            'product-failure' if any(x['pass'] is False for x in summary['segments'].values()) else
+            'product-unmeasured' if any(x.get('disposition') == 'app-unmeasured' for x in summary['segments'].values()) else 'measured-review-pending')
     except BaseException as e:
         classify_failure(summary, e, stage)
         if diagnostic:
@@ -634,13 +675,14 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
             try: source_ruling.verify_retained(ROOT, check_work=False)
             finally: source_ruling.label_artifacts(attempt, work.parent if work else None)
         lease.close()
-    print(json.dumps(summary)); return 0 if not cleanup and summary['outcome'] in ('product-failure', 'measured-review-pending', 'diagnostic-completed') else 2
+    print(json.dumps(summary)); return 0 if not cleanup and summary['outcome'] in ('product-failure', 'product-unmeasured', 'measured-review-pending', 'diagnostic-completed') else 2
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(); p.add_argument('backend', choices=BACKENDS); p.add_argument('--repair', type=Path)
     p.add_argument('--diagnostic-audit-refused', action='store_true')
     p.add_argument('--resume-wrapper-refusal', action='store_true')
     p.add_argument('--resume-cleanup-refusal', action='store_true')
+    p.add_argument('--resume-product-setup', action='store_true')
     p.add_argument('--static-work', type=Path, help='Read-only admission; no model/build/backend/simulator')
     p.add_argument('--static-scratch', type=Path, help='Projected fresh attempt directory for static admission')
     a = p.parse_args()
@@ -648,4 +690,4 @@ if __name__ == '__main__':
         work = a.static_work.resolve(); scratch = a.static_scratch.resolve() if a.static_scratch else work.parent
         report = static_admission(a.backend, work, scratch, ROOT / 'preparation/static-projection' / a.backend)
         print(json.dumps(report, indent=2)); sys.exit(0 if report['valid'] else 2)
-    sys.exit(execute(a.backend, a.repair, a.diagnostic_audit_refused, a.resume_wrapper_refusal, a.resume_cleanup_refusal))
+    sys.exit(execute(a.backend, a.repair, a.diagnostic_audit_refused, a.resume_wrapper_refusal, a.resume_cleanup_refusal, a.resume_product_setup))

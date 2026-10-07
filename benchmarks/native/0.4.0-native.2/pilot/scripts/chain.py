@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serial chain. A setup failure stops; product verdicts remain in the matrix."""
+"""Serial chain. App failures, including unmeasured setup, continue; infrastructure failures stop."""
 import argparse, sys, uuid
 from common import *
 from verify import verify
@@ -38,12 +38,14 @@ def continue_source_refusal(chain):
         failed |= code != 0
     return 2 if failed else 0
 
-def main(restart_void=None, resume_reclassification=None, continue_source_audit_ruling=False, continue_round5=False, continue_round6=False, resume_cleanup_refusal=False):
+def main(restart_void=None, resume_reclassification=None, continue_source_audit_ruling=False, continue_round5=False, continue_round6=False, resume_cleanup_refusal=False, resume_product_setup=False):
+    from product_resume import admission as product_admission
     host_check()
     lease = lock('chain.lock')
-    if sum(bool(x) for x in (restart_void, resume_reclassification, continue_source_audit_ruling, continue_round5, continue_round6, resume_cleanup_refusal)) > 1:
+    if sum(bool(x) for x in (restart_void, resume_reclassification, continue_source_audit_ruling, continue_round5, continue_round6, resume_cleanup_refusal, resume_product_setup)) > 1:
         raise RuntimeError('choose-restart-or-resume')
-    restart = admission(ROOT, restart_void) if not (resume_reclassification or continue_source_audit_ruling or continue_round5 or continue_round6 or resume_cleanup_refusal) else None
+    restart = admission(ROOT, restart_void) if not (resume_reclassification or continue_source_audit_ruling or continue_round5 or continue_round6 or resume_cleanup_refusal or resume_product_setup) else None
+    product = product_admission(ROOT) if resume_product_setup else None
     cleanup = cleanup_admission(ROOT) if resume_cleanup_refusal else None
     resume = resume_admission(ROOT, resume_reclassification) if resume_reclassification else None
     continuation = source_admission(ROOT) if continue_source_audit_ruling else None
@@ -51,7 +53,8 @@ def main(restart_void=None, resume_reclassification=None, continue_source_audit_
     round6 = round6_admission(ROOT) if continue_round6 else None
     chain = ROOT / 'logs' / ('chain-' + str(uuid.uuid4())); chain.mkdir()
     put(chain / 'start.json', {'at': time.time(), 'pid': os.getpid(),
-        'order': cleanup['order'] if cleanup else round6['order'] if round6 else round5['order'] if round5 else continuation['order'] if continuation else ['snapback4', 'convex']})
+        'order': product['order'] if product else cleanup['order'] if cleanup else round6['order'] if round6 else round5['order'] if round5 else continuation['order'] if continuation else ['snapback4', 'convex']})
+    if product: put(chain / 'product-setup-resume.json', product)
     if cleanup: put(chain / 'cleanup-resume.json', cleanup)
     if restart: put(chain / 'restart.json', restart)
     if resume: put(chain / 'resume.json', resume)
@@ -85,13 +88,13 @@ def main(restart_void=None, resume_reclassification=None, continue_source_audit_
         verify(ready=True)
         for b in BACKENDS:
             for script in ['launch-builder.sh', 'after-builder.sh']:
-                if (resume or cleanup) and b == 'snapback4' and script == 'launch-builder.sh': continue
-                flags = ['--resume-cleanup-refusal'] if cleanup and b == 'snapback4' else []
+                if (resume or cleanup or product) and b == 'snapback4' and script == 'launch-builder.sh': continue
+                flags = ['--resume-product-setup'] if product and b == 'snapback4' else ['--resume-cleanup-refusal'] if cleanup and b == 'snapback4' else []
                 record(chain / 'steps.jsonl', kind='start', backend=b, script=script, flags=flags)
                 p = subprocess.run(['bash', str(ROOT / script), b, *flags], cwd=ROOT)
                 record(chain / 'steps.jsonl', kind='end', backend=b, script=script, flags=flags, exitCode=p.returncode)
                 if p.returncode:
-                    raise RuntimeError('SETUP FAILURE at ' + b + '/' + script + '; all attempts retained; next backend not launched')
+                    raise RuntimeError('HARNESS/HOST OR UNCLASSIFIED FAILURE at ' + b + '/' + script + '; all attempts retained; next backend not launched')
     except BaseException as e:
         code = 2; put(chain / 'failure.json', {'at': time.time(), 'reason': str(e)}); print(str(e), file=sys.stderr)
     finally:
@@ -105,4 +108,5 @@ if __name__ == '__main__':
     group.add_argument('--continue-round5', action='store_true')
     group.add_argument('--continue-round6', action='store_true')
     group.add_argument('--resume-cleanup-refusal', action='store_true')
-    args = parser.parse_args(); sys.exit(main(args.restart_void, args.resume_reclassification, args.continue_source_audit_ruling, args.continue_round5, args.continue_round6, args.resume_cleanup_refusal))
+    group.add_argument('--resume-product-setup', action='store_true')
+    args = parser.parse_args(); sys.exit(main(args.restart_void, args.resume_reclassification, args.continue_source_audit_ruling, args.continue_round5, args.continue_round6, args.resume_cleanup_refusal, args.resume_product_setup))

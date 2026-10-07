@@ -13,7 +13,7 @@ def verify(cold=False, ready=False):
     revision = ROOT / 'metadata/revision-2.json'
     if revision.exists() and sha(ROOT / 'PACKET.v1.sha256') != read(revision)['originalPacketSha256']:
         raise RuntimeError('original-packet-seal-drift')
-    for n in (3, 4, 5, 6, 7, 8, 9):
+    for n in (3, 4, 5, 6, 7, 8, 9, 10):
         revision = ROOT / ('metadata/revision-%d.json' % n)
         if not revision.exists(): continue
         r = read(revision)

@@ -3,7 +3,7 @@
 import argparse
 from common import *
 
-parser = argparse.ArgumentParser(); parser.add_argument('--revision', choices=['2', '3', '4', '5', '6', '7', '8', '9'])
+parser = argparse.ArgumentParser(); parser.add_argument('--revision', choices=['2', '3', '4', '5', '6', '7', '8', '9', '10'])
 parser.add_argument('--amend-custody-refusal', action='store_true')
 args = parser.parse_args()
 if (ROOT / 'PACKET.sha256').exists():

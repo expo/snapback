@@ -16,6 +16,153 @@ def native_component_root():
     return Path(__file__).resolve().parents[2]
 
 class Safety(unittest.TestCase):
+    def test_product_resume_record_rejects_evidence_source_and_release_drift(self):
+        import product_resume
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d); old = root / product_resume.OLD; work = root / 'scratch/app'; work.mkdir(parents=True)
+            (root / 'attempts').mkdir()
+            failure = {'reason': 'selector-not-hittable', 'outcomeClass': 'setup', 'appState': {'state': 'foreground'}}
+            common.put(old / 'summary.json', {'segments': {'m6': {'pass': None}}, 'cleanupComplete': True, 'cleanupErrors': []})
+            common.put(old / 'm6/evidence/status.json', {'pass': None, 'reason': failure['reason']})
+            common.put(old / 'm6/evidence/m6-ios-run.json', {'failure': failure})
+            common.put(old / 'm6/independent-validation.json', {'exitCode': 0, 'valid': True, 'pass': None})
+            for name in ('source-audit', 'prepared-source-audit'): common.put(old / name / 'review.json', {'ready': True})
+            common.put(old / 'semantic-handoff/result.json', {'pass': True})
+            common.put(old / 'scratch.json', {'path': str(work.parent)})
+            identity = {'bundleId': 'app', 'nativeSha256': 'native', 'hermesSha256': 'hermes'}
+            common.put(old / 'release-identity.json', identity)
+            common.put(work / 'native-operator.json', {'app': str(work.parent / 'Release.app')})
+            common.put(work / 'src/Chat.tsx', 'retained source')
+            common.put(root / 'logs/chain-old/end.json', {'exitCode': 2})
+            common.put(root / 'preparation/revision10/DIAGNOSIS.md', 'read-only diagnosis')
+            common.put(root / 'PACKET.sha256', 'prior seal'); common.put(root / 'PACKET.v9.sha256', 'prior seal')
+            binding = product_resume.capture(root); common.put(root / 'metadata/revision-10.json', {'disposition': binding})
+            with patch.object(after, 'app_hash', return_value=identity):
+                self.assertEqual(product_resume.verify_record(root)['order'], product_resume.ORDER)
+                for path in [work / 'src/Chat.tsx', old / 'summary.json', root / 'logs/chain-old/end.json',
+                             root / 'preparation/revision10/DIAGNOSIS.md', root / 'PACKET.v9.sha256']:
+                    original = path.read_bytes(); path.write_bytes(original + b' ')
+                    with self.subTest(path=path), self.assertRaisesRegex(RuntimeError, 'drift'):
+                        product_resume.verify_record(root)
+                    path.write_bytes(original)
+            with patch.object(after, 'app_hash', return_value={**identity, 'nativeSha256': 'changed'}):
+                with self.assertRaisesRegex(RuntimeError, 'release-drift'): product_resume.verify_record(root)
+            target = root / product_resume.LOCATION; target.chmod(0o755)
+            for path in target.iterdir(): path.chmod(0o644)
+
+    def test_app_setup_null_is_retained_and_infrastructure_still_blocks(self):
+        import product_resume
+        for reason in sorted(product_resume.APP_PRIME_REASONS):
+            state = 'not-running' if reason.startswith('app-') else 'foreground'
+            status = {'pass': None, 'reason': reason}
+            failure = {'reason': reason, 'outcomeClass': 'setup', 'appState': {'state': state}}
+            with self.subTest(reason=reason):
+                self.assertIsNone(after.driver_verdict(0, status, {'valid': True, 'pass': None}, failure))
+                self.assertEqual(status['pass'], None)
+                for changed in ({**failure, 'outcomeClass': 'instrument'},
+                                {**failure, 'appState': {'state': 'unknown'}},
+                                {**failure, 'secondaryFailures': [{'reason': 'cleanup:live-process', 'outcomeClass': 'instrument'}]}):
+                    with self.assertRaises(common.HarnessDefect):
+                        after.driver_verdict(0, status, {'valid': True, 'pass': None}, changed)
+                with self.assertRaises(common.HarnessDefect):
+                    after.driver_verdict(0, status, {'valid': False, 'pass': None}, failure)
+        for reason in ('unavailable-simulator', 'backend-start-unavailable', 'native-runner-unavailable',
+                       'origin-port-occupied', 'command-exit:1:xcrun', 'unknown-setup'):
+            with self.subTest(reason=reason), self.assertRaises(common.HarnessDefect):
+                after.driver_verdict(0, {'pass': None, 'reason': reason}, {'valid': True, 'pass': None},
+                    {'reason': reason, 'outcomeClass': 'setup', 'appState': {'state': 'foreground'}})
+
+    def test_startup_video_tail_does_not_erase_observed_selector_failure(self):
+        failure = {'reason': 'selector-not-hittable', 'outcomeClass': 'setup',
+            'appState': {'state': 'foreground'}, 'secondaryFailures': [
+                {'reason': 'invalid-startup-video:video-endpoint-uncovered', 'outcomeClass': 'instrument'}]}
+        self.assertIsNone(after.driver_verdict(0, {'pass': None, 'reason': failure['reason']},
+            {'valid': True, 'pass': None}, failure))
+        failure['secondaryFailures'][0]['reason'] = 'invalid-startup-video:corrupt'
+        with self.assertRaises(common.HarnessDefect):
+            after.driver_verdict(0, {'pass': None, 'reason': failure['reason']}, {'valid': True, 'pass': None}, failure)
+
+    def test_product_resume_runs_only_m8_on_same_build_and_keeps_m6(self):
+        import product_resume
+        from contextlib import ExitStack
+        with tempfile.TemporaryDirectory() as d, ExitStack() as stack:
+            root = Path(d); old = root / product_resume.OLD; old.mkdir(parents=True)
+            (old.parent / 'attempt-01').mkdir(); scratch = root / 'scratch'; work = scratch / 'app'; work.mkdir(parents=True)
+            app = scratch / 'DerivedData/Build/Products/Release-iphonesimulator/Clique.app'
+            identity = {'bundleId': 'dev.clique.pilot.snapback4', 'nativeSha256': 'native', 'hermesSha256': 'hermes'}
+            common.put(old / 'scratch.json', {'path': str(scratch)})
+            common.put(old / 'release-identity.json', identity)
+            retained = {'segments': {'m6': {'pass': None, 'outcomeClass': 'setup', 'evidence': 'original-m6'}}}
+            common.put(old / 'summary.json', retained); before = common.inventory(old)
+            common.put(work / 'native-operator.json', {'bundleId': identity['bundleId'], 'app': str(app),
+                'webArgv': ['web'], 'backendArgv': ['backend'], 'seedArgv': ['seed'], 'oracleArgv': ['oracle'],
+                'ordinaryImage': 'ordinary.png', 'viewOnceImage': 'once.png'})
+            common.put(root / 'native/QUALIFIED.json', {'instrument': {}})
+            common.put(root / 'runner', 'binary')
+            segments = []; builds = []
+            def command(argv, **kwargs):
+                if '--config' in argv:
+                    segment = argv[argv.index('--segment') + 1]; segments.append(segment)
+                    config = common.read(Path(argv[argv.index('--config') + 1])); self.assertEqual(config['app'], str(app))
+                    out = Path(argv[argv.index('--out') + 1]); common.put(out / 'status.json', {'pass': None, 'reason': 'selector-not-hittable'})
+                    common.put(out / (segment + '-ios-run.json'), {'failure': {'reason': 'selector-not-hittable',
+                        'outcomeClass': 'setup', 'appState': {'state': 'foreground'}}})
+                    return SimpleNamespace(returncode=0)
+                if 'validate.py' in argv[1]:
+                    return SimpleNamespace(returncode=0, stdout=json.dumps({'valid': True, 'pass': None}), stderr='')
+                if 'get_app_container' in argv: return SimpleNamespace(returncode=1)
+                raise AssertionError(argv)
+            for name, value in [('ROOT', root), ('NATIVE', root / 'native')]: stack.enter_context(patch.object(after, name, value))
+            for name in ('host_check', 'verify', 'free_ports', 'stop'): stack.enter_context(patch.object(after, name))
+            stack.enter_context(patch.object(after, 'wait_builder', return_value={}))
+            stack.enter_context(patch.object(after, 'lock', return_value=SimpleNamespace(close=lambda: None)))
+            stack.enter_context(patch.object(product_resume, 'verify_record', return_value={'sha256': 'sealed'}))
+            stack.enter_context(patch.object(after, 'execution_environment', return_value={}))
+            stack.enter_context(patch.object(after, 'app_hash', return_value=identity))
+            stack.enter_context(patch.object(after, 'runner_config', return_value={'binary': str(root / 'runner'), 'xctestrun': 'qualified'}))
+            stack.enter_context(patch.object(after, 'run', side_effect=lambda argv, *a, **k: builds.append(argv)))
+            stack.enter_context(patch.object(after.subprocess, 'Popen', return_value=SimpleNamespace(pid=123)))
+            stack.enter_context(patch.object(after.subprocess, 'check_output', return_value=json.dumps({'devices': {'iOS': [{'udid': common.UDID, 'state': 'Booted'}]}})))
+            stack.enter_context(patch.object(after.subprocess, 'run', side_effect=command))
+            self.assertEqual(after.execute('snapback4', resume_product_setup=True), 0)
+            self.assertEqual(segments, ['m8']); self.assertEqual(common.inventory(old), before)
+            self.assertTrue(all('xcodebuild' not in argv and 'prepare' not in ' '.join(argv) for argv in builds))
+            result = common.read(old.parent / 'attempt-03/summary.json')
+            self.assertEqual(result['outcome'], 'product-unmeasured')
+            self.assertIsNone(result['segments']['m6']['pass']); self.assertTrue(result['segments']['m6']['retained'])
+            self.assertIsNone(result['segments']['m8']['pass']); self.assertTrue(result['cleanupComplete'])
+
+    def test_app_setup_continuation_starts_convex_but_host_failure_stops(self):
+        import product_resume
+        for infra in (False, True):
+            with self.subTest(infra=infra), tempfile.TemporaryDirectory() as d:
+                root = Path(d); (root / 'logs').mkdir(); calls = []
+                def step(argv, **kwargs):
+                    calls.append(argv[1:])
+                    return SimpleNamespace(returncode=2 if infra else 0)
+                with patch.object(chain, 'ROOT', root), patch.object(chain, 'host_check'), patch.object(chain, 'lock'), \
+                     patch.object(chain, 'verify'), patch.object(product_resume, 'admission', return_value={'order': product_resume.ORDER}), \
+                     patch.object(chain.subprocess, 'run', side_effect=step):
+                    self.assertEqual(chain.main(resume_product_setup=True), 2 if infra else 0)
+                self.assertEqual(calls, [[str(root / 'after-builder.sh'), 'snapback4', '--resume-product-setup'],
+                    [str(root / 'launch-builder.sh'), 'convex'], [str(root / 'after-builder.sh'), 'convex']][:1 if infra else 3])
+
+    def test_product_resume_admission_is_one_use_and_requires_cold_convex(self):
+        import product_resume
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for name in ('logs/chain-old', 'results/snapback4/attempt-01', 'results/snapback4/attempt-02', 'lanes/convex/instrument'):
+                (root / name).mkdir(parents=True)
+            receipt = {'priorChains': ['chain-old'], 'order': product_resume.ORDER}
+            with patch.object(product_resume, 'verify_record', return_value=receipt), \
+                 patch.object(processes.ProcessOwner, 'resume') as owner, patch.object(product_resume, 'free_ports'):
+                owner.return_value.sample.return_value = {}
+                self.assertEqual(product_resume.admission(root), receipt)
+                (root / 'logs/chain-new').mkdir()
+                with self.assertRaisesRegex(RuntimeError, 'already-consumed'): product_resume.admission(root)
+                (root / 'logs/chain-new').rmdir(); (root / 'lanes/convex/builder-file').touch()
+                with self.assertRaisesRegex(RuntimeError, 'convex-not-cold'): product_resume.admission(root)
+
     @unittest.skipUnless(sys.platform == 'darwin', 'macOS diagnostic custody write protection')
     def test_diagnostic_cannot_write_original_builder_or_custody(self):
         with tempfile.TemporaryDirectory() as d:
