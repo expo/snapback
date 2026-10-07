@@ -89145,3 +89145,37 @@ are retained separately from successful final verification. All work stayed
 on eb1000 in this worktree. Nothing pushed; no Mac or publication claim.
 
 [Round-4 report, signalling audit and controls](reports/20261007-fl-dry-run-flakes/round-4/REPORT.md).
+
+## 2026-10-07 — FL round 5: reap inspection commands after timeout refusal
+
+Astra's two round-4 P2s were reproduced hangs: rejecting a shebang child's
+argv on timeout abandoned that live child, and the Darwin inspector's
+spawnSync compiler timeout waited indefinitely after handled SIGTERM.
+Tracked identity now retains complete interpreter argv. Failed inspection
+on timeout/overflow preserves its diagnostic and reaps only the command's
+retained ChildProcess handle before resolving. Recorded-PID fault injection
+still refuses any missing or changed identity. Inspector compilation is
+asynchronous with a 30-second deadline, TERM, one-second grace, KILL and reap.
+Keeper and fixture self-signals load synchronously without the compiler.
+
+The reported stderr-saturation flake also proved to be an observation race:
+recovery matched a pre-saturation add39 snapshot with zero drops. The final
+refusal now uses add, absent from the saturation loop. All responsiveness,
+stale-evidence, bounded recovery and lost-evidence assertions remain. Product
+source and the strict hidden/absent comparison are unchanged.
+
+Eight export/process/signal/runner files pass 186 tests with 33 platform skips;
+background is 63/32. Four surrounding helper consumers pass 49/49. Twenty
+loaded rounds pass all 22 dev_refusals tests (440 passes) and ten helper/barrier
+cases (200 passes), with fixed sources and four reaped busy loops. Interpreter,
+abandoned-child and compiler-escalation mutations each fail their regression
+without a live leftover. Forced stale stderr evidence is ignored; the old
+recovery guard and a zero-drop record fail. All 42 read corruptions, bounded
+retry controls, dispatch/atomic-publication controls, custody/timeout controls
+and simulator replay retain their expected outcomes. The report records the
+corrected development failures separately from final verification. Ref-check
+has only the existing broken LLP 3000.035 anchor in untouched difftest code.
+All work stayed on eb1000; nothing pushed. This is Linux evidence; the user's
+round-3 Mac soak does not qualify the new native inspector for this revision.
+
+[Round-5 resolution, controls and reproduction scripts](reports/20261007-fl-dry-run-flakes/round-5/REPORT.md).

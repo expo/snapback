@@ -26,7 +26,7 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-shim-signals-'));
   try {
     const shim = install(root), child = path.join(root, 'child.mjs');
-    fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
+    fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
     for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
       const result = spawnSync(process.execPath, [shim, signal], { env: { ...process.env, SNAPBACK4_BIN: child }, encoding: 'utf8', timeout: 5000 });
       assert.ok(result.signal === signal || result.status === 128 + os.constants.signals[signal], JSON.stringify({ signal, status: result.status, actualSignal: result.signal, stderr: result.stderr }));
@@ -60,7 +60,7 @@ test('real wrapper finally preserves the previous export across interrupted and 
     fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');fs.writeFileSync(p.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle'}}}));`);
     const dispatcher = path.join(root, 'dispatch.mjs');
     fs.writeFileSync(dispatcher, `#!${process.execPath}
-import {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).href)};
+import {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};
 import fs from 'node:fs'; import path from 'node:path'; import {spawnSync} from 'node:child_process'; import {inventory,hash} from ${JSON.stringify(payload)};
 const args=process.argv.slice(2);
 if(args[1]==='ios') {

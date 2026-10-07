@@ -1,0 +1,8 @@
+file:///home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-5/reproduce/timeout-control.mjs:13
+source=source.replaceAll("'../../../scripts/test-owned-command.mjs'",JSON.stringify('file://'+path.join(root,'scripts/test-owned-command.mjs')));
+      ^
+
+TypeError: Assignment to constant variable.
+    at file:///home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-5/reproduce/timeout-control.mjs:13:7
+
+Node.js v24.13.1

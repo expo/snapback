@@ -134,13 +134,15 @@ fn blocked_stderr_cannot_block_responses_or_later_mutations() {
  assert!(String::from_utf8_lossy(&stale.stderr).contains("pending or dropped"));
  let mut pipe=dev.child.stderr.take().unwrap();
  let drain=std::thread::spawn(move || {let _=std::io::copy(&mut pipe,&mut std::io::sink());});
- // Once drained, a final named refusal proves that persistence has recovered.
+ // Once drained, use an operation absent from the saturation loop. An older
+ // add39 can already be persisted with dropped=0 before the writer blocks;
+ // matching that name again would mistake old evidence for recovery.
  let deadline=Instant::now()+Duration::from_secs(10);
  let recovered=loop {
-  let reply=dev.refuse("add39");
+  let reply=dev.refuse("add");
   let path=dev.project.record_path(reply["store_id"].as_str().unwrap());
   let record:Value=serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
-  if record["records"].as_array().unwrap().last().unwrap()["operation"]=="add39" {break record;}
+  if record["records"].as_array().unwrap().last().unwrap()["operation"]=="add" {break record;}
   assert!(Instant::now()<deadline,"writer did not recover");
   std::thread::sleep(Duration::from_millis(10));
  };

@@ -1,6 +1,6 @@
 // @ref LLP 3000#publication-suite-under-contention — only a live member can
 // safely signal its group. The runner owns this stdin pipe, never a PGID lease.
-import { signalSelf } from './test-signals.mjs';
+import { signalSelf } from './test-owned-command.mjs';
 import { spawn } from 'node:child_process';
 process.on('SIGTERM', () => {});
 let releasing = false;

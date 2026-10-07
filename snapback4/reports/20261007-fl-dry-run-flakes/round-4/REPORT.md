@@ -1,5 +1,10 @@
 # FL round 4 — validate identity at signal dispatch
 
+**Round-5 correction:** [Astra's two hang findings and their fixes](../round-5/REPORT.md)
+supersede this report's claim that compiler timeout alone is finite and its
+identity-refusal cleanup treatment. Recorded-PID faults remain strict;
+owned inspection commands must still be reaped through their retained handles.
+
 2026-10-07. Base `e39f8ecf04`, branch `sb4-intent/fl-dry-run-flakes`.
 All work and execution stayed in this worktree on eb1000
 (`expose-builder-pixel`). Nothing pushed; no other worktree, remote host or

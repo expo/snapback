@@ -1,0 +1,2 @@
+{"elapsedMs":31093.207976,"timeoutSignalObserved":true,"parentStillBlocked":true,"platformBranchSimulated":"darwin","host":"linux"}
+{"cleanupByPrivateMarker":true,"exit":[0,null],"output":"TEST_SIGNAL_REFUSED: cannot build Darwin identity inspector: spawnSync cc ETIMEDOUT\n"}

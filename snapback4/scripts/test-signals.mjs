@@ -7,18 +7,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn as nativeSpawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { spawnOwned as nativeSpawn, runOwnedCommand } from './test-owned-command.mjs';
 
 const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
 let probe;
-function darwinProbe() {
-  if (probe) return probe;
+async function buildDarwinProbe() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-test-identity-'));
   process.once('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, 'inspect');
-  const built = spawnSync('cc', [new URL('./test-process-identity.c', import.meta.url).pathname, '-o', file], { encoding: 'utf8', timeout: 30000 });
-  if (built.status !== 0) throw refusal(`cannot build Darwin identity inspector: ${built.error?.message ?? built.stderr}`);
-  probe = file;
+  const built = await runOwnedCommand('cc', [new URL('./test-process-identity.c', import.meta.url).pathname, '-o', file], { timeout: 30000, grace: 1000 });
+  if (built.error || built.status !== 0) throw refusal(`cannot build Darwin identity inspector: ${built.error?.message ?? built.stderr}`);
   return file;
 }
 function positivePid(pid) {
@@ -43,7 +42,7 @@ function snapshot(pid) {
       return { pid, ...after, argv };
     }
     if (process.platform !== 'darwin') throw refusal(`unsupported platform ${process.platform}`);
-    const result = spawnSync(darwinProbe(), [String(pid)], { timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
+    const result = spawnSync(probe, [String(pid)], { timeout: 10000, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024 });
     if (result.status !== 0) throw refusal(`PID ${pid} identity unavailable${result.status === 3 ? ' (exited)' : ''}: ${result.error?.message ?? result.stderr}`);
     const output = result.stdout.toString('utf8'), newline = output.indexOf('\n');
     const { start, parent } = JSON.parse(output.slice(0, newline));
@@ -101,7 +100,16 @@ export function spawnTracked(...args) {
   try {
     const record = snapshot(child.pid);
     if (record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
-    children.set(child, { record });
+    // The kernel inserts a shebang interpreter before the script path. Capture
+    // the actual complete argv of this newborn child as well as spawnargs;
+    // neither permits another birth, a changed script path or extra arguments.
+    const argv = [child.spawnargs, record.argv];
+    // /usr/bin/env can still be between its own exec and the interpreter's
+    // exec at capture. Its simple `env interpreter script ...` form preserves
+    // all remaining arguments. Other env forms refuse if their argv changes.
+    if (path.basename(record.argv[0]) === 'env' && record.argv[1] && !/[-=]/.test(record.argv[1]))
+      argv.push(record.argv.slice(1));
+    children.set(child, { record, argv });
   } catch (error) {
     // A short command can finish before capture. Its normal exit remains
     // usable, but missing birth evidence can never authorize a later signal.
@@ -113,13 +121,12 @@ export function signalChild(child, signal = 'SIGTERM') {
   // Null JS exit fields do NOT prove unreaped custody (LLP 3000 QF7).
   // Require the birth captured at spawn, plus a fresh command/birth check.
   if (!child || child.exitCode !== null || child.signalCode !== null) throw refusal('direct child already exited');
-  const { record, error } = children.get(child) ?? {};
+  const { record, argv, error } = children.get(child) ?? {};
   if (!record) throw refusal(`no captured child birth: ${error?.message ?? 'use spawnTracked'}`);
-  signalRecorded(record, signal, child.spawnargs);
+  signalRecorded(record, signal, argv);
 }
-export function signalSelf(signal, { group = false } = {}) {
-  // Execution itself proves this birth. A live member pins its own group;
-  // callers cannot supply a numeric PID/PGID or a stale disk record here.
-  positivePid(process.pid);
-  process.kill(group ? 0 : process.pid, signal);
-}
+export { signalSelf } from './test-owned-command.mjs';
+
+// Complete bootstrap before exporting synchronous identity operations. A
+// spawnSync compiler timeout can hang forever if cc handles SIGTERM.
+if (process.platform === 'darwin') probe = await buildDarwinProbe();

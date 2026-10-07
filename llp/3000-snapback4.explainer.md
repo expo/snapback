@@ -2622,6 +2622,23 @@ claim a kernel handle or eliminate every exit-to-syscall race. The
 [FL round-4 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-4/REPORT.md)
 records the complete signal-site audit and intercepted negative controls.
 
+**2026-10-07 — FL owned-command timeouts remain reapable.** Fault dispatch
+from recorded PIDs still requires current command and birth. Direct-child
+capture also retains the kernel's complete interpreter argv, including the
+script path. If a timeout/overflow cannot inspect a command the test started,
+cleanup uses its retained native ChildProcess handle and waits for close;
+it never converts that handle into an unchecked numeric PID. The original
+timeout/overflow error and the identity refusal are both retained. Untracked
+objects and disk records cannot use this cleanup path.
+
+The Darwin inspector is compiled asynchronously before its identity API is
+used: thirty seconds to finish, SIGTERM, one second of grace, then SIGKILL
+and reap. A synchronous probe uses SIGKILL for its ten-second timeout;
+`spawnSync`'s default SIGTERM timeout alone cannot bound a signal handler.
+Keeper EOF and fixture self-signals use a synchronous helper independent of
+inspector compilation. [FL round 5](../snapback4/reports/20261007-fl-dry-run-flakes/round-5/REPORT.md)
+records the hang regressions and their independent cleanup controls.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

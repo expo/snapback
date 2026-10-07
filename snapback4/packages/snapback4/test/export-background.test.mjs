@@ -359,8 +359,8 @@ process.on('SIGTERM',()=>{});
 // Fixture-only escape hatch: each living member kills its own group. No
 // recycled PID/group can be signalled by the test, and this is armed only
 // by teardown, after the product's unaided drain assertions.
-const stop=()=>{if(fs.existsSync(root+'/stop-compression'))require(${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).pathname)}).signalSelf('SIGKILL',{group:true});};
-const child=spawn(process.execPath,['-e',${JSON.stringify("const fs=require('fs');const {signalSelf}=require("+JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).pathname)+");process.on('SIGTERM',()=>{});setInterval(()=>{if(fs.existsSync('stop-compression'))signalSelf('SIGKILL',{group:true});},25)")}],{stdio:'ignore'});
+const stop=()=>{if(fs.existsSync(root+'/stop-compression'))require(${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).pathname)}).signalSelf('SIGKILL',{group:true});};
+const child=spawn(process.execPath,['-e',${JSON.stringify("const fs=require('fs');const {signalSelf}=require("+JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).pathname)+");process.on('SIGTERM',()=>{});setInterval(()=>{if(fs.existsSync('stop-compression'))signalSelf('SIGKILL',{group:true});},25)")}],{stdio:'ignore'});
 setInterval(stop,25);
 fs.writeFileSync(root+'/compression.json',JSON.stringify({pid:process.pid,child:child.pid}));
 setInterval(()=>{},1000);

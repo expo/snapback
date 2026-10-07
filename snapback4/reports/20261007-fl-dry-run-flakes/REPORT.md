@@ -1,5 +1,10 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-5 timeout correction:** [round 5](round-5/REPORT.md) fixes owned-child
+cleanup after identity refusal, interpreter command capture, and bounded
+Darwin inspector compilation. It also fixes the stderr recovery observation
+race while retaining its saturation assertions.
+
 **Round-4 dispatch correction:** [round 4](round-4/REPORT.md) fixes stale
 checkpoint/role signals and shares birth/command validation across fault and
 cleanup dispatch. The 22-second expired-checkpoint control refuses to signal.

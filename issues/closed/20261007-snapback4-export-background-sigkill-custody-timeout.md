@@ -47,3 +47,11 @@ passes 20 loaded runs plus exhaustive non-sequence field negative controls.
 
 [Report, measurements, controls and reproduction scripts](../../snapback4/reports/20261007-fl-dry-run-flakes/REPORT.md).
 No push or publication.
+
+Round-5 follow-up: identity refusal no longer abandons an owned inspection
+child; interpreter commands validate, and inspector compilation escalates
+from TERM to KILL and reaps. The custody assertions and cleanup protocol stay
+intact. The separate stderr-saturation recovery race now waits for a refusal
+whose operation was absent before draining. The ticket remains closed;
+[round-5 resolution and controls](../../snapback4/reports/20261007-fl-dry-run-flakes/round-5/REPORT.md)
+record the additional fixes and platform limits.

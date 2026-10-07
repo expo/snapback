@@ -1,5 +1,6 @@
 // Process-group custody; visible descendants also receive metadata validation.
 import { signalChild, spawnTracked as spawn } from './test-signals.mjs';
+import { killOwned } from './test-owned-command.mjs';
 import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -37,7 +38,13 @@ export function runProcess(command, args, { timeout, maxBuffer, env }) {
       // ps has no cleanup protocol. SIGKILL bounds even an unresponsive child;
       // destroying its pipes also prevents inherited writers holding close open.
       try { signalChild(child, 'SIGKILL'); }
-      catch (refused) { error = refused; resolve({ error }); }
+      catch (refused) {
+        // Inspection failure cannot abandon our own command. Preserve the
+        // timeout/overflow and diagnostic, and reap through the retained native
+        // handle. Disk records/untracked objects cannot use this fallback.
+        error.cause = refused;
+        killOwned(child, 'SIGKILL');
+      }
       child.stdout.destroy(); child.stderr.destroy();
     };
     const timer = setTimeout(() => fail(Object.assign(Error(`${command} ETIMEDOUT`), { code: 'ETIMEDOUT' })), timeout);
