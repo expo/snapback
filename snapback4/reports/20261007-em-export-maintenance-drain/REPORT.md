@@ -1,9 +1,15 @@
 # EM — export maintenance drain investigation, 2026-10-07
 
+The [round-2 report](round2/REPORT.md) supersedes this report's diagnostic capture
+implementation and safety claims. It fixes the review's unbounded capture,
+stale-process disclosure and FIFO trace blockage. The investigation results
+below remain historical evidence; the original cause is still unknown.
+
 The historical intermittent failure remains **unclassified**. The approximately
 200 short runs and eight whole-file runs from the interrupted session all passed.
 A further 32 repetitions of all four affected Linux cases under bursty CPU/disk
-load also passed. No ordinary lost-wakeup path was found in the queue audit.
+load also passed. Grok subsequently identified an untested lost-wakeup candidate
+in the queue audit; see the round-2 correction.
 This change adds retained diagnostics; it does not claim a product scheduling fix
 or weaken a guard. Both commissioned tickets, and the related FH ticket, remain
 open with this evidence. A passing soak cannot resolve a failure whose state was
@@ -171,10 +177,10 @@ observation expiry, and next-export recovery for deliberately stranded states.
 The audit covered `retention.rs`, its `recovery.rs` producers, `background.rs`
 spawn/lease transfers, publication handoff and the Expo wrapper preflight.
 
-| Transition | Why ordinary work retains a wakeup |
+| Transition | Wakeup coverage and open cases |
 | --- | --- |
 | Request while observer is running | Producer atomically publishes pending before `kick`; a busy next lease coalesces with its holder, which loops on runnable pending/claimed state. |
-| Request races observer exit | Observer drops its next lease **before** rechecking/kicking. A request committed before that recheck is observed there; a later producer can acquire the released lease itself. |
+| Request races observer exit | The ordinary observer drops its lease before rechecking. **Open suspect from Grok:** `kick_until` can acquire the lease, find no runnable work and return success while still holding it. A producer committing between that last check and unlock can coalesce against the exiting caller. This path needs a regression; it is not established as the historical cause. |
 | Request races scan acknowledgement | Claim and fresh pending use separate pathnames. Acknowledgement renames only the old claim; it cannot erase the new request. |
 | Readiness changes after probing | Worker deferral publishes a new pending request before acknowledging its claim. Handled lock refusal does not consume the failed-start budget. |
 | Scan hands off with more work | It publishes handoff under the active lease, releases it, and remains a passive backup until work is covered or a birth-matched live successor scan is recorded. Merely seeing a busy observer lease is not acknowledgement. |

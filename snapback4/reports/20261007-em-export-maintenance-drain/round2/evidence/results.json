@@ -1,0 +1,278 @@
+{
+  "baseCommit": "7775413989457dcc404f862fa6bd18efd674be2b",
+  "host": "expose-builder-pixel",
+  "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+  "sourceSha256": {
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "14caad94bd76ff07135f55763646ea87f55cac4ccdb0e6962a9471037ed89ff3",
+    "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs": "1496ee6347577ec10771c292838cfbd1556aa58a69ab9e9bf9f46f9a296615db",
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+    "snapback4/packages/snapback4/test/maintenance-evidence.test.mjs": "8073caeb26043c6f817342d94c97ca08c47d03f82cd24edc007cb4f2367e848d",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.py": "c2f0702c6a759a00743792139428a745b319926c2bb95af52bd661ebc507558e",
+    "snapback4/packages/snapback4/test/helpers/maintenance_processes.py": "50ef3f37d2dd0428131c45374f929f04de30ae700b8a185b2562b0be66037b0d"
+  },
+  "checks": {
+    "diagnostics": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "retention-tests": {
+      "passed": 3
+    },
+    "recovery-tests": {
+      "passed": 14
+    },
+    "build": "passed",
+    "release-check": "passed",
+    "references": "ref-check: ok \u2014 531 LLP docs, 10540 refs in 36939 files, 0 errors, 0 unchecked",
+    "syntax": "node --check helper plus Python compile() passed",
+    "whitespace": "git diff --check passed"
+  },
+  "cohorts": {
+    "export-background": {
+      "result": {
+        "run": 1,
+        "code": 0,
+        "elapsed": 294.6918110847473
+      },
+      "counts": {
+        "tests": 94,
+        "pass": 58,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 36
+      },
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 0,
+        "jobs": 1,
+        "start": 1791403525.4365597,
+        "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "f0480ca95aaee3ea83b8a3e55d6f17379b4352ee234249f38addf1d3071d285d"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round2/evidence/export-background",
+          "rounds": 1,
+          "jobs": 1,
+          "cpus": "80-83",
+          "load": 0,
+          "io_workers": 0,
+          "burst_seconds": 0,
+          "binary": "target/debug/snapback4",
+          "pattern": ".*",
+          "keep_going": false
+        }
+      }
+    },
+    "export-background-final": {
+      "result": {
+        "run": 1,
+        "code": 0,
+        "elapsed": 306.596417427063
+      },
+      "counts": {
+        "tests": 94,
+        "pass": 58,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 36
+      },
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 0,
+        "jobs": 1,
+        "start": 1791404066.111659,
+        "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round2/evidence/export-background-final",
+          "rounds": 1,
+          "jobs": 1,
+          "cpus": "80-83",
+          "load": 0,
+          "io_workers": 0,
+          "burst_seconds": 0,
+          "binary": "target/debug/snapback4",
+          "pattern": ".*",
+          "keep_going": false
+        }
+      }
+    },
+    "final-integration": {
+      "result": {
+        "run": 1,
+        "code": 0,
+        "elapsed": 8.075481653213501
+      },
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 0,
+        "jobs": 1,
+        "start": 1791404973.3675408,
+        "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round2/evidence/final-integration",
+          "rounds": 1,
+          "jobs": 1,
+          "cpus": "80-83",
+          "load": 0,
+          "io_workers": 0,
+          "burst_seconds": 0,
+          "binary": "target/debug/snapback4",
+          "pattern": "repeated raced retention-lock deferrals stay pending and restore the bound after release",
+          "keep_going": false
+        }
+      }
+    },
+    "controls": {
+      "result": {
+        "expectedExit": 1,
+        "actualExit": 1,
+        "elapsed": 182.3659541780071,
+        "snapshots": [
+          "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round2/evidence/controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791403615901183063-142d301d-failure-drain-timeout",
+          "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round2/evidence/controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791403706857923511-254441b7-failure-drain-timeout"
+        ]
+      },
+      "counts": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "control": {
+        "sourceSha256": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+        "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81/snapback4",
+        "cpus": "84-85",
+        "addition": "\nfor(const fault of ['held lease','missing observer'])test(`EM injected stall: ${fault}`, {timeout:120000}, async()=>{\n  const f=fixture(); let held;\n  try {\n    skipMode(f,'off'); held=await holdRetention(f);\n    const r=f.invoke(); assert.equal(r.status,0,r.stdout+r.stderr);\n    if(fault==='missing observer') {\n      const root=path.join(f.root,'artifacts/native-smoke');\n      const pid=read(path.join(root,'maintenance-next.json')).process.pid;\n      process.kill(pid,'SIGKILL');\n      await until(()=>!alive(pid),'our stalled observer exited');\n      held.child.stdin.end();await held.exited;held=null;\n    }\n    await maintenanceIdle(f);\n  } finally {\n    if(held){held.child.stdin.end();await held.exited;}\n    if(fault==='missing observer') {\n      const resumed=f.invoke('negative control cleanup');\n      assert.equal(resumed.status,0,resumed.stdout+resumed.stderr);\n    }\n    await cleanup(f);\n  }\n});\n"
+      }
+    },
+    "controls-final": {
+      "result": {
+        "expectedExit": 1,
+        "actualExit": 1,
+        "elapsed": 182.48681309100357,
+        "snapshots": [
+          "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round2/evidence/controls-final/snapshots/maintenance-cb65a433eb364227/snapshot-1791404247605555016-4a8f53d1-failure-drain-timeout",
+          "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round2/evidence/controls-final/snapshots/maintenance-cb65a433eb364227/snapshot-1791404156685113993-c730cd24-failure-drain-timeout"
+        ]
+      },
+      "counts": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "control": {
+        "sourceSha256": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+        "binarySha256": "d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d7df5901b91772f3854b3a0ffbe59c5c64d5714d1221ef092018c9be5ee1fb81/snapback4",
+        "cpus": "84-85",
+        "addition": "\nfor(const fault of ['held lease','missing observer'])test(`EM injected stall: ${fault}`, {timeout:120000}, async()=>{\n  const f=fixture(); let held;\n  try {\n    skipMode(f,'off'); held=await holdRetention(f);\n    const r=f.invoke(); assert.equal(r.status,0,r.stdout+r.stderr);\n    if(fault==='missing observer') {\n      const root=path.join(f.root,'artifacts/native-smoke');\n      const pid=read(path.join(root,'maintenance-next.json')).process.pid;\n      process.kill(pid,'SIGKILL');\n      await until(()=>!alive(pid),'our stalled observer exited');\n      held.child.stdin.end();await held.exited;held=null;\n    }\n    await maintenanceIdle(f);\n  } finally {\n    if(held){held.child.stdin.end();await held.exited;}\n    if(fault==='missing observer') {\n      const resumed=f.invoke('negative control cleanup');\n      assert.equal(resumed.status,0,resumed.stdout+resumed.stderr);\n    }\n    await cleanup(f);\n  }\n});\n"
+      }
+    }
+  },
+  "fifoNegative": {
+    "exit": 1,
+    "expected": 1,
+    "binary": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8/snapback4",
+    "elapsed": 4.111506024986738,
+    "reason": "original observer blocks beyond its deadline; only the test watchdog kills it"
+  },
+  "archives": {
+    "export-background.tar.gz": {
+      "sha256": "4c74868e6aed4769a563da21159bccebd28d47b6ca7b031f68b9a287045e4d44",
+      "bytes": 29009,
+      "files": 273
+    },
+    "export-background-final.tar.gz": {
+      "sha256": "5fbb21157a443888337e16291c18727016deb5f133b3ee7fa8bc0402ada159cc",
+      "bytes": 29862,
+      "files": 273
+    },
+    "final-integration.tar.gz": {
+      "sha256": "9535c9cf081dbc1d900431cf57c49e135dc10535764920f56220f8582d79b249",
+      "bytes": 9674,
+      "files": 72
+    },
+    "controls.tar.gz": {
+      "sha256": "5de09f156e9659b98a0f855a187d65007aebcbff606b9697e1e12d3c1c02e502",
+      "bytes": 15804,
+      "files": 118
+    },
+    "controls-final.tar.gz": {
+      "sha256": "a0700b56ee165f42bab6fa7a8281234c464c4aee59b88d682b43cb434291e9f1",
+      "bytes": 16007,
+      "files": 118
+    },
+    "release-check.log.gz": {
+      "sha256": "fb1fee90af88aeed46c2469a5930c5c95eafd5bb98e40e0c2655189c7bac92c2",
+      "bytes": 1275,
+      "rawBytes": 3599
+    },
+    "recovery-tests.log.gz": {
+      "sha256": "cb784df130e5d6e596c10f89482821d8654a52265d859d572652bd1138b790ba",
+      "bytes": 1115,
+      "rawBytes": 2756
+    },
+    "ref-check.log.gz": {
+      "sha256": "3b500e9fb30b7cd8528975e10506ef90c5220552e9ed201a3e898261a7685398",
+      "bytes": 108,
+      "rawBytes": 81
+    },
+    "diagnostics-final.log.gz": {
+      "sha256": "85ada8fcfaa3ad7dfb48e26af4eba5b5b6c72b0c606f6e41f1543b0fb8683674",
+      "bytes": 860,
+      "rawBytes": 3496
+    },
+    "retention-tests.log.gz": {
+      "sha256": "b95bd0d2c98bf4cf7adb4a4459c68347e0987b2dbb3c1428427c170ed21f8b43",
+      "bytes": 809,
+      "rawBytes": 1741
+    },
+    "build.log.gz": {
+      "sha256": "53feeb5e20ca2f7a73997fefca95b6e6e40c7de4dc00c015b30dfac0c2bc2ba7",
+      "bytes": 548,
+      "rawBytes": 1212
+    },
+    "diagnostics-first.log.gz": {
+      "sha256": "d98f3325504e451541977b9ba944839f9a4759618e0bd4d9c700f6956593184c",
+      "bytes": 663,
+      "rawBytes": 2513
+    },
+    "fifo-before-fix.log.gz": {
+      "sha256": "87100c058778a4fd588b943fe5d57c48292367594dfa8480a3bf8d4f0c89deb0",
+      "bytes": 591,
+      "rawBytes": 1065
+    }
+  },
+  "qualificationNote": "Two whole-file runs cover the final native tracing, queue and drain predicate. Collector partial-write budget accounting was refined afterward and validated by five final diagnostics tests plus the final real raced-deferral case. Both retained stall controls reject unchanged guards; no historical-cause claim."
+}

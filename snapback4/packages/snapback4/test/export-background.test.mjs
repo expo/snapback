@@ -74,7 +74,7 @@ async function cleanup(f) {
       try { process.kill(p, 0); return false; } catch { return true; }
     }, 'fixture guardian exited');
   }
-  if (process.env.SNAPBACK4_MAINTENANCE_EVIDENCE) maintenanceEvidence(f, 'cleanup');
+  if (process.env.SNAPBACK4_MAINTENANCE_EVIDENCE) await maintenanceEvidence(f, 'cleanup');
   f.stopMaintenanceWatch();
   fs.rmSync(f.root, { recursive: true, force: true });
 }

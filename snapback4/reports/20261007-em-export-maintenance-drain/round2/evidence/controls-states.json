@@ -1,0 +1,36 @@
+[
+  {
+    "path": "controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791403615901183063-142d301d-failure-drain-timeout",
+    "processes": [
+      {
+        "pid": 3049632,
+        "program": "snapback4",
+        "arguments": [
+          "witness",
+          "export-maintain",
+          "<fixture>"
+        ],
+        "lockRows": 0
+      },
+      {
+        "pid": 3049448,
+        "program": "python3.12",
+        "arguments": [
+          "<fixture>",
+          "<fixture>"
+        ],
+        "lockRows": 0
+      }
+    ],
+    "pending": true,
+    "waitRetention": true,
+    "bytes": 24064
+  },
+  {
+    "path": "controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791403706857923511-254441b7-failure-drain-timeout",
+    "processes": [],
+    "pending": true,
+    "waitRetention": true,
+    "bytes": 7461
+  }
+]

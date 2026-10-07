@@ -40,8 +40,8 @@ The [retained report](../snapback4/reports/20261007-em-export-maintenance-drain/
 records 200 passing short invocations and eight passing complete-file runs,
 additional focused/original-binary controls, then 32 passes per affected case
 under four-core bursty CPU/disk load. The final instrumented complete file also
-passes (58 passed, 36 platform skips). No ordinary lost-wakeup path was found;
-passing repetitions do not resolve the original failure.
+passes (58 passed, 36 platform skips). Grok subsequently identified an untested
+wakeup candidate; passing repetitions do not resolve the original failure.
 
 Drain failure now captures queue/lease/journal files, process/descriptor evidence
 and maintenance step timestamps before fixture cleanup. Set
@@ -54,3 +54,15 @@ those failures are disclosed separately, and subsequent tests pin an immutable
 binary. This does not establish the cause of the historical incident.
 Next: use the retained diagnostics on recurrence, including the operator's macOS
 soak, before assigning a cause or closing this ticket.
+
+
+EM round 2: the [diagnostic hardening report](../snapback4/reports/20261007-em-export-maintenance-drain/round2/REPORT.md)
+records bounded/private capture, birth/command/group admission and asynchronous
+trace I/O that cannot block a custodian on a FIFO. These fix the instrumentation,
+not the historical queue failure. The 90-second predicate remains unchanged.
+Grok identified a pre-existing candidate: `kick_until`'s second `!runnable` check
+can return success while its next lease is still held, allowing a newly committed
+request to coalesce against an exiting holder. A guard unwind can similarly
+follow a fresh producer's coalescing attempt (guard cancellation/expiry itself
+is a documented stop). Neither candidate was reproduced or attributed to this
+incident. Keep both in the next regression/audit; no queue fix is included here.

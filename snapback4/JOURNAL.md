@@ -89959,3 +89959,40 @@ runs use immutable binary copies. The [EM report](reports/20261007-em-export-mai
 retains all outcomes, source/binary identities, archived snapshots, measured
 sub-five-second drain waits and the macOS soak command. No other host/worktree
 was used, no wasm changed, and nothing was pushed.
+
+## 2026-10-07 — EM round 2: bound diagnostics and remove trace I/O from custody
+
+Addressed Astra's three required diagnostic changes. Captures now retain bounded
+tails (16 KiB/file, 64 copies), a 256-entry inventory and at most 1 MiB of output.
+A separate collector has a two-second parent watchdog; a private namespace keeps
+four failures plus four cleanups, with 0700 directories and 0600 files. Process
+capture requires matching birth, fixture command and verified test/native group;
+only allowlisted arguments and bounded fixture descriptors/locks survive.
+
+Native debug tracing now uses a bounded nonblocking channel to an unjoined writer
+thread that holds no maintenance lease. It refuses nonregular/symlink sinks,
+opens nonblocking, and caps append growth at 256 KiB. Release builds omit argument
+evaluation too. This corrects the round-1 instrumentation's FIFO stall, not the
+unexplained historical queue failure. Test drain timing is a bounded memory ring.
+
+The FIFO regression fails against the round-1 CLI and passes after the change,
+including timely observer expiry and released queue custody. Five diagnostic
+regressions cover size/retention/privacy, stale identities/commands/groups, FIFO,
+a stuck collector and partial-write budget accounting. The export-background file passes 58 tests with 36 Darwin
+skips; both unchanged 90-second stall controls reject and retain distinct states.
+Three retention and 14 recovery/process-inspection tests pass, as do debug build
+and release check. Final rerun details and review dispositions are in the
+[round-2 report](reports/20261007-em-export-maintenance-drain/round2/REPORT.md).
+Queue semantics, drain guard and FL's liveness checks stay unchanged. Tickets
+remain open; no package/wasm change, other host/worktree use or push occurred.
+
+
+Correction to the preceding round-1 EM audit: Grok's review identified the
+under-lease successful `!runnable` return in `kick_until` as an open wakeup
+candidate. A fresh producer can coalesce in the gap before that caller unlocks.
+Guard unwinding after a producer coalesces is another interaction to test,
+although cancellation/expiry are documented stops. This supersedes the earlier
+claim that the exit/request recheck was intact; no reproducer or attribution to
+the historical incidents exists yet. The parent report and three open tickets
+now retain these suspects. Queue changes and a deterministic interleaving test
+remain separate from this diagnostic hardening commit.

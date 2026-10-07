@@ -46,7 +46,7 @@ try:
  with (out/'controls.log').open('w') as log:
   r=subprocess.run(['taskset','-c',a.cpus,'node','--test','--test-reporter=tap','--test-name-pattern=EM injected stall',str(copy)],env={**os.environ,'SNAPBACK4_EXPORT_TEST_BINARY':str(pinned),'SNAPBACK4_DEBUG_RETENTION':'1','SNAPBACK4_MAINTENANCE_EVIDENCE':str(out/'snapshots')},stdout=log,stderr=subprocess.STDOUT)
  text=(out/'controls.log').read_text()
- snapshots=list((out/'snapshots').glob('*-drain-timeout'))
+ snapshots=list((out/'snapshots').rglob('*-drain-timeout'))
  assert r.returncode==1 and text.count('error: \'coalesced maintenance queue drained\'')==2 and len(snapshots)==2,text
  (out/'result.json').write_text(json.dumps(dict(expectedExit=1,actualExit=r.returncode,elapsed=time.monotonic()-started,snapshots=[str(s) for s in snapshots]),indent=2))
  print('Both stalls failed the original 90-second assertion; owned fixtures subsequently drained and cleaned up.')

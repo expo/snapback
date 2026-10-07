@@ -6,16 +6,17 @@ use std::sync::atomic::AtomicU64;
 const BUDGET: Duration = Duration::from_secs(30);
 const OBSERVER_BUDGET: Duration = Duration::from_secs(60 * 60);
 
-// Opt-in diagnostic evidence; never participates in queue decisions or custody.
-pub(super) fn trace(root: &Path, step: &str, detail: Value) {
-    #[cfg(debug_assertions)]
-    if std::env::var_os("SNAPBACK4_DEBUG_RETENTION").is_some() {
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(root.join("retention-trace.jsonl")) {
-            let line = format!("{}\n", json!({ "at": now(), "pid": std::process::id(), "step": step, "detail": detail }));
-            let _ = file.write_all(line.as_bytes());
+// Compile out argument evaluation too: release custody does no diagnostic work.
+#[cfg(debug_assertions)]
+#[path = "retention_trace.rs"]
+mod trace_writer;
+macro_rules! trace {
+    ($root:expr, $step:expr, $detail:expr) => {
+        #[cfg(debug_assertions)]
+        if std::env::var_os("SNAPBACK4_DEBUG_RETENTION").is_some() {
+            trace_writer::emit($root, $step, $detail);
         }
-    }
-    let _ = (root, step, detail);
+    };
 }
 
 pub(super) fn run(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -> Result<()>) -> Result<()> {
@@ -95,16 +96,16 @@ fn try_lock(file: &File) -> Result<bool> {
 // after the probe is handled by the worker recording deferred work again.
 fn ready(root: &Path) -> Result<bool> {
     let initializing = lock_file(root, "initialization.lock")?;
-    if !try_lock(&initializing)? { trace(root, "wait-initialization", Value::Null); return Ok(false); }
+    if !try_lock(&initializing)? { trace!(root, "wait-initialization", Value::Null); return Ok(false); }
     drop(initializing);
     let publication = lock_file(root, "publication.lock")?;
-    if !try_lock(&publication)? { trace(root, "wait-publication", Value::Null); return Ok(false); }
+    if !try_lock(&publication)? { trace!(root, "wait-publication", Value::Null); return Ok(false); }
     drop(publication);
     for entry in fs::read_dir(root).map_err(|e| error("E_WITNESS_ARTIFACT", e))? {
         let entry = entry.map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if !entry.file_type().is_ok_and(|t| t.is_dir()) || !name.split_once('-').is_some_and(|(a,b)| a.parse::<u128>().is_ok() && b.parse::<u32>().is_ok()) { continue; }
-        if !ready_run(&entry.path())? { trace(root, "wait-run", json!(entry.path())); return Ok(false); }
+        if !ready_run(&entry.path())? { trace!(root, "wait-run", json!(entry.path())); return Ok(false); }
     }
     Ok(true)
 }
@@ -130,7 +131,7 @@ fn kick_until(root: &Path, expires: u128) -> Result<Value> {
     }
     let queued = lock_file(root, "maintenance-next.lock")?;
     if !try_lock(&queued)? {
-        trace(root, "kick-coalesced", Value::Null);
+        trace!(root, "kick-coalesced", Value::Null);
         return Ok(recovery::read(&root.join("maintenance-next.json")));
     }
     if !runnable(root) { return Ok(Value::Null); }
@@ -144,7 +145,7 @@ fn kick_until(root: &Path, expires: u128) -> Result<Value> {
     let mut child = background::spawn_owned(command, &queued, None, true)?;
     let record = json!({ "state": "pending", "process": recovery::identity(child.id()), "at": now(), "expiresAt": expires });
     atomic_record(&root.join("maintenance-next.json"), &record)?;
-    trace(root, "observer-launched", record.clone());
+    trace!(root, "observer-launched", record.clone());
     drop(queued);
     child.stdin.take().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
     Ok(record)
@@ -197,7 +198,7 @@ pub(super) fn maintain(args: &[String]) -> i32 {
         let mut start = [0];
         std::io::stdin().read_exact(&mut start).map_err(|e| error("E_WITNESS_PROCESS", e))?;
         if start != [b's'] { return Err(error("E_WITNESS_PROCESS", "missing maintenance launch gate")); }
-        trace(&root, "observer-started", json!({ "expiresAt": expires }));
+        trace!(&root, "observer-started", json!({ "expiresAt": expires }));
         let mut failed_starts = 0;
         let mut retiring: Vec<Child> = Vec::new();
         loop {
@@ -205,16 +206,16 @@ pub(super) fn maintain(args: &[String]) -> i32 {
             retiring.retain_mut(|child| !child.try_wait().is_ok_and(|status| status.is_some()));
             if !runnable(&root) {
                 drop(queued);
-                trace(&root, "observer-idle", Value::Null);
+                trace!(&root, "observer-idle", Value::Null);
                 // Close the ordinary exit/request race. A contender either
                 // owns next or sees us; recheck after releasing our lease.
                 kick_until(&root, expires)?;
                 return Ok(());
             }
             let active = lock_file(&root, "maintenance.lock")?;
-            if !try_lock(&active)? { trace(&root, "wait-active", Value::Null); sleep(Duration::from_millis(100)); continue; }
+            if !try_lock(&active)? { trace!(&root, "wait-active", Value::Null); sleep(Duration::from_millis(100)); continue; }
             let available = lock_file(&root, "retention.lock")?;
-            if !try_lock(&available)? { trace(&root, "wait-retention", Value::Null); drop(active); sleep(Duration::from_millis(100)); continue; }
+            if !try_lock(&available)? { trace!(&root, "wait-retention", Value::Null); drop(active); sleep(Duration::from_millis(100)); continue; }
             if !ready(&root)? { drop(available); drop(active); sleep(Duration::from_millis(100)); continue; }
             drop(available);
             let mut command = Command::new(background::executable());
@@ -222,7 +223,7 @@ pub(super) fn maintain(args: &[String]) -> i32 {
             // Keep the pending lease here. The separate scan custodian owns
             // native work; either peer survives the other's unexpected death.
             let mut child = background::spawn_owned(command, &active, None, false)?;
-            trace(&root, "scan-launched", json!(child.id()));
+            trace!(&root, "scan-launched", json!(child.id()));
             drop(active);
             let scan_started = Instant::now();
             let mut cancellation = None;
@@ -230,7 +231,7 @@ pub(super) fn maintain(args: &[String]) -> i32 {
             let mut forced = false;
             loop {
                 if let Some(status) = child.try_wait().map_err(|e| error("E_WITNESS_PROCESS", e))? {
-                    trace(&root, "scan-exited", json!({ "pid": child.id(), "success": status.success() }));
+                    trace!(&root, "scan-exited", json!({ "pid": child.id(), "success": status.success() }));
                     failed_starts = if status.success() { 0 } else { failed_starts + 1 };
                     break;
                 }
@@ -314,7 +315,7 @@ pub(super) fn scan(args: &[String]) -> i32 {
         atomic_record(&root.join("maintenance-result.json"), &json!({ "finishedAt": now(), "error": result.as_ref().err(), "pending": pending(&root) }))?;
         atomic_record(&root.join("maintenance-active.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "attempt": count, "state": "handoff" }))?;
         drop(active);
-        trace(&root, "scan-handoff", json!({ "error": result.as_ref().err(), "pending": pending(&root) }));
+        trace!(&root, "scan-handoff", json!({ "error": result.as_ref().err().map(|e| e.chars().take(256).collect::<String>()) }));
         // A busy queue lease is not an acknowledgement. Stay as the observer's
         // backup until a live successor scan exists. The observer recognizes
         // this atomic record and can launch that scan without waiting for exit.
@@ -339,7 +340,7 @@ pub(super) fn scan(args: &[String]) -> i32 {
 }
 
 fn run_with_budget(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -> Result<()>, budget: Duration) -> Result<()> {
-    trace(root, "work-start", Value::Null);
+    trace!(root, "work-start", Value::Null);
     interrupted()?;
     cancelled()?;
     let started = Instant::now();
@@ -359,7 +360,7 @@ fn run_with_budget(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -
     // complete retention operation, including gzip and lock acquisition, lives
     // inside this owned group, even before a background driver exists.
     let mut child = preparation::PreparationProcess::launch(&options, binary.as_os_str(), &args, "retention")?;
-    trace(&root, "worker-launched", json!(dir));
+    trace!(&root, "worker-launched", json!(dir));
     let result = (|| loop {
         interrupted()?;
         cancelled()?;
@@ -378,9 +379,9 @@ fn run_with_budget(root: &Path, completed: Option<&Path>, cancelled: impl Fn() -
     })();
     // Keep the existing WD drain (5 s idle / 60 s hard); this is additional
     // cleanup time, never an unbounded wait or a fresh retention budget.
-    trace(&root, "work-ended", json!({ "error": result.as_ref().err(), "elapsedMs": started.elapsed().as_millis() }));
+    trace!(&root, "work-ended", json!({ "error": result.as_ref().err().map(|e| e.chars().take(256).collect::<String>()), "elapsedMs": started.elapsed().as_millis() }));
     child.cleanup()?;
-    trace(&root, "cleanup-ended", json!({ "elapsedMs": started.elapsed().as_millis() }));
+    trace!(&root, "cleanup-ended", json!({ "elapsedMs": started.elapsed().as_millis() }));
     recovery::remove(&dir)?;
     result
 }
@@ -404,8 +405,8 @@ pub(super) fn worker(args: &[String]) -> i32 {
 
 // Deterministic crash barriers exist only in debug builds. They are one-shot
 // per fixture, never affect release binaries, and expire even if a test dies.
-pub(super) fn checkpoint(root: &Path, point: &str) {
-    trace(root, point, Value::Null);
+pub(super) fn checkpoint(root: &Path, point: &'static str) {
+    trace!(root, point, Value::Null);
     #[cfg(debug_assertions)]
     if std::env::var("SNAPBACK4_TEST_RETENTION_POINT").as_deref() == Ok(point) {
         let path = root.join("maintenance-test-point.json");
