@@ -1,0 +1,368 @@
+{
+  "snapback4": {
+    "startedAt": 1791296408.932605,
+    "endedAt": 1791303900.117822,
+    "supervisorWallSeconds": 7491.1852169036865,
+    "replayWallSeconds": 338.68965315818787,
+    "wallExcludingReplaySeconds": 7152.495563745499,
+    "tokens": {
+      "input": 856129,
+      "output": 150507,
+      "cacheRead": 51718784,
+      "cacheWrite": 0,
+      "reasoning": 45126,
+      "nonCachedTokens": 1006636
+    },
+    "milestones": [
+      {
+        "milestone": "m1",
+        "terminal": "green",
+        "startedAt": 1791296408.932605,
+        "terminalAt": 1791296945,
+        "authoringToTerminalSeconds": 536.0673949718475,
+        "phaseTokens": 157681,
+        "terminalRecord": "1791296945 milestone=m1 terminal=green evidence=artifacts/m1 suite=pass choreography=pass native=Hermes-export-only"
+      },
+      {
+        "milestone": "m2",
+        "terminal": "green",
+        "startedAt": 1791296945.70942,
+        "terminalAt": 1791297678,
+        "authoringToTerminalSeconds": 732.290580034256,
+        "phaseTokens": 207261,
+        "terminalRecord": "1791297678 milestone=m2 terminal=green evidence=artifacts/m2"
+      },
+      {
+        "milestone": "m3",
+        "terminal": "green",
+        "startedAt": 1791297677.982655,
+        "terminalAt": 1791298801,
+        "authoringToTerminalSeconds": 1123.0173449516296,
+        "phaseTokens": 99899,
+        "terminalRecord": "1791298801 milestone=m3 terminal=green evidence=artifacts/m3"
+      },
+      {
+        "milestone": "m4",
+        "terminal": "green",
+        "startedAt": 1791298801.590556,
+        "terminalAt": 1791299402,
+        "authoringToTerminalSeconds": 600.4094440937042,
+        "phaseTokens": 78040,
+        "terminalRecord": "1791299402 milestone=m4 terminal=green suite=artifacts/m4/suite.json choreography=artifacts/m4/choreo-output-2.txt Hermes=artifacts/m4/ios. All required checks pass; asset revocation and expired edit additionally verified. Unchanged helper TS2769 retained artifacts/m4/typecheck.txt."
+      },
+      {
+        "milestone": "m5",
+        "terminal": "green",
+        "startedAt": 1791299402.111885,
+        "terminalAt": 1791299939,
+        "authoringToTerminalSeconds": 536.8881149291992,
+        "phaseTokens": 57731,
+        "terminalRecord": "1791299939 milestone=m5 terminal=green suite=artifacts/m5/suite.json choreography=artifacts/m5/choreo-output.txt Hermes=artifacts/m5/ios. Correction agent-error search passed extraneous conversation argument to global query; narrowed arguments and surfaced refusal."
+      },
+      {
+        "milestone": "m6",
+        "terminal": "green",
+        "startedAt": 1791299940.094163,
+        "terminalAt": 1791300662,
+        "authoringToTerminalSeconds": 721.905837059021,
+        "phaseTokens": 96570,
+        "terminalRecord": "1791300662 milestone=m6 terminal=green suite=artifacts/m6/suite.json choreography=artifacts/m6/choreo-output.txt Hermes=artifacts/m6/ios. Native supplemental pending operator. Replay adapter and checkpoint probes completed within authoring."
+      },
+      {
+        "milestone": "m8",
+        "terminal": "green",
+        "startedAt": 1791301017.2833862,
+        "terminalAt": 1791303526,
+        "authoringToTerminalSeconds": 2508.7166137695312,
+        "phaseTokens": 309454,
+        "terminalRecord": "1791303526 milestone=m8 terminal=green suite=artifacts/m8/suite.json choreography=artifacts/m8/choreo-scroll-height.txt regressions=artifacts/m8/m3-scroll-height.txt,artifacts/m8/m4-scroll-height.txt Hermes=artifacts/m8/ios. Native supplemental not-recorded; no M7 or score. Typecheck retains unchanged helper TS2769 only."
+      }
+    ],
+    "phaseSafetySampling": {
+      "windows": [
+        {
+          "phase": "m1",
+          "at": 1791296408.932605
+        },
+        {
+          "phase": "m2",
+          "at": 1791296945.70942
+        },
+        {
+          "phase": "m3",
+          "at": 1791297677.982655
+        },
+        {
+          "phase": "m4",
+          "at": 1791298801.590556
+        },
+        {
+          "phase": "m5",
+          "at": 1791299402.111885
+        },
+        {
+          "phase": "m6",
+          "at": 1791299940.094163
+        },
+        {
+          "phase": "m8",
+          "at": 1791301017.2833862
+        }
+      ],
+      "tokens": {
+        "m1": 157681,
+        "m2": 207261,
+        "m3": 99899,
+        "m4": 78040,
+        "m5": 57731,
+        "m6": 96570,
+        "m8": 309454
+      },
+      "usageByPhase": {
+        "m1": {
+          "input": 145167,
+          "output": 12514,
+          "cacheRead": 4377216,
+          "cacheWrite": 0,
+          "reasoning": 704,
+          "nonCachedTokens": 157681
+        },
+        "m2": {
+          "input": 193322,
+          "output": 13939,
+          "cacheRead": 5999744,
+          "cacheWrite": 0,
+          "reasoning": 2404,
+          "nonCachedTokens": 207261
+        },
+        "m3": {
+          "input": 75880,
+          "output": 24019,
+          "cacheRead": 12264832,
+          "cacheWrite": 0,
+          "reasoning": 8870,
+          "nonCachedTokens": 99899
+        },
+        "m4": {
+          "input": 69488,
+          "output": 8552,
+          "cacheRead": 2159232,
+          "cacheWrite": 0,
+          "reasoning": 1098,
+          "nonCachedTokens": 78040
+        },
+        "m5": {
+          "input": 43360,
+          "output": 14371,
+          "cacheRead": 2808064,
+          "cacheWrite": 0,
+          "reasoning": 2089,
+          "nonCachedTokens": 57731
+        },
+        "m6": {
+          "input": 77372,
+          "output": 19198,
+          "cacheRead": 8383104,
+          "cacheWrite": 0,
+          "reasoning": 4763,
+          "nonCachedTokens": 96570
+        },
+        "m8": {
+          "input": 251540,
+          "output": 57914,
+          "cacheRead": 15726592,
+          "cacheWrite": 0,
+          "reasoning": 25198,
+          "nonCachedTokens": 309454
+        }
+      },
+      "tokenBasis": "non-cached-input-plus-output; cache reads/writes uncapped; reasoning included in output",
+      "purpose": "pilot safety; scored first-green settlement attribution not claimed"
+    },
+    "note": "Terminal greens are builder-declared; tokens use supervisor phase sampling, including reports/cleanup in M8, not scored first-green attribution.",
+    "terminalParse": "Exact leading milestone field; filenames referenced by a later milestone do not establish that earlier milestone terminal."
+  },
+  "convex": {
+    "startedAt": 1791353018.44892,
+    "endedAt": 1791361174.0906081,
+    "supervisorWallSeconds": 8155.6416919231415,
+    "replayWallSeconds": 1933.1639358997345,
+    "wallExcludingReplaySeconds": 6222.477756023407,
+    "tokens": {
+      "input": 511684,
+      "output": 160289,
+      "cacheRead": 41168768,
+      "cacheWrite": 0,
+      "reasoning": 50922,
+      "nonCachedTokens": 671973
+    },
+    "milestones": [
+      {
+        "milestone": "m1",
+        "terminal": "green",
+        "startedAt": 1791353018.44892,
+        "terminalAt": 1791353581,
+        "authoringToTerminalSeconds": 562.5510799884796,
+        "phaseTokens": 140662,
+        "terminalRecord": "1791353581 M1 terminal=green acceptance=evidence/m1-suite-1791353520496.json choreography=evidence/m1-choreography-3.log ios=evidence/m1-ios-final"
+      },
+      {
+        "milestone": "m2",
+        "terminal": "green",
+        "startedAt": 1791353581.382216,
+        "terminalAt": 1791354183,
+        "authoringToTerminalSeconds": 601.6177840232849,
+        "phaseTokens": 58992,
+        "terminalRecord": "1791354183 M2 terminal=green acceptance=evidence/m2-suite-1791354000432.json choreography=evidence/m2-choreography-2.log ios=evidence/m2-ios-final"
+      },
+      {
+        "milestone": "m3",
+        "terminal": "green",
+        "startedAt": 1791354183.3560221,
+        "terminalAt": 1791354731,
+        "authoringToTerminalSeconds": 547.6439778804779,
+        "phaseTokens": 53157,
+        "terminalRecord": "1791354731 M3 terminal=green acceptance=evidence/m3-suite-1791354646059.json choreography=evidence/m3-choreography-3.log ios=evidence/m3-ios-final"
+      },
+      {
+        "milestone": "m4",
+        "terminal": "green",
+        "startedAt": 1791354732.330137,
+        "terminalAt": 1791355077,
+        "authoringToTerminalSeconds": 344.66986298561096,
+        "phaseTokens": 25449,
+        "terminalRecord": "1791355077 M4 terminal=green acceptance=evidence/m4-suite-1791354896280.json choreography=evidence/m4-choreography-2.log ios=evidence/m4-ios-final"
+      },
+      {
+        "milestone": "m5",
+        "terminal": "green",
+        "startedAt": 1791355078.590764,
+        "terminalAt": 1791355846,
+        "authoringToTerminalSeconds": 767.4092359542847,
+        "phaseTokens": 52847,
+        "terminalRecord": "1791355846 M5 terminal=green acceptance=evidence/m5-suite-1791355800379.json choreography=evidence/m5-choreography.log media-regression=evidence/m5-media-regression.log ios=evidence/m5-ios-handoff"
+      },
+      {
+        "milestone": "m6",
+        "terminal": "green",
+        "startedAt": 1791355846.2912571,
+        "terminalAt": 1791356914,
+        "authoringToTerminalSeconds": 1067.7087428569794,
+        "phaseTokens": 146226,
+        "terminalRecord": "1791356914 M6 terminal=green acceptance=evidence/m6-suite-1791356692198.json choreography=evidence/m6-choreography-3.log ios=evidence/m6-ios-handoff; native semantic fixture validation passed, runtime external."
+      },
+      {
+        "milestone": "m8",
+        "terminal": "green",
+        "startedAt": 1791358848.616822,
+        "terminalAt": 1791360639,
+        "authoringToTerminalSeconds": 1790.3831779956818,
+        "phaseTokens": 194640,
+        "terminalRecord": "1791360639 M8 terminal=green final acceptance=evidence/m8-suite-1791360551524.json choreography=evidence/m8-final-choreography.log ios=evidence/m8-ios-delivered Release=evidence/release-delivered.log. Pull refresh uses new server query key; ready observation gated on restored ordinary token/cache readiness. Native semantic validator current UUID passed. Stopped owned app/backend PIDs [75798, 75838]."
+      }
+    ],
+    "phaseSafetySampling": {
+      "windows": [
+        {
+          "phase": "m1",
+          "at": 1791353018.44892
+        },
+        {
+          "phase": "m2",
+          "at": 1791353581.382216
+        },
+        {
+          "phase": "m3",
+          "at": 1791354183.3560221
+        },
+        {
+          "phase": "m4",
+          "at": 1791354732.330137
+        },
+        {
+          "phase": "m5",
+          "at": 1791355078.590764
+        },
+        {
+          "phase": "m6",
+          "at": 1791355846.2912571
+        },
+        {
+          "phase": "m8",
+          "at": 1791358848.616822
+        }
+      ],
+      "tokens": {
+        "m1": 140662,
+        "m2": 58992,
+        "m3": 53157,
+        "m4": 25449,
+        "m5": 52847,
+        "m6": 146226,
+        "m8": 194640
+      },
+      "usageByPhase": {
+        "m1": {
+          "input": 126179,
+          "output": 14483,
+          "cacheRead": 4513792,
+          "cacheWrite": 0,
+          "reasoning": 789,
+          "nonCachedTokens": 140662
+        },
+        "m2": {
+          "input": 43084,
+          "output": 15908,
+          "cacheRead": 4476032,
+          "cacheWrite": 0,
+          "reasoning": 3243,
+          "nonCachedTokens": 58992
+        },
+        "m3": {
+          "input": 38279,
+          "output": 14878,
+          "cacheRead": 4788224,
+          "cacheWrite": 0,
+          "reasoning": 4241,
+          "nonCachedTokens": 53157
+        },
+        "m4": {
+          "input": 15909,
+          "output": 9540,
+          "cacheRead": 2560256,
+          "cacheWrite": 0,
+          "reasoning": 3845,
+          "nonCachedTokens": 25449
+        },
+        "m5": {
+          "input": 32375,
+          "output": 20472,
+          "cacheRead": 5301504,
+          "cacheWrite": 0,
+          "reasoning": 7942,
+          "nonCachedTokens": 52847
+        },
+        "m6": {
+          "input": 116310,
+          "output": 29916,
+          "cacheRead": 9151616,
+          "cacheWrite": 0,
+          "reasoning": 7183,
+          "nonCachedTokens": 146226
+        },
+        "m8": {
+          "input": 139548,
+          "output": 55092,
+          "cacheRead": 10377344,
+          "cacheWrite": 0,
+          "reasoning": 23679,
+          "nonCachedTokens": 194640
+        }
+      },
+      "tokenBasis": "non-cached-input-plus-output; cache reads/writes uncapped; reasoning included in output",
+      "purpose": "pilot safety; scored first-green settlement attribution not claimed"
+    },
+    "note": "Terminal greens are builder-declared; tokens use supervisor phase sampling, including reports/cleanup in M8, not scored first-green attribution.",
+    "terminalParse": "Exact leading milestone field; filenames referenced by a later milestone do not establish that earlier milestone terminal."
+  }
+}

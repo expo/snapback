@@ -88190,3 +88190,30 @@ files, including 346 evidence files over 1,000,000 bytes.
 See the [Round-2 report](reports/20261006-ni2-native-instrument/README.md#round-2).
 Native.1 is byte-unchanged, no pilot was launched, no push was made, and
 `scoredUse` stays false.
+
+## 2026-10-07 — P3 Round 2: Xcode environment repair and native.2 rerun record
+
+Revision 11 makes CocoaPods' ignored `.xcode.env.local` operator-owned, preserving
+its original bytes/hash before pinning Node 24.18.0 in work copies. Both custody
+files carried Node 26.9.0; Snapback 4's measured Release had regenerated the file
+and used pinned Node 24.18.0 in all 16 build records. Its native results stand.
+Future builder login/non-login shells now retain the exact Node pin. The harness
+passes all 92 mini tests; Linux completes 92 with four macOS-only skips.
+
+The sealed Convex attempt-01 reclassification records an environment leak, no
+product outcome and zero setup reruns consumed. The normal revision-11
+continuation passed its initial audit, then stopped at the prepared-source
+audit on the shared UI kit's installed nested RN 0.86.2 versus required 0.86.3.
+No semantic check, operator Release build or M6/M8 ran after that refusal.
+No app repair or audit bypass was performed.
+
+Every retained Snapback 4 frame (2,030 M6 and 2,028 M8) and all 46 native trees
+were inspected. Both support the ordinary-media prime failure and unmeasured
+native assertions. Missing receipt/view-once child exposure, startup-video
+endpoint shortfall, the shared dependency/type gaps and the unresolved useAsset
+finding remain explicit. No qualified negative-control verdict is contradicted;
+the affected assertions were not reached. The
+[rerun report](reports/20261005-ni-native-protocol/PHASE-2-RERUN-RESULTS.md)
+recommends another candidate/pilot after named changes, with large evidence on
+eb1000 and committed indexes. Only the Apartment mini's dedicated simulator was
+used. The work is committed locally and not pushed.

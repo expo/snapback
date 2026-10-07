@@ -38,13 +38,15 @@ def continue_source_refusal(chain):
         failed |= code != 0
     return 2 if failed else 0
 
-def main(restart_void=None, resume_reclassification=None, continue_source_audit_ruling=False, continue_round5=False, continue_round6=False, resume_cleanup_refusal=False, resume_product_setup=False):
+def main(restart_void=None, resume_reclassification=None, continue_source_audit_ruling=False, continue_round5=False, continue_round6=False, resume_cleanup_refusal=False, resume_product_setup=False, resume_environment_leak=False):
+    from environment_recovery import admission as environment_admission
     from product_resume import admission as product_admission
     host_check()
     lease = lock('chain.lock')
-    if sum(bool(x) for x in (restart_void, resume_reclassification, continue_source_audit_ruling, continue_round5, continue_round6, resume_cleanup_refusal, resume_product_setup)) > 1:
+    if sum(bool(x) for x in (restart_void, resume_reclassification, continue_source_audit_ruling, continue_round5, continue_round6, resume_cleanup_refusal, resume_product_setup, resume_environment_leak)) > 1:
         raise RuntimeError('choose-restart-or-resume')
-    restart = admission(ROOT, restart_void) if not (resume_reclassification or continue_source_audit_ruling or continue_round5 or continue_round6 or resume_cleanup_refusal or resume_product_setup) else None
+    restart = admission(ROOT, restart_void) if not (resume_reclassification or continue_source_audit_ruling or continue_round5 or continue_round6 or resume_cleanup_refusal or resume_product_setup or resume_environment_leak) else None
+    environment = environment_admission(ROOT) if resume_environment_leak else None
     product = product_admission(ROOT) if resume_product_setup else None
     cleanup = cleanup_admission(ROOT) if resume_cleanup_refusal else None
     resume = resume_admission(ROOT, resume_reclassification) if resume_reclassification else None
@@ -53,7 +55,8 @@ def main(restart_void=None, resume_reclassification=None, continue_source_audit_
     round6 = round6_admission(ROOT) if continue_round6 else None
     chain = ROOT / 'logs' / ('chain-' + str(uuid.uuid4())); chain.mkdir()
     put(chain / 'start.json', {'at': time.time(), 'pid': os.getpid(),
-        'order': product['order'] if product else cleanup['order'] if cleanup else round6['order'] if round6 else round5['order'] if round5 else continuation['order'] if continuation else ['snapback4', 'convex']})
+        'order': environment['order'] if environment else product['order'] if product else cleanup['order'] if cleanup else round6['order'] if round6 else round5['order'] if round5 else continuation['order'] if continuation else ['snapback4', 'convex']})
+    if environment: put(chain / 'environment-leak-resume.json', environment)
     if product: put(chain / 'product-setup-resume.json', product)
     if cleanup: put(chain / 'cleanup-resume.json', cleanup)
     if restart: put(chain / 'restart.json', restart)
@@ -63,6 +66,11 @@ def main(restart_void=None, resume_reclassification=None, continue_source_audit_
     if round6: put(chain / 'round6-continuation.json', round6)
     code = 0
     try:
+        if environment:
+            verify(ready=True)
+            code = measure_convex(chain, ['--resume-environment-leak'])
+            if code: put(chain / 'failure.json', {'at': time.time(), 'reason': 'Convex gating path stopped; all findings retained'})
+            return code
         if round6:
             verify(ready=True)
             code = measure_convex(chain, ['--resume-wrapper-refusal'])
@@ -109,4 +117,5 @@ if __name__ == '__main__':
     group.add_argument('--continue-round6', action='store_true')
     group.add_argument('--resume-cleanup-refusal', action='store_true')
     group.add_argument('--resume-product-setup', action='store_true')
-    args = parser.parse_args(); sys.exit(main(args.restart_void, args.resume_reclassification, args.continue_source_audit_ruling, args.continue_round5, args.continue_round6, args.resume_cleanup_refusal, args.resume_product_setup))
+    group.add_argument('--resume-environment-leak', action='store_true')
+    args = parser.parse_args(); sys.exit(main(args.restart_void, args.resume_reclassification, args.continue_source_audit_ruling, args.continue_round5, args.continue_round6, args.resume_cleanup_refusal, args.resume_product_setup, args.resume_environment_leak))

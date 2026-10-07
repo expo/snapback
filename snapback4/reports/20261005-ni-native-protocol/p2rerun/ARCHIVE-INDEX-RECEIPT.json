@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "p3-round2-index-receipt.v1",
+  "archiveHost": "eb1000 / expose-builder-pixel",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261007-p2rerun",
+  "createdAt": "2026-10-07T09:34:21.070406+00:00",
+  "fileCount": 1604,
+  "totalBytes": 3241773429,
+  "largeFileCount": 73,
+  "allIndexedFilesRehashed": true,
+  "indexes": {
+    "EVIDENCE-INDEX.json": {
+      "bytes": 312402,
+      "sha256": "81ea6ef4d946f49c4c6cb2cd2c8561d19bc6d01beb916fc8bb2a32762e5f2abf"
+    },
+    "LARGE-FILES.json": {
+      "bytes": 14122,
+      "sha256": "a569fae2037eeaa1cf747656c9d4f6bbda5954bca6611e93a9516356b5f54ed8"
+    }
+  },
+  "packet": {
+    "packetSealSha256": "57d99d7ffb9f04a80d0d4b3232716171f0694658651b5adc09f4e4a7b05ff7e4",
+    "checkedFiles": 654,
+    "repoHarnessMatchesSealedRevision11": true,
+    "failures": []
+  },
+  "remoteTransfer": {
+    "checkedAt": "2026-10-07T09:26:53.937814+00:00",
+    "remoteIndexSha256": "387067daa6a64e5e91f0d9332149bc556413a76690c97eacc4d13cfd555368b0",
+    "remoteFilesChecked": 1319,
+    "remoteBytesChecked": 1127869521,
+    "allMatch": true,
+    "failures": [],
+    "initialComparison": "The M6 convenience copy lacked 29 xcresult files already present under packet/results; copied from the verified canonical archive and repeated the full comparison."
+  },
+  "archiveExports": [
+    {
+      "archive": "builder-custody.tgz",
+      "archiveSha256": "3a9cfb9897c49ec9adae2ee7c5161602a84e16fe740f18628c235710d0184f35",
+      "archiveBytes": 1669631275,
+      "allMembersMatchRemoteExport": true,
+      "entries": 11702,
+      "files": 10613,
+      "uncompressedFileBytes": 6549559976,
+      "manifestSha256": "084b37f931623f1a55b6cb6122d1cab6c7b167fa678780e7f8f0ce886266c1ea"
+    },
+    {
+      "archive": "prepared-native-evidence.tgz",
+      "archiveSha256": "5bd58f5f4876ecaeca4f92b3bde97ff79cf0ca90ca4ab9f642c57543a90afb16",
+      "archiveBytes": 242328053,
+      "allMembersMatchRemoteExport": true,
+      "entries": 4282,
+      "files": 3335,
+      "uncompressedFileBytes": 1038169300,
+      "manifestSha256": "e03d69871766858c6e10ab463f57d0447d39563e333573d10ec5157acb20f7f4"
+    },
+    {
+      "archive": "shipped-assets.tgz",
+      "archiveSha256": "7e284abd0a318bfe2085cab62db2ad59fccaf33e2f57f2762b2b9ac62008d57e",
+      "archiveBytes": 1246800,
+      "allMembersMatchRemoteExport": true,
+      "entries": 88,
+      "files": 61,
+      "uncompressedFileBytes": 3852508,
+      "manifestSha256": "5f42ee521b8c5ab0080cde652d69087130b3106d7a16fa2661fb77bb86d10b96"
+    }
+  ],
+  "unchangedQualifiedInputs": {
+    "unchangedQualifiedInputs": [
+      {
+        "path": "qualified-inputs/reference-and-runner-products.tgz",
+        "sha256": "25097fe1d65b2f7585f04a3879f88f05afadd74680a14894bd05f926511dcdc4",
+        "bytes": 42036928,
+        "copiedFrom": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/reference-and-runner-products.tgz",
+        "priorIndexSha256": "7f42cbb6b55c2b3a6c8122b9e4886c86c267bae0bb7d5525399158970145cf58"
+      },
+      {
+        "path": "qualified-inputs/fresh-phase2-packet-round2.tgz",
+        "sha256": "f8aa10d28b0061cb30e12365722caa3a2cedc2aa8a360942a66af9978aac0abd",
+        "bytes": 76949542,
+        "copiedFrom": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/fresh-phase2-packet-round2.tgz",
+        "priorIndexSha256": "7f42cbb6b55c2b3a6c8122b9e4886c86c267bae0bb7d5525399158970145cf58"
+      },
+      {
+        "path": "qualified-inputs/runtime-app.tgz",
+        "sha256": "fa5a70500109f55ab12e59292a043a0e885474c0e794068be84312beab165951",
+        "bytes": 7016869,
+        "copiedFrom": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/runtime-app.tgz",
+        "priorIndexSha256": "7f42cbb6b55c2b3a6c8122b9e4886c86c267bae0bb7d5525399158970145cf58"
+      }
+    ],
+    "source": "Committed NI2 Round-2 archive receipt; read-only copied and rehashed."
+  },
+  "shippedAssetCorrection": {
+    "restored": [
+      {
+        "originalExclusion": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/dist/assets/node_modules",
+        "supplementArchive": "shipped-assets.tgz",
+        "fileCount": 19,
+        "bytes": 2137871,
+        "reason": "Delivered assets; restored from original custody and bound by source-path/member hashes in supplement manifest."
+      },
+      {
+        "originalExclusion": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/.native-build/Build/Products/Release-iphonesimulator/Clique.app/assets/node_modules",
+        "supplementArchive": "shipped-assets.tgz",
+        "fileCount": 20,
+        "bytes": 21350,
+        "reason": "Delivered assets; restored from original custody and bound by source-path/member hashes in supplement manifest."
+      },
+      {
+        "originalExclusion": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/dist/assets/node_modules",
+        "supplementArchive": "shipped-assets.tgz",
+        "fileCount": 18,
+        "bytes": 20261,
+        "reason": "Delivered assets; restored from original custody and bound by source-path/member hashes in supplement manifest."
+      }
+    ],
+    "remainingExcludedDirectories": [
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/.browsers",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/.npm-cache",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/.tmp/metro-cache",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/ios/Pods",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/node_modules",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/.native-build/Build/Intermediates.noindex",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/.native-build/ModuleCache.noindex",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/.tmp/metro-cache",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/ios/Pods",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/node_modules",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/tools/social-messenger/choreography/node_modules",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      },
+      {
+        "path": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/vendor/ui/node_modules",
+        "reason": "reconstructible dependency/browser/compiler/source-control cache; complete custody hashes retained separately"
+      }
+    ]
+  },
+  "largeArchivesDoNotContainAllReconstructibleCaches": true,
+  "originalMiniCustodyRetained": true
+}

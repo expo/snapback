@@ -6,9 +6,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import after, builder, chain, common, processes, restart, isolation, derived_data, reclassification, runtime_proof
 import audit as source_audit
-import operator_inputs, source_ruling
+import operator_inputs, source_ruling, xcode_environment
 import round5
 from cleanup_selftest import CleanupSafety
+from environment_selftest import EnvironmentSafety
 
 def native_component_root():
     """Resolve fixtures in both the assembled packet and source checkout."""
@@ -282,7 +283,7 @@ class Safety(unittest.TestCase):
                 return SimpleNamespace(returncode=0, stdout=json.dumps({
                     'valid': segment == 'm8', 'pass': True if segment == 'm8' else None}), stderr='')
             with ExitStack() as stack:
-                patches = [(after, 'ROOT', root), (after, 'NATIVE', root / 'native'),
+                patches = [(xcode_environment, 'normalize', lambda *args: None), (after, 'ROOT', root), (after, 'NATIVE', root / 'native'),
                     (after, 'host_check', lambda: None), (after, 'verify', lambda **kw: None),
                     (after, 'lock', lambda name: SimpleNamespace(close=lambda: None)),
                     (after, 'free_ports', lambda backend: None), (after, 'execution_environment', lambda backend: {}),

@@ -49,6 +49,12 @@ source. Trace such behavior against the supplied fixed values, not hypothetical
 operator choices. Driver stdin origins come from the same fixed origin above.
 Initial generated files may precede relocation; record those findings. The
 prepared-source audit must establish regenerated build inputs are custody-bound.
+ios/.xcode.env.local is a CocoaPods-generated machine-local file, operator-regenerated
+with the exact pinned NODE_BINARY before this audit and the Release build. Its
+original content/hash and replacement are retained in the attempt's xcode-env
+receipts. Treat this one file as operator setup, not authored substitution.
+Verify its present value matches the fixed NODE_BINARY above. Continue auditing
+authored .xcode.env, build scripts and every other substitution normally.
 This audit stage is {name}. If prepared-source-audit, inspect the generated
 iOS project and build phases too; no prebuilt app may substitute for compilation
 of this custody source. Reject source copies from other apps or paths.

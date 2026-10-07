@@ -1,0 +1,29 @@
+{
+  "backend": "convex",
+  "startedAt": 1791362972.780101,
+  "endedAt": 1791363668.812747,
+  "segments": {},
+  "outcome": "handoff-refused-by-source-audit",
+  "observedProductFailure": false,
+  "setupRerunEligible": false,
+  "environmentLeakAdmission": {
+    "path": "attempts/convex-environment-leak-reclassified/RECLASSIFICATION.json",
+    "sha256": "b7a01b5a0d968ae097194ae2e474a1586b1688f0d707151e72939ec6e9052846",
+    "priorChains": [
+      "chain-59196a49-2371-4a52-af62-446dc08d1e80",
+      "chain-fec3cb18-ab16-41cd-b308-1a679a8e034c",
+      "chain-ff244727-a6b9-4f63-8af4-2204a9ab4df8"
+    ],
+    "setupRerunsConsumed": 0,
+    "order": [
+      "convex-after-builder"
+    ]
+  },
+  "reason": "independent-source-audit-refused; see retained findings",
+  "failureStage": "builder-build",
+  "failureAttribution": "source-audit pilot finding; not a void or setup failure",
+  "cleanupComplete": true,
+  "operatorWallSeconds": 696.0326459407806,
+  "operatorAttentionSeconds": null,
+  "retainedScratch": "/tmp/clique-native-pilot-convex-3bueaduo"
+}

@@ -421,7 +421,9 @@ def diagnostic_audit(work, attempt, env):
         put(attempt / 'prepared-source-audit-error.json', {'label': source_ruling.LABEL,
             'gating': False, 'error': str(error), 'passClaimed': False})
 
-def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resume_cleanup_refusal=False, resume_product_setup=False):
+def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resume_cleanup_refusal=False, resume_product_setup=False, resume_environment_leak=False):
+    if resume_environment_leak and (b != 'convex' or repair or diagnostic or resume_wrapper_refusal or resume_cleanup_refusal or resume_product_setup):
+        raise RuntimeError('environment-leak-resume-is-convex-only')
     if resume_product_setup and (b != "snapback4" or repair or diagnostic or resume_wrapper_refusal or resume_cleanup_refusal):
         raise RuntimeError("product-setup-resume-is-snapback4-only")
     if resume_cleanup_refusal and (b != 'snapback4' or repair or diagnostic or resume_wrapper_refusal):
@@ -435,7 +437,12 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
     lease = lock('authoring-or-operator.lock')
     parent = ROOT / 'results' / b; parent.mkdir(exist_ok=True)
     previous = [] if diagnostic else sorted(parent.glob('attempt-*'))
-    if resume_product_setup:
+    if resume_environment_leak:
+        from environment_recovery import verify_record as verify_environment_leak
+        environment_receipt = verify_environment_leak(ROOT)
+        if [p.name for p in previous] != ['attempt-01']:
+            raise RuntimeError('environment-leak-resume-already-consumed')
+    elif resume_product_setup:
         from product_resume import verify_record as verify_product_setup
         product_receipt = verify_product_setup(ROOT)
         if [p.name for p in previous] != ['attempt-01', 'attempt-02']:
@@ -471,6 +478,7 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
         summary['observedProductFailure'] = True
     if resume_wrapper_refusal: summary['wrapperRefusalAdmission'] = wrapper_receipt
     if resume_cleanup_refusal: summary['cleanupRefusalAdmission'] = cleanup_receipt
+    if resume_environment_leak: summary['environmentLeakAdmission'] = environment_receipt
     if end and 'measurementAdmission' in end: summary['measurementAdmission'] = end['measurementAdmission']
     put(attempt / 'start.json', {'at': started, 'builder': end, 'pid': os.getpid()})
     work = None; browser_server = None; stage = 'operator-setup'
@@ -538,9 +546,12 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
             args = build['buildArgv']
             wrapper = build_wrapper(args, work, scratch / 'DerivedData')
             env = execution_environment(b)
+            from xcode_environment import normalize
+            normalize(work, attempt / 'xcode-env-before-source-audit.json', env)
             if not diagnostic: audit(work, attempt, env=env)
             stage = 'builder-prepare'
             run(native_command(build['prepareArgv']), work, attempt / 'prepare.log', env)
+            normalize(work, attempt / 'xcode-env-after-prepare.json', env)
             # Both dependency tree and every source/config file are bound before build.
             put(attempt / 'prepared-inputs.json', inventory(work))
             stage = 'builder-build'
@@ -556,6 +567,7 @@ def execute(b, repair=None, diagnostic=False, resume_wrapper_refusal=False, resu
             if derived.exists() or derived.is_symlink():
                 raise RuntimeError('semantic-handoff-must-precede-compilation')
             stage = 'builder-build'
+            normalize(work, attempt / 'xcode-env-before-build.json', env)
             run(native_command(args), work, attempt / 'release-build.log', env)
             app = Path(build['app']); app = app if app.is_absolute() else work / app
             identity = app_hash(app, expected_bundle)
@@ -683,6 +695,7 @@ if __name__ == '__main__':
     p.add_argument('--resume-wrapper-refusal', action='store_true')
     p.add_argument('--resume-cleanup-refusal', action='store_true')
     p.add_argument('--resume-product-setup', action='store_true')
+    p.add_argument('--resume-environment-leak', action='store_true')
     p.add_argument('--static-work', type=Path, help='Read-only admission; no model/build/backend/simulator')
     p.add_argument('--static-scratch', type=Path, help='Projected fresh attempt directory for static admission')
     a = p.parse_args()
@@ -690,4 +703,4 @@ if __name__ == '__main__':
         work = a.static_work.resolve(); scratch = a.static_scratch.resolve() if a.static_scratch else work.parent
         report = static_admission(a.backend, work, scratch, ROOT / 'preparation/static-projection' / a.backend)
         print(json.dumps(report, indent=2)); sys.exit(0 if report['valid'] else 2)
-    sys.exit(execute(a.backend, a.repair, a.diagnostic_audit_refused, a.resume_wrapper_refusal, a.resume_cleanup_refusal, a.resume_product_setup))
+    sys.exit(execute(a.backend, a.repair, a.diagnostic_audit_refused, a.resume_wrapper_refusal, a.resume_cleanup_refusal, a.resume_product_setup, a.resume_environment_leak))
