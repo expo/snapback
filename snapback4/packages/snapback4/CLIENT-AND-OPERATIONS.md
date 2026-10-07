@@ -158,11 +158,18 @@ retirement. Rotation replaces the arm; `useOnline` subscribes automatically,
 and headless consumers can use `app.onOnlineChange`. Reacquire `app.online` after
 a change; cached old handles refuse `E_AUTH`. Account change, sign-out and close
 withdraw observations and fence new requests, including requests queued behind
-an asynchronous authority check. Dispatched signals/actions retain their outcome;
+an asynchronous authority check. In both device and no-device apps, each arm
+operation retains its originating arm and credential fence through queues,
+refresh waits and retries; the transport rechecks it after shared authority,
+immediately before dispatch. It cannot borrow the replacement credential.
+Observation and renewal sharing stays within an arm. An arm refusal does not
+invalidate the app's current session. Dispatched signals/actions retain their outcome;
 the private device arm drains for up to 30 seconds before closing. An action
 whose response never arrives then returns pending with its original ID. It never logs out
 the app. Cleanup during ordinary screen unmount can still send stopTyping;
-cleanup after credential retirement cannot send, and signal expiry covers it.
+cleanup after credential retirement cannot send, and the four-second typing
+expiry covers it. The SDK fences immediately: it does not delay retirement for
+a best-effort stop or send that stop as the next account.
 
 While signed out, operations refuse `E_AUTH`. When disconnected, one-shots,
 signals and actions refuse `E_OFFLINE` (a lost action response can instead be

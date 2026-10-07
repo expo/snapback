@@ -17,6 +17,7 @@ import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
 import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
+import { armRefusal, requestArm } from "./online-arm-fence.ts";
 export type { Online } from "./app-online-arm.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
@@ -436,6 +437,8 @@ export function createApp(options: AppOptions): App {
       }
       if (scope.sealing && path === new URL(url + "/auth/refresh").pathname) throw new Error("global logout is selecting its retry credential");
       if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+      const retiredArm = armRefusal(requestArm(init));
+      if (retiredArm) return Response.json({ denied: retiredArm }, { status: 401 });
       if (currentArm && !currentArm()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
       // The epoch check awaits storage. A concurrent response can retire this
       // store while it waits; never dispatch a fresh request through that gap.

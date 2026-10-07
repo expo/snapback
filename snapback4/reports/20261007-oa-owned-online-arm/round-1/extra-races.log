@@ -1,0 +1,10 @@
+✔ online: an action auth retry keeps its originating arm while waiting for shared rotation (220.499193ms)
+✔ online: retired observations do not share queued work with the new arm or app client (203.440409ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 569.69805

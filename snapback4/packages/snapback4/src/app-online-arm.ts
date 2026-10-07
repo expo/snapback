@@ -3,6 +3,7 @@ import type { Client, Ephemeral, Refusal, Signal } from "./contract.ts";
 import { guardClient } from "./app-client.ts";
 import { mintId } from "./client.ts";
 import { QUERY_LIFETIME } from "./query-settlement.ts";
+import { armOperations } from "./online-arm-fence.ts";
 
 /** Server reads, transient signals and actions under the app's current session.
  * Durable mutations belong to app.mutate. Identity and lifetime belong to app.auth. */
@@ -41,10 +42,12 @@ export function ownOnline(raw: Client, check: () => Promise<boolean>, valid: () 
     return call;
   }
   const view = onlineView(guarded.client);
+  const bind = armOperations(valid, why);
   const online: Online = { ...view,
-    query: (op, args) => track(view.query(op, args)),
-    mutate: (op, args) => track(view.mutate(op, args)),
-    act: (op, args, options) => track(view.act(op, args, options)),
+    query: (op, args) => track(view.query(bind(op), args)),
+    observe: (op, args, options) => view.observe(bind(op), args, options),
+    mutate: (op, args) => track(view.mutate(bind(op), args)),
+    act: (op, args, options) => track(view.act(bind(op), args, options)),
   };
   let retired = false;
   return { online, fence() {

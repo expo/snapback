@@ -39,7 +39,7 @@ the provider call and `doctor` shows the worker's state.
 `createApp` owns session, replica and online access. `const online = useOnline()` from `snapback4/react` follows rotation/account changes under AppProvider; never borrow a bearer. `useTyping(online, conversation)` uses only ephemeral mutations.
 
 The hook owns observations/renewals. Call change on keystrokes; stop on send, blur or backgrounding. Unmount/identity change dispose it. Disconnect cancels renewal; reconnect needs a new keystroke.
-Four-second expiry covers failed cleanup, suspension and revoked membership. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
+Four-second expiry covers failed cleanup, suspension, revoked membership and credential retirement: a retired arm cannot send stopTyping or borrow the next account. Ordinary unmount can still send it. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
 
 ```ts
 // src/useTyping.ts

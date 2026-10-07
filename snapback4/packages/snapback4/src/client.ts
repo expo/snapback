@@ -42,6 +42,7 @@ import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
+import { armRefusal, armRequest, operationArm, type ArmFence } from "./online-arm-fence.ts";
 import { sha256, utf8 } from "./sha256.ts";
 
 export interface ClientOptions {
@@ -539,9 +540,9 @@ export function createClient(options: ClientOptions): Client {
 
   // A quiet request is a background presence refresh: its failure retries on the
   // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
-  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal) {
+  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal, arm?: ArmFence) {
     let arrived = false;
-    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, eph, quiet, signal), signal ?? eph?.signal ?? aborter.signal, () => arrived).then(result => {
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, eph, quiet, signal, arm), signal ?? eph?.signal ?? aborter.signal, () => arrived).then(result => {
       // A terminal store change owns outstanding effect outcomes: preserve its
       // explicit unknown-outcome refusal instead of an ordinary offline retry.
       if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
@@ -552,8 +553,10 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<{ ok: true; json: Record<string, unknown>; revision?: number } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal, arm?: ArmFence): Promise<{ ok: true; json: Record<string, unknown>; revision?: number } | { ok: false }> {
     if (refreshing) await refreshing;
+    const retired = armRefusal(arm);
+    if (retired) return { ok: true, json: { denied: retired } };
     if (signal?.aborted || closed || !credentials || storeRefusal || (eph && !ephemeralReads.current(eph))) return { ok: false };
     const revision = credentialRevision;
     const floor = minimumReadSeq;
@@ -580,9 +583,9 @@ export function createClient(options: ClientOptions): Client {
       }
       // A synchronous dispatch subscriber can end or rotate this session.
       if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
-      const send = () => doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) });
+      const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
       const { response, json } = path.startsWith("/q/")
-        ? await readWithAdmissionRetry(send, () => !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
+        ? await readWithAdmissionRetry(send, () => !armRefusal(arm) && !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
         : await send().then(async response => ({ response, json: await readResponse(response) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
@@ -601,11 +604,13 @@ export function createClient(options: ClientOptions): Client {
         retryAfterMs = retryAfter(response.headers.get("retry-after"));
         retryOverload = why.code === "E_RATE_LIMIT";
       }
-      if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
+      // An arm's local refusal is not a rejection of the shared client's live
+      // credential. Retired calls cannot retry under its replacement either.
+      if (!armRefusal(arm) && await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
         if (attempt === 3) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
-        return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet, signal);
+        return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet, signal, arm);
       }
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
@@ -631,7 +636,7 @@ export function createClient(options: ClientOptions): Client {
     const epoch = queryEpoch;
     if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
-    const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal);
+    const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal, operationArm(op));
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, valueDevice: null, valueServer: null, nextExpiry: null };
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null, transportOffline: true };
@@ -1038,8 +1043,9 @@ export function createClient(options: ClientOptions): Client {
     now: clock.issuedDeviceNow,
     act(op, args, options) {
       if (readGate) return Promise.resolve({ state: "failed", id: options?.id ?? mintId(), why: readOnlyRefusal() });
+      const arm = operationArm(op);
       const response = closingResponses.request();
-      return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response), () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
+      return act(op, args, options, options?.id ?? mintId(), (path, body) => post(path, body, response, undefined, false, undefined, arm), () => armRefusal(arm) ?? storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async () => { if (closed) { await closingResponses.done; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : response.take(); } });
     },
     query: settledQuery(async <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => {
       if (link === "offline") { void probe(); return () => ({ denied: offline() }); }
@@ -1064,7 +1070,7 @@ export function createClient(options: ClientOptions): Client {
           return watch;
         },
         watch => { watchEphemeral(watch); void scheduleRead(watch); void poll(); },
-        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
+        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => armRefusal(operationArm(op)) ?? storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },
     mutate: routeMutations(options.readOnly ? () => Promise.resolve({ state: "failed", id: mintId(), why: readOnlyRefusal() }) : ephemeral!.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {

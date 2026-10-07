@@ -234,3 +234,9 @@ export function awaitBoundary() {
 // identity synchronously after its existing authority await. The held-call,
 // rotation/account/logout and late-read tests live in app-online-arm.test.mjs.
 // Existing delivery sites, recipe mappings and outbox custody stay unchanged.
+// OA round 1: client and ephemeral await expressions carry the private arm
+// fence into existing requests/retries; their await counts are unchanged.
+// online-arm-fence is synchronous, memory-only metadata (no wire or storage
+// shape changes). Both-tier lifecycle tests and the three Astra reproductions
+// exercise retirement before dispatch and preservation after dispatch. No
+// delivery I/O site, classification or fault recipe changes.

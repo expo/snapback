@@ -91,7 +91,9 @@ reports the server refusal.
 `useOnline()` follows the current session without exposing its bearer; rotation
 and account change fence old handles and drain dispatched calls. `useTyping` owns its observation and short
 renewal interval. Send, blur, inactivity, backgrounding, disconnect and
-unmount stop it. Failed cleanup expires within the schema's four-second life.
+unmount stop it. Ordinary unmount sends stopTyping; after credential retirement
+the arm cannot send it or borrow the next account. The schema's four-second
+expiry covers retirement and other failed cleanup, without delaying the fence.
 Reconnect does not replay a hint; the next keystroke starts a new one. Typing
 never enters the durable outbox and its availability never gates the composer.
 

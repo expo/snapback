@@ -77,7 +77,7 @@
   },
   "client.ts": {
     "count": 62,
-    "sha256": "f5f65fdea4740cfdecd2c5db74b57840a6d6cbf3435fb6cfec47f6845b58cf13"
+    "sha256": "ad440d009d0719c4d3007f615e98565cf876fac8a1c764fdf7d7c4dd9544bc36"
   },
   "clock.ts": {
     "count": 7,
@@ -121,7 +121,7 @@
   },
   "ephemeral.ts": {
     "count": 4,
-    "sha256": "add5087a9c664068cb4fc3d8d3a0705f5c591ee65258387d11c00e0cc7f104d6"
+    "sha256": "f40c7e093c24eaa1b019878b879217c8dec3b238869f352e725174423b683d64"
   },
   "http-response.ts": {
     "count": 6,
@@ -244,6 +244,10 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "observe-watch.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "online-arm-fence.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },

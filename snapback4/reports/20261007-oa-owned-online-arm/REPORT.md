@@ -1,5 +1,11 @@
 # OA — createApp owns online access
 
+Round-1 correction: review found that the no-device arm did not retain its
+dispatch fence inside the shared client. The original verification below missed
+those races. [Round 1](round-1/REPORT.md) records the reproduced defect, fix and
+expanded verification; its custody findings supersede the original universal
+fencing claim below.
+
 Date: 2026-10-07. Baseline: `2a5fc454aacb2e936c4045eaf6eef5249e486a80`
 (LLP 3000.033's landed revision). Branch: `sb4-intent/oa-owned-online-arm`.
 Work stayed in `/home/ccheever/sb4-intent/lane-oa` on eb1000 (hostname
