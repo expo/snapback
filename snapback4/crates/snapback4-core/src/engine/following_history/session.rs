@@ -152,13 +152,14 @@ pub(super) fn advance(
             let epoch = edge.field("epoch")?.as_str()?.to_owned();
             s.edge_after = Some(vec![Value::Id(actor.clone()), edge.field("id")?.clone()]);
             progress = true;
+            // A self edge is never an eligible roster lane, regardless of birth.
+            if actor == s.viewer {
+                continue;
+            }
             if epoch > s.bound {
                 // Post-bound follow churn can obstruct the discovery range just
                 // as post-bound backdated births can obstruct an event lane.
                 obstructed = true;
-                continue;
-            }
-            if actor == s.viewer {
                 continue;
             }
             s.pending = Some(Lane {
@@ -291,12 +292,14 @@ pub(super) fn advance(
     }
     if ready {
         let n = s.staged.len() as u64;
-        assert!(b.take(Metered {
+        if !b.take(Metered {
             examined: n * 4,
             rule_probes: n * 2,
             steps: n * 128,
             ..Default::default()
-        }));
+        }) {
+            return simple(Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }, b);
+        }
         for staged in &s.staged {
             if !staged.cards.is_empty() {
                 if !b.fits(projection::reservation()) {
@@ -321,6 +324,25 @@ pub(super) fn advance(
     }
     let end = ready && s.frontier.peek().is_none() && s.pending.is_none() && s.discovered;
     let next = if end { None } else { Some(token()?) };
+    let retain_frontier = s.retained || !ready;
+    let frontier_writes = if retain_frontier { s.dirty.len() as u64 } else { 0 };
+    // Authority probes can consume the fixed publication reserve. Preflight a
+    // conservative response size BEFORE cloning cards or encoding pinned bytes.
+    let wire_bound = ENVELOPE + if ready { s.item_bytes } else { 0 };
+    let heap_bound = if projection.is_some() {
+        wire_bound * 2 + 512 + if ready {
+            s.staged.iter().map(|x| x.item.retained_bytes()).sum::<u64>()
+        } else { 0 }
+    } else { wire_bound * 4 + 512 };
+    if !b.fits(Metered {
+        rows_written: frontier_writes + 5,
+        heap_bytes: heap_bound,
+        steps: 64,
+        output_bytes: wire_bound.saturating_sub(ENVELOPE),
+        ..Default::default()
+    }) {
+        return simple(Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }, b);
+    }
     let response = if ready {
         Response::Page {
             items: s.staged.iter().map(|x| x.item.clone()).collect(),
@@ -336,19 +358,10 @@ pub(super) fn advance(
         }
     };
     let answer = pinned(response);
-    let retain_frontier = s.retained || !ready;
-    let frontier_writes = if retain_frontier {
-        s.dirty.len() as u64
-    } else {
-        0
-    };
     let response_bytes = if projection.is_some() {
         answer.bytes.len() as u64 * 2
             + 512
-            + s.staged
-                .iter()
-                .map(|x| x.item.retained_bytes())
-                .sum::<u64>()
+            + if ready { s.staged.iter().map(|x| x.item.retained_bytes()).sum::<u64>() } else { 0 }
     } else {
         answer.bytes.len() as u64 * 4 + 512
     };
@@ -394,10 +407,9 @@ pub(super) fn advance(
         output_bytes: (answer.bytes.len() as u64).saturating_sub(ENVELOPE),
         ..Default::default()
     };
-    assert!(
-        b.take(cost),
-        "publication reservation must cover the whole atomic checkpoint"
-    );
+    if !b.take(cost) {
+        return simple(Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }, b);
+    }
     let mut witnesses = Vec::new();
     let mut cards = Vec::new();
     if ready {

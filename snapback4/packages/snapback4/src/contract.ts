@@ -9,6 +9,9 @@ export interface Session {
   readonly kind: string;
   readonly token: string;
   readonly expiresAt: number;
+  /** Absent on legacy persisted sessions; authority always comes from the server. */
+  readonly scope?: "full" | "read";
+  readonly capExpiresAt?: number;
 }
 
 export type SignIn = { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly why: Refusal };
@@ -284,6 +287,7 @@ export interface Residency {
 }
 
 export interface Client {
+  readonly readOnly?: boolean;
   /** Local storage diagnostics; null on the online tier or mock. Rejects with
    * a coded error on a closed/signed-out local client or a failed device read. */
   residency(): Promise<Residency | null>;
@@ -353,6 +357,40 @@ export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | 
   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }
 
+/** Exhaustive handlers for the same five meanings on point and page reads. */
+export interface ReadMatchHandlers<T, R = unknown> {
+  loading: (read: Extract<Read<T>, { loading: true }>) => R;
+  denied: (why: Refusal, read: Extract<Read<T>, { denied: Refusal }>) => R;
+  absent: (read: Absent<T>) => R;
+  partial: (data: T, read: Partial<T>) => R;
+  present: (data: Present<T>["data"], read: Present<T>) => R;
+}
+
+/** `otherwise` covers omitted loading/absent/present handlers only.
+ * Denial and uncertain emptiness always require an explicit decision. */
+export type ReadMatchFallbackHandlers<T, R = unknown> =
+  Pick<ReadMatchHandlers<T, R>, "denied" | "partial"> & {
+    [K in "loading" | "absent" | "present"]?: ReadMatchHandlers<T, R>[K];
+  } & { otherwise: (read: Extract<Read<T>, { loading: true }> | Absent<T> | Present<T>) => R };
+
+/** Render the current read, preserving its narrowed data and metadata.
+ * Pure dispatch: no reclassification, subscription, retention or permission.
+ * For pages pass page.read; present pages may still be incomplete.
+ * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
+ */
+export function matchRead<T, H extends ReadMatchHandlers<NoInfer<T>> | ReadMatchFallbackHandlers<NoInfer<T>>>(
+  read: Read<T>, handlers: H,
+): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
+export function matchRead<T, R>(read: Read<T>, handlers: (ReadMatchHandlers<T, R> & { otherwise?: never }) | ReadMatchFallbackHandlers<T, R>): R {
+  if ("loading" in read) return handlers.loading ? handlers.loading(read) : handlers.otherwise!(read);
+  if ("denied" in read) return handlers.denied(read.denied, read);
+  switch (read.existence) {
+    case "absent": return handlers.absent ? handlers.absent(read) : handlers.otherwise!(read);
+    case "partial": return handlers.partial(read.data, read);
+    case "present": return handlers.present ? handlers.present(read.data, read) : handlers.otherwise!(read);
+  }
+}
+
 /** Display metadata only; never an authorization or mutation-admission decision. */
 export interface ReadPresentation {
   readonly existence: ReturnType<typeof existence>;
@@ -377,7 +415,7 @@ export interface ReadPresentation {
  * Loading and denied have no ready metadata: all flags except loading's `pending`
  * are false, and `since` is absent. Stale absence is still absence at the acquired
  * watermark; revalidation is a separate fact. These flags do not authorize actions
- * or narrow read.data; narrow the original read with isReady/read.existence.
+ * or narrow read.data; use matchRead for typed rendering, or isReady/read.existence.
  * @ref LLP 3000.031#7 — a pure presentation adapter over the existing read contract.
  */
 export function readPresentation<T>(read: Read<T>): ReadPresentation {

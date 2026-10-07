@@ -147,14 +147,14 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
 fn asset(kind: &ColumnType) -> bool {
     match kind {
         ColumnType::Image { .. } | ColumnType::Video { .. } => true,
-        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => asset(inner),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => asset(inner),
         _ => false,
     }
 }
 fn reference(kind: &ColumnType) -> Option<&str> {
     match kind {
         ColumnType::Ref { table } => Some(table),
-        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => reference(inner),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => reference(inner),
         _ => None,
     }
 }

@@ -1,0 +1,33 @@
+{
+  "version": "snapback.full-journey-scale-replay.v1",
+  "attempted": true,
+  "capSeconds": 14400,
+  "probeWallSecondsExcluded": 27.158,
+  "attempts": [
+    {
+      "attempt": 1,
+      "startedAt": "2026-10-06T01:58:01.001Z",
+      "finishedAt": "2026-10-06T01:58:01.001Z",
+      "settledPrefix": 0,
+      "continuationOf": null,
+      "disposition": "continued",
+      "failure": "Error: whoAmI: {\"code\":\"E_AUTH\",\"family\":\"auth\",\"message\":\"sign in to continue\"}"
+    },
+    {
+      "attempt": 2,
+      "startedAt": "2026-10-06T02:02:23.452Z",
+      "finishedAt": "2026-10-06T03:34:27.843Z",
+      "settledPrefix": 167157,
+      "continuationOf": 1,
+      "disposition": "completed",
+      "failure": null
+    }
+  ],
+  "receipt": {
+    "path": "evidence/scale-receipt.json",
+    "sha256": "sha256:bdd60b8553f6d23f27921b02738b96470c6b1df6fbb360bb221ce77b4fd945e7"
+  },
+  "wallSeconds": 5497.232999999999,
+  "capFractionUsed": 0.38175229166666663,
+  "capExhausted": false
+}

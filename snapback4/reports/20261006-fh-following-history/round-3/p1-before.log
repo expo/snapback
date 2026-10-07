@@ -1,0 +1,53 @@
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-lang)
+warning: field `schema` is never read
+ --> crates/snapback4-core/tests/common/acquisition.rs:7:9
+  |
+6 | pub struct Fixture {
+  |            ------- field in this struct
+7 |     pub schema: Schema,
+  |         ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "rows") generated 1 warning
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-core/tests/../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "lane_source") generated 1 warning
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 1m 03s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-78afa38362958c09)
+
+running 1 test
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [posts=8]; 8 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 0 stored rows and 8 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 8 source rows, 8 events, 0 follows; 8 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+
+thread 'engine::following_history::tests::matrix::smaller_allowances_refuse_retained_page_without_advancing_and_same_token_recovers' (3960732) panicked at crates/snapback4-core/src/engine/following_history/session.rs:397:5:
+publication reservation must cover the whole atomic checkpoint
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::following_history::tests::matrix::smaller_allowances_refuse_retained_page_without_advancing_and_same_token_recovers ... FAILED
+
+failures:
+
+failures:
+    engine::following_history::tests::matrix::smaller_allowances_refuse_retained_page_without_advancing_and_same_token_recovers
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 269 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

@@ -1,0 +1,13 @@
+{
+  "source": "logs/snapback4/native-rollout.jsonl; now attempts/snapback4-attempt-01-void/logs/snapback4/native-rollout.jsonl",
+  "sourceSha256": "489b63afe3cc4d98b1cc000d1a97d70bbd8dae90b3787d7f26f670b8d1d4ac53",
+  "selection": "Every token_count and compacted record, unchanged JSON values; excludes prompt/tool/app data",
+  "records": 25,
+  "elapsedSeconds": 409.1838610172272,
+  "oldCapTokens": 2009917,
+  "nonCachedTokens": 135613,
+  "cacheRead": 1874304,
+  "cacheWrite": 0,
+  "output": 9857,
+  "reasoningIncludedInOutput": 476
+}

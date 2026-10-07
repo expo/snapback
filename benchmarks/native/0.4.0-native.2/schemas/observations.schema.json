@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/clique-native/1/observations",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "const": "clique-native/1"
+    },
+    "runId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "processNonce": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "elapsedMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "receivedAt": {
+      "type": "number",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "ready",
+        "screen",
+        "write",
+        "media",
+        "search"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "protocol",
+    "runId",
+    "processNonce",
+    "sequence",
+    "elapsedMs",
+    "receivedAt",
+    "kind",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "ready"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "principal": {
+                "type": "string",
+                "minLength": 1
+              },
+              "origin": {
+                "type": "string",
+                "minLength": 1
+              },
+              "authenticationRestored": {
+                "const": true
+              },
+              "build": {
+                "type": "object",
+                "properties": {
+                  "bundleId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nativeSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "hermesSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "bundleId",
+                  "nativeSha256",
+                  "hermesSha256"
+                ],
+                "additionalProperties": false
+              },
+              "development": {
+                "const": false
+              }
+            },
+            "required": [
+              "principal",
+              "origin",
+              "authenticationRestored",
+              "build",
+              "development"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "screen"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "route": {
+                "enum": [
+                  "auth",
+                  "chats",
+                  "conversation",
+                  "search"
+                ]
+              },
+              "conversationId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "messageId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "bodyHash": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "receipt": {
+                      "enum": [
+                        "pending",
+                        "sent",
+                        "delivered",
+                        "read",
+                        null
+                      ]
+                    }
+                  },
+                  "required": [
+                    "messageId",
+                    "bodyHash",
+                    "receipt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "route",
+              "conversationId",
+              "rows"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "write"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "ordinal": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "operationId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "messageId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bodyHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "state": {
+                "enum": [
+                  "pending",
+                  "settled",
+                  "refused"
+                ]
+              }
+            },
+            "required": [
+              "ordinal",
+              "operationId",
+              "messageId",
+              "bodyHash",
+              "state"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "media"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "messageId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "event": {
+                "enum": [
+                  "load",
+                  "error",
+                  "consumed",
+                  "denied"
+                ]
+              },
+              "width": {
+                "type": "number",
+                "minimum": 0
+              },
+              "height": {
+                "type": "number",
+                "minimum": 0
+              },
+              "provenance": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "messageId",
+              "assetId",
+              "event",
+              "width",
+              "height",
+              "provenance"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "search"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string"
+              },
+              "resultIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "openedConversationId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "token",
+              "resultIds",
+              "openedConversationId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
+}

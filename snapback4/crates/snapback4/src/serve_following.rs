@@ -12,10 +12,16 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}),
         );
     }
-    let principal = match principal_of(&request, shared) {
+    let (principal, _, scope) = match principal_of(&request, shared) {
         Ok(p) => p,
         Err(r) => return respond_timed(request, shared, 401, json!({"denied":refusal_json(&r)})),
     };
+    // @ref LLP 3000.033#1.2 — Following custody is outside the closed read allow-list.
+    // The outer guard refuses before body intake; retain the boundary here too.
+    if scope == snapback4_core::identity::SessionScope::Read {
+        let why = Refusal::new("E_READ_ONLY", "auth", "Following history requires a full session; ordinary inbox queries remain available").guide("read-only");
+        return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)}));
+    }
     let payload: Json = match serde_json::from_str(body) {
         Ok(v) => v,
         Err(_) => {

@@ -461,6 +461,7 @@ impl Runner<'_> {
         &mut self,
         data: &Value,
     ) -> (Option<Manifest>, Option<DeliveryMeter>) {
+        #[cfg(debug_assertions)] CONSTRUCTIONS.with(|n| n.set(n.get() + 1));
         if self.device || self.query_unavailable
             || !self.read_tables.iter().any(|table| self.schema.delivery_lookup.0.tables.contains(table)) {
             return (None, None);
@@ -703,3 +704,8 @@ mod tests {
         std::fs::remove_dir_all(path).unwrap();
     }
 }
+
+#[cfg(debug_assertions)]
+thread_local! { static CONSTRUCTIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
+#[cfg(debug_assertions)]
+pub fn manifest_constructions() -> u64 { CONSTRUCTIONS.with(|n| n.get()) }

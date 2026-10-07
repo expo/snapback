@@ -55,7 +55,7 @@ fn arguments(program: &snapback4_core::Program, json: &Json) -> Result<BTreeMap<
 }
 
 pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
-    let principal = match principal_of(&request, shared) { Ok(p) => p, Err(why) => return respond(request, 401, json!({ "denied": why })) };
+    let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "an action takes { id, args }") })) };
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
     let admitted = {
@@ -148,7 +148,7 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
 
 pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/actions/").and_then(|path| path.strip_suffix("/cancel")).and_then(decode_id) {
-        let principal = match principal_of(&request, shared) { Ok(p) => p, Err(why) => return respond(request, 401, json!({ "denied": why })) };
+        let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
         let answer = lock(&shared.engine).cancel_action(&id, &principal, shared.now());
         return match answer {
             Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }

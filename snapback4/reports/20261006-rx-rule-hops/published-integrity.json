@@ -1,0 +1,14 @@
+[
+  {
+    "name": "snapback4",
+    "version": "0.4.13",
+    "integrity": "sha512-YAteVY2q1No3fbgMQcfQPsaNyxFV0PXr8qKQ7sT2TDNLiQJyiUSHEF29zBCVzHgNP6L6es+A6IbP92u8DikDVQ==",
+    "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.13.tgz"
+  },
+  {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.13",
+    "integrity": "sha512-CmSkNA2mU7PbWjoAR2hYlH+lPJyTc9nvhGqEvSJa5gxHmKQvNMnYApsBbLAgpYueFiL189Kv/IE6EiR+3LFD0Q==",
+    "tarball": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.13.tgz"
+  }
+]

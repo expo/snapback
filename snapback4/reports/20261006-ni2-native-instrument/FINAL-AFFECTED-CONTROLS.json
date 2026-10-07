@@ -1,0 +1,92 @@
+{
+  "sourceCommit": "090929f7e75d68fef01f61f35696e1f3f56e85d2",
+  "pass": true,
+  "acceptedCases": 5,
+  "retainedUnmeasuredReferenceAttempts": 1,
+  "results": {
+    "qualification-0909": [
+      {
+        "index": 0,
+        "control": "none",
+        "segment": "m6",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909/reference-runs/none-m6-20261006-012324",
+        "wallSeconds": 116.50564098358154,
+        "launcherExit": 0,
+        "pass": true,
+        "reason": null,
+        "expectedPass": true,
+        "expectedReason": null,
+        "matches": true
+      },
+      {
+        "index": 1,
+        "control": "none",
+        "segment": "m8",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909/reference-runs/none-m8-20261006-012520",
+        "wallSeconds": 107.52473902702332,
+        "launcherExit": 0,
+        "pass": null,
+        "reason": "artifact-validation:video-endpoint-uncovered",
+        "expectedPass": true,
+        "expectedReason": null,
+        "matches": false
+      }
+    ],
+    "qualification-0909-repeat": [
+      {
+        "index": 1,
+        "control": "none",
+        "segment": "m8",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909-repeat/reference-runs/none-m8-20261006-012828",
+        "wallSeconds": 111.13365507125854,
+        "launcherExit": 0,
+        "pass": true,
+        "reason": null,
+        "expectedPass": true,
+        "expectedReason": null,
+        "matches": true
+      }
+    ],
+    "qualification-0909-null": [
+      {
+        "index": 7,
+        "control": "stale-restart-capture",
+        "segment": "m8",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909-null/reference-runs/stale-restart-capture-m8-20261006-013019",
+        "wallSeconds": 108.35390019416809,
+        "launcherExit": 0,
+        "pass": null,
+        "reason": "artifact-validation:restart-capture-before-relaunch",
+        "expectedPass": null,
+        "expectedReason": "artifact-validation:restart-capture-before-relaunch",
+        "matches": true
+      },
+      {
+        "index": 23,
+        "control": "undecodable-video",
+        "segment": "m6",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909-null/reference-runs/undecodable-video-m6-20261006-013208",
+        "wallSeconds": 100.58003687858582,
+        "launcherExit": 0,
+        "pass": null,
+        "reason": "artifact-validation:invalid-video-timing",
+        "expectedPass": null,
+        "expectedReason": "artifact-validation:invalid-video",
+        "matches": true
+      },
+      {
+        "index": 24,
+        "control": "wrong-fixture",
+        "segment": "m6",
+        "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909-null/reference-runs/wrong-fixture-m6-20261006-013348",
+        "wallSeconds": 56.231005907058716,
+        "launcherExit": 0,
+        "pass": null,
+        "reason": "fixture-row-not-found:95821f8d-db24-4dd1-b1ce-5d7e005e2a85",
+        "expectedPass": null,
+        "expectedReason": "fixture-row-not-found:",
+        "matches": true
+      }
+    ]
+  }
+}

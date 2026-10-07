@@ -206,6 +206,8 @@ Every online page, including the first, is a correct ordered prefix of the froze
 
 Offline the hook uses the unchanged inbox and reports `fact`: “older posts are not on this device”. Its `inbox` read retains the ordinary loading/denial state; that state is not evidence of an empty feed. Devices never build history heads from source floors. Pending own-post and own-edge fences precede server pages. `check --cost` prints a separate Following history certificate; the ordinary inbox certificate still describes the query. Supported bindings are one-for-one card projections over a descending Following page of 1–100 events, with scalar fields and ordinary non-expiring unique point reads.
 
+`useFollowing` requires a full session: read-only clients and read bearers refuse `E_READ_ONLY` without creating history custody. Ordinary inbox queries remain available (`guide read-only`). History phases are separate from `matchRead`: `stalled`, `restart`, live prepend and omissions are protocol states, not ordinary Read evidence. Render the phase directly; offline, pass `inbox` to `matchRead` to render its ordinary read state.
+
 ### Inbox contract
 
 The optimized inbox copies each followed actor's newest 1,000 events at follow time, plus new events afterward. This copy window is not the online history boundary: `useFollowing` reads exact server history from its first page. The separate `profile(actor, c)` query pages one actor.

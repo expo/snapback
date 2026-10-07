@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "ni2-round2-packet-attempts.v1",
+  "attempts": [
+    {
+      "packet": "/Users/ccheever/clique-native-pilot2-20261006-round2-attempt1",
+      "archive": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/round2/first-packet-attempt.tgz",
+      "sha256": "c1325f142a825d5bd1b9007d498ba2c0bac584d2882cce3b16c82e3f891c91dc",
+      "bytes": 76571892,
+      "sealed": false,
+      "pilotLaunched": false,
+      "reason": "harness selftest packaged fixture lookup failed before seal; 70 tests, one error"
+    },
+    {
+      "packet": "/Users/ccheever/clique-native-pilot2-20261006-round2-attempt2",
+      "archive": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/round2/second-packet-attempt.tgz",
+      "sha256": "2e86396c4eaec4303179daf17b60df27d0beb5dfd3378ecc20c34553070c4cd4",
+      "bytes": 7742999,
+      "sealed": false,
+      "pilotLaunched": false,
+      "reason": "system Python lacked jsonschema in actual handoff selftest; 71 tests, six errors",
+      "reusedArchivedBytes": {
+        "inputs/convex/convex-local-backend": {
+          "sha256": "c6290f5a86bc2f6b31a931833c25106ccc06c0c8c9f0894c35f2d7cecf1fd676",
+          "archive": "first-packet-attempt.tgz"
+        },
+        "preparation/runtime-baseline": {
+          "proofSha256": "d67f694c38d104831ad94ea55af1d81843e048b83d30d1ee21e15342079ff54d",
+          "archive": "runtime-proof-drain"
+        }
+      },
+      "dependencyCachesExcluded": true
+    },
+    {
+      "packet": "/Users/ccheever/clique-native-pilot2-20261006-round2-attempt3",
+      "archive": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/round2/third-packet-attempt.tgz",
+      "sha256": "48dc57fb463a664a54ab9e1e6710b9dde1c180753df93a7ea12cbf5e693ca4f9",
+      "bytes": 7861697,
+      "sealed": false,
+      "pilotLaunched": false,
+      "reason": "nested assembled selftest used macOS temp alias rather than canonical root; 72 tests, three errors",
+      "reusedArchivedBytes": {
+        "inputs/convex/convex-local-backend": {
+          "sha256": "c6290f5a86bc2f6b31a931833c25106ccc06c0c8c9f0894c35f2d7cecf1fd676",
+          "archive": "first-packet-attempt.tgz"
+        },
+        "preparation/runtime-baseline": {
+          "proofSha256": "d67f694c38d104831ad94ea55af1d81843e048b83d30d1ee21e15342079ff54d",
+          "archive": "runtime-proof-drain"
+        }
+      },
+      "dependencyCachesExcluded": true
+    }
+  ],
+  "allUnsealedAndUnlaunched": true
+}

@@ -109,9 +109,13 @@ work; correct the options and create the app again. Kept credentials remain inta
 Identity and sessions remain owned by
 `app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
 client options, not app configuration.
-`app.auth.logout()` fences restoration and session writes immediately, deletes
-local credentials without waiting for network requests, and revokes remotely
-in the background.
+`app.auth.logout()` signs this user out of the shared session storage. It
+fences restoration and same-principal sign-ins already in flight, commits a
+logout tombstone without waiting for network requests, and retires every
+same-principal credential in that custody in the background: peer rotations,
+pending successors and newer deliberate logins, whatever their epoch. A stale
+Bob facade cannot delete or revoke Alice's later login. This rule is shared by
+full and read-only apps; their separate storage namespaces remain isolated.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
@@ -120,7 +124,9 @@ session lock:
 
 - **I1 — stored bearer protection.** A runtime never sends revocation for the
   currently stored bearer. Explicit logout first commits a logout tombstone,
-  then revokes the displaced session in the background.
+  then revokes the displaced sessions in the background. Logout compares its last
+  committed principal under the lock: it owns that principal's credentials in
+  every epoch, including newer logins, and preserves a different principal.
 - **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
   logout preserves the session bytes and epoch. The sole logout intermediate
   state is a tombstone; every reader recognizes it as signed out.
@@ -143,7 +149,8 @@ session lock:
   rotation save, with a logout tombstone. Later opens, online or
   offline, stay signed out without opening that replica. An existing client
   loses access as soon as it learns the refusal. Cleanup cannot delete a
-  different stored successor. A transient failed refusal commit is retried
+  different stored credential. Read sessions never rotate in the SDK.
+  A transient failed refusal commit is retried
   once under the session lock; any remaining storage error is reported.
 - **I8 — revoked public handles.** Hiding an account permanently fences every
   exposed client facade and its observations before notifying subscribers.
@@ -167,13 +174,14 @@ session lock:
   credentials covered by each dispatch. Its acknowledgement removes only that
   snapshot, including on cleanup retry. Tokens attached later retain individual
   retirement custody; they may have been minted after the server's revocation.
-- **I11 — epoch-scoped authority.** An operation cannot select an account epoch
-  newer than its calling scope. Global logout may adopt another tab's rotated
+- **I11 — global logout authority.** `logoutEverywhere()` cannot select an account
+  epoch newer than its calling scope. It may adopt another tab's rotated
   bearer within the same epoch; a later login, even of the same principal, is
   fenced from the stale caller's authority. Selection reads the principal's
   inline and journaled global watermarks under the session lock, and checks the
   selected session's committed scope. The shared legacy counter alone cannot
   distinguish another principal's logout from this account's replacement.
+  Ordinary `logout()` follows I1's principal-wide custody rule.
 - **I12 — known dispatched outcomes.** Fencing refuses new calls. Close waits
   only for local cleanup, never for a held network response. A mutation or
   action whose response arrives before public `app.close()` completes keeps its own full outcome,
@@ -299,9 +307,12 @@ Browser Web Locks serialize journal updates and session replacement/deletion
 across tabs. Journal observers re-read on both a broadcast and the journal's
 storage event: a broadcast can arrive before another tab sees a localStorage
 commit. Neither notification carries trusted intent or replaces durable custody.
-A refused bearer stops that runtime without deleting stored
-credentials; it cannot delete a successor saved by another tab. Explicit logout
-commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
+A refused bearer stops that runtime and conditionally tombstones its rejected
+credential; it preserves a peer's different stored credential. Explicit logout
+compares the owned principal, then commits a tombstone
+before retiring every same-principal credential it displaces, whatever its epoch.
+Read sessions never rotate in the SDK. Full-session refresh responses arriving
+after logout are retired and never adopted. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion
@@ -494,6 +505,22 @@ near expiry; `refreshSession()` adopts the new bearer before `onSession`
 receives it. A persona client's `session()` is null; a bare-token client's
 is null until `refreshSession()` returns the session. Applications that
 persist an online session keep its replacements from `onSession`.
+
+**Read-only observers.** Sign in with `{ scope: "read" }`, or narrow a password/guest session without revoking its full credential. Use the returned credential with `readOnly: true`. Startup verifies server scope before queries or assets; `createApp` uses a separate `.read` session key. Read clients have no device or write queue, cannot consume once-media, and do not advance delivered/seen watermarks or presence. `refreshSession()` refuses `E_READ_ONLY_REFRESH` locally; the SDK never rotates read sessions, automatically or explicitly. At `expiresAt`, reads surface `E_AUTH`: sign in again or narrow a full session again. See `guide read-only` for the expiry cap and allowed routes.
+
+```ts
+import { createClient } from "snapback4/client";
+import { login, narrowSession } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+const url = "http://127.0.0.1:4400";
+const signedIn = await login(url, "bob@example.com", "a-long-password");
+if (!signedIn.ok) throw new Error(signedIn.why.message);
+const narrowed = await narrowSession(url, signedIn.session);
+if (!narrowed.ok) throw new Error(narrowed.why.message);
+const observer = createClient({ url, session: narrowed.session, readOnly: true });
+await observer.query(api.history, { conversation: "conversation-id" });
+await observer.signOut();
+```
 
 **Node.** `dir` is required, and a blank string refuses the same way, before the opener is returned; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
 
@@ -803,6 +830,41 @@ type Write<R> =
 type Refusal = { code: string; family: string; message: string; detail?: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
+
+`matchRead` is the paved rendering form, exported from both `snapback4/contract`
+and `snapback4/react`. One handler set covers points and pages. Pass `page.read`,
+not `page.items`: an empty item list during loading proves nothing.
+
+```tsx
+import { matchRead, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Membership({ conversationId }: { conversationId: string }) {
+  const member = useQuery(api.myMembership, { conversationId });
+  return <p>{matchRead(member, {
+    loading: () => "Checking membership…",
+    denied: why => why.message,
+    absent: read => read.fresh && !read.revalidating ? "Not a member" : "Checking saved membership…",
+    partial: () => "Membership not yet known",
+    present: (data, read) => read.revalidating ? "Updating membership…" : "Member",
+  })}</p>;
+}
+```
+
+Every handler is required. An explicit `otherwise(read)` may replace omitted
+`loading`, `absent` and `present` handlers; `denied` and `partial` must still be
+provided. Explicit handlers take precedence. The fallback receives the union of
+those three arms, even if some have explicit handlers. Use it only when the
+omitted states intentionally share a decision, as in the composer below.
+`present(data, read)` excludes top-level null; `partial(data, read)` preserves the
+query's result type, including null. `denied(why, read)` receives the original
+`Refusal`; `absent(read)` and `loading(read)` receive their narrowed read.
+Every ready handler keeps `fresh`, `revalidating`, `complete`, `cut`, `next` and
+`since`. Return types are inferred as the union of handler results. This is pure
+dispatch over the current read, with no subscription, saved answer or authority.
+A nonempty page can be `present` and incomplete; use `readPresentation(read)`
+for independent incomplete/stale/revalidating notices. `existence` and the guards
+remain useful for single checks. Settled reads use the same handlers (loading
+cannot run), keeping reusable rendering functions identical to observed reads.
 
 `client.query(op, args)` returns `Promise<SettledRead<R>>`. See `snapback4 guide client` for its settling rounds, total deadline, offline behavior and refusals. Ready may still be partial; `existence(await client.query(...))` never returns `"loading"`. Use `observe`/`useQuery` for later updates.
 
@@ -1187,15 +1249,29 @@ binding before any journal or current-device identity, including after replaceme
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent, or name a fixture's write with `idFrom(label)`: the same label gives
 the same valid id on every client and host, so a replay needs no ledger.
+For real password accounts, use the [headless account recipe](#seed-accounts-headlessly-node)
+and a separate `createClient({ url, session })` per account. Signup and login work
+in Node; a replay adapter needs no browser or token borrowed from a starter UI.
+The example below signs in to an account created by that recipe. Use
+`snapback4 dev --replay` when new effects must never be delivered and schedules must stay held.
 
 ```ts
+import { login } from "snapback4/auth";
 import { createClient, idFrom } from "snapback4/client";
-import { api } from "../snapback/generated/api";
+import { api } from "../snapback/generated/api.ts";
 
 async function replaySeed() {
-  const client = createClient({ url: "http://127.0.0.1:4400", persona: "alice" });
-  // Replaying the seed returns the recorded outcome; it never sends twice.
-  await client.mutate(api.send, { conversationId: "c1", body: "hello" }, { id: idFrom("seed:c1:hello") });
+  const url = process.env.SNAPBACK_URL ?? "http://127.0.0.1:4400";
+  const password = process.env.SEED_PASSWORD;
+  if (!password) throw Error("Set SEED_PASSWORD privately in the environment");
+  const result = await login(url, "seed1@example.test", password);
+  if (!result.ok) throw Error(result.why.message);
+  const client = createClient({ url, session: result.session });
+  try {
+    // This account must already belong to c1. Replay returns the recorded outcome.
+    const write = await client.mutate(api.send, { conversationId: "c1", body: "hello" }, { id: idFrom("seed:c1:hello") });
+    if (write.state !== "sent") throw Error(write.state === "failed" ? write.why.message : "Seed write pending");
+  } finally { await client.signOut(); }
 }
 ```
 
@@ -1517,8 +1593,8 @@ The partial-results notice follows `readPresentation(page.read).incomplete`.
 and continuations, including nonempty `present` pages. `stale` is `!fresh` on a
 ready answer; `revalidating` is independent. `why` is the current refusal and
 `since` the unchanged ready timestamp. Loading/denied carry no ready metadata.
-Use the original read to narrow data or decide an action; there is no permission
-flag. Empty results are proven only by `existence === "absent"`, even offline.
+Use `matchRead` on the original read to render narrowed data or decide an action;
+there is no permission flag. Empty results are proven only by `existence === "absent"`, even offline.
 
 This complete React/Expo screen uses the generated `thread`, `myMembership`
 and `send` handles from the chat shape above. Put it under `AppProvider`.
@@ -1532,7 +1608,7 @@ import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
 import { mintId } from "snapback4/client";
-import { existence, isReady, readPresentation, type ReadPresentation } from "snapback4/contract";
+import { matchRead, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
 export function ConversationScreen({ backend, conversationId }: { backend: string; conversationId: string }) {
@@ -1545,7 +1621,7 @@ function ConversationShell({ conversationId }: { conversationId: string }) {
   const [submitted, setSubmitted] = useState<{ id: string; body: string } | null>(null);
   const send = useMutation(api.send);
   const member = useQuery(api.myMembership, { conversationId });
-  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  const blocked = matchRead(member, { denied: () => true, absent: read => read.fresh && !read.revalidating, partial: () => false, otherwise: () => false });
   async function submit() {
     if (blocked || send.inFlight || !draft.trim()) return;
     const submission = { id: mintId(), body: draft };
@@ -1791,6 +1867,28 @@ memory zeroization or removal of decoder copies. Upload Blobs remain owned by
 the caller.
 
 ### Sign-in (`snapback4/auth`)
+
+#### Seed accounts headlessly (Node)
+
+`signup` and `login` below work in Node 24 with the same server password hashing,
+rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
+for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,
+then import `signup`/`login` from `snapback4/auth` and `createClient` from
+`snapback4/client`. Signup returns the new account **and its live session**;
+pass it to `createClient({ url, session: result.session })`, then use the generated
+`api` for authorized writes. Open one client per user and call `signOut()` in
+`finally` to close it and clear local credentials (remote logout is best effort).
+Node 24 can import `./snapback/generated/api.ts` directly from an `.mjs` script.
+
+The social starter (`snapback4 new <dir> --template social`) includes
+`scripts/seed.mjs`. Set `SEED_PASSWORD` privately, choose `SEED_USERS=N`, and
+run `node scripts/seed.mjs`; it creates N accounts and writes each one's profile.
+`SEED_AUTH=login` reuses an existing set; duplicate signup refuses. Stop on
+refusal, including `E_RATE_LIMIT`, rather than blindly retrying or assuming an
+account exists. Keep passwords and bearer sessions out of logs; use HTTPS off
+loopback. Ordinary SDK auth works in `dev` and `serve`; only development personas
+and system-principal `/seed` bypass account signup. Neither creates a password
+credential, and there is no `snapback4 auth create` command.
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
 password)` and `refreshSession(url, token)` return `{ ok: true, session
@@ -2394,7 +2492,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists or prints cards: language, app, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire,
   assets, client, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, receipts, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.

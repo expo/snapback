@@ -2,15 +2,20 @@ import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import ts from "typescript";
 import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import * as contract from "../dist/contract.js";
+import { readyRead } from "../dist/read-existence.js";
 import { createApp } from "snapback4/app";
 import { createClient, mintId } from "snapback4/client";
-import { memorySessionStore } from "snapback4/auth";
+import { login, memorySessionStore } from "snapback4/auth";
 import { webDevice, memoryPersistence } from "snapback4/web";
 import { createLocalClient } from "snapback4/local";
 import { processDevice } from "snapback4/native";
@@ -28,6 +33,117 @@ function starter(t) {
   }
   return dir;
 }
+
+// Host stubs isolate generated status text; browser tests own lifetimes/focus.
+test("generated feed, chats, profile and search preserve read-state text and controls", t => {
+  const dir = starter(t), require = createRequire(import.meta.url);
+  const React = require('react'), { renderToStaticMarkup } = require('react-dom/server');
+  let read;
+  const native = {
+    Text: ({ children }) => React.createElement('span', null, children),
+    View: ({ children }) => React.createElement('div', null, children),
+    ScrollView: ({ children }) => React.createElement('div', null, children),
+    TextInput: () => null,
+    Button: ({ title, disabled }) => React.createElement('button', { disabled }, title),
+  };
+  const hooks = {
+    ...contract, useQuery: () => read, usePage: () => ({ read, items: [], hasMore: !!read.next, loadMore() {} }),
+    useMutation: () => ({ inFlight: false }), usePendingWrites: () => [],
+    useViewer: () => 'viewer', useAuth: () => ({}),
+  };
+  for (const name of ['Feed', 'Chats', 'Profile', 'Search']) {
+    const module = { exports: {} };
+    const source = ts.transpileModule(readFileSync(join(dir, `src/${name}.tsx`), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+    runInNewContext(source, { exports: module.exports, require: id => {
+      if (id === 'react-native') return native;
+      if (id === 'snapback4/react') return hooks;
+      if (id === 'snapback4/contract') return contract;
+      if (id === 'expo-router') return { router: {} };
+      if (id === '../snapback/generated/api') return { api: {} };
+      if (id === './ui') return { Avatar: () => null, PhotoPicker: () => null };
+      return require(id);
+    } });
+    const empty = name === 'Profile' ? null : [];
+    const data = name === 'Profile' ? { id: 'p', name: 'Visible name', avatar: null } : [{ id: 'row' }];
+    const ready = (data, flags = {}, pending = false) => readyRead({ data, complete: true, cut: null, fresh: true, ...flags }, pending);
+    for (const [value, label] of [
+      [{ loading: true }, 'Loading…'], [{ denied: { code: 'NO', family: 'rule', message: 'Read refused' } }, 'Read refused'],
+      [ready(empty), name === 'Search' ? 'No results' : ''],
+      [ready(empty, { fresh: false, revalidating: true }), name === 'Search' ? 'No results' : ''],
+      [ready(empty, { complete: false }), 'Partial results'], [ready(empty, { next: 'cursor' }), 'Partial results'],
+      [ready(empty, {}, true), 'Partial results'], [ready(data), ''],
+      [ready(data, { complete: false, fresh: false, revalidating: true }), name === 'Search' ? 'Partial results' : ''],
+      [ready(data, { cut: 'meter', complete: false }), name === 'Search' ? 'Partial results' : ''],
+      [ready(data, { next: 'cursor' }), name === 'Search' ? 'Partial results' : ''],
+    ]) {
+      read = value;
+      const html = renderToStaticMarkup(React.createElement(module.exports.default));
+      const labels = [...html.matchAll(/<span>(Loading…|Read refused|No results|Partial results)<\/span>/g)].map(match => match[1]);
+      assert.deepEqual(labels, label ? [label] : [], `${name}: ${JSON.stringify(value)}`);
+      if (name === 'Search') {
+        assert.equal(html.includes('Results from the last available snapshot'), 'data' in read && !read.fresh);
+        assert.equal(html.includes('Updating…'), 'data' in read && !!read.revalidating);
+      }
+      if (name !== 'Profile') {
+        assert.equal(/<button disabled="">More (posts|chats|matches)<\/button>/.test(html), !read.next);
+      }
+    }
+  }
+});
+
+test("social seed script creates two password accounts, signs in and refuses cross-user writes", { timeout: hangBudget(12) }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const password = "starter-headless-private-password";
+  const run = mode => promisify(execFile)(process.execPath, [join(generated, "scripts/seed.mjs")], {
+    cwd: generated, env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: password, SEED_USERS: "2", SEED_AUTH: mode },
+  });
+  await assert.rejects(run("singup"), error => {
+    assert.match(error.stderr, /SEED_AUTH must be signup or login/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
+  const created = await run("signup"), reused = await run("login");
+  const accounts = created.stdout.trim().split("\n").map(line => JSON.parse(line));
+  assert.equal(accounts.length, 2);
+  assert.notEqual(accounts[0].principal, accounts[1].principal);
+  assert.deepEqual(reused.stdout, created.stdout, "login reuses the same accounts");
+  await assert.rejects(run("signup"), error => {
+    assert.match(error.stderr, /Account 1: E_AUTH: that email already has an account; sign in instead/);
+    assert.equal(error.stdout, "");
+    assert.equal(error.stderr.includes(password), false);
+    return true;
+  });
+  const clients = [];
+  for (const [n, account] of accounts.entries()) {
+    assert.deepEqual(Object.keys(account).sort(), ["email", "principal"]);
+    const signedIn = await login(url, account.email, password);
+    assert.equal(signedIn.ok, true);
+    assert.equal(signedIn.session.principal, account.principal);
+    const client = createClient({ url, session: signedIn.session });
+    clients.push(client);
+    t.after(() => client.signOut());
+    const profile = await client.query(api.profile, { principal: account.principal });
+    assert.equal(profile.data.name, `Seed ${n + 1}`, "the script wrote as this user");
+    assert.equal((created.stdout + created.stderr + reused.stdout + reused.stderr).includes(signedIn.session.token), false);
+  }
+  const [alice, bob] = clients;
+  for (const [owner, outsider] of [[alice, bob], [bob, alice]]) {
+    const room = await owner.mutate(api.createConversation, { title: "Private seed room" });
+    assert.equal(room.state, "sent");
+    const args = { conversation: room.result, text: "owner message", photo: null };
+    assert.equal((await owner.mutate(api.send, args)).state, "sent");
+    const refused = await outsider.mutate(api.send, { ...args, text: "cross-user message" });
+    assert.equal(refused.state, "failed");
+    assert.equal(refused.why.code, "NOT_MEMBER");
+    const history = await owner.query(api.history, { conversation: room.result });
+    assert.deepEqual(history.data.map(row => row.text), ["owner message"]);
+  }
+  assert.equal((created.stdout + created.stderr + reused.stdout + reused.stderr).includes(password), false);
+});
 test("new requires an explicit template and names what init creates", t => {
   const dir = mkdtempSync(join(root, ".social-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -113,7 +229,8 @@ test("published social starter and guide snippets typecheck against generated op
   }
   const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const program = ts.createProgram([...parsed.fileNames, join(dir, "scripts/seed.mjs")],
+    { ...parsed.options, allowJs: true, checkJs: true });
   const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
   assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
     getCanonicalFileName: name => name, getCurrentDirectory: () => dir, getNewLine: () => "\n",

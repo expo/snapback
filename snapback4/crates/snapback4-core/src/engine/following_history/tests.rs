@@ -217,6 +217,15 @@ impl Oracle {
                 .map(|(_, id)| id.as_str())
                 .collect::<Vec<_>>()
         );
+        // Verify every field from the owned table, independently of Event::row.
+        let owned = e.store().rows("feedPosts").unwrap();
+        for item in items {
+            if let Item::Event(event) = item {
+                let row = owned.iter().find(|r| r.field("id").unwrap() == &id(&event.id)).unwrap();
+                let text = |field| row.field(field).unwrap().as_str().unwrap().to_owned();
+                assert_eq!(event, &Event { id: text("id"), actor: text("actorId"), author: text("authorId"), post: text("postId"), repost: row.field("repost").unwrap() == &Value::Bool(true), at: row.field("at").unwrap().as_int().unwrap() });
+            }
+        }
         if items.is_empty() {
             assert!(rows.is_empty());
             after.cloned()
@@ -236,6 +245,7 @@ fn drain(r: &mut Reader, e: &mut Engine, q: &mut Request, oracle: &Oracle) -> (V
                 after = oracle.page(e, items, after.as_ref());
                 ids.extend(items.iter().map(|i| i.id().to_owned()));
                 if next.is_none() {
+                    assert!(oracle.rows(e).iter().all(|(p, _)| after.as_ref().is_some_and(|a| p >= a)), "terminal page must exhaust the frozen oracle suffix");
                     return (ids, preparing);
                 }
             }

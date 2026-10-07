@@ -441,8 +441,9 @@ pub enum ColumnType {
     Json { max_bytes: u32 },
     Optional(Box<ColumnType>),
     List { of: Box<ColumnType>, max: u32 },
+    // @ref LLP 3000.007#5.4 — a new enum tag makes older engines refuse the minimum.
+    ListRange { of: Box<ColumnType>, min: u32, max: u32 },
 }
-
 impl ColumnType {
     pub fn required(&self) -> &ColumnType {
         match self {
@@ -451,13 +452,11 @@ impl ColumnType {
         }
     }
 
-    pub fn is_optional(&self) -> bool {
-        matches!(self, Self::Optional(_))
-    }
+    pub fn is_optional(&self) -> bool { matches!(self, Self::Optional(_)) }
 
     pub fn is_indexable(&self) -> bool {
         match self {
-            Self::Image { .. } | Self::Video { .. } | Self::List { .. } | Self::Json { .. } => false,
+            Self::Image { .. } | Self::Video { .. } | Self::List { .. } | Self::ListRange { .. } | Self::Json { .. } => false,
             Self::Optional(inner) => inner.is_indexable(),
             _ => true,
         }
@@ -466,7 +465,7 @@ impl ColumnType {
     pub fn contains_asset(&self) -> bool {
         match self {
             Self::Image { .. } | Self::Video { .. } => true,
-            Self::Optional(inner) | Self::List { of: inner, .. } => inner.contains_asset(),
+            Self::Optional(inner) | Self::List { of: inner, .. } | Self::ListRange { of: inner, .. } => inner.contains_asset(),
             _ => false,
         }
     }
@@ -492,6 +491,7 @@ impl fmt::Display for ColumnType {
             Self::Json { max_bytes } => write!(f, "json <={max_bytes}"),
             Self::Optional(inner) => write!(f, "{inner} ?"),
             Self::List { of, max } => write!(f, "[{of}] <={max}"),
+            Self::ListRange { of, min, max } => write!(f, "[{of}] {min}..{max}"),
         }
     }
 }
@@ -652,7 +652,7 @@ impl RuleExpr {
     /// Every `.field` the rule reads, on any probe key or comparison.
     pub fn fields(&self, out: &mut BTreeSet<String>) {
         let term = |term: &RuleTerm, out: &mut BTreeSet<String>| {
-            if let RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } = term {
+            if let RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } | RuleTerm::ReferenceChain { column: field, .. } = term {
                 out.insert(field.clone());
             }
         };
@@ -706,6 +706,7 @@ impl RuleExpr {
         fn term(term: &RuleTerm) -> String {
             match term {
                 RuleTerm::Reference { table, column, field, old } => format!("{table}[{}.{column}].{field}", if *old { "old" } else { "" }),
+                RuleTerm::ReferenceChain { column, hops, old } => hops.iter().fold(format!("{}.{column}", if *old { "old" } else { "" }), |key, hop| format!("{}[{key}].{}", hop.table, hop.field)),
                 RuleTerm::Field(f) => format!(".{f}"),
                 RuleTerm::OldField(f) => format!("old.{f}"),
                 RuleTerm::NextField(f) => format!("next.{f}"),
@@ -731,7 +732,7 @@ impl RuleExpr {
     }
 }
 
-pub use reference::RuleTerm;
+pub use reference::{RuleTerm, RuleHop, MAX_RULE_HOPS};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Constraint {
@@ -994,9 +995,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     }
                 }
                 Constraint::FinalExistsOnInsert { table: target, index, key } => {
-                    if key.iter().any(|t| matches!(t, RuleTerm::Reference { .. })) {
-                        issue(&mut issues, cpath.clone(), "E_QUARRY_RULE_HOP: after insert cannot follow references; use a mutation require with table[.ref].field".into());
-                    }
+                    for term in key { reference::validate_term(schema, table, term, false, &cpath, &mut issues); }
                     match schema.table(target).and_then(|t| t.index(index)) {
                         Some(target_index) if target_index.is_plain() && target_index.columns().len() == key.len() => {}
                         Some(_) => issue(&mut issues, cpath,
@@ -1491,6 +1490,7 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
         ArgType::Json { max_bytes } => ColumnType::Json { max_bytes: *max_bytes },
         ArgType::Optional(inner) => ColumnType::Optional(Box::new(arg_as_column(inner)?)),
         ArgType::List { of, max } => ColumnType::List { of: Box::new(of.as_deref().map(arg_as_column).flatten().unwrap_or(ColumnType::Json { max_bytes: 4096 })), max: *max },
+        ArgType::ListRange { of, min, max } => ColumnType::ListRange { of: Box::new(of.as_deref().and_then(arg_as_column).unwrap_or(ColumnType::Json { max_bytes: 4096 })), min: *min, max: *max },
         ArgType::Enum { variants } => ColumnType::Enum { variants: variants.clone() },
         ArgType::Decimal { scale } => ColumnType::Decimal { scale: *scale },
         ArgType::Money { currency, scale } => ColumnType::Money { currency: currency.clone(), scale: *scale },

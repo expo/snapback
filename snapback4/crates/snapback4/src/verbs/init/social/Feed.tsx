@@ -1,4 +1,4 @@
-import { existence, isReady } from "snapback4/contract";
+import { matchRead, existence } from "snapback4/contract";
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { useMutation, usePage, usePendingWrites, useQuery } from "snapback4/react";
@@ -18,7 +18,7 @@ export default function Feed() {
     <TextInput accessibilityLabel="New post" value={body} onChangeText={setBody} maxLength={500} />
     <Button title="Post" disabled={!body.trim() || post.inFlight} onPress={() => void publish()} />
     {post.last?.state === "failed" && <Text>{post.last.why.message}</Text>}
-    <Text>{pending.length} pending posts</Text><Text>{existence(page.read) === "loading" ? "Loading…" : existence(page.read) === "partial" ? "Partial results" : "denied" in page.read ? page.read.denied.message : ""}</Text>
+    <Text>{pending.length} pending posts</Text><Text>{matchRead(page.read, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
     {page.items.map(event => <View key={`${event.repost}:${event.id}`}>
       <Text>{event.card?.body ?? "Post unavailable"}</Text><Text>{event.actor}</Text>
       <Like post={event.post} />
@@ -28,9 +28,9 @@ export default function Feed() {
 }
 function Like({ post }: { post: string }) {
   const state = useQuery(api.postState, { post }), like = useMutation(api.setLike);
-  const liked = isReady(state) && state.existence === "present" ? state.data.liked : undefined;
+  const liked = matchRead(state, { present: data => data.liked, denied: () => undefined, partial: () => undefined, otherwise: () => undefined });
   return <View><Button title={liked === true ? "Unlike" : "Like"}
     disabled={existence(state) === "denied" || like.inFlight} onPress={() => void like.run({ post, liked: liked !== true })} />
-    <Text>{existence(state) === "loading" ? "Checking reaction…" : "denied" in state ? state.denied.message : ""}</Text>
+    <Text>{matchRead(state, { loading: () => "Checking reaction…", denied: why => why.message, partial: () => "", otherwise: () => "" })}</Text>
     {like.last?.state === "failed" && <Text>{like.last.why.message}</Text>}</View>;
 }

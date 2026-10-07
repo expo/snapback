@@ -1,0 +1,7 @@
+messaging.q:60:13 — E_QUARRY_POSITIONAL_SCAN: a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly
+messaging.q:26:13 — E_QUARRY_POSITIONAL_SCAN: a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly
+messaging.q:64:10 — E_QUARRY_POSITIONAL_SCAN: conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly
+messaging.q:70:89 — E_QUARRY_POSITIONAL_SCAN: conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly
+messaging.q:88:62 — E_QUARRY_TYPE: conversations.slug is text <=80; got id
+messaging.q:105:11 — E_QUARRY_POSITIONAL_SCAN: conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly
+messaging.q:110:11 — E_QUARRY_POSITIONAL_SCAN: conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly

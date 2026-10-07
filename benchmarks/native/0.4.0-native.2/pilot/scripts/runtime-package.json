@@ -1,0 +1,10 @@
+{
+  "name": "clique-native-pilot2-operator",
+  "version": "0.4.0-native.2",
+  "private": true,
+  "dependencies": {
+    "convex": "1.45.0",
+    "playwright": "1.62.1",
+    "ws": "8.18.3"
+  }
+}

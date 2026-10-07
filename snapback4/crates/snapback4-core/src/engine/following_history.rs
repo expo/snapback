@@ -636,6 +636,11 @@ impl Reader {
                 return simple(Response::Restart, budget);
             }
         }
+        // Request allowances may shrink between units. Retained cards must fit
+        // before copying or advancing the frontier; a refusal preserves this token.
+        if existing.is_some_and(|s| s.item_bytes > budget.remaining_output()) {
+            return simple(Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }, budget);
+        }
         // The bounded record map is copied; its head records are copy-on-write.
         // Refusals, storage errors and failed publication leave the old unit intact.
         let fork = existing.map_or(

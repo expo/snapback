@@ -64,11 +64,12 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
     ("index", "start"),
+    ("oracle", "read-only"), ("observer", "read-only"), ("dashboard", "read-only"), ("preview", "read-only"),
     ("envelope", "bounds"), ("heaviest", "bounds"), ("1000", "bounds"),
     ("cold start", "bounds"), ("cold restart", "bounds"), ("acquire", "bounds"),
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
@@ -83,7 +84,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
-    ("replay", "personas"), ("seed", "personas"),
+    ("replay", "personas"), ("replay adapter", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
@@ -93,6 +94,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
+    ("headless", "personas"), ("signup", "personas"), ("sign-up", "personas"), ("register", "personas"),
     ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
     ("media", "assets"), ("image", "assets"), ("video", "assets"),
     ("realtime", "reads"), ("live", "reads"), ("subscribe", "reads"),
@@ -594,6 +596,7 @@ a fetch while offline without retained bytes reports `E_OFFLINE`; an already
 ready handle is not refetched just because the link drops. A loading profile
 has not supplied an asset id yet. One-view photos use the explicit-open viewer
 in `guide client`, never this automatically fetched avatar pattern."##,
+        "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,
         "reads" => reads::CARD,

@@ -118,7 +118,7 @@ fn column(kind: &crate::schema::ColumnType) -> u64 {
     use crate::schema::ColumnType::*;
     match kind {
         Enum { variants } => strings(variants), Money { currency, .. } => text(currency), Ref { table } => text(table),
-        Optional(inner) | List { of: inner, .. } => slots::<crate::schema::ColumnType>(1) + column(inner), _ => 0,
+        Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => slots::<crate::schema::ColumnType>(1) + column(inner), _ => 0,
     }
 }
 

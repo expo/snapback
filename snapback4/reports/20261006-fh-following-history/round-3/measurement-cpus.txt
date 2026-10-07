@@ -1,0 +1,1 @@
+eb1000; taskset -c 7,15; 2-second /proc/stat sample before run: CPU 7 and 15 each 0.50% busy; independent from lane build/suite CPU masks; shared host, not an isolated-host latency SLO.

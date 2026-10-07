@@ -1,7 +1,7 @@
 # Native pilot: expose seed body semantics and make passive hooks the default
 
 **Opened:** 2026-10-06, P2A Round 7
-**Status:** Open; proposed admission prerequisites, no qualified bytes changed
+**Status:** Open; native.2 instrument records complete, independent Phase-2 rerun pending
 **Area:** native instrument contract, fixture schema, helper and handoff checks
 **Related:** LLP 0201.000 §§3,6,7;
 [Phase-2 results](../snapback4/reports/20261005-ni-native-protocol/PHASE-2-RESULTS.md)
@@ -45,3 +45,23 @@ These are material authoring-aid changes: cut new candidate bytes, rerun
 affected controls and fresh independent Phase-2 authoring/measurement before
 requesting Charlie's scored-admission ruling. Do not edit the retained builder
 trees or reinterpret the operator-patched diagnostic artifacts as admissible.
+
+## NI2 repair status — 2026-10-06
+
+The native.2 candidate adds the exact-body constructor and semantic validator,
+runs both schema and semantic validation against the operator's current run ID
+before compilation, and supplies the fire-and-forget observer, sticky
+diagnostics, rendered-row adapter and read-only Bob transport described above.
+The base qualification matrix matched all 28 live reference/control outcomes
+(25 carried and three new), and all 52 artifact controls passed. The sole
+intentional change from a carried native.1 live result is `scroll-no-screen`:
+native.2 rejects it as `screen-row-detached`, because current committed rows
+must agree with the native screen after recycling or scrolling.
+
+The [NI2 qualification report](../snapback4/reports/20261006-ni2-native-instrument/README.md)
+is the authority for the frozen source and evidence. `scoredUse` remains false.
+All four retained independent-app regression runs reproduced their expected
+setup-null outcomes: both Convex runs exited for the missing UIScene lifecycle,
+and both Snapback 4 runs remained in the foreground on the missing SecureStore
+entitlement. The fresh Phase-2 rerun remains pending; this issue stays open until
+that rerun tests the repaired aid with independent builders.

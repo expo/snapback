@@ -12,7 +12,10 @@ import {createLocalClient} from '../dist/local.js';
 import {webDevice, memoryPersistence} from '../dist/web.js';
 import {processDevice} from '../dist/native.js';
 import {Following} from '../dist/following.js';
-import {guest, logout} from '../dist/auth.js';
+import {DatabaseSync} from 'node:sqlite';
+import {createApp} from '../dist/app.js';
+import {matchRead} from '../dist/contract.js';
+import {guest, logout, narrowSession, sessionKey} from '../dist/auth.js';
 import {captureStdout} from './helpers/server-output.mjs';
 import {waitFor, hangBudget} from './helpers/wait.mjs';
 
@@ -71,7 +74,7 @@ async function fixture(t,rows=[],bounded=true) {
     stops.push(history.subscribe(()=>{}));
     return {client,history,control,get:history.getSnapshot};
   };
-  return{send,mutate,open,url};
+  return{send,mutate,open,url,dir};
 }
 async function page(h,n=1){await waitFor(()=>{const s=h.get();assert.notEqual(s.phase,'refused',JSON.stringify(s));return s.phase==='page'&&s.items.length>=n},'exact Following page',{diagnostics:()=>JSON.stringify({state:h.get(),recent:h.control.requests.slice(-3)})});return h.get()}
 
@@ -179,4 +182,45 @@ for(const tier of ['wasm','native'])test(`Following ${tier} routes history past 
   assert.equal(h.control.followingCalls,calls,'offline admission never asks for server history');
   h.control.offline=false;await h.client.sync();
   await waitFor(()=>h.get().phase==='page'&&h.get().items[0]?.id==='pending-own','observed own post prepends after reconnect');
+});
+
+
+test('Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read', {timeout:hangBudget(20)}, async t=>{
+  const f=await fixture(t),full=await guest(f.url);assert.ok(full.ok);
+  const raw=async(session,body)=>fetch(f.url+'/following/cards',{method:'POST',headers:{authorization:`Bearer ${session.token}`},body:JSON.stringify({args:{c:null},...body})});
+  const read=await narrowSession(f.url,full.session);assert.ok(read.ok);
+  const opened=await raw(full.session,{action:'open'}).then(r=>r.json());assert.equal(typeof opened.opening,'string');
+  const db=new DatabaseSync(join(f.dir,'.snapback4/store.sqlite'),{readOnly:true});t.after(()=>db.close());
+  const snapshot=()=>JSON.stringify(['r','_ops','_outbox','_requests','_effect_presence','_sessions','_read_sessions'].map(table=>[table,db.prepare(`SELECT * FROM ${table}`).all()]));
+  const before=snapshot();
+  for(const action of ['open','unit','refresh','cancel']){
+    const response=await raw(read.session,{action,opening:opened.opening,mounted:[]});
+    assert.equal(response.status,403);const body=await response.json();assert.equal(body.denied.code,'E_READ_ONLY');assert.equal('head' in body,false);assert.equal('store_id' in body,false);
+  }
+  assert.equal(snapshot(),before);
+  const requests=[];
+  const doFetch=async(input,init)=>{requests.push(new URL(input).pathname);return fetch(input,init)};
+  const ro=createClient({url:f.url,session:read.session,readOnly:true,fetch:doFetch});t.after(()=>ro.close());
+  const stored=new Map([[sessionKey(f.url,true),JSON.stringify(read.session)]]);
+  const app=createApp({url:f.url,readOnly:true,fetch:doFetch,sessionStore:{async get(k){return stored.get(k)??null},async set(k,v){stored.set(k,v)},async delete(k){stored.delete(k)}}});t.after(()=>app.close());assert.ok((await app.ready).ok);
+  for(const client of [ro,app.client]){
+    const history=new Following(client,op,{c:null}),stop=history.subscribe(()=>{});t.after(stop);
+    assert.equal(history.getSnapshot().phase,'refused');assert.equal(history.getSnapshot().code,'E_READ_ONLY');
+    history.retry();history.loadMore();assert.equal(history.getSnapshot().phase,'refused');
+  }
+  const inbox=await ro.query(op,{c:null});assert.ok('data' in inbox);
+  assert.equal(matchRead(inbox,{present:()=> 'inbox',absent:()=> 'inbox',partial:()=> 'partial',denied:()=> 'denied',loading:()=> 'loading'}),'inbox');
+  assert.equal(requests.some(p=>p.startsWith('/following/')),false);
+  assert.equal(snapshot(),before);
+  // A raw read credential cannot bypass the server allow-list, even without
+  // opting into the SDK's read-only constructor. The refusal is terminal.
+  const unmarked=createClient({url:f.url,session:read.session,fetch:doFetch});t.after(()=>unmarked.close());
+  const history=new Following(unmarked,op,{c:null}),stop=history.subscribe(()=>{});t.after(stop);
+  await waitFor(()=>history.getSnapshot().phase==='refused','raw read token refusal');assert.equal(history.getSnapshot().code,'E_READ_ONLY');
+  assert.equal(snapshot(),before);
+  const calls=requests.filter(p=>p.startsWith('/following/')).length;
+  await unmarked.query(op,{c:null});await new Promise(resolve=>setTimeout(resolve,1100));
+  assert.equal(requests.filter(p=>p.startsWith('/following/')).length,calls,'a refused observer must not restart preparation polling');
+  // The refused cancel cannot consume or evict the full session's unit.
+  assert.equal((await raw(full.session,{action:'unit',opening:opened.opening}).then(r=>r.json())).phase,'page');
 });

@@ -1,0 +1,862 @@
+Reviewed commit 8adc7879dd6a0599556c030256ace92e6f35c433
+
+snapback4/crates/snapback4-core/src/engine/following_history/session.rs:6-39
+   6 pub(super) fn replay(
+   7     tx: &Tx<'_>,
+   8     t: &Timeline,
+   9     s: &Session,
+  10     u: &Unit,
+  11     mut b: Budget,
+  12 ) -> Result<Outcome, RuntimeError> {
+  13     let count = u.witnesses.len() as u64;
+  14     let cost = Metered {
+  15         examined: count * 4,
+  16         rule_probes: count * 2,
+  17         steps: count * 128,
+  18         output_bytes: (u.answer.bytes.len() as u64).saturating_sub(ENVELOPE),
+  19         rows_written: 1,
+  20         ..Default::default()
+  21     };
+  22     if !b.take(cost) {
+  23         return simple(
+  24             Response::Refused {
+  25                 code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+  26             },
+  27             b,
+  28         );
+  29     }
+  30     for h in &u.witnesses {
+  31         if !matches!(read::live(tx, t, s, h)?, Live::Yes) {
+  32             return simple(Response::Restart, b);
+  33         }
+  34     }
+  35     Ok(Outcome {
+  36         answer: u.answer.clone(),
+  37         metered: b.used,
+  38         frontier_writes: 0,
+  39     })
+
+snapback4/crates/snapback4-core/src/engine/following_history/session.rs:50-145
+  50     let mut obstructed = false;
+  51     let mut progress = false;
+  52     let mut ready = false;
+  53     loop {
+  54         // A replacement must be found before another winner is selected.
+  55         if let Some(lane) = &s.pending {
+  56             if !b.work(budget::unit(true), s.checkpoint() + 1) {
+  57                 break;
+  58             }
+  59             let lane = lane.clone();
+  60             if !read::edge(tx, t, &s.viewer, &lane)? {
+  61                 s.pending = None;
+  62                 progress = true;
+  63                 continue;
+  64             }
+  65             let Some(event) = read::next_event(tx, t, &lane)? else {
+  66                 s.pending = None;
+  67                 progress = true;
+  68                 continue;
+  69             };
+  70             let disposition = read::birth(tx, t, &s.bound, &event)?;
+  71             let position = event.position();
+  72             if !matches!(disposition, Live::Yes) {
+  73                 obstructed |= matches!(disposition, Live::Later);
+  74                 s.pending.as_mut().unwrap().after = Some(position);
+  75                 progress = true;
+  76                 continue;
+  77             }
+  78             let head = Head {
+  79                 lane: Lane {
+  80                     after: Some(position),
+  81                     ..lane
+  82                 },
+  83                 event,
+  84             };
+  85             let extra = s.frontier.extra(&head);
+  86             if s.bytes().saturating_add(extra) > session_limit.min(total_limit) {
+  87                 if progress {
+  88                     break;
+  89                 }
+  90                 return simple(
+  91                     Response::Refused {
+  92                         code: "E_FOLLOWING_QUOTA",
+  93                     },
+  94                     b,
+  95                 );
+  96             }
+  97             let copied = s.frontier.copy_bytes(head.lane.block);
+  98             if !b.work(
+  99                 Metered {
+ 100                     heap_bytes: extra + copied,
+ 101                     ..Default::default()
+ 102                 },
+ 103                 s.checkpoint() + 1,
+ 104             ) {
+ 105                 break;
+ 106             }
+ 107             s.dirty.insert(head.lane.block);
+ 108             s.frontier.put(head);
+ 109             s.pending = None;
+ 110             progress = true;
+ 111             continue;
+ 112         }
+ 113         if !s.discovered {
+ 114             // In particular, do not seek a head after discovery's reservation fails.
+ 115             if !b.work(
+ 116                 Metered {
+ 117                     examined: 1,
+ 118                     index_entries: 1,
+ 119                     steps: 32,
+ 120                     ..Default::default()
+ 121                 },
+ 122                 s.checkpoint(),
+ 123             ) {
+ 124                 break;
+ 125             }
+ 126             let Some(edge) = read::next_edge(tx, t, s)? else {
+ 127                 s.discovered = true;
+ 128                 progress = true;
+ 129                 continue;
+ 130             };
+ 131             let actor = edge.field("actorId")?.as_str()?.to_owned();
+ 132             let epoch = edge.field("epoch")?.as_str()?.to_owned();
+ 133             s.edge_after = Some(vec![Value::Id(actor.clone()), edge.field("id")?.clone()]);
+ 134             progress = true;
+ 135             if actor == s.viewer || epoch > s.bound {
+ 136                 continue;
+ 137             }
+ 138             s.pending = Some(Lane {
+ 139                 actor,
+ 140                 epoch: Some(epoch),
+ 141                 after: s.after.clone(),
+ 142                 block: s.lanes / BLOCK_HEADS,
+ 143             });
+ 144             s.lanes += 1;
+ 145             continue;
+
+snapback4/crates/snapback4-core/src/engine/following_history/session.rs:147-191
+ 147         if s.staged.len() >= s.page_size || s.frontier.peek().is_none() {
+ 148             ready = true;
+ 149             break;
+ 150         }
+ 151         let head = s.frontier.peek().unwrap();
+ 152         if !b.work(
+ 153             Metered {
+ 154                 heap_bytes: head.bytes() + s.frontier.copy_bytes(head.lane.block),
+ 155                 ..budget::unit(false)
+ 156             },
+ 157             s.checkpoint() + 1,
+ 158         ) {
+ 159             break;
+ 160         }
+ 161         let live = read::live(tx, t, s, head)?;
+ 162         if !matches!(live, Live::Yes) {
+ 163             let head = s.frontier.pop().unwrap();
+ 164             s.dirty.insert(head.lane.block);
+ 165             if !matches!(live, Live::LaneGone) {
+ 166                 s.pending = Some(head.lane);
+ 167             }
+ 168             progress = true;
+ 169             continue;
+ 170         }
+ 171         let mut item = Item::Event(head.event.clone());
+ 172         let mut bytes = serde_json::to_string(&item).unwrap().len() as u64 + 1;
+ 173         if bytes > b.remaining_output() {
+ 174             item = Item::Omitted {
+ 175                 id: head.event.id.clone(),
+ 176                 code: "E_FOLLOWING_ROW_TOO_LARGE",
+ 177             };
+ 178             bytes = serde_json::to_string(&item).unwrap().len() as u64 + 1;
+ 179         }
+ 180         if bytes > b.remaining_output() {
+ 181             return simple(
+ 182                 Response::Refused {
+ 183                     code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+ 184                 },
+ 185                 b,
+ 186             );
+ 187         }
+ 188         if s.item_bytes + bytes > b.remaining_output() {
+ 189             ready = true;
+ 190             break;
+ 191         }
+
+snapback4/crates/snapback4-core/src/engine/following_history/session.rs:229-318
+ 229     if !ready && !progress {
+ 230         return simple(
+ 231             Response::Refused {
+ 232                 code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+ 233             },
+ 234             b,
+ 235         );
+ 236     }
+ 237     if ready {
+ 238         let n = s.staged.len() as u64;
+ 239         assert!(b.take(Metered {
+ 240             examined: n * 4,
+ 241             rule_probes: n * 2,
+ 242             steps: n * 128,
+ 243             ..Default::default()
+ 244         }));
+ 245         for staged in &s.staged {
+ 246             if !matches!(read::live(tx, t, s, &staged.head)?, Live::Yes) {
+ 247                 s.abandoned = true;
+ 248                 return simple(Response::Restart, b);
+ 249             }
+ 250         }
+ 251     }
+ 252     let end = ready && s.frontier.peek().is_none() && s.pending.is_none() && s.discovered;
+ 253     let next = if end { None } else { Some(token()?) };
+ 254     let response = if ready {
+ 255         Response::Page {
+ 256             items: s.staged.iter().map(|x| x.item.clone()).collect(),
+ 257             next: next.clone(),
+ 258         }
+ 259     } else if obstructed {
+ 260         Response::Stalled {
+ 261             next: next.clone().unwrap(),
+ 262         }
+ 263     } else {
+ 264         Response::Preparing {
+ 265             next: next.clone().unwrap(),
+ 266         }
+ 267     };
+ 268     let answer = pinned(response);
+ 269     let retain_frontier = s.retained || !ready;
+ 270     let frontier_writes = if retain_frontier {
+ 271         s.dirty.len() as u64
+ 272     } else {
+ 273         0
+ 274     };
+ 275     let response_bytes = answer.bytes.len() as u64 * 4 + 512;
+ 276     let witnesses_bytes = if ready {
+ 277         s.staged.iter().map(|x| x.head.bytes()).sum::<u64>()
+ 278     } else {
+ 279         0
+ 280     };
+ 281     let keep_bytes = response_bytes + witnesses_bytes;
+ 282     // Two replies suffice for one consumer's lost/reordered response retry. An
+ 283     // older token restarts; it cannot advance the new pending unit.
+ 284     let released = s
+ 285         .units
+ 286         .front()
+ 287         .filter(|_| s.units.len() >= 2)
+ 288         .map_or(0, |u| u.bytes);
+ 289     let projected = s
+ 290         .bytes()
+ 291         .saturating_sub(released)
+ 292         .saturating_sub(if ready { s.staged_bytes } else { 0 })
+ 293         .saturating_sub(if !retain_frontier {
+ 294             s.frontier.bytes
+ 295         } else {
+ 296             0
+ 297         })
+ 298         .saturating_add(keep_bytes);
+ 299     if projected > session_limit.min(total_limit) {
+ 300         s.abandoned = true;
+ 301         return simple(
+ 302             Response::Refused {
+ 303                 code: "E_FOLLOWING_QUOTA",
+ 304             },
+ 305             b,
+ 306         );
+ 307     }
+ 308     let cost = Metered {
+ 309         rows_written: frontier_writes + 5,
+ 310         heap_bytes: response_bytes,
+ 311         steps: 64,
+ 312         output_bytes: (answer.bytes.len() as u64).saturating_sub(ENVELOPE),
+ 313         ..Default::default()
+ 314     };
+ 315     assert!(
+ 316         b.take(cost),
+ 317         "publication reservation must cover the whole atomic checkpoint"
+ 318     );
+
+snapback4/crates/snapback4-core/src/engine/following_history/session.rs:335-350
+ 335     if s.units.len() >= 2 {
+ 336         s.units.pop_front();
+ 337     }
+ 338     s.units.push_back(Arc::new(Unit {
+ 339         token: s.pending_token.clone(),
+ 340         answer: answer.clone(),
+ 341         witnesses,
+ 342         bytes: keep_bytes,
+ 343     }));
+ 344     s.pending_token = next.unwrap_or_default();
+ 345     s.dirty.clear();
+ 346     Ok(Outcome {
+ 347         answer,
+ 348         metered: b.used,
+ 349         frontier_writes,
+ 350     })
+
+snapback4/crates/snapback4-core/src/engine/following_history.rs:333-381
+ 333     pub fn request(
+ 334         &mut self,
+ 335         engine: &mut Engine,
+ 336         request: Request,
+ 337         context: Context,
+ 338     ) -> Result<Outcome, RuntimeError> {
+ 339         let now = context.now.unwrap_or_else(crate::now_ms);
+ 340         let mut budget = Budget::new(engine.ceilings, request.page_size.min(100));
+ 341         if !budget.take(Metered {
+ 342             examined: 2,
+ 343             steps: 64,
+ 344             heap_bytes: SCRATCH,
+ 345             output_bytes: ENVELOPE,
+ 346             ..Default::default()
+ 347         }) {
+ 348             return Err(RuntimeError::Input(
+ 349                 "Following request allowance cannot hold its control envelope and scratch".into(),
+ 350             ));
+ 351         }
+ 352         if context.viewer == crate::SYSTEM_PRINCIPAL
+ 353             || !crate::value::identity_fits(&context.viewer)
+ 354             || request.opening.len() != 64
+ 355             || !request.opening.bytes().all(|b| b.is_ascii_hexdigit())
+ 356         {
+ 357             return simple(
+ 358                 Response::Refused {
+ 359                     code: "E_FOLLOWING_INPUT",
+ 360                 },
+ 361                 budget,
+ 362             );
+ 363         }
+ 364         if !request.opening.starts_with(&self.incarnation) {
+ 365             return simple(Response::Restart, budget);
+ 366         }
+ 367         if request
+ 368             .token
+ 369             .as_ref()
+ 370             .is_some_and(|t| t.len() != 64 || !t.bytes().all(|b| b.is_ascii_hexdigit()))
+ 371         {
+ 372             return simple(Response::Restart, budget);
+ 373         }
+ 374         if !budget.fits(budget.publication) {
+ 375             return simple(
+ 376                 Response::Refused {
+ 377                     code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+ 378                 },
+ 379                 budget,
+ 380             );
+ 381         }
+
+snapback4/crates/snapback4-core/src/engine/following_history.rs:419-549
+ 419         let existing = self.sessions.get(&key);
+ 420         if let Some(s) = existing {
+ 421             if s.abandoned
+ 422                 || now.saturating_sub(s.touched) >= IDLE_MS
+ 423                 || s.declaration != request.declaration
+ 424                 || s.page_size != request.page_size
+ 425                 || s.arguments != context.args
+ 426                 || s.store != store
+ 427                 || s.generation != engine.generation
+ 428                 || head < s.head
+ 429             {
+ 430                 return simple(Response::Restart, budget);
+ 431             }
+ 432             if let Some(unit) = s.units.iter().find(|u| &u.token == token) {
+ 433                 let outcome = session::replay(&tx, timeline, s, unit, budget)?;
+ 434                 if !matches!(
+ 435                     outcome.answer.response,
+ 436                     Response::Restart | Response::Refused { .. }
+ 437                 ) {
+ 438                     let s = self.sessions.get_mut(&key).unwrap();
+ 439                     self.expiry
+ 440                         .remove(&(s.touched.saturating_add(IDLE_MS), key.clone()));
+ 441                     s.touched = now.max(s.touched);
+ 442                     s.head = head;
+ 443                     self.expiry.insert((s.touched.saturating_add(IDLE_MS), key));
+ 444                 }
+ 445                 return Ok(outcome);
+ 446             }
+ 447             if token != &s.pending_token {
+ 448                 return simple(Response::Restart, budget);
+ 449             }
+ 450         } else {
+ 451             let Some(o) = self.openings.get(&key) else {
+ 452                 return simple(Response::Restart, budget);
+ 453             };
+ 454             if request.token.is_some()
+ 455                 || o.abandoned
+ 456                 || now.saturating_sub(o.touched) >= IDLE_MS
+ 457                 || request.declaration != o.declaration
+ 458                 || request.page_size != o.page_size
+ 459                 || !context.args.is_empty()
+ 460             {
+ 461                 return simple(Response::Restart, budget);
+ 462             }
+ 463         }
+ 464         // The bounded record map is copied; its head records are copy-on-write.
+ 465         // Refusals, storage errors and failed publication leave the old unit intact.
+ 466         let fork = existing.map_or(SESSION_BASE, |s| {
+ 467             SESSION_BASE + s.frontier.fork_bytes() + s.staged_bytes
+ 468         });
+ 469         let nodes = existing.map_or(0, |s| s.frontier.block_count() as u64);
+ 470         if !budget.work(
+ 471             Metered {
+ 472                 heap_bytes: fork,
+ 473                 examined: nodes,
+ 474                 steps: nodes * 16,
+ 475                 ..Default::default()
+ 476             },
+ 477             5,
+ 478         ) {
+ 479             return simple(
+ 480                 Response::Refused {
+ 481                     code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+ 482                 },
+ 483                 budget,
+ 484             );
+ 485         }
+ 486         let old_bytes = existing.map_or(SESSION_BASE, Session::bytes);
+ 487         let other_bytes = self.bytes - old_bytes;
+ 488         let mut session = if let Some(s) = existing {
+ 489             s.clone()
+ 490         } else {
+ 491             let mut s = Session {
+ 492                 viewer: context.viewer.clone(),
+ 493                 declaration: request.declaration.clone(),
+ 494                 page_size: request.page_size,
+ 495                 arguments: context.args.clone(),
+ 496                 store,
+ 497                 generation: engine.generation,
+ 498                 bound: format!("{head:016x}ffffffffffffffff"),
+ 499                 head,
+ 500                 touched: now,
+ 501                 pending_token: request.opening.clone(),
+ 502                 abandoned: false,
+ 503                 frontier: Frontier::default(),
+ 504                 retained: false,
+ 505                 dirty: BTreeSet::new(),
+ 506                 pending: None,
+ 507                 edge_after: None,
+ 508                 discovered: false,
+ 509                 lanes: 0,
+ 510                 after: None,
+ 511                 staged: Vec::new(),
+ 512                 staged_bytes: 0,
+ 513                 item_bytes: 0,
+ 514                 units: VecDeque::new(),
+ 515             };
+ 516             s.reset_scan();
+ 517             s
+ 518         };
+ 519         session.dirty.clear();
+ 520         let outcome = session::advance(
+ 521             &tx,
+ 522             timeline,
+ 523             &mut session,
+ 524             budget,
+ 525             self.per_session,
+ 526             self.total.saturating_sub(other_bytes),
+ 527         )?;
+ 528         // Publication and checkpoint are one ownership swap under the host's
+ 529         // controller lock. No source writes, application commits or sync events.
+ 530         if matches!(
+ 531             outcome.answer.response,
+ 532             Response::Page { .. } | Response::Preparing { .. } | Response::Stalled { .. }
+ 533         ) {
+ 534             tx.rollback()?;
+ 535             let touched = self
+ 536                 .openings
+ 537                 .get(&key)
+ 538                 .map_or(session.touched, |o| o.touched);
+ 539             self.expiry
+ 540                 .remove(&(touched.saturating_add(IDLE_MS), key.clone()));
+ 541             self.openings.remove(&key);
+ 542             session.touched = now.max(session.touched);
+ 543             session.head = head;
+ 544             self.bytes = other_bytes + session.bytes();
+ 545             self.expiry
+ 546                 .insert((session.touched.saturating_add(IDLE_MS), key.clone()));
+ 547             self.sessions.insert(key, session);
+ 548         }
+ 549         Ok(outcome)
+
+snapback4/crates/snapback4-core/src/engine/following_history/budget.rs:1-72
+   1 //! Reservation does not charge on refusal. All seven dimensions move together.
+   2 use crate::meter::{Ceilings, Metered};
+   3 
+   4 pub(super) const SCRATCH: u64 = 2 * 1024 * 1024;
+   5 pub(super) const ENVELOPE: u64 = 512;
+   6 
+   7 pub(super) struct Budget {
+   8     pub used: Metered,
+   9     pub ceilings: Ceilings,
+  10     pub publication: Metered,
+  11 }
+  12 
+  13 impl Budget {
+  14     pub fn new(ceilings: Ceilings, page_size: usize) -> Self {
+  15         Self {
+  16             used: Metered::default(),
+  17             ceilings,
+  18             publication: Metered {
+  19                 examined: page_size as u64 * 4,
+  20                 rule_probes: page_size as u64 * 2,
+  21                 steps: page_size as u64 * 128 + 64,
+  22                 heap_bytes: 8 * 1024 * 1024,
+  23                 rows_written: 5,
+  24                 ..Default::default()
+  25             },
+  26         }
+  27     }
+  28     pub fn fits(&self, cost: Metered) -> bool {
+  29         fits(self.ceilings, add(self.used, cost))
+  30     }
+  31     pub fn take(&mut self, cost: Metered) -> bool {
+  32         if !self.fits(cost) {
+  33             return false;
+  34         }
+  35         self.used = add(self.used, cost);
+  36         true
+  37     }
+  38     pub fn work(&mut self, cost: Metered, checkpoint: u64) -> bool {
+  39         let reserve = Metered {
+  40             rows_written: checkpoint,
+  41             ..self.publication
+  42         };
+  43         if !self.fits(add(cost, reserve)) {
+  44             return false;
+  45         }
+  46         self.take(cost)
+  47     }
+  48     pub fn remaining_output(&self) -> u64 {
+  49         self.ceilings.output_bytes.saturating_sub(ENVELOPE)
+  50     }
+  51 }
+  52 
+  53 pub(super) fn add(a: Metered, b: Metered) -> Metered {
+  54     Metered {
+  55         examined: a.examined.saturating_add(b.examined),
+  56         index_entries: a.index_entries.saturating_add(b.index_entries),
+  57         rule_probes: a.rule_probes.saturating_add(b.rule_probes),
+  58         steps: a.steps.saturating_add(b.steps),
+  59         heap_bytes: a.heap_bytes.saturating_add(b.heap_bytes),
+  60         output_bytes: a.output_bytes.saturating_add(b.output_bytes),
+  61         rows_written: a.rows_written.saturating_add(b.rows_written),
+  62     }
+  63 }
+  64 pub(super) fn fits(c: Ceilings, m: Metered) -> bool {
+  65     m.examined <= c.examined
+  66         && m.index_entries <= c.index_entries
+  67         && m.rule_probes <= c.rule_probes
+  68         && m.steps <= c.steps
+  69         && m.heap_bytes <= c.heap_bytes
+  70         && m.output_bytes <= c.output_bytes
+  71         && m.rows_written <= c.rows_written
+  72 }
+
+snapback4/crates/snapback4-core/src/engine/following_history/tests.rs:112-249
+ 112     bound: String,
+ 113     edges: BTreeMap<String, String>,
+ 114 }
+ 115 impl Oracle {
+ 116     fn freeze(e: &Engine) -> Self {
+ 117         let seq: i64 = e
+ 118             .store()
+ 119             .conn()
+ 120             .query_row("SELECT COALESCE(MAX(seq),0) FROM _commits", [], |r| {
+ 121                 r.get(0)
+ 122             })
+ 123             .unwrap();
+ 124         let edges = e
+ 125             .store()
+ 126             .rows("feedEdges")
+ 127             .unwrap()
+ 128             .into_iter()
+ 129             .filter(|r| r.field("readerId").unwrap() == &id("reader"))
+ 130             .map(|r| {
+ 131                 (
+ 132                     r.field("actorId").unwrap().as_str().unwrap().into(),
+ 133                     r.field("epoch").unwrap().as_str().unwrap().into(),
+ 134                 )
+ 135             })
+ 136             .collect();
+ 137         Self {
+ 138             bound: format!("{seq:016x}ffffffffffffffff"),
+ 139             edges,
+ 140         }
+ 141     }
+ 142     fn rows(&self, e: &Engine) -> Vec<((i64, String), String)> {
+ 143         let current: BTreeMap<String, String> = e
+ 144             .store()
+ 145             .rows("feedEdges")
+ 146             .unwrap()
+ 147             .into_iter()
+ 148             .filter(|r| r.field("readerId").unwrap() == &id("reader"))
+ 149             .map(|r| {
+ 150                 (
+ 151                     r.field("actorId").unwrap().as_str().unwrap().into(),
+ 152                     r.field("epoch").unwrap().as_str().unwrap().into(),
+ 153                 )
+ 154             })
+ 155             .collect();
+ 156         let dead: BTreeSet<String> = e
+ 157             .store()
+ 158             .rows("feedRemovedEvents")
+ 159             .unwrap()
+ 160             .into_iter()
+ 161             .map(|r| r.field("eventId").unwrap().as_str().unwrap().into())
+ 162             .collect();
+ 163         let births: BTreeMap<String, String> = e
+ 164             .store()
+ 165             .rows("feedWork")
+ 166             .unwrap()
+ 167             .into_iter()
+ 168             .filter(|r| r.field("kind").unwrap().as_str().unwrap() == "delivery")
+ 169             .map(|r| {
+ 170                 (
+ 171                     r.field("eventId").unwrap().as_str().unwrap().into(),
+ 172                     r.field("admitted").unwrap().as_str().unwrap().into(),
+ 173                 )
+ 174             })
+ 175             .collect();
+ 176         let mut rows: Vec<_> = e
+ 177             .store()
+ 178             .rows("feedPosts")
+ 179             .unwrap()
+ 180             .into_iter()
+ 181             .filter_map(|r| {
+ 182                 let actor = r.field("actorId").unwrap().as_str().unwrap();
+ 183                 let id = r.field("id").unwrap().as_str().unwrap();
+ 184                 if actor != "reader"
+ 185                     && (!self.edges.contains_key(actor)
+ 186                         || self.edges.get(actor) != current.get(actor))
+ 187                 {
+ 188                     return None;
+ 189                 }
+ 190                 if dead.contains(id) || !births.get(id).is_some_and(|b| b <= &self.bound) {
+ 191                     return None;
+ 192                 }
+ 193                 Some((
+ 194                     (r.field("at").unwrap().as_int().unwrap(), id.to_owned()),
+ 195                     id.into(),
+ 196                 ))
+ 197             })
+ 198             .collect();
+ 199         rows.sort_by(|a, b| b.0.cmp(&a.0));
+ 200         rows
+ 201     }
+ 202     fn page(
+ 203         &self,
+ 204         e: &Engine,
+ 205         items: &[Item],
+ 206         after: Option<&(i64, String)>,
+ 207     ) -> Option<(i64, String)> {
+ 208         let rows: Vec<_> = self
+ 209             .rows(e)
+ 210             .into_iter()
+ 211             .filter(|(p, _)| after.is_none_or(|a| p < a))
+ 212             .collect();
+ 213         assert_eq!(
+ 214             items.iter().map(|i| i.id()).collect::<Vec<_>>(),
+ 215             rows.iter()
+ 216                 .take(items.len())
+ 217                 .map(|(_, id)| id.as_str())
+ 218                 .collect::<Vec<_>>()
+ 219         );
+ 220         if items.is_empty() {
+ 221             assert!(rows.is_empty());
+ 222             after.cloned()
+ 223         } else {
+ 224             Some(rows[items.len() - 1].0.clone())
+ 225         }
+ 226     }
+ 227 }
+ 228 fn drain(r: &mut Reader, e: &mut Engine, q: &mut Request, oracle: &Oracle) -> (Vec<String>, usize) {
+ 229     let mut ids = Vec::new();
+ 230     let mut after = None;
+ 231     let mut preparing = 0;
+ 232     for _ in 0..100_000 {
+ 233         let o = step(r, e, q);
+ 234         match &o.answer.response {
+ 235             Response::Page { items, next } => {
+ 236                 after = oracle.page(e, items, after.as_ref());
+ 237                 ids.extend(items.iter().map(|i| i.id().to_owned()));
+ 238                 if next.is_none() {
+ 239                     return (ids, preparing);
+ 240                 }
+ 241             }
+ 242             Response::Preparing { .. } | Response::Stalled { .. } => preparing += 1,
+ 243             other => panic!("unexpected {other:?}"),
+ 244         }
+ 245         q.token = o.answer.response.next().map(str::to_owned);
+ 246     }
+ 247     panic!("settled history failed to finish");
+ 248 }
+ 249 
+
+snapback4/crates/snapback4-core/src/engine/following_history/tests/matrix.rs:425-554
+ 425 #[test]
+ 426 fn private_work_and_other_readers_edges_do_not_change_public_progress() {
+ 427     let rows = || {
+ 428         (0..30).flat_map(|n| {
+ 429             let a = format!("a{n:02}");
+ 430             [edge(&a), post(&format!("p{n:02}"), &a, n)]
+ 431         })
+ 432     };
+ 433     let mut a = seeded(rows());
+ 434     let mut b = seeded(rows());
+ 435     // Only queue-private columns change; admissions, live events and the
+ 436     // reader's roster stay equal. Direct owned writes model maintenance here.
+ 437     let table = b.schema.tables["feedWork"].clone();
+ 438     let work = b.store().rows("feedWork").unwrap();
+ 439     let tx = b.store.transaction().unwrap();
+ 440     for old in work {
+ 441         let mut fields = old.as_object().unwrap().clone();
+ 442         fields.insert("status".into(), Value::String("parked".into()));
+ 443         fields.insert("error".into(), Value::String("private-error".repeat(200)));
+ 444         fields.insert("cursor".into(), Value::String("private-cursor".repeat(200)));
+ 445         tx.put("feedWork", &table, &object(fields), Some(&old))
+ 446             .unwrap();
+ 447     }
+ 448     tx.commit().unwrap();
+ 449     for n in 0..30 {
+ 450         mutation(
+ 451             &mut b,
+ 452             "follow",
+ 453             "unrelated",
+ 454             [("actor", id(format!("z{n}")))],
+ 455             500 + n,
+ 456         );
+ 457     }
+ 458     a.set_ceilings(Ceilings {
+ 459         examined: 48,
+ 460         ..Default::default()
+ 461     });
+ 462     b.set_ceilings(a.ceilings());
+ 463     let mut ra = Reader::new().unwrap();
+ 464     let mut rb = Reader::new().unwrap();
+ 465     let mut qa = request(&mut ra, 3);
+ 466     let mut qb = request(&mut rb, 3);
+ 467     for _ in 0..1000 {
+ 468         let oa = step(&mut ra, &mut a, &qa);
+ 469         let ob = step(&mut rb, &mut b, &qb);
+ 470         let normalize = |o: &Outcome| {
+ 471             let mut j: serde_json::Value = serde_json::from_str(o.answer.bytes()).unwrap();
+ 472             if j.get("next").is_some_and(|n| n.is_string()) {
+ 473                 j["next"] = serde_json::json!("opaque-unit");
+ 474             }
+ 475             j
+ 476         };
+ 477         assert_eq!(normalize(&oa), normalize(&ob));
+ 478         assert_eq!(oa.metered, ob.metered);
+ 479         if matches!(oa.answer.response, Response::Page { next: None, .. }) {
+ 480             return;
+ 481         }
+ 482         advance(&mut qa, &oa);
+ 483         advance(&mut qb, &ob);
+ 484     }
+ 485     panic!("paired settled worlds did not finish");
+ 486 }
+ 487 
+ 488 #[test]
+ 489 fn empty_self_follow_and_all_removed_lanes_finish_and_births_do_not_resurrect_purges() {
+ 490     for rows in [vec![], vec![edge("a")], vec![post("own", "reader", 1)]] {
+ 491         let mut e = seeded(rows);
+ 492         let oracle = Oracle::freeze(&e);
+ 493         let mut r = Reader::new().unwrap();
+ 494         let mut q = request(&mut r, 2);
+ 495         assert_eq!(
+ 496             drain(&mut r, &mut e, &mut q, &oracle).0.len(),
+ 497             oracle.rows(&e).len()
+ 498         );
+ 499     }
+ 500     let mut e = seeded([edge("a"), post("p", "a", 1)]);
+ 501     mutation(&mut e, "remove", "a", [("postId", id("p"))], 2);
+ 502     assert!(!e.store().rows("feedWork").unwrap().is_empty());
+ 503     for purge in [false, true] {
+ 504         if purge {
+ 505             let table = e.schema.tables["feedPosts"].clone();
+ 506             let events = e.store().rows("feedPosts").unwrap();
+ 507             let tx = e.store.transaction().unwrap();
+ 508             for row in events {
+ 509                 tx.delete("feedPosts", &table, &row).unwrap();
+ 510             }
+ 511             tx.commit().unwrap();
+ 512         }
+ 513         let oracle = Oracle::freeze(&e);
+ 514         let mut r = Reader::new().unwrap();
+ 515         let mut q = request(&mut r, 2);
+ 516         assert!(drain(&mut r, &mut e, &mut q, &oracle).0.is_empty());
+ 517     }
+ 518 }
+ 519 
+ 520 #[test]
+ 521 fn same_transaction_refollow_with_reused_source_id_invalidates_the_opened_epoch() {
+ 522     let mut e = seeded([edge("a"), post("p", "a", 1), post("own", "reader", 0)]);
+ 523     let source = format!(
+ 524         "{SOURCE}\nmutation refollow(actor: principal, edgeId: id):\n  delete follows[viewer, actor]\n  return insert follows {{ id: edgeId, followerId: viewer, followedId: actor }}\n"
+ 525     );
+ 526     let (schema, programs) = compiled(&source);
+ 527     e.adopt_at(schema, programs, 100).unwrap();
+ 528     let mut r = Reader::new().unwrap();
+ 529     let q = request(&mut r, 1);
+ 530     let out = step(&mut r, &mut e, &q);
+ 531     assert!(matches!(&out.answer.response,Response::Page{items,..} if items[0].id()=="p"));
+ 532     let old = e.store().rows("feedEdges").unwrap()[0]
+ 533         .field("epoch")
+ 534         .unwrap()
+ 535         .clone();
+ 536     mutation(
+ 537         &mut e,
+ 538         "refollow",
+ 539         "reader",
+ 540         [("actor", id("a")), ("edgeId", id("edge-a"))],
+ 541         2,
+ 542     );
+ 543     assert_ne!(
+ 544         &old,
+ 545         e.store().rows("feedEdges").unwrap()[0]
+ 546             .field("epoch")
+ 547             .unwrap()
+ 548     );
+ 549     assert!(matches!(
+ 550         step(&mut r, &mut e, &q).answer.response,
+ 551         Response::Restart
+ 552     ));
+ 553 }
+ 554 
+
+snapback4/crates/snapback4-core/src/engine/following_history/tests/matrix.rs:665-702
+ 665 #[test]
+ 666 fn discovery_checkpoints_post_bound_follow_churn_without_a_false_end() {
+ 667     let mut e = seeded((0..8).map(|n| edge(&format!("a{n}"))));
+ 668     let oracle = Oracle::freeze(&e);
+ 669     let mut r = Reader::new().unwrap();
+ 670     let mut q = request(&mut r, 1);
+ 671     let mut previous = None;
+ 672     for wave in 0..8 {
+ 673         e.set_ceilings(Ceilings {
+ 674             examined: 20,
+ 675             ..Default::default()
+ 676         });
+ 677         let out = step(&mut r, &mut e, &q);
+ 678         assert!(matches!(
+ 679             out.answer.response,
+ 680             Response::Preparing { .. } | Response::Stalled { .. }
+ 681         ));
+ 682         let key = owned(&r, &q).edge_after.as_ref().unwrap()[0]
+ 683             .as_str()
+ 684             .unwrap()
+ 685             .to_owned();
+ 686         assert!(previous.as_ref().is_none_or(|p| p < &key));
+ 687         previous = Some(key);
+ 688         advance(&mut q, &out);
+ 689         e.set_ceilings(Ceilings::default());
+ 690         for n in 0..30 {
+ 691             mutation(
+ 692                 &mut e,
+ 693                 "follow",
+ 694                 "reader",
+ 695                 [("actor", id(format!("z{wave:02}-{n:02}")))],
+ 696                 100 + wave,
+ 697             );
+ 698         }
+ 699     }
+ 700     assert!(drain(&mut r, &mut e, &mut q, &oracle).0.is_empty());
+ 701 }
+ 702 

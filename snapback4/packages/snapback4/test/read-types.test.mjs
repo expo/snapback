@@ -25,6 +25,87 @@ test('ready literals require the discriminant', () => {
 const read: Read<{id: string}> = {data: {id: 'row'}, complete: true, cut: null, fresh: true};`);
   assert.deepEqual(result.codes, [2322], result.text);
 });
+test('matchRead rejects every omitted state and never falls back for denied or partial', () => {
+  for (const missing of ['loading', 'denied', 'absent', 'partial', 'present']) {
+    const handlers = ['loading', 'denied', 'absent', 'partial', 'present']
+      .filter(state => state !== missing).map(state => `${state}: () => 1`).join(',');
+    const result = check(`import { matchRead, type Read } from './dist/contract.js';
+declare const read: Read<{id: string} | null>;
+matchRead(read, {${handlers}});`);
+    assert.deepEqual(result.codes, [2345], result.text);
+  }
+  for (const handlers of ['otherwise: () => 1', 'denied: () => 1, otherwise: () => 1', 'partial: () => 1, otherwise: () => 1']) {
+    const result = check(`import { matchRead, type Read } from './dist/contract.js';
+declare const read: Read<unknown>;
+matchRead(read, {${handlers}});`);
+    assert.deepEqual(result.codes, [2345], result.text);
+  }
+});
+test('matchRead narrows each handler, preserves metadata and infers mixed return types from both imports', () => {
+  const result = check(`import { matchRead, type Read, type Ready, type Refusal, type Cursor, type ReadMatchHandlers } from './dist/contract.js';
+import { matchRead as reactMatch } from './dist/react.js';
+type Row = { id: string };
+declare const point: Read<Row | null>, page: Read<readonly Row[]>, maybePage: Read<Row[] | null>;
+const matched = matchRead(point, {
+  loading: read => { const loading: true = read.loading;
+    // @ts-expect-error loading has no ready metadata
+    read.fresh;
+    return 'loading' as const; },
+  denied: (why, read) => { const a: Refusal = why, b: Refusal = read.denied;
+    // @ts-expect-error a refusal carries no data
+    read.data;
+    return false as const; },
+  absent: read => { const value: null | (Row & []) = read.data, complete: true = read.complete, cut: null = read.cut; return null; },
+  partial: (data, read) => { const value: Row | null = data, arm: 'partial' = read.existence;
+    // @ts-expect-error uncertain point data remains nullable
+    const certain: Row = data;
+    return 42 as const; },
+  present: (data, read) => {
+    const row: Row = data, arm: 'present' = read.existence, value: Row = read.data;
+    const fresh: boolean = read.fresh, revalidating: true | undefined = read.revalidating;
+    const complete: boolean = read.complete, next: Cursor | null | undefined = read.next, since: number | undefined = read.since;
+    // @ts-expect-error non-null present point
+    const nothing: null = data;
+    return row;
+  },
+});
+const output: 'loading' | false | null | 42 | Row = matched;
+// @ts-expect-error handler results cannot become any
+const wrong: number = matched;
+const fallback = reactMatch(point, {
+  denied: why => why.message,
+  partial: (data, read) => { const row: Row | null = data; const arm: 'partial' = read.existence; return false; },
+  present: data => data.id,
+  otherwise: read => {
+    // @ts-expect-error fallback never sees denied
+    read.denied;
+    if ('data' in read) { const arm: 'absent' | 'present' = read.existence; }
+    return null;
+  },
+});
+const fallbackOutput: string | boolean | null = fallback;
+matchRead(page, {
+  loading: () => 0, denied: () => 0,
+  absent: read => { const empty: readonly Row[] & [] = read.data; return 0; },
+  partial: (data, read) => { const rows: readonly Row[] = data; return rows.length; },
+  present: (data, read) => { const rows: readonly Row[] = data; return rows.length; },
+});
+matchRead(maybePage, {
+  denied: () => 0, partial: data => { const value: Row[] | null = data; return 0; },
+  absent: read => { const empty: null | [] = read.data; return 0; },
+  present: data => { const rows: Row[] = data; return rows.length; }, otherwise: () => 0,
+});
+function generic<T>(read: Read<T>) {
+  return matchRead(read, { denied: () => undefined, partial: data => { const value: T = data; return value; },
+    present: (data, read) => { const value: T = data; const ready: Ready<T> = read; return value; }, otherwise: () => undefined });
+}
+const typed: ReadMatchHandlers<Row | null, string> = { loading: () => '', denied: why => why.message, absent: () => '', partial: () => '', present: row => row.id };
+const named: string = matchRead(point, typed);
+// @ts-expect-error a handler cannot widen or replace the read's input type
+matchRead(point, { denied: () => '', partial: () => '', present: (value: { other: number }) => value.other, otherwise: () => '' });
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});
 test('presentation accepts generic covariant reads and cannot authorize or narrow their data', () => {
   const result = check(`import { readPresentation, type Read, type ReadPresentation } from './dist/contract.js';
 function show<T>(read: Read<T>): ReadPresentation { return readPresentation(read); }

@@ -1,0 +1,9 @@
+{
+  "baselineCommit": "8e3062941096d465ec067b00d5eb37c7f1d9f8fd",
+  "baselineSha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9",
+  "afterFullSuiteWasmBuildSha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9",
+  "rawBytes": 2117610,
+  "gzipBytes": 639941,
+  "budgetBytes": 639941,
+  "finalSha256": "e08359fecc0129ad21f85da97c068b12b1b28132563b9dc312624da131d52eb9"
+}

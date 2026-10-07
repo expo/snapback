@@ -811,3 +811,111 @@ fn shaped_pages_preserve_the_independent_owned_event_prefix_oracle() {
     }
     panic!("shaped reader did not terminate");
 }
+
+
+#[test]
+fn smaller_allowances_refuse_retained_page_without_advancing_and_same_token_recovers() {
+    let mut e = seeded((0..8).map(|n| post(&format!("p{n}{}", "x".repeat(120)), "reader", n)));
+    let oracle = Oracle::freeze(&e);
+    let mut r = Reader::new().unwrap();
+    let mut q = request(&mut r, 4);
+    e.set_ceilings(Ceilings { examined: 50, ..Default::default() });
+    let first = step(&mut r, &mut e, &q);
+    assert!(matches!(first.answer.response, Response::Preparing { .. }));
+    assert_eq!(owned(&r, &q).staged.len(), 3);
+    advance(&mut q, &first);
+    let before = r.accounted_bytes();
+    let pending = owned(&r, &q).pending_token.clone();
+    for c in [
+        Ceilings { output_bytes: 1024, ..Default::default() },
+        Ceilings { heap_bytes: SCRATCH + (8 << 20), ..Default::default() },
+        Ceilings { examined: 17, ..Default::default() },
+        Ceilings { rule_probes: 7, ..Default::default() },
+        Ceilings { steps: 575, ..Default::default() },
+        Ceilings { rows_written: 4, ..Default::default() },
+    ] {
+        e.set_ceilings(c);
+        let out = step(&mut r, &mut e, &q);
+        assert!(matches!(out.answer.response, Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }), "{c:?}: {:?}", out.answer.response);
+        assert_eq!(out.metered.rows_written, 0);
+        assert_eq!(r.accounted_bytes(), before);
+        assert_eq!(owned(&r, &q).pending_token, pending);
+        assert_eq!(owned(&r, &q).staged.len(), 3);
+    }
+    e.set_ceilings(Ceilings::default());
+    let recovered = step(&mut r, &mut e, &q);
+    assert!(matches!(&recovered.answer.response, Response::Page { items, .. } if items.len() == 4));
+    e.set_ceilings(Ceilings { output_bytes: 1024, ..Default::default() });
+    assert!(matches!(step(&mut r, &mut e, &q).answer.response, Response::Refused { .. }));
+    e.set_ceilings(Ceilings::default());
+    assert_eq!(step(&mut r, &mut e, &q).answer.bytes(), recovered.answer.bytes());
+    assert_eq!(drain(&mut r, &mut e, &mut q, &oracle).0.len(), 8);
+}
+
+
+#[test]
+fn discovery_self_skip_is_preparing_and_finished_page_wins_over_post_bound_churn() {
+    let mut e = seeded([]);
+    let oracle = Oracle::freeze(&e);
+    let mut r = Reader::new().unwrap();
+    let mut q = request(&mut r, 1);
+    e.set_ceilings(Ceilings { examined: 10, ..Default::default() });
+    let first = step(&mut r, &mut e, &q);
+    assert!(matches!(first.answer.response, Response::Preparing { .. }));
+    advance(&mut q, &first);
+    e.set_ceilings(Ceilings::default());
+    mutation(&mut e, "follow", "reader", [("actor", id("z-later"))], 101);
+    // Current mutations refuse self-follow. Model an inherited self edge with
+    // the later epoch to exercise discovery's defensive skip ordering.
+    let table = e.schema.tables["feedEdges"].clone();
+    let mut fields = e.store().rows("feedEdges").unwrap()[0].as_object().unwrap().clone();
+    fields.insert("id".into(), id("legacy-self"));
+    fields.insert("actorId".into(), id("reader"));
+    let tx = e.store.transaction().unwrap();
+    tx.put("feedEdges", &table, &object(fields), None).unwrap();
+    tx.commit().unwrap();
+    e.set_ceilings(Ceilings { examined: 7, ..Default::default() });
+    let skip = step(&mut r, &mut e, &q);
+    assert!(matches!(skip.answer.response, Response::Preparing { .. }));
+    assert_eq!(owned(&r, &q).edge_after.as_ref().unwrap()[0], id("reader"));
+    advance(&mut q, &skip);
+    e.set_ceilings(Ceilings::default());
+    let end = step(&mut r, &mut e, &q);
+    assert!(matches!(&end.answer.response, Response::Page { items, next: None } if items.is_empty()));
+    assert!(drain(&mut r, &mut e, &mut q, &oracle).0.is_empty());
+}
+
+#[test]
+fn tombstone_and_physical_purge_interleave_with_retained_heads_and_staged_pages() {
+    let mut witnessed = [0; 4];
+    for purge in [false, true] {
+        for limit in 20..65 {
+            let mut e = seeded([edge("a"), post("new", "a", 3), post("middle", "a", 2), post("old", "a", 1)]);
+            let oracle = Oracle::freeze(&e);
+            let mut r = Reader::new().unwrap();
+            let mut q = request(&mut r, 3);
+            e.set_ceilings(Ceilings { examined: limit, ..Default::default() });
+            let first = step(&mut r, &mut e, &q);
+            if !matches!(first.answer.response, Response::Preparing { .. }) { continue; }
+            let s = owned(&r, &q);
+            let staged = s.staged.iter().any(|x| x.head.event.id == "new");
+            if !staged && s.frontier.heads == 0 { continue; }
+            advance(&mut q, &first);
+            e.set_ceilings(Ceilings::default());
+            if purge {
+                let table = e.schema.tables["feedPosts"].clone();
+                let row = e.store().rows("feedPosts").unwrap().into_iter().find(|r| r.field("id").unwrap() == &id("new")).unwrap();
+                let tx = e.store.transaction().unwrap();
+                tx.delete("feedPosts", &table, &row).unwrap();
+                tx.commit().unwrap();
+            } else { mutation(&mut e, "remove", "a", [("postId", id("new"))], 100); }
+            witnessed[usize::from(purge) * 2 + usize::from(staged)] += 1;
+            if staged {
+                assert!(matches!(step(&mut r, &mut e, &q).answer.response, Response::Restart));
+            } else {
+                assert_eq!(drain(&mut r, &mut e, &mut q, &oracle).0, vec!["middle", "old"]);
+            }
+        }
+    }
+    assert!(witnessed.iter().all(|n| *n > 0), "{witnessed:?}");
+}

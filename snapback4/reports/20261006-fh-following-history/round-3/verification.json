@@ -1,0 +1,86 @@
+{
+  "commit": "8adc7879dd6a0599556c030256ace92e6f35c433",
+  "host": "expose-builder-pixel",
+  "date": "2026-10-07",
+  "scope": "FH round-1 review, 547c6113bd..8adc7879dd; implementation 1b40450b39..8adc7879dd",
+  "target": "/home/ccheever/sb4-intent/review-fh-r1-astra/snapback4/target",
+  "target_du": "1.6G\t/home/ccheever/sb4-intent/review-fh-r1-astra/snapback4/target",
+  "env": {
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "8"
+  },
+  "git_status": "",
+  "results": [
+    {
+      "log": "following-history.log",
+      "command": "cargo test -p snapback4-core following_history -- --include-ignored --nocapture",
+      "exit_code": 0,
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "0890db29f40dbc71b767068de3743e8d6dd5a8e721d10935709608b0a79520a8"
+    },
+    {
+      "log": "history-research.log",
+      "command": "cargo test -p snapback4-lang --test following_history_research -- --include-ignored",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "65f22ee6387bcac16533012aa66c667af7917bb7c687ad145e786aeaf2c3cdd5"
+    },
+    {
+      "log": "timeline-core.log",
+      "command": "cargo test -p snapback4-core --lib timeline",
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "e713ffa59784f7bf7bf7934651ff8ad2bfbcf414bedd3ac0fbfa3209f11bd655"
+    },
+    {
+      "log": "timeline-lang.log",
+      "command": "cargo test -p snapback4-lang --test following_view --test bounded_following --test following_adoption_research --test following_history_research --test following_atomic_launch --test timeline_background --test timeline_epoch_counterexample --test timeline_fairness --test timeline_guide --test timeline_live_latency",
+      "exit_code": 0,
+      "passed": 65,
+      "failed": 0,
+      "ignored": 6,
+      "sha256": "74cec90c27b3d6b2904132df1d18b7b622112fb2c529ec90b10fcfe3367ff44e"
+    },
+    {
+      "log": "timeline-cli.log",
+      "command": "cargo test -p snapback4 --test timeline --test timeline_design --test timeline_delivery --test timeline_delivery_counterexample --test timeline_adoption",
+      "exit_code": 0,
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "22bd63cf4ad7e42e7a9844bbd4335d4d083ad847875ec0e7958ed5f67311712a"
+    },
+    {
+      "log": "timeline-device.log",
+      "command": "cargo test -p snapback4-device --test timeline",
+      "exit_code": 0,
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0,
+      "sha256": "a5f6e3c86c07a126b4487c6c9a69348f545eef55be2dc0dbc70a073001fbb773"
+    },
+    {
+      "log": "probes.log",
+      "command": "cargo test --offline --manifest-path /home/ccheever/sb4-intent/review-scratch/fh-r1-astra/probes/Cargo.toml -- --nocapture",
+      "exit_code": 101,
+      "passed": 0,
+      "failed": 2,
+      "ignored": 0,
+      "sha256": "a2c352c0c2556667d68489dac8a69ca16a91c7393f6da0d77ca91b142f4d92f6"
+    }
+  ],
+  "notes": [
+    "One existing disposable checkout and one cargo target; no lane files edited; no pushes; no other hosts used.",
+    "probes.log records two deliberately asserted requirements failing in the unmodified reviewed implementation.",
+    "Other pre-existing evidence files in this directory are not part of this review receipt.",
+    "The lang run ignores six cases: two research cases run separately in history-research.log, two adoption research controls, and atomic-launch process-death child and calibration measurement.",
+    "Test totals include overlapping filters; do not add them as unique tests."
+  ]
+}

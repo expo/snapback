@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-05T23:23:15.839690+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.13",
+      "integrity": "sha512-YAteVY2q1No3fbgMQcfQPsaNyxFV0PXr8qKQ7sT2TDNLiQJyiUSHEF29zBCVzHgNP6L6es+A6IbP92u8DikDVQ=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.13",
+      "integrity": "sha512-6zUGx8rWnVQa2nZKq3nCEkPtbhZi6x9ZQ2U14jFsqI655CwgUNySxILvPU1UDwqYv6C9dVkSBNCQCbE0SZ34Ag=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.13",
+      "integrity": "sha512-mDdiVUxnnRQjOKakIyd2WSgmBRinmnELlp/uP3NG5iQ3umfiudk7sM72F7sOANI0WOHn0BInjTV2Z1pOrj3fjw=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.13, Astra wave: sends keep predicting with a receipt-derived unread count and device/server charge parity (RP); total write results, one-hop write-rule references and guard narrowing (QE2); point lookups mean one row on every host and named keys plan like positional ones (NL); live delivery no longer waits behind Following backfills, with lower wide fan-out overhead (LU); matching live replies publish in ~100 ms (OP); in-chat search paved form and E_QUARRY_MATCHING_INDEX (MS); worker file/module rules, SNAPBACK_PROJECT_DIR and the QuotedMessage recipe (DG); faster populated-store adoption with write-pause estimates (AP); a former member's retained history never flashes empty (RH); sql \\dt/\\d store inspection and sync-window clarity (SX); witness cleanup on busy Macs (WD); client test runner (QF, QF2); capability-free schemas readable by published engines (RPF); fixture races on loaded hosts (FX, SU, FY)",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-10-05T23:23:15.844050+00:00"
+  },
+  "load": "16:23  up 50 days, 10:16, 3 users, load averages: 229.46 230.72 230.42",
+  "node": "v24.18.0",
+  "host": "MacBookPro"
+}

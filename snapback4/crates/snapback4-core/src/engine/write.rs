@@ -609,7 +609,15 @@ impl Runner<'_> {
             let table = self.schema.table(table_name).expect("validated");
             for constraint in &table.constraints {
                 let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue };
-                let key: Vec<Value> = key
+                let refusal = || RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"));
+                let has_references = key.iter().any(|term| term.reference_source().is_some());
+                let key: Vec<Value> = if has_references {
+                    // Preserve the structural target probe, but authorize each
+                    // live row supplying its key before it can confer authority.
+                    let rule = crate::schema::RuleExpr::Exists { table: target.clone(), index: index.clone(), key: key.clone(), equalities: vec![], provenance: crate::ir::KeyProvenance::Shape };
+                    for term in key { if let crate::schema::RuleTerm::Field(field) = term { self.provisional_sequence_read |= self.device && table.sequences.contains_key(field); } }
+                    self.final_reference_key(table_name, &rule, row)?.ok_or_else(refusal)?
+                } else { key
                     .iter()
                     .map(|term| match term {
                         crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
@@ -619,9 +627,9 @@ impl Runner<'_> {
                         },
                         crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
                         crate::schema::RuleTerm::Literal(value) => value.clone(),
-                        crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } => Value::Null,
+                        crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
                     })
-                    .collect();
+                    .collect() };
                 self.read_tables.insert(target.clone());
                 self.observe_sequence_selection(target, index, &key)?;
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
@@ -630,6 +638,11 @@ impl Runner<'_> {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
+                if has_references && self.device && let Some(row) = &found
+                    && !self.witness_covered(target, index, &key, row)? {
+                    self.unknown_fact(target, index, &key, "after insert");
+                    return Err(refusal());
+                }
                 if found.is_none() {
                     // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
                     // Budget spent only while establishing device coverage is the device's

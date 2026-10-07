@@ -1,0 +1,9 @@
+{
+  "raw": 2135336,
+  "linux_gzip": 645307,
+  "cap": 645607,
+  "macos_allowance": 300,
+  "merged_main_cap": 645564,
+  "cap_delta": 43,
+  "sha256": "7cd5e44fae55810e523ae10ee19ee2f11f926466ea7eaaef26296d1d9fb51c9b"
+}

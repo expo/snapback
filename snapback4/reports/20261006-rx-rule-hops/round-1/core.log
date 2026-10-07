@@ -1,0 +1,241 @@
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `schema` is never read
+ --> crates/snapback4-core/tests/common/acquisition.rs:7:9
+  |
+6 | pub struct Fixture {
+  |            ------- field in this struct
+7 |     pub schema: Schema,
+  |         ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-core/tests/../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "rows") generated 1 warning
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+warning: `snapback4-core` (test "lane_source") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 1m 00s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-78afa38362958c09)
+
+running 10 tests
+test engine::qe2_allocation_tests::final_hop_keys_remain_charged_after_authorized_scratch_is_released ... ok
+test engine::qe2_allocation_tests::consumed_if_absent_result_is_still_completed ... ok
+test engine::qe2_allocation_tests::inlined_helper_and_branch_keep_the_consumed_insert_result ... ok
+test engine::qe2_allocation_tests::known_default_price_is_independent_of_declared_maximum ... ok
+test engine::qe2_allocation_tests::private_maintenance_total_results_and_rule_hops_share_all_seven_meters ... ok
+test engine::qe2_allocation_tests::live_chain_occurrences_prepay_each_link_on_both_runners ... ok
+test engine::qe2_allocation_tests::bound_result_and_sibling_hops_have_equal_server_device_prices ... ok
+test engine::qe2_allocation_tests::following_tail_and_total_result_prices_ignore_private_queue_length_and_clock ... ok
+test engine::qe2_allocation_tests::bound_large_insert_charges_each_result_byte_once ... ok
+test engine::qe2_allocation_tests::receipt_results_complete_ordinary_fields_inside_the_existing_copy_reservation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 235 filtered out; finished in 0.04s
+
+     Running tests/action_context.rs (target/debug/deps/action_context-59409480e41c0048)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/adoption_scale.rs (target/debug/deps/adoption_scale-633029a512b4254c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/asset_lists.rs (target/debug/deps/asset_lists-89b9c0722fe2f200)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/born_perf.rs (target/debug/deps/born_perf-dbaba6812c2347ba)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/bound_session.rs (target/debug/deps/bound_session-700ad0693bb369cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/corpus.rs (target/debug/deps/corpus-2cbc67051b49df48)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/disclosure.rs (target/debug/deps/disclosure-14833e57bb24e3aa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+     Running tests/effect_policy.rs (target/debug/deps/effect_policy-78496a0d10bff91a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-b6625073a4c9b8fd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-5baea9290a70af14)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-0e6eccac38e0e8b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/identity.rs (target/debug/deps/identity-2285fb764665e001)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lane_source.rs (target/debug/deps/lane_source-31921807397a348c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-1ca7575c0126a791)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/meter.rs (target/debug/deps/meter-514e81ffd7853bb2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-85170a57bfd9eb73)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/review_walk.rs (target/debug/deps/review_walk-d3a46642be87b3e3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/revocation_history.rs (target/debug/deps/revocation_history-0319041680d44546)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/routes.rs (target/debug/deps/routes-d8d6d322e48ade18)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-c3e12b56a9e67116)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-9bf6c64c84506e2d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-4a13e520f1e53d73)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-3e6c9c9cfb109c2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/rows.rs (target/debug/deps/rows-bdfd31567921e72c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-926f095dc7d573a9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-f8ad5683642c47be)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/sequence_by.rs (target/debug/deps/sequence_by-50a8f4a1fa41520a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-a76d1e60a01fd456)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-20c527042af40f1d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-35754b8508906fa1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/unicode_fold.rs (target/debug/deps/unicode_fold-1730e8f9fcdb37e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/work_records.rs (target/debug/deps/work_records-bbfcdd57108c5610)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s

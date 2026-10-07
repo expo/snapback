@@ -392,7 +392,7 @@ fn completed_column_type(column: &crate::schema::ColumnType) -> Type {
     use crate::schema::ColumnType;
     match column {
         ColumnType::Optional(t) => completed_column_type(t),
-        ColumnType::List { of, .. } => completed_column_type(of).list(),
+        ColumnType::List { of, .. } | ColumnType::ListRange { of, .. } => completed_column_type(of).list(),
         ColumnType::Json { .. } => Type::Scalar,
         _ => column_type(column),
     }
@@ -402,7 +402,7 @@ fn column_type(column: &crate::schema::ColumnType) -> Type {
     use crate::schema::ColumnType;
     match column {
         ColumnType::Optional(t) => column_type(t),
-        ColumnType::List { of, .. } => column_type(of).list(),
+        ColumnType::List { of, .. } | ColumnType::ListRange { of, .. } => column_type(of).list(),
         ColumnType::Json { .. } => Type::Unknown,
         ColumnType::Image { .. } | ColumnType::Video { .. } => asset_type(),
         _ => Type::Scalar,
@@ -412,7 +412,7 @@ fn column_type(column: &crate::schema::ColumnType) -> Type {
 fn argument_type(argument: &ArgType) -> Type {
     match argument {
         ArgType::Optional(t) => argument_type(t),
-        ArgType::List { of, .. } => of.as_deref().map(argument_type).unwrap_or(Type::Unknown).list(),
+        ArgType::List { of, .. } | ArgType::ListRange { of, .. } => of.as_deref().map(argument_type).unwrap_or(Type::Unknown).list(),
         ArgType::Json { .. } => Type::Unknown,
         ArgType::Image { .. } | ArgType::Video { .. } => asset_type(),
         _ => Type::Scalar,

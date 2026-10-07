@@ -1,0 +1,70 @@
+{
+  "completed_utc": "2026-10-07T05:57:56.880961+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 2079,
+  "base_head": "9bcf6cfb630ea1947ccbfd2b397c5c1c884cd2bf",
+  "source_sha256_file": "source-sha256.json",
+  "full_log_sha256": "0609399d21ba0d70e306862560be0c3898129a77d0cf8e8cafd9d5989144df9c",
+  "command": "bash snapback4/scripts/test.sh",
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RX_PUBLISHED_ROOT": "<worktree>/snapback4/target/rx/published"
+  },
+  "rust_and_doctests": {
+    "passed": 5088,
+    "failed": 0,
+    "ignored": 33
+  },
+  "client_sections": {
+    "fixtures": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "client_pool": {
+      "tests": 6510,
+      "pass": 6463,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 47,
+      "todo": 0
+    },
+    "client_models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "wasm": {
+    "raw_bytes": 2129835,
+    "gzip_bytes": 643098,
+    "budget_bytes": 643228
+  },
+  "worktree_disk_bytes": 17851490304,
+  "largest_sampled_du_sh": "17G",
+  "stages": [
+    "-- ok: cargo build (7 s)",
+    "-- ok: wasm build (32 s)",
+    "-- ok: docs budget (17 s)",
+    "-- ok: release guard (4 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1060 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- ok: client tests (623 s)",
+    "-- ok: client models (331 s)"
+  ]
+}

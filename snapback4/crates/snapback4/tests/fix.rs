@@ -332,11 +332,13 @@ fn optional_chain_cli_repair_preserves_comments_and_a_second_check_is_clean() {
 }
 
 #[test]
-fn unresolved_positional_keys_require_an_author_choice() {
+fn positional_ambiguity_refuses_until_fix_opts_into_a_verified_named_choice() {
     let source = "table follows:\n  follower: principal\n  followed: principal\n  unique byPair: follower, followed\n  unique byFollowed: followed, follower\n  public 'follows'\nquery followed():\n  return exists follows[viewer, 'bob'] -- keep\n";
-    let output = check_fix(&[("schema.q", source, source)], false);
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_QUARRY_POSITIONAL_SCAN"));
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_POSITIONAL_SCAN"));
     let named = source.replace("follows[viewer, 'bob']", "follows[follower = viewer, followed = 'bob'] by byPair");
+    let output = check_fix(&[("schema.q", source, &named)], true);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_QUARRY_POSITIONAL_SCAN"));
     check_fix(&[("schema.q", &named, &named)], true);
 }
 

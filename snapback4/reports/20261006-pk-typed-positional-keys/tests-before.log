@@ -1,0 +1,71 @@
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.41s
+     Running tests/typed_positional_keys.rs (snapback4/target/debug/deps/typed_positional_keys-459fbfe776a18644)
+
+running 3 tests
+keys=0, type=id: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+keys=0, type=conversations: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+keys=0, type=
+thread 'otherrule_pair_disambiguates_by_ordered_types: ' ([199477() panicked at "crates/snapback4-lang/tests/typed_positional_keys.rsE_QUARRY_POSITIONAL_SCAN:"10, :"5a positional key selects one declared unique row, not a scan prefix:
+"table conversations:
+  read <- exists members[.id, viewer]
+  online only
+table members:
+  conversation: conversations
+  principal: principal
+  unique pair: conversation, principal
+  unique reverse: principal, conversation
+  public
+  online only
+
+[Diagnostic { site: Site { file: "schema.q", line: 2, col: 11 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", rewrite: "members[.id, viewer] by pair", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }])
+]note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+; []
+keys=0, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+test rule_pair_disambiguates_by_ordered_types ... FAILED
+keys=0, type=text <=80: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+keys=1, type=id: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=1, type=conversations: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+cal31 reconstruction: [Diagnostic { site: Site { file: "schema.q", line: 23, col: 11 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 24, col: 13 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 14, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 16, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 18, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 20, col: 17 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }]
+keys=1, type=other: [(
+thread '"cal31_four_reads_two_rules_and_identity_type_failureE_QUARRY_POSITIONAL_SCAN' ("199475, ) panicked at "crates/snapback4-lang/tests/typed_positional_keys.rsconversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly:"47):]5; :
+[[Diagnostic { site: Site { file: "schema.q", line: 23, col: 11 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 24, col: 13 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 14, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 16, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 18, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }, Diagnostic { site: Site { file: "schema.q", line: 20, col: 17 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }]]
+
+test cal31_four_reads_two_rules_and_identity_type_failure ... FAILED
+keys=1, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=1, type=text <=80: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=2, type=id: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 3 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=2, type=conversations: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 3 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=2, type=other: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 3 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=2, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 3 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+keys=2, type=text <=80: [("E_QUARRY_POSITIONAL_SCAN", "conversations positional key has 3 declared unique keys of arity 1; choose a compatible unique index explicitly")]; []
+
+thread 'identity_and_unique_key_type_matrix' (199476) panicked at crates/snapback4-lang/tests/typed_positional_keys.rs:10:5:
+table other:
+  public
+  online only
+table conversations:
+  slug: text <=80
+  owner: principal
+  unique slug
+  public
+  insert <- allow
+  update <- allow
+  delete <- allow
+  online only
+query q(x: id):
+  return conversations[x]
+
+[Diagnostic { site: Site { file: "schema.q", line: 14, col: 10 }, code: "E_QUARRY_POSITIONAL_SCAN", message: "conversations positional key has 2 declared unique keys of arity 1; choose a compatible unique index explicitly", rewrite: "conversations[x] by byId", guide: "reads", mechanical: false, cascade_of: None, read_repair: None }]
+test identity_and_unique_key_type_matrix ... FAILED
+
+failures:
+
+failures:
+    cal31_four_reads_two_rules_and_identity_type_failure
+    identity_and_unique_key_type_matrix
+    rule_pair_disambiguates_by_ordered_types
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test typed_positional_keys`

@@ -71,7 +71,7 @@ fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -
     use crate::schema::{RuleExpr::*, RuleTerm};
     let term = |t: &RuleTerm| match t {
         RuleTerm::Viewer => word_heap::text(viewer), RuleTerm::Literal(v) => DisclosedKey(v).heap(),
-        RuleTerm::Reference { .. } | RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
+        RuleTerm::Reference { .. } | RuleTerm::ReferenceChain { .. } | RuleTerm::Field(_) | RuleTerm::OldField(_) | RuleTerm::NextField(_) => prefix.iter().map(|v|DisclosedKey(v).heap()).sum(),
     };
     match rule {
         Eq(a,b) | Ne(a,b) => term(a) + term(b),

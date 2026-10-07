@@ -12,6 +12,32 @@ npm start
 # or npm run web, npm run ios:dev
 ```
 
+## Seed accounts headlessly
+
+After `npx snapback4 check`, with the backend running, set `SEED_PASSWORD`
+privately in your environment and run `node scripts/seed.mjs` (Node 24).
+`SEED_USERS=2` is the default; set it to N (1–1000) to create
+`seed1@example.test` through `seedN@example.test`. `SNAPBACK_URL` defaults to
+`http://127.0.0.1:4400`; use HTTPS for a remote backend.
+
+The script calls `signup` from `snapback4/auth`, opens a separate
+`createClient({ url, session })` for each returned session, and writes that
+user's profile through `api.saveProfile`. Extend that block with your own
+authorized mutations. It prints only email/principal mappings and signs out
+each client; never print passwords or session tokens. You can sign in through
+the app with those same accounts afterward. No browser signup or borrowed
+starter token is needed.
+
+For an existing seed set, run `SEED_AUTH=login node scripts/seed.mjs` with
+the same password and count. Signup creates credentials, so duplicates refuse;
+there is no automatic fallback on an arbitrary auth failure. A partially
+completed first run leaves its accounts in place; reconcile those accounts
+before rerunning. Sequential requests respect the concurrent Argon2 bound;
+`serve` also rate-limits attempts (`E_RATE_LIMIT`). Stop and wait for that
+window rather than retrying in a tight loop. `guide auth` explains the limits.
+Replay adapters use this same session path; `snapback4 dev --replay` suppresses
+new effects and holds schedules when replay must not deliver notifications.
+
 `snapback/workers/notifications.mjs`: dev/serve supervise the worker and inject its token.
 `ledger: true` records successful completions durably beside the backend store;
 keep that file with backups. Add your provider call, passing
@@ -129,8 +155,8 @@ current server hits with this device's retained hits after leave; offline it
 searches acquired holdings. The online tier has only current server access.
 Immutable `conversation` and `at` give `(at, id)` continuation; `usePage` accumulates
 by message ID. Refresh to see matches before the cursor. The screen shows “Partial
-results” only when `existence(page.read) === "partial"`; nonempty answers are present
-even with incomplete coverage. A complete page may still have more matches.
+results” when `readPresentation(page.read).incomplete`, including nonempty present
+answers with incomplete coverage, cuts or continuation. A complete page may still have more matches.
 Search order is time and the acquired history window is ordinal, so missing
 retained coverage can keep results incomplete. See `snapback4 guide search`
 for cuts and continuation limits.
@@ -207,8 +233,21 @@ The full Conversation retains the journal, receipts and richer UI. See
 
 `src/QuotedMessage.tsx` is ready to mount with a referenced message ID when adding
 reply UI; this starter has no quote composer. Its `messagePhoto` point read returns
-the whole message, even outside the loaded history page. `readPresentation`
+the whole message, even outside the loaded history page. `matchRead`
 keeps a stable loading placeholder, renders present text, uses “unavailable” only
 for proven absence, hides denied reads, and keeps partial empty reads uncertain.
 It never caches a previous quote through withdrawal. `snapback4 guide social`
 includes the same component; hold the point read in tests, then settle it.
+
+## Rendering read states
+
+Use `matchRead` from `snapback4/react` or `snapback4/contract` on a query's read
+or `page.read`. Supply `loading`, `denied`, `absent`, `partial` and `present`.
+The last two receive `(data, read)`, with non-null data for `present`;
+`denied` receives `(why, read)`, and `absent`/`loading` receive `read`.
+Metadata stays available on ready reads. An explicit `otherwise(read)` can
+replace loading/absent/present handlers; denial and partial emptiness always
+need their own handlers. Status lines deliberately render nothing for absent
+and present. Search also uses `readPresentation` for incomplete, stale and
+revalidating notices; present does not imply complete. Keep the composer mounted
+outside the match. The send matcher preserves the membership rule above.

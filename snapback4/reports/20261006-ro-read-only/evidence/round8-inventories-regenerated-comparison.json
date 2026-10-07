@@ -1,0 +1,10 @@
+{
+  "exit": 1,
+  "byteIdenticalLogs": true,
+  "sha256": "a53b7b9ff884f4ec1d42ec60453b55720e67673e25f3e64c6f9fda1db86cc665",
+  "failureGroups": [
+    "[check-inventories] FAIL scripts-test",
+    "[check-inventories] FAIL demo-catalog",
+    "[check-inventories] FAIL guide-manifest"
+  ]
+}

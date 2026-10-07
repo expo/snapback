@@ -247,5 +247,5 @@ impl Store {
 
 fn asset_type(kind: &crate::schema::ColumnType) -> bool {
     use crate::schema::ColumnType::*;
-    match kind { Optional(inner) | List { of: inner, .. } => asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
+    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
 }

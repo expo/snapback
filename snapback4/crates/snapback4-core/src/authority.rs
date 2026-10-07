@@ -21,6 +21,9 @@ pub(crate) struct SessionRecord {
     pub family: String,
     pub kind: String,
     pub digest: String,
+    pub scope: SessionScope,
+    pub cap_expires_at: Option<i64>,
+    pub principal_generation: Option<i64>,
     pub expires_at: i64,
 }
 
@@ -82,7 +85,7 @@ pub(crate) fn admission_authority(
     let Some(session) = tx.session_by_digest(token_digest)? else {
         return Ok(AdmissionStanding::SessionNotLive);
     };
-    if session.principal != principal || session.expires_at <= now {
+    if session.scope != SessionScope::Full || session.principal != principal || session.expires_at <= now {
         return Ok(AdmissionStanding::SessionNotLive);
     }
     let generation = tx.principal_generation(principal)?;
@@ -117,6 +120,7 @@ pub(crate) fn family_authority_expiry(
         let Some(session) = tx.latest_live_family_member(principal, &family, now)? else {
             return Ok(None);
         };
+        if session.scope != SessionScope::Full { return Ok(None); }
         bound = bound.min(session.expires_at);
         if session.kind != "action" {
             return Ok(Some(bound));
@@ -211,6 +215,13 @@ pub(crate) fn live_session(
     if session.expires_at <= now {
         return Ok(None);
     }
+    // @ref LLP 3000.033#1.3 — revocation generations survive an older executable.
+    if session.scope == SessionScope::Read
+        && (session.cap_expires_at.is_none_or(|cap| cap <= now)
+            || session.principal_generation.is_none()
+            || session.principal_generation.unwrap() < tx.principal_generation(&session.principal)?) {
+        return Ok(None);
+    }
     if session.kind == "action" && !live_claim_authority(tx, digest, now)? {
         return Ok(None);
     }
@@ -224,6 +235,10 @@ pub(crate) fn live_service_session(
     now: i64,
 ) -> Result<bool, RuntimeError> {
     Ok(tx.session_by_digest(digest)?.is_some_and(|session| {
-        session.principal == principal && session.kind == "service" && session.expires_at > now
+        session.scope == SessionScope::Full && session.principal == principal && session.kind == "service" && session.expires_at > now
     }))
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionScope { Full, Read }

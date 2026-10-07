@@ -34,7 +34,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     // This is also the page path's request authorization. Partition rules
     // filter unreadable rows/groups; they add no whole-request refusal.
     let principal = match principal_of(&request, shared) {
-        Ok(principal) => principal,
+        Ok(principal) => principal.0,
         Err(refusal) => {
             respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) }));
             return;

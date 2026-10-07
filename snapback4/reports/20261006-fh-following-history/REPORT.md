@@ -2,7 +2,7 @@
 
 **Historical D0 report.** The author resolved this design gate in round 1.
 The implemented server protocol, generated SDK hook and current qualification are
-in the [round-2 report](round-2/REPORT.md). The remaining text records the original
+in the [round-3 report](round-3/REPORT.md), following the [round-2 implementation](round-2/REPORT.md). The remaining text records the original
 reproduction and superseded proposal.
 
 2026-10-06 · base `547c6113bdab6a68c3b8628d79fa6c0b6eb0ce53` · package 0.4.13

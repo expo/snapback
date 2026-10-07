@@ -58,3 +58,14 @@ Verify your production build on a real device: acquire a room, close the page,
 reopen offline, send twice, reopen again, and reconnect without duplicate rows.
 The repository's `node witness/starter.mjs` exercises this actual production
 output, receipt recovery, account changes and the shell update boundary.
+
+## Rendering read states
+
+Use `matchRead` from `snapback4/react` or `snapback4/contract` with the current
+read (`page.read` for pages). All five handlers are required: loading, denied,
+absent, partial and present. Present/partial receive `(data, read)`, denied gets
+`(why, read)`, and absent/loading get `read`. An explicit `otherwise(read)` may
+cover omitted loading/absent/present handlers; denied and partial stay explicit.
+Ready metadata remains available; present pages can still be incomplete.
+The room and thread match their status without unmounting the composer. This
+starter's membership gate blocks absent or denied and allows loading/partial.

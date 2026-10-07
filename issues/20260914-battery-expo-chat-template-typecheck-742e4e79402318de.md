@@ -10,11 +10,11 @@
 **Battery gate:** `expo-chat-template-typecheck`
 **Failure signature:** `sha256:742e4e79402318de59fb7ba6b4fa0e36899e69c10c94ccf32a859471e8e68a72`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20261005T101501Z.ce196270d2a4`
-**Last processed run:** `local.20261005T101501Z.ce196270d2a4`
+**Last observed run:** `local.20261007T045641Z.4e0c6567f5a3`
+**Last processed run:** `local.20261007T045641Z.4e0c6567f5a3`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `ce196270d2a4c13c8aaa1f1c14f510f8485fe0cb`
-**Consecutive red runs:** `44`
+**Last observed revision:** `4e0c6567f5a3dbd2d65326db080f59f8c1394fab`
+**Consecutive red runs:** `45`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

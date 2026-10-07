@@ -919,19 +919,25 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build);
         (result, cut)
     }
 
     // @ref LLP 3000.028#3.3 — point overlap and page share one transaction/ledger.
     #[cfg(feature = "server-search")]
     pub fn query_search_at(&mut self, name: &str, context: Context, retained: Option<&[String]>) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        self.query_search_with_delivery_at(name, context, retained, DeliveryManifest::Build)
+    }
+
+    // @ref LLP 3000.033#1.6 — request-local selection, never a reader-wide toggle.
+    #[cfg(feature = "server-search")]
+    pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>) -> Result<QueryOutcome, Refusal> {
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
@@ -969,7 +975,7 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+                let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
                 let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
@@ -1001,7 +1007,7 @@ impl Engine {
         let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
-        let (delivery, delivery_meter) = runner.delivery_manifest(&data);
+        let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
         let outcome = QueryOutcome {
             decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(),
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
@@ -1474,6 +1480,9 @@ pub use row_views::ViewChunk;
 
 mod receipts;
 
-/// Internal server-reader milestone; no wire or generated authoring capability yet.
+/// Server-only exact Following history and resumable protocol custody.
 #[cfg(feature = "sqlite")]
 pub mod following_history;
+// @ref LLP 3000.033#1.6 — the device has no Engine; this option is server-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeliveryManifest { Build, Skip }

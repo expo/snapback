@@ -30,7 +30,7 @@ pub struct Diagnostic {
     pub message: String,
     pub rewrite: String,
     pub guide: String,
-    /// A spelling-only repair; never permission to apply a design suggestion.
+    /// An opt-in `check --fix` edit: spelling repairs or a verified positional-key choice.
     #[serde(default)]
     pub mechanical: bool,
     /// Parser-proven consequence of an earlier error in this operation,
@@ -40,13 +40,21 @@ pub struct Diagnostic {
     /// Compiler-only candidate; source is withheld until contextual verification.
     #[serde(skip)]
     pub(crate) read_repair: Option<crate::repair::ReadRepair>,
+    /// Exact original span proved by the compiler, never part of wire diagnostics.
+    #[serde(skip)]
+    pub(crate) verified_edit: Option<(Site, String)>,
 }
 
 impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None, read_repair: None }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+    }
+
+    /// The CLI must match this original source before applying `rewrite`.
+    pub fn verified_edit(&self) -> Option<(&Site, &str)> {
+        self.verified_edit.as_ref().map(|(site, source)| (site, source.as_str()))
     }
 
     pub(crate) fn repair_read(mut self, site: &Site, changes: Vec<crate::repair::ReadChange>) -> Self {
@@ -141,6 +149,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 pub fn guide_for(code: &str) -> &'static str {
     match code {
         code if code.starts_with("E_FOLLOWING_") => "refusals",
+        "E_READ_ONLY" | "E_READ_ONLY_REFRESH" | "E_READ_ONLY_CREDENTIAL" | "E_READ_ONLY_DEVICE" | "E_READ_ONLY_UNSUPPORTED" | "E_ASSET_READ_ONLY" => "read-only",
         "E_RECEIPTS_CLAUSE" | "E_RECEIPTS_OWNED" | "E_DELIVERY_CLAUSE" | "E_DELIVERY_BINDING" | "RUNS_FULL" => "receipts",
         "E_QUARRY_EPHEMERAL" | "E_EPHEMERAL_FULL" | "N_EPHEMERAL_SERVER" => "ephemeral",
         "E_READ_THROUGH" | "E_READ_THROUGH_ADOPT" | "E_PARENT_HAS_CHILDREN" => "rules",

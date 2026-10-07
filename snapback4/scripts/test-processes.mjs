@@ -1,6 +1,6 @@
 // Process-group custody; visible descendants also receive metadata validation.
 import { readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
@@ -10,17 +10,50 @@ class TransientRouting extends Error {}
 // drop a damaged row or let its apparent PID confer ownership/exemption.
 // @ref LLP 3000#publication-suite-under-contention — three fresh snapshots,
 // 50 ms apart; persistent malformed routing keeps the first refusal.
-function freshSnapshots(inspect) {
+async function freshSnapshots(inspect) {
   let first;
   for (let attempt = 0; attempt < 3; attempt++) {
-    try { return inspect(); }
+    try { return await inspect(); }
     catch (error) {
       first ??= error;
       if (!(error instanceof TransientRouting) || attempt === 2) throw first;
-      // This inspection API is synchronous; only this rare retry path waits.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+      await sleep(50);
     }
   }
+}
+
+// Bounded asynchronous command capture. Only this child handle is signalled;
+// a timeout/overflow never supplies a usable (possibly partial) snapshot.
+export function runProcess(command, args, { timeout, maxBuffer, env }) {
+  return new Promise(resolve => {
+    let child;
+    try { child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (error) { resolve({ error }); return; }
+    let error, bytes = 0;
+    const stdout = [], stderr = [];
+    const fail = failure => {
+      if (error) return;
+      error = failure;
+      // ps has no cleanup protocol. SIGKILL bounds even an unresponsive child;
+      // destroying its pipes also prevents inherited writers holding close open.
+      child.kill('SIGKILL');
+      child.stdout.destroy(); child.stderr.destroy();
+    };
+    const timer = setTimeout(() => fail(Object.assign(Error(`${command} ETIMEDOUT`), { code: 'ETIMEDOUT' })), timeout);
+    const capture = target => chunk => {
+      if (error) return;
+      bytes += chunk.length;
+      if (bytes > maxBuffer) fail(Object.assign(Error(`${command} exceeded maxBuffer`), { code: 'ENOBUFS' }));
+      else target.push(chunk);
+    };
+    child.stdout.on('data', capture(stdout)); child.stderr.on('data', capture(stderr));
+    child.stdout.on('error', fail); child.stderr.on('error', fail);
+    child.on('error', failure => { error ??= failure; });
+    child.once('close', (status, signal) => {
+      clearTimeout(timer);
+      resolve({ status, signal, error, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+    });
+  });
 }
 
 function psMetadata(rest) {
@@ -73,11 +106,20 @@ export function processTable(options = {}) {
   return freshSnapshots(() => processSnapshot(options));
 }
 
-function processSnapshot({ run = spawnSync, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
-  const result = run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
-    timeout: 2000, maxBuffer: 16 * 1024 * 1024,
-    env: { ...process.env, LC_ALL: 'C' },
-  });
+async function processSnapshot({ run = runProcess, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
+  // A large Darwin table can exceed two seconds. Discard timed-out output
+  // and retry once with headroom; no other failure authorizes another call.
+  // This budget is independent of the three-fresh-snapshot routing retry.
+  let result;
+  for (const timeout of [2000, 60_000]) {
+    try {
+      result = await run('ps', ['-axo', 'pid=,ppid=,pgid=,uid=,lstart=,stat=,comm='], {
+        timeout, maxBuffer: 16 * 1024 * 1024,
+        env: { ...process.env, LC_ALL: 'C' },
+      });
+    } catch (error) { result = { error }; }
+    if (result.error?.code !== 'ETIMEDOUT') break;
+  }
   if (result.error || result.status !== 0 || !result.stdout?.toString().trim())
     throw inspectionError(`ps failed: ${result.error?.message ?? `status ${result.status}, signal ${result.signal}`}; ${result.stderr ?? ''}`);
   // Split bytes, not decoded text, so a rejected row retains its exact bytes.
@@ -131,11 +173,11 @@ function processSnapshot({ run = spawnSync, exists = processExists, platform = p
 
 // @ref LLP 3000#publication-suite-under-contention — a vanished candidate is
 // exited; only malformed metadata for a still-present PID refuses inspection.
-export function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable, group } = {}) {
+export async function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable, group } = {}) {
   if (!Number.isInteger(pid) || pid < 1) throw inspectionError(`invalid PID ${pid}`);
   // A fresh Darwin table must reclassify the file's scope before metadata
   // validation: this PID may now name an unrelated replacement process.
-  if (platform !== 'linux') return inspect({ pid, group }).find(row => row.pid === pid);
+  if (platform !== 'linux') return (await inspect({ pid, group })).find(row => row.pid === pid);
   let raw;
   try {
     raw = read(`/proc/${pid}/stat`);
@@ -151,33 +193,43 @@ export function identity(pid, { platform = process.platform, read = readFileSync
     return metadataFailure(pid, error, raw, exists);
   }
 }
-export const live = record => {
-  const now = identity(record.pid);
+export const live = async record => {
+  const now = await identity(record.pid);
   return !!now?.alive && now.start === record.start;
 };
 // @ref LLP 3000#publication-suite-under-contention — only the process group
 // created for this file is owned. Parent links and environments confer nothing.
-export function ownedProcesses(keeper, inspect = processTable, { includeKeeper = false } = {}) {
-  return inspect({ group: keeper.pid }).filter(row => row.alive && row.group === keeper.pid && (includeKeeper || row.pid !== keeper.pid))
-    .flatMap(row => {
+export async function ownedProcesses(keeper, inspect = processTable, { includeKeeper = false } = {}) {
+  const owned = [];
+  for (const row of (await inspect({ group: keeper.pid }))) {
+    if (row.alive && row.group === keeper.pid && (includeKeeper || row.pid !== keeper.pid)) {
       // A table is a snapshot: a vanished member has exited. Recheck group
       // membership too, so a reused PID or a process that left is not a leak.
-      const current = identity(row.pid, { group: keeper.pid });
-      return current?.alive && current.group === keeper.pid ? [current] : [];
-    });
+      const current = await identity(row.pid, { group: keeper.pid, inspect });
+      if (current?.alive && current.group === keeper.pid) owned.push(current);
+    }
+  }
+  return owned;
 }
 
 export async function cleanupProcesses(keeper, { inspect = processTable, release } = {}) {
   release(); // unconditional, even when preliminary inspection found no leak
+  // @ref LLP 3000#publication-suite-under-contention — deadlines require
+  // completed evidence: after expiry, take another snapshot, never infer a
+  // leak from elapsed time alone. Only a completed post-deadline live snapshot
+  // refuses. Two consecutive empty snapshots pass even when the second is late.
   const deadline = performance.now() + 5000;
   const found = new Map();
   let empty = 0, remaining = [];
-  do {
-    remaining = ownedProcesses(keeper, inspect, { includeKeeper: true });
+  for (;;) {
+    remaining = await ownedProcesses(keeper, inspect, { includeKeeper: true });
     for (const row of remaining) if (row.pid !== keeper.pid) found.set(row.pid, row);
-    if (remaining.length) empty = 0;
+    if (remaining.length) {
+      if (performance.now() >= deadline)
+        throw new Error(`TEST_FILE_LEAK: live group after cleanup deadline: ${JSON.stringify(remaining)}`);
+      empty = 0;
+    }
     else if (++empty === 2) return [...found.values()];
     await sleep(50);
-  } while (performance.now() < deadline);
-  throw new Error(`TEST_FILE_LEAK: no two consecutive empty group inspections: ${JSON.stringify(remaining)}`);
+  }
 }

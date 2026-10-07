@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "ni2-round2-reviews.v1",
+  "mutuallyBlindFindings": true,
+  "reviews": [
+    {
+      "model": "codex gpt-5.6-sol xhigh",
+      "verdict": "READY",
+      "sourceCommit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-codex-sealed.md",
+      "sha256": "fc860233122ac26a0c33b1b8994471fa13e1408aef6e2457281de7c40c0eeded"
+    },
+    {
+      "model": "grok-4.6 xhigh",
+      "verdict": "READY",
+      "sourceCommit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-grok-sealed.md",
+      "sha256": "bb15229775c327ff20365fde2bb36e7d419499f20752e1082ea2c46cd97589dd"
+    }
+  ],
+  "qualificationSeparate": true,
+  "productionSourceReviews": [
+    {
+      "model": "codex gpt-5.6-sol xhigh",
+      "verdict": "READY",
+      "sourceCommit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-codex-custody.md",
+      "sha256": "782935fb4d4073c932cb35c9b5eaac7c0b3e9928279e761f383b4d8715223d8b"
+    },
+    {
+      "model": "grok-4.6 xhigh",
+      "verdict": "READY",
+      "sourceCommit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-grok-drain.md",
+      "sha256": "e87e4ec69b46223b03e3cb16a2dcad41fd3c2445f928156a674d001f9d5f818b"
+    }
+  ],
+  "passiveSourceReviews": [
+    {
+      "model": "codex gpt-5.6-sol xhigh",
+      "verdict": "READY",
+      "sourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-codex-passive.md",
+      "sha256": "2d24b3c5d193823ee53a154752ef15285a03fc372512eecf913bf2a0eba2ba01"
+    },
+    {
+      "model": "grok-4.6 xhigh",
+      "verdict": "READY",
+      "sourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-grok-passive.md",
+      "sha256": "531b62de932f0153f026ab93eb9b470f674cf617e9e87fae339314e319e94c20"
+    }
+  ],
+  "packagingReviewChain": [
+    {
+      "sourceCommit": "0d4813ef73eff459f4845c1bdeb2c204e47f583a",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-codex-packet.md",
+      "sha256": "6f2e153a4d513523ae39dc566dae9ebb674e841ba608e55221abf8676f56a4b7",
+      "verdict": "READY"
+    },
+    {
+      "sourceCommit": "0d4813ef73eff459f4845c1bdeb2c204e47f583a",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-grok-packet-final.md",
+      "sha256": "e2496cc37bb073eab8b7422fcfdd524057873a6ce6f1bb54cdd3454f7a838cce",
+      "verdict": "READY"
+    },
+    {
+      "sourceCommit": "daef2e24a522e27147962f7ce729ed3fa6f49522",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-codex-entry.md",
+      "sha256": "ebbdb2c218953d334307192eeb4b7bdb4be7a56c7108ace3edb90ba20a6dd64b",
+      "verdict": "READY"
+    },
+    {
+      "sourceCommit": "daef2e24a522e27147962f7ce729ed3fa6f49522",
+      "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/review-grok-entry.md",
+      "sha256": "049fb71a59d8519b94260dab5ed8dedf097b051cec237f2e207c48493654fa28",
+      "verdict": "READY"
+    }
+  ]
+}

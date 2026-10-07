@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "ni2-round2-retained-endpoint-revalidation.v1",
+  "capture": "/home/ccheever/sb5-evidence-archive/20261006-ni2/qualification-0909/reference-runs/none-m8-20261006-012520/evidence",
+  "rerun": false,
+  "originalStatus": {
+    "id": "ios-simulator-m8",
+    "pass": null,
+    "receipt": "m8-ios-run.json",
+    "reason": "artifact-validation:video-endpoint-uncovered",
+    "requiredForGreen": false,
+    "cost": {
+      "wallSeconds": 105.032,
+      "nativeCommands": 58,
+      "enteredSteps": 5,
+      "operatorInvocations": 1
+    }
+  },
+  "originalManifestSha256": "13248be395b27da8e67d66f4b3ada62a0c079fbd84efabbb5a9de8beeda6c6f7",
+  "videoSha256": "c9112dc61e09c0a48359ba61008469eed8e36018a12ba4fa68466761707f07ce",
+  "checkerCommit": "d5e1fb11a278287688f710504c76848c2af71d26",
+  "checkerFiles": {
+    "video.py": "6b3d2181212cafd00a4d1c6a8af5e5964dd4b7d636977d4ff78fdfc146f93678",
+    "video.swift": "c639b5ddca4160cbe504cc48e2d2a8654798f6f332e56932961357f137fc56da",
+    "video_timing.py": "b677def9a311a618d2d6264b281abb95a7960006ff113975097f727661c01405"
+  },
+  "movieEndTicks": 37361,
+  "lastSampleEndTicks": 37358,
+  "timescale": 600,
+  "requireEndpoints": true,
+  "video": {
+    "codec": "h264",
+    "durationSeconds": 62.26833333333333,
+    "decodedFrames": 1336,
+    "decodedEndpoints": true
+  },
+  "endpointVerdict": "covered",
+  "overallPass": null,
+  "overallReason": "historical capture predates native writer flush acknowledgment; original null receipts remain unchanged",
+  "sourceIdentityRelabeled": false,
+  "round2ArchivalCopy": {
+    "path": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/retained-first-m8-evidence",
+    "receipt": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/retained-first-m8-copy.json",
+    "allBytesIdentical": true,
+    "files": 64
+  }
+}

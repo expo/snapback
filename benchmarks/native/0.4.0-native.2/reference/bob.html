@@ -1,0 +1,26 @@
+<!doctype html><html><body><div id="root"></div><script>
+let session, conversation;
+const root = document.getElementById('root');
+async function api(route, data) {
+ const r = await fetch(route, {method:data?'POST':'GET',headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session.token}:{})},...(data?{body:JSON.stringify(data)}:{})});
+ if (!r.ok) throw Error('request '+r.status); return r.json();
+}
+root.innerHTML='<input data-testid="sm-auth-email"><input type="password" data-testid="sm-auth-password"><button data-testid="sm-auth-submit">Sign in</button>';
+root.querySelector('button').onclick=async()=>{
+ session=await api('/login',{email:root.querySelector('input').value,password:root.querySelector('input[type=password]').value});
+ const conversations=await api('/conversations'); root.innerHTML='';
+ for (const c of conversations) {
+  const b=document.createElement('button');b.dataset.testid='sm-chats-item';b.setAttribute('aria-valuetext',c.value);b.textContent='Conversation';root.appendChild(b);
+  b.onclick=async()=>{
+   conversation=session.fault==='bob-wrong-conversation'?'wrong-conversation':c.conversationId;
+   if(session.fault==='delayed-bob')await new Promise(r=>setTimeout(r,1500));
+   if(session.fault==='late-bob')await new Promise(r=>setTimeout(r,12000));
+   root.innerHTML='';root.dataset.conversation=conversation;root.dataset.principal=session.principal;
+   if(conversation!==c.conversationId) return;
+   const page=await api('/history?conversationId='+encodeURIComponent(conversation));
+   for(const row of page.rows){const p=document.createElement('p');p.dataset.testid='sm-convo-bubble';p.setAttribute('aria-valuetext',row.messageId);const body=document.createElement('span');body.dataset.testid='sm-convo-body';body.textContent=row.body;p.appendChild(body);const stamp=document.createElement('time');stamp.textContent='12:00';p.appendChild(stamp);root.appendChild(p);}
+   await api('/read',{conversationId:conversation});
+  };
+ }
+};
+</script></body></html>

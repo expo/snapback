@@ -41,6 +41,8 @@ export class Following<A, R extends readonly unknown[]> {
   private snapshot: FollowingSnapshot<R[number]> = { items: [], phase: "preparing", hasMore: false, omissions: [] };
   private readonly args: A;
   constructor(private readonly client: Client, private readonly op: FollowingQuery<A, R>, args: A) {
+    // @ref LLP 3000.033#1.2 — no observer or frontier custody in read-only mode.
+    if (client.readOnly) this.refuseReadOnly();
     this.args = op.following.cursor ? { ...args, [op.following.cursor]: null } : args;
   }
   getSnapshot = (): FollowingSnapshot<R[number]> => this.snapshot;
@@ -53,8 +55,14 @@ export class Following<A, R extends readonly unknown[]> {
     if (this.client.link() === "offline") { this.inbox?.loadMore(); return; }
     if (this.next && !this.wantPage && this.client.link() === "online") { this.wantPage = true; this.schedule(0); }
   };
-  retry = (): void => { this.code = undefined; this.phase = "preparing"; this.wantPage = this.next !== null; this.schedule(0); };
+  retry = (): void => { if (this.client.readOnly) { this.refuseReadOnly(); return; } this.code = undefined; this.phase = "preparing"; this.wantPage = this.next !== null; this.schedule(0); };
+  private refuseReadOnly(): void {
+    this.phase = "refused"; this.code = "E_READ_ONLY";
+    this.snapshot = { items: [], phase: "refused", hasMore: false, omissions: [], code: this.code };
+    for (const listener of this.listeners) listener();
+  }
   private start(): void {
+    if (this.client.readOnly) { this.refuseReadOnly(); return; }
     this.aborter = new AbortController();
     this.source = this.client.observe(this.op, this.args);
     this.stops.push(onFollowingChange(this.client, () => this.invalidate()), this.source.subscribe(() => this.changed()), this.client.onLink(() => this.changed()),
@@ -122,7 +130,7 @@ export class Following<A, R extends readonly unknown[]> {
     for (const listener of this.listeners) listener();
   }
   private schedule(delay: number): void {
-    if (!this.listeners.size || this.client.link() !== "online") return;
+    if (this.phase === "refused" || !this.listeners.size || this.client.link() !== "online") return;
     const due = Date.now() + delay;
     if (this.timer && this.due <= due) return;
     if (this.timer) clearTimeout(this.timer);
@@ -150,7 +158,7 @@ export class Following<A, R extends readonly unknown[]> {
     return true;
   }
   private async run(): Promise<void> {
-    if (this.work || !this.listeners.size || this.client.link() !== "online") return;
+    if (this.phase === "refused" || this.work || !this.listeners.size || this.client.link() !== "online") return;
     this.work = true; this.guards = [];
     let delay = 1000;
     try {

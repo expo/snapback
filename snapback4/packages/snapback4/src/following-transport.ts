@@ -7,6 +7,7 @@ const fences = new WeakMap<Client, (op: FollowingQuery<unknown, unknown>) => boo
 export function bindFollowing(client: Client, send: Transport, blocked?: (op: FollowingQuery<unknown, unknown>) => boolean): void { transports.set(client, send); if (blocked) fences.set(client, blocked); }
 export function followingBlocked<A,R>(client:Client,op:FollowingQuery<A,R>):boolean { return fences.get(client)?.(op) ?? false; }
 export function followingRequest<A, R>(client: Client, op: FollowingQuery<A, R>, args: A, body: FollowingWire, signal?: AbortSignal): Promise<FollowingWire | undefined> {
+  if (client.readOnly) return Promise.resolve({ phase: "refused", code: "E_READ_ONLY" });
   const send = transports.get(client);
   return send ? send(op, args, body, signal) : Promise.resolve({ phase: "refused", code: "E_FOLLOWING_DECLARATION" });
 }

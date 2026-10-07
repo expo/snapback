@@ -1,0 +1,49 @@
+{
+  "command": "bash snapback4/scripts/test.sh",
+  "exit": 1,
+  "seconds": 3087,
+  "cpu_affinity": "0,29,19,30,34,33,22,64,21,20,35,56,95,85,44,39,45,24,6,51,36,86,49,26",
+  "environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "native": {
+    "binaries": 310,
+    "executions": 1023,
+    "initial_failed_target": "snapback4-lang::guide",
+    "initial_failed_test": "client::existence_card_and_starters_teach_the_sdk_words",
+    "cause": "merged client guide 1201 words against 1200 limit",
+    "fix": "remove redundant joining word, keep both feature references",
+    "affected_rerun_passed": 113,
+    "doctests": "passed"
+  },
+  "client": {
+    "files": 340,
+    "tests": 6665,
+    "passed": 6609,
+    "failed": 0,
+    "skipped": 56
+  },
+  "models": {
+    "files": 2,
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0
+  },
+  "known_native_proc_flake_recurred": false,
+  "focused_engine_passed": 25,
+  "explicit_scale_passed": 2,
+  "root_inventories": "failed, byte-identical to round 2 inherited Snapback 1 gaps",
+  "ref_check": {
+    "documents": 531,
+    "references": 10501,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "maximum_observed_worktree_gib_rounded": 22,
+  "full_suite_uncompressed_sha256": "2af96760a3cfdf889eff3400748f0b4880e3d3aaa56ce1e4ed025589e1c55e1d",
+  "tests_unchanged": "No expected result, process inspection, cleanup ownership, timeout, test count or meter ceiling relaxed."
+}

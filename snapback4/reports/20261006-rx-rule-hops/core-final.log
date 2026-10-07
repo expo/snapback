@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 23.71s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-78afa38362958c09)
+
+running 10 tests
+test engine::qe2_allocation_tests::final_hop_keys_remain_charged_after_authorized_scratch_is_released ... ok
+test engine::qe2_allocation_tests::consumed_if_absent_result_is_still_completed ... ok
+bound, 1 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 1, steps: 20, heap_bytes: 2316, output_bytes: 70, rows_written: 1 }
+test engine::qe2_allocation_tests::inlined_helper_and_branch_keep_the_consumed_insert_result ... ok
+discarded, 1 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 1, steps: 12, heap_bytes: 926, output_bytes: 13, rows_written: 1 }
+test engine::qe2_allocation_tests::known_default_price_is_independent_of_declared_maximum ... ok
+bound, 2 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 2, steps: 20, heap_bytes: 2316, output_bytes: 70, rows_written: 1 }
+test engine::qe2_allocation_tests::private_maintenance_total_results_and_rule_hops_share_all_seven_meters ... ok
+discarded, 2 hop(s): Metered { examined: 0, index_entries: 1, rule_probes: 2, steps: 12, heap_bytes: 926, output_bytes: 13, rows_written: 1 }
+test engine::qe2_allocation_tests::live_chain_occurrences_prepay_each_link_on_both_runners ... ok
+test engine::qe2_allocation_tests::bound_result_and_sibling_hops_have_equal_server_device_prices ... ok
+test engine::qe2_allocation_tests::following_tail_and_total_result_prices_ignore_private_queue_length_and_clock ... ok
+test engine::qe2_allocation_tests::bound_large_insert_charges_each_result_byte_once ... ok
+test engine::qe2_allocation_tests::receipt_results_complete_ordinary_fields_inside_the_existing_copy_reservation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 235 filtered out; finished in 0.04s
