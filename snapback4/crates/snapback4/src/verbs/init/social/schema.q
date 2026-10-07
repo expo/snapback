@@ -43,6 +43,7 @@ table messages:
   ordinal: int
   recipients: int
   text: text <=2000
+  replyTo: messages ?
   photo: image <=5000000 once ?
   search text
   at: time
@@ -60,15 +61,23 @@ query conversationScreen(conversation: conversations):
 query inbox(c: cursor ?):
   return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
 
-query history(conversation: conversations, c: cursor ?):
+-- A quote opens one indexed window ending at its original, even beyond sync.
+query history(conversation: conversations, c: cursor ?, through: int ?):
+  if through != null:
+    return messages where .conversation = conversation and .ordinal <= through last 20 by byConversationOrdinal after c
   return messages where .conversation = conversation last 20 by byConversationOrdinal after c
 
-query messageReceipts(conversation: conversations, c: cursor ?):
+query messageReceipts(conversation: conversations, c: cursor ?, through: int ?):
+  if through != null:
+    return messages where .conversation = conversation and .ordinal <= through last 20 by byConversationOrdinal after c { id, receipt: receipt(.) }
   return messages where .conversation = conversation last 20 by byConversationOrdinal after c { id, receipt: receipt(.) }
 
-mutation send(conversation: conversations, text: text <=2000, photo: image <=5000000 ?):
+mutation send(conversation: conversations, text: text <=2000, photo: image <=5000000 ?, replyTo: messages ?):
   require exists members[conversation, viewer] else NOT_MEMBER
-  m = insert messages { conversation, sender: viewer, text, photo, at: now }
+  if replyTo != null:
+    original = messages[replyTo] ! else QUOTE_UNAVAILABLE
+    require original.conversation = conversation else WRONG_CONVERSATION
+  m = insert messages { conversation, sender: viewer, text, replyTo, photo, at: now }
   return m.id
 
 mutation add(conversation: conversations, principal: principal):

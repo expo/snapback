@@ -222,7 +222,7 @@ test("published social starter and guide snippets typecheck against generated op
   const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
-  assert.equal(snippets.length, 8);
+  assert.equal(snippets.length, 9);
   for (const [, name, source] of snippets) {
     assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
     writeFileSync(join(dir, name), source); // Compile the emitted guide text.
@@ -699,4 +699,50 @@ query badges(conversation: conversations):
   offline = false; await local.sync();
   await until(async () => !(await local.pendingWrites()).some(w => w.id === cancel.id), "canceled source settles");
   assert.deepEqual((await local.query(api.badges, { conversation })).data.map(row => row.value), [4]);
+});
+
+for (const tier of ['native', 'wasm']) test(`social ${tier}: quote windows share ordinal/cursor bounds with receipts`, { timeout: hangBudget(35) }, async t => {
+  const dir = starter(t), api = await generatedApi(dir);
+  const { url } = await server(t, undefined, readFileSync(join(dir, 'snapback/schema.q'), 'utf8'));
+  const signed = await fetch(url + '/auth/guest', { method: 'POST', body: '{}' }).then(r => r.json());
+  assert.ok(signed.session, JSON.stringify(signed));
+  const owner = signed.session.principal, conversation = 'quote-window';
+  const rows = [
+    { table: 'conversations', row: { id: conversation, title: 'Quote window', creatorId: owner, lastOrdinal: 532 } },
+    { table: 'members', row: { id: 'quote-member', conversation, principal: owner, joinedOrdinal: 0, deliveredOrdinal: 532, seenOrdinal: 0 } },
+    ...Array.from({ length: 532 }, (_, n) => ({ table: 'messages', row: {
+      id: `quote-${n + 1}`, conversation, sender: owner, ordinal: n + 1, recipients: 0,
+      text: `message ${n + 1}`, photo: null, replyTo: n === 531 ? 'quote-1' : null, at: n + 1,
+    } })),
+  ];
+  const seeded = await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json());
+  assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+  const device = tier === 'native' ? processDevice({ binary, dir: join(dir, 'device') })
+    : webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, 'packages/snapback4/src/wasm/snapback4_device_bg.wasm')) });
+  let offline = false;
+  const client = await createLocalClient({ url, session: signed.session, device, fetch: (input, init) => {
+    if (offline) throw new TypeError('offline');
+    return new URL(input).pathname === '/changes' ? parkedChanges(init.signal) : fetch(input, init);
+  } });
+  t.after(() => client.close()); await client.sync();
+  for (const through of [1, 480]) {
+    const args = { conversation, through };
+    const history = await client.query(api.history, args), receipts = await client.query(api.messageReceipts, args);
+    assert.equal(history.existence, 'present', JSON.stringify(history));
+    assert.equal(history.data[0].ordinal, through);
+    assert.equal(history.data.length, Math.min(through, 20));
+    assert.deepEqual(receipts.data.map(row => row.id), history.data.map(row => row.id));
+    if (history.next) {
+      const older = await client.query(api.history, { ...args, c: history.next });
+      const olderReceipts = await client.query(api.messageReceipts, { ...args, c: history.next });
+      assert.ok(older.data.every(row => row.ordinal < through - 19));
+      assert.deepEqual(olderReceipts.data.map(row => row.id), older.data.map(row => row.id));
+    }
+  }
+  offline = true; await client.sync();
+  const held = await client.query(api.history, { conversation, through: 480 });
+  assert.equal(held.data[0].ordinal, 480); assert.equal(held.data.length, 20);
+  const unknown = await client.query(api.history, { conversation, through: 1 });
+  assert.notEqual(unknown.existence, 'absent', 'unacquired history never proves absence');
+  assert.ok(unknown.existence === 'partial' || unknown.denied, JSON.stringify(unknown));
 });

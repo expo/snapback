@@ -37,6 +37,7 @@ export const View = ({children,style}) => h('div', {style}, children), ScrollVie
 export const Text = ({children}) => h('span', null, children);
 export const TextInput = ({value, onChangeText}) => h('input', {value, onChange: e => act(()=>onChangeText(e.target.value))});
 export const Button = ({title, disabled, onPress}) => h('button', {disabled, onClick: ()=>act(()=>onPress())}, title);
+export const Pressable = ({children, disabled, onPress}) => h('button', {disabled, onClick: ()=>act(()=>onPress())}, children);
 `);
   writeFileSync(join(dir, 'api.js'), `export const api = {messagePhoto:{kind:'query',name:'messagePhoto'},thread:{kind:'query',name:'thread'},myMembership:{kind:'query',name:'myMembership'},send:{kind:'mutation',name:'send'}};`);
   writeFileSync(join(dir, 'harness.jsx'), `import React, {StrictMode, act} from 'react';
@@ -59,7 +60,8 @@ const client = {
 };
 const app = {client, auth:{getSnapshot:()=>auth,onChange(fn){authListeners.add(fn);return()=>authListeners.delete(fn);}}};
 const root = createRoot(document.getElementById('root'));
-const render = () => root.render(<StrictMode><AppProvider app={app}><ConversationScreen backend={backend} conversationId={conversationId}/><section id="quote"><QuotedMessage id="older-than-loaded-history"/></section></AppProvider></StrictMode>);
+window.quoteJumps=0;
+const render = () => root.render(<StrictMode><AppProvider app={app}><ConversationScreen backend={backend} conversationId={conversationId}/><section id="quote"><QuotedMessage id="older-than-loaded-history" onJump={()=>window.quoteJumps++}/></section></AppProvider></StrictMode>);
 window.start = async () => {await act(async()=>render());};
 window.publish = async changes => {await act(async()=>{reads={...reads,...changes};for(const r of records)for(const fn of r.listeners)fn();});};
 window.changeKey = async (kind,value) => {await act(async()=>{if(kind==='account'){auth={...auth,viewer:value};for(const fn of authListeners)fn();}else if(kind==='backend')backend=value;else conversationId=value;render();});};
@@ -111,20 +113,28 @@ window.finish = async()=>{await act(async()=>root.unmount());return {records:rec
     for (const metadata of [{complete:false}, {cut:'meter'}, {next:'older'}]) {
       await publish(readyQuote(null, metadata));
       assert.equal(await quote.innerText(), 'Quoted message not yet known');
+      assert.equal(await quote.getByRole('button').count(), 0);
     }
     await publish(readyQuote(null, {}, true));
     assert.equal(await quote.innerText(), 'Quoted message not yet known');
+    await publish(readyQuote({text:'',photo:{id:'once-photo'}}));
+    assert.equal(await quote.getByRole('button').innerText(), 'Photo message');
     await publish(readyQuote({text:'Coffee after work?'}));
     assert.equal(await quote.innerText(), 'Coffee after work?');
+    await quote.getByRole('button').evaluate(node=>node.click());
+    assert.equal(await page.evaluate(()=>window.quoteJumps), 1);
     await publish(readyQuote({text:'Coffee after work?'}, {fresh:false,revalidating:true}));
     assert.equal(await quote.innerText(), 'Coffee after work?');
+    assert.equal(await quote.getByRole('button').isDisabled(), true);
     await publish({loading:true});
     assert.equal(await quote.innerText(), 'Loading quoted message…');
     await publish(readyQuote({text:'Coffee after work?'}));
     await publish({denied:{code:'E_AUTH',family:'auth',message:'Denied'}});
     assert.equal(await quote.innerText(), 'Quoted message hidden');
+    assert.equal(await quote.getByRole('button').count(), 0);
     await publish(readyQuote(null));
     assert.equal(await quote.innerText(), 'Quoted message unavailable');
+    assert.equal(await quote.getByRole('button').count(), 0);
     await publish({loading:true});
     assert.equal(await quote.innerText(), 'Loading quoted message…');
     await preserved();

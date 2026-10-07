@@ -16,6 +16,7 @@ export function FlatList({ data, renderItem, keyExtractor, onViewableItemsChange
 }
 export const Text = ({children}) => <span>{children}</span>;
 export const Button = ({title, onPress, disabled}) => <button disabled={disabled} onClick={onPress}>{title}</button>;
+export const Pressable = ({children, onPress, disabled, accessibilityLabel}) => <button disabled={disabled} aria-label={accessibilityLabel} onClick={onPress}>{children}</button>;
 export const TextInput = ({value, onChangeText, onBlur, testID, accessibilityLabel}) =>
   <input data-testid={testID} aria-label={accessibilityLabel} value={value} onChange={event => onChangeText(event.target.value)} onBlur={onBlur} />;
 export const Image = ({source, accessibilityLabel}) => <img src={source.uri} alt={accessibilityLabel || "image"} />;

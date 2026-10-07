@@ -20,7 +20,7 @@ export async function screen(t) {
  emit('recipe.jsx',readFileSync(join(starter,'BoundedConversation.tsx'),'utf8'));
  emit('useForeground.js',readFileSync(join(pilot,'after/useForeground.ts'),'utf8'));
  for(const name of ['before','after']) emit(name+'.jsx',readFileSync(join(pilot,name,'chat.tsx'),'utf8'));
- for(const name of ['Conversation.tsx','useOnceMedia.ts','PageLifetime.ts','intents.ts','useOnlineArm.ts','useTyping.ts']) emit(name.replace(/\.tsx?$/,'.js'),readFileSync(join(starter,name),'utf8'));
+ for(const name of ['Conversation.tsx','QuotedMessage.tsx','useJumpToMessage.ts','useOnceMedia.ts','PageLifetime.ts','intents.ts','useOnlineArm.ts','useTyping.ts']) emit(name.replace(/\.tsx?$/,'.js'),readFileSync(join(starter,name),'utf8'));
  writeFileSync(join(dir,'intent-store.js'),'export const intentStorage={};');
  writeFileSync(join(dir,'ui.jsx'),`export const PhotoPicker=()=>null;`);
  writeFileSync(join(dir,'native.jsx'),`import React,{act,createElement as h,useEffect,useLayoutEffect,useRef,useImperativeHandle,forwardRef} from 'react';
@@ -28,6 +28,7 @@ export function View({children,onLayout,testID,nativeID}){const ref=useRef();use
 export const Text=({children,testID})=>h('span',{'data-testid':testID},children);
 export const TextInput=({value,onChangeText,accessibilityLabel})=>h('input',{value,'aria-label':accessibilityLabel??'Message draft',onChange:e=>act(()=>onChangeText(e.target.value))});
 export const Button=({title,disabled,onPress,testID})=>h('button',{'data-testid':testID,disabled,onClick:()=>{act(()=>{void onPress()})}},title);
+export const Pressable=({children,disabled,onPress,accessibilityLabel})=>h('button',{'aria-label':accessibilityLabel,disabled,onClick:()=>act(()=>onPress())},children);
 export const ScrollView=forwardRef(function ScrollView({children,onContentSizeChange},ref){const element=useRef(),change=useRef();change.current=onContentSizeChange;useImperativeHandle(ref,()=>({scrollTo:value=>window.scrolls.push(value),scrollToEnd:()=>window.ends++}));useLayoutEffect(()=>onContentSizeChange?.());useEffect(()=>{const observer=new MutationObserver(()=>act(()=>change.current?.()));observer.observe(element.current,{childList:true,subtree:true});return()=>observer.disconnect()},[]);return <div ref={element}>{children}</div>});
 export const FlatList=()=>null,ImageBackground=View,Linking={openURL(){}},Image=({source,accessibilityLabel})=><img alt={accessibilityLabel??'Once photo'} src={source?.uri}/>;
 const listeners=new Set();export const AppState={currentState:'active',addEventListener(_,fn){listeners.add(fn);return {remove:()=>listeners.delete(fn)}}};

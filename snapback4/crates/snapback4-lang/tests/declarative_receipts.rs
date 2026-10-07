@@ -8,7 +8,11 @@ use snapback4_core::value::object;
 use snapback4_core::{Context, Engine, Value, WriteState};
 const MANUAL: &str =
     include_str!("../../../reports/20260930-rx-declarative-receipts/starter-before.q");
-const DECLARATIVE: &str = include_str!("../../snapback4/src/verbs/init/social/schema.q");
+// These model transformations and frozen wasm corpora share the pre-quote
+// schema. Pin their input: evolving the app must not silently change the model,
+// break exact-source transformations, or invalidate its frozen wire witnesses.
+const DECLARATIVE: &str = include_str!("fixtures/receipts/social.q");
+const CURRENT_STARTER: &str = include_str!("../../snapback4/src/verbs/init/social/schema.q");
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -127,7 +131,7 @@ fn receipt(e: &mut Engine, now: i64) -> Value {
 #[test]
 fn starter_compiles_and_rejects_owned_progress_and_unallocated_reports() {
     let source = format!(
-        "{DECLARATIVE}\nmutation forge(conversation: conversations):\n  update members[conversation, viewer] {{ deliveredOrdinal: 999 }}\nmutation forgeRun(conversation: conversations):\n  insert runs {{ conversation, principal: viewer, fromOrdinal: 1, throughOrdinal: 999 }}\nmutation forgeUpsert(conversation: conversations):\n  upsert members[conversation, viewer] {{ seenOrdinal: 999 }}\n"
+        "{CURRENT_STARTER}\nmutation forge(conversation: conversations):\n  update members[conversation, viewer] {{ deliveredOrdinal: 999 }}\nmutation forgeRun(conversation: conversations):\n  insert runs {{ conversation, principal: viewer, fromOrdinal: 1, throughOrdinal: 999 }}\nmutation forgeUpsert(conversation: conversations):\n  upsert members[conversation, viewer] {{ seenOrdinal: 999 }}\n"
     );
     let b = bound(&source);
     assert_eq!(b.schema.delivery.len(), 1);

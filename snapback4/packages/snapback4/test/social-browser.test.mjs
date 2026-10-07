@@ -151,20 +151,23 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.waitForFunction(() => window.onlineArms.filter(arm => arm.viewer()).every(arm => arm.link() === "online"));
   });
 
-  await t.test("older bubbles share the history cursor and retain text when receipts withdraw", async () => {
+  await t.test("older bubbles recover receipts after withdrawal without losing history", async () => {
     await page.evaluate(() => {
       const older = { ...window.historyRows[0], id: "older-message", text: "older bubble", photo: null };
       window.setRead("history:older-cursor", window.ready([older]));
       window.setRead("messageReceipts:older-cursor", window.ready([{ id: older.id, receipt: "delivered" }]));
+      window.setRead("messageReceipts", { loading: true });
       window.setRead("history", window.ready(window.historyRows, { next: "older-cursor" }));
     });
     await page.getByRole("button", { name: "Older messages" }).click();
     const bubble = page.getByTestId("message-older-message");
+    await bubble.getByText("older bubble", { exact: true }).waitFor();
+    await page.evaluate(() => window.setRead("messageReceipts", window.ready(window.historyRows.map(row => ({ id: row.id, receipt: "delivered" })), { next: "older-cursor" })));
     await bubble.getByText("older bubble · delivered").waitFor();
     const calls = await page.evaluate(() => window.observations.filter(call => call.args.c === "older-cursor"));
     assert.deepEqual(calls.map(call => call.op).sort(), ["history", "messageReceipts"]);
     await page.evaluate(() => window.setRead("messageReceipts:older-cursor", { denied: { code: "NOT_MEMBER", message: "Receipts withdrawn" } }));
-    assert.equal(await bubble.innerText(), "older bubble");
+    assert.equal(await bubble.innerText(), "older bubbleReply");
     await page.evaluate(() => window.restore());
     await bubble.waitFor({ state: "detached" });
   });

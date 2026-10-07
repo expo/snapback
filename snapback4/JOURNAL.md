@@ -88487,3 +88487,42 @@ Both failures are preserved in the report and dated open issues; no assertion,
 deadline or test count was changed, and no green whole-script result is claimed.
 Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
+
+## 2026-10-07 — QJ: quoted messages open and scroll to their original
+
+The social starter now has a small Reply affordance, saved `replyTo` references,
+and `QuotedMessage.onJump`. A reusable `useJumpToMessage` opens an indexed history
+window ending at the original's ordinal, including beyond the replica's sync
+horizon. One variable-height FlatList retries unmeasured indices on native/web;
+actual viewport visibility starts a 1.8-second highlight. Attempts stop after
+four seconds with a visible failure. Unknown, denied and absent point reads keep
+their honest `matchRead` presentation. The composer, draft and once viewer retain
+their existing owners; receipts remain independent current reads. Guide social,
+the installed README and LLP 3000.028 §8 document the recipe.
+
+The browser regression uses the installed template, real react-native-web layout,
+generated operations and both online/wasm clients. It measures the original's
+rectangle after 30 intervening messages, plus already visible and absent targets,
+draft/input identity, a target beyond the 500-row horizon, actual reply sending,
+unmeasured-index recovery and a blocked-scroll timeout/retry. The native-process
+and wasm query tests also check offline uncertainty and anchored receipt pages.
+Linux-only execution makes no iOS/Android UI witness claim.
+
+The receipt engine's exact-source model and frozen wasm corpus now use a pinned
+copy of their original social schema; the current starter retains its separate
+compiler/ownership witness and new application tests. No existing oracle or
+corpus was regenerated. The [QJ report](reports/20261007-qj-quote-jump/REPORT.md)
+records qualification, the transient shared-disk exhaustion during the first
+full-suite run, and byte-identical wasm. Work and tests stay in this worktree on
+eb1000; commit only, with nothing pushed or published.
+
+QJ final qualification: the complete `scripts/test.sh` run passed with zero
+failures in 2,748 seconds, using the required SQLite flag. Rust: 5,120 passes
+and 33 declared ignores; clients: all 329 files, 6,499 passes and 54 declared
+skips; models: 79/79; fixture wrappers: 9/9. The affected run passed 69/69,
+including receipt-page recovery while retained history stays mounted. Guide and
+reference audits pass. The final distant-quote witnesses reached and highlighted
+the original in 126.9 ms online and 130.3 ms on the wasm replica, against the
+four-second bound. All four wasm artifacts are byte-identical to the baseline;
+the device remains 2,135,164 B raw / 645,264 B canonical gzip. Checkout disk use
+is 15.24 GB, below 30 GB. Earlier failed/interrupted runs remain in the report.
