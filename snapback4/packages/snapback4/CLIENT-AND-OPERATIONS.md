@@ -119,6 +119,62 @@ full and read-only apps; their separate storage namespaces remain isolated.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
+### App-owned online access
+
+A device app uses `app.online` for a server snapshot, live server observation,
+ephemeral signal or action. `useOnline()` returns that arm under `AppProvider`:
+
+```tsx
+import { useOnline } from "snapback4/react";
+import { createApp } from "snapback4/app";
+import { api } from "../snapback/generated/api";
+const app = createApp({ url: "http://127.0.0.1:4400" });
+function TypingButton({ room }: { room: string }) {
+  const online = useOnline();
+  return <button onClick={() => void online.mutate(api.setTyping, { room })}>Typing</button>;
+}
+async function serverSnapshot() {
+  const read = await app.online.query(api.inboxCards, {});
+  return read; // Render with matchRead; guide social has a complete screen.
+}
+```
+
+`online.query` returns the same settled Read as `client.query`; `online.observe`
+uses the same observation/keep contract. These evaluate at the server without
+waiting on replica acquisition or pending predictions. They do not merge local
+predictions or promise unlimited completeness: server cuts, continuations and
+refusals still apply. For Trending/Insights-style snapshots this avoids the
+replica's bounded settlement attempt; ordinary device screens keep `useQuery`.
+`TrendingSnapshot` in `guide social` renders every state with `matchRead` and
+provides Refresh for another one-shot. Use `online.act` for actions (the device
+client's existing `act` also goes to the server). Durable mutations belong to
+`app.mutate`/`useMutation`, retaining the existing outbox and admission guarantees;
+`online.mutate` accepts only generated ephemeral operations.
+
+The `Online` type (`snapback4/app`) exposes `query`, `observe`, `mutate`, `act`,
+`link`, `onLink`, `viewer`, `now` and `readOnly`. It exposes no bearer, Session,
+asset headers, refresh, close or sign-out method, even at runtime. The app owns
+retirement. Rotation replaces the arm; `useOnline` subscribes automatically,
+and headless consumers can use `app.onOnlineChange`. Reacquire `app.online` after
+a change; cached old handles refuse `E_AUTH`. Account change, sign-out and close
+withdraw observations and fence new requests, including requests queued behind
+an asynchronous authority check. Dispatched signals/actions retain their outcome;
+the private device arm drains for up to 30 seconds before closing. An action
+whose response never arrives then returns pending with its original ID. It never logs out
+the app. Cleanup during ordinary screen unmount can still send stopTyping;
+cleanup after credential retirement cannot send, and signal expiry covers it.
+
+While signed out, operations refuse `E_AUTH`. When disconnected, one-shots,
+signals and actions refuse `E_OFFLINE` (a lost action response can instead be
+`pending`, retaining its retry ID). Observations follow normal online retention
+and reconnect; ephemeral reads retain no offline hints. Signals drop rather than
+replay. A new query can probe reconnect; the one-shot screen retries explicitly.
+Without a device the arm is a restricted facade over the app's existing client,
+with no second client, credential verification or write journal. In read-only
+mode its writes/actions refuse `E_READ_ONLY`, and the original verified read
+session expires without any SDK refresh. Shared epochs, principal sign-out
+watermarks and `.read` custody retain their existing semantics.
+
 The app's session state machine maintains these invariants under the shared
 session lock:
 

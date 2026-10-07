@@ -228,3 +228,9 @@ export function awaitBoundary() {
     return [file, { count: awaits.length, sha256: createHash('sha256').update(JSON.stringify(awaits)).digest('hex') }];
   }));
 }
+// OA: app-online-arm adds no await or delivery persistence. It projects guarded
+// server reads/signals/actions and drains returned calls before private close.
+// app.ts keeps every authority/save await unchanged; the transport checks arm
+// identity synchronously after its existing authority await. The held-call,
+// rotation/account/logout and late-read tests live in app-online-arm.test.mjs.
+// Existing delivery sites, recipe mappings and outbox custody stay unchanged.

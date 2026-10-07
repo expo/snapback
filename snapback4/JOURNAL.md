@@ -88810,3 +88810,42 @@ Wasm stays 2,117,335 raw / 639,888 gzip bytes against the unchanged 639,941 budg
 An earlier disk-exhausted attempt is preserved separately from the complete
 run. No other lane's files were deleted. The Round 7 report records every
 failure, correction and passing rerun. No push or publication.
+
+
+## 2026-10-07 — OA: createApp owns its online arm
+
+On eb1000, branch `sb4-intent/oa-owned-online-arm`, starting from
+`2a5fc454aa`: added `app.online` and React `useOnline()` for server queries,
+observations, ephemeral signals and actions. The explicit projection exposes no
+bearer or lifecycle method. It uses the app's shared authority and checks the
+exact exposed arm again after asynchronous authority reads. Rotation, account
+change and sign-out fence old handles; dispatched signals/actions drain before
+private client closure, bounded by the existing 30-second one-shot lifetime.
+No retirement signs the app out. Read-only/no-device apps reuse their existing
+client; LLP 3000.033's fixed read lifetimes, epochs and sign-out watermarks remain
+unchanged. The decision and cited inventory are in LLP 3000.033 §1.8 and
+[the OA report](reports/20261007-oa-owned-online-arm/REPORT.md).
+
+Deleted the social starter's bearer-borrowing useOnlineArm. Conversation changes
+only its import/call to useOnline; useTyping's algorithm and all original typing
+assertions remain unchanged. Added the installed TrendingSnapshot recipe with
+matchRead, incomplete-coverage presentation, explicit Refresh and account-bound
+publication. Updated client/social guides, the client reference and starter
+README. The client card stays at 112 lines / 1,200 words; no budget increased.
+
+The requested full suite completed in 2,153 seconds with the SQLite memory-
+management flag: 308 Rust binaries / 1,021 executions plus doctests passed;
+339 client files reported 6,594 passes, 16 failures and 55 labelled skips; all
+79 model tests passed at 5,000 histories per session tier / 3,000 online-client
+sequences. The sole failed file's helper still copied the deleted hook; removing
+that entry makes all 16 unchanged screen-lifetime tests pass. This is a full run
+plus a corrected affected rerun, not a single-green-run qualification receipt.
+All 12 new lifecycle tests pass. Final generated-starter tests pass 15/15, guide
+113/113, published API/type examples 9/9; package typecheck/build passed. No
+persisted state changed; the optional published-binary downgrade control remains
+explicitly skipped. The report retains failures and reruns.
+
+Wasm is unchanged: 2,135,164 raw / 645,264 gzip bytes against the unchanged
+645,564 budget; SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83.
+The whole worktree uses about 14 GB, below 30 GB. Work stayed on this machine and
+in this worktree. No push or publication.

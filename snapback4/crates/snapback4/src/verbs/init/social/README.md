@@ -87,9 +87,9 @@ release it. No once bytes are persisted; retained text grants no server media
 access. Only JPEG, PNG and WebP are accepted; an unsupported library image
 reports the server refusal.
 
-`createApp` owns the account and local replica. `useOnlineArm` borrows the
-current bearer for a short-lived `createClient` used only by typing; rotation
-or account change closes that arm. `useTyping` owns its observation and short
+`createApp` owns the account, local replica and `app.online` server arm.
+`useOnline()` follows the current session without exposing its bearer; rotation
+and account change fence old handles and drain dispatched calls. `useTyping` owns its observation and short
 renewal interval. Send, blur, inactivity, backgrounding, disconnect and
 unmount stop it. Failed cleanup expires within the schema's four-second life.
 Reconnect does not replay a hint; the next keystroke starts a new one. Typing
@@ -251,3 +251,12 @@ need their own handlers. Status lines deliberately render nothing for absent
 and present. Search also uses `readPresentation` for incomplete, stale and
 revalidating notices; present does not imply complete. Keep the composer mounted
 outside the match. The send matcher preserves the membership rule above.
+
+`TrendingSnapshot.tsx` is a server snapshot recipe using this starter's feed.
+It calls `useOnline().query`, renders all five states with `matchRead`, and
+retries explicitly with Refresh. It skips replica acquisition and predictions;
+`E_OFFLINE` asks for reconnect, and partial results remain partial. Observations
+through `online.observe` instead follow server changes automatically. Actions
+use `online.act`; durable writes stay on `app.mutate`/`useMutation`. Signed-out
+arms refuse `E_AUTH`. A read-only app uses its existing verified client, with
+writes refused and no SDK refresh. The arm has no session or sign-out methods.

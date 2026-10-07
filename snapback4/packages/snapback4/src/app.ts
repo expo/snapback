@@ -16,6 +16,8 @@ import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
+import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
+export type { Online } from "./app-online-arm.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
 import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
@@ -39,6 +41,9 @@ export interface AppAuth extends AuthSnapshot {
 }
 export interface App {
   readonly client: Client;
+  /** Server access with app-owned session custody; no bearer or lifecycle methods. */
+  readonly online: Online;
+  onOnlineChange(listener: () => void): () => void;
   readonly auth: AppAuth;
   /** Initial session restoration; no network sign-in is attempted without a kept session. */
   readonly ready: Promise<AppResult>;
@@ -228,7 +233,10 @@ export function createApp(options: AppOptions): App {
     return client;
   };
   let current = anonymous();
-  type Scope = { valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
+  let signedOutOnline = onlineView(current);
+  const onlineListeners = new Set<() => void>();
+  const notifyOnline = () => { for (const listener of onlineListeners) { try { listener(); } catch (error) { console.error("snapback4 online listener:", error); } } };
+  type Scope = { online?: ReturnType<typeof ownOnline>; openOnline?: () => void; valid: boolean; sealing?: boolean; waitRotation?: () => Promise<void>; epoch: string; session: Session; consumed?: string | undefined; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; expose?: () => Client; fenceView?: () => () => void; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
   const scopes = new Set<Scope>();
   let owner: (Scope & { client: Client }) | undefined;
   let operations: Promise<unknown> = Promise.resolve();
@@ -239,6 +247,7 @@ export function createApp(options: AppOptions): App {
   let recoveryAbort: AbortController | undefined;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
     snapshot = { state, viewer, ...(why ? { why } : {}) };
+    notifyOnline();
     for (const listener of listeners) { try { listener(); } catch (error) { console.error("snapback4 auth listener:", error); } }
   };
   const report = (error: unknown) => publish(snapshot.state, snapshot.viewer, problem(error));
@@ -255,6 +264,7 @@ export function createApp(options: AppOptions): App {
     const notifyHidden = [...scopes].map(scope => scope.fenceView?.());
     if (current !== owner?.view) void current.close();
     current = anonymous();
+    signedOutOnline = onlineView(current);
     publish(closed ? "signed-out" : state, null);
     for (const notify of notifyHidden) notify?.();
   };
@@ -413,7 +423,7 @@ export function createApp(options: AppOptions): App {
       } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
       return undefined;
     }
-    const scopedFetch: typeof fetch = async (input, init) => {
+    const scopedRequest = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1], currentArm?: () => boolean): Promise<Response> => {
       // Cancel backend acquisition before a local Client exists. Once open,
       // the client owns cancellation and late rotation revocation itself.
       const path = new URL(typeof input === "string" || input instanceof URL ? input : input.url).pathname;
@@ -426,6 +436,7 @@ export function createApp(options: AppOptions): App {
       }
       if (scope.sealing && path === new URL(url + "/auth/refresh").pathname) throw new Error("global logout is selecting its retry credential");
       if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+      if (currentArm && !currentArm()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
       // The epoch check awaits storage. A concurrent response can retire this
       // store while it waits; never dispatch a fresh request through that gap.
       if (changedStore && !path.startsWith("/auth/")) return Response.json({ denied: changedStore });
@@ -455,6 +466,7 @@ export function createApp(options: AppOptions): App {
       try { return await fetcher(input, { ...init, signal: aborter.signal }); }
       finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
     };
+    const scopedFetch: typeof fetch = (input, init) => scopedRequest(input, init);
     let raw: Client | undefined, startClient: (() => Promise<void>) | undefined;
     let notifyPublished: ((published: Client) => void) | undefined;
     // Native host observers must not adopt a restoration candidate that can
@@ -542,6 +554,7 @@ export function createApp(options: AppOptions): App {
       const stopSession = raw.onSession(next => {
         if (next) {
           lastSession = next;
+          if (scope.online && owner === scope && current === scope.view) { replaceOnline(); notifyOnline(); }
           // The local client already saves through scopedStore before this
           // notification. A second save could commit a rotation after its
           // own save failed, while refreshSession still reports that failure.
@@ -579,10 +592,32 @@ export function createApp(options: AppOptions): App {
       }, false);
       recoverStore();
       const baseClient = custody?.client ?? raw;
+      function replaceOnline() {
+        const notify = scope.online?.fence();
+        const token = raw!.session()?.token;
+        // The app facade is permanently fenced on hide, even if a failed
+        // account switch later re-exposes the private rollback owner.
+        const view = scope.view!;
+        let active = true;
+        const valid = () => active && scope.valid && scope.view === view && raw!.session()?.token === token;
+        const remote = options.device ? createClient({ url, ...(token ? { token } : {}),
+          fetch: clock.wrap((input, init) => scopedRequest(input, init, valid)),
+          ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
+          ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}),
+        }) : raw!;
+        scope.online = ownOnline(remote, authorized, valid, () => changedStore ?? new SessionEpochChanged().why, !!options.device, () => { active = false; });
+        notify?.();
+      }
       scope.expose = () => {
         const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement, admit);
         const client = guarded.client;
-        scope.view = client; scope.fenceView = guarded.fence;
+        scope.view = client;
+        delete scope.online;
+        scope.openOnline = replaceOnline;
+        scope.fenceView = () => {
+          const notify = guarded.fence(), notifyArm = scope.online?.fence();
+          return () => { notify(); notifyArm?.(); };
+        };
         const exposed = () => owner === scope && current === client;
         // Revoked facades cannot alter the private retry/rollback owner either.
         client.close = () => exposed() ? closeApp() : Promise.resolve();
@@ -812,7 +847,7 @@ export function createApp(options: AppOptions): App {
     void enqueue(async () => {
       await release(); await current.close();
       await revocations.flushAcknowledged().catch(report);
-      listeners.clear();
+      listeners.clear(); onlineListeners.clear();
     }).then(() => { for (const release of finish) release(); resolve(); },
       error => { for (const release of finish) release(); reject(error); });
     return closingApp;
@@ -820,6 +855,12 @@ export function createApp(options: AppOptions): App {
   return {
     auth, ready,
     get client() { return current; },
+    get online() {
+      if (owner?.view !== current) return signedOutOnline;
+      if (!owner.online) owner.openOnline!();
+      return owner.online!.online;
+    },
+    onOnlineChange(listener) { onlineListeners.add(listener); return () => { onlineListeners.delete(listener); }; },
     mutate: routeMutations((op, args) => current.mutate(op, args), (op, args, options) => current.mutate(op, args, options)),
     close: closeApp,
   };
