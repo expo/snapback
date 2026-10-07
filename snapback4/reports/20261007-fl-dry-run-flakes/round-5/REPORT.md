@@ -1,5 +1,13 @@
 # FL round 5 — bounded inspector commands and fresh stderr recovery
 
+**Round-6 correction:** this round's compiler cleanup reaped the driver only;
+ordinary compiler descendants could survive. [Round 6](../round-6/REPORT.md)
+adds private group custody and verifies group drain before completion. Numeric
+recorded-PID checks still have an exit/reuse race before the syscall; they do
+not guarantee that an unowned PID can never be signalled. Owned children now
+dispatch through retained handles, and compiler cleanup uses a live keeper's
+self-directed group signals.
+
 2026-10-07. Base `cc663aa03b`, branch `sb4-intent/fl-dry-run-flakes`.
 All work and execution stayed in this worktree on eb1000
 (`expose-builder-pixel`). No push, publication, remote execution or changes

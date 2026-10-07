@@ -1,5 +1,9 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-6 compiler custody:** [round 6](round-6/REPORT.md) gives compilation
+private group custody, including surviving frontends. It also distinguishes
+owned groups/handles from the remaining recorded-PID check-to-syscall race.
+
 **Round-5 timeout correction:** [round 5](round-5/REPORT.md) fixes owned-child
 cleanup after identity refusal, interpreter command capture, and bounded
 Darwin inspector compilation. It also fixes the stderr recovery observation

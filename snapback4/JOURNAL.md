@@ -89179,3 +89179,42 @@ All work stayed on eb1000; nothing pushed. This is Linux evidence; the user's
 round-3 Mac soak does not qualify the new native inspector for this revision.
 
 [Round-5 resolution, controls and reproduction scripts](reports/20261007-fl-dry-run-flakes/round-5/REPORT.md).
+
+## 2026-10-07 — FL round 6: compiler descendants share private group custody
+
+Astra reproduced a GCC frontend surviving the round-5 driver timeout under
+PID 1. Compilation now runs beneath a live keeper in its own process group.
+The caller requests cleanup over its owned pipe; the keeper sends TERM and
+then bounded KILL to its own group, even if the driver already exited. The
+helper reaps the keeper and requires two complete observations with no living
+group member before reporting completed cleanup. Inspection precedes waiting
+for pipe close, so inherited writers cannot hide a failed drain. Failed
+inspection reports a cleanup error. Caller death also closes the cleanup pipe.
+Bootstrap inspection uses the system ps without recursively compiling the
+Darwin identity helper. Ordinary descendants inherit custody; deliberate group
+escape is outside it.
+
+Tracked direct-child signals retain their identity checks and now dispatch
+through native ChildProcess handles. A handle closing after inspection refuses
+the fault instead of counting it as successful injection or falling back to
+a numeric PID. Recorded-PID fault signals still recheck exact birth and command
+immediately before dispatch, but exit/reuse between that userspace check and
+the syscall can redirect a signal. That small race remains: there is no
+absolute guarantee against signalling an unowned PID on the recorded-PID path.
+Private group or handle custody is preferred wherever the test owns the process.
+Comments and reports now state these distinct guarantees explicitly.
+
+The new subprocess regressions cover a TERM-ignoring driver and a driver that
+exits on TERM while its frontend survives. Restoring the leaf-only helper makes
+both fail at the live-frontend assertion, then private release cleans up.
+Astra's real GCC -B reproduction now returns after 31.2 seconds with cc1 gone.
+Nine export/helper/runner files pass 193 tests with 33 platform skips; background
+is 63/32. Surrounding consumers pass 49/49 and dev_refusals passes 22/22. Twenty
+loaded rounds pass both subprocess cases (40 passes), with source hashes fixed
+and all four busy loops reaped. All read, stderr, signal, publication, custody,
+timeout and simulator controls retain their expected outcomes. Earlier product
+and test assertions remain intact. Ref-check retains only the existing broken
+LLP 3000.035 anchor in unchanged difftest code. All execution stayed on eb1000;
+nothing pushed. Native Darwin execution still awaits the user's soak.
+
+[Round-6 resolution, group-custody evidence and controls](reports/20261007-fl-dry-run-flakes/round-6/REPORT.md).

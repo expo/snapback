@@ -28,12 +28,13 @@ test(`tracked identity accepts ${mode} with its exact interpreter argv`, { timeo
   const exited = once(child, 'exit');
   try {
     await once(child.stdout, 'data');
-    const original = process.kill, attempted = [];
-    process.kill = (...args) => { attempted.push(args); return true; };
+    const original = process.kill, originalChildKill = child.kill, attempted = [];
+    process.kill = () => { assert.fail('owned-child signal must use its retained handle'); };
+    child.kill = signal => { attempted.push([child.pid, signal]); return true; };
     try {
       signalChild(child, 'SIGTERM');
       assert.deepEqual(attempted, [[child.pid, 'SIGTERM']]);
-    } finally { process.kill = original; }
+    } finally { process.kill = original; child.kill = originalChildKill; }
   } finally { child.stdin.end(); await exited; }
 });
 

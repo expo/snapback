@@ -2639,6 +2639,27 @@ Keeper EOF and fixture self-signals use a synchronous helper independent of
 inspector compilation. [FL round 5](../snapback4/reports/20261007-fl-dry-run-flakes/round-5/REPORT.md)
 records the hang regressions and their independent cleanup controls.
 
+**2026-10-07 — FL compiler custody includes subprocesses.** Compilation now
+runs beneath a live Node keeper in a private process group. The caller closes
+its owned pipe to request TERM, then the keeper sends KILL to its own group
+after the grace period, including when the compiler driver already exited.
+Normal completion also releases the group. Caller death closes the pipe and
+starts the same cleanup. The caller does not send to a cached PGID. Before
+reporting completed cleanup it reaps the keeper and requires two complete
+observations, 50 ms apart, with no live group member. Zombies are exited;
+failed inspection is an explicit cleanup error. The bootstrap inspector uses
+the system ps directly, without recursively compiling an identity inspector.
+Processes deliberately leaving this group remain outside its custody.
+
+Tracked direct-child dispatch now checks identity and then uses its retained
+native handle. Recorded-PID dispatch still rechecks command and exact birth
+immediately before the signal, but those userspace checks are not atomic with
+the syscall: exit and PID reuse in that small interval can redirect a signal.
+This is a remaining race, not an absolute guarantee against signalling an
+unowned PID. Prefer group or native-handle custody for processes the test owns.
+[FL round 6](../snapback4/reports/20261007-fl-dry-run-flakes/round-6/REPORT.md)
+records the real GCC reproduction and subprocess regressions.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

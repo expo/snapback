@@ -1,0 +1,115 @@
+{
+  "cpus": "80,81",
+  "busyLoops": 4,
+  "sourceSha256": {
+    "scripts/test-owned-command.mjs": "28929a418aaa4c689c939a6ea43e4af8ac615cedcda0ec6561be912dc67d21c1",
+    "scripts/test-command-owner.mjs": "fbb398f8b8e8dfd80c75508cc74bd5dacfbf41b4803e2d3e98ddd40b793654b9",
+    "scripts/test-command-group.mjs": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d",
+    "scripts/test-signals.mjs": "23cba1c5611db6c0c616dc476cfc558bc8da69b6cc382c984ef938dc58a2c2e5",
+    "packages/snapback4/test/test-command-group.test.mjs": "34c1211dedad781577003e99929459be58e0d03a8d394edd2a4485fb7ac7572f"
+  },
+  "sourceUnchanged": true,
+  "rounds": [
+    {
+      "round": 1,
+      "exit": 0,
+      "seconds": 13.37
+    },
+    {
+      "round": 2,
+      "exit": 0,
+      "seconds": 13.422
+    },
+    {
+      "round": 3,
+      "exit": 0,
+      "seconds": 13.339
+    },
+    {
+      "round": 4,
+      "exit": 0,
+      "seconds": 13.32
+    },
+    {
+      "round": 5,
+      "exit": 0,
+      "seconds": 13.41
+    },
+    {
+      "round": 6,
+      "exit": 0,
+      "seconds": 13.447
+    },
+    {
+      "round": 7,
+      "exit": 0,
+      "seconds": 13.309
+    },
+    {
+      "round": 8,
+      "exit": 0,
+      "seconds": 13.363
+    },
+    {
+      "round": 9,
+      "exit": 0,
+      "seconds": 13.41
+    },
+    {
+      "round": 10,
+      "exit": 0,
+      "seconds": 13.289
+    },
+    {
+      "round": 11,
+      "exit": 0,
+      "seconds": 13.359
+    },
+    {
+      "round": 12,
+      "exit": 0,
+      "seconds": 13.302
+    },
+    {
+      "round": 13,
+      "exit": 0,
+      "seconds": 13.376
+    },
+    {
+      "round": 14,
+      "exit": 0,
+      "seconds": 13.212
+    },
+    {
+      "round": 15,
+      "exit": 0,
+      "seconds": 13.259
+    },
+    {
+      "round": 16,
+      "exit": 0,
+      "seconds": 13.134
+    },
+    {
+      "round": 17,
+      "exit": 0,
+      "seconds": 13.096
+    },
+    {
+      "round": 18,
+      "exit": 0,
+      "seconds": 13.052
+    },
+    {
+      "round": 19,
+      "exit": 0,
+      "seconds": 13.13
+    },
+    {
+      "round": 20,
+      "exit": 0,
+      "seconds": 13.154
+    }
+  ],
+  "loadReaped": true
+}

@@ -55,3 +55,8 @@ intact. The separate stderr-saturation recovery race now waits for a refusal
 whose operation was absent before draining. The ticket remains closed;
 [round-5 resolution and controls](../../snapback4/reports/20261007-fl-dry-run-flakes/round-5/REPORT.md)
 record the additional fixes and platform limits.
+
+Round 6 extends compiler cleanup from its driver to the whole private group,
+then verifies that no living group member remains. Recorded-PID fault checks
+remain immediate identity checks with a residual exit/reuse race; owned
+children use retained handles. [Resolution and evidence](../../snapback4/reports/20261007-fl-dry-run-flakes/round-6/REPORT.md).

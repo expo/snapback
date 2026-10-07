@@ -1,6 +1,8 @@
 // One gate for test signals: positive PID, live exact birth, expected command,
 // then another birth/command inspection immediately before dispatch. No await
 // or caller callback separates the final inspection from the signal.
+// Recorded PIDs still have a small exit/reuse race before the syscall. Prefer
+// retained child handles or keeper-owned groups wherever we own the process.
 // @ref LLP 3000#publication-suite-under-contention — readiness is not lifetime;
 // native birth precision and expected argv bind each fault to its fixture.
 import assert from 'node:assert/strict';
@@ -8,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { spawnOwned as nativeSpawn, runOwnedCommand } from './test-owned-command.mjs';
+import { spawnOwned as nativeSpawn, killOwned, runOwnedCommand } from './test-owned-command.mjs';
 
 const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
 let probe;
@@ -91,6 +93,7 @@ export function checkSignalRecord(record, argv) {
   return inspectSignalTarget(record.pid, argv, record.start);
 }
 export function signalRecorded(record, signal, argv) {
+  // This userspace check is not atomic with kill: exit/reuse can still occur.
   checkSignalRecord(record, argv);
   process.kill(record.pid, signal);
 }
@@ -112,7 +115,8 @@ export function spawnTracked(...args) {
     children.set(child, { record, argv });
   } catch (error) {
     // A short command can finish before capture. Its normal exit remains
-    // usable, but missing birth evidence can never authorize a later signal.
+    // usable; later fault injection needs captured birth evidence. Owned
+    // timeout cleanup can still use the retained native child handle.
     children.set(child, { error });
   }
   return child;
@@ -123,7 +127,8 @@ export function signalChild(child, signal = 'SIGTERM') {
   if (!child || child.exitCode !== null || child.signalCode !== null) throw refusal('direct child already exited');
   const { record, argv, error } = children.get(child) ?? {};
   if (!record) throw refusal(`no captured child birth: ${error?.message ?? 'use spawnTracked'}`);
-  signalRecorded(record, signal, argv);
+  checkSignalRecord(record, argv);
+  if (!killOwned(child, signal)) throw refusal('owned child exited before dispatch');
 }
 export { signalSelf } from './test-owned-command.mjs';
 

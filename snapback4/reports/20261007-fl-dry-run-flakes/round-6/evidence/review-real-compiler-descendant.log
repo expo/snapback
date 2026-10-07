@@ -1,0 +1,2 @@
+{"elapsedMs":31078.864871,"runnerExit":[0,null],"output":"TEST_SIGNAL_REFUSED: cannot build Darwin identity inspector: cc ETIMEDOUT\n","stderr":"","descendantPid":1033145,"descendantState":{"state":"S","parent":1,"group":1033036},"descendantOutlivesRunner":true}
+{"cleanupPrivateMarker":true,"remaining":null}
