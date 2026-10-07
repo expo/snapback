@@ -1,0 +1,160 @@
+TAP version 13
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416376171150697-1b767f60-cleanup-cleanup
+# Subtest: maintenance wakeup: empty second check cannot strand a coalesced request
+ok 1 - maintenance wakeup: empty second check cannot strand a coalesced request
+  ---
+  duration_ms: 592.220486
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416377490684788-41d05e7a-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry guard cannot strand a coalesced request
+ok 2 - maintenance wakeup: expiry guard cannot strand a coalesced request
+  ---
+  duration_ms: 1317.350818
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416378201714494-013e9d40-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation guard cannot strand a coalesced request
+ok 3 - maintenance wakeup: cancellation guard cannot strand a coalesced request
+  ---
+  duration_ms: 710.700683
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416379471558038-fb711586-cleanup-cleanup
+# Subtest: maintenance wakeup: producer retries when the holder exits before notification
+ok 4 - maintenance wakeup: producer retries when the holder exits before notification
+  ---
+  duration_ms: 1269.920348
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416380711007138-0dba9f44-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry remains a stop without a fresh producer
+ok 5 - maintenance wakeup: expiry remains a stop without a fresh producer
+  ---
+  duration_ms: 1238.856122
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416381348186700-7073c18a-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation remains a stop without a fresh producer
+ok 6 - maintenance wakeup: cancellation remains a stop without a fresh producer
+  ---
+  duration_ms: 636.973783
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-false): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416382175551137-a18c2fd3-failure-sleep-retry-false
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416382641889480-02426432-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=false
+ok 7 - maintenance sleep: notification crosses sleep, producer retry=false
+  ---
+  duration_ms: 1293.988528
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-true): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416383487933168-6dc11ce9-failure-sleep-retry-true
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416383952322038-bec802bd-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=true
+ok 8 - maintenance sleep: notification crosses sleep, producer retry=true
+  ---
+  duration_ms: 1310.138107
+  type: 'test'
+  ...
+# maintenance evidence (sleep-successor-start): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416384903895100-2e602e94-failure-sleep-successor-start
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416385383488662-38d841c2-cleanup-cleanup
+# Subtest: maintenance sleep: successor keeps the sample accepted before launch
+ok 9 - maintenance sleep: successor keeps the sample accepted before launch
+  ---
+  duration_ms: 1431.378212
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416386025254258-81cc8440-cleanup-cleanup
+# Subtest: maintenance sleep: no fresh producer stops, a post-sleep export can recover
+ok 10 - maintenance sleep: no fresh producer stops, a post-sleep export can recover
+  ---
+  duration_ms: 640.803784
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416391762902187-250dca0f-cleanup-cleanup
+# Subtest: maintenance deadline: idle success adopts a later coalesced intent
+ok 11 - maintenance deadline: idle success adopts a later coalesced intent
+  ---
+  duration_ms: 5738.473637
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416397394307004-a5cf3c3b-cleanup-cleanup
+# Subtest: maintenance deadline: live guard adopts a later coalesced intent
+ok 12 - maintenance deadline: live guard adopts a later coalesced intent
+  ---
+  duration_ms: 5631.090566
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416398149471791-19d34800-cleanup-cleanup
+# Subtest: maintenance deadline: consumption preserves a concurrent replacement
+ok 13 - maintenance deadline: consumption preserves a concurrent replacement
+  ---
+  duration_ms: 755.041703
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416399411753590-0eed882c-cleanup-cleanup
+# Subtest: maintenance deadline: a later wakeup that crossed sleep is not adopted
+ok 14 - maintenance deadline: a later wakeup that crossed sleep is not adopted
+  ---
+  duration_ms: 1261.884113
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416400025384371-7a8aa8ed-cleanup-cleanup
+# Subtest: maintenance deadline: cancellation while consuming leaves an adoptable receipt
+ok 15 - maintenance deadline: cancellation while consuming leaves an adoptable receipt
+  ---
+  duration_ms: 613.820967
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416401343238346-7324ca31-cleanup-cleanup
+# Subtest: maintenance publication: stale producer resumes=false
+ok 16 - maintenance publication: stale producer resumes=false
+  ---
+  duration_ms: 1318.013323
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416402683625159-3b49a08f-cleanup-cleanup
+# Subtest: maintenance publication: stale producer resumes=true
+ok 17 - maintenance publication: stale producer resumes=true
+  ---
+  duration_ms: 1340.001305
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416404025740793-73d68166-cleanup-cleanup
+# Subtest: maintenance publication: older valid producer resumes=true
+ok 18 - maintenance publication: older valid producer resumes=true
+  ---
+  duration_ms: 1342.190045
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416405445875331-84aea7fb-cleanup-cleanup
+# Subtest: maintenance publication: writers serialize, owner killed=false
+ok 19 - maintenance publication: writers serialize, owner killed=false
+  ---
+  duration_ms: 1420.204523
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416406829641131-5f7904c3-cleanup-cleanup
+# Subtest: maintenance publication: writers serialize, owner killed=true
+ok 20 - maintenance publication: writers serialize, owner killed=true
+  ---
+  duration_ms: 1383.728564
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791416413104718427-af6835f2-cleanup-cleanup
+# Subtest: maintenance publication: a stuck writer refuses within its acquisition bound
+ok 21 - maintenance publication: a stuck writer refuses within its acquisition bound
+  ---
+  duration_ms: 6273.681534
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37577.229819

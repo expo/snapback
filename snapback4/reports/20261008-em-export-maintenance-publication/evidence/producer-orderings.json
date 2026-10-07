@@ -1,0 +1,92 @@
+[
+  {
+    "snapshot": "suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416466745040686-17d80697-failure-producer-order",
+    "pending": false,
+    "resume": false,
+    "crossedSleep": true,
+    "fresh": {
+      "awake": 2000,
+      "expiresAt": 1791420066195
+    },
+    "remaining": {
+      "awake": 2000,
+      "expiresAt": 1791420066195
+    },
+    "olderStderr": ""
+  },
+  {
+    "snapshot": "suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416468140334140-9e0bde06-failure-producer-order",
+    "pending": false,
+    "resume": true,
+    "crossedSleep": true,
+    "fresh": {
+      "awake": 2000,
+      "expiresAt": 1791420067564
+    },
+    "remaining": {
+      "awake": 2000,
+      "expiresAt": 1791420067564
+    },
+    "olderStderr": "witness: evidence cleanup deferred: E_WITNESS_INTERRUPTED: host slept during pending evidence retention\n"
+  },
+  {
+    "snapshot": "suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416469414839456-850c22d0-failure-producer-order",
+    "pending": false,
+    "resume": true,
+    "crossedSleep": false,
+    "fresh": {
+      "awake": 0,
+      "expiresAt": 1791420068955
+    },
+    "remaining": {
+      "awake": 0,
+      "expiresAt": 1791420068955
+    },
+    "olderStderr": ""
+  },
+  {
+    "snapshot": "controls/publication-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791416451639587748-d6521242-failure-producer-order",
+    "pending": false,
+    "resume": false,
+    "crossedSleep": true,
+    "fresh": {
+      "awake": 2000,
+      "expiresAt": 1791420051077
+    },
+    "remaining": {
+      "awake": 2000,
+      "expiresAt": 1791420051077
+    },
+    "olderStderr": ""
+  },
+  {
+    "snapshot": "controls/publication-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791416542525105307-cc976057-failure-drain-timeout",
+    "pending": true,
+    "resume": true,
+    "crossedSleep": true,
+    "fresh": {
+      "awake": 2000,
+      "expiresAt": 1791420052454
+    },
+    "remaining": {
+      "awake": 0,
+      "expiresAt": 1791420052432
+    },
+    "olderStderr": "witness: evidence cleanup deferred: E_WITNESS_INTERRUPTED: host slept during pending evidence retention\n"
+  },
+  {
+    "snapshot": "controls/publication-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791416544333766104-a3dfce5e-cleanup-cleanup",
+    "pending": false,
+    "resume": true,
+    "crossedSleep": false,
+    "fresh": {
+      "awake": 0,
+      "expiresAt": 1791420143767
+    },
+    "remaining": {
+      "awake": 0,
+      "expiresAt": 1791420143745
+    },
+    "olderStderr": ""
+  }
+]

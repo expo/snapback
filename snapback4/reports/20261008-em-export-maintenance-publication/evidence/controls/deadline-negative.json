@@ -1,0 +1,22 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=maintenance deadline: (idle success|live guard)",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/sb4-intent/lane-em/snapback4/target",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "6"
+  },
+  "overrides": {
+    "SNAPBACK4_EXPORT_TEST_BINARY": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/8764eefacafd8e9cf9ec0e2e1134c696ad46aa25524efbdac8c3239368ee6ab4/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE": "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/controls/deadline-negative-snapshots"
+  },
+  "exitCode": 1,
+  "seconds": 191.30899959098315,
+  "retentionSha256": "bbe93044b210725fe0d2e52b257b295a8169969e7b1eb291f73d0fb7017b6cf1",
+  "traceSha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+}

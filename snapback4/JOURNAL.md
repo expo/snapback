@@ -90443,3 +90443,52 @@ or Darwin qualification is claimed. Work stayed on eb1000 in lane-em; both
 maintenance tickets remain open, with no push or publication.
 
 [Round-6 fix, controls and retained evidence](reports/20261008-em-export-maintenance-deadline/REPORT.md).
+
+## 2026-10-08 — EM round 7: preserve newer intent across concurrent producers
+
+Astra's round-6 review found a producer-to-producer ordering left outside the
+receipt repair. An older producer validated before sleep and paused before
+publication; a newer producer published its valid post-sleep pair and coalesced
+successfully. The older producer then overwrote that pair and rejected its own
+retry. The stopped holder rejected the remaining stale pair, leaving the request
+pending with no observer. Atomic rename protected complete bytes, not ordering.
+Grok marked round 6 READY; Astra marked it READY WITH CHANGES for this P2.
+
+The busy-queue producer path now locks `maintenance-wakeup.lock` across
+validation, comparison and publication. Equal or later valid intent in either
+the wakeup or receipt is preserved; the candidate must itself validate under the
+lock and again before rename. The original expiry/sample pair is retained.
+Consumers keep the round-6 receipt protocol and never acquire this writer lock.
+Only producers serialize here, and no pending or active custody lease is held
+while they wait. Acquisition checks cancellation/sleep/expiry at 20 ms intervals
+and explicitly refuses after five seconds with the request preserved. Kernel
+release handles publisher death. This bound applies to acquisition, not stalled
+filesystem I/O; the existing backstop and trusted-project-file limits remain.
+
+Six integration cases add Astra's stale-write ordering and killed-A control,
+an older but still-valid publisher, writer serialization, death during locked
+publication, and bounded refusal with independent observer release. A native
+unit test covers equal/later preservation, earlier/expired replacement, invalid
+publisher refusal and receipts. Against actual round-6 code, killing A drains;
+resuming stale A fails the unchanged 90-second drain guard, and resuming a valid
+older A fails exact-intent preservation. The fixed cases drain with B's exact
+pair. Queue/journal snapshots retain both original and remaining records.
+
+LLP 3000.030 §15 and both maintenance ticket addenda describe the producer
+ordering and limits. The operator separately reports round-4 macOS results:
+6/6 wakeup cases and six background runs at 95/95 without drain timeouts. This
+lane did not access that host, and does not claim those results qualify later
+rounds or identify the historical cause. Both maintenance tickets remain open.
+
+The shared runner passes 98 tests with 32 Darwin skips: background 63/32,
+wakeup/sleep/deadline/publication 21/21, diagnostics 5/5 and FL signals 9/9.
+Retention passes 8/8, the clock unit 1/1, release check and ref-check pass.
+Parallel recovery retains the two known failures (23/25); the fixed unit harness
+and its sibling CLI pass serially (25/25). Both results are retained and the
+separate recovery ticket stays open. No lease assertion or timeout was weakened.
+The original wakeup, sleep, deadline and held-lease/missing-observer controls
+all failed at their intended assertions and cleaned their own fixtures. The
+archive verified 38 snapshots and 877 private files. All work stayed on
+eb1000 in lane-em, with no push or publication.
+
+[Round-7 implementation, controls and evidence](reports/20261008-em-export-maintenance-publication/REPORT.md).

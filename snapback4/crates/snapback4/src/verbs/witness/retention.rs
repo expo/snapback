@@ -164,7 +164,7 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
         if !try_lock(&queued)? {
             if fresh && !notified {
                 checkpoint(root, "kick-notifying");
-                atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": intent.expires, "awake": intent.awake }))?;
+                publish_wakeup(root, intent)?;
                 notified = true;
                 checkpoint(root, "kick-notified");
                 continue;
@@ -199,6 +199,29 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
         child.stdin.take().unwrap().write_all(b"s").map_err(|e| error("E_WITNESS_PROCESS", e))?;
         return Ok(record);
     }
+}
+
+// @ref LLP 3000.030#15 — serialize producer comparisons, not observer custody.
+// Consumers only move/remove records; the receipt protects against their unlink.
+// Other producers must not replace the compared record before our rename.
+fn publish_wakeup(root: &Path, intent: Observation) -> Result<()> {
+    let publication = lock_file(root, "maintenance-wakeup.lock")?;
+    let started = Instant::now();
+    loop {
+        intent.check()?;
+        interrupted()?;
+        if try_lock(&publication)? { break; }
+        if started.elapsed() >= Duration::from_secs(5) {
+            return Err(error("E_WITNESS_ARTIFACT", "maintenance wakeup publication lock busy; request preserved for a later export"));
+        }
+        checkpoint(root, "wakeup-publication-busy");
+        sleep(Duration::from_millis(20));
+    }
+    intent.check()?;
+    if unobserved_intent(root).is_some_and(|current| current.expires >= intent.expires) { return Ok(()); }
+    checkpoint(root, "wakeup-publishing");
+    intent.check()?;
+    atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": intent.expires, "awake": intent.awake }))
 }
 
 fn unobserved_intent(root: &Path) -> Option<Observation> {
@@ -605,6 +628,32 @@ mod tests {
         resume_unobserved(&root).unwrap();
         assert!(runnable(&root));
         assert!(!root.join("maintenance-next.json").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn wakeup_publication_preserves_equal_or_later_valid_intent() {
+        let root = std::env::temp_dir().join(format!("sb4-retention-publish-{}-{}", std::process::id(), now()));
+        fs::create_dir_all(&root).unwrap();
+        let intent = Observation { expires: now() + 60_000, awake: background::sleep_clock() };
+        let record = |expires| json!({ "expiresAt": expires, "awake": intent.awake });
+        let path = root.join("maintenance-wakeup.json");
+        for expires in [intent.expires, intent.expires + 60_000] {
+            atomic_record(&path, &record(expires)).unwrap();
+            publish_wakeup(&root, intent).unwrap();
+            assert_eq!(recovery::read(&path), record(expires));
+        }
+        for expires in [now() - 1, intent.expires - 1] {
+            atomic_record(&path, &record(expires)).unwrap();
+            publish_wakeup(&root, intent).unwrap();
+            assert_eq!(recovery::read(&path), record(intent.expires));
+        }
+        let before = recovery::read(&path);
+        assert!(publish_wakeup(&root, Observation { expires: now() - 1, ..intent }).is_err());
+        assert_eq!(recovery::read(&path), before);
+        fs::rename(&path, root.join("maintenance-wakeup-reading.json")).unwrap();
+        publish_wakeup(&root, intent).unwrap();
+        assert!(!path.exists(), "an equal valid receipt already covers publication");
         fs::remove_dir_all(root).unwrap();
     }
 

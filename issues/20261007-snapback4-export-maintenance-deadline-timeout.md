@@ -140,3 +140,27 @@ guarantee recovery after every later stop or failure: consumed/expired intent,
 launch/I/O errors, retry exhaustion and simultaneous peer death retain their
 existing backstop limits. No historical attribution or macOS qualification is
 claimed. This ticket remains open for the operator's soak.
+
+
+## 2026-10-08 — EM round 7 producer ordering (still open)
+
+Astra reproduced a further lost wakeup at round-6 head: an older producer
+paused before its unconditional publication, a newer post-sleep producer
+successfully coalesced, and the older producer then erased that valid intent
+with its crossed-sleep pair. The old producer rejected its retry and the holder
+rejected the remaining wakeup; pending work failed the original 90-second drain
+check. Killing the older producer before publication let the request drain.
+
+Round 7 serializes producer compare/publication with a short kernel lock,
+validates the publisher there, and preserves equal or later valid intent from
+either the wakeup or receipt. Consumers keep their receipt protection and never
+wait on this writer lock. Producer acquisition checks cancellation/sleep/expiry,
+waits at 20 ms intervals and explicitly refuses after five seconds, preserving
+the request. Writer death releases the lock. No work, drain or diagnostic bound
+was relaxed. The [round-7 report](../snapback4/reports/20261008-em-export-maintenance-publication/REPORT.md)
+retains the regression, control, old-code failure and remaining checks.
+
+The operator reports the round-4 macOS soak passed: wakeup 6/6 and six background
+runs at 95/95, with no drain timeouts. Those results are recorded as supplied;
+this lane did not access the mini or rerun them. They qualify neither the later
+rounds nor the cause of the historical failures. This ticket remains open.

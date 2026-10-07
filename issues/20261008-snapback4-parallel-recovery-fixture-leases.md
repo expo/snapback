@@ -31,3 +31,10 @@ retention.rs byte-for-byte from `9337691bee`. No assertion, lease check or
 product timeout was relaxed. Investigate descriptor lifetime across concurrent
 spawns and retain the observed owner/lock state before selecting a fix; passing
 serial reruns do not resolve this ticket.
+
+EM round 7, 2026-10-08: the default parallel run again failed exactly these two
+assertions (23/25), and the fixed unit harness plus sibling CLI passed serially
+(25/25). Both are retained in the
+[round-7 report](../snapback4/reports/20261008-em-export-maintenance-publication/REPORT.md).
+Recovery source and assertions remain unchanged. The producer-publication fix
+does not claim to resolve this separate issue; it remains open.

@@ -1,0 +1,8 @@
+{
+  "binary": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/unit-binaries/b59dcb53f433d86861315de449200bdd2cbeb09fb3e70e624fd1c4e2151d5870/deps/snapback4-54c72c0d37cc6d9b",
+  "sha256": "b59dcb53f433d86861315de449200bdd2cbeb09fb3e70e624fd1c4e2151d5870",
+  "cli": {
+    "binary": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/da8d88838c98b49f1a417415587b07c8c52938fbc68955e19ef729af1ee551b3/snapback4",
+    "sha256": "da8d88838c98b49f1a417415587b07c8c52938fbc68955e19ef729af1ee551b3"
+  }
+}

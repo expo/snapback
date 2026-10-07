@@ -307,3 +307,75 @@ test('maintenance deadline: cancellation while consuming leaves an adoptable rec
     assert.ok(read(f.file('maintenance-done.json')));
   } finally {await f.finish();}
 });
+
+// Astra's round-6 ordering: A validated before sleep, B successfully coalesced
+// after sleep, then A resumed at the old publication site. Killing A is the
+// control. The unfixed binary must reach the original 90-second drain failure.
+for(const [resume,crossedSleep] of [[false,true],[true,true],[true,false]])test(
+  `maintenance publication: ${crossedSleep?'stale':'older valid'} producer resumes=${resume}`,{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f);
+    const older=f.producer('kick-notifying,unused');await f.barrier('kick-notifying');
+    if(crossedSleep)f.setClock(2000);
+    const newer=f.producer('');assert.equal((await newer.exit)[0],0,newer.stderr);
+    const fresh=read(f.file('maintenance-wakeup.json'));assert.equal(fresh.awake,crossedSleep?2000:0);
+    if(resume) {
+      f.resume('kick-notifying');assert.equal((await older.exit)[0],crossedSleep?1:0,older.stderr);
+      if(crossedSleep)assert.match(older.stderr,/host slept/);
+    } else {older.child.kill('SIGKILL');await older.exit;}
+    const remaining=read(f.file('maintenance-wakeup.json'));
+    f.mark('maintenance-test-producer-order.json',JSON.stringify({resume,crossedSleep,fresh,remaining,olderStderr:older.stderr}));
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    lease.child.stdin.end();await lease.exit;
+    await f.drain();
+    assert.deepEqual(remaining,fresh,'a stale publisher cannot erase the successful post-sleep intent');
+    if(process.env.SNAPBACK4_MAINTENANCE_EVIDENCE)await maintenanceEvidence(f,'producer-order');
+    assert.ok(read(f.file('maintenance-done.json')));
+    const next=read(f.file('maintenance-next.json'));
+    assert.equal(next.expiresAt,fresh.expiresAt);assert.equal(next.awake,fresh.awake);
+  } finally {await f.finish();}
+});
+
+for(const killed of [false,true])test(`maintenance publication: writers serialize, owner killed=${killed}`,{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f);
+    const older=f.producer('wakeup-publishing,unused');await f.barrier('wakeup-publishing');
+    // A holds the publication lock after its comparison, before rename. B must
+    // wait, then reread; process death must release A's lock automatically too.
+    const newer=f.producer('wakeup-publication-busy,kick-notified');await f.barrier('wakeup-publication-busy');
+    assert.equal(read(f.file('maintenance-wakeup.json')),null);
+    if(killed){older.child.kill('SIGKILL');await older.exit;}
+    else {f.resume('wakeup-publishing');assert.equal((await older.exit)[0],0,older.stderr);}
+    const first=read(f.file('maintenance-wakeup.json'));
+    f.resume('wakeup-publication-busy');await f.barrier('kick-notified');
+    const fresh=read(f.file('maintenance-wakeup.json'));assert.equal(fresh.awake,0);
+    if(!killed)assert.ok(fresh.expiresAt>first.expiresAt,'the later valid publisher advances the record');
+    f.resume('kick-notified');assert.equal((await newer.exit)[0],0,newer.stderr);
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    lease.child.stdin.end();await lease.exit;
+    await f.drain();assert.ok(read(f.file('maintenance-done.json')));
+    assert.equal(read(f.file('maintenance-next.json')).expiresAt,fresh.expiresAt);
+  } finally {await f.finish();}
+});
+
+test('maintenance publication: a stuck writer refuses within its acquisition bound',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f);
+    const writer=f.start('python3',['-c','import sys,fcntl; f=open(sys.argv[1],"a"); fcntl.flock(f,fcntl.LOCK_EX); print("ready",flush=True); sys.stdin.read()',f.file('maintenance-wakeup.lock')]);
+    await once(writer.child.stdout,'data');
+    const start=performance.now(),producer=f.producer('');
+    assert.equal((await producer.exit)[0],1,producer.stderr);
+    assert.match(producer.stderr,/maintenance wakeup publication lock busy/);
+    assert.ok(performance.now()-start<10000,'five-second acquisition refuses before the outer guard');
+    assert.ok(fs.existsSync(f.file('maintenance-request.json')));
+    assert.equal(read(f.file('maintenance-wakeup.json')),null);
+    // Custody never waits on the producer lock: the stopped observer can leave
+    // while it is still held. The ordinary next-export backstop recovers below.
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    assert.equal(f.free(),true);
+    writer.child.stdin.end();await writer.exit;lease.child.stdin.end();await lease.exit;
+  } finally {await f.finish();}
+});
