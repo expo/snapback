@@ -357,10 +357,7 @@ for (const tier of ["online", "web", "native"]) {
     assert.equal(first.id, id); assert.equal(first.state, "pending");
     assert.strictEqual(await reopened.mutate(mutation("record"), { n: 8 }, { id }), first);
     assert.equal((await reopened.mutate(mutation("record"), { n: 9 }, { id })).why.code, "E_WRITE_ID_REUSE");
-    const predictionWatch = reopened.observe({ kind: "query", name: "receipts" }, {});
-    predictionWatch.subscribe(() => {});
-    const predicted = await until(() => "data" in predictionWatch.getSnapshot() && predictionWatch.getSnapshot());
-    predictionWatch.close();
+    const predicted = await reopened.query({ kind: "query", name: "receipts" }, {});
     assert.equal(predicted.data.length, 1); assert.equal(predicted.data[0].pending, true);
     f.offline(false); await reopened.sync();
     await until(async () => (await reopened.write(id))?.state === "sent");
@@ -732,10 +729,7 @@ test("id-only video predicts after offline reopen and its ordinary bytes are ret
   const terminal = []; client.onWrite(write => terminal.push(write));
   const pending = await client.mutate(mutation("clip"), { clip: { id: uploaded.asset.id } });
   assert.equal(pending.state, "pending");
-  const predictionWatch = client.observe({ kind: "query", name: "clips" }, {});
-  predictionWatch.subscribe(() => {});
-  const predicted = await until(() => "data" in predictionWatch.getSnapshot() && predictionWatch.getSnapshot());
-  predictionWatch.close();
+  const predicted = await client.query({ kind: "query", name: "clips" }, {});
   assert.equal(predicted.data[0].pending, true);
   assert.equal(predicted.data[0].clip.duration, 1000);
   offline = false; await client.sync();

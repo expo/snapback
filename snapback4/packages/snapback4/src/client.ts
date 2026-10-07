@@ -360,7 +360,7 @@ export function createClient(options: ClientOptions): Client {
   const setLink = (next: Link) => {
     if (closed || storeRefusal || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
-    link = next;
+    link = next; pendingEvents.notify();
     const changed: Watch[] = [];
     const deliver = deferReadNotifications(() => {
       if (next === "signed-out") endLingering(watches.values());
@@ -1087,9 +1087,10 @@ export function createClient(options: ClientOptions): Client {
       }
       if (inputs && schema && result.generation === schema.generation) result.publicationCurrent = () => result.seq >= floor
         && queryChanges.current(result.seq, new Set([...Object.keys(inputs), ...result.tables]));
-      const blocks = () => !closed && !storeRefusal && !changesRefusal && credentials && pending.some(w => !w.done && !w.retired
+      const blocks = () => link !== "offline" && !closed && !storeRefusal && !changesRefusal && credentials && pending.some(w => !w.done && !w.retired
         && intersects(inputs, dependencies(schema, w.op.name)?.writes));
       return () => {
+        if (link === "offline") return { denied: offline() };
         if (!("denied" in result.read) && blocks()) return { wait: (signal: AbortSignal) => waitForQueryWrites(blocks, pendingEvents.subscribe, signal) };
         if (result.deadlineWithdrawn?.() || !currentRead(result)) return;
         acceptDelivery(result, result.read);

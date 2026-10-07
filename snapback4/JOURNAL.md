@@ -89965,3 +89965,41 @@ No core/device/wasm source or budget changed. Fresh Linux bootstrap measured
 headroom); this is not a claim of the requested 500-byte margin for a future
 wasm change or of macOS qualification. Both wasm-budget tests pass. Work stayed
 in lane-sn on the assigned host. Nothing pushed or published.
+
+## 2026-10-07 — SN round 1: preserve predicted one-shots and order adoption
+
+Corrected round 0's stronger custody barrier per the author's ruling. A complete
+predicted device answer again settles online and offline; dependency intersection
+filters the old `!predictable || served || localWakeup` predicate. The mock's
+complete predictions follow the same exception. Restored the five test files
+that round 0 changed from one-shots to observations, including the offline
+admitted-value model. Online custody still waits on events, but a known-offline
+link refuses E_OFFLINE promptly and wakes existing waits. Only an actual pending
+gate parks a loading candidate; interruption/expiry still causes a bounded retry.
+
+The requested overlap qualification found a real hole in round 0's argument:
+store replacement could stamp a held POST's late success with the new identity,
+leaving a phantom dependency. Same-store acquisition still overlaps, under the
+existing captured send-revision, pending declaration and publication fences.
+Identity/schema adoption now defers until the ordinary POST records its outcome,
+then retries in FIFO order. Regressions cover its own success/refusal, receipt
+lookup during observation, stale pages overtaken by a later send, real store
+replacement and generation deployment on both device hosts and app facades.
+Offline wakeups also cover both online arms.
+
+LLP 3000.023 §11, the client card and E_QUERY_RETRY state the corrected guarantee:
+every relevant admitted write is observed/failed or included in a complete
+predicted device answer. The [round-1 report](reports/20261007-sn-one-shot-settlement/round1/REPORT.md)
+records the retained prediction and store-overlap reproductions, the precise
+fences, and final affected-scope validation. The one-shot fixture now supplies
+idle change-stream heartbeats so an intended 30-second online test does not
+silently become an offline test after the four-second transport watchdog.
+
+No engine/device/wasm source, budget or contract.ts change. `local.ts` is 1,499
+lines; custody policy stays in its extracted helper. Work stayed in lane-sn on
+the assigned host; nothing pushed or published. Round 0's independent review
+remains separate from this corrective round.
+
+Final validation: 330 one-shot/settlement tests, 419 affected-client tests (one
+unavailable historical-binary skip), and 118 compiler/guide tests passed. Build,
+typecheck and ref-check passed (10,547 references, zero errors/unchecked).

@@ -41,7 +41,7 @@ export function heldQueryRefusal(): Refusal {
 
 function retry(): Refusal {
   return { code: "E_QUERY_RETRY", family: "client", retryable: true, site: "client.query", guide: "client",
-    message: "the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query" };
+    message: "the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query" };
 }
 
 // Facades use the raw client's same evaluator and final publication fence. They

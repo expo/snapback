@@ -2,7 +2,8 @@ import { explicitSync } from "./local-sync.ts";
 
 // @ref LLP 3000.023#11 — observe an earlier receipt even while a POST is held.
 // Mutations keep FIFO; syncs coalesce with each other. Device capture/store/
-// generation/send-revision fences adjudicate overlapping sends and observation.
+// generation/send-revision fences adjudicate acquisition; syncRound defers
+// identity/schema adoption until the overlapping POST records its outcome.
 export class LocalNetwork {
   private tail: Promise<unknown> = Promise.resolve();
   private work = 0;

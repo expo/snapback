@@ -150,7 +150,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let media: MediaCache | undefined, deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
   const queued = () => answers.readQueued(() => readQueued(call, mutationIds, history, settling), watches.values());
-  const queryCustody = new QueryCustody(() => backend, queued, pending.subscribe, () => unavailable() ?? changesStopped ?? partitionDenied, () => ordinarySending ? network.acquire() : network.once());
+  const queryCustody = new QueryCustody(() => backend, queued, pending.subscribe, () => unavailable() ?? changesStopped ?? partitionDenied, () => ordinarySending ? network.acquire() : network.once(), () => link === "offline");
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
@@ -355,7 +355,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       deliver();
       for (const watch of watches.values()) notify(watch);
     }
-    if (next === "signed-out") pending.notify();
+    pending.notify();
     ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") { deliveryQueue?.reconnect(); void flush(); }
@@ -629,6 +629,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await refusePartition(denied, pageRevision);
           return false;
         }
+        // @ref LLP 3000.023#11 — record the POST outcome before identity/schema adoption can rebind its outbox.
+        if (ordinarySending && (generationChanged || Number(page.generation ?? generation) !== generation || page.store_id !== requestedStore || backendRequired)) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
@@ -1041,8 +1043,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let retryAfterMs = 0, retryOverload = false;
   let flushing: Promise<void> | null = null;
   let exitDone: Promise<void> | undefined;
-  let ordinarySending: string | undefined;
-  let flushAgain = false;
+  let ordinarySending: string | undefined, flushAgain = false;
   function flush(): Promise<void> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
     if (flushing) {
@@ -1177,8 +1178,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     query: settledQuery(async (op, args, signal) => {
       const result = await runLocal(op, args, undefined, false, undefined, signal);
-      const waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name); checkRead(signal); return () => {
-        if (waiting) return { wait: (signal: AbortSignal) => queryCustody.wait(op.name, signal) };
+      const waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name, result); checkRead(signal); return () => {
+        if (waiting) return link === "offline" ? { denied: offline() } : { wait: (signal: AbortSignal) => queryCustody.wait(op.name, result, signal) };
         if (answers.blocked(result) !== undefined || "data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) { answers.serverAnswers.forget(`${op.name}:${JSON.stringify(args)}`); return; }
         if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable) ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
       };

@@ -58,12 +58,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: seeded one-shot/write/lin
         if (choice === 3) {
           await f.offline(); trace.push('offline'); coverage.add('offline');
           await write();
-          // Pending predictions remain available to live observations. A one-shot
-          // waits for dependent custody, so reconnect before awaiting it.
-          const watch = f.client.observe(q('item'), {}); watch.subscribe(() => {});
-          await until(() => watch.getSnapshot().data?.body === String(admitted)); watch.close();
-          const query = start(); f.link(true); await f.client.sync();
-          const read = await query; assert.equal(read.data?.body, String(admitted), 'one-shot includes the observed offline write');
+          const read = await start(); assert.equal(read.data?.body, String(admitted), 'device reflects the admitted offline prediction');
         }
         if (choice === 4) {
           f.link(true); await f.client.sync(); trace.push('online'); coverage.add('online');

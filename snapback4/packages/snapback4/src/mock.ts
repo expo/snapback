@@ -1,4 +1,4 @@
-import { intersects, QueryChanges, waitForQueryWrites, type QueryDependencies } from "./query-dependencies.ts";
+import { QueryChanges, type QueryDependencies } from "./query-dependencies.ts";
 import { registerPendingIntents, pendingIntent } from "./pending-items.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
@@ -144,9 +144,9 @@ export function createMockClient(options: MockOptions): MockClient {
     query: settledQuery(async (op, args) => {
       const revision = version, unchanged = queryChanges.capture(), inputs = options.dependencies?.[op.name]?.reads;
       const read = evaluate(op, args);
-      const blocks = () => !unavailable() && [...pending.values()].some(w => intersects(inputs, options.dependencies?.[w.op]?.writes));
+      // Every admitted mock handler has already applied its complete prediction.
+      // As on a complete device answer, pending custody adds no barrier.
       return () => {
-        if (!("denied" in read) && blocks()) return { wait: (signal: AbortSignal) => waitForQueryWrites(blocks, pendingEvents.subscribe, signal) };
         if (revision !== version && !(inputs && unchanged(new Set(Object.keys(inputs))))) return;
         return "loading" in read && link === "offline"
           ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;

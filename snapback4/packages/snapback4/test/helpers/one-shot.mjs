@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { join } from 'node:path';
+import { parkedChanges } from './sync-control.mjs';
 
 // Suspend the real evaluator at its last continuation, before the production
 // publication fence. This changes scheduling only, never an answer or predicate.
@@ -65,15 +66,15 @@ query keyed(tag: int):
   return messages['item']
 `;
 
-export async function setup(t, tier, { fetch: intercept, device: wrap, changes, program: customProgram } = {}) {
-  const f = await fixture(t, customProgram ?? program);
+export async function setup(t, tier, { fetch: intercept, device: wrap, changes, program: customProgram, serverOptions } = {}) {
+  const f = await fixture(t, customProgram ?? program, serverOptions);
   const controls = {}; globalThis[key] = controls;
   let online = true;
   const transport = async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/auth/refresh') return Response.json({ ok: true, session });
     if (path === '/auth/logout') return Response.json({ ok: true });
-    if (path === '/changes') return changes ? changes(init.signal) : parked(init.signal);
+    if (path === '/changes') return changes ? changes(init.signal) : parkedChanges(init.signal);
     if (!online) throw new TypeError('test link down');
     const headers = new Headers(init?.headers); const persona = headers.get('authorization') === 'Bearer alice-session' ? 'alice' : 'bob'; headers.delete('authorization'); headers.set('x-snapback-persona', persona);
     const send = () => fetch(input, { ...init, headers });
