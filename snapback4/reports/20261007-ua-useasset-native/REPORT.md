@@ -1,5 +1,107 @@
 # UA — ordinary native images and visible asset waits
 
+## Round 1 — review corrections on eb1000, 2026-10-07
+
+Base `079d3dd175dfa4eb8581b5640e8515bec0ad3333`, branch
+`sb4-intent/ua-useasset-native`. Executed only in this lane on eb1000
+(`expose-builder-pixel`), Node 24.13.1, Bun 1.3.14, Rust 1.97.0.
+No other lane’s worktree or processes, and no other machine, were used. Local commit only; no push.
+**No new iOS run:** the simulator observations below are round-0 evidence.
+The operator's round-1 Release recheck remains outstanding.
+
+Both round-0 reviews confirmed the native constructor restriction and the stock
+Expo fix. This round closes the residual conversion-error boundary, replaces
+the age-of-call diagnostic with progress-aware waits, and restores loading-literal
+source compatibility. Governing context: LLP 3000 §7; LLP 3000.008.002.000 §6
+(working set), LLP 3000.011.005.000 §8 and the current assets guide. No authority,
+retention, one-view policy, persisted format or native ABI changes.
+
+### Corrections
+
+- Expo's public `blob()` calls its public `arrayBuffer()` and then converts the
+  completed bytes. The SDK observes that completion on the owned response and
+  restores the method when `blob()` settles. A body-read reset stays `E_OFFLINE`
+  and uses the existing safe retry budget. A subsequent native conversion or
+  buffer-constructor refusal is `E_CLIENT`, with one ordinary request and no
+  offline transition. The exact RN constructor refusal is also recognized when
+  the response is non-extensible. Unknown failures without a completed-body
+  observation remain transport; this does not classify every `blob()` rejection
+  as a host error. There is no global/prototype patch or second body read.
+- `waiting.since` now marks the latest stage change or nonempty chunk;
+  `diagnosticAt` advances and a prior diagnostic clears on progress. Streaming
+  bodies expose `received` and, with valid Content-Length, `total` bytes. Empty
+  chunks do not count. Opaque header/body waits use the existing buffered
+  allowance, because five seconds cannot distinguish a healthy opaque transfer
+  from a stall. Other stages diagnose five seconds of no observable progress.
+- `AssetState` accepts `{ status: "loading" }` again. The hook still supplies
+  `waiting`, but the public type makes it optional. Examples use optional access.
+- Documented the remaining `local-assets.ts` byte-array Blob fallback as a
+  browser-store path. Custom native stores must supply `uri`; Expo already does.
+
+### Evidence and verification
+
+The native helper now loads **installed Expo FetchResponse and createBlob** as
+well as RN's production Blob implementation. Only native I/O/store operations
+are injected. Cases cover successful native conversion, an actual duplicate-RN
+constructor fallback (including a non-extensible response), native conversion
+failure, and an `arrayBuffer()` reset, for ordinary and once downloads. They
+check request counts, safe retryability, method restoration and Blob ownership.
+Two process-device local-client tests additionally prove one request, E_CLIENT,
+and no offline event for both conversion-failure paths.
+
+Real HTTP bodies deliver chunks every 500 ms for six seconds to six mounted
+hooks: ordinary/once × streamed body, streamless Blob and completion-only fetch.
+All paint with no E_ASSET_WAIT; streaming byte counts and extended deadlines
+are observed. A held session does diagnose after five seconds with no request;
+resumption clears the diagnostic and starts the next stage's deadline, which
+diagnoses independently if that stage stalls. Focus never bypasses custody.
+
+| Check | Final outcome | Evidence |
+| --- | --- | --- |
+| Blob lifecycle, including real Expo paths | 49 passed | [targeted final](round1/corrections-final.log) |
+| Six-second HTTP body / hook / image regression | 1 passed, six transfers | [targeted final](round1/corrections-final.log) |
+| React | 66 passed | [targeted final](round1/corrections-final.log) |
+| Read/asset type compatibility | 11 passed | [targeted final](round1/corrections-final.log) |
+| Asset retry | 38 passed | [affected run](round1/affected-tests.log.gz) |
+| Asset avatars, lists, pressure | 62 passed | [affected run](round1/affected-tests.log.gz) |
+| Native smoke / media dependencies | 25 passed | [affected run](round1/affected-tests.log.gz) |
+| Delivery-fault matrix and await census | 339 passed | [matrix](round1/delivery-fault.log) |
+| Guide | 113 passed | [guide](round1/guide.log.gz) |
+| Client typecheck / build | Passed | [typecheck](round1/typecheck.log), [build](round1/build-client.log) |
+| Docs budget / reference audit | Passed | [budget](round1/docs-budget.log), [references](round1/ref-check.log) |
+
+No skips in these runs. The first affected run had 248 passes and two failures
+in new test expectations: the transport formatter preserves `ECONNRESET`, not
+the error's prose. Corrected those assertions, added the non-extensible-response
+cases, and reran all Blob, React, buffered HTTP and type cases: **127/127**.
+The initial nonzero log is retained. The final targeted run also covers omitting
+`received` on an opaque body instead of implying it has received zero bytes.
+No new whole-suite result is claimed. The delivery census's sole changed module
+is asset-download (9 → 10 awaits); the new await observes the existing blob
+read, with no mutation delivery scope, fault site or recipe change.
+
+From `snapback4/`, prerequisites were `bun install --frozen-lockfile`, a local
+CLI build and `bash scripts/build-wasm.sh`, then client typecheck/build. Cargo
+CLI/guide used eight jobs, dev/test debug information disabled, and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. Tests used this lane's
+`target/ua-round1` as TMPDIR. Commands:
+
+```sh
+node --test --test-concurrency=4 packages/snapback4/test/asset-{blob-lifecycle,retry,buffered,avatars,lists,pressure}.test.mjs packages/snapback4/test/{react,read-types,native-smoke,media-dependencies}.test.mjs
+node --test --test-concurrency=3 packages/snapback4/test/{asset-blob-lifecycle,asset-buffered,react,read-types}.test.mjs
+node --test packages/snapback4/test/delivery-fault-matrix.test.mjs
+cargo test -p snapback4-lang --test guide
+bun run --cwd packages/snapback4 typecheck
+bun run --cwd packages/snapback4 build
+node scripts/docs-budget.mjs
+```
+
+Linux wasm rebuilt only as a test prerequisite: **2,135,164 B raw / 645,264 B
+gzip**, within the unchanged **645,564 B** cap; [build log](round1/build-wasm.log).
+Round 1 changes no Rust engine/device input or persisted bytes.
+
+## Round 0 — original diagnosis and simulator evidence
+
 2026-10-07 · Apartment mini · branch `sb4-intent/ua-useasset-native` · base
 `8e530ff2419387cb97ff841b4a2aa8b7828c7229` · local commit only, no push/publication.
 
@@ -74,7 +176,7 @@ included to connect the observations. The Debug screenshot includes Expo's
 first-run developer-menu overlay; the app's ready state and image are visible
 behind it, and the image-load event supplies the independent render observation.
 
-### Repeating the fixture
+### Repeating the fixture — operator's round-1 recheck
 
 The small [schema](repro/schema.q), [Expo app](repro/ExpoApp.tsx),
 [web app](repro/WebApp.tsx), [dependency pins](repro/expo-package.json),
@@ -85,7 +187,30 @@ Regenerate the SDK APIs with `snapback4 check`; run the backend from the Expo
 fixture with `snapback4 dev --port 0 --no-watch`, redirecting its output to
 `target/ua/backend.log`. From `snapback4/`, run `node target/ua/run-server.mjs`;
 copy its generated `config.json` to the Expo app's `ua-config.json`. Preserve
-these relative fixture paths when copying the retained inputs.
+these relative fixture paths when copying the retained inputs. Use a fresh
+fixture/backend store so signup and upload do not collide with round 0.
+
+On the mini, in an operator-owned checkout containing this round's commit:
+
+1. Generate `target/ua/expo` with `snapback4 init target/ua/expo --expo`.
+   Install the retained dependency pins; replace the generated schema and App
+   with `repro/schema.q` and `repro/ExpoApp.tsx`. Copy `repro/run-server.mjs`
+   to `target/ua/run-server.mjs`. Retain the generated app entry/config and run
+   `snapback4 check` inside the Expo fixture to regenerate its API.
+2. Build this checkout's SDK JS (`bun run --cwd packages/snapback4 build` after
+   the normal dependencies/wasm prerequisites), and copy **the complete dist**
+   into the fixture's independently installed `node_modules/snapback4/dist`.
+   Record the source commit and installed Expo/RN versions. Keep the published
+   `snapback4-expo` 0.4.13 native framework. An old installed Release bundle will
+   not pick up new dist until rebuilt.
+3. Start the fixture backend and proxy/seed recorder as above. Copy config into
+   the app root before bundling. Prebuild, install Pods and build Release below.
+   Use a newly created simulator owned by this run, with its exact UDID in
+   `UA_SIMULATOR`; do not reuse the deleted round-0 UDID.
+4. Install/launch the Release app, record the trace and screenshot, and require
+   one ordinary Range GET/206, ready with a native URI, an `image-load` callback,
+   no E_OFFLINE and no offline link event. Record the built app/bundle hash.
+   Repeat Debug only if desired; Release is the required recheck.
 
 Prebuild with `expo prebuild -p ios --no-install`, install Pods, and build:
 
@@ -110,11 +235,27 @@ config JSON inside Metro's app root. Successful build log sizes/hashes are in
 [builds.json](evidence/builds.json); full temporary build logs remain under
 `target/ua/` in this worktree.
 
-For the held-fetch observation, change the Expo run label to `debug-wait` and
-insert `await new Promise(resolve => setTimeout(resolve, 6200))` before calling
-the original fetch for `/assets/` URLs. The app prints E_ASSET_WAIT while the
-proxy has seen no asset GET. Restoring fetch completes the same request and
-loads the image. Remove that fixture-only delay afterward.
+The retained fixture now reads optional `mode` from `ua-config.json` and labels
+traces `release-r1-<mode>` or `debug-r1-<mode>`. Rebuild Release after changing
+config/mode, and uninstall/reinstall the app between cases to clear its media
+store. The proxy writes `mode` from `UA_MODE` (default `ordinary`); it can also
+deliver successful asset bodies in twelve chunks with `UA_CHUNK_MS=500`.
+
+| Operator case | Expected round-1 result |
+| --- | --- |
+| `ordinary` | One GET/206, ready and image-load; online throughout. |
+| `ordinary` with `UA_CHUNK_MS=500` on the proxy | Six-second healthy transfer, no E_ASSET_WAIT, ready/image-load and one GET. Native opaque conversion exposes stage/known total, not fabricated received bytes. |
+| `opaque-headers` | Fixture holds fetch for 6.2 s; `waiting.headers` stays visible without E_ASSET_WAIT, then one GET and image-load. This deliberately replaces round 0's age-based diagnostic expectation. |
+| `stall-retention` | Fixture holds the first native `asset_home` call for 6.2 s. At five seconds E_ASSET_WAIT names retention; resumption clears it and produces ready/image-load without another GET. Use a fresh media store. |
+| `constructor` | Fixture's blob method reads through arrayBuffer then attempts RN's unsupported buffer constructor. One GET, E_CLIENT with the constructor cause, no offline event, no image callback. |
+| `conversion` | Fixture throws an injected local conversion error after a successful arrayBuffer read. One GET, E_CLIENT, no offline event. |
+
+The two failure fixture modes inject at the public body/conversion boundary;
+the Node regressions above execute Expo's **actual** duplicate-module fallback
+and injected native-store conversion. Do not describe a fixture injection as
+a second observed stock iOS defect. Return to `ordinary` for the final Release
+success record. Stop only owned server PIDs and shut down/delete only the run's
+owned simulator afterward. Round-1 operator results are not yet present here.
 
 ## Change and diagnostic contract
 
@@ -127,17 +268,22 @@ refusal bodies use `Response.json()`. Remaining stream assembly errors are
 E_CLIENT and never mark the device offline. Blob ownership, late cancellation,
 ordinary retention and once-view no-replay rules remain in force.
 
-Every loading hook result now contains:
+Every loading hook result contains (round-1 contract):
 
 ```ts
-waiting: { stage, since, diagnosticAt, why? }
+waiting: { stage, since, diagnosticAt, received?, total?, why? }
 ```
 
 `stage` is a typed union: scheduled, client, session, media, refresh, queue,
 headers, body, backoff, retention or display. `since` and `diagnosticAt` are
-wall-clock milliseconds for the current call. An outstanding call adds
-`waiting.why.code = E_ASSET_WAIT` after **5,000 ms**, with its stage in `site`
-and a readable explanation. Stage transitions do not restart that allowance.
+wall-clock milliseconds for its latest progress interval. Stage transitions or
+nonempty received chunks restart the deadline and clear stale diagnostics.
+Streams expose received bytes and a known total; opaque transfers do not invent
+byte counts. With no observable progress for **5,000 ms**, the hook adds
+`waiting.why.code = E_ASSET_WAIT`, with its stage in `site` and a readable
+explanation. Opaque header/body waits instead use the existing size-based
+transfer allowance. `waiting` is optional in the public AssetState type for
+compatibility with pre-UA loading literals, though the hook supplies it.
 The timer requires runnable JS; it cannot execute while the host suspends JS.
 
 This is a bounded **diagnostic**, not a terminal failure or authorization to

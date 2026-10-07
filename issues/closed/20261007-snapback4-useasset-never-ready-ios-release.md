@@ -1,7 +1,7 @@
 # Snapback 4: useAsset never became ready for an ordinary image in an iOS Release app
 
 **Opened:** 2026-10-07, from the native Phase-2 rerun (LLP 0201.000, native.2)
-**Status:** Resolved in Lane UA; native defect reproduced and fixed locally (not yet published)
+**Status:** Resolved in Lane UA; round-1 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
 **Area:** `snapback4-expo` / `snapback4` asset hooks (`useAsset`) on iOS Release builds
 **Related:** LLP 0201.000; the pilot packet on the Apartment mini, `~/clique-native-pilot2-20261006-round2`, which holds `results/snapback4/attempt-02/m6` and `attempt-03/m8`, plus `preparation/revision10/DIAGNOSIS.md`
 
@@ -64,3 +64,25 @@ See the [UA report](../../snapback4/reports/20261007-ua-useasset-native/REPORT.m
 for traces, screenshots, exact qualification results, wasm measurements and
 reproduction inputs. This issue's original observations remain above as the
 investigation's starting evidence.
+
+## Round-1 review corrections — 2026-10-07, eb1000
+
+The public Expo blob path now distinguishes a rejected arrayBuffer read
+(retryable transport) from conversion after a completed read (E_CLIENT, no
+transport retry or offline transition). Regressions execute Expo's real
+duplicate-module constructor fallback and an injected native conversion failure,
+using the installed RN production Blob restriction. A local-client regression
+checks one request and an unchanged online link for each conversion failure.
+
+Asset wait deadlines now restart on a stage change or nonempty byte progress,
+with received/total bytes exposed when known. Opaque transfers retain their
+size-based allowance and cannot be called stalled after five seconds. Healthy
+six-second HTTP transfers emit no E_ASSET_WAIT; genuinely held session/client
+stages do. Loading literals remain source-compatible via optional waiting.
+The no-uri cache fallback is documented as browser-only; Expo supplies uri.
+
+All affected checks pass after correcting two new test message expectations;
+the report retains the initial log and final reruns. The iOS fixture and recheck
+steps now cover ordinary/slow success, a retention stall, and both conversion
+failures. No simulator or other host was used in round 1; the operator's fresh
+iOS Release recheck remains pending.

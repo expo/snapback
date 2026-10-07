@@ -87,17 +87,44 @@ function pause(ms: number, signal: AbortSignal) {
   });
 }
 
+async function hostBlob(response: Response): Promise<Blob> {
+  // Expo's public blob() reads through this.arrayBuffer(), then converts the
+  // completed bytes. Observe that boundary on this owned response only: a read
+  // rejection is transport; a later conversion rejection is a host failure.
+  const descriptor = Object.getOwnPropertyDescriptor(response, "arrayBuffer");
+  const read = response.arrayBuffer;
+  let complete = false, observing = false;
+  try {
+    if (typeof read === "function") {
+      try {
+        Object.defineProperty(response, "arrayBuffer", { configurable: true, value: () => read.call(response).then(bytes => { complete = true; return bytes; }) });
+        observing = true;
+      } catch { /* Some hosts seal responses; the known constructor refusal still applies. */ }
+    }
+    return await response.blob();
+  } catch (error) {
+    if (complete || (error instanceof Error && error.message === "Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported")) {
+      throw new AssetBodyError(`the downloaded asset could not be converted by this host: ${String(error)}`);
+    }
+    throw error;
+  } finally {
+    if (observing) {
+      if (descriptor) Object.defineProperty(response, "arrayBuffer", descriptor);
+      else delete (response as Partial<Response>).arrayBuffer;
+    }
+  }
+}
 /** Only nonempty chunks prove progress. Host-converted Blobs have a separate
  * size-based allowance because they cannot report stalls. */
-async function readBlob(response: Response, signal: AbortSignal, progress: () => void): Promise<Blob> {
-  if (!streamingBody(response)) return bounded(response.blob(), signal, closeBlob);
+async function readBlob(response: Response, signal: AbortSignal, progress: (bytes: number) => void): Promise<Blob> {
+  if (!streamingBody(response)) return bounded(hostBlob(response), signal, closeBlob);
   const reader = response.body!.getReader(), chunks: Uint8Array<ArrayBuffer>[] = [];
   let complete = false;
   try {
     for (;;) {
       const { done, value } = await bounded(reader.read(), signal, () => {});
       if (done) { complete = true; break; }
-      if (value.byteLength) { chunks.push(value as Uint8Array<ArrayBuffer>); progress(); }
+      if (value.byteLength) { chunks.push(value as Uint8Array<ArrayBuffer>); progress(value.byteLength); }
     }
     try { return new Blob(chunks, { type: response.headers.get("content-type") ?? "" }); }
     catch (error) { throw new AssetBodyError(`the downloaded asset could not be assembled by this host: ${String(error)}`); }
@@ -154,13 +181,18 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
         if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
         if (lifetime.signal.aborted && previous) return { denied: previous };
         if (request.signal.aborted || !release) throw request.signal.reason ?? timeout();
-        progress("headers");
+        progress("headers", { diagnosticDelay: bufferedLimit() });
         response = await bounded(doFetch(source.uri, { headers: { ...source.headers, ...(ranged ? { range: "bytes=0-" } : {}) }, signal: request.signal }), request.signal, closeResponse);
         if (response.ok) {
-          activity(streamingBody(response) ? 5000 : bufferedLimit(response.headers));
-          progress("body");
+          const streaming = streamingBody(response), allowance = streaming ? 5000 : bufferedLimit(response.headers);
+          activity(allowance);
+          const length = response.headers.get("content-length");
+          const total = length !== null && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) ? Number(length) : undefined;
+          let received = 0;
+          const report = () => progress("body", { ...(streaming ? { received } : {}), ...(total === undefined ? {} : { total }), diagnosticDelay: allowance });
+          report();
           bodyStarted = true;
-          const blob = await readBlob(response, request.signal, () => { activity(); remaining = 30_000; });
+          const blob = await readBlob(response, request.signal, bytes => { received += bytes; report(); activity(); remaining = 30_000; });
           return { blob, response, retryable: ranged };
         }
         // Headers survive a missing/stalled refusal body. An HTTP status alone

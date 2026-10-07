@@ -16,6 +16,23 @@ function check(source, fixture) {
     getCanonicalFileName: file => file, getCurrentDirectory: () => root, getNewLine: () => '\n',
   }) };
 }
+test('AssetState accepts pre-wait loading literals and optional progress from both imports', () => {
+  const result = check(`import type { AssetState } from './src/react.tsx';
+import type { AssetState as PublishedAssetState } from './dist/react.js';
+const initial: AssetState = { status: 'loading' };
+const published: PublishedAssetState = initial;
+const back: AssetState = published;
+const withWait: PublishedAssetState = { status: 'loading', waiting: { stage: 'body', since: 0, diagnosticAt: 5000, received: 1, total: 2 } };
+function show(state: AssetState) {
+  if (state.status === 'loading') {
+    const received: number | undefined = state.waiting?.received;
+    return state.waiting?.why?.message ?? state.waiting?.stage ?? 'loading';
+  }
+  if (state.status === 'ready') return state.url;
+  if (state.status === 'error' || state.status === 'denied') return state.why.message;
+}`);
+  assert.deepEqual(result.codes, [], result.text);
+});
 test('Astra consumer: a generic row reader accepts Read<T extends Row>', () => {
   const result = check(null, 'consumer.ts');
   assert.deepEqual(result.codes, [], result.text);

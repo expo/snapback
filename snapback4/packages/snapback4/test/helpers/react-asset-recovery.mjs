@@ -28,7 +28,13 @@ export const assetRecoveryHarness = `
       await act(async () => session.resolve(true));
       equal(calls, 1, "resumed session dispatches once");
       equal(state.waiting.stage, "client", "custom reader is identified honestly");
-      equal(state.waiting.why.code, "E_ASSET_WAIT", "progress does not restart the diagnostic allowance");
+      equal(state.waiting.why, undefined, "a stage change clears the stale diagnostic");
+      equal(state.waiting.since, 105000, "stage change records fresh progress");
+      equal(state.waiting.diagnosticAt, 110000, "the new stage gets five seconds without progress");
+      now = 110000;
+      await act(async () => { const callbacks = [...timers.values()]; timers.clear(); for (const cb of callbacks) cb(); });
+      equal(state.waiting.why.code, "E_ASSET_WAIT", "a second real stall is diagnosed");
+      equal(state.waiting.why.site, "useAsset.client", "diagnostic follows the stalled stage");
       await act(async () => outcome.resolve({ url: "blob:photo", type: "image/png", revoke: () => revoked++ }));
       equal(state.status, "ready", "late completion replaces the diagnostic");
       equal(calls, 1, "a successful once outcome never replays a pending focus event");

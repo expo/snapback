@@ -3,7 +3,7 @@ import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
-import { assetWaiting, assetDiagnosticDelay, readAsset, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
+import { assetWaiting, assetDiagnosticDelay, readAsset, type AssetProgressDetail, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
 export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // The React arm: one provider and hooks over the client card.
 // Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
@@ -379,7 +379,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting?: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -401,22 +401,26 @@ export function useAsset(id: string | null | undefined): AssetState {
     let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
     let stage: AssetStage = "scheduled", since = owner.since;
+    let detail: AssetProgressDetail = {};
     const lifetime = { live: true };
     let read: AssetRead | null = null;
     const publish = (state: AssetState) => setResolved({ owner, state, lifetime });
-    const progress = (next: AssetStage) => {
-      stage = next;
-      if (live) publish({ status: "loading", waiting: assetWaiting(stage, since) });
-    };
+    const publishWaiting = () => { if (live) publish({ status: "loading", waiting: assetWaiting(stage, since, Date.now(), detail) }); };
     const diagnose = () => {
       clearTimeout(diagnosticTimer);
-      diagnosticTimer = setTimeout(() => progress(stage), Math.max(0, since + assetDiagnosticDelay - Date.now()));
+      diagnosticTimer = setTimeout(publishWaiting, Math.max(0, since + (detail.diagnosticDelay ?? assetDiagnosticDelay) - Date.now()));
+    };
+    const progress = (next: AssetStage, update: AssetProgressDetail = {}) => {
+      if (!live) return;
+      if (stage !== next || (update.received ?? 0) > (detail.received ?? 0)) since = Date.now();
+      stage = next; detail = update;
+      publishWaiting(); diagnose();
     };
     const load = async () => {
       if (!live || busy || client.link() === "signed-out") return;
       clearTimeout(recoveryTimer); recoveryTimer = undefined;
       busy = true;
-      since = Date.now(); progress("client"); diagnose();
+      since = Date.now(); progress("client");
       try {
         const result = await readAsset(client, id, progress);
         read = result;

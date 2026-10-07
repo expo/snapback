@@ -180,6 +180,9 @@ export function instrument(destination) {
 // awaits or storage; it names waits without cancelling/replaying them. Native
 // Blob lifecycle and React asset tests cover conversion, session custody and
 // late outcomes. No delivery scope, classification or fault recipe changes.
+// UA round 1 adds hostBlob's await of the existing public response.blob() I/O
+// to distinguish completed-body conversion from transport failure. The readBlob
+// callback now forwards byte progress; no mutation or persistence I/O is added.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

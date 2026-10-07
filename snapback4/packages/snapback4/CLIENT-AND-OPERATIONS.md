@@ -1738,12 +1738,18 @@ older extensionless MP4 entries migrate within the same cache when read.
 Rebuild the app with `snapback4-expo` 0.2.24 or later to include this host repair.
 
 For one-view photos, own the handle above the list: `snapback4 guide client`'s viewer recipe.
-Every loading result includes `waiting: { stage, since, diagnosticAt, why? }`.
+Every hook loading result includes `waiting: { stage, since, diagnosticAt,
+received?, total?, why? }`. `AssetState.waiting` is optional for compatibility
+with older `{ status: "loading" }` literals; consumers use `asset.waiting?.stage`.
 The stage names scheduling, session-store checks, media reconciliation, refresh,
 queue, response headers/body, retry backoff, retention or display conversion.
 Custom client methods report `client` rather than guessing their internals.
-After five seconds the same pending request adds `waiting.why` with code
-`E_ASSET_WAIT` and a stage-specific message. Render that explanation; it is a
+Stage changes or received bytes set `since` to the latest progress time, extend
+`diagnosticAt` and clear an old diagnostic. Streams expose `received` bytes and
+`total` when Content-Length is known. After five seconds without observable
+progress the same request adds `waiting.why` with code `E_ASSET_WAIT` and a
+stage-specific message. Opaque headers/body waits use their buffered transfer
+allowance instead: five seconds alone cannot prove a stall. Render that explanation; it is a
 diagnostic, not a refusal of the asset or permission to fetch again. A healthy
 long transfer may still finish. Recovery never bypasses a held session check
 or consumes a second once view merely because this diagnostic appeared.
@@ -1754,6 +1760,11 @@ Expo may expose response streams alongside React Native's Blob, which rejects
 buffer parts. The SDK probes Blob construction and uses the host's
 `Response.blob()` when needed; this native body has the buffered size allowance.
 A local assembly failure is `E_CLIENT`, never evidence of an offline link.
+For Expo's public `blob()` path, the SDK observes completion of its
+`arrayBuffer()` read on that response: a reset during the read stays transport;
+a subsequent native conversion or constructor refusal is `E_CLIENT` with no
+transport retry. Custom native media stores must supply `uri`, as Expo does;
+the cache's byte-array Blob fallback is for browser hosts.
 URI construction and authorization headers are shared across Debug/Release;
 no acquired-partition gate precedes an online asset GET. The local client first
 reconciles media authority and waits for an active credential refresh.

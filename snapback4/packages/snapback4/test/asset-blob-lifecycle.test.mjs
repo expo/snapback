@@ -522,3 +522,41 @@ test('native stream-to-Blob path keeps its size allowance and disposes a late bo
   finish(host.create('late-native')); await drain();
   assert.deepEqual(host.released, ['late-native']); assert.equal(calls, 1);
 });
+
+for (const once of [false, true]) for (const mode of ['native', 'duplicate', 'duplicate sealed', 'conversion failure', 'reset']) {
+  test(`Expo Release real blob path: ${mode}, ${once ? 'once' : 'ordinary'}`, async t => {
+    const { nativeBlobHost, expoBlobResponse } = await import('./helpers/native-blob.mjs');
+    const host = nativeBlobHost(); t.mock.property(globalThis, 'Blob', host.Blob);
+    const reset = Object.assign(new Error('connection reset during arrayBuffer'), { code: 'ECONNRESET' });
+    const expo = expoBlobResponse(host, { duplicate: mode.startsWith('duplicate'), status: once ? 200 : 206,
+      ...(mode === 'reset' ? { read: async () => { throw reset; } } : {}),
+      ...(mode === 'conversion failure' ? { convert: async () => { throw Error('local native blob store unavailable'); } } : {}),
+    });
+    t.mock.method(URL, 'createObjectURL', () => 'blob:expo-image');
+    t.mock.method(URL, 'revokeObjectURL', () => {});
+    let requests = 0;
+    const replies = [];
+    const result = await fetchAsset('http://native.test', {}, async (_url, init) => {
+      requests++;
+      if (once && init.headers.range) return { ok: false, status: 416, headers: new Headers(),
+        json: async () => ({ denied: { code: 'E_ASSET_RANGE', family: 'asset', message: 'once' } }) };
+      const reply = expo.response();
+      if (mode === 'duplicate sealed') Object.preventExtensions(reply);
+      replies.push(reply); return reply;
+    }, 'image');
+    const reads = mode === 'reset' && !once ? 4 : 1;
+    assert.equal(requests, reads + Number(once));
+    assert.equal(expo.counts.reads, reads);
+    assert.equal(expo.counts.conversions, ['native', 'conversion failure'].includes(mode) ? 1 : 0);
+    assert.ok(replies.every(reply => !Object.hasOwn(reply, 'arrayBuffer')), 'restore the original body method');
+    if (mode === 'native') {
+      assert.equal(result.url, 'blob:expo-image'); result.revoke(); result.revoke();
+      assert.deepEqual(host.released, ['expo-image']);
+    } else {
+      assert.equal(result.denied.code, mode === 'reset' ? 'E_OFFLINE' : 'E_CLIENT');
+      assert.equal(result.denied.retryable, !once);
+      assert.match(result.denied.message, mode.startsWith('duplicate') ? /ArrayBuffer/ : mode === 'reset' ? /ECONNRESET/ : /native blob store/);
+      assert.deepEqual(host.released, []);
+    }
+  });
+}

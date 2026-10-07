@@ -44,8 +44,8 @@
     "sha256": "9f44129ad525bb81db278420e9b1b4c6fe56118c8ed3e770d9f215c5589dddaa"
   },
   "asset-download.ts": {
-    "count": 9,
-    "sha256": "2df4ca952c613c53a09fe1483466f38612f5bfaf763b0cf557e6f6fc954f73c6"
+    "count": 10,
+    "sha256": "0aaddf2d4d85e4b826bd3835b1787436ba2f501e58546e1c19314e319a94e9f5"
   },
   "asset-progress.ts": {
     "count": 0,

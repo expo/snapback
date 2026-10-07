@@ -126,6 +126,8 @@ export class MediaCache {
     clearTimeout(this.timer);
   }
   private result(entry: Entry, hex: string): AssetRead {
+    // Native media stores must supply uri (the Expo adapter does). This fallback
+    // is for browser stores whose Blob supports byte-array construction.
     const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
     const uri = this.store.uri?.(entry.id);
     const url = uri ?? URL.createObjectURL(new Blob([bytes], { type: entry.home.type }));

@@ -544,7 +544,7 @@ export function AuthorAvatar({ sender }: { sender: string }) {
   if ("denied" in profile) return <span role="alert">{profile.denied.message}</span>;
   if ("loading" in profile) return <span>Loading author…</span>;
   if (avatar.status === "denied" || avatar.status === "error") return <span role="alert">{avatar.why.message}</span>;
-  if (avatar.status === "loading") return <span>{avatar.waiting.why?.message ?? `Loading avatar (${avatar.waiting.stage})…`}</span>;
+  if (avatar.status === "loading") return <span>{avatar.waiting?.why?.message ?? `Loading avatar (${avatar.waiting?.stage ?? "scheduled"}, ${avatar.waiting?.received ?? "?"}/${avatar.waiting?.total ?? "?"} bytes)…`}</span>;
   return avatar.status === "ready"
     ? <img src={avatar.url} alt={author?.displayName ?? "Author"} />
     : <span>{author?.displayName ?? "Unknown author"}</span>;
@@ -553,11 +553,16 @@ export function AuthorAvatar({ sender }: { sender: string }) {
 
 `null` means `empty`, not a failed download. Inspect the profile read and the
 asset's `why` when its status is `denied` or `error` separately; an initials placeholder must not hide a refusal.
-Every `loading` result has `waiting.stage`, `since` and `diagnosticAt`.
+Every hook `loading` result has `waiting.stage`, `since` and `diagnosticAt`;
+`waiting` is optional in AssetState so older loading literals still typecheck.
 Stages name scheduling, session-store checks, media reconciliation, refresh,
 queue, headers/body, backoff, retention and display conversion; custom clients
-report `client`. After five seconds `waiting.why` adds E_ASSET_WAIT with the
-stage's explanation. Render it instead of hiding all non-ready states. This is
+report `client`. Stage changes and received bytes restart the deadline and clear
+old diagnostics. Streaming bodies expose `waiting.received` and, when known,
+`waiting.total` bytes. After five seconds without observable progress,
+`waiting.why` adds E_ASSET_WAIT with the stage's explanation. Opaque headers/body
+waits use the buffered allowance below: elapsed time alone cannot prove a stall.
+Render it instead of hiding all non-ready states. This is
 a diagnostic of the still-pending request, not a retry or consumed-view verdict;
 healthy long transfers may finish. Unmount cancels the diagnostic timer, and
 late obsolete results cannot publish. Timers require a runnable JS host.

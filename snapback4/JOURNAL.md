@@ -88543,3 +88543,45 @@ were weakened. No all-green whole-script rerun is claimed; every observed
 failure is repaired and rechecked. Runtime inputs of the other passing checks
 are unchanged. Final CLI code lookup, reference and source/diff audits pass;
 the report retains the raw full-suite result and the repair evidence.
+
+## 2026-10-07 — UA round 1: conversion boundaries and progress-aware waits
+
+Continued from 079d3dd175 on eb1000 only, in the UA worktree. Both round-0
+reviews confirmed the stock native fix but found the remaining blob() exception
+boundary; Astra also reproduced healthy transfers emitting E_ASSET_WAIT.
+
+Observe completion of Expo's public arrayBuffer() call while its public blob()
+runs, on that response only, restoring the method on settlement. Body-read
+resets stay transport; later constructor/native conversion failures are E_CLIENT
+with no transport retries or offline transition. The exact RN buffer-constructor
+refusal also handles a non-extensible response. Unknown unobserved failures
+remain transport. Native conversion stays host-owned and bytes are read once.
+Installed Expo FetchResponse/createBlob and RN production Blob tests cover both
+success/failure boundaries, duplicate modules, sealed responses, and ordinary/
+once behavior. Real process-device clients stay online after either conversion
+failure with one asset request.
+
+Stage changes and received bytes restart the hook diagnostic and clear a stale
+one; the body exposes received/known-total bytes. Opaque headers/body waits
+use the established buffered allowance. A real six-second HTTP test (500 ms
+chunks) paints all six streaming/opaque ordinary/once images without diagnosing
+a stall; held session/client stages diagnose independently after five seconds.
+AssetState.waiting is optional for older loading literals. The custom native
+media-store uri requirement is documented beside the browser Blob fallback.
+Updated LLP 3000.008.002.000 §6, guide/code lookup, and the operator's Release
+fixture/recheck modes together. No policy, native ABI or persisted-byte change.
+
+Final coverage: Blob lifecycle 49, buffered HTTP 1, React 66, type tests 11,
+asset retry 38, avatars/lists/pressure 62, native smoke/media dependencies 25,
+delivery-fault/census 339, guide 113; no skips. Client typecheck/build, docs
+budget and reference audit pass. Initial affected run had two new message
+expectation failures (the established formatter exposes ECONNRESET); corrected
+them and reran all Blob/HTTP/React/type cases, 127/127. The initial log remains
+in the report. No whole-suite run is claimed. Delivery census adds one await
+for existing blob I/O, with no delivery fault scope or recipe changes.
+
+Linux wasm prerequisite: 2,135,164 B raw / 645,264 B gzip, unchanged 645,564 B
+cap. No engine/device input changed. No other lane/host/process touched, no
+simulator run, nothing pushed or published. iOS evidence remains round 0;
+the operator will perform the updated Release recheck. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-1--review-corrections-on-eb1000-2026-10-07).

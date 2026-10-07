@@ -12,7 +12,7 @@ import { chromiumExecutable } from '../../../witness/lib.mjs';
 const root = resolve(import.meta.dirname, '../../..');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6V9sAAAAASUVORK5CYII=', 'base64');
 
-test('real buffered HTTP downloads over five seconds reach ready and paint, ordinary and once', { timeout: hangBudget(12) }, async t => {
+test('healthy HTTP chunks every 500 ms for six seconds paint without wait diagnostics, ordinary and once', { timeout: hangBudget(12) }, async t => {
   const require = createRequire(join(root, 'packages/snapback4/package.json'));
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
 
@@ -28,19 +28,20 @@ test('real buffered HTTP downloads over five seconds reach ready and paint, ordi
     import { SnapbackProvider, useAsset } from 'snapback4/react';
     const client = createClient({ url: location.origin, persona: 'alice', fetch: async (url, init) => {
       const response = await fetch(url, init);
-      if (!response.ok) return response;
+      if (!response.ok || url.includes('/stream-')) return response;
       // One host exposes headers then a streamless Blob; another exposes only
       // completion. Both consume actual HTTP bytes, with no simulated clock.
       const blob = url.includes('/completion-') ? await response.blob() : null;
       return { ok: response.ok, status: response.status, headers: response.headers,
         body: null, blob: () => blob ? Promise.resolve(blob) : response.blob() };
     } });
-    window.states = {};
+    window.states = {}; window.waits = [];
     function Photo({ id }) {
       const read = useAsset(id); window.states[id] = { status: read.status, why: read.why };
+      if (read.waiting) window.waits.push({ id, ...read.waiting });
       return read.status === 'ready' ? <img data-id={id} src={read.url} /> : null;
     }
-    const ids = ['completion-ordinary', 'completion-once', 'blob-ordinary', 'blob-once'];
+    const ids = ['completion-ordinary', 'completion-once', 'blob-ordinary', 'blob-once', 'stream-ordinary', 'stream-once'];
     const root = createRoot(document.getElementById('root'));
     root.render(<SnapbackProvider client={client}>{ids.map(id => <Photo key={id} id={id} />)}</SnapbackProvider>);
     window.finish = async () => { root.unmount(); await client.close(); };
@@ -83,13 +84,21 @@ test('real buffered HTTP downloads over five seconds reach ready and paint, ordi
   const page = await browser.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
   await loadBrowserPage(t, page, server.resolvedUrls.local[0]);
-  await page.waitForFunction(() => Object.keys(window.states ?? {}).length === 4 && Object.values(window.states).every(s => s.status !== 'loading'));
+  await page.waitForFunction(() => Object.keys(window.states ?? {}).length === 6 && Object.values(window.states).every(s => s.status !== 'loading'));
   const states = await page.evaluate(() => window.states);
   assert.ok(Object.values(states).every(s => s.status === 'ready'), JSON.stringify(states));
-  await page.waitForFunction(() => document.querySelectorAll('img').length === 4 && [...document.querySelectorAll('img')].every(img => img.complete && img.naturalWidth > 0));
-  assert.equal(completed.length, 4);
+  await page.waitForFunction(() => document.querySelectorAll('img').length === 6 && [...document.querySelectorAll('img')].every(img => img.complete && img.naturalWidth > 0));
+  const waits = await page.evaluate(() => window.waits);
+  assert.deepEqual(waits.filter(wait => wait.why), [], 'healthy streaming and opaque transfers never claim a stall');
+  for (const id of ['stream-ordinary', 'stream-once']) {
+    const progress = waits.filter(wait => wait.id === id && wait.stage === 'body');
+    assert.ok(progress.some(wait => wait.received > 0 && wait.received < png.length), 'received bytes are visible before readiness');
+    assert.ok(progress.every(wait => wait.total === png.length));
+    assert.ok(progress.at(-1).diagnosticAt > progress[0].diagnosticAt + 5000, 'byte progress extends the five-second deadline');
+  }
+  assert.equal(completed.length, 6);
   assert.ok(completed.every(r => r.ms > 5000), JSON.stringify(completed));
-  assert.equal(requests.length, 6, 'one ordinary request or one probe plus one once transfer');
+  assert.equal(requests.length, 9, 'one ordinary request or one probe plus one once transfer');
   t.diagnostic(JSON.stringify({ completed, requests, states }));
   await page.evaluate(() => window.finish());
 });

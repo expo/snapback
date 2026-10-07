@@ -6,14 +6,19 @@ import {nativeDevice,nativeAvailable} from 'snapback4-expo';
 import {api} from './snapback/generated/api';
 import config from './ua-config.json';
 const originalFetch=globalThis.fetch;
-const run=__DEV__?'debug-fixed':'release-fixed';
+const mode=(config as typeof config & {mode?:string}).mode??'ordinary';
+const run=(__DEV__?'debug-r1-':'release-r1-')+mode;
 const trace=(event:string,fields:object={})=>{console.log('UA',event,fields);void originalFetch(config.url+'/ua-log',{method:'POST',body:JSON.stringify({run,event,...fields})}).catch(()=>{});};
 (globalThis as any).uaTrace=trace;
 const fetcher:typeof fetch=async (input,init)=>{
  const uri=String(input),headers=new Headers(init?.headers);trace('fetch',{uri,headers:[...headers.keys()],bearer:headers.has('authorization'),range:headers.get('range')});
- try {const response=await originalFetch(input,init);trace('fetch-response',{uri,status:response.status,stream:!!response.body});return response;}catch(e){trace('fetch-error',{uri,message:String(e)});throw e;}
+ if(mode==='opaque-headers'&&uri.includes('/assets/'))await new Promise(resolve=>setTimeout(resolve,6200));
+ try {const response=await originalFetch(input,init);trace('fetch-response',{uri,status:response.status,stream:!!response.body});
+ if(response.ok&&uri.includes('/assets/')&&['constructor','conversion'].includes(mode))response.blob=async()=>{const buffer=await response.arrayBuffer();if(mode==='conversion')throw Error('UA injected native conversion failure');return new Blob([buffer]);};
+ return response;}catch(e){trace('fetch-error',{uri,message:String(e)});throw e;}
 };
-const device={open:async (...args:any[])=>{const core=await (nativeDevice.open as any)(...args);return {...core,call:async (req:any)=>{if(['asset_home','meta','set_meta'].includes(req.op))trace('native-call',{op:req.op,key:req.key});const result=await core.call(req);return result;}};}};
+let heldRetention=false;
+const device={open:async (...args:any[])=>{const core=await (nativeDevice.open as any)(...args);return {...core,call:async (req:any)=>{if(['asset_home','meta','set_meta'].includes(req.op))trace('native-call',{op:req.op,key:req.key});if(mode==='stall-retention'&&req.op==='asset_home'&&!heldRetention){heldRetention=true;trace('retention-hold');await new Promise(resolve=>setTimeout(resolve,6200));trace('retention-resumed');}const result=await core.call(req);return result;}};}};
 const app=createApp({url:config.url,device,fetch:fetcher,assets:{keep:'viewed',maxBytes:1000000}});
 void app.ready.then(async()=>{trace('app-ready',{state:app.auth.state,native:nativeAvailable(),platform:Platform.OS});const login=await app.auth.login('ua@example.test','ua-password-123');trace('login',{ok:login.ok});});
 const previous=(globalThis as any).ErrorUtils?.getGlobalHandler();(globalThis as any).ErrorUtils?.setGlobalHandler((error:any,fatal:boolean)=>{trace('global-error',{message:String(error),stack:error?.stack,fatal});previous?.(error,fatal);});

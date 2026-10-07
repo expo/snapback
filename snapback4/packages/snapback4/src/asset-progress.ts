@@ -2,12 +2,21 @@
 import type { AssetRead, Client, Refusal } from "./contract.ts";
 
 export type AssetStage = "scheduled" | "client" | "session" | "media" | "refresh" | "queue" | "headers" | "body" | "backoff" | "retention" | "display";
-export type AssetProgress = (stage: AssetStage) => void;
+export interface AssetProgressDetail {
+  readonly received?: number;
+  readonly total?: number;
+  /** Opaque transfers cannot prove a five-second stall; use their body allowance. */
+  readonly diagnosticDelay?: number;
+}
+export type AssetProgress = (stage: AssetStage, detail?: AssetProgressDetail) => void;
 export interface AssetWaiting {
   readonly stage: AssetStage;
+  /** Wall-clock time of the latest stage change or received bytes. */
   readonly since: number;
   /** Wall-clock time at which the hook adds an E_ASSET_WAIT diagnostic. */
   readonly diagnosticAt: number;
+  readonly received?: number;
+  readonly total?: number;
   readonly why?: Refusal;
 }
 const descriptions: Record<AssetStage, string> = {
@@ -24,11 +33,11 @@ const descriptions: Record<AssetStage, string> = {
   display: "constructing a display URI from the downloaded bytes",
 };
 export const assetDiagnosticDelay = 5000;
-export function assetWaiting(stage: AssetStage, since: number, now = Date.now()): AssetWaiting {
-  const diagnosticAt = since + assetDiagnosticDelay;
-  return { stage, since, diagnosticAt, ...(now >= diagnosticAt ? { why: {
+export function assetWaiting(stage: AssetStage, since: number, now = Date.now(), detail: AssetProgressDetail = {}): AssetWaiting {
+  const delay = detail.diagnosticDelay ?? assetDiagnosticDelay, diagnosticAt = since + delay;
+  return { stage, since, diagnosticAt, ...(detail.received === undefined ? {} : { received: detail.received }), ...(detail.total === undefined ? {} : { total: detail.total }), ...(now >= diagnosticAt ? { why: {
     code: "E_ASSET_WAIT", family: "client", site: `useAsset.${stage}`,
-    message: `Asset still waiting: ${descriptions[stage]}. No ready handle or refusal has arrived after ${assetDiagnosticDelay} ms.`,
+    message: `Asset still waiting: ${descriptions[stage]}. No observable progress for ${delay} ms.`,
     rewrite: "inspect the named stage, session/link and host network or storage diagnostics; keep this selection mounted to receive its outcome",
     guide: "assets", retryable: false,
   } } : {}) };
