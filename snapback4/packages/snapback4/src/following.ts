@@ -4,7 +4,7 @@ import { followingBlocked, followingRequest, onFollowingChange, type FollowingWi
 
 export type FollowingPhase = "preparing" | "page" | "stalled" | "restart" | "refused" | "offline";
 type Authority = { table: string; id: string; fields: string[] };
-type Item<T> = { kind: "shaped"; id: string; value: T; authority: Authority[] } | { kind: "omitted"; id: string; code: string };
+type Item<T> = { kind: "shaped"; id: string; at: string; value: T; authority: Authority[] } | { kind: "omitted"; id: string; at: string; code: string };
 export interface FollowingSnapshot<T> {
   readonly items: readonly T[];
   readonly phase: FollowingPhase;
@@ -24,6 +24,7 @@ export class Following<A, R extends readonly unknown[]> {
   private inbox: Pages<{ c?: Cursor | null }, R> | undefined;
   private stopInbox: (() => void) | undefined;
   private history: Item<R[number]>[] = [];
+  private staged: Item<R[number]>[] = [];
   private live: Item<R[number]>[] = [];
   private opening: string | undefined;
   private next: string | null | undefined;
@@ -31,6 +32,8 @@ export class Following<A, R extends readonly unknown[]> {
   private withheld = true;
   private epoch = 0;
   private work = false;
+  private failures = 0;
+  private retryAfter = 0;
   private guards: (() => boolean)[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private due = Infinity;
@@ -53,9 +56,11 @@ export class Following<A, R extends readonly unknown[]> {
   };
   loadMore = (): void => {
     if (this.client.link() === "offline") { this.inbox?.loadMore(); return; }
-    if (this.next && !this.wantPage && this.client.link() === "online") { this.wantPage = true; this.schedule(0); }
+    if (this.next && !this.staged.length && !this.wantPage && this.client.link() === "online") { this.wantPage = true; this.schedule(0); }
   };
   retry = (): void => { if (this.client.readOnly) { this.refuseReadOnly(); return; } this.code = undefined; this.phase = "preparing"; this.wantPage = this.next !== null; this.schedule(0); };
+  // A fresh frozen domain includes backdated births and new-follow history.
+  refresh = (): void => { if (this.client.readOnly) { this.refuseReadOnly(); return; } this.reset(); };
   private refuseReadOnly(): void {
     this.phase = "refused"; this.code = "E_READ_ONLY";
     this.snapshot = { items: [], phase: "refused", hasMore: false, omissions: [], code: this.code };
@@ -78,12 +83,12 @@ export class Following<A, R extends readonly unknown[]> {
     this.stopInbox?.(); this.stopInbox = undefined; this.inbox = undefined;
     if (this.timer) clearTimeout(this.timer); this.timer = undefined;
     if (this.opening) void followingRequest(this.client, this.op, this.args, { action: "cancel", opening: this.opening });
-    this.opening = undefined; this.next = undefined; this.history = []; this.live = []; this.wantPage = true; this.withheld = true;
+    this.opening = undefined; this.next = undefined; this.history = []; this.staged = []; this.live = []; this.wantPage = true; this.withheld = true;
   }
   private reset(): void {
-    this.epoch++;
+    this.epoch++; this.failures = 0; this.retryAfter = 0;
     if (this.opening) void followingRequest(this.client, this.op, this.args, { action: "cancel", opening: this.opening });
-    this.opening = undefined; this.next = undefined; this.history = []; this.live = []; this.wantPage = true; this.withheld = true;
+    this.opening = undefined; this.next = undefined; this.history = []; this.staged = []; this.live = []; this.wantPage = true; this.withheld = true;
     this.phase = "restart"; this.code = undefined; this.publish(); this.schedule(25);
   }
   private invalidate(): void { this.epoch++; this.withheld = true; this.publish(); this.schedule(0); }
@@ -121,18 +126,21 @@ export class Following<A, R extends readonly unknown[]> {
       this.snapshot = { items: this.inbox?.getSnapshot().items ?? (read && "data" in read ? read.data : []), phase: "offline", hasMore: this.inbox?.getSnapshot().hasMore ?? false, omissions: [], inbox: this.inbox?.getSnapshot().read ?? read ?? { loading: true }, fact: "older posts are not on this device" };
     } else {
       const seen = new Set<string>();
-      const rows = this.withheld ? [] : [...this.live, ...this.history].filter(row => !seen.has(row.id) && !!seen.add(row.id));
+      const rows = this.withheld ? [] : [...this.history, ...this.live]
+        .filter(row => !seen.has(row.id) && !!seen.add(row.id))
+        .sort((a, b) => BigInt(a.at) < BigInt(b.at) ? 1 : BigInt(a.at) > BigInt(b.at) ? -1 : compareIds(b.id, a.id));
       this.snapshot = { items: rows.flatMap(row => row.kind === "shaped" ? [row.value] : []),
         omissions: rows.flatMap(row => row.kind === "omitted" ? [{ id: row.id, code: row.code }] : []),
         phase: this.withheld && this.phase === "page" ? "preparing" : this.phase,
-        hasMore: !this.wantPage && !!this.next && !this.withheld, ...(this.code ? { code: this.code } : {}) };
+        hasMore: !this.staged.length && !this.wantPage && !!this.next && !this.withheld, ...(this.code ? { code: this.code } : {}) };
     }
     for (const listener of this.listeners) listener();
   }
   private schedule(delay: number): void {
     if (this.phase === "refused" || !this.listeners.size || this.client.link() !== "online") return;
+    delay = Math.max(delay, this.retryAfter - Date.now());
     const due = Date.now() + delay;
-    if (this.timer && this.due <= due) return;
+    if (this.timer && this.due >= this.retryAfter && this.due <= due) return;
     if (this.timer) clearTimeout(this.timer);
     this.due = due;
     this.timer = setTimeout(() => { this.timer = undefined; this.due = Infinity; void this.run(); }, delay);
@@ -160,48 +168,126 @@ export class Following<A, R extends readonly unknown[]> {
   private async run(): Promise<void> {
     if (this.phase === "refused" || this.work || !this.listeners.size || this.client.link() !== "online") return;
     this.work = true; this.guards = [];
-    let delay = 1000;
+    let delay = 1000, progressed = false;
     try {
       if (!this.opening) {
         const reply = await this.send({ action: "open" });
         if (!reply || !this.acceptControl(reply)) return;
         if (typeof reply.opening !== "string") { this.phase = "refused"; this.code = "E_FOLLOWING_INPUT"; return; }
-        this.opening = reply.opening;
+        this.opening = reply.opening; progressed = true;
       }
       if (this.wantPage) {
         const reply = await this.send({ action: "unit", opening: this.opening, token: this.next ?? null });
         if (!reply || !this.acceptControl(reply)) return;
         if (reply.phase === "preparing" || reply.phase === "stalled") {
-          this.next = reply.next as string; this.phase = reply.phase; delay = reply.phase === "stalled" ? 1000 : 10;
+          progressed = true; this.next = reply.next as string; this.phase = reply.phase; delay = reply.phase === "stalled" ? 1000 : 10;
         } else if (reply.phase === "page") {
           // The token advances only after accepting the pinned bytes. Transport
           // retries keep the old token, even when the server has committed it.
-          this.history.push(...reply.items as Item<R[number]>[]);
+          this.staged.push(...reply.items as Item<R[number]>[]);
           this.next = reply.next as string | null; this.wantPage = false; this.phase = "page";
           // Recheck all mounted identities before showing a new combined list.
-          this.withheld = true; delay = 0;
+          progressed = true; delay = 1000;
         }
       }
-      if (!this.wantPage) await this.refresh();
+      if (!this.wantPage) progressed = await this.revalidate() || progressed;
     } catch { this.withheld = true; }
-    finally { this.work = false; this.publish(); if (this.phase !== "refused") this.schedule(this.wantPage && this.phase === "page" ? 0 : delay); }
-  }
-  private async refresh(): Promise<void> {
-    const epoch = this.epoch, opening = this.opening;
-    const visible = new Set<string>();
-    let live: Item<R[number]>[] = [];
-    // Fixed batches bound authority requests independently of mounted length.
-    // Withdrawal stays atomic: do not expose a partially revalidated list.
-    for (let start = 0; start < Math.max(1, this.history.length); start += 100) {
-      const mounted = this.history.slice(start, start + 100).map(item => ({ id: item.id, authority: item.kind === "shaped" ? item.authority : [] }));
-      const reply = await this.send({ action: "refresh", opening, mounted });
-      if (!reply || !this.acceptControl(reply) || reply.phase !== "page" || epoch !== this.epoch) return;
-      for (const id of reply.visible as string[]) visible.add(id);
-      live = reply.live as Item<R[number]>[];
+    finally {
+      this.work = false;
+      if (progressed) { this.failures = 0; this.retryAfter = 0; }
+      else {
+        // Missing responses include fence-discarded reads while still online.
+        // Observation notifications must not bypass the same bounded backoff.
+        const ceiling = Math.min(5000, 100 * 2 ** Math.min(this.failures++, 6));
+        delay = Math.floor(ceiling / 2 + Math.random() * ceiling / 2);
+        this.retryAfter = Date.now() + delay;
+      }
+      this.publish(); if (this.phase !== "refused") this.schedule(progressed && this.wantPage && this.phase === "page" ? 10 : delay);
     }
-    if (epoch !== this.epoch || opening !== this.opening || followingBlocked(this.client, this.op) || !this.guards.every(current => current())) return;
-    this.history = this.history.filter(item => visible.has(item.id));
-    this.live = live; this.withheld = false; this.phase = "page";
-    if (this.withdrawal) clearTimeout(this.withdrawal); this.withdrawal = undefined;
   }
+  private async revalidate(): Promise<boolean> {
+    const epoch = this.epoch, opening = this.opening;
+    const mounted = [...this.history, ...this.staged, ...this.live];
+    const liveIds = new Set(this.live.map(item => item.id));
+    const visible = new Set<string>(), rejected = new Set<string>();
+    // A card may disclose several point reads. Split their public witnesses too,
+    // so one wide card does not require a wide authorization request. Every
+    // fragment must authorize; a later successful fragment cannot undo denial.
+    const checks = mounted.flatMap(item => {
+      const authority = item.kind === "shaped" ? item.authority : [];
+      return (authority.length ? authority.flatMap(witnessParts).map(w => [w]) : [[]]).map(authority => ({
+        id: item.id, live: liveIds.has(item.id), authority,
+      }));
+    });
+    const live: Item<R[number]>[] = [];
+    // Bound the wire envelope as well as the number of public witnesses. The
+    // server can accept a smaller prefix according to actual metered work.
+    for (let start = 0; start < checks.length;) {
+      const batch: { id: string; live: boolean; authority: Authority[] }[] = [];
+      for (const next of checks.slice(start, start + 100)) {
+        // The echoed checked id unambiguously addresses this public prefix.
+        if (batch.some(item => item.id === next.id)) break;
+        const bytes = new TextEncoder().encode(JSON.stringify({ action: "refresh", opening, args: this.args, mounted: [...batch, next] })).length;
+        if (bytes > 60 * 1024 && batch.length) break;
+        batch.push(next);
+      }
+      const reply = await this.send({ action: "refresh", opening, mounted: batch });
+      if (!reply || !this.acceptControl(reply) || epoch !== this.epoch) return false;
+      const checked = reply.phase === "page" ? batch.length : reply.phase === "preparing"
+        ? batch.findIndex(item => item.id === reply.checked) + 1 : 0;
+      if (!checked) return false;
+      const allowed = new Set(reply.visible as string[]);
+      for (const item of batch.slice(0, checked)) {
+        if (allowed.has(item.id)) visible.add(item.id); else rejected.add(item.id);
+      }
+      start += checked;
+    }
+    // Shaping is a separate continuation. Only already returned public ids
+    // cross requests, never private inbox heads or admission tokens. A live
+    // window is a preview; a new history session covers all later births.
+    while (live.length < 100) {
+      const reply = await this.send({ action: "refresh", opening, mounted: [], seen: live.map(item => item.id) });
+      if (!reply || !this.acceptControl(reply) || epoch !== this.epoch) return false;
+      const items = reply.live as Item<R[number]>[];
+      live.push(...items);
+      if (reply.phase === "page") break;
+      if (reply.phase !== "preparing" || !items.length) return false;
+    }
+    if (epoch !== this.epoch || opening !== this.opening || followingBlocked(this.client, this.op) || !this.guards.every(current => current())) return false;
+    this.history = [...this.history, ...this.staged].filter(item => visible.has(item.id) && !rejected.has(item.id));
+    this.staged = [];
+    const retained = this.live.filter(item => visible.has(item.id) && !rejected.has(item.id));
+    const seen = new Set(retained.map(item => item.id));
+    this.live = [...retained, ...live.filter(item => !seen.has(item.id) && !!seen.add(item.id))];
+    this.withheld = false; this.phase = "page";
+    if (this.withdrawal) clearTimeout(this.withdrawal); this.withdrawal = undefined;
+    return true;
+  }
+}
+
+// Rust orders UTF-8 ids by Unicode scalar; JS's UTF-16 comparison differs for
+// supplementary characters. Keep exact tie order even for those event ids.
+function compareIds(a: string, b: string): number {
+  const left = Array.from(a), right = Array.from(b);
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const delta = left[i]!.codePointAt(0)! - right[i]!.codePointAt(0)!;
+    if (delta) return delta;
+  }
+  return left.length - right.length;
+}
+
+// Refresh accepts at most 128 field names per point witness. A legal projected
+// card may contain more; every fragment retains the same table/id authority.
+function witnessParts(witness: Authority): Authority[] {
+  const parts: Authority[] = [];
+  let fields: string[] = [];
+  for (const field of witness.fields) {
+    const bytes = new TextEncoder().encode(JSON.stringify({ ...witness, fields: [...fields, field] })).length;
+    if (fields.length && (fields.length === 128 || bytes > 32 * 1024)) {
+      parts.push({ ...witness, fields }); fields = [];
+    }
+    fields.push(field);
+  }
+  parts.push({ ...witness, fields });
+  return parts;
 }

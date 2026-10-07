@@ -65,11 +65,13 @@ pub enum Item {
     Event(Event),
     Shaped {
         id: String,
+        at: String,
         value: serde_json::Value,
         authority: Vec<projection::Witness>,
     },
     Omitted {
         id: String,
+        at: String,
         code: &'static str,
     },
 }
@@ -84,6 +86,7 @@ impl Item {
                 id,
                 value,
                 authority,
+                ..
             } => {
                 512 + id.len() as u64
                     + projection::json_heap(value)
@@ -639,7 +642,12 @@ impl Reader {
         // Request allowances may shrink between units. Retained cards must fit
         // before copying or advancing the frontier; a refusal preserves this token.
         if existing.is_some_and(|s| s.item_bytes > budget.remaining_output()) {
-            return simple(Response::Refused { code: "E_FOLLOWING_REQUEST_TOO_SMALL" }, budget);
+            return simple(
+                Response::Refused {
+                    code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+                },
+                budget,
+            );
         }
         // The bounded record map is copied; its head records are copy-on-write.
         // Refusals, storage errors and failed publication leave the old unit intact.
@@ -745,6 +753,49 @@ impl Reader {
             self.sessions.insert(key, session);
         }
         Ok(outcome)
+    }
+
+    /// Network cancellation has the same operation/argument/incarnation binding
+    /// as advancement. A cross-binding request cannot abandon another consumer.
+    pub fn cancel_projected(
+        &mut self,
+        engine: &mut Engine,
+        opening: &str,
+        operation: &str,
+        mut context: Context,
+    ) -> Result<Metered, RuntimeError> {
+        let Some(program) = engine.programs.get(operation) else {
+            return Ok(Metered::default());
+        };
+        let Some(plan) = projection::plan(&engine.schema, program) else {
+            return Ok(Metered::default());
+        };
+        super::validate::validate_inputs(&engine.schema, program, &mut context.args)?;
+        let tx = engine.store.read_transaction()?;
+        let store = tx.meta("store_id")?.unwrap_or_default();
+        let key = (context.viewer.clone(), opening.to_owned());
+        let matches = if let Some(o) = self.openings.get(&key) {
+            o.projection.as_deref() == Some(operation)
+                && o.arguments.as_ref() == Some(&argument_digest(&context.args))
+                && o.identity.as_ref() == Some(&(store, engine.generation))
+                && o.declaration == plan.binding.declaration
+                && o.page_size == plan.binding.page_size
+        } else if let Some(s) = self.sessions.get(&key) {
+            s.projection.as_deref() == Some(operation)
+                && s.arguments == context.args
+                && s.store == store
+                && s.generation == engine.generation
+                && s.declaration == plan.binding.declaration
+                && s.page_size == plan.binding.page_size
+        } else {
+            false
+        };
+        drop(tx);
+        Ok(if matches {
+            self.cancel(&context.viewer, opening, engine.ceilings)
+        } else {
+            Metered::default()
+        })
     }
 
     /// Cancellation only abandons the addressed consumer. Reclamation is separate

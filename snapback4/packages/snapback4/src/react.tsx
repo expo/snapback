@@ -153,7 +153,7 @@ export function useFollowing<A, R extends readonly unknown[]>(op: FollowingQuery
   const client = useClient(), key = readKey(op, args);
   const following = useMemo(() => new Following(client, op, args), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(following.subscribe, following.getSnapshot, following.getSnapshot);
-  return { ...snapshot, loadMore: following.loadMore, retry: following.retry };
+  return { ...snapshot, loadMore: following.loadMore, retry: following.retry, refresh: following.refresh };
 }
 
 /** A write. `run` never throws; `last` is the most recent outcome, including

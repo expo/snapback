@@ -39,7 +39,7 @@ fn snapshot(h: &Host) -> String {
 #[test]
 fn guard_barriers_replay_and_http_parity() {
     let h=host(); let session=narrowed(&h); let read=headers(&session);
-    for path in ["/m/edit","/m/typeNow","/a/external","/assets","/declared","/actions/claim","/effects/claim","/effects/settle","/routes/verify/claim","/auth/session","/auth/narrow","/auth/revoke","/auth/logout-all","/seed","/dev/clock/advance","/future-route"] {
+    for path in ["/m/edit","/m/typeNow","/a/external","/assets","/declared","/actions/claim","/effects/claim","/effects/settle","/routes/verify/claim","/auth/session","/auth/narrow","/auth/revoke","/auth/logout-all","/seed","/dev/clock/advance","/future-route","/following/cards"] {
         let before=snapshot(&h);
         let eph=body(&h.request("POST","/q/typingNow",FULL,"{\"args\":{}}"))["data"].clone();
         let reply=h.request("POST",path,&read,"{\"id\":\"read-refusal\",\"args\":{}}");

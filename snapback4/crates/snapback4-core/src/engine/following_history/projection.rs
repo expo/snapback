@@ -226,6 +226,7 @@ pub(super) fn shape(
         )?;
         Ok(Item::Shaped {
             id: event.id.clone(),
+            at: event.at.to_string(),
             value: crate::wire::to_json(&value),
             authority: r.following_witnesses.as_ref().unwrap().clone(),
         })
@@ -245,6 +246,7 @@ pub(super) fn shape(
         Ok(_) => Ok((
             Item::Omitted {
                 id: event.id.clone(),
+                at: event.at.to_string(),
                 code: "E_FOLLOWING_ROW_TOO_LARGE",
             },
             Vec::new(),
@@ -253,6 +255,7 @@ pub(super) fn shape(
         Err(RuntimeError::Bound { .. }) | Err(RuntimeError::AuthorizationBudget { .. }) => Ok((
             Item::Omitted {
                 id: event.id.clone(),
+                at: event.at.to_string(),
                 code: "E_FOLLOWING_ROW_TOO_LARGE",
             },
             Vec::new(),

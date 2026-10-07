@@ -42,3 +42,42 @@ window.boot=async(url)=>{
   await fixture.page.waitForFunction(()=>window.states.second.items.length===25);
   await fixture.page.evaluate(()=>window.finish());assert.deepEqual(errors,[]);
 });
+
+// Drive the real controller with a transport that drops units while the client
+// remains online (the same outcome as a pending fence discarding a reply).
+test('dropped loadMore units use bounded jittered backoff, including observation wakeups',async t=>{
+  const {Following}=await import('../dist/following.js');
+  const {bindFollowing,notifyFollowing}=await import('../dist/following-transport.js');
+  t.mock.timers.enable({apis:['setTimeout','Date']});
+  t.mock.method(Math,'random',()=>0.5);
+  const noop=()=>()=>{};
+  const client={link:()=> 'online',observe:()=>({getSnapshot:()=>({data:[]}),subscribe:noop,close(){}}),onLink:noop,onPendingWrites:noop,onWrite:noop,onViewer:noop,onSession:noop};
+  let fail=false, deny=false;
+  const calls=[];
+  bindFollowing(client,async(_op,_args,body)=>{
+    if(body.action==='open')return{opening:'opening'};
+    if(body.action==='cancel')return{phase:'restart'};
+    if(body.action==='refresh')return{phase:'page',visible:body.mounted.filter(x=>!deny||x.authority[0]?.table!=='a').map(x=>x.id),live:[]};
+    calls.push({at:Date.now(),token:body.token});
+    if(fail)return;
+    const id=body.token?'second':'first';
+    return{phase:'page',items:[{kind:'shaped',id,at:body.token?1:2,value:{id},authority:body.token?[]:[{table:'a',id:'a',fields:['id']},{table:'b',id:'b',fields:['id']}]}],next:body.token?null:'next'};
+  });
+  const history=new Following(client,{kind:'query',name:'cards',following:{declaration:'feed',pageSize:1}},{});
+  const stop=history.subscribe(()=>{});t.after(stop);
+  const tick=async ms=>{t.mock.timers.tick(ms);for(let n=0;n<30;n++)await Promise.resolve()};
+  await tick(0);assert.equal(history.getSnapshot().items.length,1);
+  fail=true;history.loadMore();await tick(0);
+  for(let n=0;n<400;n++){notifyFollowing(client);await tick(50)}
+  const failed=calls.slice(1);
+  assert.ok(failed.length>=6&&failed.length<=12,`bounded retries: ${JSON.stringify(failed)}`);
+  for(let n=1;n<failed.length;n++){
+    const gap=failed[n].at-failed[n-1].at;
+    assert.ok(gap>=50&&gap<=5050,`backoff gap ${gap}`);
+    assert.equal(failed[n].token,'next');
+  }
+  fail=false;await tick(5000);
+  assert.deepEqual(history.getSnapshot().items.map(x=>x.id),['first','second']);
+  deny=true;await tick(1000);
+  assert.deepEqual(history.getSnapshot().items.map(x=>x.id),['second'],'every witness fragment must authorize');
+});

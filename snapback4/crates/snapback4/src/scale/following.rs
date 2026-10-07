@@ -17,7 +17,7 @@ pub(crate) struct History {
     cost: &'static str,
     limits: Ceilings,
 }
-const GUARANTEE: &str = "each page is a correct prefix of the frozen viewer/edge/birth domain; bounded requests continue to completion once post-bound backdated births and follow additions stop obstructing unscanned keys; obstruction checkpoints as stalled, never false exhaustion; oversized cards are named omissions; expiry or authority loss may restart";
+const GUARANTEE: &str = "each page is a correct prefix of the frozen viewer/edge/birth domain; bounded requests continue to completion once post-bound backdated births and follow additions stop obstructing unscanned keys; obstruction checkpoints as stalled, never false exhaustion; oversized cards are named omissions; expiry or authority loss may restart; post-bound births and follows are covered by the next session (refresh), with recent live previews retained until withdrawal or reset";
 const COST: &str = "discovery O(D+F); retained pages O(F/64 + (N+X) log F), plus index seeks and authorized card shaping; no unrelated-author row scan; no follow cap, metered frontier byte quota";
 pub(crate) fn certificate(schema: &Schema, program: &Program) -> Option<History> {
     let binding = projection::plan(schema, program)?.binding;

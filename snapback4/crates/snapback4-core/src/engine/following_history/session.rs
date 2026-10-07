@@ -215,6 +215,7 @@ pub(super) fn advance(
             cards.clear();
             item = Item::Omitted {
                 id: head.event.id.clone(),
+                at: head.event.at.to_string(),
                 code: "E_FOLLOWING_ROW_TOO_LARGE",
             };
             bytes = serde_json::to_string(&item).unwrap().len() as u64 + 1;

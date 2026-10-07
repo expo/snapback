@@ -1,3 +1,4 @@
+mod following_history;
 use super::*;
 use snapback4_core::{Context, Value, WriteState, schema::timeline::owned_id};
 #[path = "../timeline/identity.rs"]

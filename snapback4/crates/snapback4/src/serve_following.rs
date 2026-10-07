@@ -19,7 +19,12 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
     // @ref LLP 3000.033#1.2 — Following custody is outside the closed read allow-list.
     // The outer guard refuses before body intake; retain the boundary here too.
     if scope == snapback4_core::identity::SessionScope::Read {
-        let why = Refusal::new("E_READ_ONLY", "auth", "Following history requires a full session; ordinary inbox queries remain available").guide("read-only");
+        let why = Refusal::new(
+            "E_READ_ONLY",
+            "auth",
+            "Following history requires a full session; ordinary inbox queries remain available",
+        )
+        .guide("read-only");
         return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)}));
     }
     let payload: Json = match serde_json::from_str(body) {
@@ -81,7 +86,6 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         args.insert(name.clone(), value);
     }
     let now = shared.now();
-    let ceilings = engine.ceilings();
     let mut reader = lock(&shared.following);
     let action = payload
         .get("action")
@@ -93,22 +97,33 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             .map(|o| json!({"opening":o.request.opening}).to_string())
     } else if let Some(opening) = payload.get("opening").and_then(Json::as_str) {
         if action == "cancel" {
-            reader.cancel(&principal, opening, ceilings);
-            Ok(json!({"phase":"restart"}).to_string())
+            reader
+                .cancel_projected(
+                    &mut engine,
+                    opening,
+                    operation,
+                    Context::new(&principal, args).at(now),
+                )
+                .map(|_| json!({"phase":"restart"}).to_string())
         } else if action == "refresh" {
-            match serde_json::from_value::<Vec<snapback4_core::engine::following_history::Mounted>>(
-                payload.get("mounted").cloned().unwrap_or(json!([])),
-            ) {
-                Ok(mounted) => reader
-                    .refresh(
+            let mounted = serde_json::from_value::<
+                Vec<snapback4_core::engine::following_history::Mounted>,
+            >(payload.get("mounted").cloned().unwrap_or(json!([])));
+            let seen = serde_json::from_value::<Vec<String>>(
+                payload.get("seen").cloned().unwrap_or(json!([])),
+            );
+            match (mounted, seen) {
+                (Ok(mounted), Ok(seen)) => reader
+                    .refresh_slice_metered(
                         &mut engine,
                         opening,
                         operation,
                         Context::new(&principal, args).at(now),
                         &mounted,
+                        &seen,
                     )
-                    .map(|r| serde_json::to_string(&r).unwrap()),
-                Err(_) => Ok(json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}).to_string()),
+                    .map(|(r, _)| serde_json::to_string(&r).unwrap()),
+                _ => Ok(json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}).to_string()),
             }
         } else if action == "unit"
             && payload

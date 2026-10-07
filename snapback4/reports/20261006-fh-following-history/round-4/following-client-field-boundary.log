@@ -1,0 +1,28 @@
+(node:4136239) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix (6753.471451ms)
+✔ Following a roster larger than one request prepares without publishing an unordered prefix (963.613103ms)
+✔ Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2366.123946ms)
+✔ Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (1851.211701ms)
+✔ Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer (315.131063ms)
+✔ Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer (170.279353ms)
+✔ a delayed unit cannot publish an author withdrawn before mounted authorization (297.391116ms)
+﹣ Following shaped HTTP and SDK measurements (0.137396ms) # SKIP
+✔ Following wasm routes history past source floors online and keeps pending own posts ahead of it (463.455709ms)
+✔ Following native routes history past source floors online and keeps pending own posts ahead of it (452.253283ms)
+✔ Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read (1296.971502ms)
+✔ wide cards continue authorization and live shaping within request allowances (1030.544891ms)
+✔ live cards remain authorized and mounted after the inbox window rolls (675.052707ms)
+✔ explicit refresh includes backdated post-bound births in the next exact session (356.774546ms)
+✔ cross-operation cancellation cannot evict an opening or its pinned page (277.239663ms)
+✔ one card can reauthorize more fields than a single witness permits (764.431699ms)
+✔ generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer (1107.728959ms)
+✔ dropped loadMore units use bounded jittered backoff, including observation wakeups (29.53501ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 18191.794468

@@ -89075,3 +89075,58 @@ unchecked refs. Root inventory output is byte-identical to the inherited
 round-2 Snapback 1 gaps. Published fixture and Darwin skips are explicit in the
 report. No zero-failure full-script claim is made; no gate or timeout was relaxed.
 Peak observed disk use: 22 GiB rounded. Nothing pushed.
+
+
+## 2026-10-07 — FH round 4: bounded refresh and retained live events
+
+Resolved both full-feature review P1s: mounted authorization accepts metered
+prefixes, and live shaping continues in separate bounded slices. SDK requests
+fit the wire envelope; point witnesses and field lists split without weakening
+authority (all fragments must pass). New cards stage until combined validation.
+Tests traverse 100 cards with 120 extra fields, 20 wide live arrivals, and a
+separate 200-field-card corpus. Native tests exercise the exact 14 MiB authority
+reservation boundary, one byte below, a smaller output allowance and honest
+meters on final output refusal.
+
+Displayed live identities survive the preview window rolling, and reauthorize
+against the current epoch's actual inbox copy plus card witnesses. Tombstone,
+unfollow and refollow-window regressions pass. Event identity and exact time/id
+order belong to the SDK, independent of the card shape. Under the user's round-4
+ruling, post-B births and new-follow history belong to the next session;
+`useFollowing(...).refresh()` starts it. The existing inbox provides recent
+previews; it is not a complete post-B subscription. A backdated birth below the
+preview window is included exactly once when the new session is exhausted.
+LLP 3000.026 §9.12, feeds and the separate certificate state that boundary.
+
+Cancellation now validates operation/declaration/arguments and engine binding
+for unused openings and sessions. Cross-operation cancel cannot evict a valid
+consumer. Refused refreshes retain completed meter charges. Dropped units back
+off exponentially, with bounded jitter and a deadline respected by notifications;
+a deterministic test proves pacing and recovery. Native HTTP coverage and the
+read-only refusal path are added. Read-only policy, offline inbox, own-post and
+own-edge fences, runtime ceilings and persisted bytes are unchanged.
+
+Final affected checks: core Following 27 (both scales enabled), shaping/history
+10, research 3, guide 113, serve 190 passed / 4 existing ignored; both client
+Following files 17 passed / manual measurement skipped, then measurement run
+separately; read-only clients 118 passed / 1 configured published-engine skip.
+Full script: **0 failures in 2,608 s**, 310 native binaries / 1,023 executions,
+340 client files (6,614 passed, 56 skips), and 79 serial model tests. The known
+`/proc` witness flake did not recur. After the full run, the isolated SDK
+128-field partition refinement and its regression passed affected build,
+typecheck, Following and await-classification checks; that last regression is
+not claimed as part of the preceding full run. The report binds both snapshots.
+
+Linux wasm remains byte-identical: 2,135,336 B raw / 645,307 B gzip, cap 645,607 B
+(Linux + 300 B). No new schema/catalog/IR/table bytes or device traversal; the
+user runs Darwin checks separately. Shaped sparse 50k first/later medians are
+1.635/1.556 ms, no preparation, 299,636 B custody. The 8,200-follow case measures
+199.656/1.333 ms, five preparations, 17,288,752 B custody. All seven ceilings are
+asserted; unrelated-post density changes neither traversal work nor storage.
+HTTP first pages are 35.95 ms / 1,329.90 ms with zero/six preparations. These
+are CPU-pinned shared-eb1000 observations, not SLOs.
+
+[Report and receipts](reports/20261006-fh-following-history/round-4/REPORT.md).
+Root inventory failure is byte-identical to round 3's inherited Snapback 1 gaps;
+reference audit passes. Observed worktree use: 22 GiB rounded. No push, remote
+host, or other worktree/process changes.

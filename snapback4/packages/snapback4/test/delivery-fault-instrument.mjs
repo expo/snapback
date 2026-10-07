@@ -188,6 +188,9 @@ export function instrument(destination) {
 // revocation, expiry, and own-post admission on both device hosts. The new
 // historyWrite wrapper adds only a synchronous fence around the unchanged
 // mutation path. No delivery I/O site, classification or fault recipe changes.
+// FH round 4: bounded authorization/live refresh slices are the same read-only
+// protocol; no mutation custody is acquired. A dropped-unit scheduling test
+// covers jittered retries while online. No delivery recipe changes.
 // RO Round 7: read-token.ts is a synchronous prefix predicate with zero awaits.
 // It adds no I/O or custody; delivery sites and fault recipes remain unchanged.
 // RO (LLP 3000.033 §1.4): app owns both namespaces through one custody

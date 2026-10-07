@@ -24,11 +24,11 @@ const binary=resolve(process.env.SNAPBACK4_BIN ?? join(root,'target/debug/snapba
 const op={kind:'query',name:'cards',following:{declaration:'feed',pageSize:20,cursor:'c'}};
 const post=(id,actor,at)=>({table:'posts',row:{id,authorId:`dev:${actor}`,parentId:null,at,removed:false}});
 const edge=actor=>({table:'follows',row:{id:`f-${actor}`,followerId:'dev:reader',followedId:`dev:${actor}`}});
-async function fixture(t,rows=[],bounded=true) {
+async function fixture(t,rows=[],bounded=true,transform=s=>s) {
   const dir=await mkdtemp(join(tmpdir(),'sb4-fh2-'));
   await mkdir(join(dir,'snapback'));
   const path=join(dir,'snapback/schema.q');
-  const source='use identity\n\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8').replace('sync public',bounded?'sync public last 3 by .at':'sync public');
+  const source=transform('use identity\n\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8').replace('sync public',bounded?'sync public last 3 by .at':'sync public'));
   const clients=[],stops=[]; let child,exited,url,log='';
   const start=async text=>{
     await writeFile(path,text);
@@ -223,4 +223,76 @@ test('Following refuses read sessions before custody, while an ordinary inbox re
   assert.equal(requests.filter(p=>p.startsWith('/following/')).length,calls,'a refused observer must not restart preparation polling');
   // The refused cancel cannot consume or evict the full session's unit.
   assert.equal((await raw(full.session,{action:'unit',opening:opened.opening}).then(r=>r.json())).phase,'page');
+});
+
+
+test('wide cards continue authorization and live shaping within request allowances',{timeout:hangBudget(35)},async t=>{
+  const fields=Array.from({length:120},(_,n)=>`  extra${String(n).padStart(3,'0')}: int default 0`).join('\n');
+  const f=await fixture(t,Array.from({length:100},(_,n)=>post(`wide-${String(n).padStart(3,'0')}`,'reader',n)),true,s=>s.replace('table posts:','table posts:\n'+fields)),h=await f.open();
+  let count=0;
+  while(true){const s=await page(h,count+1);count=s.items.length;if(!s.hasMore)break;h.history.loadMore()}
+  assert.equal(count,100);assert.equal(h.get().omissions.length,0);
+  assert.deepEqual(h.get().items.map(x=>x.id),Array.from({length:100},(_,n)=>`wide-${String(99-n).padStart(3,'0')}`));
+  const sliced=h.control.requests.filter(r=>r.request.action==='refresh'&&r.response.phase==='preparing');
+  assert.ok(sliced.some(r=>r.request.mounted.length>=32&&r.response.checked));
+  assert.ok(h.control.requests.every(r=>Buffer.byteLength(JSON.stringify(r.request))<=64*1024));
+  for(let n=0;n<20;n++)await f.mutate('post',{postId:`live-${n}`,parentId:null});
+  await page(h,120);
+  assert.equal(new Set(h.get().items.map(x=>x.id)).size,120);
+  assert.ok(h.control.requests.some(r=>r.request.action==='refresh'&&r.response.phase==='preparing'&&r.response.live.length));
+  assert.equal(h.get().omissions.length,0);
+});
+
+test('live cards remain authorized and mounted after the inbox window rolls',{timeout:hangBudget(30)},async t=>{
+  const f=await fixture(t,[edge('alice'),post('old','alice',1)]),h=await f.open();await page(h);
+  await f.mutate('post',{postId:'live-00',parentId:null},'alice');await page(h,2);
+  for(let n=1;n<=20;n++)await f.mutate('post',{postId:`live-${String(n).padStart(2,'0')}`,parentId:null},'alice');
+  await page(h,22);
+  assert.ok(h.get().items.some(x=>x.id==='live-00'));
+  assert.equal(new Set(h.get().items.map(x=>x.id)).size,22);
+  const at=h.get().items.map(x=>x.at);assert.deepEqual(at,[...at].sort((a,b)=>b-a));
+  assert.equal(h.get().hasMore,false);
+  await f.mutate('remove',{postId:'live-00'},'alice');
+  await waitFor(()=>h.get().phase==='page'&&!h.get().items.some(x=>x.id==='live-00'),'retained live tombstone');
+  await f.mutate('unfollow',{actor:'dev:alice'});
+  await waitFor(()=>h.get().phase==='page'&&h.get().items.length===0,'retained live edge withdrawal');
+});
+
+test('explicit refresh includes backdated post-bound births in the next exact session',{timeout:hangBudget(20)},async t=>{
+  const rows=Array.from({length:25},(_,n)=>post(`future-${n}`,'reader',Date.now()+100000+n));
+  const f=await fixture(t,rows),h=await f.open();await page(h,20);
+  await f.mutate('post',{postId:'backdated',parentId:null});
+  h.history.loadMore();await page(h,25);assert.equal(h.get().hasMore,false);
+  assert.equal(h.get().items.some(x=>x.id==='backdated'),false,'the current frozen domain does not expand');
+  h.history.refresh();await page(h,20);h.history.loadMore();await page(h,26);
+  assert.equal(h.get().items.at(-1).id,'backdated');assert.equal(h.get().hasMore,false);
+  assert.equal(new Set(h.get().items.map(x=>x.id)).size,26);
+  assert.equal(h.control.requests.filter(r=>r.response.opening).length,2);
+});
+
+test('cross-operation cancellation cannot evict an opening or its pinned page',{timeout:hangBudget(15)},async t=>{
+  const f=await fixture(t,[post('old','reader',1)]);
+  const opened=await f.send('/following/cards',{action:'open',args:{c:null}});
+  const unit={action:'unit',opening:opened.opening,args:{c:null}};
+  const wrong={action:'cancel',opening:opened.opening,args:{c:null}};
+  await f.send('/following/home',wrong);
+  const before=await f.send('/following/cards',unit);assert.equal(before.phase,'page');
+  await f.send('/following/home',wrong);assert.deepEqual(await f.send('/following/cards',unit),before);
+  await f.send('/following/cards',wrong);assert.equal((await f.send('/following/cards',unit)).phase,'restart');
+});
+
+
+test('one card can reauthorize more fields than a single witness permits',{timeout:hangBudget(20)},async t=>{
+  const fields=Array.from({length:200},(_,n)=>`  extra${String(n).padStart(3,'0')}: int default 0`).join('\n');
+  const f=await fixture(t,Array.from({length:40},(_,n)=>post(`wide-${String(n).padStart(3,'0')}`,'reader',n)),true,s=>s.replace('table posts:','table posts:\n'+fields)),h=await f.open();
+  let count=0;
+  while(true){const s=await page(h,count+1);count=s.items.length;if(!s.hasMore)break;h.history.loadMore()}
+  assert.equal(count,40);assert.equal(h.get().omissions.length,0);
+  const units=h.control.requests.filter(r=>r.request.action==='unit'&&r.response.phase==='page');
+  assert.ok(units.some(r=>r.response.items.some(i=>i.authority.some(w=>w.fields.length>128))));
+  for(const r of h.control.requests.filter(r=>r.request.action==='refresh')){
+    for(const m of r.request.mounted)for(const w of m.authority)assert.ok(w.fields.length<=128);
+    assert.ok(Buffer.byteLength(JSON.stringify(r.request))<=64*1024);
+  }
+  assert.equal(new Set(h.get().items.map(x=>x.id)).size,40);
 });
