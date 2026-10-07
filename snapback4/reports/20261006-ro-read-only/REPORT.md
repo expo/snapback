@@ -642,3 +642,54 @@ Checkpoints: `33c1f9ce28` (implementation and permanent regressions),
 expectation). All commits carry the requested Astra co-author trailer.
 Both reviews have been folded; no open Round 4 finding remains. No push or
 publication.
+
+
+## Round 5 — remaining peer-refresh and watermark findings (2026-10-07)
+
+Checkpoint `16fa765c09` fixes both Astra findings and adds the requested
+surviving-mutation test. It carries the requested Astra co-author trailer.
+No push or publication.
+
+- Before a read-only peer treats a rejected predecessor as terminal, it waits
+  for the rotation owner outside the session lock/persistence queue, rechecks
+  epoch and principal, and recovers the successor through exact-credential
+  verification and persistence. Both the original held-response reproduction
+  and a read-dispatched-before-refresh variation pass, with a third app and
+  restart checks. Logout from the waiting peer or a third app completes while
+  refresh remains held; the late successor is retired. The older late-rejection
+  case now requires read-peer recovery, keeping the full-session control intact.
+- Epoch advances discard obsolete `snapback4SignOuts`; same-epoch rotations
+  retain them. The permanent test performs 24 account switches in each mode,
+  asserting zero inherited entries after replacement, exactly one after stale
+  logout, retention across rotation, and zero after logout/login.
+- A load-time constructor/factory counter detects even unused `WriteHistory`,
+  `MutationIds`, `OnlineIntentPresentation`, `DeliveryQueue`, `ephemeralLane`
+  and `onlineCustody` allocations. It exercises anonymous startup, signup,
+  query, rotation, restoration, logout and close, then proves every instrumented
+  entry point is reached by the full-session positive control.
+- Negative controls run against private copies of the built package: all six
+  Round 5 race/boundedness cases fail against original head `3716f8cfa9`, and
+  deliberately constructing an unused `WriteHistory` fails the allocation test.
+  The active build was untouched. The first negative-control wrapper expected
+  TAP from Node's default reporter; rerunning with explicit TAP confirmed the
+  six intended assertion failures and the allocation failure.
+- The four new await boundaries are auth/read recovery only; the existing
+  delivery fault sites and recipes are unchanged. LLP 3000.033 §1.4 and the
+  append-only JOURNAL record the behavior and tests.
+
+Grok's `reviews/ro-c4.grok.exit` is present (`EXIT=0`). Its 543-byte markdown
+contains only progress notes, no findings or verdict. It was read; there are no
+findings to fold and no completed Grok round-5 review is claimed.
+
+Affected verification passed **525/525 tests across 12 files**, no skips:
+all read-only suites (including the real published 0.4.13 downgrade case), app,
+online-session and the complete delivery fault matrix. Package build/typecheck
+and reference checks pass (**529 LLP documents / 10,461 references**, zero
+errors or unchecked references). The initial new-test run exposed missing
+legacy epoch defaults in the fixture assertions; the assertions now use the
+existing implicit epoch `0`, and all permanent cases pass.
+
+The complete `bash scripts/test.sh` is running at full default counts from the
+checkpoint. Its wasm rebuild is **2,117,335 raw / 639,888 gzip bytes**, under the
+unchanged **639,941-byte** budget (53 bytes headroom). Final complete-suite
+results will be appended below. Evidence uses the `round5-` prefix.
