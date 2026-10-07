@@ -1,0 +1,12 @@
+(node:1307774) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ published 0.4.13 rejects RX chain on initial device open, persisted reopen and engine store (119.0623ms)
+✔ published 0.4.13 rejects RX final on initial device open, persisted reopen and engine store (104.324109ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 276.925098

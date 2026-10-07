@@ -187,9 +187,8 @@ fn calibration_send_replays_successfully_and_emits_preview() {
 fn reference_rule_refusals_name_the_known_construct_and_rewrite() {
     let prefix = "table orgs:\n  public\ntable parents:\n  org: orgs\n  value: int\n  owner: principal\n  privateValue: int default 0 written by .owner\n  public\ntable children:\n  parent: parents\n  public\n";
     for (line, repair) in [
-        ("insert <- .parent.org.id != null", "orgs[parents[.parent].org].id"),
-        ("insert <- .parent.privateValue = 0", "parents[.parent].privateValue"),
-        ("after insert <- exists orgs[.parent.org]", "parents[.parent].org"),
+        ("insert <- .parent.org.id.id.id != null", "orgs[id = rule_parent_"),
+        ("insert <- .parent.privateValue = 0", "parents[id = parent]"),
     ] {
         let b = compile(&[("schema.q".into(), format!("{prefix}  {line}\n"))]);
         assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_RULE_HOP" && d.rewrite.contains(repair)), "{line}: {:?}", b.diagnostics);
@@ -208,7 +207,8 @@ fn rule_hops_are_fenced_and_invalid_raw_positions_refuse() {
     assert!(schema::validate(&schema).iter().any(|d| d.message.contains("E_QUARRY_RULE_HOP")));
     let mut schema = b.schema;
     schema.tables.get_mut("reactions").unwrap().constraints.push(Constraint::FinalExistsOnInsert { table: "conversations".into(), index: "byId".into(), key: vec![term] });
-    assert!(schema::validate(&schema).iter().any(|d| d.message.contains("E_QUARRY_RULE_HOP")));
+    assert!(schema::validate(&schema).is_empty());
+    assert!(schema.required_capabilities().contains("rule-reference-v2"));
 }
 
 #[test]
