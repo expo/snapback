@@ -1,0 +1,9 @@
+{
+  "expectedExit": 1,
+  "actualExit": 1,
+  "elapsed": 182.80250484199496,
+  "snapshots": [
+    "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-sleep/evidence/stalls/snapshots/maintenance-cb65a433eb364227/snapshot-1791410937823869984-6ba2e2aa-failure-drain-timeout",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-sleep/evidence/stalls/snapshots/maintenance-cb65a433eb364227/snapshot-1791411028875736394-7bf3b655-failure-drain-timeout"
+  ]
+}

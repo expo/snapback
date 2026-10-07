@@ -1,5 +1,10 @@
 # EM — export maintenance drain investigation, 2026-10-07
 
+The [round-5 report](../20261008-em-export-maintenance-sleep/REPORT.md) corrects
+the sleep guarantee: round 3/4 dropped the recorded clock during retry/handoff.
+Round 5 retains it through successor entry and adds injected-sleep controls.
+The historical cause and macOS qualification remain open.
+
 The [round-4 report](round4/REPORT.md) records the merge of FL's identity-bound
 fault dispatch, custody waits and Darwin bindings with EM's bounded diagnostics
 and wakeup regressions, with fresh Linux verification before review and the

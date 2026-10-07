@@ -41,9 +41,10 @@ fn append(event: Event) -> std::io::Result<()> {
     }
     line.push(b'\n');
     if size + line.len() as u64 + 128 > LIMIT {
-        // Fill the final bounded record so subsequent writers can skip it using
-        // only length. No unbounded rotation or ever-growing marker stream.
-        let remaining = (LIMIT - size) as usize;
+        // Fill the tail using at most two bounded terminal records. The reserve
+        // can exceed LINE_LIMIT by 127 bytes; never pad one line past its cap.
+        // Subsequent writers skip the full file using only its length.
+        let remaining = ((LIMIT - size) as usize).min(LINE_LIMIT);
         let marker = b"{\"step\":\"trace-truncated\",\"limitBytes\":262144}";
         if remaining >= marker.len() + 1 {
             let mut tail = vec![b' '; remaining];
@@ -76,6 +77,20 @@ mod tests {
         assert_eq!(bytes.len(), LIMIT as usize);
         assert!(String::from_utf8(bytes).unwrap().contains("trace-truncated"));
         assert_eq!(fs::metadata(&sink).unwrap().mode() & 0o777, 0o600);
+        // The reserve branch can have more than 4 KiB remaining even though
+        // the ordinary event fits in one line. Include that boundary explicitly.
+        let prefix = LIMIT as usize - LINE_LIMIT - 64;
+        fs::write(&sink, vec![b'\n'; prefix]).unwrap();
+        for _ in 0..3 {
+            append(Event { root: root.clone(), step: "test", detail: json!("x".repeat(LINE_LIMIT - 100)), at: now() }).unwrap();
+        }
+        let bytes = fs::read(&sink).unwrap();
+        assert_eq!(bytes.len(), LIMIT as usize);
+        for line in bytes[prefix..].split_inclusive(|b| *b == b'\n') {
+            assert!(line.len() <= LINE_LIMIT, "terminal line exceeded 4 KiB: {}", line.len());
+            let record: Value = serde_json::from_slice(line).unwrap();
+            assert_eq!(record["step"], "trace-truncated");
+        }
         fs::remove_dir_all(root).unwrap();
     }
 }

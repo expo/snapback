@@ -272,6 +272,19 @@ pub(super) fn worker(args: &[String]) -> i32 {
 // continuous clock advances asleep; uptime does not. Unit tests inject samples.
 #[allow(deprecated)]
 pub(super) fn sleep_clock() -> u64 {
+    // Debug-only replay of Darwin clock samples, without suspending the host.
+    #[cfg(debug_assertions)]
+    if let Some(path) = std::env::var_os("SNAPBACK4_TEST_SLEEP_CLOCK") {
+        use std::os::unix::fs::OpenOptionsExt;
+        if let Ok(file) = OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW).open(path) {
+            if file.metadata().is_ok_and(|m| m.is_file() && m.len() <= 32) {
+                let mut sample = String::new();
+                if file.take(32).read_to_string(&mut sample).is_ok() {
+                    if let Ok(sample) = sample.trim().parse() { return sample; }
+                }
+            }
+        }
+    }
     #[cfg(target_os = "macos")]
     unsafe {
         unsafe extern "C" { fn mach_continuous_time() -> u64; }

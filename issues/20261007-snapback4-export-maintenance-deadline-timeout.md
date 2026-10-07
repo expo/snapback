@@ -81,8 +81,9 @@ An empty second runnable check releases the pending lease and rechecks in a loop
 A fresh producer that sees a busy lease records a bounded wakeup and retries the
 lease before coalescing; a stopped observer releases custody before handing off
 an unobserved wakeup using that producer's absolute deadline. Successful guards
-consume the wakeup before observing work. No fresh producer means cancellation,
-sleep and expiry remain stops. Automatic peer chains cannot renew their budget.
+consume the wakeup before observing work. Cancellation and expiry remain stops
+without a fresh producer; the original sleep claim here was incomplete (see the
+round-5 correction below). Automatic peer chains cannot renew their budget.
 Debug barriers are inert in release. The original drain predicate/90-second
 guard and round-2 diagnostic safety fixes remain unchanged; lane FL's shared
 process-identity checks are untouched. Retained evidence and validation counts
@@ -96,3 +97,21 @@ linked to the existing [native inspection ticket](20261004-snapback4-native-witn
 It is retained as a failure, not a successful soak or proof of either wakeup
 race in the historical runs. Native ownership checks and the refusal to treat
 parked maintenance as drained remain intact.
+
+
+## 2026-10-08 — EM round 5 sleep-clock correction (still open)
+
+Astra reproduced two ways the round-3/4 implementation could restart an intent
+spanning sleep: producer retry checked only expiry, and successor entry took a
+new sleep baseline after the old observer had validated the wakeup. The previous
+sleep claim was too broad. Round 5 carries the original expiry and clock sample
+together through retry, observer launch/entry and scan backup handoff. Each
+receiver checks the inherited pair before consuming the notification or starting
+work. A later fresh export still samples after sleep and can recover durable work.
+
+The [round-5 report](../snapback4/reports/20261008-em-export-maintenance-sleep/REPORT.md)
+retains injected-clock regressions and controls against round-4 retention code.
+These simulate Darwin's clock predicate on Linux; they do not suspend a host or
+identify the historical macOS cause. The unchanged 90-second drain check, the
+original two wakeup fixes, FL's identity checks and bounded diagnostics remain.
+Both commissioned tickets stay open while the operator's macOS soak proceeds.

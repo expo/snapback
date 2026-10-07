@@ -90352,3 +90352,41 @@ repaired wakeup windows. All work stayed on eb1000 in lane-em; nothing pushed
 or published. The user's macOS soak remains outstanding.
 
 [Merge resolutions and Linux verification](reports/20261007-em-export-maintenance-drain/round4/REPORT.md).
+
+## 2026-10-08 — EM round 5: retain sleep-clock intent across retries and starts
+
+Correction to the round-3 entry: “Handoffs inherit the fresh producer's absolute
+deadline and sleep clock” was inaccurate. The deadline survived, but wakeup
+lookup validated and then discarded the clock. Astra reproduced a producer
+retry after sleep and a successor starting after sleep between validation and
+launch. Both could resume the old intent. This does not attribute the historical
+macOS drain timeout to sleep.
+
+Maintenance now carries the expiry/sample pair through retry, wakeup lookup,
+observer launch/entry and scan backup handoff. Internal children inherit the
+sample through a private environment value; exact command forms and FL's
+identity binding remain unchanged. Receivers validate it before consuming a
+notification or starting work. A later fresh export still creates a post-sleep
+intent. Debug-only bounded clock injection tests both reported orderings,
+no-retry rejection, no-fresh-producer stops and fresh-export recovery. Terminal
+trace padding now honors the 4 KiB line cap; the aggregate 256 KiB limit and
+custody-independent tracing are unchanged. The round-3 report, ticket addenda
+and LLP 3000.030 §15 correct their earlier sleep claims.
+
+Four JS files pass 87 tests with 32 Darwin skips: background 63/32, wakeup/sleep
+10/10, diagnostics 5/5 and FL signals 9/9. Native retention passes 6/6, the clock
+unit 1/1 and release check passes. Round-4 retention fails the two new sleep
+assertions while the no-retry control passes. Removing the original two wakeup
+fixes and injecting held-lease/missing-observer stalls each still fails the
+unchanged 90-second drain assertion, with cleanup. Restoring oversized trace
+padding fails at a 4,160-byte line. No fixture guard or outcome was weakened.
+
+The default parallel recovery run retains two failures (23/25), both reproduced
+with round-4 retention code. Serial fixed-source recovery passes 25/25. The
+separate open parallel-recovery ticket records both signatures; a passing serial
+rerun is not a resolution. The initial scratch unit-test setup lacked compile-time
+fixture paths and compiled no tests; those logs remain distinct from the valid
+controls. Work stayed in lane-em on eb1000; nothing pushed or published. Both
+maintenance tickets remain open, and the operator's macOS soak is separate.
+
+[Round-5 fix, claims correction and retained evidence](reports/20261008-em-export-maintenance-sleep/REPORT.md).

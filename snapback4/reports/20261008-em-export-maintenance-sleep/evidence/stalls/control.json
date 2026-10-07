@@ -1,0 +1,7 @@
+{
+  "sourceSha256": "fac234c589717c3f4f00757dec89cab4366542a032814b35f01008cc1f7a14ee",
+  "binarySha256": "b5b4fd9d2bb586f33d02a4ccdcbe0be488dc9cff8c728258a48b80cff91abd67",
+  "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b5b4fd9d2bb586f33d02a4ccdcbe0be488dc9cff8c728258a48b80cff91abd67/snapback4",
+  "cpus": "80-83",
+  "addition": "\nfor(const fault of ['held lease','missing observer'])test(`EM injected stall: ${fault}`, {timeout:120000}, async()=>{\n  const f=fixture(); let held;\n  try {\n    skipMode(f,'off'); held=await holdRetention(f);\n    const r=f.invoke(); assert.equal(r.status,0,r.stdout+r.stderr);\n    if(fault==='missing observer') {\n      const root=path.join(f.root,'artifacts/native-smoke');\n      const record=read(path.join(root,'maintenance-next.json')).process;\n      const pid=record.pid;\n      signalFixture(f,record,'SIGKILL');\n      await until(()=>!alive(pid),'our stalled observer exited');\n      held.child.stdin.end();await held.exited;held=null;\n    }\n    await maintenanceIdle(f);\n  } finally {\n    if(held){held.child.stdin.end();await held.exited;}\n    if(fault==='missing observer') {\n      const resumed=f.invoke('negative control cleanup');\n      assert.equal(resumed.status,0,resumed.stdout+resumed.stderr);\n    }\n    await cleanup(f);\n  }\n});\n"
+}

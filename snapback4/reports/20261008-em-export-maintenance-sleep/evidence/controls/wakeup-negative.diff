@@ -1,0 +1,10 @@
+--- fixed
++++ wakeup-negative
+@@ -179,3 +179 @@
+-            drop(queued);
+-            if let Some(fresh_intent) = unobserved_intent(root) { intent = fresh_intent; }
+-            continue;
++            return Ok(Value::Null); // CONTROL: exit under the empty lease
+@@ -253 +251 @@
+-        if let Err(e) = resume_unobserved(&root) { eprintln!("witness: evidence cleanup deferred: {e}"); }
++        // CONTROL: omit fresh-wakeup handoff on failed guard

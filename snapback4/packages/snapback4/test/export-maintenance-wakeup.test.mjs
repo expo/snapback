@@ -81,15 +81,15 @@ test('maintenance wakeup: empty second check cannot strand a coalesced request',
   } finally {await f.finish();}
 });
 
-async function pausedGuard(f,stop='expiry') {
+async function pausedGuard(f,stop='expiry',points='observer-guard-failed,unused') {
   const lease=f.start('python3',['-c','import sys,fcntl; f=open(sys.argv[1],"a"); fcntl.flock(f,fcntl.LOCK_EX); print("ready",flush=True); sys.stdin.read()',f.file('retention.lock')]);
   await once(lease.child.stdout,'data');
   const expires=Date.now()+(stop==='expiry'?700:60000);
-  const observer=f.start('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",f.native,binary,String(expires)],'observer-guard-failed,unused');
+  const observer=f.start('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",f.native,binary,String(expires)],points);
   observer.child.stdin.end('s');
-  if(stop==='cancellation') {
+  if(stop==='cancellation' || stop==='sleep') {
     await until(()=>{try{return fs.readFileSync(f.file('retention-trace.jsonl'),'utf8').includes('wait-retention');}catch{return false;}},'observer waiting on our retention lease');
-    observer.child.kill('SIGTERM');
+    if(stop==='sleep')f.setClock(2000);else observer.child.kill('SIGTERM');
   }
   const record=await f.barrier('observer-guard-failed');
   f.mark('maintenance-next.json',JSON.stringify({process:record.process,expiresAt:expires}));
@@ -132,5 +132,73 @@ for(const stop of ['expiry','cancellation'])test(`maintenance wakeup: ${stop} re
     assert.equal(f.free(),true);assert.ok(fs.existsSync(f.file('maintenance-request.json')));
     assert.ok(!fs.existsSync(f.file('maintenance-active.json')),'no successor starts without a fresh producer');
     lease.child.stdin.end();await lease.exit;
+  } finally {await f.finish();}
+});
+
+// Replay Darwin's continuous-minus-uptime samples without suspending the host.
+function sleepFixture() {
+  const f=fixture(), clock=path.join(f.root,'sleep-clock');
+  f.env.SNAPBACK4_TEST_SLEEP_CLOCK=clock;
+  f.setClock=sample=>{fs.writeFileSync(clock+'.next',String(sample));fs.renameSync(clock+'.next',clock);};
+  f.setClock(0);return f;
+}
+for(const retry of [false,true])test(`maintenance sleep: notification crosses sleep, producer retry=${retry}`,{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f);
+    const old=read(f.file('maintenance-next.json'));
+    const producer=f.producer('kick-notified,unused');await f.barrier('kick-notified');
+    const wake=read(f.file('maintenance-wakeup.json'));assert.equal(wake.awake,0);
+    f.setClock(2000);
+    if(!retry){producer.child.kill('SIGKILL');await producer.exit;}
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    assert.equal(f.free(),true);
+    assert.equal(read(f.file('maintenance-next.json')).process.pid,old.process.pid,'holder rejects stale wakeup');
+    lease.child.stdin.end();await lease.exit;
+    let status;
+    if(retry){f.resume('kick-notified');status=await producer.exit;}
+    await maintenanceEvidence(f,`sleep-retry-${retry}`);
+    assert.equal(read(f.file('maintenance-next.json')).process.pid,old.process.pid,'an intent spanning sleep must not launch a successor via producer retry');
+    assert.ok(fs.existsSync(f.file('maintenance-request.json')),'stopped work stays durable');
+    assert.deepEqual(read(f.file('maintenance-wakeup.json')),wake,'stale notification was not consumed');
+    if(retry){assert.equal(status[0],1);assert.match(producer.stderr,/host slept/);}
+  } finally {await f.finish();}
+});
+
+test('maintenance sleep: successor keeps the sample accepted before launch',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f,'expiry','observer-guard-failed,kick-locked');
+    const old=read(f.file('maintenance-next.json'));
+    await coalesce(f);const wake=read(f.file('maintenance-wakeup.json'));assert.equal(wake.awake,0);
+    f.resume('observer-guard-failed');await f.barrier('kick-locked');
+    // The retiring observer has validated the fresh wakeup and holds the lease,
+    // but its successor has not started. It must not sample a new baseline.
+    f.setClock(2000);lease.child.stdin.end();await lease.exit;
+    f.resume('kick-locked');assert.equal((await observer.exit)[0],1,observer.stderr);
+    const next=read(f.file('maintenance-next.json'));
+    assert.notEqual(next.process.pid,old.process.pid,'exercise the actual successor start');
+    await until(()=>!alive(next.process.pid),'successor exits after checking the inherited intent');
+    await maintenanceEvidence(f,'sleep-successor-start');
+    assert.ok(!read(f.file('maintenance-done.json')),'a successor must reject the inherited intent after sleep');
+    assert.ok(fs.existsSync(f.file('maintenance-request.json')));
+    assert.deepEqual(read(f.file('maintenance-wakeup.json')),wake,'no guard consumed the stale notification');
+    assert.equal(next.awake,wake.awake);assert.equal(next.expiresAt,wake.expiresAt);
+    assert.equal(f.free(),true,'sleep releases queue custody');
+  } finally {await f.finish();}
+});
+
+test('maintenance sleep: no fresh producer stops, a post-sleep export can recover',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const {observer,lease}=await pausedGuard(f,'sleep');
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    assert.match(observer.stderr,/host slept/);
+    assert.equal(f.free(),true);assert.ok(fs.existsSync(f.file('maintenance-request.json')));
+    assert.ok(!fs.existsSync(f.file('maintenance-active.json')),'sleep alone cannot authorize a successor');
+    lease.child.stdin.end();await lease.exit;
+    const producer=f.producer('');assert.equal((await producer.exit)[0],0,producer.stderr);
+    await f.drain();assert.ok(read(f.file('maintenance-done.json')));
+    assert.equal(read(f.file('maintenance-next.json')).awake,2000,'only a fresh producer takes the post-sleep sample');
   } finally {await f.finish();}
 });

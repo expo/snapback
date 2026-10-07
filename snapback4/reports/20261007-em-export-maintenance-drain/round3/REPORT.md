@@ -1,5 +1,12 @@
 # EM round 3 — maintenance wakeup handoff, 2026-10-07
 
+**Round-5 correction, 2026-10-08:** this round repaired the two ordinary wakeup
+windows but did not carry the sleep-clock sample through producer retry or
+successor startup. Its original sleep guarantee was too broad. The
+[round-5 report](../../20261008-em-export-maintenance-sleep/REPORT.md) records
+both reproduced gaps and their correction; the earlier run counts below
+remain historical evidence.
+
 Both commissioned wakeup defects now have deterministic reproductions and product
 fixes. With the fixes removed in a scratch build, each forced window strands a
 pending request and fails the unchanged **90-second** drain check. With the fixes,
@@ -48,10 +55,12 @@ The design and updated contract remain in §15; no new LLP is needed.
   check sees the unobserved notification. Another successful holder may consume
   the notification because it covers the request itself.
 
-Only fresh producers write this notification. Internal peer handoffs retain the
-old deadline. An expired notification or one spanning host sleep cannot restart
-observation; a fresh successor uses the recorded expiry rather than a new
-`now + hour` budget. With no fresh producer, cancellation/expiry leave the request
+Only fresh producers write this notification. Round 3's internal peer handoffs
+retained the old deadline; successors used the recorded expiry rather than a new
+`now + hour` budget. However, only notification lookup checked its sleep sample.
+Producer retry and successor startup could restart an intent spanning sleep.
+The original claim that such an intent could not restart was incorrect; round 5
+carries and validates the complete expiry/sample pair through both paths. With no fresh producer, cancellation/expiry leave the request
 durable and start no successor. An observation that fails during active native
 work still drains its owned child before handing off. Explicit launch/I/O
 refusal and simultaneous peer loss retain their documented limits.
