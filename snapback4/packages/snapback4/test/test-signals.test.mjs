@@ -5,7 +5,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { once } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { signalChild, spawnTracked } from '../../../scripts/test-signals.mjs';
+import { inspectSignalTarget, signalChild, spawnTracked } from '../../../scripts/test-signals.mjs';
+import { signalFixture } from './helpers/fixture-signals.mjs';
 import { killOwned, runOwnedCommand } from '../../../scripts/test-owned-command.mjs';
 import { runProcess, processExists } from '../../../scripts/test-processes.mjs';
 
@@ -18,6 +19,52 @@ async function waitFor(predicate) {
   const end = performance.now() + 10000;
   while (!predicate()) { assert.ok(performance.now() < end, 'fixture state deadline'); await sleep(20); }
 }
+
+test('fixture signals bind every native command to the selected binary and exact root', { timeout: 120000 }, async t => {
+  const dir = fs.realpathSync(fixture(t)), root = path.join(dir, 'project.[fixture]');
+  fs.mkdirSync(root);
+  const alias = path.join(dir, 'project-alias'); fs.symlinkSync(root, alias);
+  const original = path.join(root, 'original'), selected = path.join(root, 'snapback4-interposed');
+  // A native stand-in preserves argv[0] and all witness arguments. It remains
+  // under our child handle and exits on stdin EOF even if an assertion fails.
+  fs.writeFileSync(original + '.c', '#include <stdio.h>\nint main(void) { puts("ready"); fflush(stdout); while (getchar() != EOF) {} return 0; }\n');
+  const built = await runOwnedCommand('cc', [original + '.c', '-o', original], { timeout: 30000 });
+  assert.equal(built.error, undefined); assert.equal(built.status, 0, built.stderr.toString());
+  fs.copyFileSync(original, selected);
+  const artifacts = path.join(root, 'artifacts/native-smoke'), run = path.join(artifacts, '123-456');
+  for (const args of [
+    ['witness', 'background-worker', run],
+    ['witness', 'background-run', run],
+    ['witness', 'export-maintenance', artifacts],
+    ['witness', 'export-maintain', artifacts, '12345'],
+    ['witness', 'export-maintain-scan', artifacts, '12345'],
+    ['witness', 'export-retain-worker', path.join(artifacts, '.retention-123'), artifacts],
+    ...['--environment-skip', '--background'].map(mode => ['witness', 'export-publish', path.join(run, 'publication-export'), path.join(root, 'dist'), mode]),
+  ]) {
+    const child = spawnTracked(selected, args), exited = once(child, 'exit');
+    try {
+      await once(child.stdout, 'data');
+      const record = inspectSignalTarget(child.pid, [selected, ...args]);
+      const originalKill = process.kill, attempted = [];
+      // Exercise the complete recorded fault dispatcher without killing any
+      // recorded PID. Cleanup uses the retained child's private EOF protocol.
+      process.kill = (...values) => { attempted.push(values); return true; };
+      try {
+        const f = { root, env: { SNAPBACK4_BIN: selected } };
+        signalFixture(f, record, 'SIGKILL');
+        assert.deepEqual(attempted, [[child.pid, 'SIGKILL']], args[1]);
+        attempted.length = 0;
+        for (const wrong of [
+          { root, env: { SNAPBACK4_BIN: original } },
+          { root, env: { SNAPBACK4_BIN: path.join(alias, 'snapback4-interposed') } },
+          { root: alias, env: f.env },
+          { root: root.replace('[fixture]', 'xfixturex'), env: f.env },
+        ]) assert.throws(() => signalFixture(wrong, record, 'SIGKILL'), /expected fixture command/, args[1]);
+        assert.deepEqual(attempted, [], 'different binary/root spellings must refuse before dispatch');
+      } finally { process.kill = originalKill; }
+    } finally { child.stdin.end(); await exited; }
+  }
+});
 
 for (const mode of ['shebang', 'env shebang', 'node file'])
 test(`tracked identity accepts ${mode} with its exact interpreter argv`, { timeout: 20000 }, async t => {

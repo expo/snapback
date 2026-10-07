@@ -1,0 +1,25 @@
+✖ fixture signals bind every native command to the selected binary and exact root (192.462364ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 244.522351
+
+✖ failing tests:
+
+test at packages/snapback4/test/.fl-r7-3102754.test.mjs:23:1
+✖ fixture signals bind every native command to the selected binary and exact root (192.462364ms)
+  Error: TEST_SIGNAL_REFUSED: expected fixture command required
+      at refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:15:27)
+      at checkCommand (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:69:117)
+      at inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:79:3)
+      at checkSignalRecord (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:93:10)
+      at signalRecorded (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:97:3)
+      at signalFixture (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-r7-control-VXnBn1/fixture-signals.mjs:25:3)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r7-3102754.test.mjs:54:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

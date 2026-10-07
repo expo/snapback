@@ -89218,3 +89218,36 @@ LLP 3000.035 anchor in unchanged difftest code. All execution stayed on eb1000;
 nothing pushed. Native Darwin execution still awaits the user's soak.
 
 [Round-6 resolution, group-custody evidence and controls](reports/20261007-fl-dry-run-flakes/round-6/REPORT.md).
+
+## 2026-10-07 — FL round 7: bind fault identity to the selected fixture binary
+
+The user's macOS failure confirms a test regression introduced by round 4.
+The held-retention-overlap case selects a private copied/re-signed binary,
+but the recorded-fault helper required the original debug binary as argv[0].
+Native background children re-exec the selected copy. The helper now derives
+all seven expected command forms from that fixture's SNAPBACK4_BIN and root.
+The default binary and temporary root have canonical paths before launch;
+the copy is created under that same root. Exact argument matching, birth
+checks and every earlier outcome/custody assertion remain unchanged. No
+observed command is normalized to accept /var versus /private aliases.
+
+The Darwin audit covers all 32 background-only cases, the native static-adapter
+case, portable tests' Darwin branches, and every helper/script changed by FL.
+Dispatchers, shebangs, simple env-to-interpreter exec, Python native exec,
+copied binaries and root spelling are traced in the report. No other launch
+versus expectation mismatch was found. A native copied-binary regression
+accepts eight concrete vectors spanning the seven command forms and refuses
+the original binary, alias binary and alternate roots before signal dispatch.
+Restoring the old hardcoded binary or normalizing the expectations makes it
+fail. Controls intercept numeric signals and release children through stdin.
+Owned groups and handles remain preferred; recorded-PID signals retain the
+small exit/reuse race between their immediate identity check and the syscall.
+
+Nine Linux export/helper/runner suites pass 194 tests with 33 platform skips;
+background is 63/32. The final signal-helper rerun passes 9/9, and unchanged
+dev_refusals passes 22/22. Ref-check still reports only the existing missing
+LLP 3000.035 anchor in unchanged difftest code. Work stayed on eb1000, with
+no push. Darwin execution awaits the user's soak; this is no Mac or publication
+qualification claim.
+
+[Round-7 resolution, complete Darwin audit and controls](reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).

@@ -60,3 +60,9 @@ Round 6 extends compiler cleanup from its driver to the whole private group,
 then verifies that no living group member remains. Recorded-PID fault checks
 remain immediate identity checks with a residual exit/reuse race; owned
 children use retained handles. [Resolution and evidence](../../snapback4/reports/20261007-fl-dry-run-flakes/round-6/REPORT.md).
+
+Round 7 corrects a Darwin fixture identity mismatch introduced by round 4:
+the copied/re-signed retention binary is now the exact expected executable
+for that fixture's worker faults. Canonical paths are selected before launch;
+matching does not accept alternate spellings. Existing custody assertions
+remain unchanged. [Darwin audit, regression and Linux evidence](../../snapback4/reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).

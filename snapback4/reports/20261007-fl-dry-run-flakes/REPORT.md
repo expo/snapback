@@ -1,5 +1,10 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-7 Darwin identity correction:** [round 7](round-7/REPORT.md) binds
+recorded faults to the fixture's selected binary and canonical launch paths,
+including its copied/re-signed executable. It includes the complete Darwin
+case/branch audit and Linux copy/alias regression with safe mutation controls.
+
 **Round-6 compiler custody:** [round 6](round-6/REPORT.md) gives compilation
 private group custody, including surviving frontends. It also distinguishes
 owned groups/handles from the remaining recorded-PID check-to-syscall race.

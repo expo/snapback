@@ -7,10 +7,13 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
-import { signalRecorded, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+import { signalFixture } from './helpers/fixture-signals.mjs';
 import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
 
-const binary = new URL('../../../target/debug/snapback4', import.meta.url).pathname;
+// Use one spelling for launch and exact identity checks, including Darwin's
+// /private temporary roots and native workers spawned via current_exe().
+const binary = fs.realpathSync(new URL('../../../target/debug/snapback4', import.meta.url));
 const wrapper = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname;
 const shim = new URL('../bin/snapback4.js', import.meta.url).pathname;
 const pause = () => new Promise(r => setTimeout(r, 50));
@@ -23,22 +26,6 @@ async function until(check, label, timeout = 30000, signal) {
   }
 }
 const read = p => { try { return JSON.parse(fs.readFileSync(p)); } catch { return null; } };
-function signalFixture(f, record, signal) {
-  const root = path.join(f.root, 'artifacts/native-smoke');
-  const escaped = root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const run = new RegExp('^' + escaped + '/[0-9]+-[0-9]+$');
-  const source = new RegExp('^' + escaped + '/[0-9]+-[0-9]+/publication-export$');
-  const retention = new RegExp('^' + escaped + '/\\.retention-[^/]+$');
-  signalRecorded(record, signal, [
-    [binary, 'witness', 'background-worker', run],
-    [binary, 'witness', 'background-run', run],
-    [binary, 'witness', 'export-maintenance', root],
-    [binary, 'witness', 'export-maintain', root, /^[0-9]+$/],
-    [binary, 'witness', 'export-maintain-scan', root, /^[0-9]+$/],
-    [binary, 'witness', 'export-retain-worker', retention, root],
-    [binary, 'witness', 'export-publish', source, path.join(f.root, 'dist'), /^--(?:environment-skip|background)$/],
-  ]);
-}
 function fixture() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-background-')));
   const put = (p, text, mode) => { p = path.join(root, p); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text, mode ? { mode } : {}); };
