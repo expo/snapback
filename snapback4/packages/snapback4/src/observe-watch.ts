@@ -2,6 +2,7 @@ import type { Client, ObserveOptions, Query, Read, Observed, Refusal } from "./c
 import { deferReadNotifications } from "./read-notifications.ts";
 import type { ReadObservation } from "./read-observation.ts";
 import { readKey } from "./read-key.ts";
+import { armKey } from "./online-arm-fence.ts";
 
 interface Watch extends ReadObservation<unknown> {
   key: string;
@@ -21,7 +22,7 @@ export function peekObservation<A, R>(client: Client, op: Query<A, R>, args: A, 
 
 // @ref LLP 3000.023#3.2 — omitted, withdrawing and lingering subscribers never share policy.
 export function observationKey(op: Query<unknown, unknown>, args: unknown, options?: ObserveOptions): string {
-  return `${options?.keep === true ? "keep:" : options?.keep === false ? "withdraw:" : "retain:"}${readKey(op, args)}`;
+  return `${armKey(op)}${options?.keep === true ? "keep:" : options?.keep === false ? "withdraw:" : "retain:"}${readKey(op, args)}`;
 }
 
 // @ref LLP 3000.019#3.3 — render can see a live watch before subscribing, without extending its lifetime.

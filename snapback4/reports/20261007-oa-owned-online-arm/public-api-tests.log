@@ -1,0 +1,95 @@
+✖ generated ephemeral API and React preserve disjoint mutation outcomes (1748.378118ms)
+✖ README TypeScript examples compile and call every public function (2238.003616ms)
+ℹ 42 README blocks; 56 public functions; 2234.91 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (11.250406ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (12.570906ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (9.061985ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (7.176579ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (24.372778ms)
+✔ client card composer disables only denied or fresh non-revalidating absent membership (15.651334ms)
+✔ profile screen waits for proven existence and uses each replacement (2.367019ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2768.353324
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/ephemeral-types.test.mjs:8:1
+✖ generated ephemeral API and React preserve disjoint mutation outcomes (1748.378118ms)
+  AssertionError [ERR_ASSERTION]: [91merror[0m[90m TS2688: [0mCannot find type definition file for 'node'.
+    The file is in the program because:
+      Entry point of type library 'node' specified in compilerOptions
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/ephemeral-types.test.mjs:57:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/readme-examples.test.mjs:79:1
+✖ README TypeScript examples compile and call every public function (2238.003616ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   "tsconfig: TS2688: Cannot find type definition file for 'node'.\n" +
+  +     '  The file is in the program because:\n' +
+  +     "    Entry point of type library 'node' specified in compilerOptions",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/app.ts: TS2345: Argument of type 'string | Request | URL' is not assignable to parameter of type 'RequestInfo'.\n" +
+  +     "  Type 'URL' is not assignable to type 'RequestInfo'.\n" +
+  +     "    Type 'URL' is missing the following properties from type 'Request': cache, credentials, destination, headers, and 18 more.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/app.ts: TS2345: Argument of type 'string | Request | URL' is not assignable to parameter of type 'RequestInfo'.\n" +
+  +     "  Type 'URL' is not assignable to type 'RequestInfo'.\n" +
+  +     "    Type 'URL' is missing the following properties from type 'Request': cache, credentials, destination, headers, and 18 more.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity-principal.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:child_process' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:fs/promises' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'code' implicitly has an 'any' type.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'signal' implicitly has an 'any' type.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'error' implicitly has an 'any' type.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'chunk' implicitly has an 'any' type.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:module' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:process' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:url' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-json.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2552: Cannot find name 'Buffer'. Did you mean 'buffered'?",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-steps.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:sqlite' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.",
+  +   "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations."
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/readme-examples.test.mjs:145:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "tsconfig: TS2688: Cannot find type definition file for 'node'.\n  The file is in the program because:\n    Entry point of type library 'node' specified in compilerOptions", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/app.ts: TS2345: Argument of type 'string | Request | URL' is not assignable to parameter of type 'RequestInfo'.\n  Type 'URL' is not assignable to type 'RequestInfo'.\n    Type 'URL' is missing the following properties from type 'Request': cache, credentials, destination, headers, and 18 more.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/app.ts: TS2345: Argument of type 'string | Request | URL' is not assignable to parameter of type 'RequestInfo'.\n  Type 'URL' is not assignable to type 'RequestInfo'.\n    Type 'URL' is missing the following properties from type 'Request': cache, credentials, destination, headers, and 18 more.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity-principal.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/identity.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:child_process' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:fs/promises' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'code' implicitly has an 'any' type.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'signal' implicitly has an 'any' type.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'error' implicitly has an 'any' type.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/native.ts: TS7006: Parameter 'chunk' implicitly has an 'any' type.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:module' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:process' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/resolve-binary.ts: TS2307: Cannot find module 'node:url' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-json.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2552: Cannot find name 'Buffer'. Did you mean 'buffered'?", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-routes.ts: TS2591: Cannot find name 'Buffer'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/server-steps.ts: TS2307: Cannot find module 'node:crypto' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:sqlite' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:fs' or its corresponding type declarations.", "/home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/src/worker-ledger.ts: TS2307: Cannot find module 'node:path' or its corresponding type declarations." ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

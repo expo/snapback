@@ -1,0 +1,55 @@
+OA diagnostic [vite] connecting...
+OA diagnostic [vite] connected.
+OA diagnostic %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+OA diagnostic Failed to load resource: the server responded with a status of 404 (Not Found)
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (167.694487ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (2243.818732ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (51.906732ms)
+  ✔ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (397.37201ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (128.581503ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1478.819602ms)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+OA diagnostic Failed to load resource: the server responded with a status of 410 (Gone)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (470.204512ms)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (267.432481ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (530.434942ms)
+  ✔ observations make retention explicit (6.013655ms)
+OA diagnostic Failed to load resource: the server responded with a status of 416 (Range Not Satisfiable)
+OA diagnostic typing post switch {"data":[{"principal":"user:01M4ATR3XEZK43J8ETN3DR065D"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":1044,"indexEntries":0,"outputBytes":74,"probes":1,"rowsWritten":0,"steps":15},"existence":"present"}
+OA diagnostic typing post switch {"data":[{"principal":"user:01M4ATR3XEZK43J8ETN3DR065D"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":1044,"indexEntries":0,"outputBytes":74,"probes":1,"rowsWritten":0,"steps":15},"existence":"present"}
+  ✖ account reset clears draft and stops the prior typing owner (223.190119ms)
+✖ social recipes in React/browser: real online signals and media, controlled read interleavings (8821.712559ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9291.099274
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/social-browser.test.mjs:386:11
+✖ account reset clears draft and stops the prior typing owner (223.190119ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:399:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:386:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

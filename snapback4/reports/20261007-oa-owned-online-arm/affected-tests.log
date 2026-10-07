@@ -1,0 +1,82 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (646.489587ms)
+✔ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (187.492441ms)
+✔ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (175.891891ms)
+✔ account fences cached arms, observations and late server data (244.724221ms)
+✔ logout fences cached arms, observations and late server data (107.63829ms)
+✔ close fences cached arms, observations and late server data (197.748204ms)
+✔ offline drops signals, refuses snapshots/actions; observed reads recover without replay (180.576915ms)
+✔ no-device app reuses its own client (readOnly=false) and obeys shared logout (169.105209ms)
+✔ no-device app reuses its own client (readOnly=true) and obeys shared logout (168.525771ms)
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (95.010811ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (2165.518483ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (59.083917ms)
+  ✔ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (311.78786ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (133.682521ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1477.455108ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (479.964347ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (287.051912ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (455.765484ms)
+  ✔ observations make retention explicit (6.379553ms)
+  ✖ account reset clears draft and stops the prior typing owner (219.771528ms)
+✖ social recipes in React/browser: real online signals and media, controlled read interleavings (8563.791571ms)
+▶ social search in React/browser uses current server and retained device pages
+  ✔ search spans a live and a departed conversation (1138.64331ms)
+  ✔ leave followed by a search (1048.414226ms)
+  ✔ pagination accumulates both domains with no duplicate (1148.175199ms)
+✔ social search in React/browser uses current server and retained device pages (4271.489016ms)
+▶ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ✔ failed provisional sends survive Profile reopen and a full reload (676.839155ms)
+  ✔ a sent receipt without result recovers the route from its replicated key (43.850152ms)
+  ✔ real stale negative membership after leave, sync, disconnect and re-invite permits Send (301.686069ms)
+  ✔ stale absent membership queues offline and server refuses at sync without re-invitation (256.130811ms)
+  ✔ leaving before settlement recovers failed sends on a bare canonical route (863.098158ms)
+  ✔ failed and abandoned openings without sends leave no associations (79.151548ms)
+  ✔ a bare route recovers its sends with one lookup despite 100 unresolved peers (648.074838ms)
+✔ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft (5575.784679ms)
+(node:3738294) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ generated feed, chats, profile and search preserve read-state text and controls (225.793444ms)
+✔ social seed script creates two password accounts, signs in and refuses cross-user writes (3631.901671ms)
+✔ new requires an explicit template and names what init creates (7.699271ms)
+✔ social starter native: cold owner keys prove old likes and unqueried absence offline (2365.751274ms)
+✔ social starter web: cold owner keys prove old likes and unqueried absence offline (2657.661931ms)
+✔ published social starter and guide snippets typecheck against generated operations (1092.966259ms)
+✔ bounded substitution in both installed and client documentation typechecks (1464.251778ms)
+✔ installed bounded placeholder documentation makes neither existence claim (111.497966ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (3927.285798ms)
+✔ social DM native: concurrent opens converge, held keys resolve offline and an offline race settles (1783.954678ms)
+✔ social DM web: concurrent opens converge, held keys resolve offline and an offline race settles (590.300905ms)
+✔ guide aliases send schedules, DMs and Expo readers to their owning cards (188.593092ms)
+✔ social proposal associations are durable, account/backend scoped and preserve every send's arguments (127.484771ms)
+✔ social starter wasm: offline history predicts in compose order and settles once with receipts (1659.649746ms)
+✔ social starter wasm: receipt-derived unread badges leave sends pending in history (1075.012411ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 46
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21452.577079
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/social-browser.test.mjs:385:11
+✖ account reset clears draft and stops the prior typing owner (219.771528ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:398:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:385:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

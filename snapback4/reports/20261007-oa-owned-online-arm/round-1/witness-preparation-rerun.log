@@ -1,0 +1,51 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.05s
+     Running unittests src/main.rs (target/debug/deps/snapback4-e504511cbb2ea269)
+
+running 16 tests
+test verbs::witness::preparation::tests::lease_fork_fixture ... ok
+test verbs::witness::preparation::tests::stalled_resolver_owner ... ok
+test verbs::witness::preparation::tests::startup_binds_each_independent_identity ... ok
+test verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop ... ok
+test verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit ... ok
+stalled resolver Some(9): owner completed in 65.267779ms; launcher and descendant drained before recovery
+stalled resolver Some(15): owner completed in 247.656812ms; launcher and descendant drained before recovery
+stalled resolver Some(2): owner completed in 309.67627ms; launcher and descendant drained before recovery
+test verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery ... ok
+test verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained ... ok
+shell: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member ... ok
+volta-style: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner ... ok
+direct: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member ... ok
+direct: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner ... ok
+volta-style: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member ... ok
+shell: native leader; late member drained; retry and output cleanup passed
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner ... ok
+
+thread 'verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained' (2557666) panicked at crates/snapback4/src/verbs/witness/preparation.rs:500:9:
+assertion failed: dir.join("descendant.pid").exists()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained ... FAILED
+
+failures:
+
+failures:
+    verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 315 filtered out; finished in 10.00s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

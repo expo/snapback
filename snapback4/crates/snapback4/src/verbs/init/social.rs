@@ -21,7 +21,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
         ("README.md", include_str!("social/README.md").to_owned()),
         ("src/intents.ts", include_str!("social/intents.ts").to_owned()),
         ("src/client.ts", include_str!("social/client.ts").to_owned()),
-        ("src/useOnlineArm.ts", include_str!("social/useOnlineArm.ts").to_owned()),
+        ("src/TrendingSnapshot.tsx", include_str!("social/TrendingSnapshot.tsx").to_owned()),
         ("src/useTyping.ts", include_str!("social/useTyping.ts").to_owned()),
         ("src/useOnceMedia.ts", include_str!("social/useOnceMedia.ts").to_owned()),
         ("src/Conversation.tsx", include_str!("social/Conversation.tsx").to_owned()),

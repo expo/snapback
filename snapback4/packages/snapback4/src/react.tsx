@@ -10,7 +10,7 @@ import { assetError, assetRetryAt } from "./asset-download.ts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
-import type { App, AppAuth, AuthSnapshot } from "./app.ts";
+import type { App, AppAuth, AuthSnapshot, Online } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
@@ -56,6 +56,13 @@ export function useClient(): Client {
   const client = useContext(ClientContext);
   if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
+}
+
+/** The app-owned server arm; follows account changes and credential rotation. */
+export function useOnline(): Online {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useOnline: no <AppProvider> above this component");
+  return useSyncExternalStore(app.onOnlineChange, () => app.online, () => app.online);
 }
 
 /** Server time for a render deadline. Re-render at that deadline and whenever

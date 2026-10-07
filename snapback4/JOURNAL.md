@@ -88892,3 +88892,84 @@ the second, decoded cursors flipped their inclusive bit, which skips or repeats
 a row on resume. The meter continuation oracle caught it with 1,105
 `meter--continued-data--array` disagreements. Both runs exited 1. The zero
 above is therefore a result and not a blind harness.
+
+## 2026-10-07 — OA: createApp owns its online arm
+
+On eb1000, branch `sb4-intent/oa-owned-online-arm`, starting from
+`2a5fc454aa`: added `app.online` and React `useOnline()` for server queries,
+observations, ephemeral signals and actions. The explicit projection exposes no
+bearer or lifecycle method. It uses the app's shared authority and checks the
+exact exposed arm again after asynchronous authority reads. Rotation, account
+change and sign-out fence old handles; dispatched signals/actions drain before
+private client closure, bounded by the existing 30-second one-shot lifetime.
+No retirement signs the app out. Read-only/no-device apps reuse their existing
+client; LLP 3000.033's fixed read lifetimes, epochs and sign-out watermarks remain
+unchanged. The decision and cited inventory are in LLP 3000.033 §1.8 and
+[the OA report](reports/20261007-oa-owned-online-arm/REPORT.md).
+
+Deleted the social starter's bearer-borrowing useOnlineArm. Conversation changes
+only its import/call to useOnline; useTyping's algorithm and all original typing
+assertions remain unchanged. Added the installed TrendingSnapshot recipe with
+matchRead, incomplete-coverage presentation, explicit Refresh and account-bound
+publication. Updated client/social guides, the client reference and starter
+README. The client card stays at 112 lines / 1,200 words; no budget increased.
+
+The requested full suite completed in 2,153 seconds with the SQLite memory-
+management flag: 308 Rust binaries / 1,021 executions plus doctests passed;
+339 client files reported 6,594 passes, 16 failures and 55 labelled skips; all
+79 model tests passed at 5,000 histories per session tier / 3,000 online-client
+sequences. The sole failed file's helper still copied the deleted hook; removing
+that entry makes all 16 unchanged screen-lifetime tests pass. This is a full run
+plus a corrected affected rerun, not a single-green-run qualification receipt.
+All 12 new lifecycle tests pass. Final generated-starter tests pass 15/15, guide
+113/113, published API/type examples 9/9; package typecheck/build passed. No
+persisted state changed; the optional published-binary downgrade control remains
+explicitly skipped. The report retains failures and reruns.
+
+Wasm is unchanged: 2,135,164 raw / 645,264 gzip bytes against the unchanged
+645,564 budget; SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83.
+The whole worktree uses about 14 GB, below 30 GB. Work stayed on this machine and
+in this worktree. No push or publication.
+
+
+## 2026-10-07 — OA round 1: the arm fence survives shared-client queues
+
+Astra's P1 reproduced three no-device escapes at `2447b74854`: a queued signal
+borrowed the replacement credential, an authority-waiting signal dispatched a
+retired bearer, and an old-account signal dispatched during provisional account
+replacement. The unchanged review reproducer failed all three before the fix
+and passes all five tests afterward. Grok's supplied review was READY; no new
+independent review verdict is claimed by this implementation entry.
+
+The owned arm now binds private operation copies to its originating arm and
+credential. Signal queues, refresh waits, observations and retries retain that
+fence; the app checks it after asynchronous shared authority, immediately before
+transport dispatch. Observation/renewal identities are private to the arm, while
+sharing within an arm remains. No metadata enters HTTP or persistent storage.
+Retiring one arm cannot revoke the shared client's current credential.
+Dispatched outcomes, including transport failures, remain intact. Both no-device
+modes still reuse their existing raw client; fixed read expiry, no refresh/write
+machinery, epochs and principal sign-out watermarks are unchanged.
+
+Typing retirement deliberately relies on the four-second schema expiry. Ordinary
+unmount can send stopTyping, but retirement cannot delay fencing or borrow a
+retired/replacement credential for cleanup. The guide, reference, starter README
+and LLP 3000.033 §1.8 state this explicitly. No Conversation/useTyping source or
+original typing/starter assertion changed in this round.
+
+Owned-arm tests grow from 12 to 32, covering both tiers plus all three review
+schedules, action refresh/retry waits, observation ownership, renewal reuse and
+transport-outcome preservation. The requested 27-file run passes 250 tests with
+one labelled downgrade-control skip; guide 113/113 and final client build/typecheck
+pass. The full suite with the SQLite flag completed in 2,055 seconds: 339 client
+files / 6,630 passes / 55 labelled skips, and all 79 full-count model tests pass.
+Of 1,021 scheduled Rust executions across 308 binaries, one CLI witness cleanup
+test failed on an invalid /proc process group; all others and doctests passed.
+The complete witness-preparation module passes 16/16 on its canonical single-
+thread rerun. Two earlier manual reruns used default parallelism and failed a
+fixture-startup case; those and the original full red remain in the evidence.
+This is a full run plus a passing affected rerun, not a single-green-run receipt.
+
+Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
+unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
+no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
