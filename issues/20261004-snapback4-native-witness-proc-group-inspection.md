@@ -63,3 +63,22 @@ Evidence is retained under
 `round3-full-suite.log.gz`, `round3-witness-rerun.log.gz` and
 `round3-cli-rerun.log.gz`. See that report's Round 3 section for the complete
 run's final disposition.
+
+
+## 2026-10-07 — RO Round 5 recurrence
+
+The complete RO Round 5 suite from implementation checkpoint `16fa765c09`
+reported the same diagnostic in
+`preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group`,
+at `preparation.rs:224:26` during `keeper.cleanup().unwrap()`. The CLI unit
+target reported 325 passed, one failed and four ignored. The Round 5 delta is
+SDK session custody, tests and documentation; no native witness code changed.
+
+The complete unchanged CLI unit target rerun passed 326 tests with four existing
+ignores, using the full runner's one test thread and the same build inputs. This
+does not erase the full-suite failure or identify its cause. No rejected stat
+snapshot was retained and no separate baseline binary was run in this round.
+Ownership and process-group checks remain unchanged.
+
+Evidence: `round5-full-suite.log.gz` and `round5-cli-rerun.log.gz` under the
+[RO report evidence](../snapback4/reports/20261006-ro-read-only/evidence/).
