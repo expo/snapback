@@ -52,7 +52,7 @@
     },
     "packages/snapback4": {
       "name": "snapback4",
-      "version": "0.4.14",
+      "version": "0.4.15",
       "bin": {
         "snapback4": "bin/snapback4.js",
       },
@@ -68,8 +68,8 @@
         "typescript": "5.9.3",
       },
       "optionalDependencies": {
-        "snapback4-darwin-arm64": "0.4.14",
-        "snapback4-linux-x64": "0.4.14",
+        "snapback4-darwin-arm64": "0.4.15",
+        "snapback4-linux-x64": "0.4.15",
       },
       "peerDependencies": {
         "react": "^19.0.0",
@@ -80,11 +80,11 @@
     },
     "packages/snapback4-darwin-arm64": {
       "name": "snapback4-darwin-arm64",
-      "version": "0.4.14",
+      "version": "0.4.15",
     },
     "packages/snapback4-expo": {
       "name": "snapback4-expo",
-      "version": "0.4.14",
+      "version": "0.4.15",
       "devDependencies": {
         "expo-modules-core": "*",
         "typescript": "5.9.3",
@@ -96,7 +96,7 @@
     },
     "packages/snapback4-linux-x64": {
       "name": "snapback4-linux-x64",
-      "version": "0.4.14",
+      "version": "0.4.15",
     },
   },
   "packages": {
