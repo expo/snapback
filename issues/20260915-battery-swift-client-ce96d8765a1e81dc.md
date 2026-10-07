@@ -13,12 +13,12 @@
 **Battery gate:** `swift-client`
 **Failure signature:** `sha256:ce96d8765a1e81dcfaa8b899f01e59e53d02b67bb6aabe1afb1d430f9bf6234a`
 **First observed run:** `local.20260915T080414Z.0c6b0c03cfea`
-**Last observed run:** `local.20261005T101501Z.ce196270d2a4`
-**Last processed run:** `local.20261005T101501Z.ce196270d2a4`
+**Last observed run:** `local.20261007T045641Z.4e0c6567f5a3`
+**Last processed run:** `local.20261007T045641Z.4e0c6567f5a3`
 **Detected at revision:** `0c6b0c03cfea21d65eab728035ef87776a4144a3`
-**Last observed revision:** `ce196270d2a4c13c8aaa1f1c14f510f8485fe0cb`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `4e0c6567f5a3dbd2d65326db080f59f8c1394fab`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ swift test --package-path clients/swift/SnapbackClient
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

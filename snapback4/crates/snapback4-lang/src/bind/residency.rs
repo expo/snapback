@@ -138,7 +138,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             }).enumerate() {
                 let location = format!("after insert {table} constraint {ordinal}");
                 fact.sites.push(site(schema, &location, target, index, "rule"));
-                for term in key { rule_term_sites(schema, term, &location, &mut fact.sites, &mut BTreeSet::new()); }
+                for term in key { rule_term_sites(schema, term, &location, &mut fact.sites, &mut BTreeSet::new(), true); }
                 aggregate_source_site(schema, target, &location, &mut fact.sites);
             }
         }
@@ -258,18 +258,23 @@ fn aggregate_source_site(schema: &Schema, table: &str, location: &str, sites: &m
     }
 }
 
-fn rule_term_sites(schema: &Schema, term: &snapback4_core::schema::RuleTerm, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
+// @ref LLP 3000.007#5.4 — legacy one-hop sites retain their exact bytes and
+// coalesce in locate_sites; only v2 forms persist per-occurrence explanations.
+// The separate cost walker still reports and charges every legacy occurrence.
+fn rule_term_sites(schema: &Schema, term: &snapback4_core::schema::RuleTerm, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>, final_key: bool) {
     for (table, _) in term.references() {
         let mut hop = event_site(schema, location, table, "byId", "rule reference", &[]);
-        let occurrence = sites.iter().filter(|site| site.kind == "rule reference").count() + 1;
-        hop.reason.push_str(&format!("; prepaid hop {occurrence}: 1 probe"));
+        if final_key || matches!(term, snapback4_core::schema::RuleTerm::ReferenceChain { .. }) {
+            let occurrence = sites.iter().filter(|site| site.kind == "rule reference").count() + 1;
+            hop.reason.push_str(&format!("; prepaid hop {occurrence}: 1 probe"));
+        }
         sites.push(hop);
         if seen.insert(table.into()) { rule_sites(schema, &schema.tables[table].rules.read, location, sites, seen); }
     }
 }
 
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
-    let term = |term: &snapback4_core::schema::RuleTerm, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>| rule_term_sites(schema, term, location, sites, seen);
+    let term = |term: &snapback4_core::schema::RuleTerm, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>| rule_term_sites(schema, term, location, sites, seen, false);
     match rule {
         RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { term(a,sites,seen); term(b,sites,seen); }
         RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => {

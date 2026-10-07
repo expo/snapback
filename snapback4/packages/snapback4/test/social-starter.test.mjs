@@ -9,6 +9,10 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import { DatabaseSync } from "node:sqlite";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import * as contract from "../dist/contract.js";
+import { readyRead } from "../dist/read-existence.js";
 import { createApp } from "snapback4/app";
 import { createClient, mintId } from "snapback4/client";
 import { login, memorySessionStore } from "snapback4/auth";
@@ -29,6 +33,65 @@ function starter(t) {
   }
   return dir;
 }
+
+// Host stubs isolate generated status text; browser tests own lifetimes/focus.
+test("generated feed, chats, profile and search preserve read-state text and controls", t => {
+  const dir = starter(t), require = createRequire(import.meta.url);
+  const React = require('react'), { renderToStaticMarkup } = require('react-dom/server');
+  let read;
+  const native = {
+    Text: ({ children }) => React.createElement('span', null, children),
+    View: ({ children }) => React.createElement('div', null, children),
+    ScrollView: ({ children }) => React.createElement('div', null, children),
+    TextInput: () => null,
+    Button: ({ title, disabled }) => React.createElement('button', { disabled }, title),
+  };
+  const hooks = {
+    ...contract, useQuery: () => read, usePage: () => ({ read, items: [], hasMore: !!read.next, loadMore() {} }),
+    useMutation: () => ({ inFlight: false }), usePendingWrites: () => [],
+    useViewer: () => 'viewer', useAuth: () => ({}),
+  };
+  for (const name of ['Feed', 'Chats', 'Profile', 'Search']) {
+    const module = { exports: {} };
+    const source = ts.transpileModule(readFileSync(join(dir, `src/${name}.tsx`), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+    }).outputText;
+    runInNewContext(source, { exports: module.exports, require: id => {
+      if (id === 'react-native') return native;
+      if (id === 'snapback4/react') return hooks;
+      if (id === 'snapback4/contract') return contract;
+      if (id === 'expo-router') return { router: {} };
+      if (id === '../snapback/generated/api') return { api: {} };
+      if (id === './ui') return { Avatar: () => null, PhotoPicker: () => null };
+      return require(id);
+    } });
+    const empty = name === 'Profile' ? null : [];
+    const data = name === 'Profile' ? { id: 'p', name: 'Visible name', avatar: null } : [{ id: 'row' }];
+    const ready = (data, flags = {}, pending = false) => readyRead({ data, complete: true, cut: null, fresh: true, ...flags }, pending);
+    for (const [value, label] of [
+      [{ loading: true }, 'Loading…'], [{ denied: { code: 'NO', family: 'rule', message: 'Read refused' } }, 'Read refused'],
+      [ready(empty), name === 'Search' ? 'No results' : ''],
+      [ready(empty, { fresh: false, revalidating: true }), name === 'Search' ? 'No results' : ''],
+      [ready(empty, { complete: false }), 'Partial results'], [ready(empty, { next: 'cursor' }), 'Partial results'],
+      [ready(empty, {}, true), 'Partial results'], [ready(data), ''],
+      [ready(data, { complete: false, fresh: false, revalidating: true }), name === 'Search' ? 'Partial results' : ''],
+      [ready(data, { cut: 'meter', complete: false }), name === 'Search' ? 'Partial results' : ''],
+      [ready(data, { next: 'cursor' }), name === 'Search' ? 'Partial results' : ''],
+    ]) {
+      read = value;
+      const html = renderToStaticMarkup(React.createElement(module.exports.default));
+      const labels = [...html.matchAll(/<span>(Loading…|Read refused|No results|Partial results)<\/span>/g)].map(match => match[1]);
+      assert.deepEqual(labels, label ? [label] : [], `${name}: ${JSON.stringify(value)}`);
+      if (name === 'Search') {
+        assert.equal(html.includes('Results from the last available snapshot'), 'data' in read && !read.fresh);
+        assert.equal(html.includes('Updating…'), 'data' in read && !!read.revalidating);
+      }
+      if (name !== 'Profile') {
+        assert.equal(/<button disabled="">More (posts|chats|matches)<\/button>/.test(html), !read.next);
+      }
+    }
+  }
+});
 
 test("social seed script creates two password accounts, signs in and refuses cross-user writes", { timeout: hangBudget(12) }, async t => {
   const generated = starter(t), api = await generatedApi(generated);

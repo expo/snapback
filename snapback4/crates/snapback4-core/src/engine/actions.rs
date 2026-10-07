@@ -404,7 +404,7 @@ fn result_assets(tx: &crate::store::Tx<'_>, spec: &ActionSpec, result: &Json) ->
         Ok(match kind {
             ArgType::Optional(_) if value.is_null() => true,
             ArgType::Optional(inner) => field(tx, inner, value)?,
-            ArgType::List { of: Some(inner), .. } => {
+            ArgType::List { of: Some(inner), .. } | ArgType::ListRange { of: Some(inner), .. } => {
                 for item in value.as_array().expect("validated list") {
                     if !field(tx, inner, item)? { return Ok(false); }
                 }

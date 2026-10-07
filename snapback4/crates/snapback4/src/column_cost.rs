@@ -15,7 +15,7 @@ fn value_bytes(kind: &ColumnType) -> Option<u64> {
         ColumnType::Bytes {max} => 2 + 2 * u64::from(*max),
         ColumnType::Enum {variants} => variants.iter().map(|v|string_bytes(v)).max().unwrap_or(2),
         ColumnType::Optional(inner) => value_bytes(inner)?.max(4),
-        ColumnType::List {of,max} => 2_u64.saturating_add(u64::from(*max).saturating_mul(value_bytes(of)?.saturating_add(1))),
+        ColumnType::List {of,max} | ColumnType::ListRange {of,max,..} => 2_u64.saturating_add(u64::from(*max).saturating_mul(value_bytes(of)?.saturating_add(1))),
         // Tagged JSON bounds the smaller untagged wire representation.
         ColumnType::Json {max_bytes} => u64::from(*max_bytes),
         // Asset map admission has no schema bound on extra metadata.

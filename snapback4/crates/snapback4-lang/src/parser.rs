@@ -898,12 +898,33 @@ impl Parser {
         if self.maybe("[") {
             let item = self.parse_type(column)?;
             self.take("]")?;
-            self.take("<=")?;
-            let max = self.number()?;
+            // @ref LLP 3000.007#5.4 — list ranges share text's inclusive spelling.
+            let bounds_error = |site: &Site| syntax_with(site, "list bounds require <=N or an inclusive a..b range", "write [T] <=N or [T] a..b, for example [int] 1..8").guide("types");
+            let number = |parser: &mut Self| -> Fallible<u32> {
+                if parser.at("-") {
+                    return Err(syntax(&parser.peek().site, "list bounds must be nonnegative integers"));
+                }
+                if !parser.at_kind(Kind::Number) { return Err(bounds_error(&parser.peek().site)); }
+                let token = parser.take_kind(Kind::Number)?;
+                if token.value.contains('.') {
+                    return Err(syntax(&token.site, "list bounds must be integers; fractional bounds are not allowed"));
+                }
+                token.value.parse::<u32>().map_err(|_| syntax(&token.site, "list bounds must be integers from 0 through 4294967295"))
+            };
+            let (min, max) = if self.maybe("<=") {
+                (0, number(self)?)
+            } else {
+                let min = number(self)?;
+                if !self.maybe(".") || !self.maybe(".") { return Err(bounds_error(&self.peek().site)); }
+                (min, number(self)?)
+            };
+            if min > max {
+                return Err(syntax(&site, "list minimum must not exceed its maximum"));
+            }
             if item.optional {
                 return Err(syntax(&site, "list element types cannot be optional"));
             }
-            kind = TypeKind::List { item: Box::new(item), max };
+            kind = TypeKind::List { item: Box::new(item), min, max };
         } else {
             let name = self.word()?;
             kind = match name.value.as_str() {

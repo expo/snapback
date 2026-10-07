@@ -1,0 +1,108 @@
+{
+  "completed_utc": "2026-10-07T07:30:20.254681+00:00",
+  "exit_code": 1,
+  "elapsed_seconds": 2386,
+  "merge_parents": [
+    "82c0f9e60c0a0fd3bf3be1e19ef7ab152dbb3807",
+    "c67b1c4f215c503867d1bf9fd1c242be7ab13909"
+  ],
+  "command": "bash snapback4/scripts/test.sh",
+  "environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RX_PUBLISHED_ROOT": "<worktree>/snapback4/target/rx/published"
+  },
+  "full_log_sha256": "a231aa31e35282771c0acb59640967773f2ee6a438cbceb1dd7d6c7b731f01ae",
+  "source_sha256_file": "source-sha256.json",
+  "rust_and_doctests": {
+    "passed": 5120,
+    "failed": 0,
+    "ignored": 33
+  },
+  "rust_inventory": {
+    "binaries": 307,
+    "executions": 1020
+  },
+  "docs_budget_named_guard": {
+    "passed": 1
+  },
+  "client_sections": {
+    "fixtures": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "client_pool": {
+      "tests": 6534,
+      "pass": 6482,
+      "fail": 1,
+      "cancelled": 1,
+      "skipped": 50,
+      "todo": 0
+    },
+    "client_models": {
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "failed_client_files": [
+    "residency.test.mjs",
+    "export-background.test.mjs"
+  ],
+  "complete_file_reruns": {
+    "residency": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "export_background": {
+      "passed": 58,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 36
+    }
+  },
+  "residency_case_controls": {
+    "rx": {
+      "passed": 10,
+      "failed": 0
+    },
+    "published_0_4_13_engine": {
+      "passed": 9,
+      "failed": 1,
+      "failure": "same recreated-watch timeout"
+    }
+  },
+  "wasm": {
+    "raw_bytes": 2135164,
+    "gzip_bytes": 645264,
+    "budget_bytes": 645564,
+    "provisional_macos_allowance": 300
+  },
+  "worktree_disk_bytes": 20569558143,
+  "stages": [
+    "-- ok: cargo build (288 s)",
+    "-- ok: wasm build (42 s)",
+    "-- ok: docs budget (34 s)",
+    "-- ok: release guard (3 s)",
+    "-- ok: package typecheck (3 s)",
+    "-- ok: package build (2 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (1027 s)",
+    "-- ok: chat app typecheck (2 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- FAIL: client tests (679 s)",
+    "-- ok: client models (308 s)"
+  ]
+}

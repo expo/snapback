@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "ni2-round2-runtime-baseline.v1",
+  "instrument": {
+    "commit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+    "inventorySha256": "299308af5e14d10ea1f345dabe8cf530fecc2a8f61a134219bc97d88b71a061c",
+    "instrumentPin": "social-messenger@0.4.0-native.2",
+    "scoredUse": false
+  },
+  "anchor": {
+    "schemaVersion": "clique-native-runtime-anchor.v1",
+    "proofSha256": "d67f694c38d104831ad94ea55af1d81843e048b83d30d1ee21e15342079ff54d",
+    "inputInventorySha256": "e31960ac803971140900c2b96f05ae342652ed8e8deec91deb0673707776193d",
+    "nativeSha256": "f708420b34646e53a8c7cd939601fca80113032fa1d1e7343717e38aa13aacc6",
+    "hermesSha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+  },
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2/runtime-proof-drain",
+  "pass": true,
+  "checks": [
+    "first-os-launch",
+    "secure-store-reset-through-ui",
+    "secure-store-write-read",
+    "first-process-terminated",
+    "secure-store-restored-after-relaunch",
+    "terminal-process-absent",
+    "helper-observed-both-processes",
+    "launch-through-restore-video-decodes"
+  ],
+  "video": {
+    "codec": "h264",
+    "decodedFrames": 837,
+    "durationSeconds": 43.065,
+    "decodedEndpoints": true
+  },
+  "evidenceFilesVerified": 38,
+  "runnerBinarySha256": "5060696693c826551f82db78d7afa64fb92e6412756e9015719d9b5993364044",
+  "finalSourceInputMatch": {
+    "instrument": {
+      "commit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+      "inventorySha256": "7502936bea8367523b0f2ede4b6a0a49045cf75595c3129a6f2f9e40237a7659",
+      "instrumentPin": "social-messenger@0.4.0-native.2",
+      "scoredUse": false
+    },
+    "files": 66,
+    "inputInventorySha256": "e31960ac803971140900c2b96f05ae342652ed8e8deec91deb0673707776193d",
+    "identicalToExecutedProofInputs": true,
+    "reason": "Final production/runtime map is byte-identical; subsequent passive control/test and pilot fixture/runtime-entry changes are outside compiled and proof input sets."
+  }
+}

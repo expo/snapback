@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "ni2-index-receipt.v1",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2",
+  "fileCount": 9921,
+  "totalBytes": 2200649648,
+  "largeFileCount": 255,
+  "largeBytes": 1693539049,
+  "indexes": {
+    "EVIDENCE-INDEX.json": {
+      "bytes": 2446255,
+      "sha256": "c06590d21a762a6f66fc8eb3451d6783cd8f1c0e5d336460dc225f03761ddfe2"
+    },
+    "LARGE-FILES.json": {
+      "bytes": 60898,
+      "sha256": "e486e43508de7cb13aace16f566a594c6d61f49b11e1196cb04ab47a942e54ba"
+    }
+  },
+  "verification": {
+    "checkedAt": "2026-10-06T10:55:31.134687+00:00",
+    "allIndexedFilesMatch": true,
+    "missingOrMismatchedFiles": [],
+    "remoteReadOnly": true,
+    "remoteArchiveFilesMatched": 3821,
+    "remoteArchiveBytes": 930063604,
+    "resumedFiles": [
+      "fresh-phase2-packet.tgz"
+    ],
+    "runnerProductFilesMatched": 1645,
+    "packetSealedFilesMatched": 633,
+    "packetPrelaunchFilesMatched": 86,
+    "packetSealSha256": "bdcdc5ead202ec15b4282164fe2eda78450a2882dc473fccbaacb4fe2dbd04e0",
+    "packetArchiveSha256": "7807caf9780c24ac8035e8e24e936b879b725eacd115ceea81c86c3e7368eb62",
+    "native1FilesUnchanged": 140,
+    "qualificationRerun": false,
+    "pilotLaunched": false
+  },
+  "custodyNote": "The full archive index was finalized after crash recovery. Remote archive files were first compared with a read-only SHA-256 inventory on the Apartment mini, the resumed packet with its pre-existing checksum and seal, and retained products with their pre-existing checksum files. The finalized index was then independently rehashed in full. Dependency/source caches are excluded as declared in the index."
+}

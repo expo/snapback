@@ -1,0 +1,44 @@
+[
+  {
+    "variant": "typed",
+    "attempt": 1,
+    "seconds": 0.06284052800037898,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 60.2 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  },
+  {
+    "variant": "typed",
+    "attempt": 2,
+    "seconds": 0.0612204390054103,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 58.5 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  },
+  {
+    "variant": "typed",
+    "attempt": 3,
+    "seconds": 0.0660072539903922,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 62.9 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  },
+  {
+    "variant": "explicit",
+    "attempt": 1,
+    "seconds": 0.0522985069983406,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 49.4 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  },
+  {
+    "variant": "explicit",
+    "attempt": 2,
+    "seconds": 0.053306868008803576,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 49.4 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  },
+  {
+    "variant": "explicit",
+    "attempt": 3,
+    "seconds": 0.05256523699790705,
+    "exit": 0,
+    "output": "check: ok \u2014 1 tables (0 synced), 1 operations, no problems, 49.4 ms\ncheck --verbose for explanations, rewrites and execution details; why <op> for one operation\n"
+  }
+]

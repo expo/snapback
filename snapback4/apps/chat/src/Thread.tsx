@@ -1,4 +1,4 @@
-import { existence } from "snapback4/contract";
+import { matchRead } from "snapback4/contract";
 import { useMutation, usePage, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
@@ -9,9 +9,11 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
   const unsend = useMutation(api.unsend);
   return <section aria-label="Thread" style={{ display: "contents" }}>
-    {existence(read) === "loading" ? <p role="status">Loading held history…</p> : null}
-    {existence(read) === "partial" ? <p role="status">Some history is not available on this device.</p> : null}
-    {"denied" in read ? <p role="alert">{read.denied.message}</p> : null}
+    {matchRead(read, {
+      loading: () => <p role="status">Loading held history…</p>,
+      partial: () => <p role="status">Some history is not available on this device.</p>,
+      denied: why => <p role="alert">{why.message}</p>, otherwise: () => null,
+    })}
     {"data" in read && !read.fresh ? <small className="note">As of {read.since ? new Date(read.since).toLocaleTimeString() : "the last sync"}</small> : null}
     {hasMore ? <button type="button" onClick={loadMore}>Load older messages</button> : null}
     <ol className="bubbles">

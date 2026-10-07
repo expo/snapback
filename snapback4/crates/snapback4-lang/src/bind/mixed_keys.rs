@@ -4,7 +4,7 @@ use super::{catalog::{Catalog, TableInfo}, intent_walk as walk};
 use crate::{ast::*, diag::{Diagnostic, Fallible, Site}, print};
 use std::{borrow::Cow, collections::BTreeMap};
 
-pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&str>, site: &Site, synthesized: &std::collections::BTreeSet<(String, String)>) -> Fallible<Cow<'a, [KeyPart]>> {
+pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&str>, site: &Site, synthesized: &std::collections::BTreeSet<(String, String)>, types: Option<&[(crate::types::Ty, bool)]>) -> Fallible<Cow<'a, [KeyPart]>> {
     if !parts.iter().any(|key| key.column.is_some()) || !parts.iter().any(|key| key.column.is_none()) { return Ok(Cow::Borrowed(parts)); }
     let prefix = parts.iter().take_while(|key| key.column.is_none()).count();
     if let Some(late) = parts[prefix..].iter().find(|key| key.column.is_none()) {
@@ -14,7 +14,12 @@ pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&s
     }
     let declared: Vec<_> = table.indexes.iter().filter(|key| key.unique
         && !synthesized.contains(&(table.decl.name.clone(), key.name.clone()))).collect();
-    let candidates: Vec<_> = declared.iter().copied().filter(|key| key.columns.len() == prefix && index.is_none_or(|name| name == key.name)).collect();
+    let candidates: Vec<_> = if let Some(types) = types {
+        let read = ReadExpr { table: table.decl.name.clone(), keys: parts[..prefix].to_vec(), index: index.map(str::to_owned), site: site.clone(),
+            cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), range: None, matching: None, filter: None, seeks: Vec::new() };
+        super::positional_keys::candidates(table, &read, types, synthesized).into_iter()
+            .filter(|key| key.unique && key.columns.len() == prefix).collect()
+    } else { declared.iter().copied().filter(|key| key.columns.len() == prefix && index.is_none_or(|name| name == key.name)).collect() };
     let chosen = match candidates.as_slice() {
         [chosen] if table.total_unique(chosen) => *chosen,
         _ => {
@@ -44,9 +49,17 @@ fn spelling(part: &KeyPart) -> String {
 }
 
 pub(super) fn read<'a>(table: &TableInfo, read: &'a ReadExpr, catalog: &Catalog) -> Fallible<Cow<'a, ReadExpr>> {
-    Ok(match keys(table, &read.keys, read.index.as_deref(), &read.site, &catalog.synthesized)? {
+    read_typed(table, read, catalog, None)
+}
+
+pub(super) fn read_typed<'a>(table: &TableInfo, read: &'a ReadExpr, catalog: &Catalog, types: Option<&[(crate::types::Ty, bool)]>) -> Fallible<Cow<'a, ReadExpr>> {
+    Ok(match keys(table, &read.keys, read.index.as_deref(), &read.site, &catalog.synthesized, types)? {
         Cow::Borrowed(_) => Cow::Borrowed(read),
-        Cow::Owned(keys) => Cow::Owned(ReadExpr { keys, ..read.clone() }),
+        Cow::Owned(keys) => {
+            let index = types.and_then(|types| super::positional_keys::candidates(table, read, types, &catalog.synthesized)
+                .first().map(|index| index.name.clone())).or_else(|| read.index.clone());
+            Cow::Owned(ReadExpr { keys, index, ..read.clone() })
+        },
     })
 }
 
@@ -61,7 +74,7 @@ pub(super) fn normalize(catalog: &mut Catalog) {
             _ => return,
         };
         if let Some(table) = tables.get(name)
-            && let Ok(Cow::Owned(named)) = keys(table, parts, index, site, &catalog.synthesized) { *parts = named; }
+            && let Ok(Cow::Owned(named)) = keys(table, parts, index, site, &catalog.synthesized, None) { *parts = named; }
     };
     for table in catalog.tables.values_mut() {
         for rule in &mut table.decl.rules { walk::expression(&mut rule.value, &mut visit); }

@@ -64,4 +64,8 @@ test('check --cost and why list each prepaid hop, including final obligations', 
   assert.equal((why.match(/write rule hop/g)??[]).length,5);
   assert.match(cost,/after insert hop 1: messages.*1 prepaid rule probe/);
   assert.match(run(['why','obligation']),/after insert hop 1: messages.*1 prepaid rule probe/);
+  const legacy=readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/rx/legacy-one-hop.q'),'utf8');
+  writeFileSync(join(dir,'snapback/schema.q'),legacy);
+  assert.equal((run(['why','add']).match(/write rule hop/g)??[]).length,3,
+    'legacy certificate sites coalesce, but cost output still lists all three occurrences');
 });

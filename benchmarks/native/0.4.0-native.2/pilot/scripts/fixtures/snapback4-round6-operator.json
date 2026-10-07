@@ -1,0 +1,36 @@
+{
+  "prepareArgv": [
+    "bash",
+    "scripts/native-prepare.sh"
+  ],
+  "buildArgv": [
+    "bash",
+    "scripts/native-build.sh",
+    "@DERIVED@",
+    "@UDID@"
+  ],
+  "app": "@DERIVED@/Build/Products/Release-iphonesimulator/Clique.app",
+  "bundleId": "dev.clique.pilot.snapback4",
+  "backendArgv": [
+    "bash",
+    "scripts/native-backend.sh",
+    "@STORE@",
+    "@ORIGIN@"
+  ],
+  "webArgv": [
+    "node",
+    "scripts/serve-web.mjs",
+    "@WEB_ORIGIN@"
+  ],
+  "seedArgv": [
+    "node",
+    "scripts/native-seed.mjs",
+    "@STORE@"
+  ],
+  "oracleArgv": [
+    "node",
+    "scripts/native-oracle.mjs"
+  ],
+  "ordinaryImage": "native-fixtures/ordinary.png",
+  "viewOnceImage": "native-fixtures/once.png"
+}

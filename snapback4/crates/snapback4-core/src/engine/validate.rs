@@ -70,11 +70,32 @@ pub fn validate_column(table_name: &str, name: &str, kind: &ColumnType, value: O
     if let Some(code_point) = disallowed_control(kind, value) {
         return Err(RuntimeError::Input(format!("{label} contains disallowed control character U+{code_point:04X}")));
     }
+    validate_column_minimum(kind, value, &label)?;
     if !fits(kind, value) {
         return Err(RuntimeError::Input(match value {
             None | Some(Value::Null) => format!("{label} is required ({kind})"),
             Some(value) => format!("{label} must be {kind}, not {}", describe(value)),
         }));
+    }
+    Ok(())
+}
+
+// @ref LLP 3000.007#5.4 — nested/optional columns use the same minimum on server and device writes.
+fn validate_column_minimum(kind: &ColumnType, value: Option<&Value>, label: &str) -> Result<(), RuntimeError> {
+    match (kind, value) {
+        (ColumnType::Optional(inner), Some(value)) => validate_column_minimum(inner, Some(value), label),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(items))) => {
+            if let ColumnType::ListRange { min, .. } = kind { validate_list_minimum(label, items.len(), *min)?; }
+            for item in items { validate_column_minimum(of, Some(item), label)?; }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_list_minimum(label: &str, length: usize, min: u32) -> Result<(), RuntimeError> {
+    if length < min as usize {
+        return Err(RuntimeError::Input(format!("{label} needs at least {min} {}; got {length}", if min == 1 { "item" } else { "items" })));
     }
     Ok(())
 }
@@ -112,7 +133,7 @@ pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextForma
 fn disallowed_control(kind: &ColumnType, value: Option<&Value>) -> Option<u32> {
     match (kind, value) {
         (ColumnType::Optional(inner), Some(value)) => disallowed_control(inner, Some(value)),
-        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values.iter().find_map(|value| disallowed_control(of, Some(value))),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(values))) => values.iter().find_map(|value| disallowed_control(of, Some(value))),
         (ColumnType::Text { .. }, Some(Value::String(text))) => disallowed_text_control(text),
         _ => None,
     }
@@ -127,7 +148,7 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
     match (kind, value) {
         (ColumnType::Optional(_), None | Some(Value::Null)) => true,
         (ColumnType::Optional(inner), Some(value)) => fits(inner, Some(value)),
-        (ColumnType::List { of, max }, Some(Value::Array(values))) => values.len() <= *max as usize && values.iter().all(|value| fits(of, Some(value))),
+        (ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. }, Some(Value::Array(values))) => values.len() <= *max as usize && values.iter().all(|value| fits(of, Some(value))),
         // @ref LLP 3000#7-decisions-during-execution — typed references do not imply target existence
         (ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
         (ColumnType::Text { max }, Some(Value::String(text))) => text.chars().count() <= *max as usize,
@@ -172,7 +193,7 @@ fn validate_arguments(schema: &Schema, program: &Program, inputs: &mut BTreeMap<
 
 pub fn validate_arg(schema: &Schema, kind: &ArgType, value: &Value, label: &str) -> Result<(), RuntimeError> {
     if !kind.bounds_valid() {
-        return Err(RuntimeError::Input(format!("{label} has text min greater than max")));
+        return Err(RuntimeError::Input(format!("{label} has a minimum greater than its maximum")));
     }
     crate::value::validate_identities(value)?;
     if contains_system_principal(value) {
@@ -202,8 +223,9 @@ pub fn validate_arg(schema: &Schema, kind: &ArgType, value: &Value, label: &str)
             }
             other => Err(RuntimeError::Input(format!("{label} must be text, not {}", describe(other)))),
         },
-        ArgType::List { of, max } => match value {
+        ArgType::List { of, max } | ArgType::ListRange { of, max, .. } => match value {
             Value::Array(items) => {
+                if let ArgType::ListRange { min, .. } = kind { validate_list_minimum(label, items.len(), *min)?; }
                 if items.len() > *max as usize {
                     return Err(RuntimeError::Input(format!("{label} has more than {max} items")));
                 }

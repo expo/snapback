@@ -14,6 +14,10 @@ occurrence prepays its probe, and missing device coverage withholds prediction.
 Private fields, maintained values, ephemeral targets and paths beyond three
 hops remain refused with specific reasons and concrete mutation checks.
 
+Round 1 below preserves exact 0.4.13 one-hop backend identity and merges main.
+Its focused checks pass; the full client pool recorded two intermittent
+timeouts, whose complete file reruns pass. Those outcomes are kept separate.
+
 The exact commission example already works on the base. RX does not claim to
 have introduced depth-one probe keys: it preserves them, admits chains and
 named-id lookup spelling, and closes a retained-coverage hole exposed by the
@@ -133,9 +137,10 @@ Separate boundary tests set the probe ceiling one below the required amount
 and receive E_BOUND even when the path would be short-circuited. Hidden/absent
 parents of different sizes have identical public refusal and complete logical
 meter tuples. No resource ceiling or target-resolution fence is relaxed.
-`check --cost` and `why` list every hop; residency certificates retain distinct
-occurrences, every target read rule, final-obligation dependencies and receipt
-field dependencies.
+`check --cost` and `why` list every hop. After the round-1 compatibility
+correction below, residency certificates retain distinct chain/final-key
+occurrences and legacy ordinary one-hop coalescing, every target read rule,
+final-obligation dependencies and receipt field dependencies.
 
 Final obligations resolve from their inserted image at transaction end, under
 a prepaid authorized scope. Their returned key copies retain a separate heap
@@ -178,9 +183,10 @@ Changed persisted/catalog representation:
 - Both cases add `rule-reference-v2` to the existing exact
   `Constraint::Capabilities` carrier. Existing ordinary effect references
   also retain `rule-reference` as before.
-- Execution-site metadata enumerates prepaid hop occurrences. That changes
-  metadata for existing hop operations too. Schema/backend generation identity
-  includes the changed representation; persisted schema/backend JSON changes.
+- Execution-site metadata enumerates prepaid hop occurrences for new chains
+  and final reference keys. Round 0 also changed existing one-hop operation
+  metadata, causing an unnecessary generation reset; round 1 below corrects
+  that regression and preserves exact legacy schema/backend bytes.
 
 Unchanged: application row payloads, capture fields, stored keys/index encoding,
 partition-log format, mutation arguments, client answer contract and program
@@ -310,3 +316,150 @@ No new design document or gate was introduced. The existing §5.4 and guide
 are amended; the journal is append-only. Hand-off: the user's planned Darwin
 qualification and subsequent integration/publication, plus the separate
 native-export status investigation linked above.
+
+## Round 1 — legacy identity and merged qualification (2026-10-07)
+
+Both independent round-0 reviews returned READY WITH CHANGES for the same
+blocking regression. Their review inputs are pinned in
+[review-inputs.json](./round-1/review-inputs.json). The author separately reports
+that the mini passed the Darwin fence 7/7 and the RX capability test 2/2.
+Those are author-provided round-0 results, not executions by this Linux lane.
+
+### Compatibility correction
+
+Round 0 appended per-occurrence prepaid-hop text to every ordinary one-hop
+execution site. These reasons participate in deduplication as well as schema
+serialization. Repeated references therefore gained extra sites, changing
+schema hash and generation for unchanged 0.4.13 source. Both reviewers observed
+a reset to watermark zero and E_PREDICT; the normal reset path could also
+remove retained images. Removing only the explanatory suffix after site
+construction would not necessarily restore the original list.
+
+`bind/residency.rs` now constructs ordinary `Reference` sites exactly as
+0.4.13 did, including the original reasons and existing location-time
+coalescing. Per-occurrence metadata is emitted only for `ReferenceChain` terms
+and final-obligation reference keys, which already require
+`rule-reference-v2`. The runtime cost path is unchanged; the separate `why`
+walker continues to enumerate all three repeated one-hop terms in the new
+fixture. No adoption exception, hash-field exclusion or device reset bypass
+was added. New-chain/final-key compatibility fences remain in force.
+
+The always-run Rust regression freezes complete backends from the actual
+published 0.4.13 compiler, with package integrity and source/byte digests in
+[fixture provenance](../../crates/snapback4-lang/tests/fixtures/rx/legacy-provenance.json).
+The one-hop case covers repeated comparisons, a hop used as a probe key,
+named old/next updates, deletes and an ordinary final obligation. Before the
+fix, the zero-hop control passed and the one-hop case failed on its exact site
+list ([tests-first evidence](./round-1/identity-before.log)). After the fix,
+both site lists, schema hashes and entire backend byte strings match:
+
+| Fixture | Schema SHA-256 | Backend bytes |
+| --- | --- | ---: |
+| One hop | `72447063284f66bdbb74899ae2f677c9a0f23e535d6c69c73890b4b98ce1ab44` | 7,672 |
+| Zero hops | `696a0bff0d86df317b3ac2a823942947878d8d7a75b67c678b4f72ec42fdfbfd` | 5,438 |
+
+The published-package client regression independently creates both server
+stores using 0.4.13, recompiles/adopts unchanged source with the merged CLI,
+and compares generation, schema/program/backend bytes and stored rows. It
+acquires real native and wasm devices at watermark 42 and admits a pending
+edit with the old engine. Native upgrade and explicit adoption preserve the
+row/index images and confirmed base beneath that pending edit; completed
+snapshot staging remains empty. Wasm persisted open and explicit adoption
+both retain generation 1, watermark 42 and the same local child query without
+E_PREDICT. The native device is also reopened once more without a supplied
+backend. The frozen Rust checks run without external packages; the real
+published-engine checks run here with `RX_PUBLISHED_ROOT` and no skips.
+
+The governing context is LLP 3000.007 §5.4 (one-hop compatibility, new live
+chains, costs and certificates), LLP 3000.001 (durable device images and
+acquisition), and LLP 3000.014 (unchanged read-through/lifetime contract).
+The active constraint is exact old identity, not a metadata-only migration:
+only already-fenced v2 forms gain serialized occurrence sites. The code's
+existing generation/reset rules remain authoritative. LLP §5.4 is amended;
+no new LLP or workflow hand-off is needed.
+
+### Merge and wasm
+
+Merged `origin/main` at `c67b1c4f21` into `82c0f9e60c` with `git merge`, not a
+rebase. This includes LB and PK. Source merges were automatic; conflicts in
+LLP 3000.007, the append-only journal and the wasm budget retain both lanes'
+records. PK's `bind/program.rs` is exactly the merged main version.
+
+The merged Linux artifact is **2,135,164 B raw / 645,264 B gzip** with locked
+Binaryen 132. The cap is **645,564 B = 645,264 B Linux + 300 B provisional
+macOS allowance**. Main's LB cap was 641,638 B. The first measurement correctly
+failed against that inherited cap by 3,626 B; the new cap rises 3,926 B from
+main. Against RX round 0, the merged artifact grows 5,329 B raw / 2,166 B gzip;
+this is a whole merged-artifact delta, not a per-feature attribution.
+
+The author measured round-0 macOS at **643,358 B gzip**, compared with this
+lane's **643,098 B Linux**: a **260 B** host gap. This disproves the old
+130 B allowance. The requested 300 B allowance is provisional; the merged
+Mac artifact awaits the author's mini remeasurement. No Mac was used here,
+and no runtime meter ceiling changes.
+
+### Verification
+
+Qualification uses Node 24.13.1, eight Cargo jobs, disabled incremental
+compilation and dev/test debug information, and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`. The completed full run and focused results are distinguished below.
+
+| Focused check | Result | Evidence |
+| --- | --- | --- |
+| RX binder/enforcement, legacy identity, QE2, guide, lowering | 160 passed; includes 113 guide and 11 lowering tests | [language](./round-1/lang.log) |
+| NL intent-null and pure-call narrowing targets | 18 passed | [NL language](./round-1/nl-lang.log) |
+| Core QE2 allocation/meter regressions | 10 passed | [core](./round-1/core.log) |
+| Entire device crate, including RX, QE2, NL and doctests | 1,465 passed, four declared ignores | [device](./round-1/device.log.gz) |
+| Both RX client files, actual published Linux/wasm packages | 7 passed, zero skips | [clients](./round-1/client.log) |
+| Merged wasm budget | 2,135,164 raw / 645,264 gzip; cap 645,564 | [wasm](./round-1/wasm-final.log) |
+
+The affected RX diff passes `git diff --check origin/main`. Checking the merge
+against its RX parent also reports three whitespace-only findings in unchanged
+native benchmark files inherited from main; those files match main exactly.
+The source census stays within 1,500 lines across 1,656 source files. The
+reference audit passes with 530 LLP documents, 10,454 references, zero errors
+and zero unchecked references. Plain text log copies normalize only trailing
+blank framing; compressed full logs retain the complete original bytes.
+
+The full client pool completed all **328 files**, with **326 passing** and
+two timeout cases: 6,482 test passes, one assertion failure, one cancellation
+and 50 declared skips. All seven RX client checks passed inside the pool,
+including the actual published-engine controls without skips. This is a red
+client stage, not a claimed all-green full suite.
+
+- `residency.test.mjs:121`: the recreated offline watch did not satisfy its
+  remembered-row/freshness predicate before the 122-second guard. Its full
+  ten-test rerun passed. Ten repeated RX checks passed; the published 0.4.13
+  engine reproduced the identical timeout in trial 7 of ten. The test and
+  relevant client read/watch/native files are identical to pre-RX base
+  `9bcf6cfb630e`; the current SDK adds only an unused `matchRead` helper and
+  React export in this comparison. These are published-engine controls with
+  current client code, not a claim of a fully published SDK installation.
+  [Issue and evidence](../../../issues/20261007-snapback4-recreated-offline-watch-timeout.md).
+- `export-background.test.mjs:532`: the real retention-deadline case timed out
+  at its 120-second test bound. The complete file rerun passed **58 tests**
+  with 36 platform skips and no cancellation in 309 seconds. Cause and
+  baseline reproducibility remain unconfirmed. The exporter/test code is
+  unchanged by RX; published 0.4.13 lacks the current maintenance protocol
+  and is not a valid control for this case.
+  [Issue and evidence](../../../issues/20261007-snapback4-export-maintenance-deadline-timeout.md).
+
+No client implementation, assertion, hang guard, deadline, test count or runner
+concurrency was changed. The original failures, complete-file reruns and all
+twenty residency control trials remain in this report's round-1 evidence.
+
+The full script completed in **2,386 seconds**, exit **1** for the client
+stage described above. Its Rust stage passed **5,120 tests** with 33 declared
+ignores (307 binaries, 1,020 executions, plus doctests); the docs-budget named
+guard also passed. Both default-count serial models passed **79 tests**, zero
+skips. Fixture wrapper tests passed 9/9. Build, wasm, docs budget, release guard,
+package/app typechecks and chat schema check all passed. Complete execution and
+counts: [full log](./round-1/full-suite.log.gz),
+[summary](./round-1/full-suite-summary.json). The complete-file rechecks cover
+both observed client failures, but are not represented as a green whole-script
+run. The two open follow-ups retain the unexplained intermittent behavior.
+
+Final source/metric hashes are in [the round-1 snapshot](./round-1/source-sha256.json).
+Final worktree disk use is **20,569,558,143 bytes (19.16 GiB)**, below 40 GB;
+the largest sampled `du -sh` was 20G. All work stayed on eb1000 in this worktree.
+Nothing was pushed or published.

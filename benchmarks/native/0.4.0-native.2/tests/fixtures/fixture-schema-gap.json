@@ -1,0 +1,22 @@
+{
+  "convex": {
+    "source": "/Users/ccheever/clique-native-pilot-20261005/attempts/convex-builder-completed/evidence/native-adapter-fixture.json",
+    "sha256": "a1a2533745c9e430da9024bfe0308a0981418182f6e3418bbbaee2d5fb8142e0",
+    "schemaErrors": [],
+    "semanticRefusal": "fixture-compose-nonce",
+    "queuedBodies": [
+      "First queued message 142ed513-dacc-4219-bf29-3098db534c1c",
+      "Second queued message 142ed513-dacc-4219-bf29-3098db534c1c"
+    ]
+  },
+  "snapback4": {
+    "source": "/Users/ccheever/clique-native-pilot-20261005/attempts/snapback4-builder-completed/evidence/native-adapter-fixture.json",
+    "sha256": "d29b5c56936822883e8126624e12cd33a63cf12bc9dea52adfaa0d248b915148",
+    "schemaErrors": [],
+    "semanticRefusal": "fixture-compose-nonce",
+    "queuedBodies": [
+      "Native queued first f2106546-215d-4063-a277-99b0e0a36d4e",
+      "Native queued second f2106546-215d-4063-a277-99b0e0a36d4e"
+    ]
+  }
+}

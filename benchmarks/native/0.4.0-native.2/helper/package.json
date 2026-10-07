@@ -1,0 +1,1 @@
+{"name":"clique-native-observer","version":"0.4.0-native.2","main":"index.ts","exports":{".":{"types":"./index.ts","default":"./index.ts"},"./fixture":{"types":"./fixture.d.mts","default":"./fixture.mjs"},"./rendered-rows":{"types":"./rendered-rows.d.mts","default":"./rendered-rows.mjs"}},"peerDependencies":{"expo":"*","react":"*","react-native":"*"}}

@@ -1,0 +1,19 @@
+(node:638189) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ published 0.4.13 zero-hop upgrade keeps backend bytes, acquisition and images on native and wasm (197.452379ms)
+ℹ zero-hop: schema 696a0bff0d86df317b3ac2a823942947878d8d7a75b67c678b4f72ec42fdfbfd, 5438 backend bytes; generation 1, watermark 42 retained
+✔ published 0.4.13 one-hop upgrade keeps backend bytes, acquisition and images on native and wasm (141.540111ms)
+ℹ one-hop: schema 72447063284f66bdbb74899ae2f677c9a0f23e535d6c69c73890b4b98ce1ab44, 7672 backend bytes; generation 1, watermark 42 retained
+✔ published 0.4.13 rejects RX chain on initial device open, persisted reopen and engine store (108.802324ms)
+✔ published 0.4.13 rejects RX final on initial device open, persisted reopen and engine store (94.183059ms)
+✔ wasm: table membership and live chains govern actual client mutations (824.513402ms)
+✔ process: table membership and live chains govern actual client mutations (344.263372ms)
+✔ check --cost and why list each prepaid hop, including final obligations (83.369639ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1409.697647

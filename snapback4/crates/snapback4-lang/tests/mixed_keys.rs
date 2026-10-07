@@ -146,7 +146,7 @@ fn incomplete_ambiguous_and_non_unique_positional_prefixes_name_declared_keys() 
     for declarations in ["unique org, principal", "by byOrgPrincipal: org, principal", "unique org, principal\n  unique org, role"] {
         let source = SOURCE.replace("unique org, principal", declarations);
         let b = compile_source(&source);
-        if declarations != "unique org, principal" {
+        if declarations == "by byOrgPrincipal: org, principal" {
             let d = b.diagnostics.iter().find(|d| d.code == "E_QUARRY_POSITIONAL_SCAN").unwrap();
             assert!(!d.rewrite.contains("$intent:"));
             assert!(d.rewrite.contains("id =") || d.rewrite.contains("org ="));
@@ -263,4 +263,11 @@ fn pasted_write_rewrites_preserve_arithmetic_and_boolean_grouping() {
         }
         assert_eq!(e.store().rows("members").unwrap()[0].field("n").unwrap(), &Value::Int(expected), "{pasted}");
     }
+}
+
+#[test]
+fn explicit_mixed_key_still_needs_a_complete_positional_prefix() {
+    let source = "table members:\n  org: id\n  principal: principal\n  role: text <=20\n  unique pair: org, principal\n  public\n  online only\nquery q(org: id):\n  return members[org, role = 'admin'] by pair\n";
+    let b = compile_source(source);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_POSITIONAL_SCAN"), "{:?}", b.diagnostics);
 }

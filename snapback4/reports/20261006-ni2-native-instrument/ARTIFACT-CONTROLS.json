@@ -1,0 +1,538 @@
+{
+  "instrumentSource": "ca4a9e11b8eb51ce1ba85abdeb1e52a99f9a71b5",
+  "allMatched": true,
+  "segments": [
+    {
+      "segment": "m6",
+      "controls": 47,
+      "allMatched": true,
+      "negative": 45,
+      "positive": 2,
+      "results": [
+        {
+          "control": "scaled-098-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 5.045,
+          "operatorSteps": 1
+        },
+        {
+          "control": "scaled-090-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.944,
+          "operatorSteps": 1
+        },
+        {
+          "control": "scaled-050-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.917,
+          "operatorSteps": 1
+        },
+        {
+          "control": "scaled-025-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.925,
+          "operatorSteps": 1
+        },
+        {
+          "control": "scaled-125-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 5.071,
+          "operatorSteps": 1
+        },
+        {
+          "control": "scaled-0733-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.885,
+          "operatorSteps": 1
+        },
+        {
+          "control": "matted-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.841,
+          "operatorSteps": 1
+        },
+        {
+          "control": "framed-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 5.056,
+          "operatorSteps": 1
+        },
+        {
+          "control": "clipped-bright-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 7.596,
+          "operatorSteps": 1
+        },
+        {
+          "control": "pre-reopen-viewonce-load",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-reloaded-in-cold-process",
+          "expectedReason": "viewonce-reloaded-in-cold-process",
+          "matched": true,
+          "wallSeconds": 7.539,
+          "operatorSteps": 1
+        },
+        {
+          "control": "online-viewonce-load",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-reloaded-in-cold-process",
+          "expectedReason": "viewonce-reloaded-in-cold-process",
+          "matched": true,
+          "wallSeconds": 7.771,
+          "operatorSteps": 1
+        },
+        {
+          "control": "elsewhere-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.963,
+          "operatorSteps": 1
+        },
+        {
+          "control": "bright-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 5.093,
+          "operatorSteps": 1
+        },
+        {
+          "control": "contrast-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 5.076,
+          "operatorSteps": 1
+        },
+        {
+          "control": "invented-video-sample",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "video-sample-count-mismatch",
+          "expectedReason": "video-sample-count-mismatch",
+          "matched": true,
+          "wallSeconds": 0.683,
+          "operatorSteps": 1
+        },
+        {
+          "control": "extended-video-endpoint",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "video-endpoint-uncovered",
+          "expectedReason": "video-endpoint-uncovered",
+          "matched": true,
+          "wallSeconds": 0.713,
+          "operatorSteps": 1
+        },
+        {
+          "control": "undecodable-video",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "invalid-video-timing",
+          "expectedReason": "invalid-video",
+          "matched": true,
+          "wallSeconds": 0.608,
+          "operatorSteps": 1
+        },
+        {
+          "control": "retargeted-viewonce",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-frame-mismatch",
+          "expectedReason": "viewonce-frame-mismatch",
+          "matched": true,
+          "wallSeconds": 1.981,
+          "operatorSteps": 1
+        },
+        {
+          "control": "stale-viewonce-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-viewonce-pixels",
+          "expectedReason": "stale-viewonce-pixels",
+          "matched": true,
+          "wallSeconds": 4.921,
+          "operatorSteps": 1
+        },
+        {
+          "control": "wrong-prime-pixels",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "prime-viewonce-pixel-mismatch",
+          "expectedReason": "prime-viewonce-pixel-mismatch",
+          "matched": true,
+          "wallSeconds": 1.821,
+          "operatorSteps": 1
+        },
+        {
+          "control": "buffered-viewonce-load",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-reloaded-in-cold-process",
+          "expectedReason": "viewonce-reloaded-in-cold-process",
+          "matched": true,
+          "wallSeconds": 7.597,
+          "operatorSteps": 1
+        },
+        {
+          "control": "async-viewonce-load",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-reloaded-in-cold-process",
+          "expectedReason": "viewonce-reloaded-in-cold-process",
+          "matched": true,
+          "wallSeconds": 7.648,
+          "operatorSteps": 1
+        },
+        {
+          "control": "old-viewonce-refusal",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "viewonce-refusal-missing",
+          "expectedReason": "viewonce-refusal-missing",
+          "matched": true,
+          "wallSeconds": 7.597,
+          "operatorSteps": 1
+        },
+        {
+          "control": "sent-native-a05",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "receipt-accessibility:read",
+          "expectedReason": "receipt-accessibility:read",
+          "matched": true,
+          "wallSeconds": 7.588,
+          "operatorSteps": 1
+        },
+        {
+          "control": "sent-screen-receipts",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "read-render-event",
+          "expectedReason": "read-render-event",
+          "matched": true,
+          "wallSeconds": 7.807,
+          "operatorSteps": 1
+        },
+        {
+          "control": "late-native-snapshot",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "receipt-native-outside-window",
+          "expectedReason": "receipt-native-outside-window",
+          "matched": true,
+          "wallSeconds": 7.59,
+          "operatorSteps": 1
+        },
+        {
+          "control": "short-duplicate-window",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "duplicate-window-too-short",
+          "expectedReason": "duplicate-window-too-short",
+          "matched": true,
+          "wallSeconds": 1.945,
+          "operatorSteps": 1
+        },
+        {
+          "control": "short-duplicate-samples",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "duplicate-sample-span-too-short",
+          "expectedReason": "duplicate-sample-span-too-short",
+          "matched": true,
+          "wallSeconds": 1.872,
+          "operatorSteps": 1
+        },
+        {
+          "control": "stale-nonce",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "stale-or-unsupported-observation",
+          "expectedReason": "stale-or-unsupported-observation",
+          "matched": true,
+          "wallSeconds": 1.497,
+          "operatorSteps": 1
+        },
+        {
+          "control": "replayed-events",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "observation-sequence-gap-or-replay",
+          "expectedReason": "observation-sequence-gap-or-replay",
+          "matched": true,
+          "wallSeconds": 1.456,
+          "operatorSteps": 1
+        },
+        {
+          "control": "missing-video",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "evidence-missing:m6-ios-screen.mp4",
+          "expectedReason": "evidence-missing:",
+          "matched": true,
+          "wallSeconds": 0.074,
+          "operatorSteps": 1
+        },
+        {
+          "control": "hash-mismatched-video",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "evidence-hash-mismatch:m6-ios-screen.mp4",
+          "expectedReason": "evidence-hash-mismatch:",
+          "matched": true,
+          "wallSeconds": 0.077,
+          "operatorSteps": 1
+        },
+        {
+          "control": "truncated-video-rebound",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "truncated-video-box",
+          "expectedReason": "truncated-video-box",
+          "matched": true,
+          "wallSeconds": 0.652,
+          "operatorSteps": 1
+        },
+        {
+          "control": "wrong-receipts",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "server-receipt-state:read",
+          "expectedReason": "server-receipt-state:read",
+          "matched": true,
+          "wallSeconds": 7.517,
+          "operatorSteps": 1
+        },
+        {
+          "control": "one-wrong-receipt",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "server-receipt-state:read",
+          "expectedReason": "server-receipt-state:read",
+          "matched": true,
+          "wallSeconds": 7.726,
+          "operatorSteps": 1
+        },
+        {
+          "control": "empty-search",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "native-conversation-identity",
+          "expectedReason": "native-conversation-identity",
+          "matched": true,
+          "wallSeconds": 7.488,
+          "operatorSteps": 1
+        },
+        {
+          "control": "signin-search",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "native-conversation-identity",
+          "expectedReason": "native-conversation-identity",
+          "matched": true,
+          "wallSeconds": 7.479,
+          "operatorSteps": 1
+        },
+        {
+          "control": "wrong-search-body",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "conversation-history-body",
+          "expectedReason": "conversation-history-body",
+          "matched": true,
+          "wallSeconds": 7.537,
+          "operatorSteps": 1
+        },
+        {
+          "control": "search-claim-only",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "conversation-screen-missing",
+          "expectedReason": "conversation-screen-missing",
+          "matched": true,
+          "wallSeconds": 7.601,
+          "operatorSteps": 1
+        },
+        {
+          "control": "wrong-conversation",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "screen-conversation",
+          "expectedReason": "screen-conversation",
+          "matched": true,
+          "wallSeconds": 1.838,
+          "operatorSteps": 1
+        },
+        {
+          "control": "instrument-commit",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "instrument-identity-mismatch",
+          "expectedReason": "instrument-identity-mismatch",
+          "matched": true,
+          "wallSeconds": 0.019,
+          "operatorSteps": 1
+        },
+        {
+          "control": "instrument-inventory",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "instrument-identity-mismatch",
+          "expectedReason": "instrument-identity-mismatch",
+          "matched": true,
+          "wallSeconds": 0.019,
+          "operatorSteps": 1
+        },
+        {
+          "control": "driver-source",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "driver-source-mismatch",
+          "expectedReason": "driver-source-mismatch",
+          "matched": true,
+          "wallSeconds": 0.06,
+          "operatorSteps": 1
+        },
+        {
+          "control": "driver-binary",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "driver-binary-mismatch",
+          "expectedReason": "driver-binary-mismatch",
+          "matched": true,
+          "wallSeconds": 0.06,
+          "operatorSteps": 1
+        },
+        {
+          "control": "late-read",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "receipt-deadline-exceeded",
+          "expectedReason": "receipt-deadline-exceeded",
+          "matched": true,
+          "wallSeconds": 7.505,
+          "operatorSteps": 1
+        },
+        {
+          "control": "search-retry",
+          "rejected": false,
+          "matched": true,
+          "reason": "successful-last-capture",
+          "expectedReason": "successful-last-capture"
+        },
+        {
+          "control": "missing-post-scroll-screen",
+          "rejected": false,
+          "matched": true,
+          "reason": "successful-last-capture",
+          "expectedReason": "successful-last-capture"
+        }
+      ]
+    },
+    {
+      "segment": "m8",
+      "controls": 5,
+      "allMatched": true,
+      "negative": 5,
+      "positive": 0,
+      "results": [
+        {
+          "control": "wrong-receipts",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "server-receipt-state:read",
+          "expectedReason": "server-receipt-state:read",
+          "matched": true,
+          "wallSeconds": 1.643,
+          "operatorSteps": 1
+        },
+        {
+          "control": "one-wrong-receipt",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "server-receipt-state:read",
+          "expectedReason": "server-receipt-state:read",
+          "matched": true,
+          "wallSeconds": 1.654,
+          "operatorSteps": 1
+        },
+        {
+          "control": "late-read",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "receipt-deadline-exceeded",
+          "expectedReason": "receipt-deadline-exceeded",
+          "matched": true,
+          "wallSeconds": 1.834,
+          "operatorSteps": 1
+        },
+        {
+          "control": "stale-restart-capture",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "restart-capture-before-relaunch",
+          "expectedReason": "restart-capture-before-relaunch",
+          "matched": true,
+          "wallSeconds": 1.788,
+          "operatorSteps": 1
+        },
+        {
+          "control": "missing-restart-screen",
+          "rejected": true,
+          "nativePass": null,
+          "reason": "restart-pending-screen-missing",
+          "expectedReason": "restart-pending-screen-missing",
+          "matched": true,
+          "wallSeconds": 1.695,
+          "operatorSteps": 1
+        }
+      ]
+    }
+  ]
+}

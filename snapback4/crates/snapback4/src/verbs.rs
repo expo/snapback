@@ -1126,7 +1126,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
     match kind {
         ir::ArgType::Ref { table } => format!("a {table} id"),
         ir::ArgType::Id => "an id".into(),
-        ir::ArgType::List { .. } => "a list".into(),
+        ir::ArgType::List { .. } | ir::ArgType::ListRange { .. } => "a list".into(),
         ir::ArgType::Json { .. } => "json".into(),
         ir::ArgType::Bytes { .. } | ir::ArgType::Image { .. } | ir::ArgType::Video { .. } => "bytes".into(),
         other => format!("{other:?}").to_lowercase(),

@@ -88147,3 +88147,343 @@ with its failing log and successful diagnostic repetitions retained; it did
 not recur in this full run. No exporter assertion or implementation changed.
 The [RX report](reports/20261006-rx-rule-hops/REPORT.md) carries completed,
 interrupted and baseline evidence separately. No push or publication.
+
+## 2026-10-06 — RM: exhaustive typed read rendering
+
+Added `matchRead` to `snapback4/contract` and re-exported it from
+`snapback4/react`. Five callbacks receive the existing narrowed read/data/refusal;
+explicit `otherwise` covers only omitted loading/absent/present callbacks.
+Denied and partial always require a decision. Points and pages share the same
+set; present pages can still be incomplete. This adds no subscription,
+classification, retention or read semantics. LLP 3000.031 §8 records the choice.
+
+Social quote, conversation status/send gate, feed, chats, profile and search
+now use it, with applicable web/Expo status lines and gates. Existing text,
+controls, composer ownership and the distinct starter membership policies are
+preserved. The online-only starter has no rendering branch to replace. The
+client card remains at 110 lines/1,199 words; package and starter documentation
+teach the exhaustive form and restricted fallback.
+
+Type tests reject missing arms and verify point/page/refusal narrowing and
+mixed return types. The runtime matrix exercises 3,458 cases. The affected
+12-file client/UI run passed 178 tests; expanded generated social tests passed
+15; starter generation passed 22; final guide tests passed 113 and the final
+one-shot/README run passed 80. The full Mac suite ran with Node 24.19.0 and
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`: Rust (299 binaries,
+1,012 executions), both app typechecks, fixtures and both full-count models
+(79 tests) passed. Client files finished 324/324, with 6,504 passes, 2 failures
+and 6 skips; the overall run exited 1 after 2,895 seconds. One failure was RM's
+shortened proven-held-refusal wording, restored and rechecked above. The other
+is an unchanged process-cleanup fixture, reproduced separately and from the
+untouched base commit (53 inspections versus expected 2). It is recorded in
+`issues/20261006-snapback4-darwin-stale-empty-inspection-count.md`; no full-suite
+green claim is made and no process-custody code was changed.
+
+Wasm is byte-identical before/after the suite: 2,117,610 bytes raw / 639,941
+bytes gzip, unchanged budget. No Rust or device code changed. All work stayed
+on the Apartment mini; no real simulator, other worktree, remote host, push
+or publication was used. The [report](reports/20261006-rm-read-match/REPORT.md)
+contains the exhaustive state inventory, governing sections and verification
+logs. Changes are committed locally with the requested GPT-6 Astra trailer.
+
+## 2026-10-06 — NI2 reference/control repairs qualified; Phase 2 still pending
+
+Native.1 remains byte-frozen. Native.2 implements the four accepted repairs
+across fixture handoff, passive observation, the Expo/Release runtime baseline,
+and truthful startup evidence. Its base 28-segment live matrix and 52 artifact
+controls matched expectation. The sole deliberate carried-live change rejects
+`scroll-no-screen` as `screen-row-detached`. The Release runtime proof passed
+eight checks across two processes, including a real SecureStore write/read and
+restoration; its 45.62-second video contains 840 decoded frames. The final
+source identity, qualification anchor and evidence live in the
+[NI2 report](reports/20261006-ni2-native-instrument/README.md).
+
+Both retained Convex segments reproduce the intended missing-UIScene setup-null
+outcome. Both retained Snapback 4 segments reproduce the foreground missing
+SecureStore entitlement setup-null outcome. The unavailable-host control
+also passes and remains unmeasured. The instrument qualification records are
+complete. Fresh-packet readiness and the Phase-2 rerun remain pending.
+`scoredUse` is false; no pilot was launched and no push was made.
+
+## 2026-10-06 — NI2 packet and archive closeout after the eb1000 crash
+
+The fresh packet on the Apartment mini is sealed and dry-run ready: 633 files,
+seal `bdcdc5ead202ec15b4282164fe2eda78450a2882dc473fccbaacb4fe2dbd04e0`.
+Its retained 69 macOS harness selftests and cold/readiness receipt pass. Read-only
+recovery checks verified the seal, 86 prelaunch evidence files, the durable
+runner and cold builder lanes with empty attempts/results. The unavailable
+control in the preceding entry is specifically the unavailable simulator.
+
+Only the packet tarball transfer was incomplete. Resuming it brought all 3,821
+mini archive files into matching local custody. The finalized archive index
+covers 9,921 files / 2,200,649,648 bytes; every indexed hash passes. The
+[NI2 report](reports/20261006-ni2-native-instrument/README.md) links its committed
+index receipt and large-file hashes and records the exact future start command.
+It preserves the deliberate `scroll-no-screen` rejection and the first final
+M8 capture's unmeasured endpoint-coverage failure alongside its passing repeat.
+No evidence was lost, no qualification repeated, no pilot launched and no push
+made. `scoredUse` remains false; the Phase-2 rerun remains pending.
+
+## 2026-10-06 — NI2 Round 2 reviews folded; fresh packet resealed
+
+All seven Astra/Grok correction groups are implemented. The final instrument
+source is `8db637eb5929c7b58f76b34664256cd2bd3c9b3d`, inventory
+`7502936bea8367523b0f2ede4b6a0a49045cf75595c3129a6f2f9e40237a7659`. Qualification matched 30 live and 52
+artifact cases, passed 114 Python tests and both blind final-source reviews,
+and retained the exact-input eight-check runtime proof. Both unchanged
+independent apps reproduce their setup-null outcomes in M6/M8; neither is
+repaired or admitted. The two passive fault-control expectation repairs were
+rerun; earlier measured results retain their original source identities.
+
+The first retained M8 movie has a terminal sample and passes the corrected
+strictly sub-frame end tolerance on revalidation without an app rerun. Its
+original null receipts remain unchanged; it predates writer-flush custody.
+The new packet `/Users/ccheever/clique-native-pilot2-20261006-round2` is sealed and cold/readiness checked, with
+72 macOS selftests and no skips. The archive index binds 16,746
+files, including 346 evidence files over 1,000,000 bytes.
+See the [Round-2 report](reports/20261006-ni2-native-instrument/README.md#round-2).
+Native.1 is byte-unchanged, no pilot was launched, no push was made, and
+`scoredUse` stays false.
+## 2026-10-06 — PD: Darwin stale-row regression distinguishes identity reads
+
+Reproduced the 0.4.14 publication blocker on the Apartment mini with Node
+24.18.0: PS's stale-row test counted 47 empty inspector calls instead of two.
+Darwin reuses the injected inspector for its fresh per-PID lookup; Linux
+reads `/proc` independently. The fixture replayed its old living rows into
+both Darwin enumeration and identity calls, fabricating a live group through
+the cleanup deadline. With stale enumeration alone, the unchanged runner
+already discounts exited rows and completes two empty confirmations.
+
+Correct the fixture under the commissioned test-only exception. Separate
+enumerations from identity reads, preserve fresh scoped lookups, require two
+empty confirmations with no reset, bound the extra identity reads, and refuse
+any inspection/deadline error while retaining the observed `TEST_FILE_LEAK`.
+Exercise Darwin identity on Linux too, parsing each host's real ps output with
+its own routing rules. Production runner and Linux behavior are unchanged;
+LLP 3000 §7 records the fixture distinction.
+
+The final reproduction passed five times, including during the full client
+pool; the runner/process pair passed 93/93 twice and both files passed inside
+that pool. Negative controls reject trusting stale rows and accepting only
+one empty snapshot. The canonical six-slot pool completed all 323 files in
+1,466 s. Two module-load failures were missing fresh-tree event-slot traces;
+after their native producer ran, both files passed through the runner (48/48).
+Across the pool and those prerequisite rechecks: 6,499 passes, six declared
+skips, no unresolved failure. The original pool exit remains recorded as 1;
+it is not represented as a single green run. Both default-count serial models
+then passed 79/79 with no skips. LLP references and diff checks pass.
+
+The [PD report](reports/20261006-pd-darwin-stale-rows/REPORT.md) retains the
+code diagnosis, original failing trace, final repetitions, negative controls,
+focused tests, complete pool and model logs. Builds used the packaged SQLite
+flag; wasm remained at the existing 639,941 B gzip budget. No full native
+suite or publication dry run is claimed. All work stayed in this mini worktree;
+no other host, simulator, X27R worktree, push or publication was involved.
+## 2026-10-06 — LB: inclusive list lower bounds
+
+Quarry now accepts `[T] a..b` wherever it accepts `[T] <=N`; the latter stays
+`0..N`. Parser diagnostics reject negative, oversized and reversed bounds.
+Operation admission and column writes enforce both bounds through the shared
+server/device validators, including optional/nested lists. Short inputs report
+`E_INPUT: peers needs at least 1 item; got 0`; action results retain their
+`E_ACTION_RESULT` policy and addressed writes retain authority masking.
+The explicit `require count(peers) >= 1` form still works. Introducing a column
+minimum is checked narrowing; lowering/removing it can widen the schema.
+
+Positive minima use a new `ListRange { of, min, max }` serde variant in argument
+and column types, so older readers refuse the unknown tag. Zero minima preserve
+the old `List { of, max }` bytes. No value encoding, protocol or digest algorithm
+changes. The [LB report](reports/20261006-lb-list-lower-bounds/REPORT.md) cites
+the prior rules, governing code and exact catalog/persistence changes. Generated
+TypeScript argument comments state the bounds; both guide cards demonstrate
+them within existing budgets. LLP 3000.007 §5.4 records the decision.
+
+Tests first reproduced the prior syntax rejection. The verified Rust inventory
+has 5,080 passes and 33 declared ignores, including 1,488 language passes and
+113 guide tests. The requested full script ran every stage; its initial Rust
+compile failure exposed a missing disclosure-generator match arm and prevented
+two client fixtures from being generated. The complete Rust rerun then exposed
+six guide-based read-authority fixtures still supplying empty tags. Those
+fixtures now supply one tag, retaining every authority assertion; their whole
+81-test target passes. Both fixture-dependent client files pass all 48 tests.
+Across the full run and corrected reruns, all 324 ordinary client files are
+verified (6,460 passes, 50 declared skips), both serial models pass 79 tests,
+and the fixture wrapper passes nine. Build, release guard, docs budgets,
+package/app typechecks and reference audit pass. Compressed logs retain the
+initial failures and final results; the whole shell script was not repeated.
+The added published-engine Darwin fences await the user's Mac run.
+
+Linux wasm measures 2,122,648 B raw / 641,203 B gzip, growing 5,313 / 1,315 B
+from the same-worktree base. The cap is 641,333 B: Linux plus 130 B for macOS.
+Its 1,392 B increase also restores 77 B of allowance missing from the prior
+cap relative to the rebuilt base. No Mac measurement is claimed. All work
+stayed in the supplied eb1000 worktree; final disk use is 28 GiB. No push or
+publication.
+
+## 2026-10-07 — LB round 1: tag examples, diagnostics and schema admission
+
+Applied the two READY WITH CHANGES reviews: canonical `rooms.tags`,
+`everything.tags` and `createRoom.tags` use `<=8` again, keeping empty tags
+valid and preserving their legacy `List` types. The existing comments still
+teach list ranges; `split.people` now uses `[principal] 1..8`, with an executable
+empty-list refusal. Removed the dummy tags from guide/readauth fixtures.
+Incomplete list ranges give a list-specific rewrite, fractional bounds report
+non-integers separately from overflow, and raw-schema admission rejects a
+reversed column range through nested/optional types. LLP 3000.007 §5.4 records
+these refinements. The published `doctor` fence now also checks persisted
+argument-only and nested-list programs. The author's prior mini run passed
+10/10 Darwin cases; these two added assertions await the final Mac run.
+
+The wasm cap is **641,638 B gzip**, using the author's measured macOS mini
+artifact (**2,122,955 B raw / 641,638 B gzip**) rather than the insufficient
+130 B allowance. Final Linux rebuilds before and after the reboot measure
+**2,122,648 B raw / 641,203 B gzip**: the observed host gap is 435 B gzip.
+The cap rises 305 B from 641,333 B. Shared core Rust build inputs changed in
+round 1 (`schema/columns.rs`); Linux sizes remain unchanged, but the final tree
+still needs the author's macOS remeasurement. No runtime ceiling changes.
+
+The 2026-10-06 eb1000 reboot interrupted verification. On resumption, the
+worktree diff was intact and no lane test process survived. The interrupted
+log is retained, and the complete suite restarted with the SQLite publication
+flag, six Cargo jobs and incremental compilation disabled. All work remains
+in this eb1000 worktree; no other host, push or publication. The
+[round-1 report](reports/20261006-lb-list-lower-bounds/REPORT.md#round-1--review-changes-2026-10-06)
+retains the review dispositions and verification evidence.
+
+The restarted full suite passed with **0 failures in 2,241 seconds**. Rust:
+5,083 passes / 33 declared ignores, including 1,491 language passes, 113 guide
+tests, 81 readauth tests, 14 language list tests and both device list tests.
+All 324 ordinary client files passed (6,460 tests / 50 declared skips), including
+the process/wasm list cases; both full-count serial models passed 79 tests and
+the fixture wrapper passed nine. Build, wasm, release guard, docs budgets,
+package/app typechecks and the reference audit passed. The full script exited
+zero in one completed post-reboot run; no interrupted result is counted as a
+pass. Final worktree disk use is approximately 15 GiB, below 40 GB.
+## 2026-10-06 — PK: positional keys resolve by argument type
+
+`T[x]` now selects identity for a generic id or a reference to T, even when
+T keeps secondary unique columns. Other positional arguments select one
+declared unique key by compatible types in column order, shared by program
+reads, keyed writes and rule probes. Mixed total keys retain their selected
+key before extra column tests. NL's named-key and nullable-point admission
+remain; genuinely ambiguous types still refuse. Diagnostics list named forms
+only after compiling each in its original context, and `check --fix` can apply
+a verified choice using its exact source span, preserving modifiers and write
+payloads. Existing serialized selection explanations remain stable.
+
+The first tests reproduced calibration #31's four read and two rule arity
+errors; implicit `byId` explains why one authored `unique slug` yielded two
+candidates. The seventh message (`conversations.slug is text <=80; got id`)
+is emitted by write-payload validation, not positional lookup selection.
+Its exact regression continues to refuse an id written into a text slug;
+a text payload repairs it while retaining uniqueness. The lost first draft
+is not claimed as recovered. LLP 3000.013 §2.2 and the reads, indexes, types
+and refusal cards record the new rule and this evidence.
+
+Linux wasm is 2,117,335 B raw / 639,888 B gzip, matching the base HR report.
+The inherited cap recorded Linux 639,811 + 130 B and left only 53 B above the
+current artifact. Raise it by the measured 77 B discrepancy to 640,018 B,
+exactly Linux + the requested 130 B macOS allowance. This reconciles inherited
+measurement drift; PK adds no device runtime code, plan/catalog encoding,
+wire fields or capabilities. No macOS build is claimed. All work stayed on
+eb1000; no push or publication. The [report](reports/20261006-pk-typed-positional-keys/REPORT.md)
+contains the before matrix, reconstructions, code references and server/device
+crossed-key witnesses.
+
+Verification completed: affected language/guide/repair tests 162 passed;
+CLI fix tests 27 passed; affected clients 12 passed with four Darwin-only
+skips. The final guide recheck passed 113. The complete suite, with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, exited 0 with zero
+failures in 1,569 s: Rust 5,077 passed / 33 ignored (language 1,486 / 11);
+fixture wrappers 9 passed; 324 client files with 6,467 passed / 47 skipped;
+both serial models 79 passed. Builds, docs budget, release guard, typechecks
+and wasm budget passed. The report retains the first nonqualifying run and
+explains its obsolete CLI expectation and overlapping-build artifact race;
+the final run repeated both affected phases successfully. Reference and diff
+audits passed. No plan/catalog encoding change; Darwin qualification remains
+for the operator's mini run. Commit only, no push.
+
+## 2026-10-07 — PK round 1: typed rule keys reach sync; key binding is reused
+
+Addressed Astra's two P2 findings from round-0 review. Sync intent planning
+now consumes the ordinary rule binder's admitted index and ordered terms,
+before synthesized access indexes exist. Content prefixes, inverse membership
+access and horizon indexes therefore agree with the rule, including opposite
+membership key declarations and unrelated composite unique constraints.
+Nullable admission and recipient-last sync inversion still refuse their
+unsupported cases. Program key selection retains bound expressions/types
+through selection and lowering, preserving snapshots, authored evaluation
+order and one runtime setup instead of speculatively binding nested keys.
+
+Tests reproduced the missing sync index and the eight-level compile regression
+(9.164 s before the fix). The nested query now checks in 58.5–62.9 ms across
+three CLI runs; explicit byId checks take 49.4 ms. New tests compare all 12
+sync combinations to explicit-index controls and exercise key allocation
+before one writing-helper effect, with ordinary and mixed keys. The reviewer's
+6,588-source differential reports zero changes among both the original 1,118
+accepted programs and all 1,550 round-0 accepted programs, including schema,
+IR and selection metadata. Ambiguous literal repairs retain both choices and
+the existing opt-in first-verified ordering.
+
+After the host interruption, inspected the saved diff and completed logs;
+no PK verification process survived. The retained affected-language run passed
+282 tests; post-recovery CLI fixes passed 27 and server/wasm/native clients
+passed 9. Rebuilt wasm is byte-identical to round 0 (SHA-256 2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944):
+2,117,335 B raw / 639,888 B gzip, unchanged cap 640,018 B. No encoding or
+runtime changes. LLP 3000.013 §2.2 and the
+[round-1 report](reports/20261006-pk-typed-positional-keys/REPORT.md#round-1--review-fixes-2026-10-07)
+record the fixes and evidence. All work stays on eb1000; commit only, no push.
+
+Post-recovery full verification completed: the full suite with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` exited 0 with zero
+failures in 1,532 s. Rust: 5,082 passed / 33 ignored, including language
+1,491 passed / 11 ignored. Fixture wrappers: 9 passed. All 324 client files
+passed (6,467 tests passed / 47 skipped), and both serial models passed all
+79 tests. Builds, docs budget, release guard, typechecks and wasm budget
+passed. Final reference and diff audits passed. The full run repeated every
+affected test after recovery; no interrupted process supplies qualification.
+
+## 2026-10-07 — RX round 1: preserve published one-hop identity
+
+Both independent round-0 reviewers found the same compatibility regression:
+per-occurrence reasons prevented ordinary one-hop site coalescing, changed
+schema/generation identity for unchanged 0.4.13 source, and triggered device
+acquisition resets and image loss. Restore the exact legacy sites and reasons
+for ordinary `Reference` terms. Only `ReferenceChain` and final-obligation
+reference keys keep occurrence metadata, under `rule-reference-v2`. The cost
+walker and meter still enumerate/pay all one-hop occurrences. No hash inputs
+are ignored and no adoption/reset exception is added.
+
+Frozen integrity-verified 0.4.13 backends now compare byte for byte for
+zero-hop and repeated one-hop schemas. The tests-first control passed for
+zero hops and failed on the one-hop site list before the fix. The real-package
+regression also checks unchanged server generation/backend bytes and upgrades
+native/wasm devices with acquired rows and a pending edit, retaining watermark
+42, confirmed images and local query availability. The author's prior mini
+run passed the round-0 Darwin fence 7/7 and capability test 2/2; those are
+reported author results, not executions by this Linux lane.
+
+Merged `origin/main` `c67b1c4f21` (LB and PK included) into the RX branch;
+no rebase. Preserve both branches' LLP, journal and wasm history. PK's
+`bind/program.rs` is unchanged from main. Merged Linux wasm is **2,135,164 B raw
+/ 645,264 B gzip**. Set the cap to **645,564 B = Linux 645,264 + 300 B** as the
+requested provisional macOS allowance; main's LB cap was 641,638 B. The author
+measured round-0 macOS at **643,358 B gzip** versus Linux **643,098 B**, a
+**260 B** gap, so the previous 130 B allowance was insufficient. The merged
+Mac measurement awaits the author's mini run. No runtime ceiling change,
+Mac execution, push or publication. The [RX report](reports/20261006-rx-rule-hops/REPORT.md#round-1--legacy-identity-and-merged-qualification-2026-10-07)
+records the review correction and verification evidence.
+
+RX round-1 verification completed: 160 focused language/guide/lowering tests,
+18 NL language tests, 10 core meter tests, 1,465 device tests (four declared
+ignores), and all seven RX client checks pass. The full script finished in
+2,386 seconds with one failed stage: Rust passed 5,120 tests (33 ignores),
+models 79/79 and fixture wrappers 9/9, while two of 328 client files timed out.
+Both complete-file reruns pass: residency 10/10; export background 58 passes
+plus 36 platform skips. The identical recreated-watch timeout reproduced on
+the published 0.4.13 engine (one of ten controls; RX passed ten of ten). The
+export deadline timeout's cause and baseline reproducibility remain unknown.
+Both failures are preserved in the report and dated open issues; no assertion,
+deadline or test count was changed, and no green whole-script result is claimed.
+Reference and source-line audits pass. Final disk use is below 20 GiB, within
+the 40 GB limit. Commit only; nothing pushed or published.

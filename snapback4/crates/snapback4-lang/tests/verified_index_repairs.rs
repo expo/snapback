@@ -50,7 +50,7 @@ fn rule_ambiguity_uses_its_own_row_and_presence_guards() {
 }
 
 #[test]
-fn positional_program_ambiguity_offers_only_verified_explicit_indexes() {
+fn positional_program_ambiguity_offers_only_verified_named_keys() {
     for (optional, guarded) in [(false, false), (true, false), (true, true)] {
         let opt = if optional { " ?" } else { "" };
         let guard = if guarded { "  require x != null and y != null else MISSING\n" } else { "" };
@@ -58,8 +58,11 @@ fn positional_program_ambiguity_offers_only_verified_explicit_indexes() {
             for probe in ["", "exists "] {
                 let source = format!("{PAIR}query q(x: principal{opt}, y: principal{opt}):\n{guard}  return {probe}{read}\n");
                 let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", !optional || guarded);
-                assert!(!d.mechanical);
-                if !d.rewrite.is_empty() { assert_eq!(d.rewrite, format!("{read} by pair")); }
+                assert_eq!(d.mechanical, !optional || guarded);
+                if !d.rewrite.is_empty() {
+                    let args = read.trim_start_matches("t[").trim_end_matches(']').split(", ").collect::<Vec<_>>();
+                    assert_eq!(d.rewrite, format!("t[low = {}, high = {}] by pair", args[0], args[1]));
+                }
             }
         }
     }
@@ -68,7 +71,7 @@ fn positional_program_ambiguity_offers_only_verified_explicit_indexes() {
 }
 
 #[test]
-fn positional_rule_ambiguity_offers_only_verified_explicit_indexes() {
+fn positional_rule_ambiguity_offers_only_verified_named_keys() {
     for (optional, guarded) in [(false, false), (true, false), (true, true)] {
         let opt = if optional { " ?" } else { "" };
         let guard = if guarded { ".low != null and .high != null and " } else { "" };
@@ -76,8 +79,11 @@ fn positional_rule_ambiguity_offers_only_verified_explicit_indexes() {
             for (effect, probe) in [("read", "exists"), ("insert", "created")] {
                 let source = format!("{PAIR}table m:\n  low: principal{opt}\n  high: principal{opt}\n  {effect} <- {guard}{probe} {read}\n");
                 let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", !optional || guarded);
-                assert!(!d.mechanical);
-                if !d.rewrite.is_empty() { assert_eq!(d.rewrite, format!("{read} by pair")); }
+                assert_eq!(d.mechanical, !optional || guarded);
+                if !d.rewrite.is_empty() {
+                    let args = read.trim_start_matches("t[").trim_end_matches(']').split(", ").collect::<Vec<_>>();
+                    assert_eq!(d.rewrite, format!("t[low = {}, high = {}] by pair", args[0], args[1]));
+                }
             }
         }
     }
@@ -88,12 +94,12 @@ fn positional_ambiguity_tries_the_next_index_and_preserves_operands() {
     let model = PAIR.replace("low: principal ?", "low: principal").replace("high: principal ?", "high: int");
     let read = "t[(x -- keep this operand\n  ), y]";
     let source = format!("{model}query q(x: int, y: principal):\n  return exists {read}\n");
-    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
-    assert_eq!(d.rewrite, format!("{read} by inverse"));
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let read = "t[.high, .low]";
     let source = format!("{model}table m:\n  low: principal\n  high: int\n  read <- exists {read}\n");
-    let d = repair(&source, read, "E_QUARRY_POSITIONAL_SCAN", true);
-    assert_eq!(d.rewrite, format!("{read} by inverse"));
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     for read in ["t[true, false]", "t[true, false, true]"] {
         repair(&format!("{model}query q():\n  return exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
         repair(&format!("{model}table m:\n  read <- exists {read}\n"), read, "E_QUARRY_POSITIONAL_SCAN", false);
