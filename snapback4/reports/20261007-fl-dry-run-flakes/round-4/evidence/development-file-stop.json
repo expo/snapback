@@ -1,0 +1,18 @@
+{
+  "record": {
+    "pid": 2095097,
+    "parent": 2095072,
+    "start": [
+      "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+      "11674061"
+    ],
+    "argv": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-reporter",
+      "/home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-progress-reporter.mjs",
+      "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-publication.test.mjs"
+    ]
+  },
+  "reason": "restore accidentally removed inline spawn import; fresh publication suite passed; stop only old stuck file"
+}

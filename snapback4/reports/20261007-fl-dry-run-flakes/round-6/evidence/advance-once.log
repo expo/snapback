@@ -1,0 +1,7 @@
+
+running 1 test
+SEQ_CONTROL mode=advance-once trace=false attempt=0
+SEQ_CONTROL mode=advance-once trace=true attempt=0
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.19s

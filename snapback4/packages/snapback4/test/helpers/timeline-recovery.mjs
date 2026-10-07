@@ -1,10 +1,10 @@
+import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
 import { captureStdout } from './server-output.mjs';
 import { hangBudget, waitFor as awaitState } from './wait.mjs';
 // Revision 7: the original historical-image counterexample, driven through
 // the production SDK on both device stores, is a positive recovery regression.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdtemp, mkdir, copyFile, rm} from 'node:fs/promises';
 import {readFileSync} from 'node:fs';
@@ -198,7 +198,7 @@ export async function recoverTimeline() {
     return {historicalCommitMinimumBytes,serverFollowing:final.data,originalCommitBytes:first.bytes,originalCommitEvents:first.data.events.length,largestUpdateBytes,ceiling:16<<20,sameGeneration:observed.every(d=>d.generation===backend.generation),devices:observed,settledFollowing:final.data.length};
   } finally {
     for(const f of devices)await f.client?.close();
-    if(server.exitCode==null&&server.signalCode==null)server.kill('SIGTERM');
+    if(server.exitCode==null&&server.signalCode==null)signalChild(server, 'SIGTERM');
     await exited;await rm(directory,{recursive:true,force:true});
   }
 }

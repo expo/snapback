@@ -1,0 +1,27 @@
+{
+  "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r3-barrier-negative.test.mjs",
+  "code": 1,
+  "signal": null,
+  "passed": false,
+  "keeperExit": {
+    "code": null,
+    "signal": "SIGKILL",
+    "cleanupAcknowledged": true
+  },
+  "inspectionDiagnostics": {
+    "snapshots": 3,
+    "unrelatedRows": 3933
+  },
+  "elapsed": 464,
+  "counts": {
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "stallMs": 900000,
+  "progressCount": 6,
+  "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r3-barrier-negative.test.mjs"
+}

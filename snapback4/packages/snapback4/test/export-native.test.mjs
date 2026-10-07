@@ -1,3 +1,4 @@
+import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -212,7 +213,6 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
 });
 
 test('wrapper forwards both signals and waits for child cleanup before returning signal status', async () => {
-  const { spawn } = await import('node:child_process');
   const { once } = await import('node:events');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-export-interrupt-'));
   try {
@@ -222,7 +222,7 @@ test('wrapper forwards both signals and waits for child cleanup before returning
     for (const signal of ['SIGINT', 'SIGTERM']) {
       const code = `const fs=require('fs'); process.on('${signal}',()=>setTimeout(()=>{fs.writeFileSync(${JSON.stringify(path.join(root, signal))},'cleaned');process.exit(1)},150)); console.log('ready'); setInterval(()=>{},1000);`;
       const child = spawn(process.execPath, [helper, code], { stdio: ['ignore', 'pipe', 'pipe'] });
-      await once(child.stdout, 'data'); child.kill(signal);
+      await once(child.stdout, 'data'); signalChild(child, signal);
       const [status] = await once(child, 'close');
       assert.equal(status, signal === 'SIGINT' ? 130 : 143);
       assert.equal(fs.readFileSync(path.join(root, signal), 'utf8'), 'cleaned');

@@ -1,0 +1,131 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms
+TAP version 13
+# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":1226727,"child":1226734},"rootRemoved":true}
+# Subtest: blocked retention has bounded custody: before SIGKILL
+not ok 1 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 7183.47983
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /retention lock busy/. Input:
+
+    'witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required\n'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required
+
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:394:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7255.580593
+-- process inspection: {"snapshots":3,"unrelatedRows":3772}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (7550 ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compressor, child, guardian and keeper drained without recovery/. Input:
+
+'-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms\n' +
+  'TAP version 13\n' +
+  '# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":1226727,"child":1226734},"rootRemoved":true}\n' +
+  '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+  'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+  '  ---\n' +
+  '  duration_ms: 7183.47983\n' +
+  "  type: 'test'\n" +
+  "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'\n" +
+  "  failureType: 'testCodeFailure'\n" +
+  '  error: |-\n' +
+  '    The input did not match the regular expression /retention lock busy/. Input:\n' +
+  '    \n' +
+  "    'witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required\\n'\n" +
+  '    \n' +
+  "  code: 'ERR_ASSERTION'\n" +
+  "  name: 'AssertionError'\n" +
+  '  expected:\n' +
+  '  actual: |-\n' +
+  '    witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required\n' +
+  '    \n' +
+  "  operator: 'match'\n" +
+  '  stack: |-\n' +
+  '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:394:10)\n' +
+  '    async Test.run (node:internal/test_runner/test:1110:7)\n' +
+  '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+  '  ...\n' +
+  '1..1\n' +
+  '# tests 1\n' +
+  '# suites 0\n' +
+  '# pass 0\n' +
+  '# fail 1\n' +
+  '# cancelled 0\n' +
+  '# skipped 0\n' +
+  '# todo 0\n' +
+  '# duration_ms 7255.580593\n' +
+  '-- process inspection: {"snapshots":3,"unrelatedRows":3772}\n' +
+  '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (7550 ms)\n'
+
+    at file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.mjs:16:8
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms\n' +
+    'TAP version 13\n' +
+    '# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":1226727,"child":1226734},"rootRemoved":true}\n' +
+    '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+    'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+    '  ---\n' +
+    '  duration_ms: 7183.47983\n' +
+    "  type: 'test'\n" +
+    "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'\n" +
+    "  failureType: 'testCodeFailure'\n" +
+    '  error: |-\n' +
+    '    The input did not match the regular expression /retention lock busy/. Input:\n' +
+    '    \n' +
+    "    'witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required\\n'\n" +
+    '    \n' +
+    "  code: 'ERR_ASSERTION'\n" +
+    "  name: 'AssertionError'\n" +
+    '  expected:\n' +
+    '  actual: |-\n' +
+    '    witness: evidence cleanup deferred: E_WITNESS_PROCESS: native preparation watchdog cleanup stopped making progress (idle cleanup deadline expired); recovery required\n' +
+    '    \n' +
+    "  operator: 'match'\n" +
+    '  stack: |-\n' +
+    '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:394:10)\n' +
+    '    async Test.run (node:internal/test_runner/test:1110:7)\n' +
+    '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+    '  ...\n' +
+    '1..1\n' +
+    '# tests 1\n' +
+    '# suites 0\n' +
+    '# pass 0\n' +
+    '# fail 1\n' +
+    '# cancelled 0\n' +
+    '# skipped 0\n' +
+    '# todo 0\n' +
+    '# duration_ms 7255.580593\n' +
+    '-- process inspection: {"snapshots":3,"unrelatedRows":3772}\n' +
+    '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (7550 ms)\n',
+  expected: /compressor, child, guardian and keeper drained without recovery/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

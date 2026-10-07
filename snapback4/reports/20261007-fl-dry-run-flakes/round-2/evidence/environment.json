@@ -1,0 +1,15 @@
+{
+  "base": "fc9f9f27407686a89cf1e32ba3a127a918b36a65",
+  "branch": "sb4-intent/fl-dry-run-flakes",
+  "hostname": "expose-builder-pixel",
+  "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "sha256": {
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "79045f2bcc7946164faf86ab1180b2c413f5d06fbc8bf58b88b23deff1b216a3",
+    "snapback4/crates/snapback4/tests/dev_refusals.rs": "2e6a4d83eb43985671f53656b1b21df57f303c24ba0fab36859dea46d1008937",
+    "snapback4/target/debug/snapback4": "0e555edce5aa0b7d58c723e1c7ef323da8d83d9de430fbf644c8136bf5b5ac40",
+    "snapback4/target/debug/deps/dev_refusals-9bd75d5695c9f20e": "c738d7a10e5353345dc679cfb0bff36417acc433c534418fd877e2fb9a52e8ec",
+    "snapback4/target/debug/deps/snapback4-669fa5ad595be571": "7a9ae6b3318c13e804605603a40cb99c9cbe7e3fd97cbca64ec2a55c435f6a7c"
+  }
+}

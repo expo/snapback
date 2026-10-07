@@ -1,0 +1,374 @@
+-- client file start: packages/snapback4/test/app-online.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/asset-avatars.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm: Clique capture partitions and answers equal the flattened program
+ok 1 - wasm: Clique capture partitions and answers equal the flattened program
+  ---
+  duration_ms: 727.853444
+  type: 'test'
+  ...
+# Subtest: process: Clique capture partitions and answers equal the flattened program
+ok 2 - process: Clique capture partitions and answers equal the flattened program
+  ---
+  duration_ms: 355.456808
+  type: 'test'
+  ...
+# Subtest: wasm: an unheld parent falls back without losing retained rows
+ok 3 - wasm: an unheld parent falls back without losing retained rows
+  ---
+  duration_ms: 847.335661
+  type: 'test'
+  ...
+# Subtest: process: an unheld parent falls back without losing retained rows
+ok 4 - process: an unheld parent falls back without losing retained rows
+  ---
+  duration_ms: 882.839171
+  type: 'test'
+  ...
+# Subtest: wasm: four-level capture, covered prediction and inherited expiry
+ok 5 - wasm: four-level capture, covered prediction and inherited expiry
+  ---
+  duration_ms: 245.582095
+  type: 'test'
+  ...
+# Subtest: process: four-level capture, covered prediction and inherited expiry
+ok 6 - process: four-level capture, covered prediction and inherited expiry
+  ---
+  duration_ms: 238.7817
+  type: 'test'
+  ...
+# Subtest: retained fallback uses provenance identities, not projected fields
+ok 7 - retained fallback uses provenance identities, not projected fields
+  ---
+  duration_ms: 0.519078
+  type: 'test'
+  ...
+# Subtest: retained fallback preserves unpaired history and prefers matching source IDs
+ok 8 - retained fallback preserves unpaired history and prefers matching source IDs
+  ---
+  duration_ms: 0.682573
+  type: 'test'
+  ...
+# Subtest: wasm: retained children do not terminally refuse a reused parent delete
+ok 9 - wasm: retained children do not terminally refuse a reused parent delete
+  ---
+  duration_ms: 198.674538
+  type: 'test'
+  ...
+# Subtest: process: retained children do not terminally refuse a reused parent delete
+ok 10 - process: retained children do not terminally refuse a reused parent delete
+  ---
+  duration_ms: 224.39473
+  type: 'test'
+  ...
+# Subtest: wasm: an expired unswept matching child queues its parent delete
+ok 11 - wasm: an expired unswept matching child queues its parent delete
+  ---
+  duration_ms: 170.070472
+  type: 'test'
+  ...
+# Subtest: process: an expired unswept matching child queues its parent delete
+ok 12 - process: an expired unswept matching child queues its parent delete
+  ---
+  duration_ms: 202.423208
+  type: 'test'
+  ...
+# Subtest: retained fallback leaves local duplicate identities unpaired
+ok 13 - retained fallback leaves local duplicate identities unpaired
+  ---
+  duration_ms: 0.405848
+  type: 'test'
+  ...
+# Subtest: retained fallback leaves server duplicate identities unpaired
+ok 14 - retained fallback leaves server duplicate identities unpaired
+  ---
+  duration_ms: 0.091477
+  type: 'test'
+  ...
+# Subtest: retained fallback leaves both duplicate identities unpaired
+ok 15 - retained fallback leaves both duplicate identities unpaired
+  ---
+  duration_ms: 0.10645
+  type: 'test'
+  ...
+# Subtest: retained fallback never attaches one object's history to a different source
+ok 16 - retained fallback never attaches one object's history to a different source
+  ---
+  duration_ms: 0.117896
+  type: 'test'
+  ...
+# Subtest: anonymous retained projections use nested source identities and keep identified leftovers whole
+ok 17 - anonymous retained projections use nested source identities and keep identified leftovers whole
+  ---
+  duration_ms: 0.172158
+  type: 'test'
+  ...
+# Subtest: anonymous projection preserves retained JSON fields but excludes nested current rows
+ok 18 - anonymous projection preserves retained JSON fields but excludes nested current rows
+  ---
+  duration_ms: 0.159309
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4241.954125
+-- process inspection: {"snapshots":3,"unrelatedRows":3757}
+-- client file ok: packages/snapback4/test/read-through.test.mjs (4509 ms)
+-- client file start: packages/snapback4/test/timeline-delivery.test.mjs; stall bound 2700000 ms
+TAP version 13
+# Subtest: committed admission survives notification from a closing owner
+ok 1 - committed admission survives notification from a closing owner
+  ---
+  duration_ms: 20.072305
+  type: 'test'
+  ...
+# Subtest: committed admission survives notification from a closed channel
+ok 2 - committed admission survives notification from a closed channel
+  ---
+  duration_ms: 2.919918
+  type: 'test'
+  ...
+# Subtest: committed admission survives notification from a throwing listener
+ok 3 - committed admission survives notification from a throwing listener
+  ---
+  duration_ms: 3.284124
+  type: 'test'
+  ...
+# Subtest: unsaved online hold stays visible through failed retries in shared journal order
+ok 4 - unsaved online hold stays visible through failed retries in shared journal order
+  ---
+  duration_ms: 1777.114928
+  type: 'test'
+  ...
+# Subtest: asynchronous settlement bounds online argument reservations, including another owner's retirement
+ok 5 - asynchronous settlement bounds online argument reservations, including another owner's retirement
+  ---
+  duration_ms: 6390.947167
+  type: 'test'
+  ...
+# Subtest: online custody keeps sent from mutate consistent while receipt saves fail
+ok 6 - online custody keeps sent from mutate consistent while receipt saves fail
+  ---
+  duration_ms: 3.218755
+  type: 'test'
+  ...
+# Subtest: online custody keeps sent from lookup consistent while receipt saves fail
+ok 7 - online custody keeps sent from lookup consistent while receipt saves fail
+  ---
+  duration_ms: 1.756884
+  type: 'test'
+  ...
+# Subtest: online custody keeps sent from background consistent while receipt saves fail
+ok 8 - online custody keeps sent from background consistent while receipt saves fail
+  ---
+  duration_ms: 2.625216
+  type: 'test'
+  ...
+# Subtest: online custody keeps failed from mutate consistent while receipt saves fail
+ok 9 - online custody keeps failed from mutate consistent while receipt saves fail
+  ---
+  duration_ms: 1.645627
+  type: 'test'
+  ...
+# Subtest: online custody keeps failed from lookup consistent while receipt saves fail
+ok 10 - online custody keeps failed from lookup consistent while receipt saves fail
+  ---
+  duration_ms: 1.560029
+  type: 'test'
+  ...
+# Subtest: online custody keeps failed from background consistent while receipt saves fail
+ok 11 - online custody keeps failed from background consistent while receipt saves fail
+  ---
+  duration_ms: 3.042782
+  type: 'test'
+  ...
+# Subtest: CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal
+ok 12 - CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal
+  ---
+  duration_ms: 2.965756
+  type: 'test'
+  ...
+# Subtest: CCP mutation waits use the action clamp and preserve omitted defaults
+ok 13 - CCP mutation waits use the action clamp and preserve omitted defaults
+  ---
+  duration_ms: 0.416915
+  type: 'test'
+  ...
+# Subtest: CCP existing custody is not replaced by a redundant save refusal (wait=undefined)
+ok 14 - CCP existing custody is not replaced by a redundant save refusal (wait=undefined)
+  ---
+  duration_ms: 1.723644
+  type: 'test'
+  ...
+# Subtest: CCP existing custody is not replaced by a redundant save refusal (wait=0)
+ok 15 - CCP existing custody is not replaced by a redundant save refusal (wait=0)
+  ---
+  duration_ms: 1.325468
+  type: 'test'
+  ...
+# Subtest: CCP two createApp instances recover the known receipt when journal saves fail
+ok 16 - CCP two createApp instances recover the known receipt when journal saves fail
+  ---
+  duration_ms: 40.990917
+  type: 'test'
+  ...
+# shared journal: 1 execution, recovered=sent, replayed=true
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8348.549827
+-- process inspection: {"snapshots":3,"unrelatedRows":3739}
+-- client file ok: packages/snapback4/test/app-online.test.mjs (8616 ms)
+TAP version 13
+# Subtest: completed ordinary and once bytes survive rotation; new local downloads await its bearer
+    # Subtest: online
+    ok 1 - online
+      ---
+      duration_ms: 122.364799
+      type: 'test'
+      ...
+    # Subtest: process
+    ok 2 - process
+      ---
+      duration_ms: 246.827203
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 3 - wasm
+      ---
+      duration_ms: 832.640669
+      type: 'test'
+      ...
+    1..3
+ok 1 - completed ordinary and once bytes survive rotation; new local downloads await its bearer
+  ---
+  duration_ms: 1793.142638
+  type: 'test'
+  ...
+# Subtest: local queue saturation keeps link and retained media live
+    # Subtest: process
+    ok 1 - process
+      ---
+      duration_ms: 2244.384513
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 2 - wasm
+      ---
+      duration_ms: 2100.790306
+      type: 'test'
+      ...
+    1..2
+ok 2 - local queue saturation keeps link and retained media live
+  ---
+  duration_ms: 4792.598391
+  type: 'test'
+  ...
+# Subtest: queued local avatars survive credential rotation without invalidating retained handles
+    # Subtest: process
+    ok 1 - process
+      ---
+      duration_ms: 276.053471
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 2 - wasm
+      ---
+      duration_ms: 268.156361
+      type: 'test'
+      ...
+    1..2
+ok 3 - queued local avatars survive credential rotation without invalidating retained handles
+  ---
+  duration_ms: 1160.535403
+  type: 'test'
+  ...
+# Subtest: message authors and feed avatars share ordinary home-row authority
+    # Subtest: online
+    ok 1 - online
+      ---
+      duration_ms: 10842.993236
+      type: 'test'
+      ...
+    # {"tier":"online","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/2ac79b4e-7423-4db0-807b-9aa5619cf3ce","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/a0bc060a-ec34-405f-8c45-4bd754326041","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/c0c7cb50-4aaa-42e9-af92-a87556baa525","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"online","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    # Subtest: process
+    ok 2 - process
+      ---
+      duration_ms: 11936.305025
+      type: 'test'
+      ...
+    # {"tier":"process","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/692fa706-c697-45f0-8c18-c6c8073ac521","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/f6875e75-693e-4754-8834-57c2d49beb27","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/02cf725e-1f42-4a8b-8277-4331f8a4dd8f","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"process","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    # Subtest: wasm
+    ok 3 - wasm
+      ---
+      duration_ms: 10911.899989
+      type: 'test'
+      ...
+    # {"tier":"wasm","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/436bcf1e-aede-4d3c-9f20-8187f85d8ef5","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/00a58d07-3053-4e99-ac3f-62f8d8b3bfeb","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:45687/cf260dd1-0f72-430f-b950-6988480fcd25","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"wasm","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    1..3
+ok 4 - message authors and feed avatars share ordinary home-row authority
+  ---
+  duration_ms: 35204.892663
+  type: 'test'
+  ...
+1..4
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43092.029485
+-- process inspection: {"snapshots":3,"unrelatedRows":3719}
+-- client file ok: packages/snapback4/test/asset-avatars.test.mjs (43385 ms)
+TAP version 13
+# Subtest: oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+ok 1 - oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+  ---
+  duration_ms: 42910.055029
+  type: 'test'
+  ...
+# {"historicalCommitMinimumBytes":18427320,"serverFollowing":[{"actorId":"dev:author","at":1791400570727,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791400568415,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791400537516,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"originalCommitBytes":151245,"originalCommitEvents":1024,"largestUpdateBytes":18464,"ceiling":16777216,"sameGeneration":true,"devices":[{"host":"wasm-memory","generation":1,"recoveredNotes":1020,"heldSubmissions":1,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"","id":"01M4BWNKH42X0YNPB4M13ZX3R3","new_ids":[],"now":1791400529445,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"356bb29b2199418aa68bf1e4e2d59f42"}],"pendingAfter":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"E_BUSY","id":"01M4BWNKH42X0YNPB4M13ZX3R3","new_ids":[],"now":1791400529445,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"356bb29b2199418aa68bf1e4e2d59f42"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1791400570727,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791400568415,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791400537516,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020},{"host":"native-sqlite","generation":1,"recoveredNotes":1020,"heldSubmissions":2,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"","id":"01M4BWNQG8TSVYH7M16BQJ67P5","new_ids":[],"now":1791400533513,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"pendingAfter":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"","id":"01M4BWNQG8TSVYH7M16BQJ67P5","new_ids":[],"now":1791400533513,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1791400570727,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791400568415,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791400537516,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020}],"settledFollowing":3}
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43064.201997
+-- process inspection: {"snapshots":3,"unrelatedRows":3698}
+-- client file ok: packages/snapback4/test/timeline-delivery.test.mjs (43331 ms)
+-- client files: 4/4; failed 0; tests {"tests":49,"pass":49,"fail":0,"cancelled":0,"skipped":0,"todo":0}

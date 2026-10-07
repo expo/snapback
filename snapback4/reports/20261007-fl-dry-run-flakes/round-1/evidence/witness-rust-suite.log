@@ -1,0 +1,79 @@
+
+running 72 tests
+test verbs::witness::background::tests::sleep_clock_requires_actual_suspended_time ... ok
+test verbs::witness::background::tests::status_distinguishes_skips_from_product_failures ... ok
+test verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure ... ok
+test verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure_fixture ... ok
+test verbs::witness::background::tests::witness_status_rechecks_latest_after_hash_and_wait_retries_transient_observation ... ok
+test verbs::witness::cleanup::tests::absent_or_first_observation_does_not_renew_a_stall ... ok
+test verbs::witness::cleanup::tests::continuous_progress_cannot_move_the_hard_cap ... ok
+test verbs::witness::cleanup::tests::exits_extend_cleanup_but_growth_churn_and_empty_polls_do_not ... ok
+test verbs::witness::cleanup::tests::late_joiners_can_shrink_without_reaching_the_original_low_water_mark ... ok
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... ok
+test verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names ... ok
+test verbs::witness::naming_tests::prepared_scenario_scope_is_explicit ... ok
+test verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid ... ok
+test verbs::witness::ownership::tests::partial_ownership_write_is_removed ... ok
+test verbs::witness::preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group ... ok
+test verbs::witness::preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits ... ok
+test verbs::witness::preparation::cleanup_tests::stopped_supervisor_without_exits_requires_recovery_and_keeps_its_deadline ... ok
+test verbs::witness::preparation::tests::lease_fork_fixture ... ok
+test verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop ... ok
+test verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease ... ok
+test verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner ... ok
+test verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member ... ok
+test verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit ... ok
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner ... ok
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member ... ok
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner ... ok
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member ... ok
+test verbs::witness::preparation::tests::stalled_resolver_owner ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained ... ok
+test verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained ... ok
+test verbs::witness::preparation::tests::startup_binds_each_independent_identity ... ok
+test verbs::witness::preparation_deadline::tests::foreground_expires_at_exactly_900_seconds_despite_output ... ok
+test verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained ... ok
+test verbs::witness::preparation_deadline::tests::only_new_output_or_phase_bytes_extend_a_stall ... ok
+test verbs::witness::preparation_deadline::tests::progress_extends_background_but_cannot_pass_hard_cap ... ok
+test verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+test verbs::witness::publication::tests::witness_orphan_deletion_does_not_hold_the_publication_lock ... ok
+test verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune ... ok
+test verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity ... ok
+test verbs::witness::publication::tests::witness_pruning_cannot_delete_through_an_export_during_atomic_publication ... ok
+test verbs::witness::publication::tests::witness_publication_detects_tampering_before_and_after_exchange ... ok
+test verbs::witness::publication::tests::witness_publication_process_fixture ... ok
+test verbs::witness::publication::tests::witness_retention_recovers_verified_publication_without_a_later_publisher ... ok
+test verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export ... witness: restored previous export after interrupted publication at /tmp/sb4-publish-killed-1870032-1791382593470/runs/1-123/export
+ok
+test verbs::witness::publication::tests::witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass ... native smoke skipped for export 0bfd3dfae54107534255d3cc716d0412b1b9158955e789e722e7291e3b32ecab: fixture skip; log: /tmp/sb4-publish-run-intent-saved-1870032-1791382593612/runs/1-123/background.log
+native smoke skipped for export 0bfd3dfae54107534255d3cc716d0412b1b9158955e789e722e7291e3b32ecab: fixture skip; log: /tmp/sb4-publish-exchange-before-verify-1870032-1791382593938/runs/1-123/background.log
+ok
+test verbs::witness::recorded_process::tests::witness_pidfd_rejects_wrong_birth_wrong_handle_and_exit_after_verification ... ok
+test verbs::witness::recorded_process::tests::witness_recorded_birth_mismatch_spares_real_process_then_matching_record_stops_it ... ok
+test verbs::witness::recorded_process::tests::witness_stopped_identity_mismatch_at_each_observation_never_authorizes_kill ... ok
+test verbs::witness::recovery::linux_tests::outside_group_details_cannot_fail_a_readable_row ... ok
+test verbs::witness::recovery::linux_tests::outside_group_non_utf8_comm_does_not_break_enumeration ... ok
+test verbs::witness::recovery::linux_tests::stat_read_errors_only_skip_known_outside_groups_or_disappearance ... ok
+test verbs::witness::recovery::linux_tests::unknown_group_fails_closed ... ok
+test verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid ... ok
+test verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending ... ok
+test verbs::witness::recovery::tests::inventory_backstop_counts_evidence_and_discovers_ownerless_work_without_queue_records ... ok
+test verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit ... ok
+test verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence ... ok
+test verbs::witness::recovery::tests::pid_reuse_does_not_keep_an_abandoned_run_alive ... ok
+test verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper ... ok
+test verbs::witness::recovery::tests::retention_pins_current_and_pending_swap_generations_before_start_order ... ok
+test verbs::witness::recovery::tests::unknown_publication_pin_defers_the_entire_history_order ... ok
+test verbs::witness::recovery::tests::witness_group_leader_exit_during_member_snapshot_revokes_custody ... ok
+test verbs::witness::retention::tests::claim_ack_never_erases_a_new_request_and_crash_retries_are_bounded ... ok
+test verbs::witness::retention::tests::observer_covers_a_discovery_removed_by_its_failed_initializer ... ok
+test verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution ... ok
+test verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query ... ok
+test verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime ... ok
+test verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock ... ok
+
+test result: ok. 72 passed; 0 failed; 0 ignored; 0 measured; 259 filtered out; finished in 40.14s

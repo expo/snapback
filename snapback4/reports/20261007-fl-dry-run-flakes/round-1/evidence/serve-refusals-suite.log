@@ -1,0 +1,11 @@
+
+running 3 tests
+test serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication ... snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536
+ok
+test serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes ... dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "a85afd93371f0ecfc43480346ea1016a"; instance "01M4BBJFTQGWN435P1T411CAZN"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791382601683; first response 1; `snapback4 why recent --instance 01M4BBJFTQGWN435P1T411CAZN`
+ok
+test serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause ... dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; phase "read rule"; generation 1; store "a7f1f7b55db62b723b627167250ec031"; instance "01M4BBJFZ8DEC2PE8Q1X394N43"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791382601823; first response 1; `snapback4 why recent --instance 01M4BBJFZ8DEC2PE8Q1X394N43`
+dev refusal: /uninstrumented:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "a7f1f7b55db62b723b627167250ec031"; instance "01M4BBJFZ8DEC2PE8Q1X394N43"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1791382601825; first response 2; `snapback4 why recent --instance 01M4BBJFZ8DEC2PE8Q1X394N43`
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 328 filtered out; finished in 0.33s

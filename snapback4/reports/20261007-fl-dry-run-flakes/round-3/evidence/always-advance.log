@@ -1,0 +1,22 @@
+
+running 1 test
+SEQ_CONTROL mode=always-advance trace=false attempt=0
+SEQ_CONTROL mode=always-advance trace=false attempt=1
+SEQ_CONTROL mode=always-advance trace=false attempt=2
+SEQ_CONTROL mode=always-advance trace=false attempt=3
+SEQ_CONTROL mode=always-advance trace=false attempt=4
+SEQ_CONTROL mode=always-advance trace=false attempt=5
+SEQ_CONTROL mode=always-advance trace=false attempt=6
+SEQ_CONTROL mode=always-advance trace=false attempt=7
+
+thread 'empty_read_evidence_is_top_level_proved_and_opt_in_only' (344832) panicked at crates/snapback4/tests/dev_refusals.rs:372:4:
+no common watermark in eight read pairs: absent={"complete":true,"cut":null,"data":null,"generation":1,"meter":{"cut":null,"examined":1,"heapBytes":12,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3},"next":null,"nextExpiry":null,"scopes":{},"seq":2,"store_id":"7d13bb8139b66444194f588626cbfe30","tables":["rows"],"viewer":"dev:alice"}, hidden={"complete":true,"cut":null,"data":null,"generation":1,"meter":{"cut":null,"examined":1,"heapBytes":12,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3},"next":null,"nextExpiry":null,"scopes":{},"seq":3,"store_id":"7d13bb8139b66444194f588626cbfe30","tables":["rows"],"viewer":"dev:alice"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... FAILED
+
+failures:
+
+failures:
+    empty_read_evidence_is_top_level_proved_and_opt_in_only
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.13s

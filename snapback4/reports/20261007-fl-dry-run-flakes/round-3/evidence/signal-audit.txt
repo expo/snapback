@@ -1,0 +1,50 @@
+snapback4/scripts/test-file-owner.mjs:9:  const die = () => process.kill(0, 'SIGKILL');
+snapback4/scripts/test-processes.mjs:39:      child.kill('SIGKILL');
+snapback4/scripts/test-processes.mjs:82:  try { process.kill(pid, 0); return true; }
+snapback4/packages/snapback4/test/export-native.test.mjs:225:      await once(child.stdout, 'data'); child.kill(signal);
+snapback4/packages/snapback4/test/export-failure.test.mjs:28:    fs.writeFileSync(child, `#!${process.execPath}\nprocess.kill(process.pid, process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
+snapback4/packages/snapback4/test/export-failure.test.mjs:43:    try { process.kill(pid,0);return true; } catch { return false; }
+snapback4/packages/snapback4/test/export-failure.test.mjs:56:    const compile = spawnSync('cc', [...(process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC']), new URL('./publication-interposer.c', import.meta.url).pathname, '-o', library], { encoding: 'utf8' });
+snapback4/packages/snapback4/test/export-failure.test.mjs:81: if(r.signal){process.kill(process.pid,r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
+snapback4/packages/snapback4/test/publication-interposer.c:18:        const char *barrier = getenv("SB4_FAULT_BARRIER");
+snapback4/packages/snapback4/test/export-background.test.mjs:128:    process.kill(pid, signal);
+snapback4/packages/snapback4/test/export-background.test.mjs:131:    await until(() => { try { process.kill(tool, 0); return false; } catch { return true; } }, 'owned tool drained after peer death');
+snapback4/packages/snapback4/test/export-background.test.mjs:146:    observer.kill('SIGINT');
+snapback4/packages/snapback4/test/export-background.test.mjs:151:    assert.doesNotThrow(() => process.kill(f.events()[0].pid, 0));
+snapback4/packages/snapback4/test/export-background.test.mjs:154:    if (observer?.exitCode === null && observer?.signalCode === null) { const exited=once(observer,'exit'); observer.kill('SIGTERM'); await exited; }
+snapback4/packages/snapback4/test/export-background.test.mjs:206:    process.kill(read(path.join(dir, victim + '.json')).process.pid, 'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:249:    process.kill(pid, 0); return true;
+snapback4/packages/snapback4/test/export-background.test.mjs:335:const stop=()=>{if(fs.existsSync(root+'/stop-compression'))process.kill(0,'SIGKILL');};
+snapback4/packages/snapback4/test/export-background.test.mjs:336:const child=spawn(process.execPath,['-e',"const fs=require('fs');process.on('SIGTERM',()=>{});setInterval(()=>{if(fs.existsSync('stop-compression'))process.kill(0,'SIGKILL');},25)"],{stdio:'ignore'});
+snapback4/packages/snapback4/test/export-background.test.mjs:407:  if (mode.startsWith('SIG')) process.kill(worker, mode);
+snapback4/packages/snapback4/test/export-background.test.mjs:500:    const compressor=read(path.join(f.root,'compression.json'));caller.kill('SIGTERM');await ended;
+snapback4/packages/snapback4/test/export-background.test.mjs:503:    if(caller?.exitCode===null&&caller?.signalCode===null){const ended=once(caller,'exit');caller.kill('SIGTERM');await ended;}
+snapback4/packages/snapback4/test/export-background.test.mjs:545:    const worker=read(path.join(first.artifacts,'worker.json')).process.pid;process.kill(worker,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:616:    if(fault!=='deadline')process.kill(maintainer,fault);
+snapback4/packages/snapback4/test/export-background.test.mjs:842:    const compiled=spawnSync('cc',[...(process.platform==='darwin'?['-dynamiclib']:['-shared','-fPIC']),new URL('./publication-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+snapback4/packages/snapback4/test/export-background.test.mjs:851:    wrapperChild=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,SNAPBACK4_BIN:path.join(f.root,'dispatch.mjs'),SB4_FAULT:'pause-'+point,SB4_FAULT_TARGET:path.join(f.root,'dist'),SB4_FAULT_BARRIER:barrier},stdio:['ignore','pipe','pipe']});
+snapback4/packages/snapback4/test/export-background.test.mjs:989:    process.kill(read(path.join(root,record)).process.pid,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1089:    process.kill(stopped.process.pid,'SIGKILL');await wrapperExit;
+snapback4/packages/snapback4/test/export-background.test.mjs:1118:    process.kill(observer,'SIGKILL');await until(()=>!alive(observer),'owned idle observer exited');
+snapback4/packages/snapback4/test/export-background.test.mjs:1125:    const before=Date.now();process.kill(stopped.process.pid,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1149:    process.kill(read(path.join(root,'maintenance-next.json')).process.pid,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1157:    process.kill(read(path.join(root,'maintenance-test-point.json')).process.pid,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1175:    process.kill(pid,'SIGKILL');await until(()=>!alive(pid),'owned victim exited in handoff gap');
+snapback4/packages/snapback4/test/export-background.test.mjs:1188:    process.kill(observer,'SIGKILL');await until(()=>!alive(observer),'owned observer exited');
+snapback4/packages/snapback4/test/export-publication.test.mjs:56:#include ${JSON.stringify(new URL('./publication-interposer.c', import.meta.url).pathname)}
+snapback4/packages/snapback4/test/export-publication.test.mjs:61:    child = spawn(probe, [], { env: { ...process.env, SB4_FAULT: 'pause-' + point, SB4_FAULT_TARGET: root, SB4_FAULT_BARRIER: barrier, WRITE_ENTERED: writing, WRITE_RESUME: resume }, stdio: 'ignore' });
+snapback4/packages/snapback4/test/export-publication.test.mjs:91:    if (child?.exitCode === null && child?.signalCode === null) child.kill('SIGKILL');
+snapback4/packages/snapback4/test/export-publication.test.mjs:148:    child.kill('SIGKILL'); await exited;
+snapback4/packages/snapback4/test/export-publication.test.mjs:152:  } finally { child.kill('SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
+snapback4/packages/snapback4/test/export-publication.test.mjs:167:    fs.writeFileSync(${JSON.stringify(path.join(root, 'publisher.pid.tmp'))}, String(publisher.pid));
+snapback4/packages/snapback4/test/export-publication.test.mjs:168:    fs.renameSync(${JSON.stringify(path.join(root, 'publisher.pid.tmp'))}, ${JSON.stringify(path.join(root, 'publisher.pid'))});
+snapback4/packages/snapback4/test/export-publication.test.mjs:174:    publisher = await waitForPublisher(path.join(root, 'publisher.pid'), [binary, 'witness', 'export-publish', source, path.join(root, 'dist')]);
+snapback4/packages/snapback4/test/export-publication.test.mjs:176:    child.kill('SIGKILL'); await exited;
+snapback4/packages/snapback4/test/export-publication.test.mjs:192:    child.kill('SIGKILL'); await exited;
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs:201:    if(server.exitCode==null&&server.signalCode==null)server.kill('SIGTERM');
+snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs:24:    if (host.exitCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); host.kill(); await done; }
+snapback4/packages/snapback4/test/helpers/publication-roundtrip-mock.mjs:32:process.kill = (pid, signal) => {
+snapback4/packages/snapback4/test/helpers/app-server.mjs:37:  t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null) { host.kill("SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
+snapback4/packages/snapback4/test/helpers/live-margin-load.mjs:12:const stop = () => { if (burners?.exitCode === null) process.kill(-burners.pid, 'SIGTERM'); if (test?.exitCode === null) process.kill(-test.pid, 'SIGTERM'); };
+snapback4/packages/snapback4/test/helpers/live-margin-load.mjs:44:  if (burners?.exitCode === null) { const exited = once(burners, 'exit'); process.kill(-burners.pid, 'SIGTERM'); await exited; }
+snapback4/packages/snapback4/test/helpers/read-through-server.mjs:25:  t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)child.kill("SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});

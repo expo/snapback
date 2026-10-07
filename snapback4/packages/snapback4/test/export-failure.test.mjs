@@ -1,3 +1,4 @@
+import { signalTargetAlive } from '../../../scripts/test-signals.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -25,7 +26,7 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-shim-signals-'));
   try {
     const shim = install(root), child = path.join(root, 'child.mjs');
-    fs.writeFileSync(child, `#!${process.execPath}\nprocess.kill(process.pid, process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
+    fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
     for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
       const result = spawnSync(process.execPath, [shim, signal], { env: { ...process.env, SNAPBACK4_BIN: child }, encoding: 'utf8', timeout: 5000 });
       assert.ok(result.signal === signal || result.status === 128 + os.constants.signals[signal], JSON.stringify({ signal, status: result.status, actualSignal: result.signal, stderr: result.stderr }));
@@ -37,10 +38,9 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
 // handoff fails. Keep this fixture's custody records until those owners exit.
 async function maintenanceExited(root) {
   const live = name => {
-    let pid;
-    try { pid=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process?.pid; } catch { return false; }
-    if(!pid)return false;
-    try { process.kill(pid,0);return true; } catch { return false; }
+    let record;
+    try { record=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process; } catch { return false; }
+    return record ? signalTargetAlive(record) : false;
   };
   const deadline=Date.now()+45000;
   while(['maintenance-next.json','maintenance-active.json'].some(live)) {
@@ -60,6 +60,7 @@ test('real wrapper finally preserves the previous export across interrupted and 
     fs.writeFileSync(path.join(root, 'node_modules/expo/bin/cli'), `const fs=require('fs'),p=require('path');const out=process.argv[process.argv.indexOf('--output-dir')+1];fs.mkdirSync(out,{recursive:true});fs.writeFileSync(p.join(out,'bundle'),'proved bytes');fs.writeFileSync(p.join(out,'metadata.json'),JSON.stringify({fileMetadata:{ios:{bundle:'bundle'}}}));`);
     const dispatcher = path.join(root, 'dispatch.mjs');
     fs.writeFileSync(dispatcher, `#!${process.execPath}
+import {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};
 import fs from 'node:fs'; import path from 'node:path'; import {spawnSync} from 'node:child_process'; import {inventory,hash} from ${JSON.stringify(payload)};
 const args=process.argv.slice(2);
 if(args[1]==='ios') {
@@ -78,7 +79,7 @@ if(args[1]==='ios') {
  if(args[1]==='export-publish')fs.mkdirSync(path.join(path.dirname(path.dirname(args[2])),'latest.json.tmp'),{recursive:true});
  if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
  const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
- if(r.signal){process.kill(process.pid,r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
+ if(r.signal){signalSelf(r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
 }
 `); fs.chmodSync(dispatcher, 0o755);
     const env = { ...process.env, SNAPBACK4_BIN: dispatcher, PATH: path.join(root, 'node_modules/.bin') + ':' + process.env.PATH, SB4_FAULT_TARGET: path.join(root, 'dist') };

@@ -1,0 +1,21 @@
+{"cpus": "80,81", "ownedLoadPids": [2174148, 2174149, 2174150, 2174152]}
+{"round": 1, "exit": 0, "seconds": 13.37}
+{"round": 2, "exit": 0, "seconds": 13.422}
+{"round": 3, "exit": 0, "seconds": 13.339}
+{"round": 4, "exit": 0, "seconds": 13.32}
+{"round": 5, "exit": 0, "seconds": 13.41}
+{"round": 6, "exit": 0, "seconds": 13.447}
+{"round": 7, "exit": 0, "seconds": 13.309}
+{"round": 8, "exit": 0, "seconds": 13.363}
+{"round": 9, "exit": 0, "seconds": 13.41}
+{"round": 10, "exit": 0, "seconds": 13.289}
+{"round": 11, "exit": 0, "seconds": 13.359}
+{"round": 12, "exit": 0, "seconds": 13.302}
+{"round": 13, "exit": 0, "seconds": 13.376}
+{"round": 14, "exit": 0, "seconds": 13.212}
+{"round": 15, "exit": 0, "seconds": 13.259}
+{"round": 16, "exit": 0, "seconds": 13.134}
+{"round": 17, "exit": 0, "seconds": 13.096}
+{"round": 18, "exit": 0, "seconds": 13.052}
+{"round": 19, "exit": 0, "seconds": 13.13}
+{"round": 20, "exit": 0, "seconds": 13.154}

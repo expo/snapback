@@ -1,0 +1,2 @@
+{"refusal":{"error":"TEST_SIGNAL_REFUSED: PID must identify this fixture publisher command / expected process command","handles":["Socket","Socket","Socket","ChildProcess"]},"parentStillAliveAfter1000ms":true}
+{"cleanupByPrivateMarker":true,"parentExit":[0,null],"stderr":""}

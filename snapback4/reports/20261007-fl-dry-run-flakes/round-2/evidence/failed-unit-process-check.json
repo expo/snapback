@@ -1,0 +1,30 @@
+[
+  {
+    "journal": "/tmp/sb4-node-anchor-3806520-volta-style-false/runtime-resolution-group.json",
+    "role": "group",
+    "pid": 3819786,
+    "statPresent": false,
+    "state": null
+  },
+  {
+    "journal": "/tmp/sb4-node-anchor-3806520-volta-style-false/runtime-resolution-group.json",
+    "role": "guardian",
+    "pid": 3819785,
+    "statPresent": false,
+    "state": null
+  },
+  {
+    "journal": "/tmp/sb4-node-anchor-3806520-volta-style-false/preparation-group.json",
+    "role": "group",
+    "pid": 3819964,
+    "statPresent": false,
+    "state": null
+  },
+  {
+    "journal": "/tmp/sb4-node-anchor-3806520-volta-style-false/preparation-group.json",
+    "role": "guardian",
+    "pid": 3819963,
+    "statPresent": false,
+    "state": null
+  }
+]

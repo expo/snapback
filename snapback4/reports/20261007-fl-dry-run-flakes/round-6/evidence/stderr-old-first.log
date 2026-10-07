@@ -1,0 +1,8 @@
+
+running 1 test
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.44s
+
+STALE_BEFORE_DRAIN operation=add39 dropped=0
+FRESH_RECOVERY inspections=2

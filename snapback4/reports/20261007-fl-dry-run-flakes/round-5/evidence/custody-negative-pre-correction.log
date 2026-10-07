@@ -1,0 +1,125 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs; stall bound 900000 ms
+TAP version 13
+# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":2942261,"child":2942276},"rootRemoved":true}
+# Subtest: blocked retention has bounded custody: before SIGKILL
+not ok 1 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 1882.62742
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:376:187'
+  failureType: 'testCodeFailure'
+  error: |-
+    compressor descendants share the recorded anchor group
+
+    0 !== 2942228
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2942228
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:429:64)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1949.539621
+-- process inspection: {"snapshots":3,"unrelatedRows":3382}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs (2222 ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compressor, child, guardian and keeper drained without recovery/. Input:
+
+'-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs; stall bound 900000 ms\n' +
+  'TAP version 13\n' +
+  '# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":2942261,"child":2942276},"rootRemoved":true}\n' +
+  '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+  'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+  '  ---\n' +
+  '  duration_ms: 1882.62742\n' +
+  "  type: 'test'\n" +
+  "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:376:187'\n" +
+  "  failureType: 'testCodeFailure'\n" +
+  '  error: |-\n' +
+  '    compressor descendants share the recorded anchor group\n' +
+  '    \n' +
+  '    0 !== 2942228\n' +
+  '    \n' +
+  "  code: 'ERR_ASSERTION'\n" +
+  "  name: 'AssertionError'\n" +
+  '  expected: 2942228\n' +
+  '  actual: 0\n' +
+  "  operator: 'strictEqual'\n" +
+  '  stack: |-\n' +
+  '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:429:64)\n' +
+  '    async Test.run (node:internal/test_runner/test:1110:7)\n' +
+  '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+  '  ...\n' +
+  '1..1\n' +
+  '# tests 1\n' +
+  '# suites 0\n' +
+  '# pass 0\n' +
+  '# fail 1\n' +
+  '# cancelled 0\n' +
+  '# skipped 0\n' +
+  '# todo 0\n' +
+  '# duration_ms 1949.539621\n' +
+  '-- process inspection: {"snapshots":3,"unrelatedRows":3382}\n' +
+  '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs (2222 ms)\n'
+
+    at file:///home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-5/reproduce/custody-negative.mjs:17:8
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs; stall bound 900000 ms\n' +
+    'TAP version 13\n' +
+    '# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":2942261,"child":2942276},"rootRemoved":true}\n' +
+    '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+    'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+    '  ---\n' +
+    '  duration_ms: 1882.62742\n' +
+    "  type: 'test'\n" +
+    "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:376:187'\n" +
+    "  failureType: 'testCodeFailure'\n" +
+    '  error: |-\n' +
+    '    compressor descendants share the recorded anchor group\n' +
+    '    \n' +
+    '    0 !== 2942228\n' +
+    '    \n' +
+    "  code: 'ERR_ASSERTION'\n" +
+    "  name: 'AssertionError'\n" +
+    '  expected: 2942228\n' +
+    '  actual: 0\n' +
+    "  operator: 'strictEqual'\n" +
+    '  stack: |-\n' +
+    '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs:429:64)\n' +
+    '    async Test.run (node:internal/test_runner/test:1110:7)\n' +
+    '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+    '  ...\n' +
+    '1..1\n' +
+    '# tests 1\n' +
+    '# suites 0\n' +
+    '# pass 0\n' +
+    '# fail 1\n' +
+    '# cancelled 0\n' +
+    '# skipped 0\n' +
+    '# todo 0\n' +
+    '# duration_ms 1949.539621\n' +
+    '-- process inspection: {"snapshots":3,"unrelatedRows":3382}\n' +
+    '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-custody-negative.test.mjs (2222 ms)\n',
+  expected: /compressor, child, guardian and keeper drained without recovery/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

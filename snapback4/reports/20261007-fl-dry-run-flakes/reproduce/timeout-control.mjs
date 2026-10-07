@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { runFile } from '../../../scripts/run-client-tests.mjs';
+const root=process.cwd(), source=path.join(root,'packages/snapback4/test/export-background.test.mjs');
+let text=fs.readFileSync(source,'utf8');
+for(const [relative,target] of [['../../../target/debug/snapback4','target/debug/snapback4'],['../../snapback4-expo/export-ios.mjs','packages/snapback4-expo/export-ios.mjs'],['../bin/snapback4.js','packages/snapback4/bin/snapback4.js']])text=text.replace(`new URL('${relative}', import.meta.url).pathname`,JSON.stringify(path.join(root,target)));
+text=text.replace('timeout: 300000 }, async t => {','timeout: 10000 }, async t => {');
+text=text.replace("  const worker = read(path.join(first.artifacts, 'worker.json')).process.pid;", "  console.log('TIMEOUT_CONTROL_READY '+JSON.stringify({root:f.root,compressor}));\n  await wait(() => false, 'deliberately stalled custody case');\n  const worker = read(path.join(first.artifacts, 'worker.json')).process.pid;");
+text=text.replace('    await cleanup(f);\n  });', "    await cleanup(f);\n    console.log('TIMEOUT_CONTROL_REAPED '+JSON.stringify({compressor,rootRemoved:!fs.existsSync(f.root)}));\n  });");
+const file=path.join(root,'target/fl-verification/custody-timeout.test.mjs');fs.writeFileSync(file,text);
+let output='';
+const result=await runFile(file,{nodeArgs:['--test-name-pattern=blocked retention has bounded custody: before SIGKILL$'],onOutput:s=>{output+=s;process.stdout.write(s);}});
+fs.writeFileSync('reports/20261007-fl-dry-run-flakes/evidence/timeout-summary.json',JSON.stringify(result,null,2)+'\n');
+assert.equal(result.passed,false);assert.equal(result.reason,undefined);assert.equal(result.inspectionFailure,undefined);
+assert.match(output,/testTimeoutFailure/);assert.match(output,/TIMEOUT_CONTROL_READY/);assert.match(output,/TIMEOUT_CONTROL_REAPED.*"rootRemoved":true/);
+console.log('EXPECTED TIMEOUT: fixture compressor and child reaped, root removed, runner reports no leak');

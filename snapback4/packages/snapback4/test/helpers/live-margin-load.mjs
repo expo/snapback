@@ -9,39 +9,44 @@ if (!prefix || !/^\d+$/.test(count) || !/^[0-9,-]+$/.test(cpus)) throw Error('ex
 const log = openSync(prefix + '.log', 'w');
 let burners, test;
 const metadata = { cpus, workers: Number(count), started: new Date().toISOString(), loadBefore: readFileSync('/proc/loadavg', 'utf8').trim(), pid: process.pid };
-const stop = () => { if (burners?.exitCode === null) process.kill(-burners.pid, 'SIGTERM'); if (test?.exitCode === null) process.kill(-test.pid, 'SIGTERM'); };
+// Pipe ownership survives arbitrary dispatch delays; never cache a group ID
+// for signalling. The test keeper signals only its own still-live group.
+const stop = () => { burners?.stdin.end(); test?.stdin.end(); };
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
 try {
   if (Number(count)) {
     burners = spawn('taskset', ['-c', cpus, 'python3', '-u', '-c', `
-import os, signal, subprocess, sys
+import subprocess, sys
 workers=[]
-def stop(sig, frame):
+try:
+    for _ in range(${Number(count)}):
+        workers.append(subprocess.Popen([sys.executable, '-c', 'import os,sys,threading; threading.Thread(target=lambda: (sys.stdin.read(), os._exit(0)), daemon=True).start()\\nwhile True: pass'], stdin=subprocess.PIPE))
+    print(','.join(str(w.pid) for w in workers), flush=True)
+    sys.stdin.read()
+finally:
     for w in workers:
-        if w.poll() is None: w.terminate()
+        w.stdin.close()
     for w in workers: w.wait()
-    sys.exit(0)
-signal.signal(signal.SIGTERM, stop)
-signal.signal(signal.SIGINT, stop)
-for _ in range(${Number(count)}):
-    workers.append(subprocess.Popen([sys.executable, '-c', 'while True: pass']))
-print(','.join(str(w.pid) for w in workers), flush=True)
-signal.pause()
-`], { detached: true, stdio: ['ignore', 'pipe', 'inherit'] });
+`], { detached: true, stdio: ['pipe', 'pipe', 'inherit'] });
     metadata.loadGroup = burners.pid;
     const output = createInterface({ input: burners.stdout });
     try { metadata.workerPids = (await once(output, 'line', { signal: AbortSignal.timeout(30000) }))[0].split(',').map(Number); }
     finally { output.close(); }
   }
-  metadata.command = ['taskset', '-c', cpus, process.execPath, '--test', process.env.LM_TEST ?? 'packages/snapback4/test/live-margin-browser.test.mjs'];
+  metadata.command = ['taskset', '-c', cpus, process.execPath, new URL('../../../../scripts/test-file-owner.mjs', import.meta.url).pathname, '--test', process.env.LM_TEST ?? 'packages/snapback4/test/live-margin-browser.test.mjs'];
   metadata.runs = [];
   for (let run = 0; run < Number(process.env.LM_REPEAT ?? 1); run++) {
-    test = spawn(metadata.command[0], metadata.command.slice(1), { detached: true, stdio: ['ignore', log, log], env: { ...process.env, LM_N: process.env.LM_N ?? '20', LM_OUT: prefix + '.json', LM_LABEL: prefix } });
-    const [code, signal] = await once(test, 'exit'); metadata.runs.push({ run, code, signal, testGroup: test.pid });
+    test = spawn(metadata.command[0], metadata.command.slice(1), { detached: true, stdio: ['pipe', log, log, 'ipc'], env: { ...process.env, LM_N: process.env.LM_N ?? '20', LM_OUT: prefix + '.json', LM_LABEL: prefix } });
+    const exited = once(test, 'exit');
+    let result;
+    test.on('message', message => { if ('code' in message) { result = message; test.stdin.end(); } });
+    await exited;
+    const { code = null, signal = null } = result ?? {};
+    metadata.runs.push({ run, code, signal, testGroup: test.pid });
     if (code !== 0) process.exitCode = 1;
   }
 } finally {
-  if (burners?.exitCode === null) { const exited = once(burners, 'exit'); process.kill(-burners.pid, 'SIGTERM'); await exited; }
+  if (burners?.exitCode === null && burners?.signalCode === null) { const exited = once(burners, 'exit'); burners.stdin.end(); await exited; }
   metadata.ended = new Date().toISOString(); metadata.loadAfter = readFileSync('/proc/loadavg', 'utf8').trim();
   metadata.reaped = !burners || burners.exitCode !== null;
   writeFileSync(prefix + '.host.json', JSON.stringify(metadata, null, 2)); closeSync(log);

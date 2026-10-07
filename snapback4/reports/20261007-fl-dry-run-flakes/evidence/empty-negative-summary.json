@@ -1,0 +1,106 @@
+{
+  "fieldControls": [
+    {
+      "field": "/complete",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/cut",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/data",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/generation",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/next",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/nextExpiry",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/scopes",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/store_id",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/tables",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/viewer",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/cut",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/examined",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/heapBytes",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/indexEntries",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/outputBytes",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/probes",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/rowsWritten",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/meter/steps",
+      "exit": 101,
+      "rejected": true
+    },
+    {
+      "field": "/extraField",
+      "exit": 101,
+      "rejected": true
+    }
+  ],
+  "movingSeqRejected": true,
+  "oneMovingSeqThenEqualPassed": true
+}

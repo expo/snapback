@@ -1,0 +1,32 @@
+RECORDED_COMMAND [
+  '/home/ccheever/sb4-intent/lane-fl/snapback4/target/debug/snapback4',
+  'witness',
+  'export-publish',
+  '/tmp/sb4-background-z5xCSi/artifacts/native-smoke/1791392597884-1879107/publication-export',
+  '/tmp/sb4-background-z5xCSi/dist',
+  '--environment-skip',
+  ''
+]
+✖ maintenance crash matrix: publication-committed (off, next Expo succeeds) (7917.909633ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7984.226812
+
+✖ failing tests:
+
+test at packages/snapback4/test/.fl-r4-command.test.mjs:1087:255
+✖ maintenance crash matrix: publication-committed (off, next Expo succeeds) (7917.909633ms)
+  Error: TEST_SIGNAL_REFUSED: expected fixture command required
+      at refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:10:27)
+      at checkCommand (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:65:117)
+      at inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:75:3)
+      at signalRecorded (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:87:3)
+      at signalFixture (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r4-command.test.mjs:32:3)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r4-command.test.mjs:1122:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)

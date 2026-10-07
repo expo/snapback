@@ -1,0 +1,254 @@
+[
+  {
+    "field": "/complete",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/complete",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/cut",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/cut",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/data",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/data",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/generation",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/generation",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/next",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/next",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/nextExpiry",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/nextExpiry",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/scopes",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/scopes",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/store_id",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/store_id",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/tables",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/tables",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/viewer",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/viewer",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/cut",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/cut",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/examined",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/examined",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/heapBytes",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/heapBytes",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/indexEntries",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/indexEntries",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/outputBytes",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/outputBytes",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/probes",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/probes",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/rowsWritten",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/rowsWritten",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/steps",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/meter/steps",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/extraField",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/extraField",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/existence",
+    "seqDrift": false,
+    "exit": 101,
+    "defectRejected": true
+  },
+  {
+    "field": "/existence",
+    "seqDrift": true,
+    "exit": 101,
+    "defectRejected": true
+  }
+]
