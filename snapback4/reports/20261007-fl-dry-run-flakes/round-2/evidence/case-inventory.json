@@ -1,0 +1,472 @@
+[
+  {
+    "name": "export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "new publication supersedes blocked smoke; only one driver enters the tool at a time",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "SIGKILL of background driver cleans its peer/tools without another export",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "SIGKILL of background worker cleans its peer/tools without another export",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "SIGTERM of background worker cleans its peer/tools without another export",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "SIGHUP of background worker cleans its peer/tools without another export",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "interrupting a status observer leaves the detached proof running",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "background product failure stays loud without changing export success",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "failed evidence pruning does not rewrite a completed native outcome",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "driver death during auto-create-buffered-timeout deletes only its recorded simulator",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "driver death during auto-create-race deletes only its recorded simulator",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "worker death during auto-create-race deletes only its recorded simulator",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "an explicit opt-out supersedes an in-flight proof and reports the new export as skipped",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "failed latest handoff cannot report an older pass (export one)",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "failed latest handoff cannot report an older pass (changed export)",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "failed export-skipped handoff cannot report an older pass (off, equal bytes)",
+    "skipOnLinux": false,
+    "guardMs": null
+  },
+  {
+    "name": "failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)",
+    "skipOnLinux": false,
+    "guardMs": null
+  },
+  {
+    "name": "blocked retention has bounded custody: before SIGTERM",
+    "skipOnLinux": false,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: before SIGKILL",
+    "skipOnLinux": false,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: before supersede",
+    "skipOnLinux": false,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: before deadline",
+    "skipOnLinux": false,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: after SIGTERM",
+    "skipOnLinux": true,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: after SIGKILL",
+    "skipOnLinux": true,
+    "guardMs": 300000
+  },
+  {
+    "name": "blocked retention has bounded custody: after supersede",
+    "skipOnLinux": true,
+    "guardMs": 300000
+  },
+  {
+    "name": "overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "first opt-out publishes a complete skipped handoff",
+    "skipOnLinux": false,
+    "guardMs": null
+  },
+  {
+    "name": "request timestamp begins at publication commit, not private marker creation",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "direct export-retain has bounded custody and the inner worker rejects manual use",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "SIGKILL overlap defers a still-held retention lock and starts the next proof",
+    "skipOnLinux": true,
+    "guardMs": null
+  },
+  {
+    "name": "repeated skipped exports retain five full plus twenty compressed runs (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "repeated skipped exports retain five full plus twenty compressed runs (non-macOS)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "skipped maintenance never blocks publication and drains under SIGTERM (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "skipped maintenance never blocks publication and drains under deadline (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "held retention lock coalesces 28 skipped exports into one pending observer (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "first-started last-published generation remains full evidence (off)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "first-started last-published generation remains full evidence (non-macOS)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "first-started last-published generation remains full evidence (background)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed handoffs with held wrapper leases retain deferred maintenance (off)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed handoffs with held wrapper leases retain deferred maintenance (background)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "a held exclusive publication lock pauses one observer without starting retention workers",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "a held shared publication lock pauses one observer without starting retention workers",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed maintenance retains a parked request and a later export retries it",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "retention repairs an ownerless publication before exchange without worker respawn",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "retention repairs an ownerless publication after exchange without worker respawn",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed export lease removes its shell and retention repairs legacy ownerless runs (off)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed export lease removes its shell and retention repairs legacy ownerless runs (background)",
+    "skipOnLinux": true,
+    "guardMs": 120000
+  },
+  {
+    "name": "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "retention cannot remove a run between directory creation and export lease acquisition",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "export initialization refuses a live stuck initializer within five seconds",
+    "skipOnLinux": false,
+    "guardMs": 30000
+  },
+  {
+    "name": "SIGKILL of the sole maintenance custodian restores retention without another export",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "SIGKILL of the sole maintenance observer restores retention without another export",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed Expo exports and dead wrapper journals never occupy keep slots (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "failed Expo exports and dead wrapper journals never occupy keep slots (background)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "repeated raced retention-lock deferrals stay pending and restore the bound after release",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (off, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (off, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (non-macOS, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (background, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-committed (background, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (off, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (off, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (background, next Expo succeeds)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: publication-handoff (background, next Expo fails)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: request-created (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: request-prepared (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: request-committed (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: claim-renamed (peer)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: claim-recorded (peer)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: scan-starting (peer)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: compress-before (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: compress-committed (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: delete-before (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: delete-after (next export)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: scan-complete (peer)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: done-before (peer)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance crash matrix: done-after (already complete)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "a custodian killed after claiming an empty legacy request resumes without a later export",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance handoff crash matrix: handoff-pending kills observer",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance handoff crash matrix: handoff-pending kills custodian",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance handoff crash matrix: handoff-busy kills observer",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "maintenance handoff crash matrix: handoff-busy kills custodian",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "next export repairs parked maintenance even when Expo fails (off)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "next export repairs parked maintenance even when Expo fails (non-macOS)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  },
+  {
+    "name": "next export repairs parked maintenance even when Expo fails (background)",
+    "skipOnLinux": false,
+    "guardMs": 120000
+  }
+]

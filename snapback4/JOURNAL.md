@@ -89046,3 +89046,38 @@ review verdict, push or publication is claimed. The pending Grok review remains
 separate. Work stayed in this worktree on eb1000.
 
 [Round-1 report, controls and load evidence](reports/20261007-fl-dry-run-flakes/round-1/REPORT.md).
+
+## 2026-10-07 — FL round 2: wait for simulator ownership cleanup
+
+The user's loaded Mac soak exposed a later observation race: the fake simctl
+announces deletion before returning, and Rust removes ownership afterward.
+All three auto-create death cases now require a complete creation identity,
+then await deletion plus record removal and both recorded actors' exit before
+checking the complete call log. Both cleanup waits have 90-second bounds;
+the exact UDID, every simulator target, absent record and unchanged export
+assertions remain.
+
+Audited all 94 cases, including all 32 Darwin-only cases. The shared tool marks
+readiness after installing signal handlers. Three held-wrapper cases separately
+await their stderr diagnostic; two overlapping skipped-publication cases and
+both passive-observer deadline cases await pipe closure before output checks.
+The existing process-exit deadline assertion stays intact. Round-1 dev_refusals
+and round-0 custody cases/teardown remain byte-identical. No product change:
+deletion must precede relinquishing ownership, and a crash in that gap is
+recovered through the existing exact creation-intent reconciliation.
+
+On eb1000, 20 loaded Linux recovery replays passed with 40 positive observations
+and 80 expected refusals across retained-record, wrong-identity, late-call and
+changed-export controls. Four owned busy loops shared CPUs 80–81 and were reaped.
+The real recovery command removed a stale record after deletion without another
+delete, preserving unrelated ownership. This exercises the revised assertion
+block; it does not claim Darwin background execution.
+
+The five export suites passed 80 tests with 33 existing platform skips and no
+runner leaks; dev_refusals passed 22/22. The first witness-module run was 71/72,
+hitting the existing native /proc inspection issue in unchanged code. Focused
+and complete unchanged reruns passed (1/1, 72/72); the original failure is retained
+and appended to its open ticket. The failed fixture's recorded actors were gone.
+The user's approximately 15-run Mac soak remains pending. No push or publication.
+
+[Round-2 report, complete audit and evidence](reports/20261007-fl-dry-run-flakes/round-2/REPORT.md).

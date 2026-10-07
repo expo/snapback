@@ -1,5 +1,10 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-2 Mac follow-up:** [round 2](round-2/REPORT.md) fixes simulator-cleanup
+observation, audits all 94 background cases, and records Linux recovery controls.
+The round-1 strict read comparison and round-0 custody cases remain intact;
+the user's Darwin soak is still required.
+
 **Round-1 correction:** Astra found that the initial read retry could discard
 non-sequence corruption together with a sequence change. The read comparison
 and its negative controls below are historical; [round 1](round-1/REPORT.md)

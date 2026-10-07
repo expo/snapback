@@ -34,9 +34,10 @@ const args=process.argv.slice(2), root=process.cwd();
 if(args[0]==='--sdk') { console.log('27.0'); process.exit(0); }
 if(args.join(' ')==='simctl list runtimes --json') {
  const event=kind=>fs.appendFileSync(root+'/events.jsonl',JSON.stringify({kind,pid:process.pid,at:Date.now()})+'\\n');
- event('start'); process.on('exit',()=>event('exit'));
+ process.on('exit',()=>event('exit'));
  process.on('SIGTERM',()=>process.exit(143));
  const timer=setInterval(()=>{if(fs.existsSync(root+'/continue')){clearInterval(timer);console.log(fs.existsSync(root+'/invalid')?'broken json':'{"runtimes":[]}');}},25);
+ event('start'); // Readiness includes the handlers needed by supersession.
 } else { console.error('unexpected fixture tool args'); process.exit(99); }
 `, 0o755);
   // Node interprets an extensionless tool as CommonJS unless the containing
@@ -199,14 +200,23 @@ for (const [mode, victim, ready] of [
     Object.assign(f.env, { WITNESS_TEST_DIR: f.root, WITNESS_TEST_MODE: mode, WITNESS_TEST_UDID: udid });
     const exported = f.invoke(); assert.equal(exported.status, 0, exported.stdout + exported.stderr);
     const dir = f.latest().artifacts;
-    await until(() => fs.existsSync(path.join(f.root, ready)), 'fixture created its own simulator');
+    const marker = path.join(f.root, ready);
+    await until(() => ready.endsWith('.json') ? read(marker)?.udid === udid : fs.existsSync(marker) && fs.readFileSync(marker, 'utf8') === udid, 'fixture recorded its complete simulator identity');
     process.kill(read(path.join(dir, victim + '.json')).process.pid, 'SIGKILL');
     const status = f.status('--wait'); assert.equal(status.status, 1, status.stdout + status.stderr);
-    await until(() => fs.existsSync(path.join(f.root, 'deleted-simulator')), 'crash cleanup deleted its exact device');
+    const owner = path.join(f.env.XDG_STATE_HOME, 'snapback4/witness/simulators', udid + '.json');
+    // The mock writes its delete marker before simctl returns. Recovery then
+    // unlinks ownership, finishes the journal and releases its process leases.
+    // Observe the end of that sequence before reading the complete call log.
+    await until(() => fs.existsSync(path.join(f.root, 'deleted-simulator')) && !fs.existsSync(owner), 'crash cleanup deleted its device and removed its ownership record', 90000);
+    await until(() => ['worker', 'driver'].every(role => {
+      const pid = read(path.join(dir, role + '.json'))?.process?.pid;
+      return pid && !alive(pid);
+    }), 'simulator cleanup custodians exited before final assertions', 90000);
     assert.equal(fs.readFileSync(path.join(f.root, 'deleted-simulator'), 'utf8'), udid);
     const calls = fs.readFileSync(path.join(f.root, 'simctl-calls.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
     for (const call of calls.filter(c => ['delete','shutdown','boot','bootstatus','getenv'].includes(c[0]))) assert.equal(call[1], udid);
-    assert.equal(fs.existsSync(path.join(f.env.XDG_STATE_HOME, 'snapback4/witness/simulators', udid + '.json')), false);
+    assert.equal(fs.existsSync(owner), false);
     assert.equal(fs.readFileSync(path.join(f.root, 'dist/bundle.hbc'), 'utf8'), 'export one');
   } finally { await cleanup(f); }
 });
@@ -427,7 +437,7 @@ for (const fault of ['marker', 'handoff']) test(`overlapping skipped export cann
     const env = { ...f.env, SNAPBACK4_NATIVE_SMOKE:'off', PAUSE_SKIP:'1', ...(fault==='marker'?{NODE_OPTIONS:'--require='+path.join(f.root,'marker-fault.cjs')}:{}) };
     skipped = spawn(process.execPath, [wrapper], {cwd:f.root,env,stdio:['ignore','pipe','pipe']});
     let output=''; skipped.stdout.on('data',b=>output+=b); skipped.stderr.on('data',b=>output+=b);
-    const ended=once(skipped,'exit');
+    const ended=once(skipped,'close'); // Include delivery of the failure diagnostic.
     await until(()=>fs.existsSync(path.join(f.root,'skip-ready')),'skipped private export paused before marker');
     // Real wrapper + atomic publisher, equal Hermes bytes, a distinct generation.
     f.put('continue',''); assert.equal(f.invoke().status,0);
@@ -712,6 +722,9 @@ fs.closeSync=function(fd){if(held.has(fd)){fs.mkdirSync('wrapper-held',{recursiv
       const run={child,exited:once(child,'exit'),output:''};wrappers.push(run);
       child.stdout.on('data',x=>run.output+=x);child.stderr.on('data',x=>run.output+=x);
       await until(()=>read(path.join(f.root,'wrapper-held',child.pid+'.json')),`wrapper ${i} paused after publication, before lease release`);
+      // The marker and stderr travel independently; fs.closeSync's barrier
+      // does not imply the parent's pipe reader has received the diagnostic.
+      await until(()=>/native smoke (status update failed|failed to start)/.test(run.output),`wrapper ${i} reported its failed handoff`,90000);
       assert.match(run.output,/native smoke (status update failed|failed to start)/);
     }
     assert.equal(retainedRuns(f).full.length,15);assert.equal(retainedRuns(f).compressed.length,0);
@@ -907,10 +920,12 @@ for(const gated of [true,false])test(`a live retention owner has a bounded passi
     // Use the real internal entry with its inherited OS lease and an earlier
     // deadline, not an environment override that can enlarge product limits.
     observer=spawn('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",root,binary,String(Date.now()+1500)],{cwd:f.root,env:f.env,stdio:['pipe','ignore','pipe']});
-    let output='';observer.stderr.on('data',x=>output+=x);exited=once(observer,'exit');observer.stdin.on('error',()=>{});if(gated)observer.stdin.end('s');
+    let output='';observer.stderr.on('data',x=>output+=x);exited=once(observer,'exit');const closed=once(observer,'close');observer.stdin.on('error',()=>{});if(gated)observer.stdin.end('s');
     const started=Date.now();
     const [code]=await exited;observer=null;assert.equal(code,1,output);
-    assert.ok(Date.now()-started<4000,'live-owner observation terminates at its fixed deadline');assert.match(output,/60-minute deadline.*parked/);
+    assert.ok(Date.now()-started<4000,'live-owner observation terminates at its fixed deadline');
+    await closed; // Process exit precedes complete delivery of its stderr.
+    assert.match(output,/60-minute deadline.*parked/);
     assert.ok(fs.existsSync(path.join(root,'maintenance-request.json')));
     assert.equal(read(path.join(root,'maintenance-active.json')),null);
     await seedQueuedExports(f);
