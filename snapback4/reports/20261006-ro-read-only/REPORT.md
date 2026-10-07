@@ -693,3 +693,59 @@ The complete `bash scripts/test.sh` is running at full default counts from the
 checkpoint. Its wasm rebuild is **2,117,335 raw / 639,888 gzip bytes**, under the
 unchanged **639,941-byte** budget (53 bytes headroom). Final complete-suite
 results will be appended below. Evidence uses the `round5-` prefix.
+
+
+### Final Round 5 verification
+
+The complete `bash scripts/test.sh` finished at full default counts in
+**2,037 seconds (33m57s)**. It exited 1 with **one failed phase / one failed
+subtest**, in unchanged native witness process inspection. This is **not a
+single-green-run qualification receipt**. The full failure is retained; the
+complete unchanged CLI target rerun passed.
+
+- Rust: **300 test binaries / 1,013 executions plus workspace doctests**,
+  1,015 seconds. The only failure was
+  `verbs::witness::preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group`,
+  at `preparation.rs:224:26`, reporting
+  `E_WITNESS_PROCESS: invalid /proc process group`. That target had 325 passes,
+  one failure and four existing ignores. Its complete unchanged rerun passed
+  **326 tests, four existing ignores**, using the runner's one test thread.
+  All other Rust executions and workspace doctests passed. The existing
+  [native process-inspection ticket](../../../issues/20261004-snapback4-native-witness-proc-group-inspection.md)
+  records this recurrence; no rejected stat snapshot or separate baseline run
+  establishes the cause, and no ownership check was changed.
+- Client pool: **332/332 files**, **6,552 passed / zero failed / 47 labelled
+  skips**, 623 seconds. All read-only files, the new allocation and Round 5
+  files, the updated late-rejection control, app tests, and the complete delivery
+  fault matrix passed. The published downgrade case executed with the verified
+  prior binary. The worker/background-export and browser files passed too.
+- Full-count models: **79/79**, no skips, 318 seconds. The log confirms
+  **5,000 online and 5,000 local session histories**, seeds 1–5,000, and
+  **3,000 online-client sequences**, seeds 1–3,000. No count overrides/reductions.
+- Fixture wrappers: **9/9**. Build, docs budget, release guard, package
+  typecheck/build, chat compilation and chat/Expo typechecks passed.
+- Final audits: all **five changed source/test files** are below 1,500 lines;
+  JOURNAL is a pure append; diff whitespace passes. Reference checks pass with
+  **529 LLP documents / 10,461 references**, zero errors or unchecked references.
+
+Wasm rebuilt at **2,117,335 raw / 639,888 gzip bytes**, under the unchanged
+**639,941-byte** limit, with **53 bytes** headroom. Its unchanged SHA-256 is
+`2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944`.
+
+Evidence: `evidence/round5-full-suite.log.gz` retains the complete run;
+`round5-cli-rerun.log.gz` retains the whole passing CLI rerun. The affected,
+regression, mutation-control, build/typecheck, reference and source audits use
+the same `round5-` prefix. The run used Node 24.13.1, Bun 1.3.14, Rust 1.97.0,
+`CARGO_INCREMENTAL=0`, shared `CARGO_TARGET_DIR=~/sb5-lanes/target`, dev/test
+debug info disabled and eight Cargo jobs. It supplied this checkout's witness
+helper and the verified published 0.4.13 binary. The ordinary full runner used
+24 Rust processes and 24 client slots on 96 available CPUs; models ran in their
+separate serial slot. Existing PostgreSQL/platform qualification limits remain.
+
+Checkpoints: `16fa765c09` (fixes and permanent regressions), `b2f11c37e9`
+(review dispositions and affected evidence), `ddf36e0df7` (existing witness
+recurrence and passing complete-target rerun). All carry the requested
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer. Grok's exit marker
+and output were checked again before finishing: still only progress notes,
+with no findings or verdict. Both Astra findings and its allocation-test note
+are addressed. No push or publication.

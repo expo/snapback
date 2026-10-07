@@ -88300,3 +88300,17 @@ Grok's round-5 exit marker is present, but its output contains progress notes
 only, with no findings or verdict; no completed review is claimed. Astra's two
 findings and surviving-mutation note have permanent tests. Verification details
 and the complete full-count run are recorded in the Round 5 lane report. No push.
+
+
+Round 5 complete verification finished in 2,037 seconds at full default counts.
+The affected suites passed 525/525. The full run executed 300 Rust binaries /
+1,013 executions and doctests, all 332 client files (6,552 passes, zero failures,
+47 labelled skips), and all 79 models, including 5,000 online and 5,000 local
+session histories plus 3,000 online-client sequences. Preflight, fixtures and
+wasm budget passed; wasm remains 2,117,335 raw / 639,888 gzip against 639,941.
+The sole full-run failure was the unchanged native witness cleanup diagnostic
+`invalid /proc process group`; the complete unchanged CLI rerun passed 326 tests
+with four existing ignores. Its existing ticket records the recurrence without
+claiming a cause or erasing the original failure. The report retains both logs,
+so this is not a single-green-run qualification receipt. Final reference, source
+and append-only audits pass. Grok's output remains progress-only. No push.
