@@ -1,7 +1,7 @@
 # Snapback 4: useAsset never became ready for an ordinary image in an iOS Release app
 
 **Opened:** 2026-10-07, from the native Phase-2 rerun (LLP 0201.000, native.2)
-**Status:** Resolved in Lane UA; round-1 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
+**Status:** Resolved in Lane UA; round-2 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
 **Area:** `snapback4-expo` / `snapback4` asset hooks (`useAsset`) on iOS Release builds
 **Related:** LLP 0201.000; the pilot packet on the Apartment mini, `~/clique-native-pilot2-20261006-round2`, which holds `results/snapback4/attempt-02/m6` and `attempt-03/m8`, plus `preparation/revision10/DIAGNOSIS.md`
 
@@ -86,3 +86,25 @@ the report retains the initial log and final reruns. The iOS fixture and recheck
 steps now cover ordinary/slow success, a retention stall, and both conversion
 failures. No simulator or other host was used in round 1; the operator's fresh
 iOS Release recheck remains pending.
+
+## Round-2 review corrections — 2026-10-07, eb1000
+
+Conversion observation now uses a separate receiver, so sealed/frozen Expo
+responses do not need an attached property. Skip the unused lazy stream getter
+when native conversion owns the body. Real Expo/RN regressions cover success,
+constructor fallback, native-store refusal and network reset on all three
+response shapes, for ordinary and once. Local clients stay online after one
+conversion-failing request even for sealed/frozen responses.
+
+Streaming wait diagnostics now have a strictly earlier deadline (4,999 ms)
+than the unchanged five-second abort, including first/restarted empty bodies.
+Opaque headers/body waits explain unknown progress after fifteen seconds without
+a stage change, independently of the full transport allowance. Other stages
+retain five seconds. Fake-clock regressions observe each diagnostic before the
+abort/retry, and the healthy six-second real HTTP cases still show no diagnostic.
+
+Final requested checks pass: 247 affected client tests, 339 delivery-fault tests,
+113 guide tests, client typecheck/build and docs/reference checks. The report
+retains the initial frozen-getter failures and their green rerun. Operator
+fixture modes now cover sealed/frozen failures and 16.2-second opaque waits.
+No iOS run or push; the operator's Release recheck remains pending.

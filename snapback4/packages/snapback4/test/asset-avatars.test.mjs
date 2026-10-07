@@ -20,7 +20,7 @@ import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
 
-for (const duplicate of [false, true]) test(`Expo conversion refusal keeps the local client online (${duplicate ? 'duplicate Blob' : 'native store'})`, async t => {
+for (const duplicate of [false, true]) for (const shape of ['mutable', 'sealed', 'frozen']) test(`Expo conversion refusal keeps the local client online (${duplicate ? 'duplicate Blob' : 'native store'}, ${shape})`, async t => {
   const { nativeBlobHost, expoBlobResponse } = await import('./helpers/native-blob.mjs');
   const f = await avatarFixture(t), host = nativeBlobHost(), links = [];
   const expo = expoBlobResponse(host, { duplicate, convert: async () => { throw Error('native conversion unavailable'); } });
@@ -28,7 +28,10 @@ for (const duplicate of [false, true]) test(`Expo conversion refusal keeps the l
   const client = await createLocalClient({ url: f.url, session: f.users.bob.session,
     device: processDevice({ binary, dir: join(f.dir, 'native-conversion') }),
     fetch: async (url, init) => {
-      if (new URL(url).pathname.startsWith('/assets/')) { requests++; return expo.response(); }
+      if (new URL(url).pathname.startsWith('/assets/')) {
+        requests++; const reply = expo.response();
+        return shape === 'frozen' ? Object.freeze(reply) : shape === 'sealed' ? Object.seal(reply) : reply;
+      }
       return fetch(url, init);
     },
   });

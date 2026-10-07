@@ -559,16 +559,21 @@ Stages name scheduling, session-store checks, media reconciliation, refresh,
 queue, headers/body, backoff, retention and display conversion; custom clients
 report `client`. Stage changes and received bytes restart the deadline and clear
 old diagnostics. Streaming bodies expose `waiting.received` and, when known,
-`waiting.total` bytes. After five seconds without observable progress,
-`waiting.why` adds E_ASSET_WAIT with the stage's explanation. Opaque headers/body
-waits use the buffered allowance below: elapsed time alone cannot prove a stall.
+`waiting.total` bytes. `waiting.why` adds E_ASSET_WAIT with the stage's explanation:
+streams diagnose after 4,999 ms without bytes, just before the five-second abort;
+other stages use five seconds. Opaque headers/body waits report
+`waiting.progress: "unknown"` and diagnose after fifteen seconds without a stage
+change, while keeping the full buffered allowance below. Unknown progress is
+not proof of a stalled network; a healthy long opaque transfer can show this notice.
 Render it instead of hiding all non-ready states. This is
 a diagnostic of the still-pending request, not a retry or consumed-view verdict;
 healthy long transfers may finish. Unmount cancels the diagnostic timer, and
 late obsolete results cannot publish. Timers require a runnable JS host.
 Expo streams do not imply its Blob accepts byte arrays: the SDK uses the host's
 `Response.blob()` when buffer construction is unsupported, with the buffered
-allowance below. Local assembly failures report E_CLIENT, not offline.
+allowance below. Local assembly failures report E_CLIENT, not offline. Its public
+body-read/conversion boundary works through a separate receiver even for sealed
+or frozen Expo responses, without modifying the response or its prototype.
 
 Transient transport failures report `status: "error"` with `why.code` (for
 example `E_OFFLINE`, `E_HTTP_RESPONSE` or exhausted `E_RATE_LIMIT`) and a

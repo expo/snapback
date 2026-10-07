@@ -15,8 +15,7 @@ const failure = (error: unknown): Refusal => error instanceof AssetTimeout
   : error instanceof AssetBodyError ? { code: "E_CLIENT", family: "client", message: error.message } : transportRefusal(error);
 
 const blobSupport = new WeakMap<typeof Blob, boolean>();
-function streamingBody(response: Response): boolean {
-  if (typeof response.body?.getReader !== "function") return false;
+function bufferBlobSupported(): boolean {
   let supported = blobSupport.get(Blob);
   if (supported === undefined) {
     // Expo exposes a stream even with React Native's Blob, whose constructor
@@ -27,6 +26,9 @@ function streamingBody(response: Response): boolean {
   }
   return supported;
 }
+// Do not touch Expo's lazy stream getter when native conversion owns the body;
+// constructing that unused stream would mutate even a frozen response.
+const streamingBody = (response: Response): boolean => bufferBlobSupported() && typeof response.body?.getReader === "function";
 
 // The server accepts at most 64 MiB. Opaque hosts expose no headers until
 // fetch completes, so allow that size until a trustworthy length is available.
@@ -89,29 +91,25 @@ function pause(ms: number, signal: AbortSignal) {
 
 async function hostBlob(response: Response): Promise<Blob> {
   // Expo's public blob() reads through this.arrayBuffer(), then converts the
-  // completed bytes. Observe that boundary on this owned response only: a read
-  // rejection is transport; a later conversion rejection is a host failure.
-  const descriptor = Object.getOwnPropertyDescriptor(response, "arrayBuffer");
-  const read = response.arrayBuffer;
-  let complete = false, observing = false;
+  // completed bytes. A separate receiver observes that boundary even when the
+  // response is frozen. All other methods/accessors keep their native receiver;
+  // no response or prototype is patched. Buffer-capable hosts keep their own
+  // receiver for built-in blob() methods with private native state.
+  let complete = false;
+  const receiver = bufferBlobSupported() ? response : new Proxy(Object.create(Object.getPrototypeOf(response)) as Response, {
+    get(_target, key) {
+      if (key === "arrayBuffer") return () => response.arrayBuffer().then(bytes => { complete = true; return bytes; });
+      const value: unknown = Reflect.get(response, key, response);
+      return typeof value === "function" ? value.bind(response) : value;
+    },
+  });
   try {
-    if (typeof read === "function") {
-      try {
-        Object.defineProperty(response, "arrayBuffer", { configurable: true, value: () => read.call(response).then(bytes => { complete = true; return bytes; }) });
-        observing = true;
-      } catch { /* Some hosts seal responses; the known constructor refusal still applies. */ }
-    }
-    return await response.blob();
+    return await response.blob.call(receiver);
   } catch (error) {
     if (complete || (error instanceof Error && error.message === "Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported")) {
       throw new AssetBodyError(`the downloaded asset could not be converted by this host: ${String(error)}`);
     }
     throw error;
-  } finally {
-    if (observing) {
-      if (descriptor) Object.defineProperty(response, "arrayBuffer", descriptor);
-      else delete (response as Partial<Response>).arrayBuffer;
-    }
   }
 }
 /** Only nonempty chunks prove progress. Host-converted Blobs have a separate
@@ -181,16 +179,16 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
         if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
         if (lifetime.signal.aborted && previous) return { denied: previous };
         if (request.signal.aborted || !release) throw request.signal.reason ?? timeout();
-        progress("headers", { diagnosticDelay: bufferedLimit() });
+        progress("headers", { progress: "unknown" });
         response = await bounded(doFetch(source.uri, { headers: { ...source.headers, ...(ranged ? { range: "bytes=0-" } : {}) }, signal: request.signal }), request.signal, closeResponse);
         if (response.ok) {
           const streaming = streamingBody(response), allowance = streaming ? 5000 : bufferedLimit(response.headers);
-          activity(allowance);
           const length = response.headers.get("content-length");
           const total = length !== null && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) ? Number(length) : undefined;
           let received = 0;
-          const report = () => progress("body", { ...(streaming ? { received } : {}), ...(total === undefined ? {} : { total }), diagnosticDelay: allowance });
+          const report = () => progress("body", { progress: streaming ? "bytes" : "unknown", ...(streaming ? { received } : {}), ...(total === undefined ? {} : { total }) });
           report();
+          activity(allowance);
           bodyStarted = true;
           const blob = await readBlob(response, request.signal, bytes => { received += bytes; report(); activity(); remaining = 30_000; });
           return { blob, response, retryable: ranged };

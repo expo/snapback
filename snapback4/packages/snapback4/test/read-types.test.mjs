@@ -26,6 +26,7 @@ const withWait: PublishedAssetState = { status: 'loading', waiting: { stage: 'bo
 function show(state: AssetState) {
   if (state.status === 'loading') {
     const received: number | undefined = state.waiting?.received;
+    const progress: 'bytes' | 'unknown' | undefined = state.waiting?.progress;
     return state.waiting?.why?.message ?? state.waiting?.stage ?? 'loading';
   }
   if (state.status === 'ready') return state.url;

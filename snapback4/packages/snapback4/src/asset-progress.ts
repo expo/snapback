@@ -5,8 +5,7 @@ export type AssetStage = "scheduled" | "client" | "session" | "media" | "refresh
 export interface AssetProgressDetail {
   readonly received?: number;
   readonly total?: number;
-  /** Opaque transfers cannot prove a five-second stall; use their body allowance. */
-  readonly diagnosticDelay?: number;
+  readonly progress?: "bytes" | "unknown";
 }
 export type AssetProgress = (stage: AssetStage, detail?: AssetProgressDetail) => void;
 export interface AssetWaiting {
@@ -17,6 +16,7 @@ export interface AssetWaiting {
   readonly diagnosticAt: number;
   readonly received?: number;
   readonly total?: number;
+  readonly progress?: "bytes" | "unknown";
   readonly why?: Refusal;
 }
 const descriptions: Record<AssetStage, string> = {
@@ -33,11 +33,17 @@ const descriptions: Record<AssetStage, string> = {
   display: "constructing a display URI from the downloaded bytes",
 };
 export const assetDiagnosticDelay = 5000;
+// Publish before the streaming abort even on an empty/restarted body. Opaque
+// transfers get a bounded explanation, not a claim that their bytes stalled.
+export const assetWaitDelay = (detail: AssetProgressDetail): number => detail.progress === "unknown" ? 15_000
+  : detail.progress === "bytes" ? assetDiagnosticDelay - 1 : assetDiagnosticDelay;
 export function assetWaiting(stage: AssetStage, since: number, now = Date.now(), detail: AssetProgressDetail = {}): AssetWaiting {
-  const delay = detail.diagnosticDelay ?? assetDiagnosticDelay, diagnosticAt = since + delay;
-  return { stage, since, diagnosticAt, ...(detail.received === undefined ? {} : { received: detail.received }), ...(detail.total === undefined ? {} : { total: detail.total }), ...(now >= diagnosticAt ? { why: {
+  const delay = assetWaitDelay(detail), diagnosticAt = since + delay;
+  return { stage, since, diagnosticAt, ...(detail.progress === undefined ? {} : { progress: detail.progress }), ...(detail.received === undefined ? {} : { received: detail.received }), ...(detail.total === undefined ? {} : { total: detail.total }), ...(now >= diagnosticAt ? { why: {
     code: "E_ASSET_WAIT", family: "client", site: `useAsset.${stage}`,
-    message: `Asset still waiting: ${descriptions[stage]}. No observable progress for ${delay} ms.`,
+    message: `Asset still waiting: ${descriptions[stage]}. ${detail.progress === "unknown"
+      ? `Progress is unknown; this stage has not changed for ${delay} ms. The transfer keeps its existing allowance.`
+      : `No observable progress for ${delay} ms.`}`,
     rewrite: "inspect the named stage, session/link and host network or storage diagnostics; keep this selection mounted to receive its outcome",
     guide: "assets", retryable: false,
   } } : {}) };

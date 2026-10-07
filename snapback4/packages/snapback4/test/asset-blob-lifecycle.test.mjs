@@ -523,8 +523,8 @@ test('native stream-to-Blob path keeps its size allowance and disposes a late bo
   assert.deepEqual(host.released, ['late-native']); assert.equal(calls, 1);
 });
 
-for (const once of [false, true]) for (const mode of ['native', 'duplicate', 'duplicate sealed', 'conversion failure', 'reset']) {
-  test(`Expo Release real blob path: ${mode}, ${once ? 'once' : 'ordinary'}`, async t => {
+for (const once of [false, true]) for (const mode of ['native', 'duplicate', 'conversion failure', 'reset']) for (const shape of ['mutable', 'sealed', 'frozen']) {
+  test(`Expo Release real blob path: ${mode}, ${shape}, ${once ? 'once' : 'ordinary'}`, async t => {
     const { nativeBlobHost, expoBlobResponse } = await import('./helpers/native-blob.mjs');
     const host = nativeBlobHost(); t.mock.property(globalThis, 'Blob', host.Blob);
     const reset = Object.assign(new Error('connection reset during arrayBuffer'), { code: 'ECONNRESET' });
@@ -541,14 +541,15 @@ for (const once of [false, true]) for (const mode of ['native', 'duplicate', 'du
       if (once && init.headers.range) return { ok: false, status: 416, headers: new Headers(),
         json: async () => ({ denied: { code: 'E_ASSET_RANGE', family: 'asset', message: 'once' } }) };
       const reply = expo.response();
-      if (mode === 'duplicate sealed') Object.preventExtensions(reply);
-      replies.push(reply); return reply;
+      if (shape === 'sealed') Object.seal(reply);
+      if (shape === 'frozen') Object.freeze(reply);
+      replies.push({ reply, read: reply.arrayBuffer }); return reply;
     }, 'image');
     const reads = mode === 'reset' && !once ? 4 : 1;
     assert.equal(requests, reads + Number(once));
     assert.equal(expo.counts.reads, reads);
     assert.equal(expo.counts.conversions, ['native', 'conversion failure'].includes(mode) ? 1 : 0);
-    assert.ok(replies.every(reply => !Object.hasOwn(reply, 'arrayBuffer')), 'restore the original body method');
+    assert.ok(replies.every(({ reply, read }) => !Object.hasOwn(reply, 'arrayBuffer') && reply.arrayBuffer === read), 'never change the original body method');
     if (mode === 'native') {
       assert.equal(result.url, 'blob:expo-image'); result.revoke(); result.revoke();
       assert.deepEqual(host.released, ['expo-image']);
@@ -560,3 +561,11 @@ for (const once of [false, true]) for (const mode of ['native', 'duplicate', 'du
     }
   });
 }
+
+test('an opaque browser body keeps the native Response receiver, even when frozen', async () => {
+  const reply = Object.freeze(new Response(null, { headers: { 'content-type': 'image/png' } }));
+  const result = await fetchAsset('http://browser.test', {}, async () => reply, 'empty');
+  assert.ok('url' in result, JSON.stringify(result));
+  assert.equal(result.bytes, 0);
+  result.revoke();
+});

@@ -88585,3 +88585,44 @@ cap. No engine/device input changed. No other lane/host/process touched, no
 simulator run, nothing pushed or published. iOS evidence remains round 0;
 the operator will perform the updated Release recheck. See the
 [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-1--review-corrections-on-eb1000-2026-10-07).
+
+## 2026-10-07 — UA round 2: sealed conversion and observable wait deadlines
+
+Continued on eb1000 from 6eb514cd91, with both round-1 review findings. Replace
+the response-property observer with a separate receiver for Expo's public
+blob()/arrayBuffer() boundary. Other methods and accessors keep the original
+receiver; no response or prototype is patched. Sealed/frozen responses now
+classify native conversion refusal as E_CLIENT with one request and no offline
+transition. Body resets retain E_OFFLINE, safe range retries and once non-replay.
+Buffer-capable browser hosts keep their native receiver. Skip Expo's unused lazy
+body getter when native conversion owns the body; the frozen matrix exposed its
+attempt to assign bodyStreamController before a body read.
+
+Separate the diagnostic clock from transport expiry. Streams diagnose at
+4,999 ms, strictly before the unchanged 5,000 ms abort even when an initial or
+restarted body receives nothing. Opaque headers/body waits report progress
+unknown at fifteen seconds with no stage change. Fifteen seconds exceeds the
+proved healthy six-second transfer while bounding the unexplained wait; this
+notice explicitly does not prove a network stall. The full opaque transfer
+allowance stays intact, up to 35m 8s. Other named stages keep five seconds.
+Stage/byte progress still clears old diagnostics and renews the deadline.
+
+Installed Expo/RN matrix and lifecycle: 64 pass. Remaining requested affected
+Node cases: 183 pass (retry 38, buffered HTTP 1, avatars/lists/pressure 66,
+React 67 and read-types 11). Fake-clock hook coverage checks empty-first and
+empty-restarted bodies, opaque expiry and pre-header waits, diagnostic order,
+request/byte counts and timer cleanup. Healthy six-second images still paint
+without diagnostics. Delivery-fault/census 339 and guide 113 pass. Client
+typecheck/build, docs budget and reference audit pass. Initial focused run
+124/132 exposed the frozen getter bug above; final Blob rerun 64/64 closes it.
+The original failing log is retained. No whole-suite or new native qualification
+is claimed. The same blob await now has a separate receiver (still ten asset
+download awaits); no mutation scope/site or fault recipe changed.
+
+LLP 3000.008.002.000 §6, guide/client documentation, issue and the report now
+carry the final contract. The operator fixture adds sealed/frozen conversion
+injections and 16.2-second opaque header/body holds, with the fifteen-second
+unknown-progress expectation. No other lane/host/process touched, no simulator
+run, no push. No engine/device Rust input, persisted byte format, native ABI or
+wasm budget change. iOS Release recheck remains the operator's next step; see
+the [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-2--sealed-responses-and-bounded-wait-explanations-2026-10-07).

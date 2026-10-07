@@ -7,14 +7,20 @@ import {api} from './snapback/generated/api';
 import config from './ua-config.json';
 const originalFetch=globalThis.fetch;
 const mode=(config as typeof config & {mode?:string}).mode??'ordinary';
-const run=(__DEV__?'debug-r1-':'release-r1-')+mode;
+const run=(__DEV__?'debug-r2-':'release-r2-')+mode;
 const trace=(event:string,fields:object={})=>{console.log('UA',event,fields);void originalFetch(config.url+'/ua-log',{method:'POST',body:JSON.stringify({run,event,...fields})}).catch(()=>{});};
 (globalThis as any).uaTrace=trace;
 const fetcher:typeof fetch=async (input,init)=>{
  const uri=String(input),headers=new Headers(init?.headers);trace('fetch',{uri,headers:[...headers.keys()],bearer:headers.has('authorization'),range:headers.get('range')});
  if(mode==='opaque-headers'&&uri.includes('/assets/'))await new Promise(resolve=>setTimeout(resolve,6200));
- try {const response=await originalFetch(input,init);trace('fetch-response',{uri,status:response.status,stream:!!response.body});
- if(response.ok&&uri.includes('/assets/')&&['constructor','conversion'].includes(mode))response.blob=async()=>{const buffer=await response.arrayBuffer();if(mode==='conversion')throw Error('UA injected native conversion failure');return new Blob([buffer]);};
+ if(mode==='opaque-headers-wait'&&uri.includes('/assets/'))await new Promise(resolve=>setTimeout(resolve,16200));
+ try {const response=await originalFetch(input,init);trace('fetch-response',{uri,status:response.status}); // Do not initialize Expo's unused lazy body stream before freezing.
+ if(response.ok&&uri.includes('/assets/')){
+  if(mode.startsWith('constructor')||mode.startsWith('conversion'))response.blob=async function(this:Response){const buffer=await this.arrayBuffer();if(mode.startsWith('conversion'))throw Error('UA injected native conversion failure');return new Blob([buffer]);};
+  if(mode==='opaque-body-wait'){const blob=response.blob;response.blob=async function(this:Response){await new Promise(resolve=>setTimeout(resolve,16200));return blob.call(this);};}
+  if(mode.endsWith('-sealed'))Object.seal(response);
+  if(mode.endsWith('-frozen'))Object.freeze(response);
+ }
  return response;}catch(e){trace('fetch-error',{uri,message:String(e)});throw e;}
 };
 let heldRetention=false;

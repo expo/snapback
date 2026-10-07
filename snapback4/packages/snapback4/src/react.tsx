@@ -3,7 +3,7 @@ import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
-import { assetWaiting, assetDiagnosticDelay, readAsset, type AssetProgressDetail, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
+import { assetWaiting, assetWaitDelay, readAsset, type AssetProgressDetail, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
 export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // The React arm: one provider and hooks over the client card.
 // Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
@@ -408,7 +408,7 @@ export function useAsset(id: string | null | undefined): AssetState {
     const publishWaiting = () => { if (live) publish({ status: "loading", waiting: assetWaiting(stage, since, Date.now(), detail) }); };
     const diagnose = () => {
       clearTimeout(diagnosticTimer);
-      diagnosticTimer = setTimeout(publishWaiting, Math.max(0, since + (detail.diagnosticDelay ?? assetDiagnosticDelay) - Date.now()));
+      diagnosticTimer = setTimeout(publishWaiting, Math.max(0, since + assetWaitDelay(detail) - Date.now()));
     };
     const progress = (next: AssetStage, update: AssetProgressDetail = {}) => {
       if (!live) return;

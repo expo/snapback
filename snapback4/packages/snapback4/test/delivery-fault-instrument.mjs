@@ -183,6 +183,8 @@ export function instrument(destination) {
 // UA round 1 adds hostBlob's await of the existing public response.blob() I/O
 // to distinguish completed-body conversion from transport failure. The readBlob
 // callback now forwards byte progress; no mutation or persistence I/O is added.
+// UA round 2 keeps that same blob await, using a separate call receiver for
+// sealed responses. No new await, mutation delivery scope or fault recipe.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

@@ -1,6 +1,97 @@
 // @ref LLP 3000.008.002.000#6 — actual downloader cooldowns and one recovery per event.
 // Inserted into react-harness so these cases share its mounted React fixture.
 export const assetRecoveryHarness = `
+  async "useAsset diagnoses empty and restarted streams before abort, and opaque waits before expiry"() {
+    const originalNow = Date.now, originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
+    let now = 100000;
+    const timers = new Map();
+    Date.now = () => now;
+    globalThis.setTimeout = (cb, delay, ...args) => {
+      // Leave React's scheduler and harness polling on real time. Asset timers
+      // (including backoff) are >= 250 ms and run in deadline/insertion order.
+      if (delay < 250) return originalTimeout(cb, delay, ...args);
+      const id = {}; timers.set(id, { at: now + delay, run: () => cb(...args) }); return id;
+    };
+    globalThis.clearTimeout = id => { if (!timers.delete(id)) originalClear(id); };
+    const advance = async ms => {
+      const end = now + ms;
+      for (;;) {
+        const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+        if (!next || next[1].at > end) break;
+        now = next[1].at; timers.delete(next[0]);
+        await act(async () => next[1].run());
+      }
+      now = end;
+    };
+    try {
+      for (const kind of ["empty", "restart", "opaque", "headers"]) {
+        let state, stream;
+        const requests = [], observations = [], client = controlled();
+        const transport = createClient({ url: "https://assets.invalid", persona: "test", fetch: async (_url, init) => {
+          requests.push({ range: init.headers.range, signal: init.signal });
+          if (kind === "headers") return new Promise(() => {});
+          if (kind === "opaque") return { ok: true, status: 206, body: null,
+            headers: new Headers({ "content-type": "image/png", "content-length": "12" }), blob: () => new Promise(() => {}) };
+          return new Response(new ReadableStream({ start(value) { stream = value; } }), { status: 206 });
+        } });
+        client.asset = transport.asset; // Preserve the actual method's progress observer.
+        function Probe() { state = useAsset("photo"); observations.push(state); return null; }
+        try {
+          await mount(h(Probe), client);
+          equal(requests.length, 1, kind + ": dispatch once");
+          const firstSince = state.waiting.since;
+          if (kind === "empty" || kind === "restart") {
+            equal(state.waiting.progress, "bytes", "stream progress is observable");
+            equal(state.waiting.received, 0, "initial body has no bytes");
+            if (kind === "restart") {
+              await advance(500);
+              await act(async () => stream.enqueue(new Uint8Array([1, 2, 3])));
+              equal(state.waiting.received, 3, "partial first attempt is visible");
+              await act(async () => stream.error(Error("connection reset")));
+              await advance(400);
+              equal(requests.length, 2, "a reset restarts the safe range once");
+              equal(requests.map(r => r.range), ["bytes=0-", "bytes=0-"], "never resume a partial range");
+              equal(state.waiting.received, 0, "restart clears the prior byte count");
+              check(state.waiting.since > firstSince, "restart has its own progress interval");
+            }
+            const request = requests.at(-1), due = state.waiting.diagnosticAt;
+            equal(due, state.waiting.since + 4999, "stream diagnostic precedes the unchanged abort");
+            await advance(due - now - 1);
+            equal(state.waiting.why, undefined, "no premature stall diagnostic");
+            await advance(1);
+            equal(state.waiting.why.code, "E_ASSET_WAIT", kind + ": no-byte stall is visible");
+            equal(state.waiting.why.site, "useAsset.body", "stalled stage named");
+            equal(request.signal.aborted, false, "diagnostic publishes before abort");
+            await advance(1);
+            equal(request.signal.aborted, true, "transport still aborts at five seconds");
+            equal(state.waiting.stage, "backoff", "safe retry follows the visible diagnosis");
+          } else {
+            equal(state.waiting.stage, kind === "headers" ? "headers" : "body", "opaque stage is named");
+            equal(state.waiting.progress, "unknown", "do not fabricate opaque byte progress");
+            equal(state.waiting.received, undefined, "opaque received bytes are unknown");
+            equal(state.waiting.diagnosticAt, firstSince + 15000, "unknown progress has a fixed bounded wait");
+            await advance(14999);
+            equal(state.waiting.why, undefined, "healthy six-second opaque transfers have room to finish");
+            await advance(1);
+            equal(state.waiting.why.code, "E_ASSET_WAIT", "opaque wait is visible at fifteen seconds");
+            check(state.waiting.why.message.includes("Progress is unknown"), "diagnostic admits unknown progress");
+            equal(requests[0].signal.aborted, false, "diagnostic does not shorten the transport budget");
+            equal(requests.length, 1, "diagnostic never replays a transfer");
+            if (kind === "opaque") {
+              await advance(firstSince + 60001 - now - 1);
+              equal(requests[0].signal.aborted, false, "size allowance remains 60001 ms for twelve bytes");
+              equal(state.waiting.why.code, "E_ASSET_WAIT", "diagnostic remains visible before expiry");
+              await advance(1);
+              equal(requests[0].signal.aborted, true, "opaque allowance still expires");
+              equal(state.waiting.stage, "backoff", "expiry cannot erase the earlier observation");
+            }
+          }
+          check(observations.some(s => s.waiting?.why?.code === "E_ASSET_WAIT"), kind + ": React rendered the diagnostic");
+        } finally { await unmount(); await act(async () => transport.close()); }
+        equal(timers.size, 0, "unmount and close own all diagnostic/transfer timers");
+      }
+    } finally { Date.now = originalNow; globalThis.setTimeout = originalTimeout; globalThis.clearTimeout = originalClear; }
+  },
   async "useAsset names a held session before any request and diagnoses it without replay"() {
     const originalNow = Date.now, originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
     let now = 100000, state, calls = 0, revoked = 0;
