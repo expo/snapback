@@ -1,6 +1,7 @@
 // Process-group custody; visible descendants also receive metadata validation.
+import { signalChild, spawnTracked as spawn } from './test-signals.mjs';
+import { killOwned } from './test-owned-command.mjs';
 import { readFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const inspectionError = detail => new Error(`TEST_PROCESS_INSPECTION: ${detail}`);
@@ -36,7 +37,14 @@ export function runProcess(command, args, { timeout, maxBuffer, env }) {
       error = failure;
       // ps has no cleanup protocol. SIGKILL bounds even an unresponsive child;
       // destroying its pipes also prevents inherited writers holding close open.
-      child.kill('SIGKILL');
+      try { signalChild(child, 'SIGKILL'); }
+      catch (refused) {
+        // Inspection failure cannot abandon our own command. Preserve the
+        // timeout/overflow and diagnostic, and reap through the retained native
+        // handle. Disk records/untracked objects cannot use this fallback.
+        error.cause = refused;
+        killOwned(child, 'SIGKILL');
+      }
       child.stdout.destroy(); child.stderr.destroy();
     };
     const timer = setTimeout(() => fail(Object.assign(Error(`${command} ETIMEDOUT`), { code: 'ETIMEDOUT' })), timeout);
@@ -79,6 +87,7 @@ function transientRouting(ids, rest, platform) {
 
 // Signal 0 only tests existence; EPERM proves presence, never ownership.
 export function processExists(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0 || pid > 0x7fffffff) throw inspectionError(`invalid PID ${pid}`);
   try { process.kill(pid, 0); return true; }
   catch (error) {
     if (error.code === 'ESRCH') return false;

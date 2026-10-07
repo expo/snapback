@@ -1,0 +1,14 @@
+scripts/test-file-owner.mjs:5:process.on('SIGTERM', () => {});
+scripts/test-file-owner.mjs:10:  const die = () => signalSelf('SIGKILL', { group: true });
+scripts/test-signals.mjs:45:    const result = spawnSync(probe, [String(pid)], { timeout: 10000, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024 });
+scripts/test-signals.mjs:95:  process.kill(record.pid, signal);
+scripts/test-signals.mjs:120:export function signalChild(child, signal = 'SIGTERM') {
+scripts/test-signals.mjs:131:// spawnSync compiler timeout can hang forever if cc handles SIGTERM.
+scripts/test-processes.mjs:38:      // ps has no cleanup protocol. SIGKILL bounds even an unresponsive child;
+scripts/test-processes.mjs:40:      try { signalChild(child, 'SIGKILL'); }
+scripts/test-processes.mjs:46:        killOwned(child, 'SIGKILL');
+scripts/test-processes.mjs:91:  try { process.kill(pid, 0); return true; }
+scripts/test-owned-command.mjs:16:  return child.kill(signal);
+scripts/test-owned-command.mjs:24:  process.kill(group ? 0 : process.pid, signal);
+scripts/test-owned-command.mjs:38:      killOwned(child, 'SIGKILL');
+scripts/test-owned-command.mjs:44:      killOwned(child, 'SIGTERM');

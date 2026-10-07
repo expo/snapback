@@ -1,5 +1,10 @@
 # EM — export maintenance drain investigation, 2026-10-07
 
+The [round-4 report](round4/REPORT.md) records the merge of FL's identity-bound
+fault dispatch, custody waits and Darwin bindings with EM's bounded diagnostics
+and wakeup regressions, with fresh Linux verification before review and the
+operator's macOS soak. Both maintenance tickets remain open.
+
 The [round-3 report](round3/REPORT.md) records product fixes and deterministic
 positive/negative controls for both wakeup windows identified in round 2. Both
 defects now reproduce as stranded requests without their fixes and drain with

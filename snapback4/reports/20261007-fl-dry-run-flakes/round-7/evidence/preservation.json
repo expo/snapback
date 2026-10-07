@@ -1,0 +1,55 @@
+{
+  "productCratesUnchanged": true,
+  "files": [
+    {
+      "file": "snapback4/crates/snapback4/tests/dev_refusals.rs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "639932d4daae52a98740586cee6e9dfb605a106e50a62672a3e52d5ad7aa2d2d"
+    },
+    {
+      "file": "snapback4/packages/snapback4/test/publication-interposer.c",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "25f0b0acedc5b9764ae88487b0ca95cfdfacf73a5897bea8a56c3957dc7405c2"
+    },
+    {
+      "file": "snapback4/packages/snapback4/test/helpers/publication-barrier.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "cd1cf7a29f7002dd23a31748765e58153680cd1aa8c461e71476285b6bb7496c"
+    },
+    {
+      "file": "snapback4/scripts/test-command-group.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d"
+    },
+    {
+      "file": "snapback4/scripts/test-command-owner.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "fbb398f8b8e8dfd80c75508cc74bd5dacfbf41b4803e2d3e98ddd40b793654b9"
+    },
+    {
+      "file": "snapback4/scripts/test-file-owner.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "4e708993ba827a01fe390508be43bf56096e50807d6fe528a261b12ec5f73fbc"
+    },
+    {
+      "file": "snapback4/scripts/test-owned-command.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "28929a418aaa4c689c939a6ea43e4af8ac615cedcda0ec6561be912dc67d21c1"
+    },
+    {
+      "file": "snapback4/scripts/test-process-identity.c",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "a3dfa356d28bbe3cbee4d9cc77a036335a37f266bdacf7fc42fa44950f3fb129"
+    },
+    {
+      "file": "snapback4/scripts/test-processes.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "74d05aa5d102d68db31a7c7581ec975cab74ef9c3c95a4f99396e877c447125f"
+    },
+    {
+      "file": "snapback4/scripts/test-signals.mjs",
+      "unchangedFrom": "d7e733d122",
+      "sha256": "e65c5d90f319c41d5ebfe0f97c581eadeef3b03cced8128efbb69da19250cd14"
+    }
+  ]
+}

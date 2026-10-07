@@ -1,0 +1,23 @@
+{
+  "custody": {
+    "unchanged": true,
+    "sha256": "d99a16a2ad1f4b864c1d33b45ee1969e215ed298d3a494afa80dcccf808a9d99"
+  },
+  "cleanup": {
+    "unchanged": true,
+    "sha256": "fa3eb8355b71ee06d886275530cb717af1deec2a5ac5cda74ff1288403ac9feb"
+  },
+  "compressor": {
+    "unchanged": true,
+    "sha256": "c5294a2b54f30ded349d8d757593fd037631ae55f65f30873f0d69ff067baf1f"
+  },
+  "simulator-death-cases": {
+    "unchanged": true,
+    "sha256": "b6b1f910db7391a48d5eada9852f20e6296f320d21cbdeaf1af132f05a5b9510"
+  },
+  "dev_refusals": {
+    "unchanged": true,
+    "sha256": "2e6a4d83eb43985671f53656b1b21df57f303c24ba0fab36859dea46d1008937"
+  },
+  "productUnchanged": true
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "env",
+    "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS=6",
+    "cargo",
+    "build",
+    "-p",
+    "snapback4"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T21:25:40.226591+00:00",
+  "elapsedSeconds": 10.18886063399259,
+  "exitCode": 0
+}

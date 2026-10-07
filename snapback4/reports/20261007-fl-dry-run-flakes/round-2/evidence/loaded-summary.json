@@ -1,0 +1,109 @@
+{
+  "cpus": "80,81",
+  "busyLoops": 4,
+  "sourceSha256": "79045f2bcc7946164faf86ab1180b2c413f5d06fbc8bf58b88b23deff1b216a3",
+  "sourceUnchanged": true,
+  "rounds": [
+    {
+      "round": 1,
+      "exit": 0,
+      "seconds": 3.744
+    },
+    {
+      "round": 2,
+      "exit": 0,
+      "seconds": 3.613
+    },
+    {
+      "round": 3,
+      "exit": 0,
+      "seconds": 3.464
+    },
+    {
+      "round": 4,
+      "exit": 0,
+      "seconds": 4.09
+    },
+    {
+      "round": 5,
+      "exit": 0,
+      "seconds": 3.398
+    },
+    {
+      "round": 6,
+      "exit": 0,
+      "seconds": 3.432
+    },
+    {
+      "round": 7,
+      "exit": 0,
+      "seconds": 3.712
+    },
+    {
+      "round": 8,
+      "exit": 0,
+      "seconds": 3.473
+    },
+    {
+      "round": 9,
+      "exit": 0,
+      "seconds": 3.496
+    },
+    {
+      "round": 10,
+      "exit": 0,
+      "seconds": 3.738
+    },
+    {
+      "round": 11,
+      "exit": 0,
+      "seconds": 3.5
+    },
+    {
+      "round": 12,
+      "exit": 0,
+      "seconds": 3.661
+    },
+    {
+      "round": 13,
+      "exit": 0,
+      "seconds": 3.872
+    },
+    {
+      "round": 14,
+      "exit": 0,
+      "seconds": 3.82
+    },
+    {
+      "round": 15,
+      "exit": 0,
+      "seconds": 3.655
+    },
+    {
+      "round": 16,
+      "exit": 0,
+      "seconds": 3.666
+    },
+    {
+      "round": 17,
+      "exit": 0,
+      "seconds": 3.957
+    },
+    {
+      "round": 18,
+      "exit": 0,
+      "seconds": 3.729
+    },
+    {
+      "round": 19,
+      "exit": 0,
+      "seconds": 3.787
+    },
+    {
+      "round": 20,
+      "exit": 0,
+      "seconds": 3.779
+    }
+  ],
+  "loadReaped": true
+}

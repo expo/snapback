@@ -1,0 +1,56 @@
+-- client file start: packages/snapback4/test/test-command-group.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6241.046327
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6232.319287
+  type: 'test'
+  ...
+# Subtest: group verification requires two complete empty snapshots after living members
+ok 3 - group verification requires two complete empty snapshots after living members
+  ---
+  duration_ms: 102.830852
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":""}
+ok 4 - incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":""}
+  ---
+  duration_ms: 1.249503
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":2,"stdout":"1 1 S\\n"}
+ok 5 - incomplete group inspection refuses instead of declaring custody empty: {"status":2,"stdout":"1 1 S\\n"}
+  ---
+  duration_ms: 0.371057
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"error":{},"stdout":"1 1 S\\n"}
+ok 6 - incomplete group inspection refuses instead of declaring custody empty: {"error":{},"stdout":"1 1 S\\n"}
+  ---
+  duration_ms: 0.324546
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":"12 damaged S\\n"}
+ok 7 - incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":"12 damaged S\\n"}
+  ---
+  duration_ms: 0.404837
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12641.526812
+-- process inspection: {"snapshots":3,"unrelatedRows":3583}
+-- client file ok: packages/snapback4/test/test-command-group.test.mjs (12917 ms)
+-- client files: 1/1; failed 0; tests {"tests":7,"pass":7,"fail":0,"cancelled":0,"skipped":0,"todo":0}

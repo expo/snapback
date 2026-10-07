@@ -1,0 +1,78 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+not ok 1 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 25.594592
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs:505:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs:515:74)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 86.581936
+-- process inspection: {"snapshots":3,"unrelatedRows":3440}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs (349 ms)
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: expired checkpoint refuses signal after 22-second dispatch delay
+not ok 1 - expired checkpoint refuses signal after 22-second dispatch delay
+  ---
+  duration_ms: 29281.156903
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:1094:255'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /TEST_SIGNAL_REFUSED/. Input:
+
+    'Error: UNSAFE_STALE_DISPATCH'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'UNSAFE_STALE_DISPATCH'
+  stack: |-
+    process.kill (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:1122:59)
+    signalRecorded (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-unguarded-signals.mjs:97:11)
+    signalFixture (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:32:3)
+    file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:1123:31
+    getActual (node:assert:611:5)
+    strict.throws (node:assert:759:24)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:1123:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs:1123:20)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29355.545428
+-- process inspection: {"snapshots":3,"unrelatedRows":3404}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs (29607 ms)
+EXPECTED FAILURES: stale/invalid dispatch rejected by regressions; intercepted kernel dispatch; no runner leaks

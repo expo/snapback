@@ -1,0 +1,12 @@
+{
+  "hostname": "expose-builder-pixel",
+  "kernel": "Linux 6.8.0-142-generic x86_64 GNU/Linux",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "baseCommit": "b14888f7632bf5fe60b61a640dd23e732797974e",
+  "sha256": {
+    "crates/snapback4/tests/dev_refusals.rs": "6ce4a168e4827825107b723bebfaf6240704609fac4465c7592d1824023ee76b",
+    "packages/snapback4/test/export-background.test.mjs": "90664d48e6322f878991aa9abd5b7ed2a26f71f9b8cbcacfdf2cd1fbc81a09d9",
+    "target/debug/snapback4": "0e555edce5aa0b7d58c723e1c7ef323da8d83d9de430fbf644c8136bf5b5ac40"
+  }
+}

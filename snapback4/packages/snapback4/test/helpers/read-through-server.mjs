@@ -1,8 +1,8 @@
+import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
 import { captureStdout } from './server-output.mjs';
 import { waitFor as awaitState } from './wait.mjs';
 // LLP 3000.014: the same capture images and parent fallback on wasm and native.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,7 +22,7 @@ export async function server(t,tier,source) {
   const readStdout = captureStdout(child);
   const exit=once(child,"exit");let log="",url,client,core,paused=false;const deliveries=new Set();
   child.stdout.on("data",d=>{log+=d;url??=readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0];});child.stderr.on("data",d=>log+=d);
-  t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)child.kill("SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});
+  t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)signalChild(child, "SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});
   await awaitState(async () => !(!url), "helpers/read-through-server.mjs: !url", { poll: async () => {assert.equal(child.exitCode,null,log);await sleep(20);} });assert.ok(url,log);
   const post=(path,body)=>fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"bob"},body:JSON.stringify(body)}).then(r=>r.json());
   const opener=tier==="wasm"?webDevice({wasm,persist:memoryPersistence()}):processDevice({binary,dir:join(dir,"device"),spawn:(cmd,args)=>spawn(cmd,args,{stdio:["pipe","pipe","inherit"]}),writeFile:async(path,text)=>writeFileSync(path,text)});

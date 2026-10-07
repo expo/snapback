@@ -1,0 +1,24 @@
+{"cpus": "80,81", "ownedLoadPids": [3147821, 3147823, 3147827, 3147828]}
+{"round": 1, "rustPassed": 22, "nodePassed": 10, "seconds": 23.978}
+{"round": 2, "rustPassed": 22, "nodePassed": 10, "seconds": 24.043}
+{"round": 3, "rustPassed": 22, "nodePassed": 10, "seconds": 22.574}
+{"round": 4, "rustPassed": 22, "nodePassed": 10, "seconds": 22.451}
+{"round": 5, "rustPassed": 22, "nodePassed": 10, "seconds": 23.449}
+{"round": 6, "rustPassed": 22, "nodePassed": 10, "seconds": 23.322}
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-5/reproduce/load.py", line 20, in <module>
+    rust = subprocess.run(['taskset','-c','80,81',binary],capture_output=True,text=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2115, in _communicate
+    ready = selector.select(timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

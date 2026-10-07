@@ -1,0 +1,1 @@
+[{"mode": "old-first", "exit": 0, "expectedResult": true}, {"mode": "zero-drops", "exit": 101, "expectedResult": true}, {"mode": "old-recovery-guard", "exit": 101, "expectedResult": true}]

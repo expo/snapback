@@ -1,0 +1,258 @@
+
+snapback4/packages/snapback4/test/export-background.test.mjs
+10: import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+11: import { signalFixture } from './helpers/fixture-signals.mjs';
+51:   const env = { ...process.env, SNAPBACK4_BIN: binary, PATH: path.join(root, 'bin') + ':' + process.env.PATH,
+88: test('export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export', { skip: process.platform !== 'darwin' }, async () => {
+108: test('new publication supersedes blocked smoke; only one driver enters the tool at a time', { skip: process.platform !== 'darwin' }, async () => {
+124: for (const [victim, signal] of [['driver','SIGKILL'], ['worker','SIGKILL'], ['worker','SIGTERM'], ['worker','SIGHUP']]) test(`${signal} of background ${victim} cleans its peer/tools without another export`, { skip: process.platform !== 'darwin' }, async () => {
+132:     signalFixture(f, record, signal);
+142: test('interrupting a status observer leaves the detached proof running', { skip: process.platform !== 'darwin' }, async () => {
+150:     signalChild(observer, 'SIGINT');
+158:     if (observer?.exitCode === null && observer?.signalCode === null) { const exited=once(observer,'exit'); signalChild(observer, 'SIGTERM'); await exited; }
+163: test('background product failure stays loud without changing export success', { skip: process.platform !== 'darwin' }, async () => {
+174: test('failed evidence pruning does not rewrite a completed native outcome', { skip: process.platform !== 'darwin' }, async () => {
+196: ]) test(`${victim} death during ${mode} deletes only its recorded simulator`, { skip: process.platform !== 'darwin' }, async () => {
+203:       // These three JS cases inject death through signalFixture. The shared
+207:       .replaceAll('os.kill(os.getppid(), signal.SIGINT)', "raise AssertionError('parent faults belong to signalFixture')")
+217:     signalFixture(f, read(path.join(dir, victim + '.json')).process, 'SIGKILL');
+236: test('an explicit opt-out supersedes an in-flight proof and reports the new export as skipped', { skip: process.platform !== 'darwin' }, async () => {
+256:     if (process.platform === 'linux') {
+293: for (const bytes of ['export one', 'changed export']) test(`failed latest handoff cannot report an older pass (${bytes})`, { skip: process.platform !== 'darwin' }, async () => {
+318:       f.put('platform.cjs', "Object.defineProperty(process,'platform',{value:'linux'})");
+319:       f.env.NODE_OPTIONS = '--require=' + path.join(f.root, 'platform.cjs');
+349: const stop=()=>{if(fs.existsSync(root+'/stop-compression'))require(${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).pathname)}).signalSelf('SIGKILL',{group:true});};
+350: const child=spawn(process.execPath,['-e',${JSON.stringify("const fs=require('fs');const {signalSelf}=require("+JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).pathname)+");process.on('SIGTERM',()=>{});setInterval(()=>{if(fs.existsSync('stop-compression'))signalSelf('SIGKILL',{group:true});},25)")}],{stdio:'ignore'});
+363: for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['before','supersede'], ['before','deadline'], ['after','SIGTERM'], ['after','SIGKILL'], ['after','supersede']]) test(`blocked retention has bounded custody: ${phase} ${mode}`, { skip: process.platform !== 'darwin' && phase === 'after', timeout: 300000 }, async t => {
+367:   if (process.platform !== 'darwin') {
+368:     f.put('background-platform.cjs', "Object.defineProperty(process,'platform',{value:'darwin'})");
+369:     f.env.NODE_OPTIONS = `${f.env.NODE_OPTIONS || ''} --require=${path.join(f.root,'background-platform.cjs')}`;
+375:     assert.equal(result.state, process.platform === 'darwin' ? 'skipped' : 'failed');
+377:     assert.equal(status.status, process.platform === 'darwin' ? 2 : 1, status.stdout + status.stderr);
+378:     if (process.platform !== 'darwin') {
+421:   if (mode.startsWith('SIG')) signalFixture(f, read(path.join(first.artifacts, 'worker.json')).process, mode);
+433:     if (process.platform === 'darwin') await wait(() => f.events().length > 0, 'proof continues after retention deadline');
+439:   if (process.platform === 'darwin') await wait(() => f.events().length > 0, 'new proof acquired the lease and reached its tool');
+445: for (const fault of ['marker', 'handoff']) test(`overlapping skipped export cannot inherit a concurrent publication's proof (${fault} failure)`, { skip: process.platform !== 'darwin' }, async () => {
+494: test('request timestamp begins at publication commit, not private marker creation', {skip:process.platform!=='darwin'},async()=>{
+506: test('direct export-retain has bounded custody and the inner worker rejects manual use', {skip:process.platform!=='darwin'},async()=>{
+514:     const compressor=read(path.join(f.root,'compression.json'));signalChild(caller, 'SIGTERM');await ended;
+517:     if(caller?.exitCode===null&&caller?.signalCode===null){const ended=once(caller,'exit');signalChild(caller, 'SIGTERM');await ended;}
+522: test('SIGKILL overlap defers a still-held retention lock and starts the next proof', {skip:process.platform!=='darwin'},async()=>{
+550:     f.env.SNAPBACK4_BIN=injected;f.env.SB4_NZ_RETENTION_BARRIER=f.root;
+559:     const worker=read(path.join(first.artifacts,'worker.json')).process.pid;signalFixture(f,read(path.join(first.artifacts,'worker.json')).process,'SIGKILL');
+580:     f.put('platform.cjs', "Object.defineProperty(process,'platform',{value:'linux'})");
+581:     f.env.NODE_OPTIONS = '--require=' + path.join(f.root, 'platform.cjs');
+630:     if(fault!=='deadline')signalFixture(f,read(path.join(firstDir,'maintenance-launch.json')).process,fault);
+684: for(const mode of ['off','non-macOS','background']) test(`first-started last-published generation remains full evidence (${mode})`,{skip:process.platform!=='darwin',timeout:120000},async()=>{
+720: for(const mode of ['off','non-macOS','background']) test(`failed handoffs with held wrapper leases retain deferred maintenance (${mode})`,{skip:process.platform!=='darwin',timeout:120000},async()=>{
+855:     const library=path.join(f.root,'publication.'+(process.platform==='darwin'?'dylib':'so'));
+856:     const compiled=spawnSync('cc',[...(process.platform==='darwin'?['-dynamiclib']:['-shared','-fPIC']),new URL('./publication-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+861: if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
+865:     wrapperChild=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,SNAPBACK4_BIN:path.join(f.root,'dispatch.mjs'),SB4_FAULT:'pause-'+point,SB4_FAULT_TARGET:path.join(f.root,'dist'),SB4_FAULT_BARRIER:barrier},stdio:['ignore','pipe','pipe']});
+894: for(const mode of ['off','non-macOS','background'])test(`failed export lease removes its shell and retention repairs legacy ownerless runs (${mode})`,{skip:process.platform!=='darwin',timeout:120000},async()=>{
+901:     const saved=f.env.SNAPBACK4_BIN;f.env.SNAPBACK4_BIN=path.join(f.root,'lease-fails');
+902:     const failed=f.invoke();f.env.SNAPBACK4_BIN=saved;
+909:     f.env.SNAPBACK4_BIN=path.join(f.root,'lease-fails');const afterCreate=f.invoke();f.env.SNAPBACK4_BIN=saved;
+1003:     signalFixture(f,read(path.join(root,record)).process,'SIGKILL');
+1108:       const originalKill=process.kill, attempted=[];
+1109:       process.kill=(...args)=>{attempted.push(args);throw Error('UNSAFE_STALE_DISPATCH');};
+1110:       try { assert.throws(()=>signalFixture(f,stopped.process,'SIGKILL'),/TEST_SIGNAL_REFUSED/); }
+1111:       finally { process.kill=originalKill; }
+1115:     signalFixture(f,stopped.process,'SIGKILL');await wrapperExit;
+1144:     signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');await until(()=>!alive(observer),'owned idle observer exited');
+1151:     const before=Date.now();signalFixture(f,stopped.process,'SIGKILL');
+1175:     signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');
+1183:     signalFixture(f,read(path.join(root,'maintenance-test-point.json')).process,'SIGKILL');
+1201:     signalFixture(f,victim==='observer'?observer.process:read(path.join(root,'maintenance-test-point.json')).process,'SIGKILL');await until(()=>!alive(pid),'owned victim exited in handoff gap');
+1214:     signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');await until(()=>!alive(observer),'owned observer exited');
+
+snapback4/packages/snapback4/test/export-failure.test.mjs
+29:     fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
+31:       const result = spawnSync(process.execPath, [shim, signal], { env: { ...process.env, SNAPBACK4_BIN: child }, encoding: 'utf8', timeout: 5000 });
+55:     const library = path.join(root, 'interposer.' + (process.platform === 'darwin' ? 'dylib' : 'so'));
+56:     const compile = spawnSync('cc', [...(process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC']), new URL('./publication-interposer.c', import.meta.url).pathname, '-o', library], { encoding: 'utf8' });
+63: import {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};
+80:  if(args[1]==='export-publish')env[process.platform==='darwin'?'DYLD_INSERT_LIBRARIES':'LD_PRELOAD']=${JSON.stringify(library)};
+82:  if(r.signal){signalSelf(r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
+85:     const env = { ...process.env, SNAPBACK4_BIN: dispatcher, PATH: path.join(root, 'node_modules/.bin') + ':' + process.env.PATH, SB4_FAULT_TARGET: path.join(root, 'dist') };
+87:     const run = fault => spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: 20000 });
+
+snapback4/packages/snapback4/test/export-native.test.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+54:   assert.equal(skipReason('darwin', {}), null);
+56:   assert.equal(skipReason('darwin', { SNAPBACK4_NATIVE_SMOKE: 'off' }), 'SNAPBACK4_NATIVE_SMOKE=off');
+57:   assert.equal(skipReason('darwin', { SNAPBACK4_NATIVE_SMOKE: 'false' }), null);
+81:     const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary, PATH: tools+':'+process.env.PATH, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
+85:     assert.deepEqual(args.slice(0,5),['export','--platform','ios','--dump-assetmap','--output-dir']);
+102:     put('node_modules/@expo/cli/build/src/export/persistMetroAssets.js', 'exports.filterPlatformAssetScales = (platform, scales) => scales.filter(s => [1,2,3].includes(s))');
+225:       await once(child.stdout, 'data'); signalChild(child, signal);
+233: test('react-native.config.mjs refuses through the real static preparation adapter', { skip: process.platform !== 'darwin' }, async () => {
+
+snapback4/packages/snapback4/test/export-publication.test.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+31:   encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary }, stdio: ['ignore', 'pipe', 'pipe', lease],
+60:     const built = spawnSync('cc', [probe + '.c', ...(process.platform === 'darwin' ? [] : ['-ldl']), '-o', probe], { encoding: 'utf8' });
+94:     if (child?.exitCode === null && child?.signalCode === null) signalChild(child, 'SIGKILL');
+102:   const old = process.env.SNAPBACK4_BIN; process.env.SNAPBACK4_BIN = binary;
+120:     if (old === undefined) delete process.env.SNAPBACK4_BIN; else process.env.SNAPBACK4_BIN = old;
+151:     signalChild(child, 'SIGKILL'); await exited;
+155:   } finally { if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
+179:     signalChild(child, 'SIGKILL'); await exited;
+195:     if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited;
+
+snapback4/packages/snapback4/test/helpers/app-server.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+9: export const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../../target/debug/snapback4");
+37:   t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
+
+snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+24:     if (host.exitCode === null && host.signalCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); signalChild(host); await done; }
+
+snapback4/packages/snapback4/test/helpers/live-margin-load.mjs
+
+snapback4/packages/snapback4/test/helpers/publication-barrier.mjs
+
+snapback4/packages/snapback4/test/helpers/read-through-server.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+15: const binary=process.env.SNAPBACK4_BIN??join(root,"target/debug/snapback4");
+25:   t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)signalChild(child, "SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});
+
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs
+1: import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+33:   const binary=resolve(process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4'));
+201:     if(server.exitCode==null&&server.signalCode==null)signalChild(server, 'SIGTERM');
+
+snapback4/packages/snapback4/test/publication-interposer.c
+42: #ifdef __APPLE__
+
+snapback4/packages/snapback4/test/test-command-group.test.mjs
+8: import { spawnTracked, signalChild } from '../../../scripts/test-signals.mjs';
+54:     if (runner.exitCode === null && runner.signalCode === null) signalChild(runner, 'SIGTERM');
+
+snapback4/packages/snapback4/test/test-processes.test.mjs
+2: import { inspectSignalTarget, signalRecorded, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+15: const table = platform => readFileSync(new URL(`${platform}.txt`, fixtures));
+53:   await assert.rejects(async () => await processTable({ platform: 'linux', run: (_command, _args, options) => {
+184:     platform: 'linux', exists: () => { probes++; return present; },
+211:     platform: 'linux', exists: () => false,
+231:     ['darwin', row(101, 1, group, `-2 Sun Oct  4 05:45:04 2026 ${state} (exiting helper)`)])),
+234:   for (const [platform, bad] of transientRows) {
+236:     const rows = await processTable({ platform, group: 100, exists: () => { throw Error('no existence shortcut'); },
+245:   for (const [platform, bad] of transientRows) for (const present of [false, true]) {
+247:     await assert.rejects(async () => await processTable({ platform, group: 999, exists: () => present,
+255:   for (const [platform, bad] of [
+257:     ...['S', 'SX', 'X'].map(state => ['darwin', row(101, 1, -1, `501 Sun Oct 4 05:45:04 2026 ${state} helper`)]),
+266:     await assert.rejects(async () => await processTable({ platform, exists: () => false,
+277:     await assert.rejects(async () => await processTable({ platform: 'linux', group: 100, exists: () => true,
+287:   await assert.rejects(async () => await processTable({ platform: 'linux', run: () => ({ status: 0,
+296:     assert.equal((await parse(row(101, 0, 100, `501 Sun Oct 4 05:45:04 2026 ${state} helper`), { platform: 'darwin' }))[0].alive, true);
+300: for (const platform of ['darwin', 'linux']) test(`${platform} recorded synthetic ps table parses every field and state`, async () => {
+301:   const rows = await parse(table(platform));
+302:   assert.equal(rows.length, platform === 'darwin' ? 14 : 10);
+307:   assert.deepEqual(rows.filter(r => !r.alive).map(r => r.pid), [platform === 'darwin' ? 4109 : 4105]);
+309:   if (platform === 'darwin') {
+360:   assert.equal((await identity(100, { platform: 'darwin', inspect })).pid, 100);
+361:   assert.equal(await identity(101, { platform: 'darwin', inspect }), undefined);
+362:   await assert.rejects(async () => await identity(200, { platform: 'darwin', inspect }), /TEST_PROCESS_INSPECTION/);
+366:   const lookup = async stdout => await identity(101, { platform: 'darwin', group: 100, inspect: async options => await parse(stdout, options) });
+378: // test process's platform and ps snapshots change; the keeper still owns and
+383:       const dir = mkdtempSync(join(tmpdir(), 'sb4-darwin-reuse-'));
+387:       const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+389:         Object.defineProperty(process, 'platform', platform);
+392:       Object.defineProperty(process, 'platform', { value: 'darwin' });
+439:   const source = table('darwin').toString().trimEnd().split('\n');
+511:     const originalKill = process.kill, originalChildKill = child.kill, attempted = [], handles = [];
+512:     process.kill = (...args) => { attempted.push(args); return true; };
+515:       for (const pid of [0, -1, undefined, NaN, 1.5, 2147483648]) assert.throws(() => signalRecorded({ ...record, pid }, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+516:       assert.throws(() => signalRecorded({ ...record, start: ['wrong-boot', 'wrong-birth'] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+517:       assert.throws(() => signalRecorded({ ...record, start: undefined }, 'SIGKILL', child.spawnargs), /recorded birth required/);
+518:       assert.throws(() => signalRecorded(record, 'SIGKILL', [...child.spawnargs, 'wrong-command']), /expected process command/);
+519:       assert.throws(() => signalChild({ pid: child.pid, exitCode: null, signalCode: null, spawnargs: child.spawnargs }, 'SIGKILL'), /no captured child birth/);
+523:       assert.throws(() => signalRecorded({ ...record, start: [0, 0] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+525:       signalRecorded(record, 'SIGTERM', child.spawnargs);
+526:       signalChild(child, 'SIGINT');
+532:       assert.throws(() => signalChild(child, 'SIGKILL'), /owned child exited before dispatch/);
+534:     } finally { process.kill = originalKill; child.kill = originalChildKill; }
+536:     const originalKillAfterExit = process.kill, staleAttempts = [];
+537:     process.kill = (...args) => { staleAttempts.push(args); return true; };
+539:       assert.throws(() => signalRecorded(record, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+540:       assert.throws(() => signalChild(child, 'SIGKILL'), /already exited/);
+542:     } finally { process.kill = originalKillAfterExit; }
+
+snapback4/packages/snapback4/test/test-signals.test.mjs
+8: import { inspectSignalTarget, signalChild, spawnTracked } from '../../../scripts/test-signals.mjs';
+9: import { signalFixture } from './helpers/fixture-signals.mjs';
+10: import { killOwned, runOwnedCommand } from '../../../scripts/test-owned-command.mjs';
+48:       const originalKill = process.kill, attempted = [];
+51:       process.kill = (...values) => { attempted.push(values); return true; };
+53:         const f = { root, env: { SNAPBACK4_BIN: selected } };
+54:         signalFixture(f, record, 'SIGKILL');
+58:           { root, env: { SNAPBACK4_BIN: original } },
+59:           { root, env: { SNAPBACK4_BIN: path.join(alias, 'snapback4-interposed') } },
+62:         ]) assert.throws(() => signalFixture(wrong, record, 'SIGKILL'), /expected fixture command/, args[1]);
+64:       } finally { process.kill = originalKill; }
+78:     const original = process.kill, originalChildKill = child.kill, attempted = [];
+79:     process.kill = () => { assert.fail('owned-child signal must use its retained handle'); };
+82:       signalChild(child, 'SIGTERM');
+84:     } finally { process.kill = original; child.kill = originalChildKill; }
+120:   assert.throws(() => killOwned(process.pid, 'SIGKILL'), /no owned ChildProcess handle/);
+121:   assert.throws(() => killOwned({ pid: process.pid, kill() { assert.fail('borrowed dispatch'); } }, 'SIGKILL'), /no owned ChildProcess handle/);
+128:   const script = `Object.defineProperty(process,'platform',{value:'darwin'});
+129: process.kill=(...args)=>console.log(JSON.stringify(args));
+130: require(${JSON.stringify(helper)}).signalSelf('SIGKILL',{group:true});`;
+152:   const script = `Object.defineProperty(process,'platform',{value:'darwin'});
+
+snapback4/scripts/test-command-group.mjs
+27:       && !(process.platform === 'linux' && row.state[0] === 'X'));
+
+snapback4/scripts/test-command-owner.mjs
+4: import { signalSelf } from './test-owned-command.mjs';
+14:   const kill = () => signalSelf('SIGKILL', { group: true });
+17:   signalSelf('SIGTERM', { group: true });
+
+snapback4/scripts/test-file-owner.mjs
+3: import { signalSelf } from './test-owned-command.mjs';
+10:   const die = () => signalSelf('SIGKILL', { group: true });
+
+snapback4/scripts/test-owned-command.mjs
+15: export function killOwned(child, signal) {
+22: export function signalSelf(signal, { group = false } = {}) {
+27:   process.kill(group ? 0 : process.pid, signal);
+40:       killOwned(child, 'SIGKILL');
+
+snapback4/scripts/test-process-identity.c
+
+snapback4/scripts/test-processes.mjs
+2: import { signalChild, spawnTracked as spawn } from './test-signals.mjs';
+3: import { killOwned } from './test-owned-command.mjs';
+40:       try { signalChild(child, 'SIGKILL'); }
+46:         killOwned(child, 'SIGKILL');
+73: function transientRouting(ids, rest, platform) {
+76:   const linuxCandidate = platform === 'linux'
+78:   if (!linuxCandidate && !(platform === 'darwin' && sentinel)) return false;
+83:   if (platform === 'darwin') return sentinel && /^[RUSITHZ?][<NXEVLs+]*$/.test(state ?? '')
+91:   try { process.kill(pid, 0); return true; }
+118: async function processSnapshot({ run = runProcess, exists = processExists, platform = process.platform, group, pid, onDiagnostic = () => {} }) {
+140:     if (transientRouting(ids, rest, platform)) throw new TransientRouting(inspectionError(JSON.stringify({
+168:     // stat has platform-specific flags; only Z is nonliving. The rest of the
+185: export async function identity(pid, { platform = process.platform, read = readFileSync, exists = processExists, inspect = processTable, group } = {}) {
+189:   if (platform !== 'linux') return (await inspect({ pid, group })).find(row => row.pid === pid);
+
+snapback4/scripts/test-signals.mjs
+13: import { spawnOwned as nativeSpawn, killOwned, runOwnedCommand } from './test-owned-command.mjs';
+39:     if (process.platform === 'linux') {
+46:     if (process.platform !== 'darwin') throw refusal(`unsupported platform ${process.platform}`);
+88:   try { return JSON.stringify((process.platform === 'linux' ? linuxBirth(record.pid) : snapshot(record.pid)).start) === JSON.stringify(record.start); }
+95: export function signalRecorded(record, signal, argv) {
+98:   process.kill(record.pid, signal);
+124: export function signalChild(child, signal = 'SIGTERM') {
+131:   if (!killOwned(child, signal)) throw refusal('owned child exited before dispatch');
+133: export { signalSelf } from './test-owned-command.mjs';
+137: if (process.platform === 'darwin') probe = await buildDarwinProbe();
+
+snapback4/packages/snapback4/test/helpers/fixture-signals.mjs
+4: import { signalRecorded } from '../../../../scripts/test-signals.mjs';
+24: export function signalFixture(f, record, signal) {
+25:   signalRecorded(record, signal, fixtureCommands(f.env.SNAPBACK4_BIN, f.root));

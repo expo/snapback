@@ -1,0 +1,111 @@
+{
+  "files": [
+    {
+      "file": "packages/snapback4/test/maintenance-evidence.test.mjs",
+      "elapsedMs": 4669,
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+      "elapsedMs": 6071,
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-publication.test.mjs",
+      "elapsedMs": 2744,
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-native.test.mjs",
+      "elapsedMs": 5200,
+      "tests": 10,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1
+    },
+    {
+      "file": "packages/snapback4/test/export-native-round2.test.mjs",
+      "elapsedMs": 5296,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-failure.test.mjs",
+      "elapsedMs": 7605,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-command-group.test.mjs",
+      "elapsedMs": 12959,
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-signals.test.mjs",
+      "elapsedMs": 38199,
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-processes.test.mjs",
+      "elapsedMs": 31463,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-file-runner.test.mjs",
+      "elapsedMs": 46052,
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-background.test.mjs",
+      "elapsedMs": 381389,
+      "tests": 95,
+      "pass": 63,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 32
+    }
+  ],
+  "totals": {
+    "tests": 238,
+    "pass": 205,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 33
+  },
+  "sourceAndBinaryUnchanged": true
+}

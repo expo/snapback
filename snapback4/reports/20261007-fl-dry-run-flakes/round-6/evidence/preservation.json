@@ -1,0 +1,8 @@
+{
+  "crates/snapback4/tests/dev_refusals.rs": true,
+  "packages/snapback4/test/export-background.test.mjs": true,
+  "packages/snapback4/test/export-failure.test.mjs": true,
+  "packages/snapback4/test/helpers/publication-barrier.mjs": true,
+  "packages/snapback4/test/publication-interposer.c": true,
+  "product_source_unchanged": true
+}

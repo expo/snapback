@@ -1,0 +1,23 @@
+diff --git a/snapback4/packages/snapback4/test/export-background.test.mjs b/snapback4/packages/snapback4/test/export-background.test.mjs
+index 1342b805c2..66ce087267 100644
+--- a/snapback4/packages/snapback4/test/export-background.test.mjs
++++ b/snapback4/packages/snapback4/test/export-background.test.mjs
+@@ -9,0 +10 @@ import { randomUUID, createHash } from 'node:crypto';
++import { maintenanceEvidence, watchMaintenance, observedMaintenance } from './helpers/maintenance-evidence.mjs';
+@@ -16 +17 @@ import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from '
+-const binary = fs.realpathSync(new URL('../../../target/debug/snapback4', import.meta.url));
++const binary = fs.realpathSync(process.env.SNAPBACK4_EXPORT_TEST_BINARY || new URL('../../../target/debug/snapback4', import.meta.url));
+@@ -65 +66,3 @@ if(args.join(' ')==='simctl list runtimes --json') {
+-  return { root, put, env, invoke, latest, status, events, maintainers };
++  const f = { root, put, env, invoke, latest, status, events, maintainers };
++  f.stopMaintenanceWatch = watchMaintenance(f);
++  return f;
+@@ -84,0 +88,2 @@ async function cleanup(f) {
++  if (process.env.SNAPBACK4_MAINTENANCE_EVIDENCE) await maintenanceEvidence(f, 'cleanup');
++  f.stopMaintenanceWatch();
+@@ -650 +655 @@ async function maintenanceIdle(f, allowParked = false) {
+-  await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
++  await observedMaintenance(f, allowParked, () => until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
+@@ -652 +657 @@ async function maintenanceIdle(f, allowParked = false) {
+-    'coalesced maintenance queue drained',90000);
++    'coalesced maintenance queue drained',90000));

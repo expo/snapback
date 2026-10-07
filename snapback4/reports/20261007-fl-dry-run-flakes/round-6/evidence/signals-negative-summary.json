@@ -1,0 +1,62 @@
+[
+  {
+    "name": "test-processes.test.mjs",
+    "result": {
+      "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 3,
+        "unrelatedRows": 3440
+      },
+      "elapsed": 349,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-test-processes.test.mjs"
+    }
+  },
+  {
+    "name": "export-background.test.mjs",
+    "result": {
+      "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 3,
+        "unrelatedRows": 3404
+      },
+      "elapsed": 29607,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-negative-export-background.test.mjs"
+    }
+  }
+]

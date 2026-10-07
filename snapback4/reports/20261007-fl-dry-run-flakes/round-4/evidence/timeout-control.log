@@ -1,0 +1,26 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r4-custody-timeout.test.mjs; stall bound 900000 ms
+TAP version 13
+# TIMEOUT_CONTROL_READY {"root":"/tmp/sb4-background-74XhXb","compressor":{"pid":2311513,"child":2311523}}
+# TIMEOUT_CONTROL_REAPED {"compressor":{"pid":2311513,"child":2311523},"rootRemoved":true}
+# Subtest: blocked retention has bounded custody: before SIGKILL
+not ok 1 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 11219.438076
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r4-custody-timeout.test.mjs:376:187'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 10000ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 0
+# cancelled 1
+# skipped 0
+# todo 0
+# duration_ms 11282.274612
+-- process inspection: {"snapshots":3,"unrelatedRows":3482}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r4-custody-timeout.test.mjs (11545 ms)
+EXPECTED TIMEOUT: fixture compressor and child reaped, root removed, runner reports no leak

@@ -1,0 +1,107 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+not ok 1 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.68517
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs:23:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_SIGNAL_REFUSED: expected fixture command required'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-interpreter/test-signals.mjs:15:27)
+    checkCommand (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-interpreter/test-signals.mjs:69:117)
+    inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-interpreter/test-signals.mjs:79:3)
+    checkSignalRecord (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-interpreter/test-signals.mjs:93:10)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r6-interpreter/test-signals.mjs:129:3)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs:35:7)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 76.826278
+-- process inspection: {"snapshots":3,"unrelatedRows":3700}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs (344 ms)
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+not ok 1 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3028.967728
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs:42:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'ETIMEDOUT'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ETIMEDOUT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs:59:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3083.044956
+-- process inspection: {"snapshots":3,"unrelatedRows":3708}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs (3350 ms)
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+not ok 1 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 40233.981009
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs:91:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    compiler must be killed before its emergency self-release
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs:115:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 40300.704599
+-- process inspection: {"snapshots":3,"unrelatedRows":3710}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs (40575 ms)
+EXPECTED FAILURES: all three regressions reject their defect; private self-release reaps negative-control children

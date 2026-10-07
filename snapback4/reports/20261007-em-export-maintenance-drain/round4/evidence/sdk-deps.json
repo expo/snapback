@@ -1,0 +1,10 @@
+{
+  "command": [
+    "bash",
+    "/home/ccheever/sb4-intent/check-sdk-deps.sh"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T21:25:40.176955+00:00",
+  "elapsedSeconds": 0.02265226698364131,
+  "exitCode": 0
+}

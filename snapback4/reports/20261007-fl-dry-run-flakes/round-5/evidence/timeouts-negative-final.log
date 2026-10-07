@@ -1,0 +1,107 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-interpreter.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+not ok 1 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.955148
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-interpreter.test.mjs:23:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_SIGNAL_REFUSED: expected fixture command required'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:13:27)
+    checkCommand (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:67:117)
+    inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:77:3)
+    checkSignalRecord (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:91:10)
+    signalRecorded (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:94:3)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/r5-interpreter/test-signals.mjs:126:3)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-interpreter.test.mjs:34:7)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 73.626377
+-- process inspection: {"snapshots":3,"unrelatedRows":3705}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-interpreter.test.mjs (350 ms)
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-refused-cleanup.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+not ok 1 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3032.251123
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-refused-cleanup.test.mjs:41:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + undefined
+    - 'ETIMEDOUT'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ETIMEDOUT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-refused-cleanup.test.mjs:58:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3083.541679
+-- process inspection: {"snapshots":3,"unrelatedRows":3687}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-refused-cleanup.test.mjs (3347 ms)
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-compiler-escalation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+not ok 1 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 40074.432113
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-compiler-escalation.test.mjs:90:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    compiler must be killed before its emergency self-release
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-compiler-escalation.test.mjs:114:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 40128.538861
+-- process inspection: {"snapshots":3,"unrelatedRows":3669}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r5-compiler-escalation.test.mjs (40403 ms)
+EXPECTED FAILURES: all three regressions reject their defect; private self-release reaps negative-control children

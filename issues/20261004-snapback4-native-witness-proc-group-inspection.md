@@ -140,3 +140,22 @@ This connects the known native inspection refusal to an observed maintenance
 drain assertion, without identifying the earlier incidents' causes. Keep this
 ticket open. No process-group or parked-drain check is weakened; the recurrence
 remains a failure even if later repetitions pass.
+
+## 2026-10-07 — FL round 2 recurrence
+
+The FL round-2 affected witness-module run (one test thread) reported this same
+diagnostic in `preparation::tests::recovery_volta_style_shim_drains_late_group_member`,
+at `preparation.rs:454:45` during idempotent `recovery::cleanup`. Result:
+71 passed, one failed. FL round 2 changes JavaScript test observation only;
+native witness source is unchanged from its `fc9f9f2740` base. All three runs
+used the same pre-existing test binary without rebuilding it.
+
+The focused unchanged rerun passed, followed by a complete unchanged witness
+module rerun with 72 passes. Neither erases the first failure. No rejected stat
+snapshot was retained; the cause is still unknown. The failed fixture's recorded
+runtime-resolution and preparation keepers/guardians were absent on inspection.
+No ownership checks were relaxed and no other process was signalled.
+
+Evidence: [FL round-2 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-2/REPORT.md),
+with `witness-unit.log`, `witness-focused-rerun.log`, `witness-unit-rerun.log` and
+`failed-unit-process-check.json` in its evidence directory. This ticket stays open.

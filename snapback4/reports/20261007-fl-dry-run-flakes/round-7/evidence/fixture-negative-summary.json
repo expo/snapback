@@ -1,0 +1,14 @@
+[
+  {
+    "name": "original-binary",
+    "status": 1,
+    "expectedFailure": true,
+    "groupDrained": true
+  },
+  {
+    "name": "normalize-expectations",
+    "status": 1,
+    "expectedFailure": true,
+    "groupDrained": true
+  }
+]
