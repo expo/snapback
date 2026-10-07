@@ -366,19 +366,35 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let now = next.advance(milliseconds)?;
         engine.advance_worker_leases(milliseconds).map_err(|e| e.refusal())?;
         *clock = next;
-        Ok(now)
+        let offset = now - snapback4_core::now_ms();
+        let message = format!("cumulative offset {offset:+}ms; lasts until restart{}", if crate::dev_clock_store::has_data(&engine) { "; use dev --fresh --port 4401 for isolated time tests (guide jobs)" } else { "" });
+        Ok((now, offset, message))
     })();
-    let now = match advanced {
-        Ok(now) => now,
+    let (now, offset, message) = match advanced {
+        Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
     match work(shared, true, 0) {
-        Ok(work) => respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "work":work})),
+        Ok(work) => respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "work":work})),
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "denied":refusal_json(&error.refusal())})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "denied":refusal_json(&error.refusal())})),
+    }
+}
+
+pub(super) fn clock_status(request: Request, shared: &Shared) {
+    if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
+    let result = (|| {
+        let (epoch, reader) = shared.reader()?;
+        let note = crate::dev_clock_store::ahead(&reader, shared.now());
+        lock(&shared.readers).put(&epoch, reader.into_inner());
+        note
+    })();
+    match result {
+        Ok(note) => respond(request, 200, json!({"storeAhead":note})),
+        Err(error) => respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
     }
 }
 

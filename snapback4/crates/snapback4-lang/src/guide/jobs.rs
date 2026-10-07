@@ -225,11 +225,35 @@ stamp `now` from this clock. The clock keeps ticking monotonically;
 `snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
 for expiry sweeps and queued job chunks to finish. Missed periods fire once,
 not once per skipped boundary; `--hold-schedules` still holds admission.
-The response reports `now`, `advancedMs`, and work counts (including parked
+The response reports `now`, `advancedMs`, cumulative `offsetMs`, a restart reminder, and work counts (including parked
 jobs); if maintenance fails, time remains advanced and the normal tick retries
 pending work, so do not blindly repeat the advance. The offset belongs to
 this process and resets on restart; supply it again when continuing a test.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
+Run time-travel suites on a disposable store and a separate port, from the project directory:
+
+```sh
+# Terminal 1: its private store is discarded when this process stops.
+snapback4 dev --fresh --port 4401
+# Terminal 2: point this suite's clients and seeds at this server.
+export SNAPBACK_URL=http://127.0.0.1:4401
+snapback4 clock advance 25h --port 4401
+snapback4 doctor --url http://127.0.0.1:4401
+# Stop Terminal 1 after the suite; start --fresh again for the next offset test.
+```
+
+Pass SNAPBACK_URL to the suite's client `url`; the variable cannot redirect a
+hard-coded URL. Issue new sessions for each fresh store and discard its saved tokens.
+`--fresh` (also `--memory`) never changes the main dev store. To resume a
+persistent offset test, restart that store with the same cumulative `--clock-offset`.
+`doctor` shows the running offset and a store-ahead note when retained row
+stamps lead its clock by more than five seconds; dev prints the same note once
+at startup. With no host, doctor compares the persisted store with wall time.
+The check uses minted row IDs and time fields matching recorded commit times;
+ordinary future expiry/deadline values alone do not trigger it. It is advice,
+not a data repair: restarting resets the clock, not already written timestamps.
+`check --store` checks schema adoption, not a running process's clock.
+
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
 Devices keep the server's time for predictions, reads and expiry, including offline starts.
 `clock advance` and `--clock-offset` reach connected devices at their next response.
@@ -277,6 +301,10 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 `run` inspect the separate on-disk store.
 
 ## Refusals
+
+N_CLOCK_STORE_AHEAD means retained row stamps are more than five seconds ahead
+of the current clock. Use a fresh store per offset test (`dev --fresh --port 4401`),
+or restart with the same cumulative `--clock-offset` to continue. See Operations.
 
 E_JOB_VIEWER_CONTEXT means as belongs inside a job sweep and cannot nest. Put as recipient.principal: inside the recipient loop.
 

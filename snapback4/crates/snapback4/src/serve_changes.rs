@@ -94,7 +94,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         let _timing = super::latency::EngineSpan::new();
         if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|crate::auth::parse_bearer(h.value.as_str())) {
             match snapback4_core::identity::resolve_read_only_supervised(reader.store(),token.trim(),snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) },auth_store_id.as_deref()) {
-                Ok(Some(current)) if current == capability => Ok(()),Ok(_)=>Err(snapback4_core::Refusal::new("E_AUTH","auth","this session is not live; sign in again").guide("personas")),Err(e)=>Err(e.refusal()),
+                Ok(Some(current)) if current == capability => Ok(()),Ok(_)=>Err(snapback4_core::identity::diagnostics::refused(reader.store(), token.trim(), shared.now(), shared.personas)),Err(e)=>Err(e.refusal()),
             }
         } else {Ok(())}
     } else {principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) })};

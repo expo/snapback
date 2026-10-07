@@ -3237,3 +3237,20 @@ A later different visible position above that floor starts a new attempt, even
 below the rejected position. Repeated input and retry never resubmit the rejected
 position; membership/session reset clears it.
 See `snapback4 guide receipts` for the full rules and two-read recipe.
+
+### Refused sessions and dev time tests
+
+`E_AUTH` retains family `auth` and the server's message on the local tier,
+online tier and app online arm, including calls after terminal refusal. Dev
+explains unknown-store, expired, and signed-out/revoked/refreshed tokens. Sign in
+again and discard tokens saved from an earlier store. Serve uses the same generic
+"this session is not live; sign in again" for each case. Clients without credentials
+still ask you to sign in. There is no new refusal field; avoid matching message text.
+
+For time-travel tests use `snapback4 dev --fresh --port 4401`, point the suite's
+client URL at `http://127.0.0.1:4401`, then run `snapback4 clock advance 25h --port 4401`.
+Stop that disposable server after the suite. Each new store needs new sessions.
+The advance reports its cumulative offset and restart lifetime. `doctor --url
+http://127.0.0.1:4401` reports that clock; dev startup and doctor flag retained
+future write stamps with `N_CLOCK_STORE_AHEAD`. See `snapback4 guide jobs` for the
+complete recipe and detection scope. Restarting resets time, not written rows.

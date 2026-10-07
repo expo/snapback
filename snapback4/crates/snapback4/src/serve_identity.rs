@@ -49,23 +49,28 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
         // must not preserve a session that expired or was revoked in that wait.
         let path = request.url().split('?').next().unwrap_or("");
         let read = detached_request(request.method(), path);
-        let resolved = if let Some(engine) = owner {
-            snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) })
-        } else if read { match shared.reader() {
+        let resolve = |engine: &Engine, identity: Option<&str>, detached: bool| {
+            let now = shared.now();
+            let sample = snapback4_core::identity::ServiceSample { now, supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+            let result = if detached {
+                snapback4_core::identity::resolve_read_only_supervised(engine.store(), &token, sample, identity)
+            } else {
+                snapback4_core::identity::resolve_supervised(engine.store(), &token, sample)
+            };
+            result.map_err(|error| error.refusal())?.ok_or_else(||
+                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, shared.personas))
+        };
+        return if let Some(engine) = owner { resolve(engine, None, false) }
+        else if read { match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
-                let result = snapback4_core::identity::resolve_read_only_supervised(reader.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }, identity.as_deref());
+                let result = resolve(&reader, identity.as_deref(), true);
                 lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
-            Err(_) if shared.memory_store() => snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }),
-            Err(error) => return Err(error.refusal()),
-        } } else { snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }) };
-        return match resolved {
-            Ok(Some(capability)) => Ok(capability),
-            Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
+            Err(_) if shared.memory_store() => resolve(&lock(&shared.engine), None, false),
             Err(error) => Err(error.refusal()),
-        };
+        } } else { resolve(&lock(&shared.engine), None, false) };
     }
     Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
 }

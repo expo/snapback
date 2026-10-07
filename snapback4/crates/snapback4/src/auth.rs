@@ -267,7 +267,7 @@ fn perform(
             let engine = shared.engine.lock().unwrap();
             let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) };
             if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
-                return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+                return Err(RuntimeError::Auth(identity::diagnostics::refused(engine.store(), token, shared.now(), shared.personas).message));
             }
             // @ref LLP 3000.009#5.3 — only the supervisor replaces its bearer;
             // returning a refresh successor would escape its live log redactors.
@@ -283,7 +283,7 @@ fn perform(
             if supervised { return Ok(Outcome::SupervisedRefresh); }
             identity::rotate_session(engine.store(), token, shared.now())?
                 .map(Outcome::Session)
-                .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))
+                .ok_or_else(|| RuntimeError::Auth(identity::diagnostics::refused(engine.store(), token, shared.now(), shared.personas).message))
         }
         "/auth/logout-all" => {
             let principal = principal_of(request, shared)

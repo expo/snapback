@@ -1,3 +1,4 @@
+import { bindSessionRefusal } from "./session-refusal.ts";
 import { bindFollowing, notifyFollowing } from "./following-transport.ts";
 import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
@@ -336,7 +337,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   let transportFailure: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
-  const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
+  let authRefusal: Refusal | undefined;
+  const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
   setLink = (next: Link) => {
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
@@ -366,11 +368,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let retireRotation: ((result: SignIn) => void) | undefined;
   let persistingSession: Promise<void> | undefined;
   let endingSession: Promise<void> | undefined;
-  const signedOut = (): SignIn => ({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+  const signedOut = (): SignIn => ({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
   // @ref LLP 3000.011.003.000#2 — local sign-out fences refresh before durable credential deletion; it never deletes the replica or outbox.
-  const endSession = (): Promise<void> => {
+  const endSession = (why?: Refusal): Promise<void> => {
+    if (!sessionDead) authRefusal = why;
     void deliveryQueue?.stop();
     if (endingSession) return endingSession;
     const notifySession = !sessionDead;
@@ -408,7 +411,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
   const refusedSession = async (denied: unknown, revision: number) => {
-    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession();
+    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession(denied as Refusal);
   };
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -426,7 +429,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const refreshCurrent = (): Promise<SignIn> => {
     if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
-    if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     if (refreshing) return refreshing;
     const token = session.token;
     const expectedPrincipal = session.principal;
@@ -454,7 +457,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!refreshed.ok) {
         rotating = false;
         credentialRevision += 1;
-        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession();
+        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession(refreshed.why);
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
         return refreshed;
       }
@@ -1524,6 +1527,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   trackClose(client, closingResponses);
   if (!deferStart(options, start)) await start();
   stopHost = core.onClient?.(client, base);
+  bindSessionRefusal(client, () => authRefusal);
   return client;
   } catch (error) {
     stopSuspend?.(); stopOutbox?.();

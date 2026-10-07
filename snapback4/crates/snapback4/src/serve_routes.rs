@@ -51,7 +51,7 @@ fn principal(request: &Request, shared: &Shared) -> Result<String, Refusal> {
     let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
     let engine = lock(&shared.engine);
     snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }).map_err(|e| e.refusal())?
-        .map(|(principal, _, _)| principal).ok_or_else(|| Refusal::new("E_AUTH", "auth", "a session route requires a live bearer session").guide("routes"))
+        .map(|(principal, _, _)| principal).ok_or_else(|| snapback4_core::identity::diagnostics::refused(engine.store(), &token, shared.now(), shared.personas))
 }
 
 // @ref LLP 3000.009#5.1 — every provider delivery verifies before durable admission or result collection.

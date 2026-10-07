@@ -89928,3 +89928,36 @@ PostgreSQL is untouched. The ticket's final resolution and the
 [round-1 report](reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
 record the contract correction, review dispositions and logs. No other lane,
 worktree or host was used; nothing pushed.
+
+## 2026-10-07 — DK: dev clock and stale sessions explain themselves
+
+Calibration #31 d-01/d-04 now have product diagnostics. Dev startup and doctor
+report `N_CLOCK_STORE_AHEAD` for retained write stamps more than five seconds
+ahead, naming the maximum lead, tables and repairs. Doctor also shows offset
+from wall time; clock advance's CLI/endpoint report cumulative offset and restart
+lifetime, with an isolated-test hint when data already exists. The jobs card
+uses the existing `dev --fresh --port 4401` recipe. `check --store` remains a
+schema-adoption check because it has no running-clock selector. Detection uses
+minted row times and time fields matching recorded commits, not arbitrary future
+expiry/appointment values; it never rewrites data.
+
+Dev auth distinguishes unknown-store, expired and signed-out/revoked/refreshed
+bearers. A bounded SQLite history keeps 4,096 retired-token digests/deadlines,
+installed after accepted opening; serve removes it and keeps all three causes
+generic to avoid disclosing token membership. `E_AUTH`/`auth` and the public type
+shape are unchanged. Online/local SDKs retain the validated reason through
+terminal cleanup and app online custody/fences. Generated declarations and docs
+were updated consistently. LLP 3000.007 §20.2/§20.12 and its Revised line carry
+the lasting decisions; LLP 3000.033's read-session authority/opening rules stand.
+
+Affected checks passed: 191 server units (four ignored), 64 clock/replay/dev-refusal
+integration tests, one clock tolerance test, 23 core identity/session tests,
+113 guide checks, SDK build/typecheck, the new 30-test reason matrix, app/transport/
+read-only regressions and the full 52-test app session model (5,000 sequences per
+tier). Root ref-check passed. The broader CLI unit run retained an unrelated
+witness retention-lock failure (329 passed/one failed/four ignored), passing alone;
+no full-suite-green claim. No web/device engine changes: a fresh local wasm build
+measured 2,135,336 raw / 645,448 gzip bytes against the inherited 645,607 cap (159 B
+margin); no macOS margin or raised budget is claimed. Work stayed in this lane;
+nothing pushed. Details, privacy rationale, detection limits and harness outcomes:
+[DK report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).

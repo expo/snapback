@@ -1,3 +1,4 @@
+import { sessionRefusal } from "./session-refusal.ts";
 // @ref LLP 3000.033#1.8 — server access borrows custody internally, never exports credentials.
 import type { Client, Ephemeral, Refusal, Signal } from "./contract.ts";
 import { guardClient } from "./app-client.ts";
@@ -14,18 +15,17 @@ export interface Online extends Pick<Client, "query" | "observe" | "act" | "link
 /** Explicit projection: neither runtime enumeration nor types reveal session,
  * headers, assetSource, refresh, logout or the underlying Client. */
 export function onlineView(client: Client): Online {
+  const auth = (): Refusal => sessionRefusal(client) ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" };
   return {
     query: client.query, observe: client.observe,
     act(op, args, options) {
-      if (client.link() === "signed-out") return Promise.resolve({ id: options?.id ?? mintId(),
-        denied: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+      if (client.link() === "signed-out") return Promise.resolve({ id: options?.id ?? mintId(), denied: auth() });
       return client.act(op, args, options);
     },
     link: client.link, onLink: client.onLink, now: client.now, viewer: client.viewer,
     readOnly: client.readOnly ?? false,
     mutate(op, args) {
-      if (client.link() === "signed-out") return Promise.resolve({ state: "failed", id: mintId(),
-        why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+      if (client.link() === "signed-out") return Promise.resolve({ state: "failed", id: mintId(), why: auth() });
       if (!op.ephemeral && !client.readOnly) return Promise.resolve({ state: "failed", id: mintId(),
         why: { code: "E_INPUT", family: "input", message: "use app.mutate for durable writes", guide: "client" } });
       return client.mutate(op, args);

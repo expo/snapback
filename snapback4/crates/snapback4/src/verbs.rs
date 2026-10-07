@@ -785,6 +785,8 @@ pub fn doctor(options: &Options) -> i32 {
         Err(error) => { eprintln!("E_INPUT at doctor: {error}"); return 1; }
     };
     lines.push(crate::host_limits::describe_for_doctor(host.as_ref()));
+    lines.push(crate::dev_clock_store::offset_line(host.as_ref().and_then(|h| h["clockOffsetMs"].as_i64()).unwrap_or(0), host.is_some()));
+
     if let Some(host) = &host {
         if host["fileDescriptors"]["startup"]["error"].as_str().is_some() { ok = false; }
         if host["scheduling"]["qosFailures"].as_u64().unwrap_or(0) + host["scheduling"]["niceFailures"].as_u64().unwrap_or(0) > 0 {
@@ -802,6 +804,11 @@ pub fn doctor(options: &Options) -> i32 {
     }
     if let Some(host) = host.as_ref().filter(|host| host["temporary"] == true) {
         lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"].as_str().unwrap_or("unknown"), host["generation"]));
+        let clock = host["address"].as_str().and_then(|a| a.parse().ok()).and_then(|address| adoption::request(address, "GET", "/dev/clock/status"));
+        match clock {
+            Some(clock) => lines.push(clock["storeAhead"].as_str().unwrap_or("clock     no stored row stamps ahead of the current clock (>5000ms)").to_owned()),
+            None => lines.push("clock     store-ahead inspection unavailable".into()),
+        }
         latency_snapshot = latency::read(host, false);
         if let Some(snapshot) = &latency_snapshot { lines.extend(latency::lines(snapshot, false)); }
         if let Some(reason) = host["adoption"].as_str() {
@@ -848,6 +855,11 @@ pub fn doctor(options: &Options) -> i32 {
             }
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
+                    match crate::dev_clock_store::ahead(&engine, now) {
+                        Ok(Some(note)) => lines.push(note),
+                        Ok(None) => lines.push("clock     no stored row stamps ahead of the current clock (>5000ms)".into()),
+                        Err(error) => lines.push(format!("clock     store-ahead inspection unavailable: {error}")),
+                    }
                     match engine.recorded_nulls() {
                         Ok(counts) => {
                             for (name, paths) in counts.captures {
