@@ -225,7 +225,7 @@ test('wrapper forwards both signals and waits for child cleanup before returning
     for (const signal of ['SIGINT', 'SIGTERM']) {
       const code = `const fs=require('fs'); process.on('${signal}',()=>setTimeout(()=>{fs.writeFileSync(${JSON.stringify(path.join(root, signal))},'cleaned');process.exit(1)},150)); console.log('ready'); setInterval(()=>{},1000);`;
       const child = spawn(process.execPath, [helper, code], { stdio: ['ignore', 'pipe', 'pipe'] });
-      await once(child.stdout, 'data'); signalChild(child, signal);
+      await once(child.stdout, 'data'); await signalChild(child, signal);
       const [status] = await once(child, 'close');
       assert.equal(status, signal === 'SIGINT' ? 130 : 143);
       assert.equal(fs.readFileSync(path.join(root, signal), 'utf8'), 'cleaned');

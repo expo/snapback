@@ -509,37 +509,37 @@ test('every external test signal rechecks exact command and birth at dispatch', 
   const exited = once(child, 'exit');
   try {
     await once(child.stdout, 'data');
-    const record = inspectSignalTarget(child.pid, child.spawnargs);
+    const record = await inspectSignalTarget(child.pid, child.spawnargs);
     const originalKill = process.kill, originalChildKill = child.kill, attempted = [], handles = [];
     process.kill = (...args) => { attempted.push(args); return true; };
     child.kill = signal => { handles.push(signal); return true; };
     try {
-      for (const pid of [0, -1, undefined, NaN, 1.5, 2147483648]) assert.throws(() => signalRecorded({ ...record, pid }, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
-      assert.throws(() => signalRecorded({ ...record, start: ['wrong-boot', 'wrong-birth'] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
-      assert.throws(() => signalRecorded({ ...record, start: undefined }, 'SIGKILL', child.spawnargs), /recorded birth required/);
-      assert.throws(() => signalRecorded(record, 'SIGKILL', [...child.spawnargs, 'wrong-command']), /expected process command/);
-      assert.throws(() => signalChild({ pid: child.pid, exitCode: null, signalCode: null, spawnargs: child.spawnargs }, 'SIGKILL'), /no captured child birth/);
+      for (const pid of [0, -1, undefined, NaN, 1.5, 2147483648]) await assert.rejects(() => signalRecorded({ ...record, pid }, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+      await assert.rejects(() => signalRecorded({ ...record, start: ['wrong-boot', 'wrong-birth'] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+      await assert.rejects(() => signalRecorded({ ...record, start: undefined }, 'SIGKILL', child.spawnargs), /recorded birth required/);
+      await assert.rejects(() => signalRecorded(record, 'SIGKILL', [...child.spawnargs, 'wrong-command']), /expected process command/);
+      await assert.rejects(() => signalChild({ pid: child.pid, exitCode: null, signalCode: null, spawnargs: child.spawnargs }, 'SIGKILL'), /no captured child birth/);
       // A successful earlier inspection cannot authorize a later wrong command
       // or birth; the signal API must run the shared check again itself.
-      inspectSignalTarget(record.pid, child.spawnargs, record.start);
-      assert.throws(() => signalRecorded({ ...record, start: [0, 0] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+      await inspectSignalTarget(record.pid, child.spawnargs, record.start);
+      await assert.rejects(() => signalRecorded({ ...record, start: [0, 0] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
       assert.deepEqual(attempted, []);
-      signalRecorded(record, 'SIGTERM', child.spawnargs);
-      signalChild(child, 'SIGINT');
+      await signalRecorded(record, 'SIGTERM', child.spawnargs);
+      await signalChild(child, 'SIGINT');
       assert.deepEqual(attempted, [[child.pid, 'SIGTERM']]);
       assert.deepEqual(handles, ['SIGINT'], 'tracked child dispatch uses the retained handle');
       // A handle can close after metadata inspection. That is a refused fault,
       // not a successful injection and never a reason to fall back to its PID.
       child.kill = () => false;
-      assert.throws(() => signalChild(child, 'SIGKILL'), /owned child exited before dispatch/);
+      await assert.rejects(() => signalChild(child, 'SIGKILL'), /owned child exited before dispatch/);
       assert.deepEqual(attempted, [[child.pid, 'SIGTERM']]);
     } finally { process.kill = originalKill; child.kill = originalChildKill; }
     child.stdin.end(); await exited;
     const originalKillAfterExit = process.kill, staleAttempts = [];
     process.kill = (...args) => { staleAttempts.push(args); return true; };
     try {
-      assert.throws(() => signalRecorded(record, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
-      assert.throws(() => signalChild(child, 'SIGKILL'), /already exited/);
+      await assert.rejects(() => signalRecorded(record, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+      await assert.rejects(() => signalChild(child, 'SIGKILL'), /already exited/);
       assert.deepEqual(staleAttempts, []);
     } finally { process.kill = originalKillAfterExit; }
   } finally { child.stdin.end(); await exited; }

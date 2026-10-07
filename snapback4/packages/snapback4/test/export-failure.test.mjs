@@ -39,13 +39,13 @@ test('installed CLI shim preserves each forwarded child termination signal', { t
 // Successful publication schedules detached maintenance even when its native
 // handoff fails. Keep this fixture's custody records until those owners exit.
 async function maintenanceExited(root) {
-  const live = name => {
+  const live = async name => {
     let record;
     try { record=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process; } catch { return false; }
     return record ? signalTargetAlive(record) : false;
   };
   const deadline=Date.now()+45000;
-  while(['maintenance-next.json','maintenance-active.json'].some(live)) {
+  while((await Promise.all(['maintenance-next.json','maintenance-active.json'].map(live))).some(Boolean)) {
     assert.ok(Date.now()<deadline,'fixture maintenance exited before deleting its custody records');
     await new Promise(resolve=>setTimeout(resolve,25));
   }

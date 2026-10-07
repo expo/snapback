@@ -22,5 +22,5 @@ export function fixtureCommands(binary, project) {
   ];
 }
 export function signalFixture(f, record, signal) {
-  signalRecorded(record, signal, fixtureCommands(f.env.SNAPBACK4_BIN, f.root));
+  return signalRecorded(record, signal, fixtureCommands(f.env.SNAPBACK4_BIN, f.root));
 }

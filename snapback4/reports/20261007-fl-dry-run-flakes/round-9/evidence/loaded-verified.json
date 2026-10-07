@@ -1,0 +1,14 @@
+{
+  "fileResults": 40,
+  "passes": 160,
+  "failures": 0,
+  "captureMs": [
+    202.24309900000003,
+    208.469002
+  ],
+  "firstHeartbeatMs": [
+    19.47670599999998,
+    24.66171700000001
+  ],
+  "allKeeperReleasesAcknowledged": true
+}

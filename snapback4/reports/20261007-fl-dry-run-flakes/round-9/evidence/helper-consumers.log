@@ -1,0 +1,189 @@
+-- client file start: packages/snapback4/test/app.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/asset-avatars.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/read-through.test.mjs; stall bound 900000 ms
+TAP version 13
+# node:internal/modules/cjs/loader:1448
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'undici/lib/dispatcher/agent.js'
+# Require stack:
+# - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1448:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+#     at Module._load (node:internal/modules/cjs/loader:1234:25)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+#     at Module.require (node:internal/modules/cjs/loader:1548:12)
+#     at require (node:internal/modules/helpers:152:16)
+#     at file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js:9:15
+#     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [
+#     '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js'
+#   ]
+# }
+# Node.js v24.13.1
+# Subtest: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/read-through.test.mjs
+not ok 1 - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/read-through.test.mjs
+  ---
+  duration_ms: 74.076606
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/read-through.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82.800223
+-- process inspection: {"snapshots":3,"unrelatedRows":3516}
+-- client file FAIL: packages/snapback4/test/read-through.test.mjs (342 ms)
+-- client file start: packages/snapback4/test/timeline-delivery.test.mjs; stall bound 2700000 ms
+TAP version 13
+# node:internal/modules/cjs/loader:1448
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'undici/lib/dispatcher/agent.js'
+# Require stack:
+# - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1448:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+#     at Module._load (node:internal/modules/cjs/loader:1234:25)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+#     at Module.require (node:internal/modules/cjs/loader:1548:12)
+#     at require (node:internal/modules/helpers:152:16)
+#     at file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js:9:15
+#     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [
+#     '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js'
+#   ]
+# }
+# Node.js v24.13.1
+# Subtest: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/asset-avatars.test.mjs
+not ok 1 - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/asset-avatars.test.mjs
+  ---
+  duration_ms: 90.719745
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/asset-avatars.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 99.371535
+-- process inspection: {"snapshots":3,"unrelatedRows":3515}
+-- client file FAIL: packages/snapback4/test/asset-avatars.test.mjs (359 ms)
+TAP version 13
+# node:internal/modules/cjs/loader:1448
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'undici/lib/dispatcher/agent.js'
+# Require stack:
+# - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1448:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+#     at Module._load (node:internal/modules/cjs/loader:1234:25)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+#     at Module.require (node:internal/modules/cjs/loader:1548:12)
+#     at require (node:internal/modules/helpers:152:16)
+#     at file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js:9:15
+#     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [
+#     '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js'
+#   ]
+# }
+# Node.js v24.13.1
+# Subtest: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/app.test.mjs
+not ok 1 - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/app.test.mjs
+  ---
+  duration_ms: 122.679185
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/app.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 131.571125
+-- process inspection: {"snapshots":3,"unrelatedRows":3517}
+-- client file FAIL: packages/snapback4/test/app.test.mjs (393 ms)
+TAP version 13
+# node:internal/modules/cjs/loader:1448
+#   const err = new Error(message);
+#               ^
+# Error: Cannot find module 'undici/lib/dispatcher/agent.js'
+# Require stack:
+# - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1448:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+#     at Module._load (node:internal/modules/cjs/loader:1234:25)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+#     at Module.require (node:internal/modules/cjs/loader:1548:12)
+#     at require (node:internal/modules/helpers:152:16)
+#     at file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js:9:15
+#     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: [
+#     '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/dist/node-fetch.js'
+#   ]
+# }
+# Node.js v24.13.1
+# Subtest: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/timeline-delivery.test.mjs
+not ok 1 - /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/timeline-delivery.test.mjs
+  ---
+  duration_ms: 76.285558
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/timeline-delivery.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 84.721284
+-- process inspection: {"snapshots":3,"unrelatedRows":3521}
+-- client file FAIL: packages/snapback4/test/timeline-delivery.test.mjs (346 ms)
+-- client files: 4/4; failed 4; tests {"tests":4,"pass":0,"fail":4,"cancelled":0,"skipped":0,"todo":0}

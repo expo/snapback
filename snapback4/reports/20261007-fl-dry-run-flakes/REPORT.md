@@ -1,5 +1,10 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-9 asynchronous capture:** [round 9](round-9/REPORT.md) fixes round 8's
+blocking initial-identity wait. Capture yields, owned timeout cleanup remains
+active, and fault dispatch awaits fresh exact identity. It includes persistent
+empty-command heartbeat/reaping regressions and mutation controls.
+
 **Round-8 process-work bounds:** [round 8](round-8/REPORT.md) replaces the
 real runner CLI's ten-second launch caps with bounded owned completion,
 preserves every verdict/count/shim assertion, and audits sibling process-work

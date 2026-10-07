@@ -1,0 +1,131 @@
+TAP version 13
+# Subtest: persistent empty cmdline yields to sibling timers and owned command timeout
+not ok 1 - persistent empty cmdline yields to sibling timers and owned command timeout
+  ---
+  duration_ms: 5515.216519
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-blocking-1095809.test.mjs:231:1'
+  failureType: 'testCodeFailure'
+  error: 'sibling timers ran during capture: 5511.090474 ms, 1 ticks'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-blocking-1095809.test.mjs:256:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5571.105752
+
+{"label":"blocking","expectedFailure":true,"groupDrained":true}
+TAP version 13
+# Subtest: newborn command capture after empty exec state: none
+not ok 1 - newborn command capture after empty exec state: none
+  ---
+  duration_ms: 24.793898
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-wait-1095809.test.mjs:183:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_SIGNAL_REFUSED: no captured child birth: TEST_SIGNAL_REFUSED: incomplete process command'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r9-no-wait-1095809.mjs:15:27)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r9-no-wait-1095809.mjs:171:22)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-wait-1095809.test.mjs:216:9)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 74.809766
+
+{"label":"no-wait","expectedFailure":true,"groupDrained":true}
+TAP version 13
+# Subtest: newborn command capture after empty exec state: different birth
+not ok 1 - newborn command capture after empty exec state: different birth
+  ---
+  duration_ms: 25.257864
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-birth-1095809.test.mjs:183:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /no captured child birth: .*stale publisher birth/. Input:
+    
+    'Error: TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r9-no-birth-1095809.mjs:15:27)
+    sameBirth (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r9-no-birth-1095809.mjs:73:66)
+    inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r9-no-birth-1095809.mjs:86:28)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-birth-1095809.test.mjs:220:9)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71.61725
+
+{"label":"no-birth","expectedFailure":true,"groupDrained":true}
+TAP version 13
+# Subtest: newborn command capture after empty exec state: different parent
+not ok 1 - newborn command capture after empty exec state: different parent
+  ---
+  duration_ms: 25.137193
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-parent-1095809.test.mjs:183:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-no-parent-1095809.test.mjs:220:9)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 74.877197
+
+{"label":"no-parent","expectedFailure":true,"groupDrained":true}

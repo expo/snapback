@@ -91,7 +91,7 @@ int main(void) { boundary(getenv("SB4_FAULT_TARGET"), ${point === 'after' ? 1 : 
     assert.equal(fs.existsSync(barrier + '.kill'), false, 'exited publisher cannot authorize another fault');
   } finally {
     fs.writeFileSync(resume, ''); releasePublisherBarrier(barrier);
-    if (child?.exitCode === null && child?.signalCode === null) signalChild(child, 'SIGKILL');
+    if (child?.exitCode === null && child?.signalCode === null) await signalChild(child, 'SIGKILL');
     if (exited) await exited;
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -148,11 +148,11 @@ test('SIGKILL releases the actual Node wrapper lease and cleanup recovers its ru
     await once(child.stdout, 'data');
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(source), true);
-    signalChild(child, 'SIGKILL'); await exited;
+    await signalChild(child, 'SIGKILL'); await exited;
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(path.join(dir, 'finished.json')), true);
     assert.equal(fs.existsSync(source), false);
-  } finally { if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
+  } finally { if(child.exitCode===null&&child.signalCode===null)await signalChild(child, 'SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('publisher inherits custody if its Node wrapper is killed while publication is blocked', async () => {
@@ -176,7 +176,7 @@ test('publisher inherits custody if its Node wrapper is killed while publication
     await once(child.stdout, 'data');
     publisher = await waitForPublisher(path.join(root, 'publisher.pid'), [binary, 'witness', 'export-publish', source, path.join(root, 'dist')]);
     // Parent dies while the real publisher is waiting for the destination lock.
-    signalChild(child, 'SIGKILL'); await exited;
+    await signalChild(child, 'SIGKILL'); await exited;
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(path.join(dir, 'finished.json')), false);
     assert.equal(fs.existsSync(source), true);
@@ -193,7 +193,7 @@ test('publisher inherits custody if its Node wrapper is killed while publication
     assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
   } finally {
     if (!unlocked) fs.closeSync(lock);
-    if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited;
+    if(child.exitCode===null&&child.signalCode===null)await signalChild(child, 'SIGKILL'); await exited;
     if (publisher) await waitForPublisherExit(publisher);
     fs.rmSync(root, { recursive: true, force: true });
   }

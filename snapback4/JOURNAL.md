@@ -90252,3 +90252,47 @@ assertion. Ref-check passes with zero errors. Work stayed on eb1000 in this
 worktree; no Mac execution or push.
 
 [Round-8 audit, controls, all outcomes and unresolved tickets](reports/20261007-fl-dry-run-flakes/round-8/REPORT.md).
+
+## 2026-10-08 — FL round 9: identity capture cannot suspend watchdog delivery
+
+Astra's round-8 P1 was correct: the new Atomics.wait capture loop blocked the
+runner thread before runProcess armed its timeout. Initial capture now yields
+through abortable timers, keeps the first live birth and spawning parent, and
+settles/cancels when its child exits. Spawn returns the owned child immediately.
+The command clock is armed before capture; timeout/overflow cleanup uses the
+retained native handle immediately and waits for reaping. It cannot depend on
+capture or another inspector finishing. Fault injection still awaits capture
+and fresh exact identity. Borrowed handles, incomplete records, changed births
+and wrong commands remain refusals.
+
+The shared Darwin probe also used a synchronous subprocess. It now uses the
+asynchronous owned leaf-inspection helper with its existing timeout and KILL/
+reaping, and capture cancellation stops an in-flight probe. Compiler group
+custody and its deadline are unchanged. All signal/liveness callers now await
+their results, including Darwin export branches and ordinary fixture cleanup.
+Positive PID validation, selected executable/root spelling and every earlier
+fault outcome remain checked. Recorded-PID checks still have a small exit/
+reuse race before the syscall; owned handles and keeper groups remain preferred.
+
+The persistent-empty-command regression retains real stat/birth/parent and
+proves sibling heartbeats, the 200 ms command timeout, reaping and cancellation
+of pending capture. Final 20-round load checks pass the main CLI case and seven
+capture/leaf cases each: 160 passes, fixed source hashes, every keeper release
+acknowledged and all eight taskset-confined busy loops reaped. Capture timeout/
+reaping takes 202–209 ms and first heartbeats arrive at 19–25 ms. The blocking
+mutation fails at 5.5 seconds; no-wait, missing-birth and missing-parent mutations
+also fail and drain their groups. The real hung-runner control still fails
+distinctly, reaps its descendants and does not use its emergency release.
+
+The ten affected files pass 204 tests with 33 Darwin skips; the final signal
+file passes 16/16 and unchanged dev_refusals passes 22/22. Initial missing
+dependencies were restored from the frozen lockfile, yielding deps-ok. Extra
+helper consumers exposed stale generated SDK artifacts: the avatar failures
+also reproduced with round 8's helper, then disappeared after the ordinary SDK
+build. All four extra consumer files pass 117 tests with current artifacts.
+Ref-check passes with zero errors. Earlier setup/stale-artifact failures are
+retained separately. Round 8's open maintenance/native-inspection failures
+remain unresolved; this is no macOS soak or full-publication claim. Work stayed
+on eb1000 in this worktree; nothing pushed.
+
+[Round-9 correction, API audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-9/REPORT.md).

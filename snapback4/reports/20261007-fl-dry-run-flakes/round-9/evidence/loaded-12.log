@@ -1,0 +1,77 @@
+-- client file start: packages/snapback4/test/test-processes.test.mjs; stall bound 6900000 ms
+TAP version 13
+# Subtest: real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+ok 1 - real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+  ---
+  duration_ms: 7614.100679
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7700.185699
+-- process inspection: {"snapshots":3,"unrelatedRows":3374}
+-- client file ok: packages/snapback4/test/test-processes.test.mjs (7971 ms)
+LOADED_RESULT {"file":"packages/snapback4/test/test-processes.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3374},"elapsed":7971,"counts":{"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":6900000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-processes.test.mjs"}
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: newborn command capture after empty exec state: none
+ok 1 - newborn command capture after empty exec state: none
+  ---
+  duration_ms: 54.420796
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different birth
+ok 2 - newborn command capture after empty exec state: different birth
+  ---
+  duration_ms: 47.246682
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different parent
+ok 3 - newborn command capture after empty exec state: different parent
+  ---
+  duration_ms: 23.765614
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: malformed command
+ok 4 - newborn command capture after empty exec state: malformed command
+  ---
+  duration_ms: 23.460737
+  type: 'test'
+  ...
+# {"timeoutMs":200,"spawnReturnMs":4.74631500000001,"elapsedMs":207.47106499999998,"firstHeartbeat":19.70004,"ticks":11,"commandReads":19,"reaped":true}
+# Subtest: persistent empty cmdline yields to sibling timers and owned command timeout
+ok 5 - persistent empty cmdline yields to sibling timers and owned command timeout
+  ---
+  duration_ms: 238.293417
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on timeout
+ok 6 - native identity leaf inspection yields and reaps on timeout
+  ---
+  duration_ms: 213.19849
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on abort
+ok 7 - native identity leaf inspection yields and reaps on abort
+  ---
+  duration_ms: 207.099418
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 876.405635
+-- process inspection: {"snapshots":3,"unrelatedRows":3384}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (1273 ms)
+LOADED_RESULT {"file":"packages/snapback4/test/test-signals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3384},"elapsed":1273,"counts":{"tests":7,"pass":7,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":16,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-signals.test.mjs"}

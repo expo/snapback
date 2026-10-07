@@ -1,0 +1,17 @@
+{
+  "changedJavaScript": [
+    "asset-progress.js",
+    "local-following.js",
+    "local-reads.js",
+    "app-online.js",
+    "client.js",
+    "local.js",
+    "react.js",
+    "following.js",
+    "app-client.js",
+    "asset-download.js",
+    "assets.js",
+    "local-assets.js",
+    "following-transport.js"
+  ]
+}
