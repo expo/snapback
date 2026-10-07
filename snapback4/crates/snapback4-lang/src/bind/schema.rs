@@ -380,7 +380,9 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
 pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
-        super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error)
+        let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
+        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &rule.value); }
+        error
     })
 }
 
@@ -516,11 +518,11 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
     match expr {
         Expr::Name { name, .. } if name == "viewer" => Ok((RuleTerm::Viewer, Ty::Principal)),
         Expr::Member { base, name, .. } => match base.as_ref() {
-            Expr::Read(read) if read.keys.len() == 1 && read.keys[0].column.is_none()
+            Expr::Read(read) if read.keys.len() == 1 && read.keys[0].column.as_deref().is_none_or(|c| c == "id")
                 && read.range.is_none() && read.filter.is_none() && read.matching.is_none()
                 && read.index.is_none() && read.seeks.is_empty() => {
                 let result = rule_reference(catalog, info, &read.keys[0].value, name, bindings, site)?;
-                if matches!(&result.0, RuleTerm::Reference { table, .. } if table == &read.table) { Ok(result) }
+                if result.0.references().last().is_some_and(|(table, _)| table == read.table) { Ok(result) }
                 else { Err(type_error(site, "the lookup table differs from the reference type", "use the reference's declared table")) }
             }
             Expr::Focal { .. } => {
@@ -572,8 +574,11 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
 /// Final-insert obligations retain their exact-index write-path contract.
 /// Ordinary effect rules use `probe` with residual equalities enabled.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
-    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: false, present: Vec::new() };
-    let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false)?;
+    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: true, present: Vec::new() };
+    let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false).map_err(|mut error| {
+        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &Expr::Exists { read: read.clone(), site: site.clone() }); }
+        error
+    })?;
     Ok((table, index, key))
 }
 
@@ -581,7 +586,10 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
     }
-    let normalized = catalog.tables.get(&read.table).map(|target| super::mixed_keys::read(target, read, catalog)).transpose()?;
+    let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
+    let types = if mixed { Some(read.keys.iter().take_while(|key| key.column.is_none()).map(|key| rule_term(catalog, info, &key.value, bindings)
+        .map(|(term, ty)| (ty, matches!(term, RuleTerm::Literal(Value::String(_)))))).collect::<Fallible<Vec<_>>>()?) } else { None };
+    let normalized = catalog.tables.get(&read.table).map(|target| super::mixed_keys::read_typed(target, read, catalog, types.as_deref())).transpose()?;
     let read = normalized.as_deref().unwrap_or(read);
     super::validate_key_names(read)?;
     if read.range.is_some() || !read.seeks.is_empty() || read.matching.is_some() || read.filter.is_some() { return Err(unknown(site, "a rule probe takes equalities, not a range", "exists t[key = .key]")); }
@@ -606,28 +614,25 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
             "read the view in the program; its live value cannot be probed at one unit").guide("expire"));
     }
     if let Some(names) = &named {
-        for ((_, term), (column, ty)) in terms.iter_mut().zip(names.iter().zip(&types)) {
+        for ((_, term), (column, ty)) in terms.iter_mut().zip(names.iter().zip(&mut types)) {
             let expected = column_ty(target, column).ok_or_else(|| unknown(site, format!("{} has no column {column}", read.table), name_rewrite(column, target.columns.keys().map(String::as_str).chain(["id"]), None)))?;
-            if !ty.comparable(&expected) { return Err(type_error(site, format!("{column} is {}; {}.{column} is {}", ty.name(), read.table, expected.name()), format!("use {} for {column}", expected.name()))); }
-            if expected.required().is_identity() && let RuleTerm::Literal(Value::String(text)) = term { *term = RuleTerm::Literal(Value::Id(text.clone())); }
+            if !ty.comparable(&expected) && !(expected.is_identity() && matches!(term, RuleTerm::Literal(Value::String(_)))) { return Err(type_error(site, format!("{column} is {}; {}.{column} is {}", ty.name(), read.table, expected.name()), format!("use {} for {column}", expected.name()))); }
+            if expected.required().is_identity() && let RuleTerm::Literal(Value::String(text)) = term { *term = RuleTerm::Literal(Value::Id(text.clone())); *ty = Ty::Id; }
             if let (Ty::Enum(variants), RuleTerm::Literal(Value::String(text))) = (expected.required(), &*term) {
                 if !variants.contains(text) { return Err(type_error(site, format!("'{text}' is not one of {}.{column}'s variants {}", read.table, variants.join(", ")), format!("'{}'", variants[0]))); }
             }
         }
     }
     if named.is_none() {
-        let declared = target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone())))
-            .filter(|index| match &read.index { Some(name) => &index.name == name, None => index.unique && index.columns.len() == terms.len() }).collect::<Vec<_>>();
+        let typed = types.iter().cloned().zip(terms.iter().map(|(_, term)| matches!(term, RuleTerm::Literal(Value::String(_))))).collect::<Vec<_>>();
+        let declared = super::positional_keys::candidates(target, read, &typed, &catalog.synthesized);
         if declared.len() != 1 {
-            // @ref LLP 3000.013#2.2 — rule repairs must select an index and
-            // pass the same admission checks in the original rule context.
-            // Retry declared alternatives when the explicit name is unknown.
-            let alternatives = if declared.is_empty() && read.index.is_some() {
-                target.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone()))).collect::<Vec<_>>()
-            } else { declared };
-            let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
-            return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN", "a positional rule probe must identify one declared unique key by arity; choose a compatible unique index explicitly", "")
-                .guide("reads").repair_read(&read.site, changes));
+            return Err(super::positional_keys::refusal(target, read, &declared, catalog));
+        }
+        if read.index.is_none() {
+            let mut selected = read.clone();
+            selected.index = Some(declared[0].name.clone());
+            return probe(catalog, info, &selected, site, bindings, extras);
         }
     }
     let mut candidates: Vec<&IndexDecl> = target
@@ -650,7 +655,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
                     None => types.get(position),
                 };
                 let expected = if column == "id" { Ty::Ref(read.table.clone()) } else { target.columns.get(column).map(Ty::from_scalar).unwrap_or(Ty::Unknown) };
-                ty.is_some_and(|ty| ty.comparable(&expected))
+                ty.is_some_and(|ty| ty.comparable(&expected) || (expected.is_identity() && matches!(terms[position].1, RuleTerm::Literal(Value::String(_)))))
             })
         })
         .collect();

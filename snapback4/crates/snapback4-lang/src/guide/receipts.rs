@@ -106,6 +106,8 @@ query messageReactions(message: messages):
 
 ```
 
+Only full sessions report delivery. A read-only reader never marks a message delivered: sign in with `{ scope: "read" }` and use `readOnly: true`, or narrow a full session. See `guide read-only`.
+
 The named family generates the mapped projection, reporting operations, runs
 and member watermarks. Without overrides, names use the family prefix:
 `chatReceipt`, `chatDelivered`, `chatSeen`, `chatMember`, `chatProgress`,

@@ -1,0 +1,26 @@
+{
+  "snapback4/packages/snapback4/test/residency.test.mjs": {
+    "same_as_pre_rx_base": true,
+    "sha256": "1ccdfe18d3d974daa8dae3a4ada2a5c0fa8a9303264ab0f83b046cf20ea2e803"
+  },
+  "snapback4/packages/snapback4/src/local.ts": {
+    "same_as_pre_rx_base": true,
+    "sha256": "e9efd5a8bf926bc66b3c62b4c2a3d341b69037d65a7ce2195709a02d3e2cdfd5"
+  },
+  "snapback4/packages/snapback4/src/local-reads.ts": {
+    "same_as_pre_rx_base": true,
+    "sha256": "091837d40f884b8a99701547afd06f3dbb861b534edf9931e67dad4f6981037b"
+  },
+  "snapback4/packages/snapback4/src/local-query.ts": {
+    "same_as_pre_rx_base": true,
+    "sha256": "4b0cf5d4ce284d4eb7bec86a61c52832726c59ce32fb771eca5e575ea5d2e916"
+  },
+  "snapback4/packages/snapback4/src/observe-watch.ts": {
+    "same_as_pre_rx_base": true,
+    "sha256": "83fe74493e622a47b16ad33b4e16952e03a6c307f1b24280cdcf0ab9dcb49ae0"
+  },
+  "snapback4/packages/snapback4/src/native.ts": {
+    "same_as_pre_rx_base": true,
+    "sha256": "eae50dad769013534373fecc8d57d974a8d86b6b881523384cb332c9053ac08b"
+  }
+}

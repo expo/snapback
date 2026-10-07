@@ -123,7 +123,7 @@ fn all_disjunct(rule: &RuleExpr, test: &impl Fn(&RuleExpr) -> bool) -> bool {
     match rule { RuleExpr::Or(terms) => terms.iter().all(|term| all_disjunct(term, test)), other => test(other) }
 }
 fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
-    let term = |term: &RuleTerm| !matches!(term, RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } if pinned(field).is_none());
+    let term = |term: &RuleTerm| !matches!(term, RuleTerm::Field(field) | RuleTerm::Reference { column: field, .. } | RuleTerm::ReferenceChain { column: field, .. } if pinned(field).is_none());
     match rule {
         RuleExpr::Or(_) => all_disjunct(rule, &|part| any_disjunct(rule, &|other| self_probe_absorbs(name, table, part, other)) || fields_pinned(name, table, part, pinned)),
         RuleExpr::And(terms) => terms.iter().all(|part| fields_pinned(name, table, part, pinned)),
@@ -383,18 +383,21 @@ fn evaluate_leaf(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Valu
     }
 }
 
-fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe, missing: &mut bool) -> Result<Value, crate::error::RuntimeError> {
+pub(super) fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe, missing: &mut bool) -> Result<Value, crate::error::RuntimeError> {
     Ok(match term {
         RuleTerm::Field(field) | RuleTerm::NextField(field) => { probe.field(field, false); next.field(field).cloned().unwrap_or(Value::Null) },
         RuleTerm::OldField(field) => { probe.field(field, true); old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null) },
-        RuleTerm::Reference { table, column, field, old: previous } => {
+        RuleTerm::Reference { column, old: previous, .. } | RuleTerm::ReferenceChain { column, old: previous, .. } => {
             probe.field(column, *previous);
             let row = if *previous { old } else { Some(next) };
-            let id = row.and_then(|r| r.field(column).ok()).unwrap_or(&Value::Null);
-            match probe.reference(table, id, field)? {
-                Some(value) => value,
-                None => { *missing = true; Value::Null }
+            let mut value = row.and_then(|r| r.field(column).ok()).cloned().unwrap_or(Value::Null);
+            for (table, field) in term.references() {
+                match probe.reference(table, &value, field)? {
+                    Some(next) => value = next,
+                    None => { *missing = true; return Ok(Value::Null); }
+                }
             }
+            value
         },
         RuleTerm::Viewer => Value::Id(viewer.to_owned()),
         RuleTerm::Literal(value) => value.clone(),
@@ -403,7 +406,7 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value, probe:
 
 /// The schema-derived probe allowance, independent of short-circuit answers.
 pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
-    let hops = |terms: &[&RuleTerm]| terms.iter().filter(|t| matches!(t, RuleTerm::Reference { .. })).count() as u64;
+    let hops = |terms: &[&RuleTerm]| terms.iter().map(|t| t.references().count() as u64).sum::<u64>();
     match rule {
         RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => hops(&[a,b]),
         RuleExpr::Exists { key, equalities, .. } => 1 + key.iter().chain(equalities.iter().map(|(_,t)| t)).map(|t| hops(&[t])).sum::<u64>(),
@@ -419,7 +422,7 @@ pub(crate) fn rule_probes(rule: &RuleExpr) -> u64 {
 /// row, for live subscriptions and the partition audience.
 pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
     fn term(t: &RuleTerm, out: &mut Vec<(String, String)>) {
-        if let RuleTerm::Reference { table, .. } = t { out.push((table.clone(), "byId".into())); }
+        for (table, _) in t.references() { out.push((table.into(), "byId".into())); }
     }
     match rule {
         RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { term(a,out); term(b,out); }

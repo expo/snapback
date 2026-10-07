@@ -159,7 +159,8 @@ pub fn scalar_type(type_: &ScalarType) -> String {
         TypeKind::Video { max } => format!("video <={max}"),
         TypeKind::Enum { variants } => format!("enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
         TypeKind::Ref { table } => table.clone(),
-        TypeKind::List { item, max } => format!("[{}] <={max}", scalar_type(item)),
+        TypeKind::List { item, min: 0, max } => format!("[{}] <={max}", scalar_type(item)),
+        TypeKind::List { item, min, max } => format!("[{}] {min}..{max}", scalar_type(item)),
     };
     if type_.optional { format!("{base} ?") } else { base }
 }

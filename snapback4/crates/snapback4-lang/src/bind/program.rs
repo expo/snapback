@@ -27,6 +27,7 @@ mod expr;
 mod extrema;
 mod objects;
 mod write_keys;
+mod keys;
 mod reads;
 mod prefix;
 mod lanes;
@@ -510,15 +511,31 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
-        let normalized = super::mixed_keys::read(info, read, self.catalog)?;
+        // @ref LLP 3000.013#2.2 — retain bound keys for type selection and final lowering.
+        // No cloned expression pass: nested lookups must not multiply binder work.
+        let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
+        let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
+        let types = if mixed {
+            let prefix = read.keys.iter().take_while(|key| key.column.is_none()).count();
+            self.bind_key_parts(info, read, prefix, &mut keys, out)?;
+            Some(keys.iter().map(|(_, expr, ty)| (ty.clone(), matches!(expr, Expr::Literal(Value::String(_))))).collect::<Vec<_>>())
+        } else { None };
+        let mut normalized = super::mixed_keys::read_typed(info, read, self.catalog, types.as_deref())?;
+        self.name_bound_keys(info, &normalized, &mut keys)?;
         let read = normalized.as_ref();
         super::validate_key_names(read)?;
+        let mut positional_reason = None;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
-            let candidates = info.indexes.iter().filter(declared).filter(|index| match &read.index {
+            let mut candidates = info.indexes.iter().filter(declared).filter(|index| match &read.index {
                 Some(name) => &index.name == name,
                 None => index.unique && index.columns.len() == read.keys.len(),
             }).collect::<Vec<_>>();
+            if read.index.is_none() && candidates.len() > 1 {
+                self.bind_key_parts(info, read, read.keys.len(), &mut keys, out)?;
+                let types = keys.iter().map(|(_, expr, ty)| (ty.clone(), matches!(expr, Expr::Literal(Value::String(_))))).collect::<Vec<_>>();
+                candidates = super::positional_keys::candidates(info, read, &types, &self.catalog.synthesized);
+            }
             if read.index.is_none() && mode == ReadMode::Range && read.order_keys.is_empty() && candidates.len() == 1 {
                 let scan = info.indexes.iter().filter(declared).find(|index| !index.unique && index.is_plain() && index.columns.len() > read.keys.len());
                 let columns = scan.map(|index| index.columns.as_slice()).unwrap_or(&candidates[0].columns);
@@ -527,39 +544,18 @@ impl<'a> Binder<'a> {
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
             if candidates.len() != 1 {
-                // @ref LLP 3000.013#2.2 — naming columns cannot distinguish
-                // opposite index orders; verify explicit choices in context.
-                // An unknown explicit name must not empty the repair search.
-                let alternatives = if candidates.is_empty() && read.index.is_some() {
-                    info.indexes.iter().filter(declared).collect::<Vec<_>>()
-                } else { candidates.clone() };
-                let changes = alternatives.iter().map(|index| crate::repair::ReadChange::Index(index.name.clone())).collect();
-                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} positional key has {} declared unique keys of arity {}; choose a compatible unique index explicitly", read.table, candidates.len(), read.keys.len()), "")
-                    .guide("reads").repair_read(&read.site, changes));
+                return Err(super::positional_keys::refusal(info, read, &candidates, self.catalog));
             }
             if read.index.is_none() {
-                let mut explicit = read.clone();
-                explicit.index = Some(candidates[0].name.clone());
-                return self.select_index(info, &explicit, mode, out).map(|(keys, index, _)| (keys, index, "only declared unique key of this arity".into()));
+                positional_reason = Some(if info.indexes.iter().filter(declared).filter(|index| index.unique && index.columns.len() == read.keys.len()).count() == 1 {
+                    "only declared unique key of this arity"
+                } else { "unique positional key selected by argument types" });
+                normalized.to_mut().index = Some(candidates[0].name.clone());
             }
         }
+        let read = normalized.as_ref();
         let point = mode != ReadMode::Range;
-        let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
-        for part in &read.keys {
-            let expected_column = part.column.clone();
-            let mut setup = setup::Body::default();
-            let (e, t) = match &expected_column {
-                Some(column) if column == "id" => self.expr_as_identity(&part.value, &mut setup, &Ty::Ref(read.table.clone()))?,
-                Some(column) => match info.columns.get(column) {
-                    Some(scalar) if Ty::from_scalar(scalar).is_identity() => self.expr_as_identity(&part.value, &mut setup, &Ty::from_scalar(scalar))?,
-                    _ => self.expr(&part.value, &mut setup)?,
-                },
-                None => self.expr(&part.value, &mut setup)?,
-            };
-            self.sequence_setup(keys.iter_mut().map(|(_, e, _)| e), setup, out);
-            let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
-            keys.push((expected_column, e, t));
-        }
+        self.bind_key_parts(info, read, read.keys.len(), &mut keys, out)?;
         let named = keys.iter().all(|(c, _, _)| c.is_some()) && !keys.is_empty();
         let mut selection = if read.index.is_some() { "explicit by" } else if named { "named equality columns" } else { "compatible positional key types" };
         // A `words(..)` index serves one read: `matching` with exactly its
@@ -650,7 +646,7 @@ impl<'a> Binder<'a> {
                         }
                     }
                 }
-                Ok((keys, index, selection.into()))
+                Ok((keys, index, positional_reason.unwrap_or(selection).into()))
             }
             0 => {
                 let declared: Vec<String> = info.indexes.iter().map(|i| format!("{} ({})", i.name, i.columns.join(", "))).collect();

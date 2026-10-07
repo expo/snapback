@@ -1,0 +1,85 @@
+-- client file start: packages/snapback4/test/residency.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: server-class watches run locally first and recover remembered server data offline
+ok 1 - server-class watches run locally first and recover remembered server data offline
+  ---
+  duration_ms: 339.019335
+  type: 'test'
+  ...
+# Subtest: offline cold watches withhold placeholders, persisted local reads still work
+ok 2 - offline cold watches withhold placeholders, persisted local reads still work
+  ---
+  duration_ms: 1222.960083
+  type: 'test'
+  ...
+# Subtest: connected recovers a server false offline instead of the device presence assumption
+ok 3 - connected recovers a server false offline instead of the device presence assumption
+  ---
+  duration_ms: 240.757637
+  type: 'test'
+  ...
+#   alice notes: 2 rows, 106 bytes
+#   bob notes: 2 rows, 106 bytes
+#   alice counts: 1 rows, 63 bytes
+#   bob counts: 1 rows, 63 bytes
+#   alice permits: 0 rows, 0 bytes
+#   bob permits: 0 rows, 0 bytes
+#   alice total: 3 rows, 169 bytes
+#   bob total: 3 rows, 169 bytes
+#   total across personas: 6 rows, 338 bytes
+#   maintain counts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED
+# Subtest: clock advance expires presence on the server and a device
+ok 4 - clock advance expires presence on the server and a device
+  ---
+  duration_ms: 261.620962
+  type: 'test'
+  ...
+# presence device: advanced_ms=36000 before=1 after=0 wall_ms=15.29
+# Subtest: presence effects residency is additive in check, why and generated artifacts
+ok 5 - presence effects residency is additive in check, why and generated artifacts
+  ---
+  duration_ms: 49.856137
+  type: 'test'
+  ...
+# Subtest: check sidecar, why and test residency print facts, changes and measured cold rows
+ok 6 - check sidecar, why and test residency print facts, changes and measured cold rows
+  ---
+  duration_ms: 90.468206
+  type: 'test'
+  ...
+# Subtest: dev compares residency with the served generation even when check advanced its sidecar
+ok 7 - dev compares residency with the served generation even when check advanced its sidecar
+  ---
+  duration_ms: 557.966046
+  type: 'test'
+  ...
+# Subtest: provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+ok 8 - provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 580.580567
+  type: 'test'
+  ...
+# Subtest: provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+ok 9 - provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 231.083115
+  type: 'test'
+  ...
+# Subtest: rule 5: a real process device never recovers private memory after its permit expiry
+ok 10 - rule 5: a real process device never recovers private memory after its permit expiry
+  ---
+  duration_ms: 3171.056588
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6876.279826
+-- process inspection: {"snapshots":3,"unrelatedRows":3642}
+-- client file ok: packages/snapback4/test/residency.test.mjs (7155 ms)
+-- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0}

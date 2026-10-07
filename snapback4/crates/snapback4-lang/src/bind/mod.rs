@@ -22,6 +22,7 @@ mod key_bound;
 mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
+mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
 mod time_indexes;

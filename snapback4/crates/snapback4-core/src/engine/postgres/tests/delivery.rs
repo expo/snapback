@@ -162,3 +162,19 @@ fn delivery_noop_records_only_receipt_and_replay_does_not_lookup_program() {
         assert_eq!(snapshot(&mut e), before);
     }
 }
+
+// @ref LLP 3000.033#3 — Skip refuses construction, not only serialization.
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn read_queries_skip_manifest_construction_on_postgres() {
+    use crate::engine::{DeliveryManifest, delivery::manifest_constructions};
+    let mut engine = reporter(WriteMode::Serialized);
+    for skip in [true, false, true, false] {
+        let before = manifest_constructions();
+        let result = engine.query_with_delivery("raw", Context::new("alice", BTreeMap::new()),
+            if skip { DeliveryManifest::Skip } else { DeliveryManifest::Build }).unwrap();
+        assert_eq!(manifest_constructions() - before, u64::from(!skip));
+        assert_eq!(result.delivery.is_none(), skip);
+        assert_eq!(result.delivery_meter.is_none(), skip);
+    }
+}

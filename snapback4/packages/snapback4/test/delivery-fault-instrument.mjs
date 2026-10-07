@@ -105,6 +105,11 @@ export function instrument(destination) {
 // remaining budget across predecessor identity/admission intervals, and late completion
 // without custody. Browser transaction pins are tested after synchronous capture.
 // Ordinary admission and delivery retain the required sites below.
+// RO revision 4 removes read-session successor/rotation waits from app.ts,
+// client.ts and read-only.ts. The remaining read scope probe is unchanged;
+// app-revocations.ts only drops successor comparisons inside existing awaits.
+// Read mode constructs no delivery owners. Full-session awaits and every
+// classified delivery site/recipe are unchanged; no new delivery I/O is added.
 // IT: syncRound's final queued() refreshes the pending predicate after every
 // apply, including an unchanged page. It uses existing readQueued custody I/O;
 // it cannot admit, dispatch or settle a new write. The ordinary delivery recipe
@@ -173,6 +178,44 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// RO Round 7: read-token.ts is a synchronous prefix predicate with zero awaits.
+// It adds no I/O or custody; delivery sites and fault recipes remain unchanged.
+// RO (LLP 3000.033 §1.4): app owns both namespaces through one custody
+// state machine; read policy awaits scope verification and serialized .read I/O.
+// read-only's gate and cancelled-rotation cleanup probe before admitting any
+// read or own-session logout. Neither module constructs delivery/write custody.
+// auth adds scoped sign-in and narrow response I/O. The read branch in client
+// gates existing query/asset/refresh I/O and fences late rotation successors;
+// full-client delivery still reaches the unchanged classified transport sites.
+// local's new device admission check is synchronous, before all host I/O.
+// read-only.test covers held/rejected probes, rotation/cancellation, store races
+// and local refusals; read-only-server covers real receipt invariance and HTTP
+// barriers. RO Round 1's read-custody hook awaits only the .read slot; public
+// session callbacks remain notifications. The new custody regression covers
+// held storage, permanent facade withdrawal and retry of a private successor.
+// No outbox await, classification or fault recipe changes.
+// RO Round 2 removes the parallel app implementation. Shared app awaits now
+// include a private successor receipt under the session lock and the scope gate
+// before commit. Retirement probes read-namespace credentials before logout.
+// These awaits cannot acquire delivery/outbox custody; full-session awaits and
+// all delivery classifications/recipes retain their existing roles.
+// RO Round 3: explicit logout reads the committed epoch under the custody lock;
+// the other four new waits recover a peer's read-only successor before dispatch.
+// They touch session storage and scope verification, never delivery/outbox I/O.
+// Real-server peer-rotation tests cover delayed rejection and logout/replacement;
+// app tests and full-count session models cover storage faults and deferred
+// retirement. Existing delivery sites, classifications and recipes are unchanged.
+// RO Round 4: rotation selection and successor commit each await the session
+// lock, with the network awaited under a separate rotation lock. Logout removes
+// its epoch ownership comparison. Sign-in captures principal sign-out watermarks;
+// stale logout preserves another account while saving its caller's watermark.
+// These are auth-only waits; read clients have
+// no delivery/outbox owner. Held-response self/peer logout and full-session
+// controls cover the split; delivery sites and fault recipes are unchanged.
+// RO Round 5: rejected read peers wait for the rotation owner and recheck
+// custody through the existing refresh gate. These waits have no write owner;
+// the new held-response tests cover both dispatch orders and independent logout.
+// Epoch-only watermark collection adds no I/O or delivery fault site.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

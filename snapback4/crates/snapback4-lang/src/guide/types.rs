@@ -54,7 +54,7 @@ table everything:
   raw: bytes <=1024 ?
   photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
   clip: video <=50000000 ?
-  tags: [text <=20] <=8               -- a bounded list of a scalar type; `?` after the whole type, never on the element
+  tags: [text <=20] <=8               -- [T] 1..N | [T] <=N (0..N); `?` on the whole list, never the element
   unique handle else HANDLE_TAKEN 'That handle is taken.'
   read <- .who = viewer
   insert <- .who = viewer
@@ -152,7 +152,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
 
 - **Keys and search:** `unique handle` or `unique postId, principal` enforces
   a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible
-  collision's code and message. Named keys cover ambiguous arities. Use
+  collision's code and message. Named keys resolve ambiguous positional types. Use
   `search body, caption` for word-prefix search. Predicates and `by .at`
   choose access indexes automatically; `guide indexes` explains inspection
   and optional tuning. `unique principal, day(at)` gives calendar uniqueness.

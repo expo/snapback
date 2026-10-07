@@ -153,5 +153,5 @@ impl Collections {
     }
 }
 fn list_bound(ty: &ArgType) -> Option<u64> {
-    match ty { ArgType::List { max, .. } => Some(u64::from(*max)), ArgType::Optional(inner) => list_bound(inner), _ => None }
+    match ty { ArgType::List { max, .. } | ArgType::ListRange { max, .. } => Some(u64::from(*max)), ArgType::Optional(inner) => list_bound(inner), _ => None }
 }

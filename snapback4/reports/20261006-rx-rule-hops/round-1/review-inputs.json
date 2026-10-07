@@ -1,0 +1,18 @@
+[
+  {
+    "path": "/home/ccheever/sb4-intent/reviews/rx-r0.astra.md",
+    "sha256": "65027e7fd546a3f7a27e7a148eb902f49c68312462e3bf2907727f90b9d78fdf"
+  },
+  {
+    "path": "/home/ccheever/sb4-intent/reviews/rx-r0.astra.evidence/REVIEW.md",
+    "sha256": "8a1216f0a5c15ee10683b34f0ffddf76f91a845f0abd503384e9da3f277c2c5a"
+  },
+  {
+    "path": "/home/ccheever/sb4-intent/reviews/rx-r0.grok.md",
+    "sha256": "95e5f7cbc35e02bf0b739520f324bc80b2aabbfbd530b0832aee38b77e09450a"
+  },
+  {
+    "path": "/home/ccheever/sb4-intent/reviews/rx-r0.grok.evidence/device-wipe.txt",
+    "sha256": "a3f90b6d4c5b4fc746475b0a0a85933032c3646f5438b7d786c2b60f2f047141"
+  }
+]

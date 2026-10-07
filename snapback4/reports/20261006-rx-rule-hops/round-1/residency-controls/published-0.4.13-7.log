@@ -1,0 +1,18 @@
+✖ server-class watches run locally first and recover remembered server data offline (122350.541895ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122466.159102
+
+✖ failing tests:
+
+test at packages/snapback4/test/residency.test.mjs:121:1
+✖ server-class watches run locally first and recover remembered server data offline (122350.541895ms)
+  Error: TEST_HANG: recreated watch recovers the server answer; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-rx/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

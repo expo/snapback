@@ -1,0 +1,79 @@
+{
+  "depth-one": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .message.conversation != null\n",
+    "source_sha256": "685c3e660ca36086f42c2a462076484b79d24fcc2cdc4717a8790d563cded0cc",
+    "status": 0,
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[\"messages.secret: written by .owner; visibility: private to owner\"],\"heldQueries\":[],\"ms\":1,\"native\":null,\"notes\":[],\"ok\":true,\"operations\":0,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 0 of 0 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":5}\n",
+    "stderr": ""
+  },
+  "hop-probe-key": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .principal = viewer and exists members[.message.conversation, viewer]\n",
+    "source_sha256": "c1522a3b8047dec3e148ab7cce561b51748b01fc5b815eadbf37dc70c0477fe8",
+    "status": 0,
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[\"messages.secret: written by .owner; visibility: private to owner\"],\"heldQueries\":[],\"ms\":1,\"native\":null,\"notes\":[],\"ok\":true,\"operations\":0,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 0 of 0 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":5}\n",
+    "stderr": ""
+  },
+  "depth-two": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .message.conversation.org != null\n",
+    "source_sha256": "31132d2d8957185ca17d17b3756d38f19d938903c3e23ead1ae984a1ad570db4",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use conversations[messages[.message].conversation].org in a mutation require before the write; use read through for inherited read authority\",\"site\":{\"col\":34,\"file\":\"schema.q\",\"line\":20}}]}\n",
+    "stderr": ""
+  },
+  "depth-three": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .message.conversation.org.id != null\n",
+    "source_sha256": "0f0aaa45c1c8848feb70da48327ade87684df6603ff8d155e4e306b127eb3b10",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use conversations[messages[.message].conversation].org in a mutation require before the write; use read through for inherited read authority\",\"site\":{\"col\":34,\"file\":\"schema.q\",\"line\":20}}]}\n",
+    "stderr": ""
+  },
+  "after-insert": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  after insert <- exists members[.message.conversation, viewer]\n",
+    "source_sha256": "0ae124edf2168447d2b6621082cb8d95b5d2bcd521ea5c3363098f1e34f1e380",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use messages[.message].conversation in a mutation require before the write; for inherited read authority declare read through .message\",\"site\":{\"col\":42,\"file\":\"schema.q\",\"line\":20}}]}\n",
+    "stderr": ""
+  },
+  "private-target": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .message.secret = 0\n",
+    "source_sha256": "49932d579e0bddb6b060fc3174436c706b8875faa151770f6d5f37dcb38bf960",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use messages[.message].secret in a mutation require before the write; for inherited read authority declare read through .message\",\"site\":{\"col\":21,\"file\":\"schema.q\",\"line\":20}}]}\n",
+    "stderr": ""
+  },
+  "explicit-named-id": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  public\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- messages[id = .message].conversation != null\n",
+    "source_sha256": "c770e64ce3c27f7d55ab7b993246b78f448496849296415dfbe738f8bb656994",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"bind each parent with table[.ref] ! else NOT_FOUND in the mutation; use read through .ref for inherited read authority\",\"site\":{\"col\":36,\"file\":\"schema.q\",\"line\":20}}]}\n",
+    "stderr": ""
+  },
+  "maintained-field": {
+    "source": "table parents:\n  total: count sources by parent\n  public\ntable sources:\n  parent: parents\n  public\ntable children:\n  parent: parents\n  public\n  insert <- .parent.total = 0\n",
+    "source_sha256": "b7c5137fe7b998e1dc742d7b9fa02f9cc6ec83d687ecd914d9601718e069cd11",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use parents[.parent].total in a mutation require before the write; for inherited read authority declare read through .parent\",\"site\":{\"col\":20,\"file\":\"schema.q\",\"line\":10}}]}\n",
+    "stderr": ""
+  },
+  "maintained-target": {
+    "source": "table sources:\n  owner: principal\n  public\nview totals: count sources by .owner\ntable children:\n  total: totals\n  public\n  insert <- .total.value = 0\n",
+    "source_sha256": "9aa835ac64ae1bc8ee68d222dff80bee82ffabf7d1179112ef11b00bb465a44f",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use totals[.total].value in a mutation require before the write; for inherited read authority declare read through .total\",\"site\":{\"col\":19,\"file\":\"schema.q\",\"line\":8}}]}\n",
+    "stderr": ""
+  },
+  "ephemeral-target": {
+    "source": "table presence:\n  owner: principal\n  public\n  cap 10 by owner\n  ephemeral 4s\ntable children:\n  presence: presence\n  public\n  insert <- .presence.owner = viewer\n",
+    "source_sha256": "196a01a6bac90e2a32296cee47e935f5ee391cbc89bfd2e013a077dc038de314",
+    "status": 1,
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_EPHEMERAL\",\"guide\":\"ephemeral\",\"mechanical\":false,\"message\":\"table children: reference column cannot target an ephemeral table\",\"rewrite\":\"keep the referenced data in a durable table\",\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":6}},{\"code\":\"E_QUARRY_RULE_HOP\",\"guide\":\"rules\",\"mechanical\":false,\"message\":\"this rule position cannot follow that reference\",\"rewrite\":\"use presence[.presence].owner in a mutation require before the write; for inherited read authority declare read through .presence\",\"site\":{\"col\":22,\"file\":\"schema.q\",\"line\":9}}]}\n",
+    "stderr": ""
+  },
+  "restricted-row-audience": {
+    "source": "table orgs:\n  public\ntable conversations:\n  org: orgs\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  public\ntable messages:\n  conversation: conversations\n  owner: principal\n  secret: int default 0 written by .owner\n  read <- .owner = viewer\ntable reactions:\n  message: messages\n  principal: principal\n  public\n  insert <- .message.conversation != null\n",
+    "source_sha256": "ffc312fe99329b3ec5ca603dfa57e3e4f0f768460131ab813431522a96c4c9c2",
+    "status": 0,
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[\"messages.secret: written by .owner; visibility: private to owner\"],\"heldQueries\":[],\"ms\":2,\"native\":null,\"notes\":[],\"ok\":true,\"operations\":0,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 0 of 0 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"synced\":0,\"tables\":5}\n",
+    "stderr": ""
+  }
+}

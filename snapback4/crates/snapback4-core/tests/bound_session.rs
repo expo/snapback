@@ -52,7 +52,8 @@ fn initial_mint_replay_input_binding_and_family_recovery_are_exact() {
     assert_eq!(binding_count(&engine, "mint"), 1);
     let binding_columns: Vec<String> = engine.store().conn().prepare("SELECT name FROM pragma_table_info('_session_mint_bindings')").unwrap()
         .query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
-    assert_eq!(binding_columns, ["invocation", "intent", "input_digest", "principal", "kind", "days", "expires_at", "family", "principal_generation"]);
+    assert_eq!(binding_columns, ["invocation", "intent", "input_digest", "principal", "kind", "days", "expires_at", "family", "principal_generation", "scope"]);
+    assert_eq!(engine.store().conn().query_row("SELECT scope FROM _session_mint_bindings", [], |row| row.get::<_, String>(0)).unwrap(), "full");
     let persisted: String = engine.store().conn().query_row("SELECT invocation || intent || input_digest || principal || kind || days || expires_at || family || principal_generation FROM _session_mint_bindings", [], |row| row.get(0)).unwrap();
     assert!(!persisted.contains(&first.token), "the binding never stores a raw session token");
     assert_eq!(mint(&mut engine, &service, &lease, "mint", "member:alice", "member", 30, 2, false).unwrap_err().code(), "E_INPUT");

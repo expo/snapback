@@ -1,0 +1,46 @@
+{
+  "count": 1656,
+  "limit": 1500,
+  "largest": [
+    {
+      "lines": 1500,
+      "path": "snapback4/packages/snapback4/src/local.ts"
+    },
+    {
+      "lines": 1500,
+      "path": "snapback4/crates/snapback4-core/src/engine/read.rs"
+    },
+    {
+      "lines": 1499,
+      "path": "snapback4/crates/snapback4-core/src/schema.rs"
+    },
+    {
+      "lines": 1490,
+      "path": "snapback4/crates/snapback4/tests/check.rs"
+    },
+    {
+      "lines": 1481,
+      "path": "snapback4/crates/snapback4/src/serve.rs"
+    },
+    {
+      "lines": 1480,
+      "path": "snapback4/crates/snapback4-lang/tests/guide.rs"
+    },
+    {
+      "lines": 1475,
+      "path": "snapback4/crates/snapback4-core/src/engine/mod.rs"
+    },
+    {
+      "lines": 1467,
+      "path": "snapback4/crates/snapback4/src/serve_tests.rs"
+    },
+    {
+      "lines": 1424,
+      "path": "snapback4/crates/snapback4-sim/tests/clique.rs"
+    },
+    {
+      "lines": 1417,
+      "path": "snapback4/packages/snapback4/test/helpers/react-harness.mjs"
+    }
+  ]
+}

@@ -41,15 +41,20 @@ pub struct Clock {
     started: Instant,
     epoch: String,
     revision: u64,
+    #[cfg(test)]
+    frozen: bool,
 }
 
 impl Clock {
     pub fn new(dev: bool, offset: i64) -> Result<Self, Refusal> {
         if !dev && offset != 0 { return Err(release()); }
         Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
-            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).map_err(|e| e.refusal())?, revision: 0 })
+            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
     }
+    #[cfg(test)]
+    pub(crate) fn freeze(&mut self, now: i64) { self.base = now; self.frozen = true; }
     pub fn now(&self) -> i64 {
+        #[cfg(test)] if self.frozen { return self.base; }
         if !self.dev { return snapback4_core::now_ms(); }
         self.base.saturating_add(self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64).min(MAX_TIME)
     }

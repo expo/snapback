@@ -42,7 +42,7 @@ fn add(to: &mut Price, price: Price) {
 pub fn slots(kind: &ColumnType, in_list: bool) -> u64 {
     match kind {
         ColumnType::Optional(inner) => slots(inner, in_list),
-        ColumnType::List { of, max } => slots(of, true).saturating_mul(u64::from(*max)),
+        ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. } => slots(of, true).saturating_mul(u64::from(*max)),
         ColumnType::Image { .. } | ColumnType::Video { .. } if in_list => 1,
         _ => 0,
     }

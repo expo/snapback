@@ -1,0 +1,48 @@
+{
+  "lane": "0ef89c2c5146cfb86b0f354c231ebefd9ecdc666",
+  "main": "8e530ff2419387cb97ff841b4a2aa8b7828c7229",
+  "mergeBase": "9bcf6cfb630ea1947ccbfd2b397c5c1c884cd2bf",
+  "journal": {
+    "mainBytes": 5544898,
+    "laneAppendBytes": 20661,
+    "mergedBytes": 5565559,
+    "exactMainPlusLaneAppend": true,
+    "sha256": "914e6fe4dae87c3782cba740828f68446512082aeddd894d53bf2af17a9a624b"
+  },
+  "clientWords": 1198,
+  "sharedRuntimeChanges": [
+    "snapback4/crates/snapback4-core/src/cursor.rs",
+    "snapback4/crates/snapback4-core/src/engine/actions.rs",
+    "snapback4/crates/snapback4-core/src/engine/admission/maintenance_types.rs",
+    "snapback4/crates/snapback4-core/src/engine/asset_columns.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs",
+    "snapback4/crates/snapback4-core/src/engine/qe2_allocation_tests.rs",
+    "snapback4/crates/snapback4-core/src/engine/read.rs",
+    "snapback4/crates/snapback4-core/src/engine/read_auth.rs",
+    "snapback4/crates/snapback4-core/src/engine/rule_reference.rs",
+    "snapback4/crates/snapback4-core/src/engine/rules.rs",
+    "snapback4/crates/snapback4-core/src/engine/validate.rs",
+    "snapback4/crates/snapback4-core/src/engine/word_heap.rs",
+    "snapback4/crates/snapback4-core/src/engine/write.rs",
+    "snapback4/crates/snapback4-core/src/engine/write_target.rs",
+    "snapback4/crates/snapback4-core/src/ir.rs",
+    "snapback4/crates/snapback4-core/src/revocation.rs",
+    "snapback4/crates/snapback4-core/src/rows/disclosed.rs",
+    "snapback4/crates/snapback4-core/src/schema.rs",
+    "snapback4/crates/snapback4-core/src/schema/capabilities.rs",
+    "snapback4/crates/snapback4-core/src/schema/columns.rs",
+    "snapback4/crates/snapback4-core/src/schema/ephemeral.rs",
+    "snapback4/crates/snapback4-core/src/schema/reference.rs",
+    "snapback4/crates/snapback4-core/src/schema/reservations.rs",
+    "snapback4/crates/snapback4-core/src/store/activation.rs",
+    "snapback4/crates/snapback4-core/src/store/adoption_estimate.rs",
+    "snapback4/crates/snapback4-core/src/successor.rs",
+    "snapback4/crates/snapback4-core/src/wire.rs",
+    "snapback4/crates/snapback4-device/src/device/media.rs"
+  ],
+  "mergeCommit": "92cd5ddd9bddbb5df04d2eff118c050199f35054",
+  "mergeParents": [
+    "0ef89c2c5146cfb86b0f354c231ebefd9ecdc666",
+    "8e530ff2419387cb97ff841b4a2aa8b7828c7229"
+  ]
+}

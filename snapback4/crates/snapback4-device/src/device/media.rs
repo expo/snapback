@@ -17,7 +17,7 @@ pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args:
     fn resolve<T: DeviceTx>(tx: &T, viewer: &str, kind: &ArgType, value: &mut Value) -> Result<(), RuntimeError> {
         match kind {
             ArgType::Optional(inner) if *value != Value::Null => resolve(tx, viewer, inner, value)?,
-            ArgType::List { of: Some(inner), .. } => if let Value::Array(items) = value { for item in items { resolve(tx, viewer, inner, item)?; } },
+            ArgType::List { of: Some(inner), .. } | ArgType::ListRange { of: Some(inner), .. } => if let Value::Array(items) = value { for item in items { resolve(tx, viewer, inner, item)?; } },
             ArgType::Image { .. } | ArgType::Video { .. } => {
                 let id = value.field("id")?.as_str()?;
                 let facts = tx.meta(&upload_key(viewer, id))?.ok_or_else(|| RuntimeError::Prediction("this device has no server upload facts; the server must judge this asset".into()))?;
@@ -34,7 +34,7 @@ pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args:
 
 fn media_type(kind: &ColumnType) -> Option<bool> {
     match kind {
-        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => media_type(inner),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => media_type(inner),
         ColumnType::Image { once, .. } => Some(*once),
         ColumnType::Video { .. } => Some(false),
         _ => None,
@@ -46,7 +46,7 @@ fn media_type(kind: &ColumnType) -> Option<bool> {
 fn element<'a>(kind: &ColumnType, value: Option<&'a Value>, id: &str) -> Option<&'a Value> {
     match (kind, value) {
         (ColumnType::Optional(inner), value) => element(inner, value, id),
-        (ColumnType::List { of, .. }, Some(Value::Array(items))) => items.iter().find_map(|v| element(of, Some(v), id)),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(items))) => items.iter().find_map(|v| element(of, Some(v), id)),
         (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(value)) if asset_id(Some(value)) == Some(id) => Some(value),
         _ => None,
     }

@@ -100,7 +100,7 @@ impl Dependencies {
     fn term(&mut self, table: &str, term: &RuleTerm) {
         match term {
             RuleTerm::Field(c) | RuleTerm::OldField(c) | RuleTerm::NextField(c) => self.column(table, c),
-            RuleTerm::Reference { table: target, column, field, .. } => { self.column(table, column); self.column(target, field); self.unknown = true; },
+            RuleTerm::Reference { column, .. } | RuleTerm::ReferenceChain { column, .. } => { self.column(table, column); for (target, field) in term.references() { self.column(target, field); } self.unknown = true; },
             RuleTerm::Viewer | RuleTerm::Literal(_) => (),
         }
     }
@@ -167,7 +167,7 @@ impl Dependencies {
 }
 fn asset(kind: &ColumnType) -> bool {
     match kind { ColumnType::Image { .. } | ColumnType::Video { .. } => true,
-        ColumnType::Optional(t) | ColumnType::List { of: t, .. } => asset(t), _ => false }
+        ColumnType::Optional(t) | ColumnType::List { of: t, .. } | ColumnType::ListRange { of: t, .. } => asset(t), _ => false }
 }
 
 /// Classify a complete interval. Legacy, pruned and over-limit intervals widen.

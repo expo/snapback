@@ -1,6 +1,7 @@
 import { browserAdmission, synchronousSessionStore } from "./admission.ts";
 import { indexedDbSessionStore } from "./session-authority.ts";
 import { defaultFetch } from "#fetch";
+import { isReadToken } from "./read-token.ts";
 // Sign-in (H0): a guest session, or a password account. Each returns a
 // bearer token the client sends as `authorization`; the token is the
 // device's to keep (in memory, or wherever the app keeps secrets). A
@@ -29,23 +30,32 @@ async function post(url: string, path: string, body: unknown, doFetch: typeof fe
   }
 }
 
+export interface SignInOptions { readonly scope?: "full" | "read"; }
+const signInArgs = (options: SignInOptions | typeof fetch, doFetch: typeof fetch) => typeof options === "function" ? { options: {}, doFetch: options } : { options, doFetch };
+
 /** A guest principal, when the schema says `use identity guests`. */
-export function guest(url: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
-  return post(url, "/auth/guest", {}, doFetch);
+export function guest(url: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
+  const args = signInArgs(options, fetcher);
+  return post(url, "/auth/guest", args.options, args.doFetch);
 }
 
 /** A new password account, when the schema says `use identity password`. */
-export function signup(url: string, email: string, password: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
-  return post(url, "/auth/signup", { email, password }, doFetch);
+export function signup(url: string, email: string, password: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
+  const args = signInArgs(options, fetcher);
+  return post(url, "/auth/signup", { email, password, ...args.options }, args.doFetch);
 }
 
-export function login(url: string, email: string, password: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
-  return post(url, "/auth/login", { email, password }, doFetch);
+export function login(url: string, email: string, password: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
+  const args = signInArgs(options, fetcher);
+  return post(url, "/auth/login", { email, password, ...args.options }, args.doFetch);
 }
 
-/** Replace one live bearer token. The server invalidates `token` before it
+/** Replace one live full-session bearer token. The server invalidates `token` before it
  * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
+  // @ref LLP 3000.033#1.3 — SDK read credentials live until expiry, without rotation.
+  if (isReadToken(token)) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
+    message: "read sessions cannot refresh; sign in again or narrow a full session again" } };
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
     const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };
@@ -103,11 +113,11 @@ export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "se
   return synchronousSessionStore(store, key => target().getItem(key));
 }
 
-export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/, ""));
+export const sessionKey = (url: string, readOnly = false) => storeKey("session", url.replace(/\/$/, "")) + (readOnly ? ".read" : "");
 
 /** The session kept for a server, if it has not expired. */
-export async function restoreSession(url: string, store: SessionStore = defaultSessionStore, now: () => number = Date.now): Promise<Session | null> {
-  const key = sessionKey(url);
+export async function restoreSession(url: string, store: SessionStore = defaultSessionStore, now: () => number = Date.now, readOnly = false): Promise<Session | null> {
+  const key = sessionKey(url, readOnly);
   const raw = await store.get(key);
   if (!raw || logoutEpoch(raw) !== null) return null;
   try {
@@ -120,12 +130,12 @@ export async function restoreSession(url: string, store: SessionStore = defaultS
   return null;
 }
 
-export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore): Promise<void> {
-  await store.set(sessionKey(url), JSON.stringify(session));
+export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore, readOnly = false): Promise<void> {
+  await store.set(sessionKey(url, readOnly), JSON.stringify(session));
 }
 
-export async function forgetSession(url: string, store: SessionStore = defaultSessionStore): Promise<void> {
-  await store.delete(sessionKey(url));
+export async function forgetSession(url: string, store: SessionStore = defaultSessionStore, readOnly = false): Promise<void> {
+  await store.delete(sessionKey(url, readOnly));
 }
 
 /** Best-effort server logout. A network failure or timeout cannot confirm
@@ -141,4 +151,14 @@ export async function logout(url: string, token: string, doFetch: typeof fetch =
   } catch {
     // Offline: the token expires on its own.
   } finally { clearTimeout(timer); }
+}
+
+/** Mint an independent read family capped at the full parent's current expiry. */
+export async function narrowSession(url: string, session: Session, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
+  try {
+    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/narrow`, { method: "POST", headers: { authorization: `Bearer ${session.token}` } });
+    const json = await readResponse(response) as { session?: Session; denied?: Refusal };
+    if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
+    return { ok: false, why: json.denied ?? invalidResponse(response.status, "session narrowing") };
+  } catch (error) { return { ok: false, why: transportRefusal(error) }; }
 }

@@ -1,0 +1,18 @@
+[
+  {
+    "path": "/home/ccheever/sb5-lanes/ro.report.md",
+    "beforeSha256": "3ee254b8a4538460f5bf8a866ef7bedd8abd11602e906676d05f056e013cad6b",
+    "beforeBytes": 63283,
+    "appendBytes": 5983,
+    "pureAppend": true,
+    "finalSha256": "dd5a14edb44abacceeedcce29cf1c4307faca1ae1debee37d4303ba5f50aad81"
+  },
+  {
+    "path": "snapback4/reports/20261006-ro-read-only/REPORT.md",
+    "beforeSha256": "3ee254b8a4538460f5bf8a866ef7bedd8abd11602e906676d05f056e013cad6b",
+    "beforeBytes": 63283,
+    "appendBytes": 5983,
+    "pureAppend": true,
+    "finalSha256": "dd5a14edb44abacceeedcce29cf1c4307faca1ae1debee37d4303ba5f50aad81"
+  }
+]

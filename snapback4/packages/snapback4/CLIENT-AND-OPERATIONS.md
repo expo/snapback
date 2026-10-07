@@ -109,9 +109,13 @@ work; correct the options and create the app again. Kept credentials remain inta
 Identity and sessions remain owned by
 `app.auth` and its `sessionStore`; `persona`, `session` and `guest` are lower-level
 client options, not app configuration.
-`app.auth.logout()` fences restoration and session writes immediately, deletes
-local credentials without waiting for network requests, and revokes remotely
-in the background.
+`app.auth.logout()` signs this user out of the shared session storage. It
+fences restoration and same-principal sign-ins already in flight, commits a
+logout tombstone without waiting for network requests, and retires every
+same-principal credential in that custody in the background: peer rotations,
+pending successors and newer deliberate logins, whatever their epoch. A stale
+Bob facade cannot delete or revoke Alice's later login. This rule is shared by
+full and read-only apps; their separate storage namespaces remain isolated.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
@@ -120,7 +124,9 @@ session lock:
 
 - **I1 — stored bearer protection.** A runtime never sends revocation for the
   currently stored bearer. Explicit logout first commits a logout tombstone,
-  then revokes the displaced session in the background.
+  then revokes the displaced sessions in the background. Logout compares its last
+  committed principal under the lock: it owns that principal's credentials in
+  every epoch, including newer logins, and preserves a different principal.
 - **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
   logout preserves the session bytes and epoch. The sole logout intermediate
   state is a tombstone; every reader recognizes it as signed out.
@@ -143,7 +149,8 @@ session lock:
   rotation save, with a logout tombstone. Later opens, online or
   offline, stay signed out without opening that replica. An existing client
   loses access as soon as it learns the refusal. Cleanup cannot delete a
-  different stored successor. A transient failed refusal commit is retried
+  different stored credential. Read sessions never rotate in the SDK.
+  A transient failed refusal commit is retried
   once under the session lock; any remaining storage error is reported.
 - **I8 — revoked public handles.** Hiding an account permanently fences every
   exposed client facade and its observations before notifying subscribers.
@@ -167,13 +174,14 @@ session lock:
   credentials covered by each dispatch. Its acknowledgement removes only that
   snapshot, including on cleanup retry. Tokens attached later retain individual
   retirement custody; they may have been minted after the server's revocation.
-- **I11 — epoch-scoped authority.** An operation cannot select an account epoch
-  newer than its calling scope. Global logout may adopt another tab's rotated
+- **I11 — global logout authority.** `logoutEverywhere()` cannot select an account
+  epoch newer than its calling scope. It may adopt another tab's rotated
   bearer within the same epoch; a later login, even of the same principal, is
   fenced from the stale caller's authority. Selection reads the principal's
   inline and journaled global watermarks under the session lock, and checks the
   selected session's committed scope. The shared legacy counter alone cannot
   distinguish another principal's logout from this account's replacement.
+  Ordinary `logout()` follows I1's principal-wide custody rule.
 - **I12 — known dispatched outcomes.** Fencing refuses new calls. Close waits
   only for local cleanup, never for a held network response. A mutation or
   action whose response arrives before public `app.close()` completes keeps its own full outcome,
@@ -299,9 +307,12 @@ Browser Web Locks serialize journal updates and session replacement/deletion
 across tabs. Journal observers re-read on both a broadcast and the journal's
 storage event: a broadcast can arrive before another tab sees a localStorage
 commit. Neither notification carries trusted intent or replaces durable custody.
-A refused bearer stops that runtime without deleting stored
-credentials; it cannot delete a successor saved by another tab. Explicit logout
-commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
+A refused bearer stops that runtime and conditionally tombstones its rejected
+credential; it preserves a peer's different stored credential. Explicit logout
+compares the owned principal, then commits a tombstone
+before retiring every same-principal credential it displaces, whatever its epoch.
+Read sessions never rotate in the SDK. Full-session refresh responses arriving
+after logout are retired and never adopted. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion
@@ -494,6 +505,22 @@ near expiry; `refreshSession()` adopts the new bearer before `onSession`
 receives it. A persona client's `session()` is null; a bare-token client's
 is null until `refreshSession()` returns the session. Applications that
 persist an online session keep its replacements from `onSession`.
+
+**Read-only observers.** Sign in with `{ scope: "read" }`, or narrow a password/guest session without revoking its full credential. Use the returned credential with `readOnly: true`. Startup verifies server scope before queries or assets; `createApp` uses a separate `.read` session key. Read clients have no device or write queue, cannot consume once-media, and do not advance delivered/seen watermarks or presence. `refreshSession()` refuses `E_READ_ONLY_REFRESH` locally; the SDK never rotates read sessions, automatically or explicitly. At `expiresAt`, reads surface `E_AUTH`: sign in again or narrow a full session again. See `guide read-only` for the expiry cap and allowed routes.
+
+```ts
+import { createClient } from "snapback4/client";
+import { login, narrowSession } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+const url = "http://127.0.0.1:4400";
+const signedIn = await login(url, "bob@example.com", "a-long-password");
+if (!signedIn.ok) throw new Error(signedIn.why.message);
+const narrowed = await narrowSession(url, signedIn.session);
+if (!narrowed.ok) throw new Error(narrowed.why.message);
+const observer = createClient({ url, session: narrowed.session, readOnly: true });
+await observer.query(api.history, { conversation: "conversation-id" });
+await observer.signOut();
+```
 
 **Node.** `dir` is required, and a blank string refuses the same way, before the opener is returned; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
 
@@ -2440,7 +2467,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists or prints cards: language, app, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire,
   assets, client, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
-  presence, receipts, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
+  presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.

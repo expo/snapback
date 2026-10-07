@@ -1,0 +1,30 @@
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 25.47s
+     Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-58d90ba22ebf6add)
+
+running 2 tests
+test memory_chains_and_final_obligations_need_every_covered_row ... FAILED
+test sqlite_chains_and_final_obligations_need_every_covered_row ... FAILED
+
+failures:
+
+---- memory_chains_and_final_obligations_need_every_covered_row stdout ----
+
+thread 'memory_chains_and_final_obligations_need_every_covered_row' (915087) panicked at crates/snapback4-device/tests/rx_rule_hops.rs:46:35:
+Some("reactions"): uncovered chain predicted: Predicted { new_ids: [], result: Object {"id": String("e"), "reaction": String("r")}, written: ["endorsements"], read: ["conversations", "members", "messages", "reactions"], predicted: ["endorsements/e"] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- sqlite_chains_and_final_obligations_need_every_covered_row stdout ----
+
+thread 'sqlite_chains_and_final_obligations_need_every_covered_row' (915088) panicked at crates/snapback4-device/tests/rx_rule_hops.rs:46:35:
+Some("reactions"): uncovered chain predicted: Predicted { new_ids: [], result: Object {"id": String("e"), "reaction": String("r")}, written: ["endorsements"], read: ["conversations", "members", "messages", "reactions"], predicted: ["endorsements/e"] }
+
+
+failures:
+    memory_chains_and_final_obligations_need_every_covered_row
+    sqlite_chains_and_final_obligations_need_every_covered_row
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+error: test failed, to rerun pass `-p snapback4-device --test rx_rule_hops`

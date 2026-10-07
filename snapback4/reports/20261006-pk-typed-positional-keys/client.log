@@ -1,0 +1,26 @@
+(node:895283) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+﹣ published 0.2.33 capability fence: timeline-v2 (1.261891ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: recorded-attribution (0.091447ms) # the published 0.2.33 native witness requires darwin-arm64
+﹣ published 0.2.33 capability fence: maintained-column (0.071837ms) # the published 0.2.33 native witness requires darwin-arm64
+✔ Linux schema-byte fixture is the published capability-free control source (0.158989ms)
+﹣ published 0.2.33 control: capability-free bytes and stores stay compatible (0.081923ms) # the published 0.2.33 native witness requires darwin-arm64
+✔ RV publication allowance is confined to commit evidence (6.912472ms)
+✔ published answer comparison admits only neutral additive metadata (1.797134ms)
+✔ typed positional keys: server and offline wasm keep both unique columns (652.775563ms)
+✔ typed positional keys: server and offline native keep both unique columns (240.175929ms)
+✔ check --fix applies a verified named key: return conversations[x] (29.547084ms)
+✔ check --fix applies a verified named key: return conversations[x] first 20 (37.14335ms)
+✔ check --fix applies a verified named key: return conversations[x] where .slug != 'hidden' (40.327574ms)
+✔ check --fix applies a verified named key: return (conversations[x]) (32.90047ms)
+✔ check --fix applies a verified named key: update conversations[x] { alias: x } (30.570457ms)
+✔ check --fix applies a verified named key: delete conversations[x] (34.335942ms)
+✔ check --fix applies a verified named key: read <- exists conversations[.slug] (33.643073ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 1275.333969

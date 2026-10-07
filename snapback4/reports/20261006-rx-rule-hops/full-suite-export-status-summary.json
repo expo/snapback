@@ -1,0 +1,26 @@
+{
+  "exit_code": 1,
+  "elapsed_seconds": 1988,
+  "log_sha256": "c58a46ab15ef5bcc98ac2a11e8bf9d3969e6b584ca459f6e354050fdb8f13848",
+  "stages": [
+    "-- ok: cargo build (1 s)",
+    "-- ok: wasm build (32 s)",
+    "-- ok: docs budget (17 s)",
+    "-- ok: release guard (3 s)",
+    "-- ok: package typecheck (3 s)",
+    "-- ok: package build (2 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (997 s)",
+    "-- ok: chat app typecheck (1 s)",
+    "-- ok: expo app typecheck (1 s)",
+    "-- ok: fixture wrapper tests (11 s)",
+    "-- FAIL: client tests (623 s)",
+    "-- ok: client models (310 s)"
+  ],
+  "client_summaries": [
+    "-- client files: 1/1; failed 0; tests {\"tests\":9,\"pass\":9,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+    "-- client files: 325/325; failed 1; tests {\"tests\":6510,\"pass\":6462,\"fail\":1,\"cancelled\":0,\"skipped\":47,\"todo\":0}",
+    "-- client files: 2/2; failed 0; tests {\"tests\":79,\"pass\":79,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "failure": "export-native.test.mjs:88 expected child status 7, received 1; no other failing stage"
+}

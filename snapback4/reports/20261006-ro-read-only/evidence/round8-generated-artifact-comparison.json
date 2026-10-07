@@ -1,0 +1,312 @@
+{
+  "sameChangedPaths": true,
+  "byteIdentical": true,
+  "generatorLogsByteIdentical": true,
+  "files": [
+    {
+      "path": "guide/reference/diagnostics-registry.json",
+      "bytes": 1748628,
+      "sha256": "2f7290fddb933ec9ed2682bb0e4931052b85bc8d2c51590b76307ae8e777aece"
+    },
+    {
+      "path": "guide/reference/diagnostics.md",
+      "bytes": 743334,
+      "sha256": "7cf8e8690521a24026d6288995e462ce8386c929f2d254d10770f5895e65f5c7"
+    },
+    {
+      "path": "guide/reference/expo-snapback-cli--verify.md",
+      "bytes": 24513,
+      "sha256": "7074f49283420a6e9f489ce2a97fc46810cb48a36fd9804ff5774b285570421f"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--agent-authority.md",
+      "bytes": 19605,
+      "sha256": "b8a0981c064e2ec12aec7e2147a5570f856d3a1bb482788e263893147d0b1dd3"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--app-client-internal.md",
+      "bytes": 8979,
+      "sha256": "9b683e702c246cd8ce424dfdd9a63af21796d0dde1cb893883bdcc966e3ef2e8"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--app-data.md",
+      "bytes": 8640,
+      "sha256": "64339478f11ad2fb84a7142048ea612acfc0000294939d927e78c823bef54fd1"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--argument-normalization.md",
+      "bytes": 4610,
+      "sha256": "a579edf668c1c17b24d0058e10e8c89662c4c943ff463d9531c41cd9750bca36"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--assets.md",
+      "bytes": 28460,
+      "sha256": "e2d650ca49cdba5646e7dbd68b34ef03e06359a67dbd53bef6bb923602815340"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--authority-transition.md",
+      "bytes": 7548,
+      "sha256": "f65b0081641a32dc3d00133cec168870b4b69e3a230250503903973247f1bc30"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--canonical-client-value.md",
+      "bytes": 4719,
+      "sha256": "bd870e49308066d113319c6307bf2bb9863ffb95e45587c5207822a9052ca9e4"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--client-diagnostics.md",
+      "bytes": 15265,
+      "sha256": "3ef6d8840f0ee9b3bb6d51feb42aae48409a50c832142402678176ed73a10988"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--commands.md",
+      "bytes": 26140,
+      "sha256": "a7ea088b267f947eb1e07ce4c92ac4b7f1df350c2e56f47eb53cc0b35cfaad32"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--diagnostic-error.md",
+      "bytes": 8799,
+      "sha256": "e7cba0071ced552a32ae6002a190a5158b30bb77c4d23dcb7d12499fecb62780"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--evaluation-floor.md",
+      "bytes": 5396,
+      "sha256": "5708f96f9cea76270fc557b8309058fa78248e248d0390daaa867fd857496ddc"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--external-store.md",
+      "bytes": 14146,
+      "sha256": "fd6be2789423b19f42605833fd74b2471eb5f5ebf053a6656bbb6225f86fa313"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--hosted-browser.md",
+      "bytes": 3502,
+      "sha256": "ca77db827a7c94ea9def590a3a5efe39da59709e0a8bc375a955d97a25029eec"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--internal-declared-dev-mint.md",
+      "bytes": 4461,
+      "sha256": "8a94b6c41ca2cf37882a8f33b116fa5aa4a881f2ca2d4b8587697ed9e1ed6aef"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--ir-evaluator.md",
+      "bytes": 13523,
+      "sha256": "d6c0758c3fa1f6bfd0854f16afe418bece1618199f0da3d0c52418ec0d7e6ca5"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--lease-convergence.md",
+      "bytes": 6045,
+      "sha256": "bbac419a8dd6e9a9e934e3316942e784e96551328a25dacf2eb5d9a176d23dcc"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--local-read-admission.md",
+      "bytes": 19917,
+      "sha256": "25846a89e01c1b5a0d0a52b6be7fd1a3172082b106fda7add4abc873a4c658f2"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--materialization-store.md",
+      "bytes": 22969,
+      "sha256": "fe6271e6ad35734c6e292bfc1737954c05cfd17840e251bcf9ef87df2af2eac8"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--micro-core.md",
+      "bytes": 12428,
+      "sha256": "5edda52b7185c970ca61b590207cb37b4258636f33c0619739798a3b03f83e60"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--micro-live.md",
+      "bytes": 3754,
+      "sha256": "553900bc515282f46033440600b3f344bf9e4f44f3f362ed1da149ca5562a88f"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--micro.md",
+      "bytes": 8014,
+      "sha256": "83bb97fbcb761d54b9f671ade131c878ec6e0e920b3ae2c50fad64591cbc4d22"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--online.md",
+      "bytes": 34355,
+      "sha256": "92dee0ec2822dd85002e4c4160df616ff4ca35ad75888d92f69b88395cd47c90"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--optimistic-rebase.md",
+      "bytes": 12812,
+      "sha256": "9727839607f79263e727068576a947d3d988bbbd247f34f9fcad7519d0954464"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--outbox-shared.md",
+      "bytes": 19750,
+      "sha256": "28e852c404bd1c83fc4cbb36054f7af8714f53d87293c13ac1a493ff671de937"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--provider-entry.md",
+      "bytes": 13265,
+      "sha256": "563cc00ffdb077ec4f017366900a2733a70d101c020dd604bdaf6d6aeac799f4"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--push-installation-expo.md",
+      "bytes": 4583,
+      "sha256": "77d60b281331a4f02988cc4f7495208ae9e74dbf28e09ea26b0958faf94073e5"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--push-registry.md",
+      "bytes": 6178,
+      "sha256": "99d79aa54db322468ac3a75beda72f9f1269e47b2185cb6db6a8192ce6f36932"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--react-binding.md",
+      "bytes": 17976,
+      "sha256": "4f4deddc4c49cfb916e4baea7f271999854b09dc61d32bb9010ae00e85ac2fb4"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--reference-kinds.md",
+      "bytes": 3631,
+      "sha256": "8601edc6e54566cb6b4343f484d3ea347cf1c1c16e390ec0ed0de2a23a3186cc"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--remediation.md",
+      "bytes": 7169,
+      "sha256": "d6dc3442359836c29d4703f0025050f91039a592b68570377d737639c025139e"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--result-transform.md",
+      "bytes": 16383,
+      "sha256": "5f64b1191f6986ffdf378cc3ab1534ff3a88d49b7e00caaaf6b1b7ebf6df62f2"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-preload.md",
+      "bytes": 9192,
+      "sha256": "dac205ff16cb1ead2c430a258cdc263e44be0673c0a5acf65755e77d418e61c8"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-registered.md",
+      "bytes": 14028,
+      "sha256": "825592142e5fd1d76349a7245d5549ce28b42e2b290f2fab5599256cce65b70f"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-store-default.md",
+      "bytes": 10646,
+      "sha256": "d87118783846860161b8b739e0092c1d0a7eaa11d95c294d5999a9c79e0946ae"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-store-expo.md",
+      "bytes": 7296,
+      "sha256": "c9519dafa1d302a202d5870b0171623e7f661ddf2ac0eb96304396b7b1205b2a"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-store-file.md",
+      "bytes": 10971,
+      "sha256": "fe343decb78b77622f9843aea38268cd42029abe7b9a5dbd822e119086ffba61"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-store-sqlite.md",
+      "bytes": 9654,
+      "sha256": "83d446f7ef840676faf80d23fa8a4248e9c81249800a26a288fa8bbf3b8d92b3"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs-store.md",
+      "bytes": 33803,
+      "sha256": "a65104c1d204e8502a00780d7625c4efd1643695874fabc87a2ddcd28471f0c9"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--rqs.md",
+      "bytes": 16230,
+      "sha256": "f248ed784e8992afd652609caad5b6108ab5836e192b43b8cf85a0209d70900c"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--search.md",
+      "bytes": 8530,
+      "sha256": "18a605b4d46762a4d8e2ff90cb45cc5084e23f635d98feef05701df99b49036f"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--shared-development-auth.md",
+      "bytes": 10326,
+      "sha256": "1d183fc5546c5469ad38b54e290e382680ddf6a7d7cdf354e9c8660ab124a56d"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client--vector-search.md",
+      "bytes": 30991,
+      "sha256": "2993dac1d635a4d501422429fd5a51262d52bd1559c6bc1e3663ef07c9b2553d"
+    },
+    {
+      "path": "guide/reference/expo-snapback-client.md",
+      "bytes": 503507,
+      "sha256": "25c2f697b627bb5d1a7e8e1acd5c636d705f47ae578560d3e0049e07924beadc"
+    },
+    {
+      "path": "guide/reference/expo-snapback-codegen--ctx.md",
+      "bytes": 36623,
+      "sha256": "275bcdf6b2113866682c58eea3c423c2439d4c2ab1d8430adea393d9751859e5"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--app-binding.md",
+      "bytes": 12350,
+      "sha256": "31da7ca68e9300fa1759d4ff85f4614de222051f455cd652aa0ed9c8784f14a8"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--app.plugin.md",
+      "bytes": 4366,
+      "sha256": "57504433151f9ffab8a38145a6fa712fd933069e51495f849037cdf9d20b4617"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--asset-source.md",
+      "bytes": 5528,
+      "sha256": "4b073e3ad2daf6ff1f356eb1169a60c0bafbbf7ac14c3aff014bb00904ceb072"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--config-plugin.md",
+      "bytes": 4400,
+      "sha256": "a1d4ecadc7693057b1fda1a257759176b7ed8e86b28e29e0bfae79a7f92d11e5"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--shared-browser-adapter.md",
+      "bytes": 5332,
+      "sha256": "954edc3141c6658fd5ae12a4c50f1073c4057fdf7798d6de10eb09c8c7015faa"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo--supervised-environment.md",
+      "bytes": 11077,
+      "sha256": "db415962c1aaa1e9bfe6a33ea9ea3ea2176505639bd1ebcd1190c18ad3c9461f"
+    },
+    {
+      "path": "guide/reference/expo-snapback-expo.md",
+      "bytes": 174406,
+      "sha256": "b0485c03c293af2ea3f16895ee0cbd3033bd14eac0b498aa6f05738effb9ebd7"
+    },
+    {
+      "path": "guide/reference/expo-snapback-react--core.md",
+      "bytes": 59677,
+      "sha256": "cff3eb1784be50a76df45f7354c77f6ab5ee6292fb40c667a6ce57deba0bb892"
+    },
+    {
+      "path": "guide/reference/expo-snapback-react--familiar.md",
+      "bytes": 11525,
+      "sha256": "f9ea410fe76f97861b98e0c37ac6c3c52689ec8c9bc6ceff98aa9f6c3e723885"
+    },
+    {
+      "path": "guide/reference/expo-snapback-react--thumbhash.md",
+      "bytes": 3940,
+      "sha256": "3ed07274edca88c0d6d19a9dd9cb69912d253062b46aa9780f8f772c6879784e"
+    },
+    {
+      "path": "guide/reference/expo-snapback-react.md",
+      "bytes": 129948,
+      "sha256": "ca32beaa56677cda329e898bb01b9084fb8dbbccaa35a76865c6a1e5da3d9923"
+    },
+    {
+      "path": "guide/reference/index.md",
+      "bytes": 11172,
+      "sha256": "a417f7e347731c3669454a2c5f430ca4bba91d533824cb1aa6fbfc5211811f42"
+    },
+    {
+      "path": "guide/reference/registry.json",
+      "bytes": 5258447,
+      "sha256": "0ed96cef060d1420436bc0db848e6476a55528576646ac74d52ac11dd1e269d0"
+    },
+    {
+      "path": "packages/snapback-client/diagnostic-codes.d.mts",
+      "bytes": 158842,
+      "sha256": "1ab9f5cd2282335dd4e47b62c691acf9c34fbccbd339a23e708e18b74346aae1"
+    }
+  ]
+}

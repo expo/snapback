@@ -1,3 +1,5 @@
+#[path = "../tests/serve_read_only/mod.rs"]
+mod read_only_tests;
 #[path = "../tests/serve_refusals/mod.rs"]
 mod refusal_tests;
 #[path = "../tests/latency/serve.rs"]

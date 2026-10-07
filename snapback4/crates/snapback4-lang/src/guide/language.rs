@@ -79,7 +79,7 @@ table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
-  tags: [text <=20] <=8               -- [type] <=N: a bounded list
+  tags: [text <=20] <=8               -- [T] 1..N inclusive; [T] <=N means 0..N
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
   createdAt: time default now          -- omitted on insert; evaluated on the writing host
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
@@ -409,7 +409,7 @@ mutation post(bodies: [text <=500] <=10):
     insert posts { authorId: viewer, body, score: 0, at: now }
   return count(bodies)
 
-mutation split(total: int, people: [principal] <=8):
+mutation split(total: int, people: [principal] 1..8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
 job nightly(periodStart: time, periodEnd: time):                    -- system sweeps; one chunk per commit
   end = periodEnd                                                   -- replayed per chunk
@@ -577,11 +577,11 @@ route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry bod
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
-## Left out on purpose, and the idiom
+## Left out on purpose and idioms
 
 Cards: `snapback4 guide <keyword>` — app, social, from-sql, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, receipts, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 
 ## An ID belongs to one intent

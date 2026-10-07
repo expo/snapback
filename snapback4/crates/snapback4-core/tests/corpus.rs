@@ -464,7 +464,7 @@ fn legacy_asset_ids(kind: &snapback4_core::schema::ColumnType, value: &mut Value
     use snapback4_core::schema::ColumnType;
     match (kind, value) {
         (ColumnType::Optional(inner), value) => legacy_asset_ids(inner, value),
-        (ColumnType::List { of, .. }, Value::Array(values)) => values.iter_mut().for_each(|value| legacy_asset_ids(of, value)),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Value::Array(values)) => values.iter_mut().for_each(|value| legacy_asset_ids(of, value)),
         (ColumnType::Image { .. } | ColumnType::Video { .. }, Value::Map(fields)) => {
             if let Some(id @ Value::String(_)) = fields.get_mut("id")
                 && let Value::String(text) = id
