@@ -1467,3 +1467,6 @@ fn a_presence_answer_asks_its_client_to_refresh() {
 }
 
 #[path = "../tests/serve_overload/mod.rs"] mod overload_tests;
+
+#[path = "../tests/serve_identity/diagnostics.rs"]
+mod session_diagnostics_tests;

@@ -1,0 +1,1980 @@
+ROUND 1 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.26s
+
+ROUND 1 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 490.677515
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 435.804309
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 138.382888
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 172.182685
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 148.958031
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 148.390691
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3035.455726
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3038.1598
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.436464
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 159.316569
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8467.190631
+ROUND 2 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.57s
+
+ROUND 2 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 414.64446
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 406.311569
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 104.371485
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 108.773533
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 148.498041
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 116.741868
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3030.770843
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3036.697527
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.683444
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 165.011666
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8152.289197
+ROUND 3 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.87s
+
+ROUND 3 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 415.415345
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 389.831585
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 158.232384
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 107.849358
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 98.943188
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 121.035575
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3022.531172
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3026.058429
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.433069
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 111.171418
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7995.17524
+ROUND 4 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.53s
+
+ROUND 4 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 387.168733
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 392.245273
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 118.157801
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 105.804714
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 114.240078
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 105.96924
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3022.878502
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3030.883772
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.525978
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 109.632601
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7958.035967
+ROUND 5 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.72s
+
+ROUND 5 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 409.420089
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 405.216447
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 152.664648
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 124.168411
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 120.187092
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 97.023149
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3047.758267
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3031.210711
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.447931
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 124.430424
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8104.728882
+ROUND 6 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.36s
+
+ROUND 6 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 435.733312
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 373.34442
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 107.849058
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 111.502665
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 98.992421
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 112.534652
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3022.765121
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3033.683779
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 1.677795
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 114.213558
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7979.320031
+ROUND 7 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.11s
+
+ROUND 7 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 463.395799
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 414.562747
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 116.992293
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 115.426567
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 109.106282
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 106.037543
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3037.72696
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3025.233191
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 2.653358
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 100.933672
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8077.139303
+ROUND 8 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.44s
+
+ROUND 8 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 337.06096
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 324.504799
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 67.235588
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 59.11866
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 47.999082
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 46.268187
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3019.260588
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3019.532556
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.454351
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 88.471841
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7330.96927
+ROUND 9 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.57s
+
+ROUND 9 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 306.693208
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 341.123301
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 92.002774
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 60.261413
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 50.670406
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 45.131983
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3022.633604
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3019.373477
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.463185
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 63.029813
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7368.903022
+ROUND 10 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.96s
+
+ROUND 10 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 295.542994
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 346.308673
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 35.445714
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 66.673324
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 47.679522
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 46.319894
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3017.478075
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3014.931839
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.4408
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 82.088492
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7261.95124
+ROUND 11 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.89s
+
+ROUND 11 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 347.798186
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 334.577487
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 92.248332
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 95.200217
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 81.054753
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 79.329105
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3017.178486
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3022.583348
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.44754
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 76.002609
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7552.854417
+ROUND 12 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.21s
+
+ROUND 12 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 346.290586
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 345.898228
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 83.070023
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 89.84542
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 71.588282
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 80.286461
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3013.87241
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3020.734546
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.529664
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 88.81788
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7646.309579
+ROUND 13 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.76s
+
+ROUND 13 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 349.319446
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 329.829451
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 113.14743
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 97.767716
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 96.230551
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 95.24932
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3027.533738
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3029.241729
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.674461
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 95.85605
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7728.506903
+ROUND 14 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.30s
+
+ROUND 14 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 364.010158
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 349.7956
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 107.507917
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 89.057679
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 87.05681
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 94.225105
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3018.29509
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3020.769068
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 4.534217
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 98.131881
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7688.44552
+ROUND 15 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.98s
+
+ROUND 15 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 362.093765
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 367.111857
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 87.934926
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 71.455352
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 79.129337
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 94.444835
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3020.719924
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3023.976777
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.437136
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 82.483384
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7656.535746
+ROUND 16 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.11s
+
+ROUND 16 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 355.702274
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 346.976714
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 92.297115
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 81.636225
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 79.077178
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 76.912122
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3025.822413
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3024.628864
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.514772
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 98.848186
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7591.087869
+ROUND 17 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.98s
+
+ROUND 17 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 361.31
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 306.238647
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 89.699662
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 89.981494
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 70.85259
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 68.579502
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3021.990018
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3019.978633
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.508723
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 77.088277
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7491.224542
+ROUND 18 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.98s
+
+ROUND 18 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 333.26484
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 353.612172
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 84.871674
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 79.129186
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 77.022989
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 79.029536
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3026.809112
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3023.465039
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.424907
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 93.405165
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7603.261006
+ROUND 19 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.48s
+
+ROUND 19 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 354.076407
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 308.069472
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 95.789991
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 79.845701
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 78.460714
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 93.184125
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3023.093541
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3027.727779
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.442824
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 98.946983
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7551.996719
+ROUND 20 dev_refusals
+
+running 22 tests
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.76s
+
+ROUND 20 helpers
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 312.756137
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 324.184198
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 3 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 86.378553
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 4 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 71.957215
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 5 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 77.07677
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 6 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 76.4766
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 7 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3015.626709
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 8 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3014.761051
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 9 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.692918
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 10 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 89.49882
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7468.63589

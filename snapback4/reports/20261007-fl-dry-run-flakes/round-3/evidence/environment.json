@@ -1,0 +1,16 @@
+{
+  "base": "47b00027acfe08485c02e4442300820a057f6d72",
+  "branch": "sb4-intent/fl-dry-run-flakes",
+  "hostname": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "sha256": {
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "fbe75f041ffb72433ae0deaa54aff9e603b0c13aef96c0ced359c6381822efa0",
+    "snapback4/packages/snapback4/test/export-publication.test.mjs": "2181884b7c1e0c2918bd6dcea65c72660823b76551563999cd256023dcc7091b",
+    "snapback4/packages/snapback4/test/publication-interposer.c": "3ca7531e857931a02ff8539d352e2b76e0cddd7daca77961f91bb040755e9876",
+    "snapback4/packages/snapback4/test/helpers/publication-barrier.mjs": "9ef5ba81970405f597a69708c829dbbfc9258b77cc5108e4f968e7cf051167ac",
+    "snapback4/crates/snapback4/tests/dev_refusals.rs": "2e6a4d83eb43985671f53656b1b21df57f303c24ba0fab36859dea46d1008937",
+    "snapback4/target/debug/snapback4": "0e555edce5aa0b7d58c723e1c7ef323da8d83d9de430fbf644c8136bf5b5ac40",
+    "snapback4/target/fl-negative/debug/snapback4": "5dc6fc09d8cb86deb84b2f75fd4a870756b120a899b46f827c5527a9291ba6d2"
+  }
+}

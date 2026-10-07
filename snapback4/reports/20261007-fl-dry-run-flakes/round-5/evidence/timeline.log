@@ -1,0 +1,21 @@
+-- client file start: packages/snapback4/test/timeline-delivery.test.mjs; stall bound 2700000 ms
+TAP version 13
+# Subtest: oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+ok 1 - oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+  ---
+  duration_ms: 44333.200983
+  type: 'test'
+  ...
+# {"historicalCommitMinimumBytes":18427320,"serverFollowing":[{"actorId":"dev:author","at":1791397709390,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791397709175,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791397674672,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"originalCommitBytes":151245,"originalCommitEvents":1024,"largestUpdateBytes":18464,"ceiling":16777216,"sameGeneration":true,"devices":[{"host":"wasm-memory","generation":1,"recoveredNotes":1020,"heldSubmissions":1,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"","id":"01M4BSY7RYB9E0VSJSHGT5RJS1","new_ids":[],"now":1791397666590,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"29b40e4c4fef4afe78a9391eeece238a"}],"pendingAfter":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"E_BUSY","id":"01M4BSY7RYB9E0VSJSHGT5RJS1","new_ids":[],"now":1791397666590,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"29b40e4c4fef4afe78a9391eeece238a"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1791397709390,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791397709175,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791397674672,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020},{"host":"native-sqlite","generation":1,"recoveredNotes":1020,"heldSubmissions":2,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"","id":"01M4BSYBR93RK6FCBT3CP7M8V2","new_ids":[],"now":1791397670667,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"pendingAfter":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"E_BUSY","id":"01M4BSYBR93RK6FCBT3CP7M8V2","new_ids":[],"now":1791397670667,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1791397709390,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1791397709175,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1791397674672,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020}],"settledFollowing":3}
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44486.288735
+-- process inspection: {"snapshots":3,"unrelatedRows":3377}
+-- client file ok: packages/snapback4/test/timeline-delivery.test.mjs (44756 ms)
+-- client files: 1/1; failed 0; tests {"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,0 +1,455 @@
+-- client file start: packages/snapback4/test/test-command-group.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/test-processes.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6242.522008
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6239.197101
+  type: 'test'
+  ...
+# Subtest: group verification requires two complete empty snapshots after living members
+ok 3 - group verification requires two complete empty snapshots after living members
+  ---
+  duration_ms: 102.102665
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":""}
+ok 4 - incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":""}
+  ---
+  duration_ms: 1.303834
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":2,"stdout":"1 1 S\\n"}
+ok 5 - incomplete group inspection refuses instead of declaring custody empty: {"status":2,"stdout":"1 1 S\\n"}
+  ---
+  duration_ms: 0.392799
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"error":{},"stdout":"1 1 S\\n"}
+ok 6 - incomplete group inspection refuses instead of declaring custody empty: {"error":{},"stdout":"1 1 S\\n"}
+  ---
+  duration_ms: 0.421642
+  type: 'test'
+  ...
+# Subtest: incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":"12 damaged S\\n"}
+ok 7 - incomplete group inspection refuses instead of declaring custody empty: {"status":0,"stdout":"12 damaged S\\n"}
+  ---
+  duration_ms: 0.371567
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12653.579278
+-- process inspection: {"snapshots":3,"unrelatedRows":3685}
+-- client file ok: packages/snapback4/test/test-command-group.test.mjs (12941 ms)
+TAP version 13
+# Subtest: ps timeout discards partial output and retries once with a larger bounded budget
+ok 1 - ps timeout discards partial output and retries once with a larger bounded budget
+  ---
+  duration_ms: 2.25412
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: ETIMEDOUT
+ok 2 - ps failure stays closed with bounded calls: ETIMEDOUT
+  ---
+  duration_ms: 0.483125
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: status 2
+ok 3 - ps failure stays closed with bounded calls: status 2
+  ---
+  duration_ms: 0.164467
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: status 0
+ok 4 - ps failure stays closed with bounded calls: status 0
+  ---
+  duration_ms: 0.148263
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: ENOENT
+ok 5 - ps failure stays closed with bounded calls: ENOENT
+  ---
+  duration_ms: 0.196414
+  type: 'test'
+  ...
+# Subtest: a nonzero exit after timeout still refuses instead of trusting its stdout
+ok 6 - a nonzero exit after timeout still refuses instead of trusting its stdout
+  ---
+  duration_ms: 0.335854
+  type: 'test'
+  ...
+# Subtest: timeout recovery cannot renew the three-fresh-snapshot transient-routing budget
+ok 7 - timeout recovery cannot renew the three-fresh-snapshot transient-routing budget
+  ---
+  duration_ms: 101.962534
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (before release)
+ok 8 - a ps taking over two seconds recovers and passes the file (before release)
+  ---
+  duration_ms: 5470.958996
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (cleanup verification)
+ok 9 - a ps taking over two seconds recovers and passes the file (cleanup verification)
+  ---
+  duration_ms: 5458.765485
+  type: 'test'
+  ...
+# Subtest: a late second empty snapshot passes only after both inspections complete
+ok 10 - a late second empty snapshot passes only after both inspections complete
+  ---
+  duration_ms: 5155.134322
+  type: 'test'
+  ...
+# late empty confirmation: 5155 ms
+# Subtest: asynchronous commands that never finish time out twice and are reaped
+ok 11 - asynchronous commands that never finish time out twice and are reaped
+  ---
+  duration_ms: 411.793771
+  type: 'test'
+  ...
+# Subtest: asynchronous command spawn errors, nonzero exits and overflow stay fail-closed
+ok 12 - asynchronous command spawn errors, nonzero exits and overflow stay fail-closed
+  ---
+  duration_ms: 49.448479
+  type: 'test'
+  ...
+# Subtest: a passing test file fails closed when ps persistently returns timeout
+ok 13 - a passing test file fails closed when ps persistently returns timeout
+  ---
+  duration_ms: 107.899655
+  type: 'test'
+  ...
+# Subtest: a passing test file fails closed when ps persistently returns nonzero exit
+ok 14 - a passing test file fails closed when ps persistently returns nonzero exit
+  ---
+  duration_ms: 108.020997
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (before release, exists false)
+ok 15 - recorded Linux exiting PGID cannot fail a healthy file (before release, exists false)
+  ---
+  duration_ms: 527.222793
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (before release, exists true)
+ok 16 - recorded Linux exiting PGID cannot fail a healthy file (before release, exists true)
+  ---
+  duration_ms: 529.282642
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists false)
+ok 17 - recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists false)
+  ---
+  duration_ms: 529.108351
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists true)
+ok 18 - recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists true)
+  ---
+  duration_ms: 531.882399
+  type: 'test'
+  ...
+# Subtest: persistent captured routing anomaly fails a healthy file and still releases its keeper
+ok 19 - persistent captured routing anomaly fails a healthy file and still releases its keeper
+  ---
+  duration_ms: 629.415254
+  type: 'test'
+  ...
+# Subtest: recognized Linux/Darwin exit shapes retry whole tables and classify only the fresh scope
+ok 20 - recognized Linux/Darwin exit shapes retry whole tables and classify only the fresh scope
+  ---
+  duration_ms: 706.416358
+  type: 'test'
+  ...
+# Subtest: persistent exit-shaped malformed routing fails closed after three snapshots even for an absent PID
+ok 21 - persistent exit-shaped malformed routing fails closed after three snapshots even for an absent PID
+  ---
+  duration_ms: 2827.756135
+  type: 'test'
+  ...
+# Subtest: damaged prefixes outside the precise exit shapes refuse without retry or an existence shortcut
+ok 22 - damaged prefixes outside the precise exit shapes refuse without retry or an existence shortcut
+  ---
+  duration_ms: 3.266287
+  type: 'test'
+  ...
+# Subtest: retry never masks a failed listing or persistent related malformed metadata
+ok 23 - retry never masks a failed listing or persistent related malformed metadata
+  ---
+  duration_ms: 202.694144
+  type: 'test'
+  ...
+# Subtest: changing transient PIDs cannot renew the retry budget or replace the first rejected bytes
+ok 24 - changing transient PIDs cannot renew the retry budget or replace the first rejected bytes
+  ---
+  duration_ms: 102.035163
+  type: 'test'
+  ...
+# Subtest: Darwin question-mark, E (exiting) and X (traced) flags with valid routing stay conservatively live
+ok 25 - Darwin question-mark, E (exiting) and X (traced) flags with valid routing stay conservatively live
+  ---
+  duration_ms: 1.155091
+  type: 'test'
+  ...
+# Subtest: darwin recorded synthetic ps table parses every field and state
+ok 26 - darwin recorded synthetic ps table parses every field and state
+  ---
+  duration_ms: 1.045828
+  type: 'test'
+  ...
+# Subtest: linux recorded synthetic ps table parses every field and state
+ok 27 - linux recorded synthetic ps table parses every field and state
+  ---
+  duration_ms: 0.637866
+  type: 'test'
+  ...
+# Subtest: unrelated metadata is never validated or probed, and is counted diagnostically
+ok 28 - unrelated metadata is never validated or probed, and is counted diagnostically
+  ---
+  duration_ms: 0.510466
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a group member stays fail-closed
+ok 29 - malformed metadata for a group member stays fail-closed
+  ---
+  duration_ms: 0.595593
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a direct descendant outside group stays fail-closed
+ok 30 - malformed metadata for a direct descendant outside group stays fail-closed
+  ---
+  duration_ms: 0.34069
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a transitive descendant outside group stays fail-closed
+ok 31 - malformed metadata for a transitive descendant outside group stays fail-closed
+  ---
+  duration_ms: 0.290756
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a zombie group member stays fail-closed
+ok 32 - malformed metadata for a zombie group member stays fail-closed
+  ---
+  duration_ms: 0.304386
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: bad 1 2
+ok 33 - unclassifiable routing prefix fails closed: bad 1 2
+  ---
+  duration_ms: 0.410486
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 bad 2
+ok 34 - unclassifiable routing prefix fails closed: 100 bad 2
+  ---
+  duration_ms: 0.272829
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 bad
+ok 35 - unclassifiable routing prefix fails closed: 100 1 bad
+  ---
+  duration_ms: 0.240511
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: -1 1 2
+ok 36 - unclassifiable routing prefix fails closed: -1 1 2
+  ---
+  duration_ms: 0.242664
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 -1 2
+ok 37 - unclassifiable routing prefix fails closed: 100 -1 2
+  ---
+  duration_ms: 0.243355
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 -2
+ok 38 - unclassifiable routing prefix fails closed: 100 1 -2
+  ---
+  duration_ms: 0.277426
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 9007199254740992 1 2
+ok 39 - unclassifiable routing prefix fails closed: 9007199254740992 1 2
+  ---
+  duration_ms: 0.249674
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 2147483648
+ok 40 - unclassifiable routing prefix fails closed: 100 1 2147483648
+  ---
+  duration_ms: 0.235062
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 truncated
+ok 41 - unclassifiable routing prefix fails closed: 100 truncated
+  ---
+  duration_ms: 0.396825
+  type: 'test'
+  ...
+# Subtest: vanished related metadata remains exited after its routing prefix was classified
+ok 42 - vanished related metadata remains exited after its routing prefix was classified
+  ---
+  duration_ms: 0.39391
+  type: 'test'
+  ...
+# Subtest: Darwin identity lookup validates its own row without unrelated metadata poisoning
+ok 43 - Darwin identity lookup validates its own row without unrelated metadata poisoning
+  ---
+  duration_ms: 1.146689
+  type: 'test'
+  ...
+# Subtest: scoped Darwin identity rereads classify fresh routing before ancillary metadata
+ok 44 - scoped Darwin identity rereads classify fresh routing before ancillary metadata
+  ---
+  duration_ms: 1.744646
+  type: 'test'
+  ...
+# Subtest: Darwin before release ignores a reused unrelated PID with malformed metadata
+ok 45 - Darwin before release ignores a reused unrelated PID with malformed metadata
+  ---
+  duration_ms: 369.085375
+  type: 'test'
+  ...
+# Subtest: Darwin before release ignores a reused unrelated PID with well-formed metadata
+ok 46 - Darwin before release ignores a reused unrelated PID with well-formed metadata
+  ---
+  duration_ms: 376.140893
+  type: 'test'
+  ...
+# Subtest: Darwin cleanup verification ignores a reused unrelated PID with malformed metadata
+ok 47 - Darwin cleanup verification ignores a reused unrelated PID with malformed metadata
+  ---
+  duration_ms: 375.31128
+  type: 'test'
+  ...
+# Subtest: Darwin cleanup verification ignores a reused unrelated PID with well-formed metadata
+ok 48 - Darwin cleanup verification ignores a reused unrelated PID with well-formed metadata
+  ---
+  duration_ms: 370.124173
+  type: 'test'
+  ...
+# Subtest: 5,000-row tables classify reversed ancestry, reparented members and cycles without omissions
+ok 49 - 5,000-row tables classify reversed ancestry, reparented members and cycles without omissions
+  ---
+  duration_ms: 59.239508
+  type: 'test'
+  ...
+# Subtest: 5,000-row macOS-shaped table accepts signed UIDs, flags and spaced paths
+ok 50 - 5,000-row macOS-shaped table accepts signed UIDs, flags and spaced paths
+  ---
+  duration_ms: 26.464373
+  type: 'test'
+  ...
+# Subtest: owned UID, start and state metadata are checked and exact rejected bytes survive
+ok 51 - owned UID, start and state metadata are checked and exact rejected bytes survive
+  ---
+  duration_ms: 0.850846
+  type: 'test'
+  ...
+# Subtest: real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+ok 52 - real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+  ---
+  duration_ms: 5933.301689
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 53 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 29.37025
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31081.75455
+-- process inspection: {"snapshots":3,"unrelatedRows":3701}
+-- client file ok: packages/snapback4/test/test-processes.test.mjs (31358 ms)
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 239.230537
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.350084
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.945306
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.570053
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 5 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3008.196831
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 6 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3008.065154
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 7 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.43334
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 8 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 181.212251
+  type: 'test'
+  ...
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+ok 9 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 31365.847511
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37934.814091
+-- process inspection: {"snapshots":3,"unrelatedRows":3693}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (38202 ms)
+-- client files: 3/3; failed 0; tests {"tests":69,"pass":69,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -18,6 +18,7 @@ pub(super) const DAY_MS: i64 = 86_400_000;
 /// application-owned sessions keep the explicit duration their issuer chose.
 pub const SESSION_DAYS: i64 = 7;
 pub(crate) mod read_sessions;
+pub mod diagnostics;
 pub use read_sessions::{narrow_session, SessionScope, Capability};
 
 pub const BOUND_SESSION_INTENT: &str = "identity-session/v1";

@@ -1,0 +1,73 @@
+snapback4/scripts/test-signals.mjs:93:export function signalRecorded(record, signal, argv) {
+snapback4/scripts/test-signals.mjs:95:  process.kill(record.pid, signal);
+snapback4/scripts/test-signals.mjs:111:export function signalChild(child, signal = 'SIGTERM') {
+snapback4/scripts/test-signals.mjs:117:  signalRecorded(record, signal, child.spawnargs);
+snapback4/scripts/test-signals.mjs:119:export function signalSelf(signal, { group = false } = {}) {
+snapback4/scripts/test-signals.mjs:123:  process.kill(group ? 0 : process.pid, signal);
+snapback4/scripts/test-file-owner.mjs:3:import { signalSelf } from './test-signals.mjs';
+snapback4/scripts/test-file-owner.mjs:10:  const die = () => signalSelf('SIGKILL', { group: true });
+snapback4/packages/snapback4/test/publication-interposer.c:32:        raise(SIGKILL); _exit(137);
+snapback4/packages/snapback4/test/publication-interposer.c:35:        raise(SIGTERM); _exit(143);
+snapback4/packages/snapback4/test/export-publication.test.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/export-publication.test.mjs:11:import { publisherPid, waitForPublisher, killPausedPublisher, releasePublisherBarrier, waitForPublisherExit } from './helpers/publication-barrier.mjs';
+snapback4/packages/snapback4/test/export-publication.test.mjs:73:      await assert.rejects(killPausedPublisher(barrier, { ...record, pid }, [probe]), /positive publisher PID/);
+snapback4/packages/snapback4/test/export-publication.test.mjs:75:    await assert.rejects(killPausedPublisher(barrier, { ...record, start: record.start + '-stale' }, [probe]), /stale publisher birth/);
+snapback4/packages/snapback4/test/export-publication.test.mjs:76:    await assert.rejects(killPausedPublisher(barrier, { ...record, start: undefined }, [probe]), /recorded birth required/);
+snapback4/packages/snapback4/test/export-publication.test.mjs:77:    await assert.rejects(killPausedPublisher(barrier, record, [probe, 'wrong-command']), /fixture publisher command/);
+snapback4/packages/snapback4/test/export-publication.test.mjs:85:    await killPausedPublisher(barrier, record, [probe]);
+snapback4/packages/snapback4/test/export-publication.test.mjs:90:    await assert.rejects(killPausedPublisher(barrier, record, [probe]));
+snapback4/packages/snapback4/test/export-publication.test.mjs:94:    if (child?.exitCode === null && child?.signalCode === null) signalChild(child, 'SIGKILL');
+snapback4/packages/snapback4/test/export-publication.test.mjs:151:    signalChild(child, 'SIGKILL'); await exited;
+snapback4/packages/snapback4/test/export-publication.test.mjs:155:  } finally { if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
+snapback4/packages/snapback4/test/export-publication.test.mjs:179:    signalChild(child, 'SIGKILL'); await exited;
+snapback4/packages/snapback4/test/export-publication.test.mjs:195:    if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited;
+snapback4/scripts/test-processes.mjs:2:import { signalChild, spawnTracked as spawn } from './test-signals.mjs';
+snapback4/scripts/test-processes.mjs:39:      try { signalChild(child, 'SIGKILL'); }
+snapback4/scripts/test-processes.mjs:84:  try { process.kill(pid, 0); return true; }
+snapback4/packages/snapback4/test/export-native.test.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/export-native.test.mjs:225:      await once(child.stdout, 'data'); signalChild(child, signal);
+snapback4/packages/snapback4/test/export-failure.test.mjs:29:    fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
+snapback4/packages/snapback4/test/export-failure.test.mjs:63:import {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).href)};
+snapback4/packages/snapback4/test/export-failure.test.mjs:82: if(r.signal){signalSelf(r.signal);setTimeout(()=>process.exit(128+15),100);}else process.exit(r.status??1);
+snapback4/packages/snapback4/test/export-background.test.mjs:10:import { signalRecorded, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/export-background.test.mjs:11:import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
+snapback4/packages/snapback4/test/export-background.test.mjs:26:function signalFixture(f, record, signal) {
+snapback4/packages/snapback4/test/export-background.test.mjs:32:  signalRecorded(record, signal, [
+snapback4/packages/snapback4/test/export-background.test.mjs:145:    signalFixture(f, record, signal);
+snapback4/packages/snapback4/test/export-background.test.mjs:163:    signalChild(observer, 'SIGINT');
+snapback4/packages/snapback4/test/export-background.test.mjs:171:    if (observer?.exitCode === null && observer?.signalCode === null) { const exited=once(observer,'exit'); signalChild(observer, 'SIGTERM'); await exited; }
+snapback4/packages/snapback4/test/export-background.test.mjs:216:      // These three JS cases inject death through signalFixture. The shared
+snapback4/packages/snapback4/test/export-background.test.mjs:220:      .replaceAll('os.kill(os.getppid(), signal.SIGINT)', "raise AssertionError('parent faults belong to signalFixture')")
+snapback4/packages/snapback4/test/export-background.test.mjs:221:      .replace('os.killpg(os.getpgid(os.getppid()), signal.SIGINT)', "raise AssertionError('group faults are not enabled in this fixture')")
+snapback4/packages/snapback4/test/export-background.test.mjs:223:    assert.doesNotMatch(simctl, /\bos\.kill(?:pg)?\(/, 'copied simctl fixture must not dispatch signals');
+snapback4/packages/snapback4/test/export-background.test.mjs:230:    signalFixture(f, read(path.join(dir, victim + '.json')).process, 'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:362:const stop=()=>{if(fs.existsSync(root+'/stop-compression'))require(${JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).pathname)}).signalSelf('SIGKILL',{group:true});};
+snapback4/packages/snapback4/test/export-background.test.mjs:363:const child=spawn(process.execPath,['-e',${JSON.stringify("const fs=require('fs');const {signalSelf}=require("+JSON.stringify(new URL('../../../scripts/test-signals.mjs', import.meta.url).pathname)+");process.on('SIGTERM',()=>{});setInterval(()=>{if(fs.existsSync('stop-compression'))signalSelf('SIGKILL',{group:true});},25)")}],{stdio:'ignore'});
+snapback4/packages/snapback4/test/export-background.test.mjs:434:  if (mode.startsWith('SIG')) signalFixture(f, read(path.join(first.artifacts, 'worker.json')).process, mode);
+snapback4/packages/snapback4/test/export-background.test.mjs:527:    const compressor=read(path.join(f.root,'compression.json'));signalChild(caller, 'SIGTERM');await ended;
+snapback4/packages/snapback4/test/export-background.test.mjs:530:    if(caller?.exitCode===null&&caller?.signalCode===null){const ended=once(caller,'exit');signalChild(caller, 'SIGTERM');await ended;}
+snapback4/packages/snapback4/test/export-background.test.mjs:572:    const worker=read(path.join(first.artifacts,'worker.json')).process.pid;signalFixture(f,read(path.join(first.artifacts,'worker.json')).process,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:643:    if(fault!=='deadline')signalFixture(f,read(path.join(firstDir,'maintenance-launch.json')).process,fault);
+snapback4/packages/snapback4/test/export-background.test.mjs:888:    await killPausedPublisher(barrier,publisher,args);publisher=null;
+snapback4/packages/snapback4/test/export-background.test.mjs:1016:    signalFixture(f,read(path.join(root,record)).process,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1121:      const originalKill=process.kill, attempted=[];
+snapback4/packages/snapback4/test/export-background.test.mjs:1122:      process.kill=(...args)=>{attempted.push(args);throw Error('UNSAFE_STALE_DISPATCH');};
+snapback4/packages/snapback4/test/export-background.test.mjs:1123:      try { assert.throws(()=>signalFixture(f,stopped.process,'SIGKILL'),/TEST_SIGNAL_REFUSED/); }
+snapback4/packages/snapback4/test/export-background.test.mjs:1124:      finally { process.kill=originalKill; }
+snapback4/packages/snapback4/test/export-background.test.mjs:1128:    signalFixture(f,stopped.process,'SIGKILL');await wrapperExit;
+snapback4/packages/snapback4/test/export-background.test.mjs:1157:    signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');await until(()=>!alive(observer),'owned idle observer exited');
+snapback4/packages/snapback4/test/export-background.test.mjs:1164:    const before=Date.now();signalFixture(f,stopped.process,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1188:    signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1196:    signalFixture(f,read(path.join(root,'maintenance-test-point.json')).process,'SIGKILL');
+snapback4/packages/snapback4/test/export-background.test.mjs:1214:    signalFixture(f,victim==='observer'?observer.process:read(path.join(root,'maintenance-test-point.json')).process,'SIGKILL');await until(()=>!alive(pid),'owned victim exited in handoff gap');
+snapback4/packages/snapback4/test/export-background.test.mjs:1227:    signalFixture(f,read(path.join(root,'maintenance-next.json')).process,'SIGKILL');await until(()=>!alive(observer),'owned observer exited');
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/helpers/timeline-recovery.mjs:201:    if(server.exitCode==null&&server.signalCode==null)signalChild(server, 'SIGTERM');
+snapback4/packages/snapback4/test/helpers/app-server.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/helpers/app-server.mjs:37:  t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
+snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs:24:    if (host.exitCode === null && host.signalCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); signalChild(host); await done; }
+snapback4/packages/snapback4/test/helpers/publication-roundtrip-mock.mjs:32:process.kill = (pid, signal) => {
+snapback4/packages/snapback4/test/helpers/read-through-server.mjs:1:import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-signals.mjs';
+snapback4/packages/snapback4/test/helpers/read-through-server.mjs:25:  t.after(async()=>{paused=false;for(const resume of deliveries)resume();deliveries.clear();await client?.close();if(child.exitCode==null&&child.signalCode==null)signalChild(child, "SIGTERM");await exit;rmSync(dir,{recursive:true,force:true});});
+snapback4/packages/snapback4/test/helpers/publication-barrier.mjs:25:export async function killPausedPublisher(file, record, argv) {

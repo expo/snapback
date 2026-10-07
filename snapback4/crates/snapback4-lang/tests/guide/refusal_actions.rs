@@ -86,6 +86,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WORKER_REFRESH", &["Keep using the injected token", "the refusal leaves it live", "Manually minted service seats can still refresh"]),
     ("E_BOUND", &["Read a smaller page, narrow its predicate, or move the sweep into a job", "never the count: it would measure rows the viewer may not read"]),
     ("E_CLIENT", &["repair the client adapter to return the declared outcome", "collect with the original intent ID before starting another write"]),
+    ("N_CLOCK_STORE_AHEAD", &["Use a fresh store per offset test", "restart with the same cumulative `--clock-offset`"]),
     ("E_CLOCK_DEV_ONLY", &["`serve` refuses clock flags and the control endpoint", "dev-only loopback `POST /dev/clock/advance`"]),
     ("E_CLOCK_INPUT", &["Backward/zero advances and invalid values refuse", "{\"duration\":\"+2m\"}"]),
     ("E_CLOSED", &["collect with the same write ID instead of sending duplicate intent", "A durable local write remains pending and can settle after reopen"]),

@@ -1,0 +1,92 @@
+[
+  {
+    "mode": "interpreter",
+    "result": {
+      "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 3,
+        "unrelatedRows": 3700
+      },
+      "elapsed": 344,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-interpreter.test.mjs"
+    }
+  },
+  {
+    "mode": "refused-cleanup",
+    "result": {
+      "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 3,
+        "unrelatedRows": 3708
+      },
+      "elapsed": 3350,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-refused-cleanup.test.mjs"
+    }
+  },
+  {
+    "mode": "compiler-escalation",
+    "result": {
+      "file": "/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs",
+      "code": 1,
+      "signal": null,
+      "passed": false,
+      "keeperExit": {
+        "code": null,
+        "signal": "SIGKILL",
+        "cleanupAcknowledged": true
+      },
+      "inspectionDiagnostics": {
+        "snapshots": 3,
+        "unrelatedRows": 3710
+      },
+      "elapsed": 40575,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "stallMs": 900000,
+      "progressCount": 4,
+      "lastProgress": "test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r6-compiler-escalation.test.mjs"
+    }
+  }
+]

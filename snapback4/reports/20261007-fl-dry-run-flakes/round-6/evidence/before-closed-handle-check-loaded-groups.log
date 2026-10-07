@@ -1,0 +1,460 @@
+{"round": 1, "exit": 0, "seconds": 13.37}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6624.444428
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6467.80856
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13261.344512
+{"round": 2, "exit": 0, "seconds": 13.422}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6616.935974
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6617.970617
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13353.305332
+{"round": 3, "exit": 0, "seconds": 13.339}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6507.194595
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6579.322866
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13249.88977
+{"round": 4, "exit": 0, "seconds": 13.32}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6604.744391
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6482.199957
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13238.284399
+{"round": 5, "exit": 0, "seconds": 13.41}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6610.384312
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6621.62052
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13344.434284
+{"round": 6, "exit": 0, "seconds": 13.447}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6584.705759
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6599.0528
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13334.588763
+{"round": 7, "exit": 0, "seconds": 13.309}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6615.592149
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6491.787766
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13249.927292
+{"round": 8, "exit": 0, "seconds": 13.363}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6500.176997
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6611.443097
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13270.150542
+{"round": 9, "exit": 0, "seconds": 13.41}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6559.802516
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6572.423732
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13317.824699
+{"round": 10, "exit": 0, "seconds": 13.289}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6576.110523
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6513.125456
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13228.143286
+{"round": 11, "exit": 0, "seconds": 13.359}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6582.348021
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6546.828842
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13300.06643
+{"round": 12, "exit": 0, "seconds": 13.302}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6511.012638
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6558.56165
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13222.373723
+{"round": 13, "exit": 0, "seconds": 13.376}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6583.121465
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6601.300905
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13310.806781
+{"round": 14, "exit": 0, "seconds": 13.212}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6572.179868
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6409.473214
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13132.776073
+{"round": 15, "exit": 0, "seconds": 13.259}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6522.751521
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6539.664532
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13205.002805
+{"round": 16, "exit": 0, "seconds": 13.134}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6557.846355
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6405.989298
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13072.059097
+{"round": 17, "exit": 0, "seconds": 13.096}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6463.288348
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6465.719337
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13036.691379
+{"round": 18, "exit": 0, "seconds": 13.052}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6444.236734
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6462.663045
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12998.336544
+{"round": 19, "exit": 0, "seconds": 13.13}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6531.053522
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6445.3247
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13079.491374
+{"round": 20, "exit": 0, "seconds": 13.154}
+TAP version 13
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=false)
+ok 1 - compiler timeout drains its frontend before returning (driver exits on TERM=false)
+  ---
+  duration_ms: 6516.76473
+  type: 'test'
+  ...
+# Subtest: compiler timeout drains its frontend before returning (driver exits on TERM=true)
+ok 2 - compiler timeout drains its frontend before returning (driver exits on TERM=true)
+  ---
+  duration_ms: 6451.889842
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13072.762845

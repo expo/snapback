@@ -1,0 +1,14 @@
+✔ publisher before barrier publishes a complete identity and rejects unsafe fault requests (291.887935ms)
+✔ publisher after barrier publishes a complete identity and rejects unsafe fault requests (309.663625ms)
+✔ actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning (611.469831ms)
+✔ publication refuses changed inventory and a changed proof; no success receipt (73.82782ms)
+✔ SIGKILL releases the actual Node wrapper lease and cleanup recovers its run (521.930595ms)
+✔ publisher inherits custody if its Node wrapper is killed while publication is blocked (481.282342ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2362.28365

@@ -58,6 +58,10 @@ bare-token online client has none until refresh returns one. Only the local clie
 `localStorageSessionStore()` is an explicit compatibility choice whose token can be read by same-origin script;
 native apps should pass their secure store.
 
+Trusted dev E_AUTH explains expiry or possible causes for unknown tokens; the SDK keeps the message.
+Sign in again and discard earlier-store tokens. Serve and untrusted dev requests keep causes generic.
+See `guide services` for diagnostic limits and `guide jobs` for isolated time-travel tests.
+
 ## Operations
 `use personas alice, bob` declares a development cast. `snapback4 run send '{..}' --as alice` (the default
 persona is alice) and the `x-snapback-persona: alice` header in development act as `dev:alice`; `persona: "alice"` on the client sends the header. Personas are a development door: the socket peer, `Host`, and optional
@@ -80,21 +84,13 @@ peers keep two slots and the minute counters; full slots refuse with retryable E
 caps remain. Unknown emails perform the same Argon2 verification work. Retry after the minute counter or
 concurrent-slot pressure clears; do not retry in a tight loop.
 
-For a replay mode that must not emit notifications, run `snapback4 dev --replay`. Startup prints `replay on —
-new effects suppressed; schedules held`. `doctor` reports the persisted dev replay and schedule policy, even
-after the host stops. New emits are counted as `suppressed` by `doctor`, with no queued payload:
-they are never delivered, including after restarting with or without `--replay`. Mutations and explicitly run jobs keep their
-writes, results and meters. Replay holds schedule admission; restart without it resumes at the next boundary,
-skipping held periods. Already queued jobs still run, with their new emits suppressed. Effects queued before
-replay keep their ordinary lifecycle.
-
-`--hold-effects` only pauses worker claims: effects stay durable and become claimable after restarting without
-the flag. `--hold-schedules` only holds schedule admission, skipping held periods on restart. Use `--replay`
-when new effects must never be delivered; use the effect hold to keep them queued. The suppression policy stays
-on the dev store for local `run` invocations until the next host start; a restart without `--replay` restores
-normal emission for new writes and keeps the count. `serve` and release commands refuse `--replay` with
-E_REPLAY_DEV_ONLY; production always emits normally. With `--fresh`, the count dies with the in-memory store;
-`doctor` and local `run` inspect the separate on-disk store.
+Use `snapback4 dev --replay` when new effects must be never delivered: writes and meters remain,
+new effects are counted as suppressed, and schedule admission is held. Previously queued effects remain.
+`--hold-effects` instead keeps effects claimable after restarting without the flag; `--hold-schedules`
+only holds schedule admission. Both schedule holds skip missed periods; a restart without `--replay` restores normal emission for new writes and keeps the count.
+The policy persists for local `run` until the next host start; suppressed effects never return.
+`serve` and release commands refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+See `guide jobs` for full replay semantics and the disposable-store recipe.
 
 `snapback4 sql "SELECT * FROM messages" [--limit N] [--json]` inspects the developer's own dev store; `--release
 dir` selects a deployment. It opens read-only alongside the running server and is never rule-filtered. Only

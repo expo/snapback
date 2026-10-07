@@ -1,3 +1,4 @@
+import { sessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, readOnlyRefusal, verifyReadClient } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
@@ -227,11 +228,11 @@ export function createApp(options: AppOptions): App {
   }
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
-  const anonymous = () => {
+  const anonymous = (why?: Refusal) => {
     const client = createClient({ url, fetch: fetcher, readOnly });
     if (!readOnly && browserAdmission()) client.mutate = routeMutations(client.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
       admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id")));
-    return client;
+    return why ? guardClient(client, async () => false, () => false, () => why).client : client;
   };
   let current = anonymous();
   let signedOutOnline = onlineView(current);
@@ -260,13 +261,13 @@ export function createApp(options: AppOptions): App {
     return result;
   };
   const inactive = (): Extract<SignIn, { ok: false }> => ({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this app operation was superseded", site: "app.auth", rewrite: "await app.auth.login(email, password)" } });
-  const hide = (state: AuthState = "signed-out", pause = true) => {
+  const hide = (state: AuthState = "signed-out", pause = true, why?: Refusal) => {
     if (pause) owner?.pause();
     const notifyHidden = [...scopes].map(scope => scope.fenceView?.());
     if (current !== owner?.view) void current.close();
-    current = anonymous();
+    current = anonymous(why);
     signedOutOnline = onlineView(current);
-    publish(closed ? "signed-out" : state, null);
+    publish(closed ? "signed-out" : state, null, why);
     for (const notify of notifyHidden) notify?.();
   };
   async function release() {
@@ -569,14 +570,14 @@ export function createApp(options: AppOptions): App {
           // Refusal deletion cannot queue behind a held sign-in response.
           // A rollback candidate owns this duty even while another scope opens.
           const clearing = removeSession([rejected, ...(scope.consumed ? [scope.consumed] : [])]);
-          if (owner === scope) hide("restoring");
+          if (owner === scope) hide("restoring", true, sessionRefusal(raw!));
           void clearing.catch(report);
           void enqueue(async () => {
             if (owner !== scope) return;
             let warning: Refusal | undefined;
             try { await clearing; await release(); await scope.logout; }
             catch (error) { warning = problem(error); }
-            if (revision === rejectionRevision) publish("signed-out", null, warning);
+            if (revision === rejectionRevision) publish("signed-out", null, warning ?? sessionRefusal(raw!));
           }).catch(report);
         }
       });
@@ -584,7 +585,7 @@ export function createApp(options: AppOptions): App {
       // asynchronous session cleanup completes. Hide the app view first, so
       // subscribers never observe signed-in paired with a dead client (I6).
       const hideLostView = () => {
-        if (owner === scope && current === scope.view && !raw!.viewer()) hide("restoring");
+        if (owner === scope && current === scope.view && !raw!.viewer()) hide("restoring", true, sessionRefusal(raw!));
       };
       const stops = [stopSession, raw.onViewer(hideLostView), raw.onLink(hideLostView), raw.onAcquired(hideLostView)];
       scope.stop = () => { for (const stop of stops) stop(); };
@@ -608,11 +609,11 @@ export function createApp(options: AppOptions): App {
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
           ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}),
         }) : raw!;
-        scope.online = ownOnline(remote, authorized, valid, () => changedStore ?? new SessionEpochChanged().why, !!options.device, () => { active = false; });
+        scope.online = ownOnline(remote, authorized, valid, () => changedStore ?? sessionRefusal(raw!) ?? new SessionEpochChanged().why, !!options.device, () => { active = false; });
         notify?.();
       }
       scope.expose = () => {
-        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? new SessionEpochChanged().why, () => retirement, admit);
+        const guarded = guardClient(baseClient, authorized, () => scope.valid, () => changedStore ?? sessionRefusal(raw!) ?? new SessionEpochChanged().why, () => retirement, admit);
         const client = guarded.client;
         scope.view = client;
         delete scope.online;
@@ -666,7 +667,9 @@ export function createApp(options: AppOptions): App {
       drainRevocations();
       return { ok: true, session: raw.session() ?? next };
     } catch (error) {
-      if (revision === expected) hide("restoring", false);
+      const why = problem(error);
+      if (revision === expected) hide("restoring", false,
+        !previous?.valid && why.code === "E_AUTH" && !why.retryable ? why : undefined);
       // Abort only the provisional owner. The previous durable session and
       // epoch are unchanged; every issued successor remains in retirement custody.
       scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();

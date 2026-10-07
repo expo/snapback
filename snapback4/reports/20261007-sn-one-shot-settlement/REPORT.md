@@ -1,8 +1,8 @@
 # Lane SN: one-shot settlement
 
-**Latest: [Round 2](round2/REPORT.md).** Final generation/store fences, authoritative
-field-level commit evidence, and dispatch-bound receipt recovery address both
-round-0 reviews. [Round 1](round1/REPORT.md) restored complete predicted one-shots
+**Latest: [Round 3](round3/REPORT.md).** Merge main’s FL and DK changes while
+preserving settlement and retained refusal semantics. [Round 2](round2/REPORT.md)
+added generation/store fences, field-level evidence and dispatch-bound recovery. [Round 1](round1/REPORT.md) restored complete predicted one-shots
 and ordered identity adoption. The historical findings below describe round 0.
 
 2026-10-07. Branch `sb4-intent/sn-one-shot-settlement`, base

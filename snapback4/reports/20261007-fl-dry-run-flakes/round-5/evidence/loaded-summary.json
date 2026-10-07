@@ -1,0 +1,135 @@
+{
+  "cpus": "80,81",
+  "busyLoops": 4,
+  "sourceSha256": {
+    "crates/snapback4/tests/dev_refusals.rs": "639932d4daae52a98740586cee6e9dfb605a106e50a62672a3e52d5ad7aa2d2d",
+    "scripts/test-signals.mjs": "ebc253917d60fa33ab0c8538467ed496bb91ecf45c92251701049ef945b6a7a2",
+    "scripts/test-owned-command.mjs": "2625da02d282eb65e61ec35e367b85102713d8d38c0a297f73a867b8903bf045",
+    "scripts/test-processes.mjs": "74d05aa5d102d68db31a7c7581ec975cab74ef9c3c95a4f99396e877c447125f",
+    "packages/snapback4/test/test-signals.test.mjs": "30ac0283f1686015cfed1b6a3d4851cae845f2666f631a6aca2406ed372e03be"
+  },
+  "sourceUnchanged": true,
+  "rounds": [
+    {
+      "round": 1,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 23.873
+    },
+    {
+      "round": 2,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 21.864
+    },
+    {
+      "round": 3,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 21.974
+    },
+    {
+      "round": 4,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 20.608
+    },
+    {
+      "round": 5,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 20.956
+    },
+    {
+      "round": 6,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 21.472
+    },
+    {
+      "round": 7,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 21.317
+    },
+    {
+      "round": 8,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 16.859
+    },
+    {
+      "round": 9,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 15.026
+    },
+    {
+      "round": 10,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 16.316
+    },
+    {
+      "round": 11,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 15.501
+    },
+    {
+      "round": 12,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 16.939
+    },
+    {
+      "round": 13,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 17.589
+    },
+    {
+      "round": 14,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 19.092
+    },
+    {
+      "round": 15,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 18.738
+    },
+    {
+      "round": 16,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 18.797
+    },
+    {
+      "round": 17,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 16.573
+    },
+    {
+      "round": 18,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 16.681
+    },
+    {
+      "round": 19,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 17.134
+    },
+    {
+      "round": 20,
+      "rustPassed": 22,
+      "nodePassed": 10,
+      "seconds": 17.319
+    }
+  ],
+  "loadReaped": true
+}

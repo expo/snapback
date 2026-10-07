@@ -82,6 +82,21 @@ user session; loopback `dev` may instead use `x-snapback-persona: alice`
 for a declared persona. `serve` never accepts that persona header. Renew
 or sign in again for an expired session, and check that the token belongs
 to the backend the URL actually reaches.
+Detailed dev explanations require a loopback peer, a loopback Host and, when present,
+a loopback browser Origin, just like dev-only endpoints. An unknown token may come from
+an earlier/replaced store or another instance, or have expired or been signed out,
+including before this server started. Sign in again and discard saved tokens from an
+earlier store. Expiry is identified when the session record remains; absent records
+cannot distinguish expiry from sign-out or store replacement. No token history is kept.
+SDK local/online clients and the app online arm preserve that message after terminal
+refusal, including a device app restoring a saved foreign-store token and a later
+local logout-everywhere call. Ordinary signed-out clients still ask you to sign in. Serve and untrusted dev
+requests, including declared public POST routes, use identical text for every cause:
+"this session is not live; sign in again", without disclosing whether a token was issued here.
+Refused session tokens on data and identity doors (logout, narrow, refresh and logout-all)
+use HTTP 401, E_AUTH, family `auth` and `guide: personas`, without an E_AUTH prefix
+inside the message. No new field is needed. Do not branch on diagnostic prose.
+
 
 E_OIDC_BINDING means begin did not receive a 43-character base64url SHA-256
 binding hash. Hash the browser's fresh binding secret and supply that hash

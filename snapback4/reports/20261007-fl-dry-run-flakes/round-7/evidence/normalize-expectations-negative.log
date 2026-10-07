@@ -1,0 +1,26 @@
+✖ fixture signals bind every native command to the selected binary and exact root (197.746734ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 258.498609
+
+✖ failing tests:
+
+test at packages/snapback4/test/.fl-r7-3102754.test.mjs:23:1
+✖ fixture signals bind every native command to the selected binary and exact root (197.746734ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception: background-worker
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r7-3102754.test.mjs:62:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /expected fixture command/,
+    operator: 'throws',
+    diff: 'simple'
+  }

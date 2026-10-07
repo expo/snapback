@@ -1,0 +1,11 @@
+scripts/test-processes.mjs:3:import { killOwned } from './test-owned-command.mjs';
+scripts/test-processes.mjs:46:        killOwned(child, 'SIGKILL');
+scripts/test-processes.mjs:91:  try { process.kill(pid, 0); return true; }
+scripts/test-signals.mjs:13:import { spawnOwned as nativeSpawn, killOwned, runOwnedCommand } from './test-owned-command.mjs';
+scripts/test-signals.mjs:95:export function signalRecorded(record, signal, argv) {
+scripts/test-signals.mjs:98:  process.kill(record.pid, signal);
+scripts/test-signals.mjs:131:  killOwned(child, signal);
+scripts/test-owned-command.mjs:15:export function killOwned(child, signal) {
+scripts/test-owned-command.mjs:19:  return child.kill(signal);
+scripts/test-owned-command.mjs:27:  process.kill(group ? 0 : process.pid, signal);
+scripts/test-owned-command.mjs:40:      killOwned(child, 'SIGKILL');

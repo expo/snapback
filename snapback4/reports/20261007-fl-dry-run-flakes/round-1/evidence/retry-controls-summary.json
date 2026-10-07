@@ -1,0 +1,5 @@
+{
+  "oneAdvancePassedBothTraceModes": true,
+  "endlessAdvanceFailedAtEightPairs": true,
+  "permanentRegressionRejectsOldGuard": true
+}

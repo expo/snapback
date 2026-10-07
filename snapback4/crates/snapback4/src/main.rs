@@ -13,6 +13,7 @@ mod serve;
 mod dev_worker;
 mod dev_replay;
 mod dev_clock;
+mod dev_clock_store;
 mod lifecycle;
 mod thread_priority;
 mod verbs;

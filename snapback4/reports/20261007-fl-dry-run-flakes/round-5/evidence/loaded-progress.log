@@ -1,0 +1,21 @@
+{"cpus": "80,81", "ownedLoadPids": [3245285, 3245286, 3245287, 3245288]}
+{"round": 1, "rustPassed": 22, "nodePassed": 10, "seconds": 23.873}
+{"round": 2, "rustPassed": 22, "nodePassed": 10, "seconds": 21.864}
+{"round": 3, "rustPassed": 22, "nodePassed": 10, "seconds": 21.974}
+{"round": 4, "rustPassed": 22, "nodePassed": 10, "seconds": 20.608}
+{"round": 5, "rustPassed": 22, "nodePassed": 10, "seconds": 20.956}
+{"round": 6, "rustPassed": 22, "nodePassed": 10, "seconds": 21.472}
+{"round": 7, "rustPassed": 22, "nodePassed": 10, "seconds": 21.317}
+{"round": 8, "rustPassed": 22, "nodePassed": 10, "seconds": 16.859}
+{"round": 9, "rustPassed": 22, "nodePassed": 10, "seconds": 15.026}
+{"round": 10, "rustPassed": 22, "nodePassed": 10, "seconds": 16.316}
+{"round": 11, "rustPassed": 22, "nodePassed": 10, "seconds": 15.501}
+{"round": 12, "rustPassed": 22, "nodePassed": 10, "seconds": 16.939}
+{"round": 13, "rustPassed": 22, "nodePassed": 10, "seconds": 17.589}
+{"round": 14, "rustPassed": 22, "nodePassed": 10, "seconds": 19.092}
+{"round": 15, "rustPassed": 22, "nodePassed": 10, "seconds": 18.738}
+{"round": 16, "rustPassed": 22, "nodePassed": 10, "seconds": 18.797}
+{"round": 17, "rustPassed": 22, "nodePassed": 10, "seconds": 16.573}
+{"round": 18, "rustPassed": 22, "nodePassed": 10, "seconds": 16.681}
+{"round": 19, "rustPassed": 22, "nodePassed": 10, "seconds": 17.134}
+{"round": 20, "rustPassed": 22, "nodePassed": 10, "seconds": 17.319}

@@ -1,0 +1,32 @@
+{
+  "cpus": "80-81",
+  "workers": 2,
+  "started": "2026-10-07T16:58:37.478Z",
+  "loadBefore": "6.17 15.90 15.33 4/3196 1713541",
+  "pid": 1713482,
+  "loadGroup": 1713542,
+  "workerPids": [
+    1713545,
+    1713546
+  ],
+  "command": [
+    "taskset",
+    "-c",
+    "80-81",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "/home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-file-owner.mjs",
+    "--test",
+    "packages/snapback4/test/export-publication.test.mjs"
+  ],
+  "runs": [
+    {
+      "run": 0,
+      "code": 0,
+      "signal": null,
+      "testGroup": 1713548
+    }
+  ],
+  "ended": "2026-10-07T16:58:39.995Z",
+  "loadAfter": "6.17 15.90 15.33 3/3188 1714283",
+  "reaped": true
+}

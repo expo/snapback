@@ -90053,3 +90053,411 @@ and 10,553 references with zero errors or unchecked references. Two frozen
 change-wire expectations now include the additive interval certificate. The
 client batch's skips are specifically the optional Following shaped measurement
 and the unavailable historical 0.2.32 binary.
+## 2026-10-07 — FL: publication dry-run flakes retain their assertions
+
+The developer-evidence test compared an absent point before the fixture's
+expired-row sweep with a hidden point afterward. The sweep records the
+sequence-2 to sequence-3 expiry commit. It now retries at most eight adjacent
+read pairs until their numeric watermarks match, then compares the complete
+serialized answers. Each traced absence waits for its new request's evidence;
+hidden reads still cannot alter that evidence. No response field is normalized.
+
+The export retention custody cases now wait for compressor, child, keeper and
+guardian exit, lease release and a newer publication's outcome, bounded by the
+existing work/drain contract plus observation slack. The 300-second outer guard
+includes setup and teardown; the 30-second product deadline, lock-busy refusal
+and CLI status assertions remain. Abort-aware waits and an awaited after-hook
+release the fixture lease and reap custody on timeout. A teardown-only marker
+lets the live fixture members kill their own group without reusable PID signals.
+Pre-driver custody now also runs against the real Linux process machinery;
+Darwin still runs its original mocked simulator path. No product behavior changes.
+
+Final verification on this worktree's eb1000 host: 20 loaded empty-read runs
+and 20 each of SIGKILL, SIGTERM and supersede custody, zero failures, with four
+owned busy loops and all tested descendants pinned to CPUs 80–81. SIGKILL's
+median complete drain was 201 ms versus 206.5 ms for SIGTERM and
+684 ms for supersede; no SIGKILL-specific slowness was found. All load
+processes were reaped. Twenty field-corruption controls and endless sequence
+drift fail; a single moving sequence followed by equal answers passes. Disabling
+native group killing fails the custody state check; forcing a Node test timeout
+also fails while its cleanup reaps the groups, with no runner leak.
+
+The developer-evidence suite passes 21/21; the Rust witness module passes 72/72;
+five export files pass 80 tests with 33 existing platform skips and no leaks.
+The full reference check retains one unchanged difftest-to-LLP-3000.035 anchor
+error outside this scope. A fresh client build needs generated wasm artifacts;
+these affected Node suites use its emitted CLI shim dependency. No Darwin run,
+full publication dry run, push or publication is claimed. Closed the SIGKILL
+timeout ticket with its resolution.
+
+[FL report and retained evidence](reports/20261007-fl-dry-run-flakes/REPORT.md).
+
+
+## 2026-10-07 — FL round 1: sequence drift cannot hide another difference
+
+Astra's P1 was correct: the initial absent/hidden retry discarded all fields
+when sequences differed, so a transient disclosure or meter corruption could
+disappear on the next pair. The original controls separated field corruption
+from sequence drift and did not establish the combined-fault property claimed
+in the earlier FL entry. That read-test claim is superseded here.
+
+The shared comparison now removes only seq from copies and compares every
+remaining serialized field before permitting a retry. At equal numeric
+sequences it still requires complete serialized-envelope equality, including
+seq. The eight-pair bound, per-request trace evidence waits and hidden-read
+silence assertions remain. The new permanent regression uses a real wire
+envelope and Astra's 21 field cases at equal and advanced sequences, including
+data, existence and every meter field. Custody code and its fixture are unchanged.
+
+All 42 full-test corruption controls now fail on their first pair. One seq-only
+advance passes in both trace modes; perpetual advances fail at eight pairs.
+Temporarily removing the new guard makes the permanent regression fail on
+corruption with sequence drift; the source was restored and rebuilt afterward.
+
+On eb1000, the full 22-test dev_refusals suite passed 20/20 runs sharing CPUs
+80–81 with four owned busy loops: 440 passes, no failures or skips, an unchanged
+source hash, and all load processes reaped. Developer-evidence unit tests pass
+7/7, HTTP refusal tests 3/3 and Rust witness tests 72/72. The five surrounding
+export files pass 80 tests with 33 existing platform skips in one run and no
+runner leaks. No Darwin or full publication qualification, new independent
+review verdict, push or publication is claimed. The pending Grok review remains
+separate. Work stayed in this worktree on eb1000.
+
+[Round-1 report, controls and load evidence](reports/20261007-fl-dry-run-flakes/round-1/REPORT.md).
+
+## 2026-10-07 — FL round 2: wait for simulator ownership cleanup
+
+The user's loaded Mac soak exposed a later observation race: the fake simctl
+announces deletion before returning, and Rust removes ownership afterward.
+All three auto-create death cases now require a complete creation identity,
+then await deletion plus record removal and both recorded actors' exit before
+checking the complete call log. Both cleanup waits have 90-second bounds;
+the exact UDID, every simulator target, absent record and unchanged export
+assertions remain.
+
+Audited all 94 cases, including all 32 Darwin-only cases. The shared tool marks
+readiness after installing signal handlers. Three held-wrapper cases separately
+await their stderr diagnostic; two overlapping skipped-publication cases and
+both passive-observer deadline cases await pipe closure before output checks.
+The existing process-exit deadline assertion stays intact. Round-1 dev_refusals
+and round-0 custody cases/teardown remain byte-identical. No product change:
+deletion must precede relinquishing ownership, and a crash in that gap is
+recovered through the existing exact creation-intent reconciliation.
+
+On eb1000, 20 loaded Linux recovery replays passed with 40 positive observations
+and 80 expected refusals across retained-record, wrong-identity, late-call and
+changed-export controls. Four owned busy loops shared CPUs 80–81 and were reaped.
+The real recovery command removed a stale record after deletion without another
+delete, preserving unrelated ownership. This exercises the revised assertion
+block; it does not claim Darwin background execution.
+
+The five export suites passed 80 tests with 33 existing platform skips and no
+runner leaks; dev_refusals passed 22/22. The first witness-module run was 71/72,
+hitting the existing native /proc inspection issue in unchanged code. Focused
+and complete unchanged reruns passed (1/1, 72/72); the original failure is retained
+and appended to its open ticket. The failed fixture's recorded actors were gone.
+The user's approximately 15-run Mac soak remains pending. No push or publication.
+
+[Round-2 report, complete audit and evidence](reports/20261007-fl-dry-run-flakes/round-2/REPORT.md).
+
+## 2026-10-07 — FL round 3: complete publisher PID barriers
+
+Astra found a P2 missed by the round-2 audit: both ownerless-publication cases
+could observe the C barrier after fopen but before fprintf, turn empty bytes
+into PID 0, and later signal their own process group. The audit's affected row
+and blanket conclusion are now explicitly corrected.
+
+The fixture publishes its complete PID through a temporary file and rename.
+Tests require a positive PID, the exact fixture command and matching process
+birth before requesting a fault. They no longer send SIGKILL to a PID read from
+disk: a private request makes the paused C publisher SIGKILL itself at the same
+namespace boundary. This also closes the inspection-to-signal PID-reuse window.
+The related publication-custody test now releases its lock and awaits its
+recorded publisher's exit instead of using a cached numeric cleanup kill.
+The file/shared-helper signal audit is recorded in the report. No product code
+or timeout changed; rounds 0–2's read, custody and simulator assertions remain.
+
+Both new permanent before/after barrier regressions passed 20 loaded rounds
+on eb1000, with four reaped busy loops confined to CPUs 80–81. The private old
+fixture mutation fails both tests at the incomplete-record assertion without
+signalling PID 0 or leaking a group. Invalid, stale, exited and wrong-command
+identities cannot create a fault request. Five export suites passed 82 tests
+with 33 existing platform skips; the final publication file also passed 6/6.
+All 42 read-corruption controls reject, bounded-retry controls behave correctly,
+and dev_refusals passes 22/22 after source restoration. Disabled-custody and
+timeout controls fail and reap their fixtures; round-2 simulator recovery
+positives/negatives still behave as required. No Darwin execution or publication
+qualification is claimed; the user's mini soak remains pending. Nothing pushed.
+
+[Round-3 report, corrected audit and controls](reports/20261007-fl-dry-run-flakes/round-3/REPORT.md).
+
+## 2026-10-07 — FL round 4: recheck birth at every test fault dispatch
+
+Astra's round-3 P2 demonstrated that a complete checkpoint record can outlive
+its twenty-second pause: a delayed test still attempted SIGKILL after the
+publisher exited. Background role, checkpoint, observer and handoff faults now
+retain the native birth and use one shared command/birth check at dispatch.
+The same gate serves the round-3 publisher barrier and tracked-child cleanup
+in the export tests, shared server helpers and process-inspection commands.
+Tracked children capture birth and parent at spawn; null JS exit fields alone
+are not authority. Darwin inspection preserves native microseconds through a
+test-only proc_pidinfo/KERN_PROCARGS2 helper; its Mac execution awaits the soak.
+Self-directed fixture and keeper signals remain self-directed, and the load
+helper now closes owned pipes instead of signalling cached negative group IDs.
+The JS copy of the simctl fixture refuses its unused parent/group interrupt
+modes. Product source, strict read comparison and earlier invariant assertions
+remain unchanged. The round-3 audit is explicitly corrected in the report.
+
+The permanent 22-second checkpoint control refuses with zero signal attempts.
+Removing dispatch validation from a private copy makes this control and the
+shared signal regression fail safely with intercepted calls. Twenty loaded
+rounds of the signal and two barrier regressions pass (60 test passes); all
+busy loops are reaped. Five export files pass 83 tests with 33 platform skips;
+background is 63/32. The adjacent shared-runner/helper-consumer run passes 164
+with one platform skip. All 42 read-corruption controls reject, retry controls
+behave correctly, and restored dev_refusals passes 22/22. Atomic-publication,
+disabled-custody and timeout controls fail as intended and reap their groups;
+the simulator recovery replay retains its two positives and four refusals.
+Development failures and the identity-checked stop of one old broken fixture
+are retained separately from successful final verification. All work stayed
+on eb1000 in this worktree. Nothing pushed; no Mac or publication claim.
+
+[Round-4 report, signalling audit and controls](reports/20261007-fl-dry-run-flakes/round-4/REPORT.md).
+
+## 2026-10-07 — FL round 5: reap inspection commands after timeout refusal
+
+Astra's two round-4 P2s were reproduced hangs: rejecting a shebang child's
+argv on timeout abandoned that live child, and the Darwin inspector's
+spawnSync compiler timeout waited indefinitely after handled SIGTERM.
+Tracked identity now retains complete interpreter argv. Failed inspection
+on timeout/overflow preserves its diagnostic and reaps only the command's
+retained ChildProcess handle before resolving. Recorded-PID fault injection
+still refuses any missing or changed identity. Inspector compilation is
+asynchronous with a 30-second deadline, TERM, one-second grace, KILL and reap.
+Keeper and fixture self-signals load synchronously without the compiler.
+
+The reported stderr-saturation flake also proved to be an observation race:
+recovery matched a pre-saturation add39 snapshot with zero drops. The final
+refusal now uses add, absent from the saturation loop. All responsiveness,
+stale-evidence, bounded recovery and lost-evidence assertions remain. Product
+source and the strict hidden/absent comparison are unchanged.
+
+Eight export/process/signal/runner files pass 186 tests with 33 platform skips;
+background is 63/32. Four surrounding helper consumers pass 49/49. Twenty
+loaded rounds pass all 22 dev_refusals tests (440 passes) and ten helper/barrier
+cases (200 passes), with fixed sources and four reaped busy loops. Interpreter,
+abandoned-child and compiler-escalation mutations each fail their regression
+without a live leftover. Forced stale stderr evidence is ignored; the old
+recovery guard and a zero-drop record fail. All 42 read corruptions, bounded
+retry controls, dispatch/atomic-publication controls, custody/timeout controls
+and simulator replay retain their expected outcomes. The report records the
+corrected development failures separately from final verification. Ref-check
+has only the existing broken LLP 3000.035 anchor in untouched difftest code.
+All work stayed on eb1000; nothing pushed. This is Linux evidence; the user's
+round-3 Mac soak does not qualify the new native inspector for this revision.
+
+[Round-5 resolution, controls and reproduction scripts](reports/20261007-fl-dry-run-flakes/round-5/REPORT.md).
+
+## 2026-10-07 — FL round 6: compiler descendants share private group custody
+
+Astra reproduced a GCC frontend surviving the round-5 driver timeout under
+PID 1. Compilation now runs beneath a live keeper in its own process group.
+The caller requests cleanup over its owned pipe; the keeper sends TERM and
+then bounded KILL to its own group, even if the driver already exited. The
+helper reaps the keeper and requires two complete observations with no living
+group member before reporting completed cleanup. Inspection precedes waiting
+for pipe close, so inherited writers cannot hide a failed drain. Failed
+inspection reports a cleanup error. Caller death also closes the cleanup pipe.
+Bootstrap inspection uses the system ps without recursively compiling the
+Darwin identity helper. Ordinary descendants inherit custody; deliberate group
+escape is outside it.
+
+Tracked direct-child signals retain their identity checks and now dispatch
+through native ChildProcess handles. A handle closing after inspection refuses
+the fault instead of counting it as successful injection or falling back to
+a numeric PID. Recorded-PID fault signals still recheck exact birth and command
+immediately before dispatch, but exit/reuse between that userspace check and
+the syscall can redirect a signal. That small race remains: there is no
+absolute guarantee against signalling an unowned PID on the recorded-PID path.
+Private group or handle custody is preferred wherever the test owns the process.
+Comments and reports now state these distinct guarantees explicitly.
+
+The new subprocess regressions cover a TERM-ignoring driver and a driver that
+exits on TERM while its frontend survives. Restoring the leaf-only helper makes
+both fail at the live-frontend assertion, then private release cleans up.
+Astra's real GCC -B reproduction now returns after 31.2 seconds with cc1 gone.
+Nine export/helper/runner files pass 193 tests with 33 platform skips; background
+is 63/32. Surrounding consumers pass 49/49 and dev_refusals passes 22/22. Twenty
+loaded rounds pass both subprocess cases (40 passes), with source hashes fixed
+and all four busy loops reaped. All read, stderr, signal, publication, custody,
+timeout and simulator controls retain their expected outcomes. Earlier product
+and test assertions remain intact. Ref-check retains only the existing broken
+LLP 3000.035 anchor in unchanged difftest code. All execution stayed on eb1000;
+nothing pushed. Native Darwin execution still awaits the user's soak.
+
+[Round-6 resolution, group-custody evidence and controls](reports/20261007-fl-dry-run-flakes/round-6/REPORT.md).
+
+## 2026-10-07 — FL round 7: bind fault identity to the selected fixture binary
+
+The user's macOS failure confirms a test regression introduced by round 4.
+The held-retention-overlap case selects a private copied/re-signed binary,
+but the recorded-fault helper required the original debug binary as argv[0].
+Native background children re-exec the selected copy. The helper now derives
+all seven expected command forms from that fixture's SNAPBACK4_BIN and root.
+The default binary and temporary root have canonical paths before launch;
+the copy is created under that same root. Exact argument matching, birth
+checks and every earlier outcome/custody assertion remain unchanged. No
+observed command is normalized to accept /var versus /private aliases.
+
+The Darwin audit covers all 32 background-only cases, the native static-adapter
+case, portable tests' Darwin branches, and every helper/script changed by FL.
+Dispatchers, shebangs, simple env-to-interpreter exec, Python native exec,
+copied binaries and root spelling are traced in the report. No other launch
+versus expectation mismatch was found. A native copied-binary regression
+accepts eight concrete vectors spanning the seven command forms and refuses
+the original binary, alias binary and alternate roots before signal dispatch.
+Restoring the old hardcoded binary or normalizing the expectations makes it
+fail. Controls intercept numeric signals and release children through stdin.
+Owned groups and handles remain preferred; recorded-PID signals retain the
+small exit/reuse race between their immediate identity check and the syscall.
+
+Nine Linux export/helper/runner suites pass 194 tests with 33 platform skips;
+background is 63/32. The final signal-helper rerun passes 9/9, and unchanged
+dev_refusals passes 22/22. Ref-check still reports only the existing missing
+LLP 3000.035 anchor in unchanged difftest code. Work stayed on eb1000, with
+no push. Darwin execution awaits the user's soak; this is no Mac or publication
+qualification claim.
+
+[Round-7 resolution, complete Darwin audit and controls](reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).
+## 2026-10-07 — DK: dev clock and stale sessions explain themselves
+
+Calibration #31 d-01/d-04 now have product diagnostics. Dev startup and doctor
+report `N_CLOCK_STORE_AHEAD` for retained write stamps more than five seconds
+ahead, naming the maximum lead, tables and repairs. Doctor also shows offset
+from wall time; clock advance's CLI/endpoint report cumulative offset and restart
+lifetime, with an isolated-test hint when data already exists. The jobs card
+uses the existing `dev --fresh --port 4401` recipe. `check --store` remains a
+schema-adoption check because it has no running-clock selector. Detection uses
+minted row times and time fields matching recorded commits, not arbitrary future
+expiry/appointment values; it never rewrites data.
+
+Dev auth distinguishes unknown-store, expired and signed-out/revoked/refreshed
+bearers. A bounded SQLite history keeps 4,096 retired-token digests/deadlines,
+installed after accepted opening; serve removes it and keeps all three causes
+generic to avoid disclosing token membership. `E_AUTH`/`auth` and the public type
+shape are unchanged. Online/local SDKs retain the validated reason through
+terminal cleanup and app online custody/fences. Generated declarations and docs
+were updated consistently. LLP 3000.007 §20.2/§20.12 and its Revised line carry
+the lasting decisions; LLP 3000.033's read-session authority/opening rules stand.
+
+Affected checks passed: 191 server units (four ignored), 64 clock/replay/dev-refusal
+integration tests, one clock tolerance test, 23 core identity/session tests,
+113 guide checks, SDK build/typecheck, the new 30-test reason matrix, app/transport/
+read-only regressions and the full 52-test app session model (5,000 sequences per
+tier). Root ref-check passed. The broader CLI unit run retained an unrelated
+witness retention-lock failure (329 passed/one failed/four ignored), passing alone;
+no full-suite-green claim. No web/device engine changes: a fresh local wasm build
+measured 2,135,336 raw / 645,448 gzip bytes against the inherited 645,607 cap (159 B
+margin); no macOS margin or raised budget is claimed. Work stayed in this lane;
+nothing pushed. Details, privacy rationale, detection limits and harness outcomes:
+[DK report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+
+## 2026-10-07 — DK round 1: trusted dev explanations and bounded clock evidence
+
+Astra's r0 NOT READY review identified public-route disclosure and an unbounded
+startup scan that could mistake an ordinary appointment for a future write.
+Detailed E_AUTH wording now requires the dev-only endpoint peer/Host/Origin
+trust check, even on public POST routes. Serve and untrusted dev callers get the
+same generic text for unknown, expired and signed-out/refreshed tokens. Removed
+r0's persistent diagnostic objects and lifecycle hooks entirely; the preceding
+DK entry's storage design is superseded. No process cache is kept. Existing
+records can explain expiry; absent records explain the possible earlier-store,
+expiry or sign-out causes and tell the developer to sign in and discard saved
+old-store tokens. The SDK's reason preservation remains intact.
+
+Clock startup/doctor inspect only the latest 64 commit stamps, never application
+row values. Table metadata is bounded before loading (4 KiB per commit), the
+printed table list is bounded, and omitted names are explicit. This deliberately
+can miss older future commits and can still report historical stamps after rows
+are deleted; the guide and LLP now state those limits. The matching-appointment
+control, public-route controls, session/read-only regressions, affected Rust
+suites and guide checks passed. Doctor offsets, cumulative advance/restart
+wording and the isolated `dev --fresh --port 4401` recipe remain. Governing LLP
+3000.007 §20.2/§20.12 and Revised were updated. Production benchmark evidence,
+final model counts and full commands are in
+[the round-1 report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-1 final evidence: the 100,001-row production benchmark measured
+4.918–5.681 ms startup against published 0.4.14's 5.404–6.565 ms (five
+interleaved runs each); SQLite schema remained unchanged. All 52 app-session
+model tests passed at 5,000 sequences per tier. The final ref-check passed
+531 LLP documents and 10,539 references with zero errors/unchecked.
+
+## 2026-10-07 — DK round 2: refusal custody on restored apps and identity doors
+
+Astra's round-1 review found that a device app restoring a saved foreign-store
+token kept the repair in ready/auth but lost it on the signed-out online facade.
+The failed-opening path now passes the terminal refusal into that facade when
+no valid previous owner is being restored. A real two-store startup regression
+checks query, mutate and act, then proves a new sign-in replaces the cause.
+Never-signed-in online/device apps stay generic. Local logout-everywhere also
+keeps an already retained terminal cause, addressing Grok's round-0 finding.
+
+Logout/narrow retain their transactional authority checks and now use the same
+HTTP 401 E_AUTH/auth envelope and personas guide as the data doors. Refresh's
+fallback and logout-all's recheck preserve the actual refusal instead of
+stringifying it. Expanded door controls check status, wording, guide and public
+privacy; a deterministic expiry between refresh resolution and rotation covers
+the rare fallback. Live wrong-kind credentials retain their operation-specific
+explanation. No session authority or stored format changed.
+
+Round 1 already avoided all application row images during clock inspection.
+A new real-startup control confirms an unparsable image cannot break that check.
+Other inspection failures now print unavailable and allow dev startup to continue;
+a malformed commit-stamp control proves it. Ordinary store/schema admission
+still applies. The bounded query and its documented limitations are unchanged.
+Focused tests, 193 affected HTTP tests, 23 clock integrations, session-security
+and read-only regressions, 113 guide tests and ref-check passed. LLP 3000.007
+§20.2/§20.12 and Revised were updated with the guide/client docs. Final model
+counts and commands are in [the report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-2 final evidence: all 52 app-session model tests passed at 5,000
+sequences per tier; 92 restoration/account-custody regressions also passed.
+The SDK selection passed 231 tests with one optional 0.4.13 downgrade test
+skipped because that verified binary was not supplied. Ref-check passed 531 LLP
+documents and 10,540 references with zero errors/unchecked.
+
+
+## 2026-10-08 — SN round 3: merge FL and DK before review
+
+Merged fetched origin/main `07f4c495ea` (DK retained session reasons), including
+FL `2797247960` (test-process custody and dry-run fixes), into SN round 2
+`5aa91a4ab3`. Resolved client.ts/local.ts import conflicts by retaining both
+SN dependency/network/custody imports and DK's refusal binding. Local Following
+binding remains in SN's network helper. Automatic merges preserve DK's terminal
+causes through raw clients, app custody and online arms alongside SN's event
+waits, generation/store proofs, field-level fences and dispatch-store receipts.
+The JOURNAL conflict preserves both parent histories byte-for-byte; no entry was
+rewritten or dropped. Related declarations keep local.ts at 1,498 lines; every
+changed source file remains below 1,500 lines. No contract or design change.
+
+After resolution, frozen Bun installation and the supplied SDK checker passed
+(`deps-ok`); native, wasm and client builds and TypeScript typecheck passed.
+The final Linux wasm is byte-identical to round 2: 2,135,614 raw / 645,498 gzip
+bytes. The unchanged 645,998-byte cap retains exactly 500 bytes above Linux,
+including the requested allowance for macOS's observed up-to-435-byte difference.
+No macOS build or measurement is claimed.
+
+Merged validation: 373 one-shot/dependency/settlement tests; 576 affected-client
+tests with the same two opt-in/unavailable-artifact skips; 205 custody tests;
+33 DK reason tests plus 92 app/restoration tests; 69 FL process-custody tests;
+118 compiler/guide tests; 194 serve tests with four existing ignores. The full
+app-session model passed 52 tests, including 5,000 seeded sequences per tier.
+Original round-0 scripts again returned 22 passes and the same three assertions
+superseded by round 1's complete-prediction exception; corrected permanent
+regressions passed. No failing assertion is counted as a pass. Commands, logs,
+reference validation and conflict details are in the
+[round-3 report](reports/20261007-sn-one-shot-settlement/round3/REPORT.md).
+Work stayed on eb1000 in the assigned lane-sn worktree; nothing pushed or published.

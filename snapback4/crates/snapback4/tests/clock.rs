@@ -162,6 +162,10 @@ fn offset_cli_advance_and_rejected_inputs_keep_time_monotone() {
     let port = host.address.rsplit(':').next().unwrap();
     let advanced = output_json(f.command(&["clock", "advance", "+2m", "--port", port]));
     assert_eq!(advanced["advancedMs"], 120_000);
+    assert!((advanced["offsetMs"].as_i64().unwrap() - 90_120_000).abs() < 100, "{advanced}");
+    assert!(advanced["message"].as_str().unwrap().contains("lasts until restart"));
+    let doctor = output_json(f.command(&["doctor", "--json", "--url", &format!("http://{}", host.address)]));
+    assert!(doctor.to_string().contains("offset from wall time: +901"), "{doctor}");
     assert!(advanced["now"].as_i64().unwrap() >= now + 120_000);
     for duration in ["-1s", "0s", "1", "1.5m", "++2m", "-0s", "", "99999999999999999999999999d", "9007199254740991ms"] {
         // Bracket both server reads so scheduling the first reply is counted.
@@ -629,6 +633,119 @@ fn maintained_column_activation_uses_offset_clock_in_watch_startup_and_cli() {
                 let host = f.start(&["dev", "--clock-offset", "-2h", "--no-watch", "--hold-schedules"]);
                 assert_eq!(host.query("one")["likeCount"], 1);
             }
+        }
+    }
+}
+
+#[test]
+fn future_store_explains_itself_at_restart_and_doctor_but_not_under_the_same_offset() {
+    let f = Fixture::new("store-ahead");
+    // Ordinary expiry and a future appointment are not evidence of a clock mistake.
+    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\nmutation appointment():\n  return insert counters {{n: 0, at: now + 864000000}}\nmutation fixed():\n  return insert counters {{id: 'fixed', n: 0, at: now}}\n")).unwrap();
+    let start = |args: &[&str]| {
+        let log = f.0.join("startup.log");
+        let mut child = Command::new(BIN).current_dir(&f.0).args(args).args(["--port", "0"])
+            .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let text = fs::read_to_string(log).unwrap();
+        assert!(!line.is_empty(), "{text}");
+        (Host { child, address: line.trim().trim_start_matches("http://").into() }, text)
+    };
+    let (host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert!(!log.contains("N_CLOCK_STORE_AHEAD"), "{log}");
+    host.post("/m/post", json!({"id":"ordinary","args":{}}));
+    host.post("/m/appointment", json!({"id":"appointment","args":{}}));
+    let doctor = output_json(f.command(&["doctor", "--json"]));
+    assert!(doctor["lines"].as_array().unwrap().iter().any(|v| v.as_str().unwrap().contains("offset from wall time:")));
+    assert!(!doctor.to_string().contains("N_CLOCK_STORE_AHEAD"), "{doctor}");
+    drop(host);
+    let (host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert!(!log.contains("N_CLOCK_STORE_AHEAD"), "{log}");
+    let jump = host.post("/dev/clock/advance", json!({"duration":"25h"}));
+    assert!((jump["offsetMs"].as_i64().unwrap() - 90_000_000).abs() < 100, "{jump}");
+    assert!(jump["message"].as_str().unwrap().contains("lasts until restart"));
+    assert!(jump["message"].as_str().unwrap().contains("dev --fresh --port 4401"));
+    host.post("/m/post", json!({"id":"future","args":{}}));
+    host.post("/m/fixed", json!({"id":"fixed","args":{}}));
+    drop(host);
+    let (host, log) = start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    assert!(!log.contains("N_CLOCK_STORE_AHEAD"), "{log}"); drop(host);
+    let (host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert_eq!(log.matches("N_CLOCK_STORE_AHEAD").count(), 1, "{log}");
+    assert!(log.contains("counters, stories"), "{log}");
+    assert!(log.contains("up to ") && log.contains("ms (latest 64 commits; tables:") && log.contains("same --clock-offset"), "{log}");
+    let doctor = output_json(f.command(&["doctor", "--json"]));
+    assert!(doctor.to_string().contains("N_CLOCK_STORE_AHEAD"), "{doctor}");
+    drop(host);
+    let doctor = output_json(f.command(&["doctor", "--json"]));
+    assert!(doctor.to_string().contains("N_CLOCK_STORE_AHEAD"), "{doctor}");
+    assert!(doctor.to_string().contains("no running dev"));
+    let (host, log) = start(&["dev", "--fresh", "--no-watch"]);
+    assert!(!log.contains("N_CLOCK_STORE_AHEAD"), "{log}");
+    assert_eq!(host.query("counters"), json!([]));
+    let doctor = output_json(f.command(&["doctor", "--json", "--url", &format!("http://{}", host.address)]));
+    assert!(!doctor.to_string().contains("N_CLOCK_STORE_AHEAD"), "{doctor}");
+    drop(host);
+    let (_host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert!(log.contains("N_CLOCK_STORE_AHEAD"), "fresh testing must preserve the main store: {log}");
+}
+
+#[test]
+fn matching_appointment_values_never_become_commit_clock_evidence() {
+    let f = Fixture::new("appointment-control");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable history:\n  at: time\n  public\n  insert <- allow\n  delete <- allow\n  online only\ntable appointments:\n  at: time\n  public\n  insert <- allow\n  online only\nmutation add():\n  return insert history {at: 0}\nmutation drop(id: history):\n  delete history[id]\nmutation appointment(at: time):\n  return insert appointments {at}\n").unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+    let added = host.post("/m/add", json!({"id":"future","args":{}}));
+    assert_eq!(added["state"], "sent", "{added}");
+    let stamp: i64 = rusqlite::Connection::open_with_flags(f.0.join(".snapback4/store.sqlite"), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap()
+        .query_row("SELECT at FROM _commits WHERE program = 'add'", [], |r| r.get(0)).unwrap();
+    assert_eq!(host.post("/m/drop", json!({"id":"drop","args":{"id":added["result"]["id"]}}))["state"], "sent");
+    drop(host);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    // Historical commit evidence persists independently of retained rows. The
+    // matching ordinary appointment must never join the affected-table list.
+    let before = host.request("GET", "/dev/clock/status", json!(null));
+    assert!(before["storeAhead"].as_str().unwrap().contains("tables: history)"), "{before}");
+    assert_eq!(host.post("/m/appointment", json!({"id":"appointment","args":{"at":stamp}}))["state"], "sent");
+    let after = host.request("GET", "/dev/clock/status", json!(null));
+    assert!(after["storeAhead"].as_str().unwrap().contains("tables: history)"), "{after}");
+    assert!(!after["storeAhead"].as_str().unwrap().contains("appointments"));
+    // The explicit bounded-window limit: after 64 normal commits, no evidence
+    // remains in the window, although future appointment values still exist.
+    for n in 1..64 {
+        assert_eq!(host.post("/m/appointment", json!({"id":format!("appointment-{n}"),"args":{"at":stamp}}))["state"], "sent");
+    }
+    assert!(host.request("GET", "/dev/clock/status", json!(null))["storeAhead"].is_null());
+    drop(host);
+    let _host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert!(!output_json(f.command(&["doctor", "--json"])).to_string().contains("N_CLOCK_STORE_AHEAD"));
+}
+
+#[test]
+fn startup_clock_advice_ignores_bad_row_images_and_reports_inspection_failure() {
+    for bad_commit in [false, true] {
+        let f = Fixture::new(if bad_commit { "bad-commit" } else { "bad-image" });
+        fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  at: time\n  public\n  online only\n").unwrap();
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+        assert_eq!(host.post("/seed", json!([{"table":"notes","row":{"id":"n","at":0}}]))["seeded"], 1);
+        drop(host);
+        let conn = rusqlite::Connection::open(f.0.join(".snapback4/store.sqlite")).unwrap();
+        conn.execute("UPDATE r SET data = 'unparsable row image'", []).unwrap();
+        if bad_commit { conn.execute("UPDATE _commits SET at = 'unparsable commit stamp'", []).unwrap(); }
+        drop(conn);
+        let log = f.0.join("startup.log");
+        let mut child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--hold-schedules", "--port", "0"])
+            .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let text = fs::read_to_string(&log).unwrap();
+        assert!(line.starts_with("http://"), "{text}");
+        let _host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+        if bad_commit {
+            assert!(text.contains("store-ahead inspection unavailable"), "{text}");
+            assert!(!text.contains("N_CLOCK_STORE_AHEAD"), "{text}");
+        } else {
+            assert!(text.contains("N_CLOCK_STORE_AHEAD") && text.contains("tables: notes"), "{text}");
+            assert!(!text.contains("store-ahead inspection unavailable"), "{text}");
         }
     }
 }
