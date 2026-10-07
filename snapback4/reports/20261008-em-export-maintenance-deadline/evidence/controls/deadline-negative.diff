@@ -1,0 +1,12 @@
+--- fixed
++++ deadline-negative
+@@ -213,8 +213 @@
+-fn adopt_later(root: &Path, intent: &mut Observation) -> bool {
+-    if let Some(later) = unobserved_intent(root).filter(|later| later.expires > intent.expires) {
+-        *intent = later;
+-        trace!(root, "observer-intent-adopted", json!({ "expiresAt": intent.expires, "awake": intent.awake }));
+-        return true;
+-    }
+-    false
+-}
++fn adopt_later(_root: &Path, _intent: &mut Observation) -> bool { false }

@@ -115,3 +115,28 @@ These simulate Darwin's clock predicate on Linux; they do not suspend a host or
 identify the historical macOS cause. The unchanged 90-second drain check, the
 original two wakeup fixes, FL's identity checks and bounded diagnostics remain.
 Both commissioned tickets stay open while the operator's macOS soak proceeds.
+
+
+## 2026-10-08 — EM round 6 later-deadline correction (still open)
+
+Grok identified two further orderings: an idle success could spawn before
+rereading a later wakeup, and a live guard could consume that wakeup while
+retaining its older deadline. The round-3 handoff claim and the round-5 phrase
+that the deadline survived were too broad. Round 5 preserved the sleep sample
+of the selected intent, but did not ensure adoption of this later intent.
+
+Round 6 adopts a strictly later valid expiry and its original sleep sample
+before observer launch and before notification consumption. The accepted pair
+updates the live observer and its successful handoff. An atomic receipt prevents
+consumption from erasing a concurrent producer replacement; a refused guard
+leaves the receipt available after lease release. Equal, earlier, expired or
+crossed-sleep notifications cannot extend observation. A new accepted intent
+resets the monotonic ceiling without recomputing its absolute expiry.
+
+The [round-6 report](../snapback4/reports/20261008-em-export-maintenance-deadline/REPORT.md)
+retains deterministic cases and controls for both orderings. The unchanged
+90-second predicate must still fail stranded work. A fresh producer does not
+guarantee recovery after every later stop or failure: consumed/expired intent,
+launch/I/O errors, retry exhaustion and simultaneous peer death retain their
+existing backstop limits. No historical attribution or macOS qualification is
+claimed. This ticket remains open for the operator's soak.

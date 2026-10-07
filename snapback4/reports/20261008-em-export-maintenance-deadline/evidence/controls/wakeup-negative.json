@@ -1,0 +1,22 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=empty second check|expiry guard cannot strand",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/sb4-intent/lane-em/snapback4/target",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "6"
+  },
+  "overrides": {
+    "SNAPBACK4_EXPORT_TEST_BINARY": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/d0254c951afbd9d5113670df68f3621f334ab2d3366480219fcb8e245ad5639d/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE": "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/controls/wakeup-negative-snapshots"
+  },
+  "exitCode": 1,
+  "seconds": 182.2198765539797,
+  "retentionSha256": "8c3f91edea63f0e090e638d9d71e4f63995d00ab3669dc65d41df73b41246441",
+  "traceSha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+}

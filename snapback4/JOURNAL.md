@@ -90390,3 +90390,56 @@ controls. Work stayed in lane-em on eb1000; nothing pushed or published. Both
 maintenance tickets remain open, and the operator's macOS soak is separate.
 
 [Round-5 fix, claims correction and retained evidence](reports/20261008-em-export-maintenance-sleep/REPORT.md).
+
+## 2026-10-08 — EM round 6: adopt later intent before spawn and consumption
+
+Correction to round 3's “Handoffs inherit the fresh producer's absolute deadline
+and sleep clock” and round 5's “The deadline survived”: those statements were
+too broad. The empty recheck and failed-guard handoff selected fresh producer
+intent, but a successful idle handoff could spawn first with its old deadline.
+A live guard could also delete the fresh wakeup while retaining its old window.
+Round 5 preserved the clock of the selected intent; it did not repair these two
+deadline-selection orderings identified by Grok's round-4 review.
+
+Producer retries, empty rechecks and the acquired-lease path before observer
+launch now adopt a visible strictly later, still-valid expiry together with its
+original sleep sample. Observer entry gates and each notification consumption
+do the same. The live observer updates its caller's accepted pair, so successful
+post-release handoff and later scan launches inherit that pair. Only acceptance
+of a strictly later valid producer intent resets the monotonic ceiling; the
+absolute expiry is not recomputed. A scan already running keeps its accepted
+pair and 30-second work limit. Equal, earlier, expired or crossed-sleep intent
+cannot extend observation. No internal peer creates a fresh producer budget.
+
+Consumption atomically renames the wakeup to a pending-lease-owned receipt,
+validates/adopts again, and removes only that receipt. A concurrent replacement
+survives at the original name; a refused guard leaves the receipt available for
+post-release lookup. Cancellation, sleep and expiry stop the current accepted
+intent. Consumed/expired notifications, launch/I/O failure, exhausted retries
+and simultaneous peer loss can still require the next-export backstop even
+though a producer existed earlier. LLP 3000.030 §15 and both open ticket addenda
+now state these paths and limits.
+
+Five new integration cases cover the two deadline orderings, concurrent
+replacement, crossed-sleep rejection and cancellation during consumption. The
+two main cases drain after retention is held past the old deadline. With only
+adoption disabled in a scratch binary, both consume the wakeup, expire under
+the old deadline and fail the unchanged 90-second drain check; timeout snapshots
+retain the pending requests. Held-lease and missing-observer controls also fail
+that check and recover through their own next-export backstop. A native unit
+test verifies that equal/earlier intents do not reset the monotonic ceiling.
+
+The shared runner passes 92 tests with 32 Darwin skips: background 63/32,
+wakeup/sleep/deadline 15/15, diagnostics 5/5 and FL signals 9/9. Retention passes
+7/7, recovery 25/25 in parallel, the clock unit 1/1, and release check passes.
+Original wakeup controls fail both 90-second guards; round-4 retention fails both
+sleep assertions while its no-retry control passes. Ref-check passes with zero
+errors. The archive verifies 32 snapshots and 746 private files before removing
+unpacked copies.
+The separate intermittent parallel-recovery ticket remains open; this pass does
+not settle it. Diagnostics, FL helpers, the background test and its 90-second
+predicate remain byte-identical to round 5. No historical timeout attribution
+or Darwin qualification is claimed. Work stayed on eb1000 in lane-em; both
+maintenance tickets remain open, with no push or publication.
+
+[Round-6 fix, controls and retained evidence](reports/20261008-em-export-maintenance-deadline/REPORT.md).

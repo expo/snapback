@@ -1,0 +1,549 @@
+[
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412870389172024-376f9cff-failure-sleep-retry-false",
+    "pending": true,
+    "wakeRemaining": true,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412869597,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412870281
+        },
+        "pid": 202075,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412870299,
+        "detail": null,
+        "pid": 202075,
+        "step": "observer-guard-failed"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412871701190386-6b3fc7e0-failure-sleep-retry-true",
+    "pending": true,
+    "wakeRemaining": true,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412870894,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412871577
+        },
+        "pid": 202134,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412871596,
+        "detail": null,
+        "pid": 202134,
+        "step": "observer-guard-failed"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412873199324535-909e17e2-failure-sleep-successor-start",
+    "pending": true,
+    "wakeRemaining": true,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412872288,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412872971
+        },
+        "pid": 202190,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412872989,
+        "detail": null,
+        "pid": 202190,
+        "step": "observer-guard-failed"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412879963394458-050899e5-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412874360,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412879342
+        },
+        "pid": 202632,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412874360,
+        "detail": null,
+        "pid": 202632,
+        "step": "observer-idle-exit"
+      },
+      {
+        "at": 1791412874481,
+        "detail": {
+          "awake": 500,
+          "expiresAt": 1791416474370
+        },
+        "pid": 202632,
+        "step": "observer-intent-adopted"
+      },
+      {
+        "at": 1791412874483,
+        "detail": {
+          "at": 1791412874482,
+          "awake": 500,
+          "expiresAt": 1791416474370,
+          "process": {
+            "pid": 202645,
+            "start": [
+              "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+              "13655722"
+            ]
+          },
+          "state": "pending"
+        },
+        "pid": 202632,
+        "step": "observer-launched"
+      },
+      {
+        "at": 1791412874485,
+        "detail": {
+          "awake": 500,
+          "expiresAt": 1791416474370
+        },
+        "pid": 202645,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412874485,
+        "detail": null,
+        "pid": 202645,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412879661,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 203276,
+        "step": "work-ended"
+      },
+      {
+        "at": 1791412879918,
+        "detail": null,
+        "pid": 202645,
+        "step": "observer-idle-exit"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412885599737282-0307b8f5-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412880001,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412884985
+        },
+        "pid": 203736,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412880122,
+        "detail": {
+          "awake": 500,
+          "expiresAt": 1791416480012
+        },
+        "pid": 203736,
+        "step": "observer-intent-adopted"
+      },
+      {
+        "at": 1791412880122,
+        "detail": null,
+        "pid": 203736,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412885305,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 205313,
+        "step": "work-ended"
+      },
+      {
+        "at": 1791412885560,
+        "detail": null,
+        "pid": 203736,
+        "step": "observer-idle-exit"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412886259578758-4d5f806f-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412885642,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412945623
+        },
+        "pid": 205337,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412885763,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791416485653
+        },
+        "pid": 205337,
+        "step": "observer-intent-adopted"
+      },
+      {
+        "at": 1791412885784,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791416485781
+        },
+        "pid": 205337,
+        "step": "observer-intent-adopted"
+      },
+      {
+        "at": 1791412885784,
+        "detail": null,
+        "pid": 205337,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412885951,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 205346,
+        "step": "work-ended"
+      },
+      {
+        "at": 1791412886208,
+        "detail": null,
+        "pid": 205337,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412886208,
+        "detail": null,
+        "pid": 205337,
+        "step": "observer-idle-exit"
+      }
+    ]
+  },
+  {
+    "snapshot": "focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412887525656780-5a9ca70a-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412886300,
+        "detail": {
+          "awake": 2000,
+          "expiresAt": 1791412886981
+        },
+        "pid": 205353,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412886320,
+        "detail": null,
+        "pid": 205353,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412887022,
+        "detail": null,
+        "pid": 205353,
+        "step": "observer-guard-failed"
+      },
+      {
+        "at": 1791412887073,
+        "detail": {
+          "awake": 2000,
+          "expiresAt": 1791416487070
+        },
+        "pid": 205594,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412887219,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 205596,
+        "step": "work-ended"
+      }
+    ]
+  },
+  {
+    "snapshot": "controls/deadline-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791413058641036341-13b537d0-failure-drain-timeout",
+    "pending": true,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412963517,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412968501
+        },
+        "pid": 219318,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412963517,
+        "detail": null,
+        "pid": 219318,
+        "step": "observer-idle-exit"
+      },
+      {
+        "at": 1791412963640,
+        "detail": {
+          "at": 1791412963639,
+          "awake": 0,
+          "expiresAt": 1791412968501,
+          "process": {
+            "pid": 219527,
+            "start": [
+              "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+              "13664637"
+            ]
+          },
+          "state": "pending"
+        },
+        "pid": 219318,
+        "step": "observer-launched"
+      },
+      {
+        "at": 1791412963642,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412968501
+        },
+        "pid": 219527,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412963642,
+        "detail": null,
+        "pid": 219527,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412968573,
+        "detail": null,
+        "pid": 219527,
+        "step": "observer-guard-failed"
+      }
+    ]
+  },
+  {
+    "snapshot": "controls/deadline-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791413059105482607-e814addb-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791412963517,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412968501
+        },
+        "pid": 219318,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412963517,
+        "detail": null,
+        "pid": 219318,
+        "step": "observer-idle-exit"
+      },
+      {
+        "at": 1791412963640,
+        "detail": {
+          "at": 1791412963639,
+          "awake": 0,
+          "expiresAt": 1791412968501,
+          "process": {
+            "pid": 219527,
+            "start": [
+              "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+              "13664637"
+            ]
+          },
+          "state": "pending"
+        },
+        "pid": 219318,
+        "step": "observer-launched"
+      },
+      {
+        "at": 1791412963642,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791412968501
+        },
+        "pid": 219527,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791412963642,
+        "detail": null,
+        "pid": 219527,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791412968573,
+        "detail": null,
+        "pid": 219527,
+        "step": "observer-guard-failed"
+      },
+      {
+        "at": 1791413058656,
+        "detail": {
+          "awake": 500,
+          "expiresAt": 1791416658653
+        },
+        "pid": 251721,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791413058802,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 251730,
+        "step": "work-ended"
+      },
+      {
+        "at": 1791413059058,
+        "detail": null,
+        "pid": 251721,
+        "step": "observer-idle-exit"
+      }
+    ]
+  },
+  {
+    "snapshot": "controls/deadline-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791413154251695027-8dfd5d57-failure-drain-timeout",
+    "pending": true,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791413059142,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791413064126
+        },
+        "pid": 252645,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791413059263,
+        "detail": null,
+        "pid": 252645,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791413064196,
+        "detail": null,
+        "pid": 252645,
+        "step": "observer-guard-failed"
+      }
+    ]
+  },
+  {
+    "snapshot": "controls/deadline-negative-snapshots/maintenance-cb65a433eb364227/snapshot-1791413154716029565-88f6c907-cleanup-cleanup",
+    "pending": false,
+    "wakeRemaining": false,
+    "receiptRemaining": false,
+    "events": [
+      {
+        "at": 1791413059142,
+        "detail": {
+          "awake": 0,
+          "expiresAt": 1791413064126
+        },
+        "pid": 252645,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791413059263,
+        "detail": null,
+        "pid": 252645,
+        "step": "wakeup-consumed"
+      },
+      {
+        "at": 1791413064196,
+        "detail": null,
+        "pid": 252645,
+        "step": "observer-guard-failed"
+      },
+      {
+        "at": 1791413154264,
+        "detail": {
+          "at": 1791413154264,
+          "awake": 500,
+          "expiresAt": 1791416754263,
+          "process": {
+            "pid": 301171,
+            "start": [
+              "2872f48c-7c2c-497e-9df2-baa8588ab8d3\n",
+              "13683700"
+            ]
+          },
+          "state": "pending"
+        },
+        "pid": 301168,
+        "step": "observer-launched"
+      },
+      {
+        "at": 1791413154267,
+        "detail": {
+          "awake": 500,
+          "expiresAt": 1791416754263
+        },
+        "pid": 301171,
+        "step": "observer-started"
+      },
+      {
+        "at": 1791413154412,
+        "detail": {
+          "elapsedMs": 141,
+          "error": null
+        },
+        "pid": 301178,
+        "step": "work-ended"
+      }
+    ]
+  }
+]

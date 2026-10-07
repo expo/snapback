@@ -158,6 +158,7 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
     let mut notified = false;
     loop {
         if !runnable(root) { return Ok(Value::Null); }
+        adopt_later(root, &mut intent);
         intent.check()?;
         let queued = lock_file(root, "maintenance-next.lock")?;
         if !try_lock(&queued)? {
@@ -177,9 +178,12 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
             // No child inherits this lease. Any producer that saw it busy must be
             // covered by our post-release check, or acquire it on its own retry.
             drop(queued);
-            if let Some(fresh_intent) = unobserved_intent(root) { intent = fresh_intent; }
+            adopt_later(root, &mut intent);
             continue;
         }
+        // The successful holder may have gone idle before a producer coalesced.
+        // Select the latest valid intent while holding the lease, before spawn.
+        adopt_later(root, &mut intent);
         let log = OpenOptions::new().create(true).append(true).open(root.join("maintenance.log")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         #[cfg(target_os = "macos")]
         let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(background::executable()); c };
@@ -198,13 +202,45 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
 }
 
 fn unobserved_intent(root: &Path) -> Option<Observation> {
-    let wake = recovery::read(&root.join("maintenance-wakeup.json"));
-    let expires = wake["expiresAt"].as_u64()? as u128;
-    let awake = wake["awake"].as_u64()?;
-    // Only an explicit fresh producer can authorize another observation budget.
-    // Never renew the old chain's expiry or resume an intent across host sleep.
-    let intent = Observation { expires, awake };
-    intent.check().ok().map(|_| intent)
+    ["maintenance-wakeup.json", "maintenance-wakeup-reading.json"].into_iter().filter_map(|name| {
+        let wake = recovery::read(&root.join(name));
+        let intent = Observation { expires: wake["expiresAt"].as_u64()? as u128, awake: wake["awake"].as_u64()? };
+        intent.check().ok().map(|_| intent)
+    }).max_by_key(|intent| intent.expires)
+}
+// Only a strictly later, still-valid producer intent can extend observation.
+// Adopt the pair, never a later expiry with an earlier sleep baseline.
+fn adopt_later(root: &Path, intent: &mut Observation) -> bool {
+    if let Some(later) = unobserved_intent(root).filter(|later| later.expires > intent.expires) {
+        *intent = later;
+        trace!(root, "observer-intent-adopted", json!({ "expiresAt": intent.expires, "awake": intent.awake }));
+        return true;
+    }
+    false
+}
+fn refresh_guard(root: &Path, intent: &mut Observation, started: &mut Instant) -> Result<()> {
+    // A new producer may arrive at the end of an hour. Give its accepted intent
+    // its own monotonic ceiling, without changing the recorded absolute expiry.
+    if adopt_later(root, intent) { *started = Instant::now(); }
+    observation_guard(*started, *intent)
+}
+// @ref LLP 3000.030#15 — consuming a notification cannot unlink a replacement.
+// Only the pending-lease owner renames/removes the receipt. A guard refusal
+// leaves it available to the post-release handoff, alongside any newer wakeup.
+fn consume_wakeup(root: &Path, intent: &mut Observation, started: &mut Instant) -> Result<()> {
+    refresh_guard(root, intent, started)?;
+    let reading = root.join("maintenance-wakeup-reading.json");
+    recovery::remove(&reading)?; // a recovered receipt has been considered above
+    match fs::rename(root.join("maintenance-wakeup.json"), &reading) {
+        Ok(()) => {},
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+    }
+    checkpoint(root, "wakeup-taking");
+    refresh_guard(root, intent, started)?;
+    recovery::remove(&reading)?;
+    checkpoint(root, "wakeup-consumed");
+    Ok(())
 }
 fn resume_unobserved(root: &Path) -> Result<()> {
     if let Some(intent) = unobserved_intent(root) { kick_until(root, intent)?; }
@@ -236,8 +272,8 @@ pub(super) fn maintain(args: &[String]) -> i32 {
     let result = (|| -> Result<()> {
         if args.len() != 2 { return Err(error("E_WITNESS_INPUT", "export-maintain requires its leased queue and deadline")); }
         let expires = args[1].parse::<u128>().map_err(|e| error("E_WITNESS_INPUT", e))?.min(now() + OBSERVER_BUDGET.as_millis());
-        let intent = Observation::inherited(expires)?;
-        let started = Instant::now();
+        let mut intent = Observation::inherited(expires)?;
+        let mut started = Instant::now();
         let root = fs::canonicalize(&args[0]).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let project = fs::canonicalize(".").map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if root != project.join("artifacts/native-smoke") { return Err(error("E_WITNESS_INPUT", "maintenance is not this project's queue")); }
@@ -245,7 +281,8 @@ pub(super) fn maintain(args: &[String]) -> i32 {
         let held = queued.metadata().map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let named = fs::metadata(root.join("maintenance-next.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if held.dev() != named.dev() || held.ino() != named.ino() || !try_lock(&queued)? { return Err(error("E_WITNESS_PROCESS", "maintenance does not own the pending queue lease")); }
-        let result = observe(&root, intent, started);
+        let result = observe(&root, &mut intent, &mut started);
+        if result.is_ok() { checkpoint(&root, "observer-idle-exit"); }
         // Release before EVERY ordinary/error exit recheck. No failed guard or
         // I/O error can coalesce a producer against a lease we are abandoning.
         drop(queued);
@@ -257,10 +294,10 @@ pub(super) fn maintain(args: &[String]) -> i32 {
 }
 
 // The caller owns the queue lease until this entire observation returns.
-fn observe(root: &Path, intent: Observation, started: Instant) -> Result<()> {
+fn observe(root: &Path, intent: &mut Observation, started: &mut Instant) -> Result<()> {
     let mut gate = libc::pollfd { fd: 0, events: libc::POLLIN, revents: 0 };
     loop {
-        observation_guard(started, intent)?;
+        refresh_guard(root, intent, started)?;
         let polled = unsafe { libc::poll(&mut gate, 1, 100) };
         if polled > 0 { break; }
         if polled < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
@@ -274,11 +311,11 @@ fn observe(root: &Path, intent: Observation, started: Instant) -> Result<()> {
     let mut failed_starts = 0;
     let mut retiring: Vec<Child> = Vec::new();
     loop {
-        if let Err(e) = observation_guard(started, intent) {
+        checkpoint(root, "observer-wakeup");
+        if let Err(e) = consume_wakeup(root, intent, started) {
             checkpoint(root, "observer-guard-failed");
             return Err(e);
         }
-        recovery::remove(&root.join("maintenance-wakeup.json"))?;
         retiring.retain_mut(|child| !child.try_wait().is_ok_and(|status| status.is_some()));
         if !runnable(&root) {
             trace!(&root, "observer-idle", Value::Null);
@@ -315,7 +352,7 @@ fn observe(root: &Path, intent: Observation, started: Instant) -> Result<()> {
                 handed_off = true; failed_starts = 0; break;
             }
             if cancellation.is_none() {
-                cancellation = observation_guard(started, intent).err();
+                cancellation = observation_guard(*started, *intent).err();
                 if cancellation.is_some() { unsafe { libc::kill(child.id() as i32, libc::SIGTERM); } }
             }
             // 30 s work + existing 60 s maximum group drain + launch slack.
@@ -568,6 +605,34 @@ mod tests {
         resume_unobserved(&root).unwrap();
         assert!(runnable(&root));
         assert!(!root.join("maintenance-next.json").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn only_a_later_valid_intent_resets_the_observation_ceiling() {
+        let root = std::env::temp_dir().join(format!("sb4-retention-adopt-{}-{}", std::process::id(), now()));
+        fs::create_dir_all(&root).unwrap();
+        let original = Observation { expires: now() + 60_000, awake: background::sleep_clock() };
+        let mut intent = original;
+        let old_start = Instant::now() - OBSERVER_BUDGET;
+        let mut started = old_start;
+        for expires in [original.expires - 1, original.expires] {
+            atomic_record(&root.join("maintenance-wakeup.json"), &json!({ "expiresAt": expires, "awake": original.awake })).unwrap();
+            assert!(refresh_guard(&root, &mut intent, &mut started).is_err());
+            assert_eq!(intent, original);
+            assert_eq!(started, old_start, "equal/earlier intent cannot renew the monotonic budget");
+        }
+        let later = Observation { expires: original.expires + 60_000, awake: original.awake };
+        atomic_record(&root.join("maintenance-wakeup-reading.json"), &json!({ "expiresAt": later.expires, "awake": later.awake })).unwrap();
+        refresh_guard(&root, &mut intent, &mut started).unwrap();
+        assert_eq!(intent, later, "a receipt left by a stopped guard remains adoptable");
+        assert!(started > old_start);
+        let accepted_start = started;
+        consume_wakeup(&root, &mut intent, &mut started).unwrap();
+        assert_eq!(intent, later, "consuming an earlier wakeup must not shorten the accepted intent");
+        assert_eq!(started, accepted_start);
+        assert!(!root.join("maintenance-wakeup.json").exists());
+        assert!(!root.join("maintenance-wakeup-reading.json").exists());
         fs::remove_dir_all(root).unwrap();
     }
 

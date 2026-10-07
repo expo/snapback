@@ -1,0 +1,37 @@
+{
+  "parent": "7a6d74fea2b816484282724468e13674c749bc83",
+  "sha256": {
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "5f40c475bfbfa7b9511fbc9d3fe9a3b8beb35af0fd8cd88577a3725e5f051864",
+    "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746",
+    "snapback4/crates/snapback4/src/verbs/witness/background.rs": "b888eb9656492be708bbbe0bf37060e53b466cd50e962890c757eab86ec2ba7d",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04",
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "fac234c589717c3f4f00757dec89cab4366542a032814b35f01008cc1f7a14ee",
+    "snapback4/packages/snapback4/test/export-maintenance-wakeup.test.mjs": "e7e6899f611aa7299029c28a0c0606eb8e66be2abde36843cd1f6a4883e62213",
+    "snapback4/packages/snapback4/test/maintenance-evidence.test.mjs": "a3cd6f5437f9d8db2d6931fab22bbc0746172df57a5bc9fb7d63f7f7df214fe3",
+    "snapback4/packages/snapback4/test/test-signals.test.mjs": "1583d3f6e72856e5c058daac59f70559ff59dcddc2023167cc526cec9b0793da",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.py": "945bafcff0d4d710def5ea2e7074968a67a771b8601b56807f6c380bc58aef57",
+    "snapback4/packages/snapback4/test/helpers/fixture-signals.mjs": "e708a18995c1c852c575dda60279f16758b8043b5ad220bf0c858e6e3a7f03ca",
+    "snapback4/packages/snapback4/test/helpers/publication-barrier.mjs": "cd1cf7a29f7002dd23a31748765e58153680cd1aa8c461e71476285b6bb7496c",
+    "snapback4/scripts/test-signals.mjs": "e65c5d90f319c41d5ebfe0f97c581eadeef3b03cced8128efbb69da19250cd14",
+    "snapback4/scripts/test-processes.mjs": "74d05aa5d102d68db31a7c7581ec975cab74ef9c3c95a4f99396e877c447125f",
+    "snapback4/scripts/test-command-group.mjs": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d",
+    "snapback4/packages/snapback4/test/helpers/maintenance_processes.py": "50ef3f37d2dd0428131c45374f929f04de30ae700b8a185b2562b0be66037b0d"
+  },
+  "unchangedFromRound5": [
+    "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs",
+    "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "snapback4/packages/snapback4/test/maintenance-evidence.test.mjs",
+    "snapback4/packages/snapback4/test/test-signals.test.mjs",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.py",
+    "snapback4/packages/snapback4/test/helpers/fixture-signals.mjs",
+    "snapback4/packages/snapback4/test/helpers/publication-barrier.mjs",
+    "snapback4/scripts/test-signals.mjs",
+    "snapback4/scripts/test-processes.mjs",
+    "snapback4/scripts/test-command-group.mjs",
+    "snapback4/packages/snapback4/test/helpers/maintenance_processes.py"
+  ]
+}

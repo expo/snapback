@@ -202,3 +202,108 @@ test('maintenance sleep: no fresh producer stops, a post-sleep export can recove
     assert.equal(read(f.file('maintenance-next.json')).awake,2000,'only a fresh producer takes the post-sleep sample');
   } finally {await f.finish();}
 });
+
+const trace=f=>{try{return fs.readFileSync(f.file('retention-trace.jsonl'),'utf8').trim().split('\n').map(JSON.parse);}catch{return [];}};
+function leasedObserver(f,expires,points) {
+  const observer=f.start('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",f.native,binary,String(expires)],points);
+  observer.child.stdin.end('s');return observer;
+}
+async function retentionLease(f) {
+  const lease=f.start('python3',['-c','import sys,fcntl; f=open(sys.argv[1],"a"); fcntl.flock(f,fcntl.LOCK_EX); print("ready",flush=True); sys.stdin.read()',f.file('retention.lock')]);
+  await once(lease.child.stdout,'data');return lease;
+}
+
+for(const ordering of ['idle success','live guard'])test(`maintenance deadline: ${ordering} adopts a later coalesced intent`,{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const lease=await retentionLease(f), expires=Date.now()+5000;
+    const point=ordering==='idle success'?'observer-idle-exit':'observer-wakeup';
+    if(ordering==='idle success')fs.unlinkSync(f.file('maintenance-request.json'));
+    const observer=leasedObserver(f,expires,`${point},wakeup-consumed,observer-guard-failed`);
+    const record=await f.barrier(point);
+    f.mark('maintenance-next.json',JSON.stringify({process:record.process,expiresAt:expires,awake:0}));
+    f.mark('maintenance-request.json','{"state":"pending"}');
+    f.setClock(500); // distinguish the producer's sample without crossing sleep
+    await coalesce(f);const wake=read(f.file('maintenance-wakeup.json'));
+    assert.ok(wake.expiresAt>expires);assert.equal(wake.awake,500);
+    f.resume('observer-guard-failed'); // retain a refusal marker without pausing it
+    f.resume(point);await f.barrier('wakeup-consumed');
+    assert.ok(Date.now()<expires,'the notification is consumed while the old deadline is still valid');
+    f.resume('wakeup-consumed');
+    // Keep work blocked until a real guard runs beyond the OLD deadline. The
+    // mutant exits; the fix keeps observing under the exact producer intent.
+    await until(()=>read(f.file('maintenance-test-observer-guard-failed.json')) ||
+      trace(f).some(e=>e.step==='wait-retention' && e.at>expires),
+      'observer evaluated a guard past its original expiry',15000);
+    lease.child.stdin.end();await lease.exit;
+    await f.drain(); // unchanged 90-second predicate: the mutant must fail here
+    assert.equal((await observer.exit)[0],0,observer.stderr);
+    assert.ok(read(f.file('maintenance-done.json')));
+    assert.ok(trace(f).some(e=>e.step==='observer-intent-adopted' && e.detail.expiresAt===wake.expiresAt && e.detail.awake===wake.awake));
+    if(ordering==='idle success') {
+      const next=read(f.file('maintenance-next.json'));
+      assert.equal(next.expiresAt,wake.expiresAt);assert.equal(next.awake,wake.awake);
+    }
+  } finally {await f.finish();}
+});
+
+test('maintenance deadline: consumption preserves a concurrent replacement',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const lease=await retentionLease(f), expires=Date.now()+60000;
+    const observer=leasedObserver(f,expires,'observer-wakeup,wakeup-taking,wakeup-consumed');
+    const record=await f.barrier('observer-wakeup');
+    f.mark('maintenance-next.json',JSON.stringify({process:record.process,expiresAt:expires}));
+    await coalesce(f);const first=read(f.file('maintenance-wakeup.json'));
+    f.resume('observer-wakeup');await f.barrier('wakeup-taking');
+    assert.deepEqual(read(f.file('maintenance-wakeup-reading.json')),first);
+    const producer=f.producer('');assert.equal((await producer.exit)[0],0,producer.stderr);
+    const replacement=read(f.file('maintenance-wakeup.json'));assert.ok(replacement.expiresAt>first.expiresAt);
+    f.resume('wakeup-taking');await f.barrier('wakeup-consumed');
+    assert.deepEqual(read(f.file('maintenance-wakeup.json')),replacement,'consuming the receipt cannot unlink a newer notification');
+    assert.equal(read(f.file('maintenance-wakeup-reading.json')),null);
+    f.resume('wakeup-consumed');lease.child.stdin.end();await lease.exit;
+    await f.drain();assert.equal((await observer.exit)[0],0,observer.stderr);
+    assert.ok(trace(f).some(e=>e.step==='observer-intent-adopted' && e.detail.expiresAt===replacement.expiresAt));
+  } finally {await f.finish();}
+});
+
+test('maintenance deadline: a later wakeup that crossed sleep is not adopted',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    f.setClock(2000);
+    const lease=await retentionLease(f), expires=Date.now()+700;
+    const observer=leasedObserver(f,expires,'observer-wakeup,observer-guard-failed');
+    const record=await f.barrier('observer-wakeup');
+    f.mark('maintenance-next.json',JSON.stringify({process:record.process,expiresAt:expires,awake:2000}));
+    f.mark('maintenance-wakeup.json',JSON.stringify({expiresAt:expires+60000,awake:0}));
+    f.resume('observer-wakeup');await f.barrier('observer-guard-failed');
+    f.resume('observer-guard-failed');assert.equal((await observer.exit)[0],1,observer.stderr);
+    assert.match(observer.stderr,/60-minute deadline/);assert.equal(f.free(),true);
+    assert.ok(fs.existsSync(f.file('maintenance-request.json')));
+    assert.ok(!trace(f).some(e=>e.step==='observer-intent-adopted'));
+    lease.child.stdin.end();await lease.exit;
+  } finally {await f.finish();}
+});
+
+test('maintenance deadline: cancellation while consuming leaves an adoptable receipt',{timeout:120000},async()=>{
+  const f=sleepFixture();
+  try {
+    const lease=await retentionLease(f), expires=Date.now()+60000;
+    const observer=leasedObserver(f,expires,'observer-wakeup,wakeup-taking');
+    const record=await f.barrier('observer-wakeup');
+    f.mark('maintenance-next.json',JSON.stringify({process:record.process,expiresAt:expires}));
+    await coalesce(f);const wake=read(f.file('maintenance-wakeup.json'));
+    f.resume('observer-wakeup');await f.barrier('wakeup-taking');
+    assert.equal(read(f.file('maintenance-wakeup.json')),null);
+    assert.deepEqual(read(f.file('maintenance-wakeup-reading.json')),wake);
+    observer.child.kill('SIGTERM');f.resume('wakeup-taking');
+    assert.equal((await observer.exit)[0],1,observer.stderr);assert.match(observer.stderr,/interrupted/);
+    lease.child.stdin.end();await lease.exit;
+    await f.drain();
+    const next=read(f.file('maintenance-next.json'));
+    assert.notEqual(next.process.pid,record.process.pid);
+    assert.equal(next.expiresAt,wake.expiresAt);assert.equal(next.awake,wake.awake);
+    assert.ok(read(f.file('maintenance-done.json')));
+  } finally {await f.finish();}
+});
