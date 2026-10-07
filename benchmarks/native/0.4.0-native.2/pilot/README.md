@@ -13,6 +13,17 @@ fresh Phase-2 rerun after review. Dry-run readiness ends after
 `python3 scripts/verify.py --cold --ready` succeeds with both lanes containing
 only their symmetric `instrument` link.
 
+The authorized round-2 rerun stopped after a passing Snapback 4 semantic
+handoff because of harness cleanup EPERM. [Revision 8](./REVISION-8.md) records
+the repair, sealed reclassification and one-use `--resume-cleanup-refusal`
+continuation through fresh Snapback 4 measurement and the unchanged Convex lane.
+The preparation-only instructions above describe the original commission.
+
+[Revision 10](./REVISION-10.md) retains attempt-02 M6 as an app-caused
+unmeasured result and resumes with `--resume-product-setup`: M8 on the same
+Release build, then the unchanged Convex builder and both measurements.
+App-caused driver setup outcomes continue the chain; infrastructure faults stop.
+
 ## Fresh packet preparation
 
 Create `~/clique-native-pilot2-20261006/` on the Apartment mini only. Never use

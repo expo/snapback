@@ -1,0 +1,31 @@
+[
+  {
+    "label": "guide-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide"
+    ],
+    "exit": 101,
+    "seconds": 32.821
+  },
+  {
+    "label": "serve-final",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "serve",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "seconds": 44.785
+  }
+]

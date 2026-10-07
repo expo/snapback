@@ -57,7 +57,8 @@ test('dropped loadMore units use bounded jittered backoff, including observation
   bindFollowing(client,async(_op,_args,body)=>{
     if(body.action==='open')return{opening:'opening'};
     if(body.action==='cancel')return{phase:'restart'};
-    if(body.action==='refresh')return{phase:'page',visible:body.mounted.filter(x=>!deny||x.authority[0]?.table!=='a').map(x=>x.id),live:[]};
+    if(body.action==='refresh')return{phase:'page',visible:body.mounted.filter(x=>!deny||x.authority[0]?.table!=='a').map(x=>x.id),
+      live:body.mounted.length?[]:[{kind:'shaped',id:'first',at:'2',value:{id:'first'},authority:[{table:'a',id:'a',fields:['id']},{table:'b',id:'b',fields:['id']}]}]};
     calls.push({at:Date.now(),token:body.token});
     if(fail)return;
     const id=body.token?'second':'first';
@@ -79,5 +80,30 @@ test('dropped loadMore units use bounded jittered backoff, including observation
   fail=false;await tick(5000);
   assert.deepEqual(history.getSnapshot().items.map(x=>x.id),['first','second']);
   deny=true;await tick(1000);
-  assert.deepEqual(history.getSnapshot().items.map(x=>x.id),['second'],'every witness fragment must authorize');
+  assert.deepEqual(history.getSnapshot().items.map(x=>x.id),['second'],'a denied fragment cannot be resurrected by the same-cycle live preview');
+});
+
+for(const padding of ['', 'x'.repeat(65000)])test(`changing live windows obey the ${padding?'encoded argument':'100 identity'} preview bound`,async t=>{
+  const {Following}=await import('../dist/following.js');
+  const {bindFollowing}=await import('../dist/following-transport.js');
+  t.mock.timers.enable({apis:['setTimeout','Date']});
+  const noop=()=>()=>{};
+  const client={link:()=> 'online',observe:()=>({getSnapshot:()=>({data:[]}),subscribe:noop,close(){}}),onLink:noop,onPendingWrites:noop,onWrite:noop,onViewer:noop,onSession:noop};
+  let slices=0;
+  bindFollowing(client,async(_op,args,body)=>{
+    assert.ok(Buffer.byteLength(JSON.stringify({...body,args}))<=65536,'every dispatched refresh fits the complete envelope');
+    if(body.action==='open')return{opening:'opening'};
+    if(body.action==='unit')return{phase:'page',items:[],next:null};
+    if(body.action==='cancel')return{phase:'restart'};
+    const start=40*slices++;
+    return{phase:'preparing',visible:[],live:Array.from({length:40},(_,n)=>{
+      const id=String(start+n).padStart(100,'0');return{kind:'shaped',id,at:String(start+n),value:{id},authority:[]};
+    })};
+  });
+  const history=new Following(client,{kind:'query',name:'cards',following:{declaration:'feed',pageSize:40}},{padding});
+  t.after(history.subscribe(()=>{}));
+  t.mock.timers.tick(0);for(let n=0;n<50;n++)await Promise.resolve();
+  const state=history.getSnapshot();assert.equal(state.phase,'page');
+  assert.equal(slices,padding?1:3);assert.equal(state.items.length,padding?40:100);
+  assert.equal(new Set(state.items.map(x=>x.id)).size,state.items.length);
 });

@@ -246,3 +246,23 @@ export function awaitBoundary() {
 // Read-only Following refusal and refusal-poll suppression are synchronous;
 // neither adds I/O, write custody, a delivery site or a fault recipe. The merged
 // boundary is regenerated from both families, not selected from either parent.
+
+// OA: app-online-arm adds no await or delivery persistence. It projects guarded
+// server reads/signals/actions and drains returned calls before private close.
+// app.ts keeps every authority/save await unchanged; the transport checks arm
+// identity synchronously after its existing authority await. The held-call,
+// rotation/account/logout and late-read tests live in app-online-arm.test.mjs.
+// Existing delivery sites, recipe mappings and outbox custody stay unchanged.
+// OA round 1: client and ephemeral await expressions carry the private arm
+// fence into existing requests/retries; their await counts are unchanged.
+// online-arm-fence is synchronous, memory-only metadata (no wire or storage
+// shape changes). Both-tier lifecycle tests and the three Astra reproductions
+// exercise retirement before dispatch and preservation after dispatch. No
+// delivery I/O site, classification or fault recipe changes.
+
+// FH round 5 + OA merge: keep both classifications. Argument-aware slicing
+// replaces existing read-only Following awaits; online custody forwards that
+// read transport and probes pendingWrites before/after it. The app's synchronous
+// admission fence only notifies readers and observes the original promise's
+// settlement: it adds no persistence or delivery site and preserves browser
+// refusal fields. Following/app-online-arm tests cover the composed lifetime.

@@ -1,0 +1,61 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (831.759053ms)
+✔ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (202.338594ms)
+✔ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (1182.38876ms)
+✔ account fences cached arms, observations and late server data (243.129884ms)
+✔ logout fences cached arms, observations and late server data (126.234457ms)
+✔ close fences cached arms, observations and late server data (228.721314ms)
+✔ offline drops signals, refuses snapshots/actions; observed reads recover without replay (184.098641ms)
+✔ no-device app reuses its own client (readOnly=false) and obeys shared logout (181.798953ms)
+✔ no-device app reuses its own client (readOnly=true) and obeys shared logout (178.166077ms)
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (128.168106ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (2409.833173ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (59.044834ms)
+  ✔ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (393.039463ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (141.397087ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1471.945473ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (508.852658ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (255.050294ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (479.212294ms)
+  ✔ observations make retention explicit (5.706465ms)
+  ✔ account reset clears draft and stops the prior typing owner (4195.908772ms)
+✔ social recipes in React/browser: real online signals and media, controlled read interleavings (12945.000951ms)
+▶ social search in React/browser uses current server and retained device pages
+  ✔ search spans a live and a departed conversation (1116.717955ms)
+  ✔ leave followed by a search (1060.039469ms)
+  ✔ pagination accumulates both domains with no duplicate (1137.829875ms)
+✔ social search in React/browser uses current server and retained device pages (4184.252461ms)
+▶ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ✔ failed provisional sends survive Profile reopen and a full reload (622.438905ms)
+  ✔ a sent receipt without result recovers the route from its replicated key (48.397292ms)
+  ✔ real stale negative membership after leave, sync, disconnect and re-invite permits Send (321.066359ms)
+  ✔ stale absent membership queues offline and server refuses at sync without re-invitation (263.781854ms)
+  ✔ leaving before settlement recovers failed sends on a bare canonical route (864.644675ms)
+  ✔ failed and abandoned openings without sends leave no associations (130.212941ms)
+  ✔ a bare route recovers its sends with one lookup despite 100 unresolved peers (680.638512ms)
+✔ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft (5651.089162ms)
+(node:3862082) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ generated feed, chats, profile and search preserve read-state text and controls (216.71807ms)
+✔ social seed script creates two password accounts, signs in and refuses cross-user writes (3569.855653ms)
+✔ new requires an explicit template and names what init creates (10.62624ms)
+✔ social starter native: cold owner keys prove old likes and unqueried absence offline (2360.616423ms)
+✔ social starter web: cold owner keys prove old likes and unqueried absence offline (2777.827903ms)
+✔ published social starter and guide snippets typecheck against generated operations (1069.249916ms)
+✔ bounded substitution in both installed and client documentation typechecks (1514.696703ms)
+✔ installed bounded placeholder documentation makes neither existence claim (95.099283ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (3590.108592ms)
+✔ social DM native: concurrent opens converge, held keys resolve offline and an offline race settles (1722.599089ms)
+✔ social DM web: concurrent opens converge, held keys resolve offline and an offline race settles (605.776256ms)
+✔ guide aliases send schedules, DMs and Expo readers to their owning cards (147.184143ms)
+✔ social proposal associations are durable, account/backend scoped and preserve every send's arguments (120.179991ms)
+✔ social starter wasm: offline history predicts in compose order and settles once with receipts (1638.983762ms)
+✔ social starter wasm: receipt-derived unread badges leave sends pending in history (1045.19066ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23255.650655

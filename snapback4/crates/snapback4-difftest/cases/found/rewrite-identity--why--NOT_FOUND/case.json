@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 11,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Deny",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Write": [
+          "Update",
+          {
+            "Binary": [
+              "Add",
+              {
+                "Arg": [
+                  "a",
+                  "Int"
+                ]
+              },
+              {
+                "Arg": [
+                  "b",
+                  "Int"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 39134,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 18949,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "rewrite-identity--why--NOT_FOUND",
+    "oracle": {
+      "Rewrite": "Identity"
+    },
+    "field": "why",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 6,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 3
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "NOT_FOUND",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NOT_FOUND",
+          "rule": "NOT_FOUND",
+          "site": "run:2"
+        }
+      }
+    },
+    "right": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 6,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 9
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "NOT_FOUND",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NOT_FOUND",
+          "rule": "NOT_FOUND",
+          "site": "run:5"
+        }
+      }
+    },
+    "continuation": []
+  },
+  "shrink_attempts": 32
+}

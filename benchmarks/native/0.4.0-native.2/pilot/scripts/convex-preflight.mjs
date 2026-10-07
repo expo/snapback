@@ -45,9 +45,27 @@ async function start() {
   await wait(async () => { if (backend.exitCode !== null) throw Error('backend-exited'); return reachable(49580); }, 'backend-start');
 }
 async function stop() {
-  if (!backend || backend.exitCode !== null) return;
-  const p = backend; const done = new Promise(r => p.once('exit', r)); p.kill('SIGTERM');
-  const timer = setTimeout(() => p.kill('SIGKILL'), 10000); await done; clearTimeout(timer);
+  if (!backend) return;
+  const p = backend;
+  const live = () => {
+    if (p.exitCode !== null || p.signalCode !== null) return false;
+    const ps = spawnSync('ps', ['-p', String(p.pid), '-o', 'stat='], { encoding: 'utf8' });
+    if (ps.error || ![0, 1].includes(ps.status)) throw Error('owned-backend-membership-unavailable');
+    return !!ps.stdout.trim() && !ps.stdout.trim().startsWith('Z');
+  };
+  // process.kill throws synchronously; EPERM/ESRCH require another liveness
+  // observation, including after the last escalation. This is our direct child.
+  for (const [signal, duration] of [['SIGTERM', 10000], ['SIGKILL', 5000]]) {
+    const until = Date.now() + duration;
+    while (live()) {
+      try { process.kill(p.pid, signal); }
+      catch (e) { if (!['EPERM', 'ESRCH'].includes(e.code)) throw e; }
+      if (Date.now() >= until) break;
+      await delay(100);
+    }
+    if (!live()) break;
+  }
+  if (live()) throw Error('owned-backend-cleanup-incomplete');
   log({ kind: 'foreground-stop', pid: p.pid, exitCode: p.exitCode, signal: p.signalCode });
   for (let i = 0; i < 5; i++) {
     const open = await reachable(49580); log({ kind: 'offline-probe', reachable: open });
@@ -98,9 +116,14 @@ export const list = query({handler: async ctx => ctx.db.query('probe').collect()
   result = { pass: null, nativeSegment: 'unmeasured-by-setup', reason: String(e), convex: '1.45.0',
     networkingSubstitution: false, ownerRulingRequired: true };
 } finally {
-  if (client) await client.close();
-  try { await stop(); } catch (e) { result = { pass: null, nativeSegment: 'unmeasured-by-setup', reason: String(e) }; }
+  const cleanupErrors = [];
+  for (const [operation, action] of [['client', () => client?.close()], ['backend', stop]]) {
+    try { await action(); }
+    catch (e) { cleanupErrors.push({ operation, reason: String(e), outcomeClass: 'operator-setup' }); }
+  }
+  result.cleanupErrors = cleanupErrors;
+  result.cleanupComplete = cleanupErrors.length === 0;
   fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify({ attempt: out, ...result }));
 }
-process.exitCode = result.pass === true ? 0 : 2;
+process.exitCode = result.pass === true && result.cleanupComplete ? 0 : 2;

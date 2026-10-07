@@ -1,3 +1,4 @@
+import { guardFollowing } from "./following-transport.ts";
 import { pendingIntentAccess, pendingIntent, registerPendingIntents, registerIntentObserver, OnlineIntentPresentation } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 // @ref LLP 3000.013#6 — online intents need durable custody before dispatch; local devices already own their outbox.
@@ -289,6 +290,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
+  // The durable online journal is a client wrapper, not a new history owner.
+  guardFollowing(client, raw, async () => (await client.pendingWrites()).length > 0,
+    () => active && !storeRefusal && raw.viewer() === viewer);
   registerPendingIntents(client, { scope: intentScope, revision: () => rawIntents.revision?.(), retain: presentation.retain, async read() {
     const before = intentScope(), revision = rawIntents.revision?.();
     if (before == null) return [];

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "guide"
+  ],
+  "exit": 101,
+  "seconds": 23.641
+}

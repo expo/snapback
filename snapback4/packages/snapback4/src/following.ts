@@ -4,6 +4,7 @@ import { followingBlocked, followingRequest, onFollowingChange, type FollowingWi
 
 export type FollowingPhase = "preparing" | "page" | "stalled" | "restart" | "refused" | "offline";
 type Authority = { table: string; id: string; fields: string[] };
+type Mounted = { id: string; live: boolean; authority: Authority[] };
 type Item<T> = { kind: "shaped"; id: string; at: string; value: T; authority: Authority[] } | { kind: "omitted"; id: string; at: string; code: string };
 export interface FollowingSnapshot<T> {
   readonly items: readonly T[];
@@ -213,25 +214,34 @@ export class Following<A, R extends readonly unknown[]> {
     // A card may disclose several point reads. Split their public witnesses too,
     // so one wide card does not require a wide authorization request. Every
     // fragment must authorize; a later successful fragment cannot undo denial.
-    const checks = mounted.flatMap(item => {
+    // @ref LLP 3000.026#9.13 — include arguments and every wrapper byte, even
+    // for a singleton. A valid unit can leave very little space for witnesses.
+    const fits = (body: FollowingWire) => new TextEncoder().encode(JSON.stringify({ ...body, args: this.args })).length <= 64 * 1024;
+    const request = (mounted: Mounted[]): FollowingWire => ({ action: "refresh", opening, mounted });
+    const checks: Mounted[] = [];
+    for (const item of mounted) {
+      const base = { id: item.id, live: liveIds.has(item.id) };
       const authority = item.kind === "shaped" ? item.authority : [];
-      return (authority.length ? authority.flatMap(witnessParts).map(w => [w]) : [[]]).map(authority => ({
-        id: item.id, live: liveIds.has(item.id), authority,
-      }));
-    });
+      if (!authority.length) checks.push({ ...base, authority: [] });
+      for (const witness of authority) {
+        const parts = witnessParts(witness, part => fits(request([{ ...base, authority: [part] }])));
+        if (!parts) return this.acceptControl({ phase: "refused", code: "E_INPUT" });
+        checks.push(...parts.map(part => ({ ...base, authority: [part] })));
+      }
+    }
     const live: Item<R[number]>[] = [];
     // Bound the wire envelope as well as the number of public witnesses. The
     // server can accept a smaller prefix according to actual metered work.
     for (let start = 0; start < checks.length;) {
-      const batch: { id: string; live: boolean; authority: Authority[] }[] = [];
+      const batch: Mounted[] = [];
       for (const next of checks.slice(start, start + 100)) {
         // The echoed checked id unambiguously addresses this public prefix.
         if (batch.some(item => item.id === next.id)) break;
-        const bytes = new TextEncoder().encode(JSON.stringify({ action: "refresh", opening, args: this.args, mounted: [...batch, next] })).length;
-        if (bytes > 60 * 1024 && batch.length) break;
+        if (!fits(request([...batch, next]))) break;
         batch.push(next);
       }
-      const reply = await this.send({ action: "refresh", opening, mounted: batch });
+      if (!batch.length) return this.acceptControl({ phase: "refused", code: "E_INPUT" });
+      const reply = await this.send(request(batch));
       if (!reply || !this.acceptControl(reply) || epoch !== this.epoch) return false;
       const checked = reply.phase === "page" ? batch.length : reply.phase === "preparing"
         ? batch.findIndex(item => item.id === reply.checked) + 1 : 0;
@@ -246,10 +256,17 @@ export class Following<A, R extends readonly unknown[]> {
     // cross requests, never private inbox heads or admission tokens. A live
     // window is a preview; a new history session covers all later births.
     while (live.length < 100) {
-      const reply = await this.send({ action: "refresh", opening, mounted: [], seen: live.map(item => item.id) });
+      const body = { action: "refresh", opening, mounted: [], seen: live.map(item => item.id) };
+      // A preview is optional, not a birth subscription. Stop this cycle before
+      // its public-id list outgrows the wire; the next session covers misses.
+      if (!fits(body)) {
+        if (!live.length) return this.acceptControl({ phase: "refused", code: "E_INPUT" });
+        break;
+      }
+      const reply = await this.send(body);
       if (!reply || !this.acceptControl(reply) || epoch !== this.epoch) return false;
       const items = reply.live as Item<R[number]>[];
-      live.push(...items);
+      live.push(...items.slice(0, 100 - live.length));
       if (reply.phase === "page") break;
       if (reply.phase !== "preparing" || !items.length) return false;
     }
@@ -258,7 +275,7 @@ export class Following<A, R extends readonly unknown[]> {
     this.staged = [];
     const retained = this.live.filter(item => visible.has(item.id) && !rejected.has(item.id));
     const seen = new Set(retained.map(item => item.id));
-    this.live = [...retained, ...live.filter(item => !seen.has(item.id) && !!seen.add(item.id))];
+    this.live = [...retained, ...live.filter(item => !rejected.has(item.id) && !seen.has(item.id) && !!seen.add(item.id))];
     this.withheld = false; this.phase = "page";
     if (this.withdrawal) clearTimeout(this.withdrawal); this.withdrawal = undefined;
     return true;
@@ -278,16 +295,17 @@ function compareIds(a: string, b: string): number {
 
 // Refresh accepts at most 128 field names per point witness. A legal projected
 // card may contain more; every fragment retains the same table/id authority.
-function witnessParts(witness: Authority): Authority[] {
+function witnessParts(witness: Authority, fits: (part: Authority) => boolean): Authority[] | undefined {
   const parts: Authority[] = [];
   let fields: string[] = [];
   for (const field of witness.fields) {
-    const bytes = new TextEncoder().encode(JSON.stringify({ ...witness, fields: [...fields, field] })).length;
-    if (fields.length && (fields.length === 128 || bytes > 32 * 1024)) {
+    if (fields.length && (fields.length === 128 || !fits({ ...witness, fields: [...fields, field] }))) {
       parts.push({ ...witness, fields }); fields = [];
     }
     fields.push(field);
+    if (!fits({ ...witness, fields })) return;
   }
+  if (!fits({ ...witness, fields })) return;
   parts.push({ ...witness, fields });
   return parts;
 }

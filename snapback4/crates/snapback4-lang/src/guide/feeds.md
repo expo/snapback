@@ -208,6 +208,11 @@ Offline the hook uses the unchanged inbox and reports `fact`: “older posts are
 
 `useFollowing` requires a full session: read-only clients and read bearers refuse `E_READ_ONLY` without creating history custody. Ordinary inbox queries remain available (`guide read-only`). History phases are separate from `matchRead`: `stalled`, `restart`, live prepend and omissions are protocol states, not ordinary Read evidence. Render the phase directly; offline, pass `inbox` to `matchRead` to render its ordinary read state.
 
+Client retention has no fixed memory cap: it keeps one copy of each displayed
+live id since mount/session reset and rechecks every retained id each poll.
+Memory grows with displayed cards and loaded history; the 100-id preview bound
+is per cycle. Withdrawal, reset/restart or unmount releases rows.
+
 ### Inbox contract
 
 The optimized inbox copies each followed actor's newest 1,000 events at follow time, plus new events afterward. This copy window is not the online history boundary: `useFollowing` reads exact server history from its first page. The separate `profile(actor, c)` query pages one actor.

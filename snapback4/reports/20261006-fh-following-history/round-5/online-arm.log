@@ -1,0 +1,40 @@
+✔ device: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (648.27035ms)
+✔ device: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (172.952705ms)
+✔ device: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (161.492465ms)
+✔ device: account fences cached arms, observations and late server data (1203.053969ms)
+✔ device: logout fences cached arms, observations and late server data (91.954214ms)
+✔ device: close fences cached arms, observations and late server data (179.987691ms)
+✔ device: offline drops signals, refuses snapshots/actions; observed reads recover without replay (1164.224231ms)
+✔ device: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (83.798028ms)
+✔ device: failed account opening restores a new arm without reviving the old exposed handle (169.445898ms)
+✔ device: an old action response cannot retry under the replacement credential or sign out its owner (166.520162ms)
+✔ device: a dispatched signal keeps its transport failure after rotation (1161.30156ms)
+✔ device: renewal reuse never crosses arm retirement (164.589759ms)
+✔ online: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (164.954896ms)
+✔ online: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (165.52493ms)
+✔ online: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (158.972888ms)
+✔ online: account fences cached arms, observations and late server data (182.94276ms)
+✔ online: logout fences cached arms, observations and late server data (97.064485ms)
+✔ online: close fences cached arms, observations and late server data (155.302437ms)
+✔ online: offline drops signals, refuses snapshots/actions; observed reads recover without replay (149.684044ms)
+✔ online: no-device app reuses its own client (readOnly=false) and obeys shared logout (172.606425ms)
+✔ online: no-device app reuses its own client (readOnly=true) and obeys shared logout (157.771487ms)
+✔ online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (58.785923ms)
+✔ online: failed account opening restores a new arm without reviving the old exposed handle (160.676852ms)
+✔ online: an old action response cannot retry under the replacement credential or sign out its owner (161.125786ms)
+✔ online: a dispatched signal keeps its transport failure after rotation (157.45925ms)
+✔ online: renewal reuse never crosses arm retirement (151.298614ms)
+✔ online: an action auth retry keeps its originating arm while waiting for shared rotation (160.060519ms)
+✔ online: retired observations do not share queued work with the new arm or app client (160.372226ms)
+✔ online: an action waiting for the shared refresh cannot use its replacement credential (148.598176ms)
+✔ online: no-device: storage-awaited signal cannot dispatch its retired bearer (147.100051ms)
+✔ online: no-device: queued signal cannot send as the old account during replacement (67.261719ms)
+✔ retirement bounds an unresponsive action drain and preserves its pending ID (1.505557ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8300.473122

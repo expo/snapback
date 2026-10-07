@@ -1,9 +1,9 @@
-import { guardFollowing } from "./following-transport.ts";
+import { guardFollowing, notifyFollowing } from "./following-transport.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
-import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./contract.ts";
+import type { ObserveOptions, Client, Observed, Query, Read, Refusal, Mutation, MutateOptions, MutationPromise, Write } from "./contract.ts";
 import { forwardInspection } from "./observation-work.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
@@ -22,6 +22,7 @@ import { queryAttempt, queryRefusal, settledQuery, terminalQueryRefusal } from "
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   guardDelivery(raw);
   let active = true;
+  let followingAdmissions = 0;
   const queries = new AbortController();
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
@@ -36,6 +37,18 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         rewrite: "repair sessionStore, then retry the operation" };
     }
   };
+  // @ref LLP 3000.026#9.13 — fence before asynchronous app authority/journal
+  // admission, then hand off to the underlying client's pending fence.
+  function followingAdmission<R>(run: () => MutationPromise<R>): MutationPromise<R> {
+    followingAdmissions++; notifyFollowing(raw);
+    const finish = () => { followingAdmissions--; notifyFollowing(raw); };
+    try {
+      const result = run();
+      // Preserve the original promise's synchronous browser-admission refusal.
+      void result.then(finish, finish);
+      return result;
+    } catch (error) { finish(); throw error; }
+  }
   function listen<T>(subscribe: (listener: (value: T) => void) => () => void, listener: (value: T) => void, ended: T) {
     if (!valid()) return () => {};
     const stop = subscribe(value => { if (valid()) listener(value); });
@@ -228,13 +241,13 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       // Enter the single bounded lane synchronously. The scoped transport
       // checks the session epoch before dispatch, inside that ordered lane.
       return valid() ? raw.mutate(op, args) : Promise.resolve(failedSignal(mintId(), why()));
-    }, (op, args, options) => {
+    }, <A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): MutationPromise<R> => followingAdmission<R>(() => {
       if (browserAdmission() && admit) {
         const id = options?.id ?? mintId();
         const denied = valid() ? admit() : why();
-        return denied ? failedAdmission(id, denied) : raw.mutate(op, args, { ...options, id });
+        return denied ? failedAdmission<R>(id, denied) : raw.mutate(op, args, { ...options, id });
       }
-      return (async () => {
+      return (async (): Promise<Write<R>> => {
       const id = options?.id ?? mintId();
       // Preserve admission-time argument custody before the asynchronous lock.
       let snapshot: typeof args;
@@ -252,7 +265,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       }
       return raw.mutate(op, snapshot, { ...options, id });
       })();
-    }),
+    })),
     async write(id) {
       if (await refusal()) return undefined;
       return raw.write(id);
@@ -287,7 +300,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       cleanups.add(stop); return () => { cleanups.delete(stop); stop(); };
     },
   };
-  guardFollowing(client, raw, refusal, valid);
+  guardFollowing(client, raw, refusal, () => valid() && followingAdmissions === 0);
   guardPendingIntents(client, raw, valid, refusal);
   forwardIntentObserver(client, raw, valid);
   guardAcquisition(client, raw, valid);

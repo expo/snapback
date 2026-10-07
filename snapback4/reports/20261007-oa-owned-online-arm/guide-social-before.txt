@@ -1,0 +1,639 @@
+# Social: one app, three client lifetimes
+
+Build a messaging app from the social starter, with replica history and an online typing arm.
+Its feed, chat list, conversation, search and profile use only the published client and generated types.
+
+```sh
+npx snapback4 new my-social --template social
+cd my-social
+npm install
+npx snapback4 check
+npx snapback4 dev
+# In another terminal: npm start
+```
+
+The installed README covers native, Expo Go and web. Quarry keeps profiles, follows, Following, likes, retained chats, DMs, receipts, typing and ordinary/once images together.
+History uses `where .conversation = conversation` on its explicit horizon
+index, as `guide sync` teaches; receipt pages share its index and cursor.
+Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
+unknown coverage stays loading. See `guide offline-interactions`. Search uses
+one ordinary query per scope, combining current server and retained device
+hits online. `usePage` accumulates by message ID; `readPresentation(page.read).incomplete` shows
+“Partial results”. Conversation and time are immutable. See `guide search`.
+
+Explicit-ID sends: `guide client` shows `usePendingItems`, including success awaiting observation. Supply conversation and both keys; never guess auto-minted message keys from mutation IDs. Keep references for failures/unknown outcomes.
+`usePendingState` selects a pending like/repost value without changing its mutation.
+
+## Background notifications
+
+`snapback/workers/notifications.mjs` declares a supervised worker for dev and
+serve, with `ledger: true` and an injected service token. Connect its provider
+handler and pass `meta.idempotencyKey`; the completion ledger cannot close the
+crash window after provider I/O but before its commit. The starter declares
+`notify` but emits nothing until you wire that behavior. `guide effects` shows
+the provider call and `doctor` shows the worker's state.
+
+## Typing on the online arm
+
+`createApp` owns session, replica and rotation. Mount this bearer-borrowing arm only for the signed-in screen; close on session change. Use only generated ephemeral operations.
+
+```ts
+// src/useOnlineArm.ts
+import { useEffect, useState } from "react";
+import { createClient } from "snapback4/client";
+import type { Client } from "snapback4/contract";
+import { useClient, useSession } from "snapback4/react";
+
+// createApp alone owns session rotation. This short-lived arm borrows its
+// current bearer, closes on rotation/account change, and never signs it out.
+export function useOnlineArm(url: string): Client | null {
+  const owner = useClient(), session = useSession();
+  const token = session?.token;
+  const [arm, setArm] = useState<{ owner: Client; token: string; client: Client }>();
+  useEffect(() => {
+    if (!token) return;
+    const client = createClient({ url, token });
+    // Keep the arm alive through consumer cleanup (stopTyping). All signal
+    // calls have the SDK's bounded wait; closing early would cancel the stop.
+    const pending = new Set<Promise<unknown>>();
+    const mutate = client.mutate;
+    client.mutate = ((...args: Parameters<typeof mutate>) => {
+      const call = mutate(...args); pending.add(call);
+      void call.finally(() => pending.delete(call));
+      return call;
+    }) as typeof mutate;
+    setArm({ owner, token, client });
+    return () => { queueMicrotask(() => { void Promise.allSettled([...pending]).then(() => client.close()); }); };
+  }, [url, owner, token]);
+  return token && arm?.owner === owner && arm.token === token ? arm.client : null;
+}
+```
+
+The hook owns observations/renewals. Call change on keystrokes; stop on send, blur or backgrounding. Unmount/identity change dispose it. Disconnect cancels renewal; reconnect needs a new keystroke.
+Four-second expiry covers failed cleanup, suspension and revoked membership. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
+
+```ts
+// src/useTyping.ts
+import { useEffect, useRef, useState } from "react";
+import type { Client, Read, ResultOf } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+
+// @ref LLP 3000.028#8 — signals belong to a mounted, signed-in online arm.
+export function useTyping(online: Client | null, conversation: string) {
+  const [read, setRead] = useState<Read<ResultOf<typeof api.typingIn>>>({ loading: true });
+  const controls = useRef({ change: (_text: string) => {}, stop: () => {} });
+  useEffect(() => {
+    setRead({ loading: true });
+    if (!online) return;
+    let alive = true, active = false, touched = 0, generation = 0;
+    const stop = (cleanup = true) => {
+      generation++;
+      const wasActive = active; active = false;
+      if (wasActive && cleanup) void online.mutate(api.stopTyping, { conversation });
+    };
+    const renew = () => {
+      if (!active || online.link() !== "online") return;
+      const call = ++generation;
+      void online.mutate(api.setTyping, { conversation }).then(signal => {
+        // A late failure cannot cancel a newer renewal or a restarted lease.
+        if (alive && call === generation && signal.state === "failed") stop(false);
+      });
+    };
+    const owned = {
+      change(text: string) {
+        if (!text) { stop(); return; }
+        if (!alive || online.link() !== "online") return;
+        touched = Date.now(); active = true; renew();
+      },
+      stop: () => stop(),
+    };
+    controls.current = owned;
+    // No unbounded retention of a membership-sensitive hint.
+    const observation = online.observe(api.typingIn, { conversation }, { keep: false });
+    const publish = () => { if (alive) setRead(observation.getSnapshot()); };
+    const unsubscribe = observation.subscribe(publish); publish();
+    const unlink = online.onLink(link => {
+      if (link !== "online") { stop(false); setRead({ loading: true }); }
+      // Reconnect alone does not restart a lease. A new keystroke does.
+    });
+    const timer = setInterval(() => {
+      if (Date.now() - touched >= 2000) stop();
+      else renew();
+    }, 1000);
+    return () => {
+      alive = false; stop(); clearInterval(timer); unlink(); unsubscribe(); observation.close();
+      if (controls.current === owned) controls.current = { change: () => {}, stop: () => {} };
+    };
+  }, [online, conversation]);
+  return { read, change: (text: string) => controls.current.change(text), stop: () => controls.current.stop() };
+}
+```
+
+## Once-media handle ownership
+
+The stable viewer above the list owns this hook. Only an explicit Open action
+calls asset; render, revalidation and list remount never fetch it. Close and
+account change revoke the handle; a late result is revoked before publication.
+A second explicit open reaches the server and returns E_ASSET_VIEWED. Do not
+persist once bytes, refetch on remount, or treat retained text as a media grant.
+The point query in OnceViewer closes on a missing, denied or changed home row,
+not on loading. This starter has no message expiry or deletion; for expiring
+media keep its known deadline ticking through loading (`guide client`).
+
+```ts
+// src/useOnceMedia.ts
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useClient } from "snapback4/react";
+import type { AssetRead } from "snapback4/contract";
+
+type View = { id: string; url?: string; problem?: string } | null;
+// @ref LLP 3000.028#8 — one explicit open owns one handle, including late results.
+export function useOnceMedia() {
+  const client = useClient();
+  const [view, setView] = useState<View>(null);
+  const owner = useRef({ epoch: 0, opened: false, alive: false, handle: null as Exclude<AssetRead, { denied: unknown }> | null });
+  const release = useCallback(() => {
+    const state = owner.current;
+    state.epoch++; state.opened = false; state.handle?.revoke(); state.handle = null;
+  }, []);
+  const close = useCallback(() => { release(); setView(null); }, [release]);
+  useEffect(() => {
+    owner.current.alive = true;
+    return () => { owner.current.alive = false; release(); };
+  }, [client, release]);
+  async function open(id: string) {
+    const state = owner.current;
+    if (!state.alive || state.opened) return;
+    state.opened = true;
+    const epoch = ++state.epoch;
+    setView({ id });
+    try {
+      const result = await client.asset(id);
+      if (!state.alive || state.epoch !== epoch) {
+        if (!("denied" in result)) result.revoke();
+        return;
+      }
+      if ("denied" in result) setView({ id, problem: `${result.denied.code}: ${result.denied.message}` });
+      else { state.handle = result; setView({ id, url: result.url }); }
+    } catch (error) {
+      if (state.alive && state.epoch === epoch) setView({ id, problem: String(error) });
+    }
+  }
+  return { view, open, close };
+}
+```
+
+## A screen that survives revalidation
+
+The Router pins conversation to the URL ID, even after its inbox membership
+disappears. Mount this screen keyed by that ID within AppProvider. The composer
+and once viewer sit above transient query states. Room and history choose the
+SDK default: plain revalidation, inserts and non-policy updates retain; possible revocation bounds it to one second
+after the replacement attempt starts. Decorations withdraw immediately. No application state caches protected rows.
+Loading, refusal and retained history leave draft and focus owned by the same
+screen; identity reset still clears them. Revealing/consuming protected content
+needs a current answer. Queueing a durable write needs no membership answer:
+only `denied`, or `existence(member) === "absent"` when fresh and not revalidating, disables Send.
+Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; `useSeen(api.receiptFamilies.chat, { scope, through, active })` reports only visible confirmed seen
+positions. The starter passes foreground and navigation visibility explicitly.
+
+```tsx
+// src/Conversation.tsx
+import { matchRead, existence, isReady } from "snapback4/contract";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
+import { useClient, useSeen, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
+import { mintId } from "snapback4/client";
+import { IntentJournal, intentOutcome, type Intent, type Proposal } from "./intents";
+import { intentStorage } from "./intent-store";
+import type { Cursor, ResultOf, Write } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+import { useOnlineArm } from "./useOnlineArm";
+import { useTyping } from "./useTyping";
+import { useOnceMedia } from "./useOnceMedia";
+import { PhotoPicker } from "./ui";
+
+// @ref LLP 3000.028#8 — route and composer ownership do not follow query status.
+export function ConversationScreen({ conversation, url, visible = true, ownerKey = conversation, proposed, other }: { conversation: string; url: string; visible?: boolean; ownerKey?: string; proposed?: string; other?: string }) {
+  const viewer = useViewer();
+  return viewer ? <OwnedConversation key={JSON.stringify([url, viewer, ownerKey])} conversation={conversation} url={url} visible={visible} viewer={viewer} proposed={proposed} other={other} /> : null;
+}
+function OwnedConversation({ conversation, url, visible, viewer, proposed, other }: { conversation: string; url: string; visible: boolean; viewer: string; proposed?: string; other?: string }) {
+  const client = useClient(), link = useLink();
+  const online = useOnlineArm(url);
+  const typing = useTyping(online, conversation);
+  // SDK default: plain revalidation retains; change evidence is bounded.
+  // We never retain a previous answer in application state.
+  const room = useQuery(api.conversationScreen, { conversation });
+  const member = useQuery(api.receiptMember, { conversation }, { keep: false });
+  const pending = usePendingWrites(api.send);
+  const sending = useMutation(api.send);
+  const [draft, setDraft] = useState(""), [problem, setProblem] = useState("");
+  const [photo, setPhoto] = useState<string>();
+  const [selected, setSelected] = useState<{ message: string; asset: string }>();
+  const journal = useMemo(() => new IntentJournal(intentStorage, url, viewer,
+    () => client.viewer() === viewer && client.link() !== "signed-out"), [client, url, viewer]);
+  const [intents, setIntents] = useState<Intent[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const destinations = new Set([conversation, proposed, ...proposals.filter(p => p.canonical === conversation).map(p => p.proposed)]);
+  const [outcomes, setOutcomes] = useState<Record<string, Write>>({});
+  const [submitting, setSubmitting] = useState<string>();
+  const lifetime = useRef({ active: true, admitting: false });
+  useEffect(() => {
+    const owner = { active: true, admitting: false }; lifetime.current = owner;
+    return () => { owner.active = false; };
+  }, [journal]);
+  const restore = useCallback(() => {
+    try {
+      journal.prune();
+      const saved = journal.proposals(); setProposals(saved);
+      const ids = new Set([conversation, proposed, ...saved.filter(p => p.canonical === conversation).map(p => p.proposed)]);
+      setIntents(journal.read().filter(i => ids.has(i.args.conversation)));
+    }
+    catch (error) { setProblem(`Could not read saved sends: ${String(error)}`); }
+  }, [journal, conversation, proposed]);
+  useEffect(restore, [restore]);
+  const resolve = useCallback((other: string, canonical: string) => {
+    try { journal.resolve(other, canonical); restore(); }
+    catch (error) { setProblem(`Could not save conversation association: ${String(error)}`); }
+  }, [journal, restore]);
+  const dismiss = useCallback((id: string) => {
+    try {
+      journal.forget(id); restore();
+      setOutcomes(saved => { const next = { ...saved }; delete next[id]; return next; });
+    }
+    catch (error) { setProblem(String(error)); }
+  }, [journal, restore]);
+  const currentMember = isReady(member) && member.existence === "present" && !member.revalidating;
+  // Custody is not authority: only a confirmed absence/refusal blocks a send.
+  const canSend = matchRead(member, { denied: () => false, absent: read => !read.fresh || !!read.revalidating, partial: () => true, otherwise: () => true });
+  useEffect(() => { setSelected(undefined); }, [conversation]);
+  useEffect(() => { if (!visible) typing.stop(); }, [visible]);
+  async function send() {
+    const owner = lifetime.current;
+    if (!owner.active || owner.admitting || !canSend || (!draft.trim() && !photo)) return;
+    const intent: Intent = { id: mintId(), args: { conversation, text: draft, photo: photo ? { id: photo } : null } };
+    // UI references are saved before dispatch; only the SDK owns replay.
+    try { journal.remember(intent, conversation === proposed ? other : undefined); setProposals(journal.proposals()); }
+    catch (error) { setProblem(`Not sent; draft kept: ${String(error)}`); return; }
+    owner.admitting = true; setSubmitting(intent.id); typing.stop(); setProblem("");
+    setIntents(saved => [...saved, intent]); setDraft(""); setPhoto(undefined);
+    try {
+      const write = await sending.run(intent.args, { id: intent.id, waitSeconds: 0 });
+      if (owner.active) setOutcomes(saved => ({ ...saved, [intent.id]: write }));
+    } catch (error) { if (owner.active) setProblem(`Outcome unknown: ${String(error)}`); }
+    finally { if (owner.active) { owner.admitting = false; setSubmitting(undefined); } }
+  }
+  return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
+    {proposals.some(p => !p.canonical) && <ResolveProposal conversation={conversation} resolve={resolve} />}
+    <Text accessibilityRole="header">{matchRead(room, { present: data => data.title, denied: () => "Conversation", partial: () => "Conversation", otherwise: () => "Conversation" })}</Text>
+    <Text>{matchRead(room, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{link}</Text>
+    {/* Composer lives above every transient read and the recycled message list. */}
+    <TextInput testID="composer" accessibilityLabel="Message" value={draft} multiline
+      onChangeText={text => { setDraft(text); typing.change(text); }} onBlur={typing.stop} />
+    <Button title="Send" disabled={!canSend || !!submitting} onPress={() => void send()} />
+    <PhotoPicker title={photo ? "Replace once photo" : "Attach once photo"} onUploaded={setPhoto} />
+    {photo && <Button title="Remove attachment" onPress={() => setPhoto(undefined)} />}
+    <Text>{problem}</Text>
+    {intents.map(intent => <SendSettlement key={intent.id} intent={intent} outcome={outcomes[intent.id]}
+      submitting={submitting === intent.id} dismiss={dismiss} edit={args => {
+        setDraft(current => current ? `${current} ${args.text}` : args.text);
+        setPhoto(current => args.photo?.id ?? current);
+      }} attachmentBusy={!!photo} />)}
+    <Text>{pending.filter(write => destinations.has(write.args.conversation)).length} pending sends</Text>
+    {!canSend && <Text>You are no longer a member. Your draft stays here.</Text>}
+    {canSend && (!currentMember || ("data" in member && !member.fresh)) && <Text>Membership is being checked. You can queue a message.</Text>}
+    <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
+    {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
+    <History key={conversation} conversation={conversation} visible={visible} select={setSelected} />
+  </View>;
+}
+
+// One reverse lookup for this route, regardless of how many other peers have saved sends.
+// Keys are immutable identity references; they confer no membership authority.
+function ResolveProposal({ conversation, resolve }: { conversation: string; resolve(other: string, canonical: string): void }) {
+  const pair = useQuery(api.directPeer, { conversation });
+  const other = "data" in pair && !pair.revalidating && pair.data && !pair.data.pending ? pair.data.peer : null;
+  useEffect(() => { if (other) resolve(other, conversation); }, [other, conversation, resolve]);
+  return null;
+}
+
+function SendSettlement({ intent, outcome, submitting, dismiss, edit, attachmentBusy }: {
+  intent: Intent; outcome?: Write; submitting: boolean; dismiss(id: string): void;
+  edit(args: Intent["args"]): void; attachmentBusy: boolean;
+}) {
+  const receipt = usePendingWrite(api.send, intent.id);
+  const write = receipt.last && receipt.last.state !== "pending" ? receipt.last : outcome ?? receipt.last;
+  useEffect(() => { if (write?.state === "sent") dismiss(intent.id); }, [write?.state, intent.id, dismiss]);
+  if (write?.state === "sent") return null;
+  const checking = !write && receipt.restoring;
+  const actionable = !submitting && !checking && write?.state !== "pending";
+  return <View testID={`send-${intent.id}`}>
+    <Text>{submitting ? "Saving…" : checking ? "Checking…" : intentOutcome(write)}</Text>
+    {actionable && <Text>{intent.args.text}{intent.args.photo ? " · Attached once photo" : ""}</Text>}
+    {actionable && write?.state === "failed" && <Button title="Edit unsent message"
+      disabled={attachmentBusy && !!intent.args.photo} onPress={() => edit(intent.args)} />}
+    {actionable && <Button title="Dismiss" onPress={() => dismiss(intent.id)} />}
+  </View>;
+}
+
+type HistoryProps = { conversation: string; visible: boolean; select(value: { message: string; asset: string }): void };
+function History(props: HistoryProps) {
+  const [depth, setDepth] = useState(1);
+  return <HistoryPage {...props} c={null} depth={depth} older={() => setDepth(n => n + 1)} prior={[]} />;
+}
+// Each receipt page uses its history page's cursor and index. No saved answers:
+// a changed boundary replaces the suffix; decorations never gate the transcript.
+function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: Cursor | null; depth: number; older(): void; prior: string[] }) {
+  const history = useQuery(api.history, { conversation: props.conversation, c });
+  const receipts = useQuery(api.messageReceipts, { conversation: props.conversation, c }, { keep: false });
+  const [viewed, setViewed] = useState<Set<string>>(() => new Set());
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<ResultOf<typeof api.history>[number]>[] }) => {
+    setViewed(new Set(viewableItems.filter(item => item.isViewable).map(item => item.item.id)));
+  }, []);
+  const rows = useMemo(() => "data" in history ? history.data.filter(row => !prior.includes(row.id)) : [], [history, JSON.stringify(prior)]);
+  const newest = Math.max(0, ...rows.filter(row => !row.pending && viewed.has(row.id)).map(row => row.ordinal));
+  useSeen(api.receiptFamilies.chat, { scope: props.conversation, through: newest, active: props.visible });
+  const byId = new Map("data" in receipts ? receipts.data.map(row => [row.id, row.receipt]) : []);
+  const next = "data" in history ? history.next : null;
+  return <View>
+    <Text>{matchRead(history, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{matchRead(receipts, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
+    {"data" in history && <FlatList testID={c ? `history-${c}` : "history"} data={rows} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
+      renderItem={({ item: row }) => <View testID={`message-${row.id}`}>
+        <Text>{row.text}{row.pending ? " · Sending…" : byId.has(row.id) ? ` · ${byId.get(row.id)}` : ""}</Text>
+        {row.photo && <Button title="View once photo" onPress={() => props.select({ message: row.id, asset: row.photo!.id })} />}
+      </View>} />}
+    {next && depth > 1 ? <HistoryPage key={next} {...props} c={next} depth={depth - 1} older={older} prior={[...prior, ...rows.map(row => row.id)]} /> :
+      <Button title="Older messages" disabled={!next} onPress={older} />}
+  </View>;
+}
+
+export function OnceViewer({ message, asset, onClose }: { message: string; asset: string; onClose(): void }) {
+  const media = useOnceMedia();
+  const row = useQuery(api.messagePhoto, { id: message }, { keep: false });
+  const invalid = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && row.data.photo?.id !== asset);
+  const ended = useRef(false); ended.current ||= invalid;
+  useEffect(() => { if (invalid) { media.close(); onClose(); } }, [invalid, media.close, onClose]);
+  return <View testID="once-viewer">
+    <Button title="Close photo" onPress={() => { media.close(); onClose(); }} />
+    {media.view?.url ? <Image accessibilityLabel="Once photo" source={{ uri: media.view.url }} style={{ width: 240, height: 240 }} /> :
+      <Button title="Open media" disabled={!!media.view || ended.current || !isReady(row) || row.existence !== "present" || row.revalidating} onPress={() => void media.open(asset)} />}
+    <Text>{media.view?.problem}</Text>
+  </View>;
+}
+```
+
+## Quoted messages beyond the history page
+
+Mount `QuotedMessage` with the referenced message ID, even when it is outside the
+loaded history page. The starter's `messagePhoto` point query returns the whole
+message. Loading keeps a stable placeholder; only `absent` says unavailable.
+`partial` is uncertain coverage, never absence; `denied` hides the quote.
+Table rules may hide rows as absence: neither state proves deletion. No old
+quote is cached across withdrawal. Test by holding the point read before settling it.
+
+```tsx
+// src/QuotedMessage.tsx
+import { Text, View } from "react-native";
+import { matchRead, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+
+// @ref LLP 3000.031#7 — only the SDK's absent state proves a missing quote.
+export function QuotedMessage({ id }: { id: string }) {
+  // messagePhoto is the starter's whole-message point read, including text.
+  const read = useQuery(api.messagePhoto, { id });
+  const text = matchRead(read, {
+    loading: () => "Loading quoted message…",
+    denied: () => "Quoted message hidden",
+    absent: () => "Quoted message unavailable",
+    partial: () => "Quoted message not yet known",
+    present: message => message.text,
+  });
+  return <View style={{ minHeight: 40, padding: 8 }}><Text>{text}</Text></View>;
+}
+```
+
+## Bounded route-owned alternative
+
+The installed `BoundedConversation` keeps its draft outside an active route
+child. Supply `active={focused && foreground}` from PinnedConversation. Backend,
+account, client and conversation changes reset the shell; the shared root marker
+resets page/identity owners at every hard withdrawal, including generation changes.
+It stores no answer or cursor. Three requested pages, at most 20 row-body readers,
+and current point bodies give the example an explicit observation bound.
+The full Conversation above also supplies saved-send recovery and receipts.
+
+```ts
+// src/PageLifetime.ts
+import type { Client, Observed, Query } from "snapback4/contract";
+
+// @ref LLP 3000.023#13 — a recipe owner marker, never an answer or cursor cache.
+// The root watch is shared with usePage. Observe every withdrawal synchronously,
+// even if React batches loading and its replacement into a single render.
+export class PageLifetime<A, R> {
+  private observed: Observed<R> | undefined;
+  private stop: (() => void) | undefined;
+  private listeners = new Set<() => void>();
+  private snapshot = { epoch: 0, ready: false };
+  constructor(private client: Client, private op: Query<A, R>, private args: A) {}
+  private read = () => {
+    const ready = !!this.observed && "data" in this.observed.getSnapshot();
+    if (ready !== this.snapshot.ready) {
+      this.snapshot = { epoch: this.snapshot.epoch + Number(!ready), ready };
+      for (const notify of this.listeners) notify();
+    }
+  };
+  getSnapshot = () => { this.read(); return this.snapshot; };
+  subscribe = (notify: () => void) => {
+    this.listeners.add(notify);
+    if (!this.observed) {
+      this.observed = this.client.observe(this.op, this.args);
+      this.stop = this.observed.subscribe(this.read);
+      this.read();
+    }
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      this.listeners.delete(notify);
+      if (!this.listeners.size) {
+        this.stop?.(); this.stop = undefined;
+        this.observed?.close(); this.observed = undefined;
+        this.read();
+      }
+    };
+  };
+}
+```
+
+```tsx
+// src/BoundedConversation.tsx
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Button, Text, TextInput, View } from "react-native";
+import { matchRead, isReady } from "snapback4/contract";
+import { useClient, useMutation, usePage, useQuery, useViewer } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+import { PageLifetime } from "./PageLifetime";
+import { OnceViewer } from "./Conversation";
+
+// @ref LLP 3000.023#13 — route ownership and a bounded identity-only window.
+// This small alternative screen intentionally renders at most 20 message bodies
+// from at most three requested pages. Composer intent stays outside read owners.
+export function BoundedConversation({ backend, conversation, active }: {
+  backend: string; conversation: string; active: boolean;
+}) {
+  const client = useClient(), viewer = useViewer();
+  const key = JSON.stringify([backend, viewer, conversation]);
+  const [owner, setOwner] = useState({ client, key, epoch: 0 });
+  // Reset before committing children, including replacement at the same URL.
+  if (owner.client !== client || owner.key !== key) setOwner({ client, key, epoch: owner.epoch + 1 });
+  return <ClientOwner key={owner.epoch} conversation={conversation} active={active} />;
+}
+function ClientOwner({ conversation, active }: { conversation: string; active: boolean }) {
+  const client = useClient(), viewer = useViewer(), send = useMutation(api.send);
+  const [draft, setDraft] = useState("");
+  const [submitted, setSubmitted] = useState<{ id: string; text: string }>();
+  const [refused, setRefused] = useState<{ text: string; message: string }>();
+  const alive = useRef(false);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    if (submitted && send.last?.id === submitted.id && send.last.state === "failed") {
+      setDraft(current => current || submitted.text);
+      setRefused({ text: submitted.text, message: send.last.why.message });
+    }
+  }, [submitted, send.last]);
+  async function submit() {
+    const text = draft; setDraft(""); setSubmitted(undefined); setRefused(undefined);
+    const result = await send.run({ conversation, text, photo: null }, { waitSeconds: 0 });
+    if (!alive.current || client.viewer() !== viewer) return;
+    setSubmitted({ id: result.id, text });
+  }
+  return <View><TextInput accessibilityLabel="Message draft" value={draft} onChangeText={setDraft} />
+    {refused && <View><Text>{refused.message}</Text><Button title="Edit refused send" onPress={() => {
+      setDraft(refused.text); setRefused(undefined);
+    }} /></View>}
+    {active && <LiveConversation conversation={conversation} canSend={!send.inFlight && !!draft.trim()} submit={submit} />}
+  </View>;
+}
+function LiveConversation({ conversation, canSend, submit }: { conversation: string; canSend: boolean; submit(): Promise<void> }) {
+  const client = useClient();
+  const member = useQuery(api.receiptMember, { conversation }, { keep: false });
+  const blocked = matchRead(member, { denied: () => true, absent: read => read.fresh && !read.revalidating, partial: () => false, otherwise: () => false });
+  const lifetime = useMemo(() => new PageLifetime(client, api.history, { conversation, c: null }), [client, conversation]);
+  const scope = useSyncExternalStore(lifetime.subscribe, lifetime.getSnapshot, lifetime.getSnapshot);
+  return <View>
+    <Button title="Send" disabled={blocked || !canSend} onPress={() => void submit()} />
+    {scope.ready ? <IdentityHistory key={scope.epoch} conversation={conversation} /> : <Text>History unavailable</Text>}
+  </View>;
+}
+function IdentityHistory({ conversation }: { conversation: string }) {
+  const page = usePage(api.history, { conversation });
+  const [pages, setPages] = useState(1), [start, setStart] = useState(0);
+  const [selected, select] = useState<{ message: string; asset: string }>();
+  const offset = Math.min(start, Math.max(0, page.items.length - 20));
+  const ids = page.items.slice(offset, offset + 20).map(row => row.id);
+  return <View>
+    {ids.map(id => <MessageBody key={id} id={id} select={select} />)}
+    <Button title="Previous rows" disabled={!offset} onPress={() => setStart(Math.max(0, offset - 20))} />
+    <Button title="Next rows" disabled={offset + 20 >= page.items.length} onPress={() => setStart(offset + 20)} />
+    <Button title="Older page" disabled={pages >= 3 || !page.hasMore} onPress={() => { setPages(pages + 1); page.loadMore(); }} />
+    {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => select(undefined)} />}
+  </View>;
+}
+function MessageBody({ id, select }: { id: string; select(value: { message: string; asset: string }): void }) {
+  const read = useQuery(api.messagePhoto, { id }, { keep: false });
+  if (!isReady(read) || read.existence !== "present") return <Text>Message unavailable</Text>;
+  return <View><Text>{read.data.text}</Text>
+    {read.data.photo && <Button title="Select photo" disabled={read.revalidating === true} onPress={() => {
+      if (!read.revalidating && read.data.photo) select({ message: id, asset: read.data.photo.id });
+    }} />}
+  </View>;
+}
+```
+
+## Direct messages and route resolution
+
+Profile's Message button opens `app/dm/[other].tsx`, which mounts `src/Direct.tsx`.
+It waits for a complete, non-revalidating lookup; loading never means absence.
+`directChats` holds two immutable unique `(owner, peer)` rows per DM, synced to
+owner without a horizon. Each participant can resolve their held DMs offline,
+even after leaving; the ID grants no content access or new membership.
+`openDirect` checks the caller's key and inserts both keys and memberships in
+one server transaction. Concurrent opens return the same ID. With acquired coverage,
+the scope, memberships and keys predict together; history shows pending sends in
+compose order. Server settlement chooses the canonical ID and message order (guide receipts).
+Before creating, the resolver awaits the durable pending-write list: the hook's initial empty snapshot is still loading.
+
+```tsx
+// src/Direct.tsx
+import { useEffect, useRef, useState } from "react";
+import { Text } from "react-native";
+import { router } from "expo-router";
+import { mintId } from "snapback4/client";
+import { useClient, usePendingWrites, useQuery, useViewer } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+import { matchRead } from "snapback4/contract";
+import { url } from "./client";
+
+// @ref LLP 3000.028#8 — resolve once into navigation; never cache protected answers.
+export default function Direct({ other }: { other: string }) {
+  const viewer = useViewer();
+  return viewer ? <Resolve key={JSON.stringify([url, viewer, other])} other={other} /> : null;
+}
+function Resolve({ other }: { other: string }) {
+  const client = useClient(), read = useQuery(api.directConversation, { other });
+  const pending = usePendingWrites(api.openDirect);
+  const creation = pending.find(write => write.args.other === other);
+  const started = useRef(false), alive = useRef(true);
+  const [problem, setProblem] = useState("");
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    if (started.current || !("data" in read) || read.revalidating || !read.complete) return;
+    if (read.data?.pending && !creation) return; // Restore the pending opening ID before navigating.
+    started.current = true;
+    if (read.data) {
+      router.replace({ pathname: "/conversation/[id]", params: { id: read.data.conversation,
+        ...(creation ? { opening: creation.id, proposed: creation.args.id, other } : {}),
+      } });
+      return;
+    }
+    if (creation) {
+      router.replace({ pathname: "/conversation/[id]", params: {
+        id: creation.args.id, opening: creation.id, proposed: creation.args.id, other,
+      } });
+      return;
+    }
+    void (async () => {
+      // The hook starts empty while restoring. Await custody before creating.
+      const restored = ((await client.pendingWrites()).filter(write => write.op === api.openDirect.name) as typeof pending)
+        .find(write => write.args.other === other);
+      if (!alive.current) return;
+      if (restored) {
+        router.replace({ pathname: "/conversation/[id]", params: {
+          id: restored.args.id, opening: restored.id, proposed: restored.args.id, other,
+        } });
+        return;
+      }
+      const id = mintId(), opening = mintId();
+      // A complete absent lookup permits this attempt. Only the SDK replays it.
+      const write = await client.mutate(api.openDirect, { id, other }, { id: opening, waitSeconds: 0 });
+      if (!alive.current) return;
+      if (write.state === "failed") { setProblem(write.why.message); return; }
+      router.replace({ pathname: "/conversation/[id]", params: {
+        id: write.state === "sent" && write.result ? write.result : id, opening, proposed: id, other,
+      } });
+    })().catch(error => { if (alive.current) setProblem(`Opening outcome unknown: ${String(error)}`); });
+  }, [client, other, read, creation]);
+  return <><Text>{matchRead(read, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text><Text>{problem || "Opening direct message…"}</Text></>;
+}
+```
+
+After custody, navigation pins the minted conversation ID with the opening write
+ID. `app/conversation/[id].tsx` observes that write and the replicated lookup:
+a replay may lack a result. Settlement uses `router.setParams({ id })` to replace
+the URL ID without replacing the screen. Its `opening` key keeps the composer;
+history changes keys and reads current rows. No answer is cached in a ref.
+An offline send to a provisional ID may be refused if the server chose another
+conversation; saving the send also saves its peer in account/backend-scoped storage.
+One lookup by the current conversation resolves its links on reopen, showing Edit/Dismiss.
+The last send's success or dismissal removes its link; openings alone save none. Admitted arguments stay unchanged.

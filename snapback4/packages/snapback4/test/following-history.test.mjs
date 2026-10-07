@@ -52,7 +52,7 @@ async function fixture(t,rows=[],bounded=true,transform=s=>s) {
   const generated=await fetch(url+'/api.ts',{headers:{'x-snapback-persona':'reader'}}).then(r=>r.text());
   assert.match(generated,/cards: FollowingQuery/);assert.match(generated,/following: \{"declaration":"feed","pageSize":20,"cursor":"c"\}/);
   const mutate=async(name,args,persona='reader')=>{const r=await send('/m/'+name,{args},persona);assert.equal(r.state,'sent',JSON.stringify(r));return r};
-  const open=async(tier='online',configure=()=>{})=>{
+  const open=async(tier='online',configure=()=>{},args={c:null})=>{
     const control={offline:false,followingCalls:0,requests:[],dropUnit:false,holdUnit:undefined};
     configure(control);
     const doFetch=async(input,init)=>{
@@ -70,7 +70,7 @@ async function fixture(t,rows=[],bounded=true,transform=s=>s) {
     if(tier==='online')client=createClient({url,persona:'reader',fetch:doFetch});
     else client=await createLocalClient({url,persona:'reader',fetch:doFetch,device:tier==='wasm'?webDevice({wasm:readFileSync(join(root,'packages/snapback4/src/wasm/snapback4_device_bg.wasm')),persist:memoryPersistence()}):processDevice({binary,dir:join(dir,`device-${clients.length}`)})});
     clients.push(client);
-    const history=new Following(client,op,{c:null});
+    const history=new Following(client,op,args);
     stops.push(history.subscribe(()=>{}));
     return {client,history,control,get:history.getSnapshot};
   };
@@ -210,6 +210,8 @@ test('Following refuses read sessions before custody, while an ordinary inbox re
   }
   const inbox=await ro.query(op,{c:null});assert.ok('data' in inbox);
   assert.equal(matchRead(inbox,{present:()=> 'inbox',absent:()=> 'inbox',partial:()=> 'partial',denied:()=> 'denied',loading:()=> 'loading'}),'inbox');
+  assert.equal(app.online.readOnly,true);
+  assert.ok('data' in await app.online.query(op,{c:null}),'read-only online arm keeps ordinary inbox access');
   assert.equal(requests.some(p=>p.startsWith('/following/')),false);
   assert.equal(snapshot(),before);
   // A raw read credential cannot bypass the server allow-list, even without
@@ -295,4 +297,54 @@ test('one card can reauthorize more fields than a single witness permits',{timeo
     assert.ok(Buffer.byteLength(JSON.stringify(r.request))<=64*1024);
   }
   assert.equal(new Set(h.get().items.map(x=>x.id)).size,40);
+});
+
+test('witness fragments include query arguments at and beyond the 64 KiB envelope boundary',{timeout:hangBudget(20)},async t=>{
+  const fields=Array.from({length:120},(_,n)=>`  extra${String(n).padStart(3,'0')}: int default 0`).join('\n');
+  const f=await fixture(t,[post('one','reader',1)],true,s=>s.replace('table posts:','table posts:\n'+fields)
+    .replace('query cards(c: cursor ?):','query cards(c: cursor ?, padding: text <=65000):')
+    .replace('return feed last 20 by .at after c { *, post: posts[.post] }','return feed last 20 by .at after c { *, post: posts[.post], label: padding }'));
+  const prefix='é"\\',probeArgs={c:null,padding:prefix};
+  const opened=await f.send('/following/cards',{action:'open',args:probeArgs});
+  const unit=await f.send('/following/cards',{action:'unit',opening:opened.opening,args:probeArgs});
+  assert.equal(unit.items[0].kind,'shaped');assert.equal(unit.items[0].authority.length,1);
+  const mounted=[{id:'one',live:false,authority:unit.items[0].authority}];
+  const envelope=args=>({action:'refresh',opening:opened.opening,mounted,args});
+  const room=65536-Buffer.byteLength(JSON.stringify(envelope(probeArgs)));
+  await f.send('/following/cards',{action:'cancel',opening:opened.opening,args:probeArgs});
+  for(const extra of [0,1,64400-prefix.length-room]){
+    const args={c:null,padding:prefix+'x'.repeat(room+extra)};
+    const unsplit=Buffer.byteLength(JSON.stringify(envelope(args)));
+    assert.equal(unsplit,65536+extra);
+    const h=await f.open('online',()=>{},args);await page(h);
+    assert.equal(h.get().items[0].label,args.padding);assert.equal(h.get().items.length,1);
+    const refreshes=h.control.requests.filter(r=>r.request.action==='refresh'&&r.request.mounted.length);
+    assert.equal(refreshes.length,extra===0?1:2,'only an envelope that crosses the allowance needs another fragment');
+    assert.ok(h.control.requests.every(r=>Buffer.byteLength(JSON.stringify(r.request))<=65536));
+    assert.ok(refreshes.every(r=>r.response.visible.includes('one')));
+    if(extra===0)assert.equal(Buffer.byteLength(JSON.stringify(refreshes[0].request)),65536);
+    await h.client.close();
+  }
+});
+
+for(const tier of ['online','wasm'])test(`Following and the ${tier} app online arm preserve independent fences through rotation`,{timeout:hangBudget(25)},async t=>{
+  const f=await fixture(t),requests=[];
+  const app=createApp({url:f.url,...(tier==='wasm'?{device:webDevice({wasm:readFileSync(join(root,'packages/snapback4/src/wasm/snapback4_device_bg.wasm')),persist:memoryPersistence()})}:{}),
+    fetch:async(input,init)=>{if(new URL(input).pathname.startsWith('/following/'))requests.push(JSON.parse(init.body));return fetch(input,init)}});
+  t.after(()=>app.close());await app.ready;assert.ok((await app.auth.guest()).ok);
+  assert.notEqual((await app.mutate({kind:'mutation',name:'post'},{postId:'owned',parentId:null})).state,'failed');
+  const history=new Following(app.client,op,{c:null});t.after(history.subscribe(()=>{}));
+  await waitFor(()=>{assert.notEqual(history.getSnapshot().phase,'refused',JSON.stringify(history.getSnapshot()));return history.getSnapshot().items[0]?.id==='owned'},'Following through the app facade');
+  const arm=app.online;assert.equal((await arm.query(op,{c:null})).data[0].id,'owned');
+  const opens=requests.filter(r=>r.action==='open').length;
+  assert.ok((await app.client.refreshSession()).ok);assert.notEqual(app.online,arm);
+  assert.equal((await arm.query(op,{c:null})).denied.code,'E_AUTH');
+  await waitFor(()=>requests.filter(r=>r.action==='open').length>opens&&history.getSnapshot().items[0]?.id==='owned','Following restarts its own revision after rotation');
+  assert.equal((await app.online.query(op,{c:null})).data[0].id,'owned');
+  const own=app.mutate({kind:'mutation',name:'post'},{postId:'pending',parentId:null},{waitSeconds:0});
+  assert.equal(history.getSnapshot().items.length,0,'own-write fence remains ahead of history even with an online arm');
+  assert.notEqual((await own).state,'failed');
+  await waitFor(()=>history.getSnapshot().items.length===2,'own post observed through its original facade');
+  await app.auth.logout();assert.equal(history.getSnapshot().items.length,0);
+  assert.equal((await app.online.query(op,{c:null})).denied.code,'E_AUTH');
 });

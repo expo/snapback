@@ -8,6 +8,12 @@ class SourceAuditRefused(RuntimeError):
     pass
 
 def audit(work, attempt, name='source-audit', gating=True, env=None):
+    try: return run_audit(work, attempt, name, gating, env)
+    except (SourceAuditRefused, HarnessDefect): raise
+    except Exception as error:
+        raise HarnessDefect('source-auditor-infrastructure:' + str(error)) from error
+
+def run_audit(work, attempt, name='source-audit', gating=True, env=None):
     target = attempt / name; target.mkdir()
     backend = read(work / 'native-operator.json')['bundleId'].rsplit('.', 1)[-1]
     inputs = audit_inputs(env if env is not None else execution_environment(backend))
@@ -43,6 +49,12 @@ source. Trace such behavior against the supplied fixed values, not hypothetical
 operator choices. Driver stdin origins come from the same fixed origin above.
 Initial generated files may precede relocation; record those findings. The
 prepared-source audit must establish regenerated build inputs are custody-bound.
+ios/.xcode.env.local is a CocoaPods-generated machine-local file, operator-regenerated
+with the exact pinned NODE_BINARY before this audit and the Release build. Its
+original content/hash and replacement are retained in the attempt's xcode-env
+receipts. Treat this one file as operator setup, not authored substitution.
+Verify its present value matches the fixed NODE_BINARY above. Continue auditing
+authored .xcode.env, build scripts and every other substitution normally.
 This audit stage is {name}. If prepared-source-audit, inspect the generated
 iOS project and build phases too; no prebuilt app may substitute for compilation
 of this custody source. Reject source copies from other apps or paths.
@@ -112,7 +124,7 @@ Output only the required JSON. No scores.
         '--json', '--color', 'never', '-m', 'gpt-6-astra', '-c', 'model_reasoning_effort=medium',
         '-c', 'features.multi_agent=false', '-C', str(work), '--output-schema', str(target / 'schema.json'),
         '-o', str(target / 'review.json'), '-']
-    start = time.time(); proc = None; code = None
+    start = time.time(); proc = None; code = None; cleanup = []
     before = inventory(work)
     try:
         with (target / 'prompt.md').open() as inp, (target / 'transcript.ndjson').open('xb') as out, (target / 'stderr.log').open('xb') as err:
@@ -120,12 +132,13 @@ Output only the required JSON. No scores.
             put(target / 'start.json', {'at': start, 'pid': proc.pid, 'argv': argv, 'clock': 'operator-source-review'})
             code = proc.wait(timeout=900)
     finally:
-        stop(proc)
+        cleanup_call(cleanup, 'source-auditor', lambda: stop(proc))
         put(target / 'end.json', {'at': time.time(), 'exitCode': proc.returncode if proc else None,
-                                'wallSeconds': time.time() - start})
+                                'wallSeconds': time.time() - start, 'cleanupErrors': cleanup})
+    require_cleanup(cleanup)
     if inventory(work) != before: raise RuntimeError('source-changed-during-read-only-audit')
     put(target / 'source-binding.json', before)
-    if code != 0: raise RuntimeError('independent-source-auditor-unavailable')
+    if code != 0: raise HarnessDefect('independent-source-auditor-unavailable')
     review = read(target / 'review.json')
     fields = [k for k in schema['required'] if k not in ['citations', 'findings']]
     qualified = all(review.get(k) is True for k in fields) and bool(review.get('citations'))

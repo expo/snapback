@@ -1,0 +1,27 @@
+{
+  "revision": 11,
+  "at": 1791362432.7822568,
+  "authority": "Lane P3 Round 2 user ruling",
+  "originalPacketSha256": "49d5c69fe131256b34da9dcd07bff065359adc05b17cd7c30ec301b2dfef9e45",
+  "previousPacketSha256": "b83eed3bc825b49cf042400272a5e01070b4dd19b512c9930d4f051baba99046",
+  "harnessDiffSha256": "19f8a9a8aafab7ebfe440799eeed6ea77babf7c0b715b57bda53f5458ed77999",
+  "reclassification": {
+    "path": "attempts/convex-environment-leak-reclassified/RECLASSIFICATION.json",
+    "sha256": "b7a01b5a0d968ae097194ae2e474a1586b1688f0d707151e72939ec6e9052846"
+  },
+  "sourceFiles": {
+    "scripts/isolation.py": "a66711d1ed720fb722d9418ead24ea9e507a4d4b8089fb7e60789b1541576d8c",
+    "scripts/environment_selftest.py": "6ade9fac48342ce20c8ac635225b9ff17d266f3598ad9f33e215862a27a616e3",
+    "scripts/audit.py": "83c973cb5362877f5bbd70ff97e7d8e86bfb81946ec52f216c06ee57181160f8",
+    "scripts/operator_inputs.py": "67681fbf5bbf893a97b20359baad56c69a08da9cd71da8cb5561a3a59d8df686",
+    "scripts/seal.py": "2afbe58f9ffd98fbc1deaf07b3913d36383f80cb9c4493a30c54bdc9a5f8fd4c",
+    "scripts/chain.py": "ca7d21ab4ee51e3f1f8f20d6c06d6cbc39b88c87bc17117fd601bf90f024e76e",
+    "scripts/xcode_environment.py": "c4785cbc90ae2256b6bc354a69fadaaf07bdabb9180cb7e5f0c0b42ba012d519",
+    "scripts/after.py": "df84bf469f2cd21edaac3962d93af49924434615831ca722b28372323c97d23a",
+    "scripts/selftest.py": "dd7cdedef27825e48ed1ecfe11ae73549b1708679e1a61309722c02fe956c5ef",
+    "scripts/environment_recovery.py": "bd6c825456ef3bbdc9db622f11388819f4b160bf1743317bee31fb0877b73eae",
+    "scripts/verify.py": "71a448457623b21bb7168b71f233fb92c1a96caa550f7ec034ea8df3e8225165"
+  },
+  "symmetrySha256": "75d6504dba89a5f892561635fb3c83dd2ec3a765c6ed286e4d9ec9ebeb20e0ca",
+  "shellProbesSha256": "528b0edf34601d11e6a58ce2839da2dbc1895d5c6dadeb542f86331bed1c5fb3"
+}

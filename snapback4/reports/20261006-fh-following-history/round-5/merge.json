@@ -1,0 +1,13 @@
+{
+  "lane_parent": "33321fe56807b0d7f61e8609ed42cbf1e991aebf",
+  "main_parent": "b14888f7632bf5fe60b61a640dd23e732797974e",
+  "method": "merge --no-commit --no-ff (no rebase)",
+  "conflicts": [
+    "llp/3000.033-read-only-client-mode.rfc.md",
+    "snapback4/JOURNAL.md",
+    "snapback4/packages/snapback4/src/client.ts",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs"
+  ],
+  "resolution": "Retain both document/journal additions and await classifications; regenerate boundary; preserve OA armRequest and FH AbortSignal in POST dispatch."
+}

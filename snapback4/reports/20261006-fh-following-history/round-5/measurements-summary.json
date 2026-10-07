@@ -1,0 +1,140 @@
+[
+  {
+    "kind": "metadata",
+    "corpus": "sparse-1100",
+    "samples": 7,
+    "first_page_median_us": 995,
+    "later_page_median_us": 978,
+    "preparation_requests": [
+      0
+    ],
+    "events": [
+      1101
+    ],
+    "max_storage_bytes": 97924,
+    "total_meter": {
+      "examined": 13884,
+      "heap_bytes": 161431792,
+      "index_entries": 1325,
+      "output_bytes": 120462,
+      "rows_written": 280,
+      "rule_probes": 6830,
+      "steps": 447872
+    }
+  },
+  {
+    "kind": "metadata",
+    "corpus": "sparse-50000",
+    "samples": 7,
+    "first_page_median_us": 1064,
+    "later_page_median_us": 1046,
+    "preparation_requests": [
+      0
+    ],
+    "events": [
+      1101
+    ],
+    "max_storage_bytes": 97924,
+    "total_meter": {
+      "examined": 13884,
+      "heap_bytes": 161431792,
+      "index_entries": 1325,
+      "output_bytes": 120462,
+      "rows_written": 280,
+      "rule_probes": 6830,
+      "steps": 447872
+    }
+  },
+  {
+    "kind": "metadata",
+    "corpus": "follows-8200",
+    "samples": 7,
+    "first_page_median_us": 200207,
+    "later_page_median_us": 828,
+    "preparation_requests": [
+      5
+    ],
+    "events": [
+      8200
+    ],
+    "max_storage_bytes": 17087232,
+    "total_meter": {
+      "examined": 167033,
+      "heap_bytes": 999565612,
+      "index_entries": 24602,
+      "output_bytes": 919788,
+      "rows_written": 2745,
+      "rule_probes": 65602,
+      "steps": 4942848
+    }
+  },
+  {
+    "kind": "shaped",
+    "corpus": "sparse-1100",
+    "samples": 7,
+    "first_page_median_us": 1517,
+    "later_page_median_us": 1464,
+    "preparation_requests": [
+      0
+    ],
+    "events": [
+      1101
+    ],
+    "max_storage_bytes": 299636,
+    "total_meter": {
+      "examined": 16086,
+      "heap_bytes": 184872374,
+      "index_entries": 1325,
+      "output_bytes": 324003,
+      "rows_written": 280,
+      "rule_probes": 6830,
+      "steps": 475397
+    }
+  },
+  {
+    "kind": "shaped",
+    "corpus": "sparse-50000",
+    "samples": 7,
+    "first_page_median_us": 1633,
+    "later_page_median_us": 1559,
+    "preparation_requests": [
+      0
+    ],
+    "events": [
+      1101
+    ],
+    "max_storage_bytes": 299636,
+    "total_meter": {
+      "examined": 16086,
+      "heap_bytes": 184872374,
+      "index_entries": 1325,
+      "output_bytes": 324003,
+      "rows_written": 280,
+      "rule_probes": 6830,
+      "steps": 475397
+    }
+  },
+  {
+    "kind": "shaped",
+    "corpus": "follows-8200",
+    "samples": 7,
+    "first_page_median_us": 201302,
+    "later_page_median_us": 1336,
+    "preparation_requests": [
+      5
+    ],
+    "events": [
+      8200
+    ],
+    "max_storage_bytes": 17288752,
+    "total_meter": {
+      "examined": 183433,
+      "heap_bytes": 1174179346,
+      "index_entries": 24602,
+      "output_bytes": 2450968,
+      "rows_written": 2745,
+      "rule_probes": 65602,
+      "steps": 5147848
+    }
+  }
+]

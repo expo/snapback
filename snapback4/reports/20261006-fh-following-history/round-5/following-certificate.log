@@ -1,0 +1,20 @@
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-device)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 32.46s
+     Running tests/following_view.rs (target/debug/deps/following_view-251c7ea94880ff1c)
+
+running 3 tests
+test generated_card_query_has_a_separate_exact_history_certificate ... ok
+test bounded_target_certificate_names_whole_partition_floors_and_card_fallback ... ok
+test full_target_check_cost_reports_one_inbox_and_meter_bounded_residuals ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s

@@ -33,7 +33,7 @@ def launch(store, origin, evidence):
             '--site-proxy-port', str(parsed.port + 1), '--instance-name', instance['name'],
             '--instance-secret', instance['secret'], '--local-storage', str(store / 'files'),
             '--disable-beacon', str(store / 'data.sqlite3')]
-    proc = None
+    proc = None; cleanup = []; code = None
     def interrupted(signum, frame): raise KeyboardInterrupt('owned-backend-stop')
     signal.signal(signal.SIGTERM, interrupted); signal.signal(signal.SIGINT, interrupted)
     try:
@@ -44,14 +44,15 @@ def launch(store, origin, evidence):
         record(evidence, kind='backend-image', pid=proc.pid, pgid=os.getpgid(proc.pid),
                binary=str(actual), sha256=expected, store=str(store), origin=origin,
                sqlite=str(store / 'data.sqlite3'), localStorage=str(store / 'files'))
-        return proc.wait()
-    except KeyboardInterrupt: return 0
+        code = proc.wait()
+    except KeyboardInterrupt: code = 0
     finally:
         if proc is not None:
-            if proc.poll() is None:
-                proc.terminate()
-                try: proc.wait(timeout=10)
-                except subprocess.TimeoutExpired: proc.kill(); proc.wait(timeout=5)
-            record(evidence, kind='backend-exit', pid=proc.pid, exitCode=proc.returncode)
+            # This child shares our group: signal only its owned PID.
+            cleanup_call(cleanup, 'convex-backend', lambda: stop(proc, group=False))
+            record(evidence, kind='backend-exit', pid=proc.pid, exitCode=proc.returncode,
+                   cleanupErrors=cleanup, outcomeClass='operator-setup' if cleanup else None)
+    require_cleanup(cleanup)
+    return code
 
 if __name__ == '__main__': sys.exit(launch(*sys.argv[1:]))

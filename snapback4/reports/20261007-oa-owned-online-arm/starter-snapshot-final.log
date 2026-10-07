@@ -1,0 +1,25 @@
+(node:667274) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ generated feed, chats, profile and search preserve read-state text and controls (223.667517ms)
+✔ social seed script creates two password accounts, signs in and refuses cross-user writes (3646.707113ms)
+✔ new requires an explicit template and names what init creates (10.601369ms)
+✔ social starter native: cold owner keys prove old likes and unqueried absence offline (2366.530834ms)
+✔ social starter web: cold owner keys prove old likes and unqueried absence offline (2680.351378ms)
+✔ published social starter and guide snippets typecheck against generated operations (1428.211384ms)
+✔ bounded substitution in both installed and client documentation typechecks (1867.313757ms)
+✔ installed bounded placeholder documentation makes neither existence claim (98.270276ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (3980.458036ms)
+✔ social DM native: concurrent opens converge, held keys resolve offline and an offline race settles (1829.785196ms)
+✔ social DM web: concurrent opens converge, held keys resolve offline and an offline race settles (645.292914ms)
+✔ guide aliases send schedules, DMs and Expo readers to their owning cards (129.534393ms)
+✔ social proposal associations are durable, account/backend scoped and preserve every send's arguments (120.807214ms)
+✔ social starter wasm: offline history predicts in compose order and settles once with receipts (1685.756103ms)
+✔ social starter wasm: receipt-derived unread badges leave sends pending in history (1028.905536ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22197.079847

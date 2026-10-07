@@ -89130,3 +89130,219 @@ are CPU-pinned shared-eb1000 observations, not SLOs.
 Root inventory failure is byte-identical to round 3's inherited Snapback 1 gaps;
 reference audit passes. Observed worktree use: 22 GiB rounded. No push, remote
 host, or other worktree/process changes.
+
+## 2026-10-07 — P3 Round 2: Xcode environment repair and native.2 rerun record
+
+Revision 11 makes CocoaPods' ignored `.xcode.env.local` operator-owned, preserving
+its original bytes/hash before pinning Node 24.18.0 in work copies. Both custody
+files carried Node 26.9.0; Snapback 4's measured Release had regenerated the file
+and used pinned Node 24.18.0 in all 16 build records. Its native results stand.
+Future builder login/non-login shells now retain the exact Node pin. The harness
+passes all 92 mini tests; Linux completes 92 with four macOS-only skips.
+
+The sealed Convex attempt-01 reclassification records an environment leak, no
+product outcome and zero setup reruns consumed. The normal revision-11
+continuation passed its initial audit, then stopped at the prepared-source
+audit on the shared UI kit's installed nested RN 0.86.2 versus required 0.86.3.
+No semantic check, operator Release build or M6/M8 ran after that refusal.
+No app repair or audit bypass was performed.
+
+Every retained Snapback 4 frame (2,030 M6 and 2,028 M8) and all 46 native trees
+were inspected. Both support the ordinary-media prime failure and unmeasured
+native assertions. Missing receipt/view-once child exposure, startup-video
+endpoint shortfall, the shared dependency/type gaps and the unresolved useAsset
+finding remain explicit. No qualified negative-control verdict is contradicted;
+the affected assertions were not reached. The
+[rerun report](reports/20261005-ni-native-protocol/PHASE-2-RERUN-RESULTS.md)
+recommends another candidate/pilot after named changes, with large evidence on
+eb1000 and committed indexes. Only the Apartment mini's dedicated simulator was
+used. The work is committed locally and not pushed.
+
+## 2026-10-07 — DT-A: seeded Quarry differential testing
+
+Continued the source generator in `snapback4-difftest`, an unpublished crate
+outside shipped dependencies. Cases carry typed Quarry structure, rows, viewer,
+arguments, clock and ceilings. Exact repeats, meaning-preserving rewrites and
+meter-boundary/continuation comparisons retain public outcome records. Structural
+shrinking saves replayable source and inputs by stable signature. Process workers
+own disjoint seed ranges; the runner reports coverage and named unsupported
+reasons, and exits nonzero for disagreements or unexpected refusals.
+
+The old 30-case pilot generated only one page, with no item rows, and mostly
+swept heap bytes. Fuller pages now reach resumable cuts. Heap, step, output and
+opening cuts retain the reads card's named non-resumable outcomes. Cost-changing
+rewrites still compare all non-meter fields. Both prior site-only differences
+were harness defects: helper expansion moves an update's IR address, and a
+return binding moves a null assertion's source column. Their shrunk raw records,
+diagnoses and passing replays remain under `cases/found/`. Helper calls return
+3 for `identity(1) + identity(2)`; skipped null assertions do not run.
+
+The release campaign ran seeds 0–99,999 on SQLite on the Linux fleet host in
+266.239 s with 12 process workers: 100,000 compiled cases, 3,153,140 engine calls,
+zero disagreements, zero unexpected refusals. Resumable cuts passed on
+14,305/21,163 pageable reads (67.59%). Source verification matched 626 files.
+The fixed-seed and oracle tests passed all five tests in 1.98 s on that host.
+The orchestrator kept the smoke in the workspace inventory: the suite already
+runs far past its 60 s budget, and 1–2 s more does not change that. AGENTS.md
+lists the commands. No shipped crate, public accessor, runtime ceiling or wasm budget
+changed; no engine or binder defect was fixed. Slice B still owns store/prefetch
+comparisons, schedules and ticket filing; slice C owns real device acquisition.
+The lane report is `~/projects/snapback-difftest-lane/report-a.md`. Full-suite
+verification is recorded in the follow-up below.
+
+Final verification: local warm `cargo build` passed in 0.14 s wall time; the
+five harness tests passed in 0.96 s (1.55 s including Cargo). Both saved case
+replays print `pass`. The corrected warm Linux `scripts/test.sh` run exited 0:
+`== 0 failure(s) in 2163 s`. Rust passed 5,120 tests with 33 declared ignores;
+all 328 client files passed (6,480 tests, 54 skips), all nine fixture tests
+passed, and both model files passed all 79 tests. Build, wasm/byte budget,
+docs, release guard and typechecks passed. The local whole-suite attempt was
+interrupted after sandbox process restrictions and other test failures; its
+retained log supplies no green local claim. The first Linux attempt exposed
+this lane's symlinked-target setup mistake; moving the actual target directory
+into the isolated checkout fixed that setup, and the entire script was rerun.
+The report retains both earlier attempts and the final green log. No shipped
+source, assertion or deadline changed. Final diff checks pass.
+
+Negative controls (orchestrator, before landing). Two faults were planted in
+the engine one at a time, seeds 0–1,999 were run, and the engine was then
+reverted. In the first, integer `+` added one when the left operand was larger.
+`rewrite-commute` caught it with 252 disagreements; no other oracle moved. In
+the second, decoded cursors flipped their inclusive bit, which skips or repeats
+a row on resume. The meter continuation oracle caught it with 1,105
+`meter--continued-data--array` disagreements. Both runs exited 1. The zero
+above is therefore a result and not a blind harness.
+
+## 2026-10-07 — OA: createApp owns its online arm
+
+On eb1000, branch `sb4-intent/oa-owned-online-arm`, starting from
+`2a5fc454aa`: added `app.online` and React `useOnline()` for server queries,
+observations, ephemeral signals and actions. The explicit projection exposes no
+bearer or lifecycle method. It uses the app's shared authority and checks the
+exact exposed arm again after asynchronous authority reads. Rotation, account
+change and sign-out fence old handles; dispatched signals/actions drain before
+private client closure, bounded by the existing 30-second one-shot lifetime.
+No retirement signs the app out. Read-only/no-device apps reuse their existing
+client; LLP 3000.033's fixed read lifetimes, epochs and sign-out watermarks remain
+unchanged. The decision and cited inventory are in LLP 3000.033 §1.8 and
+[the OA report](reports/20261007-oa-owned-online-arm/REPORT.md).
+
+Deleted the social starter's bearer-borrowing useOnlineArm. Conversation changes
+only its import/call to useOnline; useTyping's algorithm and all original typing
+assertions remain unchanged. Added the installed TrendingSnapshot recipe with
+matchRead, incomplete-coverage presentation, explicit Refresh and account-bound
+publication. Updated client/social guides, the client reference and starter
+README. The client card stays at 112 lines / 1,200 words; no budget increased.
+
+The requested full suite completed in 2,153 seconds with the SQLite memory-
+management flag: 308 Rust binaries / 1,021 executions plus doctests passed;
+339 client files reported 6,594 passes, 16 failures and 55 labelled skips; all
+79 model tests passed at 5,000 histories per session tier / 3,000 online-client
+sequences. The sole failed file's helper still copied the deleted hook; removing
+that entry makes all 16 unchanged screen-lifetime tests pass. This is a full run
+plus a corrected affected rerun, not a single-green-run qualification receipt.
+All 12 new lifecycle tests pass. Final generated-starter tests pass 15/15, guide
+113/113, published API/type examples 9/9; package typecheck/build passed. No
+persisted state changed; the optional published-binary downgrade control remains
+explicitly skipped. The report retains failures and reruns.
+
+Wasm is unchanged: 2,135,164 raw / 645,264 gzip bytes against the unchanged
+645,564 budget; SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83.
+The whole worktree uses about 14 GB, below 30 GB. Work stayed on this machine and
+in this worktree. No push or publication.
+
+
+## 2026-10-07 — OA round 1: the arm fence survives shared-client queues
+
+Astra's P1 reproduced three no-device escapes at `2447b74854`: a queued signal
+borrowed the replacement credential, an authority-waiting signal dispatched a
+retired bearer, and an old-account signal dispatched during provisional account
+replacement. The unchanged review reproducer failed all three before the fix
+and passes all five tests afterward. Grok's supplied review was READY; no new
+independent review verdict is claimed by this implementation entry.
+
+The owned arm now binds private operation copies to its originating arm and
+credential. Signal queues, refresh waits, observations and retries retain that
+fence; the app checks it after asynchronous shared authority, immediately before
+transport dispatch. Observation/renewal identities are private to the arm, while
+sharing within an arm remains. No metadata enters HTTP or persistent storage.
+Retiring one arm cannot revoke the shared client's current credential.
+Dispatched outcomes, including transport failures, remain intact. Both no-device
+modes still reuse their existing raw client; fixed read expiry, no refresh/write
+machinery, epochs and principal sign-out watermarks are unchanged.
+
+Typing retirement deliberately relies on the four-second schema expiry. Ordinary
+unmount can send stopTyping, but retirement cannot delay fencing or borrow a
+retired/replacement credential for cleanup. The guide, reference, starter README
+and LLP 3000.033 §1.8 state this explicitly. No Conversation/useTyping source or
+original typing/starter assertion changed in this round.
+
+Owned-arm tests grow from 12 to 32, covering both tiers plus all three review
+schedules, action refresh/retry waits, observation ownership, renewal reuse and
+transport-outcome preservation. The requested 27-file run passes 250 tests with
+one labelled downgrade-control skip; guide 113/113 and final client build/typecheck
+pass. The full suite with the SQLite flag completed in 2,055 seconds: 339 client
+files / 6,630 passes / 55 labelled skips, and all 79 full-count model tests pass.
+Of 1,021 scheduled Rust executions across 308 binaries, one CLI witness cleanup
+test failed on an invalid /proc process group; all others and doctests passed.
+The complete witness-preparation module passes 16/16 on its canonical single-
+thread rerun. Two earlier manual reruns used default parallelism and failed a
+fixture-startup case; those and the original full red remain in the evidence.
+This is a full run plus a passing affected rerun, not a single-green-run receipt.
+
+Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
+unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
+no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
+
+## 2026-10-07 — FH round 5: complete refresh envelopes and live rejection
+
+Merged current `origin/main` at `b14888f763` into lane parent `33321fe568`
+without rebasing. Preserved OA's private arm dispatch fence and Following's
+abort signal, both journal/design additions and the combined await inventory.
+No push. LLP 3000.026 §9.13 records both round-4 review dispositions.
+
+Following now splits point witnesses against the entire encoded 64 KiB request,
+including query arguments, and the 128-field limit; oversized singletons cannot
+escape preflight. The regression covers exactly 65,536 bytes, one byte beyond,
+and the review's 64,400-character projected argument, including JSON escapes
+and multibyte text. Mounted denials also exclude same-cycle live-preview ids.
+Preview collection truncates its final slice at 100 identities and stops before
+its public seen list outgrows the request. The guide and LLP state that lifetime
+client retention has no fixed cap: one copy per displayed live id, rechecked
+every poll, plus loaded history and transient witnesses.
+
+New online/wasm app integration tests also found two pre-existing facade gaps:
+the online journal wrapper did not forward Following transport, and app
+admission could await authority before withdrawing history. Both are fixed;
+the original mutation promise and synchronous browser refusal fields survive.
+`useFollowing` remains on app.client, while `useOnline` selects OA's arm. Rotation
+fences that arm and restarts history. Read-only history still refuses
+E_READ_ONLY; ordinary inbox queries through the read-only arm remain allowed.
+
+Verification: core Following 27 including scale; language history/research
+10 + 3; guide 113; CLI serve filter 203 passed / 4 existing ignored; certificate
+3; both client Following files 22 passed / one manual measurement skip; OA 32;
+read-only client files 118 passed / one configured published-engine skip.
+Build/typecheck, await classification, README budget and ref-check pass. The
+client card remains 1,200 words. Corrected a stale §5.1 reference in main's new
+differential-test crate, with no behavioral change.
+
+Full merged suite: 2,591 s, exit 1. All 1,026 native executions (313 binaries)
+and 79 model tests pass. Client pool: 340/341 files pass; 6,651 passing tests,
+one failure, 56 skips. The sole failure is export-background's raced
+retention-lock drain assertion. Its 27 checked source inputs match main; the
+exact case reruns green in 8.4 s and the entire file reruns green in 298.2 s
+(58 passed, 36 platform skips), including cleanup. Preserved the original
+failure and filed `issues/20261007-snapback4-export-retention-lock-drain-timeout.md`.
+This is distinct from the known native `/proc` flake (not observed) and the
+existing export SIGKILL timeout. No ownership guard or assertion was weakened.
+
+Seven-sample shaped medians: sparse 50k first/later 1.633/1.559 ms, zero
+preparation units, 299,636 B peak controller custody; 8,200 follows
+201.302/1.336 ms, five preparation units, 17,288,752 B. All seven per-request
+meters remain asserted. These are shared-host observations under taskset.
+Linux wasm remains 2,135,336 raw / 645,307 gzip B; the unchanged 645,607 B cap
+is Linux plus 300 B. No persisted schema/catalog/IR/table or ordinary inbox
+bytes change, and no Mac qualification is claimed. Workspace about 25 GiB,
+one Cargo target; eb1000 only. Complete report, logs and receipts:
+`reports/20261006-fh-following-history/round-5/REPORT.md`.

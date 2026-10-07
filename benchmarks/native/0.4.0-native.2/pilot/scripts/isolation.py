@@ -37,13 +37,15 @@ def profile(backend, private, boundaries):
     return '\n'.join(lines) + '\n'
 
 def environment(boundaries, codex_home, temp):
-    env = os.environ.copy()
+    from xcode_environment import pinned_environment
+    env = pinned_environment(os.environ)
     for k in list(env):
         if k.startswith(('SNAPBACK_', 'SNAPBACK4_', 'CONVEX_')) or k in ['CI', 'EXPO_PUBLIC_SNAPBACK_URL', 'VITE_SNAPBACK_URL']:
             env.pop(k)
     env.update(CLIQUE_BOUNDARIES=str(boundaries), CONVEX_AGENT_MODE='anonymous',
                CLIQUE_CONVEX_BACKEND=str(ROOT / 'inputs/convex/convex-local-backend'),
-               CODEX_HOME=str(codex_home), TMPDIR=str(temp))
+               CODEX_HOME=str(codex_home), TMPDIR=str(temp),
+               ZDOTDIR=str(Path(codex_home).parent / 'shell'))
     return env
 
 def prepare(backend, boundaries):
@@ -54,5 +56,9 @@ def prepare(backend, boundaries):
         src = Path.home() / '.codex' / name
         if src.exists(): shutil.copyfile(src, codex_home / name); (codex_home / name).chmod(0o600)
     tmp = private / 'tmp'; tmp.mkdir()
+    from xcode_environment import shell_startup
+    shell = private / 'shell'; shell.mkdir()
+    for name in ('.zshenv', '.zprofile'):
+        put(shell / name, shell_startup())
     sandbox = private / 'builder.sb'; put(sandbox, profile(backend, private, boundaries))
     return private, codex_home, tmp, sandbox

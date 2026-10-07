@@ -1,0 +1,26 @@
+# Subtest: repeated raced retention-lock deferrals stay pending and restore the bound after release
+not ok 61 - repeated raced retention-lock deferrals stay pending and restore the bound after release
+  ---
+  duration_ms: 97606.592797
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/export-background.test.mjs:953:1'
+  failureType: 'testCodeFailure'
+  error: 'coalesced maintenance queue drained'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/export-background.test.mjs:17:29)
+    async maintenanceIdle (file:///home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/export-background.test.mjs:571:3)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/export-background.test.mjs:977:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":930,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+ok 62 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 8207.261656
+  type: 'test'

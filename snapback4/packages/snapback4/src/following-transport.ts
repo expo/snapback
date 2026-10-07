@@ -30,4 +30,6 @@ export function onFollowingChange(client: Client, listener: () => void): () => v
   let listeners=changes.get(client); if (!listeners) changes.set(client,listeners=new Set());
   listeners.add(listener); return () => { listeners.delete(listener); };
 }
-export function notifyFollowing(client: Client): void { for (const listener of changes.get(client) ?? []) listener(); }
+export function notifyFollowing(client: Client): void {
+  const parent = parents.get(client); if (parent) { notifyFollowing(parent); return; }
+  for (const listener of changes.get(client) ?? []) listener(); }

@@ -1,6 +1,7 @@
 // @ref LLP 3000.017#24-the-client — one ordered, memory-only lane; only proven renewals coalesce.
 import type { Client, Ephemeral, Link, MutateOptions, Mutation, MutationPromise, Refusal, Signal } from "./contract.ts";
 import { refusal, readResponse, invalidResponse, transportRefusal } from "./http-response.ts";
+import { armKey, armRefusal, armRequest, operationArm, type ArmFence } from "./online-arm-fence.ts";
 
 export const ephemeralOffline = (): Refusal => ({ code: "E_OFFLINE", family: "link", retryable: true,
   message: "an ephemeral write needs an online link; it is dropped, not held or retried" });
@@ -33,6 +34,7 @@ interface Options {
   now?(): number;
 }
 interface Entry {
+  arm?: ArmFence | undefined;
   op: Ephemeral<unknown, unknown>;
   args: unknown;
   id: string;
@@ -50,7 +52,7 @@ export function ephemeralLane(options: Options) {
     : options.link() !== "online" ? ephemeralOffline() : undefined);
   const dropWaiting = () => {
     previous = undefined;
-    for (const entry of waiting.splice(0)) entry.resolve(failedSignal(entry.id, unavailable() ?? ephemeralOffline()));
+    for (const entry of waiting.splice(0)) entry.resolve(failedSignal(entry.id, armRefusal(entry.arm) ?? unavailable() ?? ephemeralOffline()));
   };
   options.signal.addEventListener("abort", dropWaiting, { once: true });
   const reusable = (op: Ephemeral<unknown, unknown>, key: string) => op.renews && previous?.key === key
@@ -67,10 +69,10 @@ export function ephemeralLane(options: Options) {
     try {
       const work = (async (): Promise<Signal> => {
         const store = options.storeId?.();
-        const response = await options.fetch(`${options.url}/m/${entry.op.name}`, {
+        const response = await options.fetch(`${options.url}/m/${entry.op.name}`, armRequest({
           method: "POST", headers: options.headers(), signal: controller.signal,
           body: JSON.stringify({ id: entry.id, args: entry.args, ...(store ? { store_id: store } : {}) }),
-        });
+        }, entry.arm));
         const json = await readResponse(response);
         const denied = refusal(json?.denied ?? json?.why);
         if (denied) return failedSignal(entry.id, denied);
@@ -95,6 +97,8 @@ export function ephemeralLane(options: Options) {
       while (waiting.length) {
         if (unavailable()) { dropWaiting(); break; }
         const entry = waiting.shift()!;
+        const retired = armRefusal(entry.arm);
+        if (retired) { entry.resolve(failedSignal(entry.id, retired)); continue; }
         const saved = reusable(entry.op, entry.key);
         if (saved) { entry.resolve(saved); continue; }
         const at = now();
@@ -110,14 +114,15 @@ export function ephemeralLane(options: Options) {
     linkChanged() { if (options.link() !== "online") dropWaiting(); },
     mutate<A, R>(op: Ephemeral<A, R>, args: A): Promise<Signal<R>> {
       const id = options.mint();
-      const why = unavailable();
+      const arm = operationArm(op);
+      const why = armRefusal(arm) ?? unavailable();
       if (why) return Promise.resolve(failedSignal(id, why));
       let snapshot: unknown, key: string;
       try {
         snapshot = JSON.parse(JSON.stringify(args));
         const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted)
           : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k, v]) => [k, sorted(v)])) : value;
-        key = JSON.stringify([op.name, sorted(snapshot)]);
+        key = armKey(op) + JSON.stringify([op.name, sorted(snapshot)]);
       } catch {
         return Promise.resolve(failedSignal(id, { code: "E_INPUT", family: "input", message: "ephemeral arguments must be JSON-serializable" }));
       }
@@ -128,7 +133,7 @@ export function ephemeralLane(options: Options) {
         { code: "E_RATE_LIMIT", family: "auth", retryable: true, message: "the ephemeral lane already holds 256 waiting calls" }));
       const displaced = replace < 0 ? undefined : waiting.splice(replace, 1)[0];
       const promise = new Promise<Signal<R>>(resolve => {
-        waiting.push({ op, args: snapshot, id, key, resolve(outcome) { resolve(outcome as Signal<R>); } });
+        waiting.push({ op, args: snapshot, id, key, arm, resolve(outcome) { resolve(outcome as Signal<R>); } });
       });
       if (displaced) void promise.then(outcome => displaced.resolve(outcome));
       void drain();

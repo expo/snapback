@@ -1,5 +1,12 @@
 # Phase 2 — unscored two-app/two-backend pilot plan
 
+**Native.2 rerun record, 2026-10-07:** see
+[PHASE-2-RERUN-RESULTS.md](PHASE-2-RERUN-RESULTS.md). Revision 11 fixes the
+machine-local Node leak. Convex's prepared audit then refuses an unresolved UI
+kit RN pin; SB4's retained native results remain unmeasured at media prime.
+The report recommends another candidate/pilot after named changes. The
+historical procedure and previous pilot record below remain intact.
+
 **Execution record, 2026-10-06:** see [PHASE-2-RESULTS.md](PHASE-2-RESULTS.md).
 Both handoffs were source-audit refused; operator-patched diagnostics remain
 never admissible. The original plan below is retained as the commissioned

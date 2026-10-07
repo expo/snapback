@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 14,
+    "program": {
+      "tables": [],
+      "body": {
+        "Scalar": {
+          "Assert": {
+            "Arg": [
+              "n",
+              {
+                "Nullable": "Int"
+              }
+            ]
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 89275,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 13106,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "rewrite-let--refusal--NULL_ASSERT",
+    "oracle": {
+      "Rewrite": "Let"
+    },
+    "field": "refusal",
+    "left": {
+      "kind": "query",
+      "value": {
+        "refusal": {
+          "code": "NULL_ASSERT",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NULL_ASSERT",
+          "rule": "NULL_ASSERT",
+          "site": "schema.q:3:13"
+        }
+      }
+    },
+    "right": {
+      "kind": "query",
+      "value": {
+        "refusal": {
+          "code": "NULL_ASSERT",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NULL_ASSERT",
+          "rule": "NULL_ASSERT",
+          "site": "schema.q:3:15"
+        }
+      }
+    },
+    "continuation": []
+  },
+  "shrink_attempts": 16
+}
