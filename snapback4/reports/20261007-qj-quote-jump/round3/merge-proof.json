@@ -1,0 +1,20 @@
+{
+  "merge": "2f340e13c15985da3941682190ace0f498c02d69",
+  "parents": [
+    "0898d499dff1680d500d2b2e0f6f74caa0a75878",
+    "b14888f7632bf5fe60b61a640dd23e732797974e"
+  ],
+  "journalSha256": "35e1925b09b7bfb0d7a82162d64d175204db46522c58197ddef0c96f2fe44230",
+  "journalChecks": [
+    {
+      "parent": "0898d499dff1680d500d2b2e0f6f74caa0a75878",
+      "sourceSha256": "f22f78157aa9a5a721e7f0ee0d90132f5e2c86a58c3e4113b3c2f0254f2b6787",
+      "allLinesPreservedInOrder": true
+    },
+    {
+      "parent": "b14888f7632bf5fe60b61a640dd23e732797974e",
+      "sourceSha256": "3a9f05cadd4bd8d4d3c826598ffa33caea5563ad754c761fd29993a72b7ede98",
+      "allLinesPreservedInOrder": true
+    }
+  ]
+}

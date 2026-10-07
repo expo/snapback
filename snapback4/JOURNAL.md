@@ -88488,6 +88488,108 @@ deadline or test count was changed, and no green whole-script result is claimed.
 Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
 
+## 2026-10-07 — QJ: quoted messages open and scroll to their original
+
+The social starter now has a small Reply affordance, saved `replyTo` references,
+and `QuotedMessage.onJump`. A reusable `useJumpToMessage` opens an indexed history
+window ending at the original's ordinal, including beyond the replica's sync
+horizon. One variable-height FlatList retries unmeasured indices on native/web;
+actual viewport visibility starts a 1.8-second highlight. Attempts stop after
+four seconds with a visible failure. Unknown, denied and absent point reads keep
+their honest `matchRead` presentation. The composer, draft and once viewer retain
+their existing owners; receipts remain independent current reads. Guide social,
+the installed README and LLP 3000.028 §8 document the recipe.
+
+The browser regression uses the installed template, real react-native-web layout,
+generated operations and both online/wasm clients. It measures the original's
+rectangle after 30 intervening messages, plus already visible and absent targets,
+draft/input identity, a target beyond the 500-row horizon, actual reply sending,
+unmeasured-index recovery and a blocked-scroll timeout/retry. The native-process
+and wasm query tests also check offline uncertainty and anchored receipt pages.
+Linux-only execution makes no iOS/Android UI witness claim.
+
+The receipt engine's exact-source model and frozen wasm corpus now use a pinned
+copy of their original social schema; the current starter retains its separate
+compiler/ownership witness and new application tests. No existing oracle or
+corpus was regenerated. The [QJ report](reports/20261007-qj-quote-jump/REPORT.md)
+records qualification, the transient shared-disk exhaustion during the first
+full-suite run, and byte-identical wasm. Work and tests stay in this worktree on
+eb1000; commit only, with nothing pushed or published.
+
+QJ final qualification: the complete `scripts/test.sh` run passed with zero
+failures in 2,748 seconds, using the required SQLite flag. Rust: 5,120 passes
+and 33 declared ignores; clients: all 329 files, 6,499 passes and 54 declared
+skips; models: 79/79; fixture wrappers: 9/9. The affected run passed 69/69,
+including receipt-page recovery while retained history stays mounted. Guide and
+reference audits pass. The final distant-quote witnesses reached and highlighted
+the original in 126.9 ms online and 130.3 ms on the wasm replica, against the
+four-second bound. All four wasm artifacts are byte-identical to the baseline;
+the device remains 2,135,164 B raw / 645,264 B canonical gzip. Checkout disk use
+is 15.24 GB, below 30 GB. Earlier failed/interrupted runs remain in the report.
+
+## 2026-10-07 — QJ round 1: quote layout settling and durable browser evidence
+
+Astra's round-0 review reproduced an original pushed below the viewport by a
+late nested quote and a successful jump missed by a driver paused for 2.3 seconds.
+Grok returned READY; this round addresses Astra's two findings. The hook now
+keeps scroll ownership for four seconds after arrival, measures the original's
+own content when its quoted bubble is taller than the viewport, and corrects
+row/content layout changes with portable View measurement and FlatList offsets.
+Touch/drag, pointer/wheel and scrolling keys revoke ownership synchronously,
+including queued measurements. The 1.8-second highlight does not extend the
+settle deadline. Read-state guards, composer/draft ownership and history/receipt
+queries remain unchanged.
+
+The browser oracle is armed before the click and latches browser-timestamped
+completion, geometry and highlight. A persistent completion ID lets the driver
+poll current geometry after the highlight expires. Added nested-quote and
+separate-row expansion regressions, plus wheel/key/drag-callback cancellation.
+The first distant jump always pauses the driver for 2.3 seconds; a dedicated
+run pauses it after every asserted jump. All four runs of the final fixture pass
+22/22. The complete affected run passes 98/98, the guide 113/113, docs budget and
+client typecheck pass, and the reference audit reports no errors or unchecked
+references. The broader run also exposed a test-ID prefix collision, fixed by
+using a distinct prefix for inner content without changing existing bubble
+assertions. Development failures remain in the report logs.
+
+The README, guide social and LLP 3000.028 §8 describe the revised recipe. Native
+API typing and the drag-callback binding are checked; no iOS/Android UI scrolling
+or gesture execution is claimed on eb1000. Wasm and all generated bindings are
+byte-identical to the baseline. Final disk use is 15.24 GB, under 30 GB. This round ran
+the requested affected checks; the prior entry retains the round-0 full-suite
+result. The [round-1 report](reports/20261007-qj-quote-jump/round1/REPORT.md) records
+measurements, commands and limits. Commit only; nothing pushed or published.
+
+## 2026-10-07 — QJ round 2: browser timing bounds reject broken fixtures
+
+Astra's round-1 review found that widening driver waits had lost the four-second
+failure assertion and that repeated unhighlighted frames extended a supposed
+highlight duration. The test now records browser `performance.now()` for tap,
+viewport/completed arrival, immutable highlight transitions and the failure
+notice. Arrival must take at most two seconds, actual highlight on-time must
+be 1.7–2.3 seconds, and the four-second failure must appear within 3.9–4.5 seconds.
+A durable sample accounts for the initial layout's brief color invalidation;
+unhighlighted frames never add time. Driver waits remain generous and state-based.
+The product's four-second search/settle and 1.8-second highlight are unchanged.
+
+Five disposable generated-fixture controls all fail their intended assertions,
+each with the 2.3-second driver pause: eight-second failure timeout, 100 ms
+highlight, both together (Astra's exact mutations), eight-second actual arrival,
+and list-only key observation. A scoped web document key listener fixes the
+conditional BODY-focus PageUp edge; it is removed when the jump owner ends.
+The regular body-keyboard regression and Astra's adapted trusted-input probe
+pass. Real PageUp after explicit blur moves the list 2,188 → 1,670 px, with no
+additional correction and no highlight. No common focus-loss journey is inferred.
+
+Qualification: affected tests 99/99, three final quote-fixture runs 23/23 each
+(including driver delay), guide 113/113, trusted keyboard probe 6/6, client
+typecheck and docs budget pass. Guide, README and LLP 3000.028 §8 are updated.
+All wasm artifacts are byte-identical; native UI scrolling remains unverified.
+The [round-2 report](reports/20261007-qj-quote-jump/round2/REPORT.md) retains the
+positive and deliberately negative evidence. This round runs affected checks;
+the round-0 full-suite result remains separate. eb1000 only, below 30 GB, commit
+only; nothing pushed or published.
+
 
 ## 2026-10-07 — UA: ordinary native assets and named waits
 
@@ -89254,3 +89356,71 @@ limit checks pass. The user reported the prior commit's Darwin fence passed
 cluster is stopped. Nothing was pushed or published. The
 [round-1 report](reports/20261007-rs-read-sessions-refusal/round1/REPORT.md)
 retains the review dispositions, intermediate corrections and verification logs.
+## 2026-10-07 — QJ round 3: editing preserves the jump; observe the whole settle period
+
+Addressed both round-2 READY WITH CHANGES reviews. The web document key listener
+now excludes textarea/input/select, inherited contenteditable and editable ARIA
+roles. Seven trusted composer-key cases retain highlight and scroll ownership,
+preserve the draft's normal editing behavior, and keep the original's own text
+visible after a held nested quote expands. Eight more cases cover other editable
+targets and descendants. Body/list scrolling keys, wheel and drag still cancel.
+
+Both distant and already-visible jumps now measure highlight on/off intervals
+through actual settle completion, exposed by a native ID derived from the
+existing request owner. This rejects a 100 ms distant-only flash and a restart
+after the former 2.5-second sample. Product timing constants remain unchanged;
+arrival, duration and failure bounds still use browser performance.now(), with
+generous state-based driver waits.
+
+Merged origin/main b14888f763 in merge commit 2f340e13c1, without rebasing. Both
+parents' JOURNAL histories are preserved in order. The screen-lifetime helper
+keeps QJ's transitive modules and removes OA's deleted useOnlineArm. The merged
+screen retains typing on useOnline's owned arm and quote jumping; the real-layout
+witness now uses createApp/AppProvider in both tiers and observes a typing
+dispatch before jumping.
+
+The affected batch passes 146/146, including all 32 OA owned-arm cases, social
+starter/browser, read-presentation, matchRead and screen-lifetime tests. The final
+38-case quote fixture passes four runs including the batch, 2.3-second driver
+delay, and that delay with 6× CPU throttle. All eight disposable negative controls
+fail for their intended assertions. Guide 113/113, client build/typecheck, docs
+budgets and workspace build pass. The reference audit has one unrelated broken
+LLP 3000.035 anchor inherited byte-for-byte from main; its baseline hashes and
+full output are retained. No QJ reference fails.
+
+Wasm and all generated bindings remain byte-identical to the round-0 baseline:
+2,135,164 raw / 645,264 gzip bytes against the unchanged 645,564 cap. Native API
+typing/query tests pass; native UI layout, scrolling and gestures remain
+unverified on eb1000. The full suite was not rerun this round. Work stayed in this
+worktree at 15.31 GB before log compression, below 30 GB. No push or publication.
+[Round-3 report and evidence](reports/20261007-qj-quote-jump/round3/REPORT.md).
+
+## 2026-10-07 — QJ round 4: calibrate the highlight span and reject brief restarts
+
+Addressed Grok's round-3 timing-oracle changes after Astra returned READY. This
+round changes tests and their documentation only. The starter's TS/TSX/Quarry
+files match the round-3 parent byte-for-byte, including HIGHLIGHT_MS = 1800.
+
+The lower bound now uses first-on/final-off span (1.7–2.3 seconds), with separate
+2.3-second caps on span and summed on-time. The initial roughly 93 ms layout gap
+is still excluded from illuminated time. Observed unthrottled distant spans were
+1802.4–1804.6 ms, restoring about 100 ms of lower-bound slack instead of about
+9 ms for the closest case. A generated-fixture-only observation records the
+actual highlight expiry; any on transition after the first expiry-time off now
+fails, while initial pre-expiry layout gaps remain allowed.
+
+The new blink-restart mutation illuminates again during expiry+40 to expiry+240
+ms. All four measured cases (distant/visible, online/replica) remain below the
+sum/span caps but fail the new restart assertion. All nine mutation controls
+exit 1 for their intended assertions under the 2.3-second driver delay, including
+the short-far and long-restart cases.
+
+Starter/browser/quote tests pass 79/79. Four complete 38-case quote runs pass,
+counting that batch, including driver delay and delay plus 6× CPU throttle. Guide
+113/113, workspace build, client typecheck and docs-budget checks pass. The
+reference audit retains the unrelated LLP 3000.035 broken anchor inherited from
+main. Wasm and generated bindings match all four original hashes; no rebuild was
+needed. Native UI scrolling remains unverified; the full suite was not rerun in
+this test-only round. Work stayed on eb1000 in this worktree at about 15.34 GB,
+below 30 GB. Nothing pushed or published.
+[Round-4 report and evidence](reports/20261007-qj-quote-jump/round4/REPORT.md).

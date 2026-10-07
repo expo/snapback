@@ -1,0 +1,4 @@
+packages/snapback4/src/wasm/snapback4_device.d.ts: OK
+packages/snapback4/src/wasm/snapback4_device.js: OK
+packages/snapback4/src/wasm/snapback4_device_bg.wasm: OK
+packages/snapback4/src/wasm/snapback4_device_bg.wasm.d.ts: OK

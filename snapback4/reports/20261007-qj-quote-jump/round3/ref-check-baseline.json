@@ -1,0 +1,21 @@
+{
+  "originMain": "b14888f7632bf5fe60b61a640dd23e732797974e",
+  "error": "broken ref: no anchor #5.1-stage-1-a-generator-and-rust-against-rust-comparison in llp/3000.035-quarry-semantics-in-lean.plan.md",
+  "files": [
+    {
+      "path": "ref-check",
+      "identicalToOriginMain": true,
+      "sha256": "a5be0508011f5fa122d639a18021e6e1e4feea1b93cbc6b74fd7cffeb0d3a66f"
+    },
+    {
+      "path": "snapback4/crates/snapback4-difftest/src/lib.rs",
+      "identicalToOriginMain": true,
+      "sha256": "de9544d8f2ffe30c4c5a2510e80185f9dfbb6f37f871b8f93ab85a7a54205b99"
+    },
+    {
+      "path": "llp/3000.035-quarry-semantics-in-lean.plan.md",
+      "identicalToOriginMain": true,
+      "sha256": "5509bb9cd03fd229408398d093d0a1f5ec3692b746cb3530f6c1cbddd5cef338"
+    }
+  ]
+}

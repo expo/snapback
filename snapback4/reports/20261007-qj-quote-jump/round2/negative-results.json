@@ -1,0 +1,37 @@
+[
+  {
+    "mutation": "timeout-8s",
+    "driverDelayMs": 2300,
+    "exit": 1,
+    "expectedAssertion": "failure deadline outside 3900\u20134500 ms",
+    "rejectedForExpectedReason": true
+  },
+  {
+    "mutation": "highlight-100ms",
+    "driverDelayMs": 2300,
+    "exit": 1,
+    "expectedAssertion": "highlight duration outside 1700\u20132300 ms",
+    "rejectedForExpectedReason": true
+  },
+  {
+    "mutation": "astra-both",
+    "driverDelayMs": 2300,
+    "exit": 1,
+    "expectedAssertion": "failure deadline outside 3900\u20134500 ms",
+    "rejectedForExpectedReason": true
+  },
+  {
+    "mutation": "arrival-8s",
+    "driverDelayMs": 2300,
+    "exit": 1,
+    "expectedAssertion": "viewport arrival exceeds 2000 ms",
+    "rejectedForExpectedReason": true
+  },
+  {
+    "mutation": "list-only-keys",
+    "driverDelayMs": 2300,
+    "exit": 1,
+    "expectedAssertion": "user input cancels all correction",
+    "rejectedForExpectedReason": true
+  }
+]
