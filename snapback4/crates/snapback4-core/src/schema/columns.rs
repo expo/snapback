@@ -1,4 +1,4 @@
-//! Maintained fields and the resolved authority/identity/delivery dependency walk.
+//! Column admission, maintained fields and authority/identity/delivery dependencies.
 // @ref LLP 3000.007.001#2 — the binder and raw-schema admission share this walk.
 use super::*;
 
@@ -138,8 +138,25 @@ pub fn timeline_issues(schema: &Schema) -> Vec<SchemaIssue> {
     issues
 }
 
+// @ref LLP 3000.007#5.4 — raw catalogs must refuse impossible list ranges too.
+fn list_bounds_valid(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::ListRange { of, min, max } => min <= max && list_bounds_valid(of),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => list_bounds_valid(inner),
+        _ => true,
+    }
+}
+
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut walk = Walk { schema, issues: Vec::new() };
+    for (name, table) in &schema.tables {
+        for (field, kind) in &table.columns {
+            if !list_bounds_valid(kind) {
+                walk.issues.push(SchemaIssue { path: format!("tables.{name}.columns.{field}"),
+                    message: "list minimum must not exceed its maximum".into() });
+            }
+        }
+    }
     walk.issues.extend(timeline_issues(schema));
     let mut targets = BTreeSet::new();
     for (position, m) in schema.maintains.iter().enumerate() {

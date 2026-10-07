@@ -167,7 +167,7 @@ impl Dependencies {
 }
 fn asset(kind: &ColumnType) -> bool {
     match kind { ColumnType::Image { .. } | ColumnType::Video { .. } => true,
-        ColumnType::Optional(t) | ColumnType::List { of: t, .. } => asset(t), _ => false }
+        ColumnType::Optional(t) | ColumnType::List { of: t, .. } | ColumnType::ListRange { of: t, .. } => asset(t), _ => false }
 }
 
 /// Classify a complete interval. Legacy, pruned and over-limit intervals widen.

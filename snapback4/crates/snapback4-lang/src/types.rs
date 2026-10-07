@@ -108,7 +108,7 @@ impl Ty {
             TypeKind::Video { .. } => Ty::Video,
             TypeKind::Enum { variants } => Ty::Enum(variants.clone()),
             TypeKind::Ref { table } => Ty::Ref(table.clone()),
-            TypeKind::List { item, max } => Ty::List(Box::new(Ty::from_scalar(item)), *max),
+            TypeKind::List { item, max, .. } => Ty::List(Box::new(Ty::from_scalar(item)), *max),
         };
         if scalar.optional { base.optional() } else { base }
     }
@@ -130,7 +130,7 @@ impl Ty {
             ColumnType::Ref { table } => Ty::Ref(table.clone()),
             ColumnType::Json { .. } => Ty::Json,
             ColumnType::Optional(inner) => Ty::from_column(inner).optional(),
-            ColumnType::List { of, max } => Ty::List(Box::new(Ty::from_column(of)), *max),
+            ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. } => Ty::List(Box::new(Ty::from_column(of)), *max),
         }
     }
 
@@ -398,7 +398,8 @@ pub fn scalar_to_column(scalar: &ScalarType) -> ColumnType {
         TypeKind::Video { max } => ColumnType::Video { max: *max },
         TypeKind::Enum { variants } => ColumnType::Enum { variants: variants.clone() },
         TypeKind::Ref { table } => ColumnType::Ref { table: table.clone() },
-        TypeKind::List { item, max } => ColumnType::List { of: Box::new(scalar_to_column(item)), max: *max },
+        TypeKind::List { item, min: 0, max } => ColumnType::List { of: Box::new(scalar_to_column(item)), max: *max },
+        TypeKind::List { item, min, max } => ColumnType::ListRange { of: Box::new(scalar_to_column(item)), min: *min, max: *max },
     };
     if scalar.optional { ColumnType::Optional(Box::new(base)) } else { base }
 }
@@ -424,7 +425,8 @@ pub fn scalar_to_arg(scalar: &ScalarType) -> ArgType {
         TypeKind::Video { max } => ArgType::Video { max: *max },
         TypeKind::Enum { variants } => ArgType::Enum { variants: variants.clone() },
         TypeKind::Ref { table } => ArgType::Ref { table: table.clone() },
-        TypeKind::List { item, max } => ArgType::List { of: Some(Box::new(scalar_to_arg(item))), max: *max },
+        TypeKind::List { item, min: 0, max } => ArgType::List { of: Some(Box::new(scalar_to_arg(item))), max: *max },
+        TypeKind::List { item, min, max } => ArgType::ListRange { of: Some(Box::new(scalar_to_arg(item))), min: *min, max: *max },
     };
     if scalar.optional { ArgType::Optional(Box::new(base)) } else { base }
 }

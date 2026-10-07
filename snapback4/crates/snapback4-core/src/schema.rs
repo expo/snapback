@@ -441,8 +441,9 @@ pub enum ColumnType {
     Json { max_bytes: u32 },
     Optional(Box<ColumnType>),
     List { of: Box<ColumnType>, max: u32 },
+    // @ref LLP 3000.007#5.4 — a new enum tag makes older engines refuse the minimum.
+    ListRange { of: Box<ColumnType>, min: u32, max: u32 },
 }
-
 impl ColumnType {
     pub fn required(&self) -> &ColumnType {
         match self {
@@ -451,13 +452,11 @@ impl ColumnType {
         }
     }
 
-    pub fn is_optional(&self) -> bool {
-        matches!(self, Self::Optional(_))
-    }
+    pub fn is_optional(&self) -> bool { matches!(self, Self::Optional(_)) }
 
     pub fn is_indexable(&self) -> bool {
         match self {
-            Self::Image { .. } | Self::Video { .. } | Self::List { .. } | Self::Json { .. } => false,
+            Self::Image { .. } | Self::Video { .. } | Self::List { .. } | Self::ListRange { .. } | Self::Json { .. } => false,
             Self::Optional(inner) => inner.is_indexable(),
             _ => true,
         }
@@ -466,7 +465,7 @@ impl ColumnType {
     pub fn contains_asset(&self) -> bool {
         match self {
             Self::Image { .. } | Self::Video { .. } => true,
-            Self::Optional(inner) | Self::List { of: inner, .. } => inner.contains_asset(),
+            Self::Optional(inner) | Self::List { of: inner, .. } | Self::ListRange { of: inner, .. } => inner.contains_asset(),
             _ => false,
         }
     }
@@ -492,6 +491,7 @@ impl fmt::Display for ColumnType {
             Self::Json { max_bytes } => write!(f, "json <={max_bytes}"),
             Self::Optional(inner) => write!(f, "{inner} ?"),
             Self::List { of, max } => write!(f, "[{of}] <={max}"),
+            Self::ListRange { of, min, max } => write!(f, "[{of}] {min}..{max}"),
         }
     }
 }
@@ -1491,6 +1491,7 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
         ArgType::Json { max_bytes } => ColumnType::Json { max_bytes: *max_bytes },
         ArgType::Optional(inner) => ColumnType::Optional(Box::new(arg_as_column(inner)?)),
         ArgType::List { of, max } => ColumnType::List { of: Box::new(of.as_deref().map(arg_as_column).flatten().unwrap_or(ColumnType::Json { max_bytes: 4096 })), max: *max },
+        ArgType::ListRange { of, min, max } => ColumnType::ListRange { of: Box::new(of.as_deref().and_then(arg_as_column).unwrap_or(ColumnType::Json { max_bytes: 4096 })), min: *min, max: *max },
         ArgType::Enum { variants } => ColumnType::Enum { variants: variants.clone() },
         ArgType::Decimal { scale } => ColumnType::Decimal { scale: *scale },
         ArgType::Money { currency, scale } => ColumnType::Money { currency: currency.clone(), scale: *scale },

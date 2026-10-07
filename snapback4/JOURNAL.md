@@ -88225,3 +88225,83 @@ focused tests, complete pool and model logs. Builds used the packaged SQLite
 flag; wasm remained at the existing 639,941 B gzip budget. No full native
 suite or publication dry run is claimed. All work stayed in this mini worktree;
 no other host, simulator, X27R worktree, push or publication was involved.
+## 2026-10-06 — LB: inclusive list lower bounds
+
+Quarry now accepts `[T] a..b` wherever it accepts `[T] <=N`; the latter stays
+`0..N`. Parser diagnostics reject negative, oversized and reversed bounds.
+Operation admission and column writes enforce both bounds through the shared
+server/device validators, including optional/nested lists. Short inputs report
+`E_INPUT: peers needs at least 1 item; got 0`; action results retain their
+`E_ACTION_RESULT` policy and addressed writes retain authority masking.
+The explicit `require count(peers) >= 1` form still works. Introducing a column
+minimum is checked narrowing; lowering/removing it can widen the schema.
+
+Positive minima use a new `ListRange { of, min, max }` serde variant in argument
+and column types, so older readers refuse the unknown tag. Zero minima preserve
+the old `List { of, max }` bytes. No value encoding, protocol or digest algorithm
+changes. The [LB report](reports/20261006-lb-list-lower-bounds/REPORT.md) cites
+the prior rules, governing code and exact catalog/persistence changes. Generated
+TypeScript argument comments state the bounds; both guide cards demonstrate
+them within existing budgets. LLP 3000.007 §5.4 records the decision.
+
+Tests first reproduced the prior syntax rejection. The verified Rust inventory
+has 5,080 passes and 33 declared ignores, including 1,488 language passes and
+113 guide tests. The requested full script ran every stage; its initial Rust
+compile failure exposed a missing disclosure-generator match arm and prevented
+two client fixtures from being generated. The complete Rust rerun then exposed
+six guide-based read-authority fixtures still supplying empty tags. Those
+fixtures now supply one tag, retaining every authority assertion; their whole
+81-test target passes. Both fixture-dependent client files pass all 48 tests.
+Across the full run and corrected reruns, all 324 ordinary client files are
+verified (6,460 passes, 50 declared skips), both serial models pass 79 tests,
+and the fixture wrapper passes nine. Build, release guard, docs budgets,
+package/app typechecks and reference audit pass. Compressed logs retain the
+initial failures and final results; the whole shell script was not repeated.
+The added published-engine Darwin fences await the user's Mac run.
+
+Linux wasm measures 2,122,648 B raw / 641,203 B gzip, growing 5,313 / 1,315 B
+from the same-worktree base. The cap is 641,333 B: Linux plus 130 B for macOS.
+Its 1,392 B increase also restores 77 B of allowance missing from the prior
+cap relative to the rebuilt base. No Mac measurement is claimed. All work
+stayed in the supplied eb1000 worktree; final disk use is 28 GiB. No push or
+publication.
+
+## 2026-10-07 — LB round 1: tag examples, diagnostics and schema admission
+
+Applied the two READY WITH CHANGES reviews: canonical `rooms.tags`,
+`everything.tags` and `createRoom.tags` use `<=8` again, keeping empty tags
+valid and preserving their legacy `List` types. The existing comments still
+teach list ranges; `split.people` now uses `[principal] 1..8`, with an executable
+empty-list refusal. Removed the dummy tags from guide/readauth fixtures.
+Incomplete list ranges give a list-specific rewrite, fractional bounds report
+non-integers separately from overflow, and raw-schema admission rejects a
+reversed column range through nested/optional types. LLP 3000.007 §5.4 records
+these refinements. The published `doctor` fence now also checks persisted
+argument-only and nested-list programs. The author's prior mini run passed
+10/10 Darwin cases; these two added assertions await the final Mac run.
+
+The wasm cap is **641,638 B gzip**, using the author's measured macOS mini
+artifact (**2,122,955 B raw / 641,638 B gzip**) rather than the insufficient
+130 B allowance. Final Linux rebuilds before and after the reboot measure
+**2,122,648 B raw / 641,203 B gzip**: the observed host gap is 435 B gzip.
+The cap rises 305 B from 641,333 B. Shared core Rust build inputs changed in
+round 1 (`schema/columns.rs`); Linux sizes remain unchanged, but the final tree
+still needs the author's macOS remeasurement. No runtime ceiling changes.
+
+The 2026-10-06 eb1000 reboot interrupted verification. On resumption, the
+worktree diff was intact and no lane test process survived. The interrupted
+log is retained, and the complete suite restarted with the SQLite publication
+flag, six Cargo jobs and incremental compilation disabled. All work remains
+in this eb1000 worktree; no other host, push or publication. The
+[round-1 report](reports/20261006-lb-list-lower-bounds/REPORT.md#round-1--review-changes-2026-10-06)
+retains the review dispositions and verification evidence.
+
+The restarted full suite passed with **0 failures in 2,241 seconds**. Rust:
+5,083 passes / 33 declared ignores, including 1,491 language passes, 113 guide
+tests, 81 readauth tests, 14 language list tests and both device list tests.
+All 324 ordinary client files passed (6,460 tests / 50 declared skips), including
+the process/wasm list cases; both full-count serial models passed 79 tests and
+the fixture wrapper passed nine. Build, wasm, release guard, docs budgets,
+package/app typechecks and the reference audit passed. The full script exited
+zero in one completed post-reboot run; no interrupted result is counted as a
+pass. Final worktree disk use is approximately 15 GiB, below 40 GB.

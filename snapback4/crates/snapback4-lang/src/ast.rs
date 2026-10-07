@@ -21,7 +21,7 @@ pub enum TypeKind {
     Video { max: u32 },
     Enum { variants: Vec<String> },
     Ref { table: String },
-    List { item: Box<ScalarType>, max: u32 },
+    List { item: Box<ScalarType>, min: u32, max: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
