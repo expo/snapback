@@ -88094,6 +88094,60 @@ reference audit and diff checks passed. Full suite and wasm rebuild were not
 repeated for this scoped follow-up; no wasm inputs or budget changed. Worked
 only on eb1000, with no push. See the [Round 1 report](reports/20261006-hr-headless-registration/REPORT.md#round-1--review-fixes-2026-10-06).
 
+
+## 2026-10-06 — RX: bounded live references keep write authority in the table
+
+Lane RX, eb1000 only, `sb4-intent/rx-rule-hops`, base `9bcf6cfb630e`.
+Write-rule terms now follow up to three ordinary live references, including
+unique-probe keys and explicit named-id lookups. Final-insert obligations
+resolve authorized hop keys at transaction end. Missing or denied links remain
+unknown under negation; each syntactic hop prepays its probe under the existing
+physical allowance. Final keys keep a declared copy reservation after their
+read scratch ends. No resource or write-cost ceiling was raised.
+
+The coverage regressions exposed an existing hole: cached retained rows with
+Unknown scope metadata could act as current authority. Tracked witnesses now
+require affirmative current coverage; pending rows keep their existing path.
+Memory, SQLite, wasm and process witnesses exercise table-owned membership
+checks with no mutation `require`, rejection without disclosure, and withheld
+predictions when coverage is missing. Diagnostics name actual parent tables,
+private owners and maintained-view group keys; guide rules stays at 374 lines.
+
+Calibration #31's exact depth-one membership rule already compiled on published
+0.4.13. The report distinguishes that verified control from the three lost
+source spellings in its M3 log. RX extends composition instead of claiming to
+introduce an already accepted probe-key form. LLP 3000.007 §5.4 records the
+amendment; LLP 3000.014's capture and lifetime semantics remain in force.
+
+Chains add `ReferenceChain` schema bytes; chains and final-obligation hops add
+`rule-reference-v2`. Published 0.4.13 refuses initial open and persisted reopen
+on wasm/native and refuses the engine store without changing it. Linux wasm
+measures 2,129,835 B raw / 643,098 B gzip; cap 643,228 B is exactly Linux +
+130 B for macOS. No Darwin claim, publication or push. The full qualification,
+serialized-byte inventory, baseline evidence and Mac fence command are in
+[the RX report](reports/20261006-rx-rule-hops/REPORT.md).
+
+
+## 2026-10-07 — RX qualification resumed after eb1000 reboot
+
+The 2026-10-06 08:45Z reboot killed the full rerun. The worktree, staged diff
+and all 28 recorded source/metric hashes survived unchanged; no old test
+process remained. Re-ran the entire suite on eb1000 with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`: **0 failures in 2,079 s**.
+Rust/tests and doctests: 5,088 passes, 33 ignored. All 325 client files pass
+(6,463 tests, 47 skips); both serial models pass (79 tests); fixture wrapper
+passes (9 tests). Guide, builds, typechecks, reference and source-line audits
+pass. RX client and published-engine fences ran without skips.
+
+Wasm reproduces 2,129,835 B raw / 643,098 B gzip against the 643,228 B cap.
+The largest sampled worktree use was 17G, below the 40 GB limit. The earlier
+completed run's intermittent native-export status failure remains an open
+[filesystem ticket](../issues/20261006-snapback4-native-export-status-intermittent.md),
+with its failing log and successful diagnostic repetitions retained; it did
+not recur in this full run. No exporter assertion or implementation changed.
+The [RX report](reports/20261006-rx-rule-hops/REPORT.md) carries completed,
+interrupted and baseline evidence separately. No push or publication.
+
 ## 2026-10-06 — RM: exhaustive typed read rendering
 
 Added `matchRead` to `snapback4/contract` and re-exported it from
@@ -88388,3 +88442,48 @@ passed (6,467 tests passed / 47 skipped), and both serial models passed all
 79 tests. Builds, docs budget, release guard, typechecks and wasm budget
 passed. Final reference and diff audits passed. The full run repeated every
 affected test after recovery; no interrupted process supplies qualification.
+
+## 2026-10-07 — RX round 1: preserve published one-hop identity
+
+Both independent round-0 reviewers found the same compatibility regression:
+per-occurrence reasons prevented ordinary one-hop site coalescing, changed
+schema/generation identity for unchanged 0.4.13 source, and triggered device
+acquisition resets and image loss. Restore the exact legacy sites and reasons
+for ordinary `Reference` terms. Only `ReferenceChain` and final-obligation
+reference keys keep occurrence metadata, under `rule-reference-v2`. The cost
+walker and meter still enumerate/pay all one-hop occurrences. No hash inputs
+are ignored and no adoption/reset exception is added.
+
+Frozen integrity-verified 0.4.13 backends now compare byte for byte for
+zero-hop and repeated one-hop schemas. The tests-first control passed for
+zero hops and failed on the one-hop site list before the fix. The real-package
+regression also checks unchanged server generation/backend bytes and upgrades
+native/wasm devices with acquired rows and a pending edit, retaining watermark
+42, confirmed images and local query availability. The author's prior mini
+run passed the round-0 Darwin fence 7/7 and capability test 2/2; those are
+reported author results, not executions by this Linux lane.
+
+Merged `origin/main` `c67b1c4f21` (LB and PK included) into the RX branch;
+no rebase. Preserve both branches' LLP, journal and wasm history. PK's
+`bind/program.rs` is unchanged from main. Merged Linux wasm is **2,135,164 B raw
+/ 645,264 B gzip**. Set the cap to **645,564 B = Linux 645,264 + 300 B** as the
+requested provisional macOS allowance; main's LB cap was 641,638 B. The author
+measured round-0 macOS at **643,358 B gzip** versus Linux **643,098 B**, a
+**260 B** gap, so the previous 130 B allowance was insufficient. The merged
+Mac measurement awaits the author's mini run. No runtime ceiling change,
+Mac execution, push or publication. The [RX report](reports/20261006-rx-rule-hops/REPORT.md#round-1--legacy-identity-and-merged-qualification-2026-10-07)
+records the review correction and verification evidence.
+
+RX round-1 verification completed: 160 focused language/guide/lowering tests,
+18 NL language tests, 10 core meter tests, 1,465 device tests (four declared
+ignores), and all seven RX client checks pass. The full script finished in
+2,386 seconds with one failed stage: Rust passed 5,120 tests (33 ignores),
+models 79/79 and fixture wrappers 9/9, while two of 328 client files timed out.
+Both complete-file reruns pass: residency 10/10; export background 58 passes
+plus 36 platform skips. The identical recreated-watch timeout reproduced on
+the published 0.4.13 engine (one of ten controls; RX passed ten of ten). The
+export deadline timeout's cause and baseline reproducibility remain unknown.
+Both failures are preserved in the report and dated open issues; no assertion,
+deadline or test count was changed, and no green whole-script result is claimed.
+Reference and source-line audits pass. Final disk use is below 20 GiB, within
+the 40 GB limit. Commit only; nothing pushed or published.

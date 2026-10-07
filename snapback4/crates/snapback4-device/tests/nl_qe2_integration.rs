@@ -65,12 +65,11 @@ fn rule_presence_facts_keep_reference_image_and_hop_limits() {
     ] {
         checked(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  public\n  {rule}\n"));
     }
-    for rule in [
-        "read <- .parent.low != null and .parent.high != null and exists conversations[.parent.low, .parent.high]",
-        "after insert <- exists conversations[.parent.low, .parent.high]",
-    ] {
-        refused(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  {rule}\n"), "E_QUARRY_RULE_HOP");
-    }
+    refused(&format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  read <- .parent.low != null and .parent.high != null and exists conversations[.parent.low, .parent.high]\n"), "E_QUARRY_RULE_HOP");
+    // RX admits final hops, but cannot turn optional fields into a unique point.
+    let final_rule = format!("{KEYS}{PARENTS}table children:\n  parent: parents\n  after insert <- exists conversations[.parent.low, .parent.high]\n");
+    refused(&final_rule, "E_QUARRY_NULL_KEY");
+    checked(&final_rule.replace("principal ?", "principal"));
 }
 
 #[test]

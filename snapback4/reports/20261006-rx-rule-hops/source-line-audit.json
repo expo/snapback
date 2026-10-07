@@ -1,0 +1,29 @@
+{
+  "limit": 1500,
+  "files": {
+    "snapback4/crates/snapback4-core/src/engine/qe2_allocation_tests.rs": 282,
+    "snapback4/crates/snapback4-core/src/engine/read.rs": 1500,
+    "snapback4/crates/snapback4-core/src/engine/read_auth.rs": 245,
+    "snapback4/crates/snapback4-core/src/engine/rule_reference.rs": 58,
+    "snapback4/crates/snapback4-core/src/engine/rules.rs": 472,
+    "snapback4/crates/snapback4-core/src/engine/write.rs": 780,
+    "snapback4/crates/snapback4-core/src/revocation.rs": 237,
+    "snapback4/crates/snapback4-core/src/schema.rs": 1498,
+    "snapback4/crates/snapback4-core/src/schema/capabilities.rs": 172,
+    "snapback4/crates/snapback4-core/src/schema/reference.rs": 87,
+    "snapback4/crates/snapback4-device/tests/nl_qe2_integration.rs": 181,
+    "snapback4/crates/snapback4-device/tests/rx_rule_hops.rs": 65,
+    "snapback4/crates/snapback4-lang/src/bind/residency.rs": 604,
+    "snapback4/crates/snapback4-lang/src/bind/residency/receipts.rs": 345,
+    "snapback4/crates/snapback4-lang/src/bind/rule_reference.rs": 108,
+    "snapback4/crates/snapback4-lang/src/bind/schema.rs": 815,
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": 357,
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": 274,
+    "snapback4/crates/snapback4-lang/tests/qe2_ergonomics.rs": 255,
+    "snapback4/crates/snapback4-lang/tests/rx_rule_enforcement.rs": 143,
+    "snapback4/crates/snapback4-lang/tests/rx_rule_hops.rs": 130,
+    "snapback4/crates/snapback4/src/verbs.rs": 1276,
+    "snapback4/packages/snapback4/test/rx-rule-hop-capability.test.mjs": 54,
+    "snapback4/packages/snapback4/test/rx-rule-hops.test.mjs": 67
+  }
+}

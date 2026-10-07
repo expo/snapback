@@ -1,0 +1,91 @@
+TAP version 13
+# Subtest: server-class watches run locally first and recover remembered server data offline
+not ok 1 - server-class watches run locally first and recover remembered server data offline
+  ---
+  duration_ms: 122378.059631
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rx/snapback4/packages/snapback4/test/residency.test.mjs:121:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_HANG: recreated watch recovers the server answer; 1 work unit(s), 122000 ms elapsed, 122000 ms guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-rx/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+    listOnTimeout (node:internal/timers:605:17)
+    process.processTimers (node:internal/timers:541:7)
+  ...
+# Subtest: offline cold watches withhold placeholders, persisted local reads still work
+ok 2 - offline cold watches withhold placeholders, persisted local reads still work
+  ---
+  duration_ms: 1222.97494
+  type: 'test'
+  ...
+# Subtest: connected recovers a server false offline instead of the device presence assumption
+ok 3 - connected recovers a server false offline instead of the device presence assumption
+  ---
+  duration_ms: 230.568201
+  type: 'test'
+  ...
+#   alice notes: 2 rows, 106 bytes
+#   bob notes: 2 rows, 106 bytes
+#   alice counts: 1 rows, 63 bytes
+#   bob counts: 1 rows, 63 bytes
+#   alice permits: 0 rows, 0 bytes
+#   bob permits: 0 rows, 0 bytes
+#   alice total: 3 rows, 169 bytes
+#   bob total: 3 rows, 169 bytes
+#   total across personas: 6 rows, 338 bytes
+#   maintain counts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED
+# Subtest: clock advance expires presence on the server and a device
+ok 4 - clock advance expires presence on the server and a device
+  ---
+  duration_ms: 265.607196
+  type: 'test'
+  ...
+# presence device: advanced_ms=36000 before=1 after=0 wall_ms=18.18
+# Subtest: presence effects residency is additive in check, why and generated artifacts
+ok 5 - presence effects residency is additive in check, why and generated artifacts
+  ---
+  duration_ms: 53.568612
+  type: 'test'
+  ...
+# Subtest: check sidecar, why and test residency print facts, changes and measured cold rows
+ok 6 - check sidecar, why and test residency print facts, changes and measured cold rows
+  ---
+  duration_ms: 106.079487
+  type: 'test'
+  ...
+# Subtest: dev compares residency with the served generation even when check advanced its sidecar
+ok 7 - dev compares residency with the served generation even when check advanced its sidecar
+  ---
+  duration_ms: 559.251942
+  type: 'test'
+  ...
+# Subtest: provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+ok 8 - provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 764.304133
+  type: 'test'
+  ...
+# Subtest: provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+ok 9 - provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 227.046802
+  type: 'test'
+  ...
+# Subtest: rule 5: a real process device never recovers private memory after its permit expiry
+ok 10 - rule 5: a real process device never recovers private memory after its permit expiry
+  ---
+  duration_ms: 3167.047935
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 129146.417045
+-- process inspection: {"snapshots":3,"unrelatedRows":3694}
+-- client file FAIL: packages/snapback4/test/residency.test.mjs (129450 ms)

@@ -1,0 +1,35 @@
+   Compiling libsqlite3-sys v0.38.2
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 50.92s
+     Running tests/intent_nulls.rs (target/debug/deps/intent_nulls-32b0ffdf56634d32)
+
+running 7 tests
+test nullable_membership_never_sends_a_null_prefix_to_the_store ... ok
+test nullable_lists_preserve_membership_deduplication_authorization_and_cuts ... ok
+test nullable_value_discovery_cuts_never_publish_a_prefix_cursor ... ok
+test nullable_membership_mutations_preserve_both_authorized_owners ... ok
+test nullable_value_lanes_page_in_both_directions_with_words_and_projection ... ok
+test ordered_nullable_membership_preserves_every_distinct_value ... ok
+test nullable_membership_accepts_nonnull_range_sources_without_a_fallback ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+     Running tests/pure_call_narrowing.rs (target/debug/deps/pure_call_narrowing-e5abce609b4a1e6d)
+
+running 11 tests
+test direct_and_transitive_connection_reads_do_not_narrow ... ok
+test argument_order_is_part_of_a_pure_calls_identity ... ok
+test direct_and_transitive_minted_ids_do_not_narrow ... ok
+test helper_page_loop_cannot_narrow_across_deleting_the_observed_row ... ok
+test exists_cannot_narrow_across_deleting_the_observed_row ... ok
+test table_count_cannot_narrow_across_deleting_the_observed_row ... ok
+test reassignment_and_loop_carries_invalidate_every_argument_dependency ... ok
+test call_facts_follow_branch_scope_and_surviving_guards ... ok
+test read_effect_clock_and_unstable_arguments_keep_the_bind_once_rewrite ... ok
+test implicit_shape_and_aggregate_snapshots_narrow_without_leaking_facts ... ok
+test builders_exact_ttl_expression_and_nested_calls_compile_and_run ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s

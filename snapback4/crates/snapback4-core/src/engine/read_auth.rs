@@ -76,13 +76,21 @@ impl Runner<'_> {
     pub(super) fn witness_covered(&self, table: &str, index: &str, key: &[Value], row: &Value) -> Result<bool, RuntimeError> {
         // Own pending writes are facts in the combined state, even in a Left
         // group. Settlement removes their dependents if the server refuses.
+        // @ref LLP 3000.007#5.4 — unknown coverage is not current authority.
+        // Until-revoked delivered images prove their own current membership;
+        // retained/subset images need affirmative scope evidence, not merely
+        // the absence of a Left marker (Unknown is distinct from Retained).
+        let tracked = self.schema.tables[table].leave == crate::schema::LeavePolicy::DeliveredHistory
+            || self.schema.maintain_for(table).is_some_and(|m| m.own_keys.is_some());
         Ok(!self.device || self.is_provisional(table, row)? ||
-            (self.schema.tables[table].sync.is_some() && !self.tx.retained_row(table, row)? && !self.tx.retained_group(table, index, key)?))
+            (self.schema.tables[table].sync.is_some() && (!tracked || self.tx.current_row(table, row)?)
+                && !self.tx.retained_row(table, row)? && !self.tx.retained_group(table, index, key)?))
     }
 
     pub(super) fn authorization_absence_covered(&mut self, allowance: &Authorization, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let Some(sync) = &definition.sync else { return Ok(false) };
+        if definition.leave == crate::schema::LeavePolicy::DeliveredHistory && !self.tx.current_group(table, index, key)? { return Ok(false); }
         if sync.horizon.is_some() || self.tx.retained_group(table, index, key)? { return Ok(false); }
         let pinned: std::collections::BTreeMap<_, _> = crate::small_map::collect(definition.index(index).expect("validated index").columns().into_iter().zip(key));
         match &sync.audience {

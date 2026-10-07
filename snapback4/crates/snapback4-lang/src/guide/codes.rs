@@ -1,5 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
-    ("E_QUARRY_RULE_HOP", "this rule position cannot follow that reference. Use table[.ref].field in a mutation require, or read through .ref for inherited read authority; guide rules."),
+    ("E_QUARRY_RULE_HOP", "write rules and after insert keys allow at most three live authorized reference hops. Private/maintained fields and ephemeral targets refuse; the located rewrite binds the actual parents and requires the predicate in the mutation. Read authority uses read through; guide rules."),
     ("E_JOB_VIEWER_CONTEXT", "as belongs inside a server job sweep and cannot nest. Put as recipient.principal: inside the recipient loop; guide jobs."),
     ("E_JOB_VIEWER_PRINCIPAL", "as needs a present non-system principal. Use a principal column or argument; keep intentional system reads outside as; guide jobs."),
     ("E_JOB_VIEWER_READ_ONLY", "as is read-only: writes, emits, new ids and once asset consumption are refused. Compute inside as; act outside the block; guide jobs."),

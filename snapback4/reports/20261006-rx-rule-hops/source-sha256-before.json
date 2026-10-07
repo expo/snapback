@@ -1,0 +1,32 @@
+{
+  "head": "9bcf6cfb630ea1947ccbfd2b397c5c1c884cd2bf",
+  "files": {
+    "snapback4/crates/snapback4-core/src/engine/qe2_allocation_tests.rs": "fbba225553a0c647bc0f9460efe31187347678ed9cccc3b2b9ed427ef4dcc072",
+    "snapback4/crates/snapback4-core/src/engine/read.rs": "374449be0f572620a5e89ebe77fd4a7d6aa71b0606ee3d1b27de6c0794f44ce5",
+    "snapback4/crates/snapback4-core/src/engine/read_auth.rs": "60be10204a363ec771be557e7e5459cee50a00e62530f9c130a748795a868b4f",
+    "snapback4/crates/snapback4-core/src/engine/rule_reference.rs": "c58034efb49603b48bf1bc7fca34326cf63a498f2ea904f0fc6b43cc375ad12c",
+    "snapback4/crates/snapback4-core/src/engine/rules.rs": "4de8ecd2b324716acfb62111c0590bfcd5d71f3e715d6dbef9cc10b70591ff5c",
+    "snapback4/crates/snapback4-core/src/engine/write.rs": "f280cbdbd1615f791504e680832bcc5328d98cbd8efda02e781a3e158147dcb4",
+    "snapback4/crates/snapback4-core/src/revocation.rs": "52c88b3c13faf0509aa4b254be8403d659fbd2d99f668b9758e74332f2a4e903",
+    "snapback4/crates/snapback4-core/src/schema.rs": "20084801104c6b535b78f141b711458a727fc139139271526a4d3a7b17e2de5e",
+    "snapback4/crates/snapback4-core/src/schema/capabilities.rs": "9b3913b860c49201838b48eaf2d941d84fa5c4223c43c30862193a7c0ec19e9a",
+    "snapback4/crates/snapback4-core/src/schema/reference.rs": "1ca8bc05d56906456c4665d1859f5972c5f30e13f1e50b53da9f304ff33a94f2",
+    "snapback4/crates/snapback4-device/tests/rx_rule_hops.rs": "8e020708dbfaf07ed9d5049329d7ef3c6a158dc68c68247c316b941a84d80a9c",
+    "snapback4/crates/snapback4-lang/src/bind/residency.rs": "1ba6967a62169a78f6a9f8e75c6dee3cb461c9d5436479d1d5683a5d6959ea08",
+    "snapback4/crates/snapback4-lang/src/bind/residency/receipts.rs": "6dd4832a9c282a129f57edbf99325679b744d0719d72119a439ecb5315bad3fb",
+    "snapback4/crates/snapback4-lang/src/bind/rule_reference.rs": "671c790ee4b5e575d12ab45408a583ab03430f985247ecd9b8a6d7e4d20594e4",
+    "snapback4/crates/snapback4-lang/src/bind/schema.rs": "65a770baf7d49005979653baa6ce769bafa35cb695b55505717d31ec18968128",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "b38c2e0451d1a8171edeafd4fb3eced6cebe502cd3130b2e0e83bee3c1aa858b",
+    "snapback4/crates/snapback4-lang/src/guide/rules.md": "eb924d2081983a969d030dcda719cec8087b57b1f0c3a4b52bcd2c8b84247849",
+    "snapback4/crates/snapback4-lang/src/guide/why/E_QUARRY_RULE_HOP.md": "964a5dda71efbcbc0206b5f56607820c637ab9bb351ef0c34bbe9a7880690786",
+    "snapback4/crates/snapback4-lang/tests/fixtures/rx/reactions.q": "1783c24643bdb0a8269b86cdf49606e766b5a8fb3ad723cf0e43ddaab74abf8a",
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": "75539b1beac1ab81c76b8bd5b1685c781ba258573926d6d61f36fb935a55be7f",
+    "snapback4/crates/snapback4-lang/tests/qe2_ergonomics.rs": "5c34d705d1f269b732bbca2497ddea872bc19356b61a84233739b7e5635509fb",
+    "snapback4/crates/snapback4-lang/tests/rx_rule_enforcement.rs": "27f9a705a0c7d7aa23ae4aca1375a9f967c6fdce9812f4b950e2672d67799486",
+    "snapback4/crates/snapback4-lang/tests/rx_rule_hops.rs": "a0f13d9601579b9cd7cded66703ed2e43315374e4885e8e5cf981d9e3f2518cf",
+    "snapback4/crates/snapback4/src/verbs.rs": "2264ee7ec5bb007e1474fba5059ddf3113e4a9cf397ca3ea1808e38e04abaf7e",
+    "snapback4/metrics/wasm-budget.json": "6c5040d29b9c614f85971e6416d2ea0e567fd3f62f388ecb715ea62f13fa1d33",
+    "snapback4/packages/snapback4/test/rx-rule-hop-capability.test.mjs": "841c8c743e29fa230531ba73267b0b2bb94d788d2e2b3d83c1148780825c5c01",
+    "snapback4/packages/snapback4/test/rx-rule-hops.test.mjs": "96c6ee55e0a4b13822663f7764892d9f32c96b2678cfdd9dec06086da1259e7d"
+  }
+}

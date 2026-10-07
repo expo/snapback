@@ -1,0 +1,25 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 42.59s
+     Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-c40f3bd75bca6982)
+
+running 9 tests
+test reference_null_equality_guards_keep_logical_edge_admission ... ok
+test rule_presence_facts_keep_reference_image_and_hop_limits ... ok
+test nullable_point_presence_requires_admission_before_narrowing ... ok
+test memory_guards_hops_and_nullable_points ... ok
+test sqlite_guards_hops_and_nullable_points ... ok
+test horizon_null::null_hop_with_horizon_memory ... ok
+test horizon_null::null_hop_with_horizon_sqlite ... ok
+test null_runtime::expired_null_ties_memory ... ok
+test null_runtime::expired_null_ties_sqlite ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.70s
+
+     Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-58d90ba22ebf6add)
+
+running 2 tests
+test memory_chains_and_final_obligations_need_every_covered_row ... ok
+test sqlite_chains_and_final_obligations_need_every_covered_row ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s

@@ -380,7 +380,9 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
 pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
-        super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error)
+        let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
+        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &rule.value); }
+        error
     })
 }
 
@@ -516,11 +518,11 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
     match expr {
         Expr::Name { name, .. } if name == "viewer" => Ok((RuleTerm::Viewer, Ty::Principal)),
         Expr::Member { base, name, .. } => match base.as_ref() {
-            Expr::Read(read) if read.keys.len() == 1 && read.keys[0].column.is_none()
+            Expr::Read(read) if read.keys.len() == 1 && read.keys[0].column.as_deref().is_none_or(|c| c == "id")
                 && read.range.is_none() && read.filter.is_none() && read.matching.is_none()
                 && read.index.is_none() && read.seeks.is_empty() => {
                 let result = rule_reference(catalog, info, &read.keys[0].value, name, bindings, site)?;
-                if matches!(&result.0, RuleTerm::Reference { table, .. } if table == &read.table) { Ok(result) }
+                if result.0.references().last().is_some_and(|(table, _)| table == read.table) { Ok(result) }
                 else { Err(type_error(site, "the lookup table differs from the reference type", "use the reference's declared table")) }
             }
             Expr::Focal { .. } => {
@@ -572,8 +574,11 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
 /// Final-insert obligations retain their exact-index write-path contract.
 /// Ordinary effect rules use `probe` with residual equalities enabled.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
-    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: false, present: Vec::new() };
-    let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false)?;
+    let bindings = RuleBindings { old: None, next: None, update, insert: false, hops: true, present: Vec::new() };
+    let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false).map_err(|mut error| {
+        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &Expr::Exists { read: read.clone(), site: site.clone() }); }
+        error
+    })?;
     Ok((table, index, key))
 }
 

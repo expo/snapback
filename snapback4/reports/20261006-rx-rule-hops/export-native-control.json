@@ -1,0 +1,156 @@
+{
+  "original_sha256": "c987d266308a50cf038e3bccbe204b08a5427e2cd89a51be0b5f4c573b84c99c",
+  "trials": [
+    {
+      "trial": 1,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (396.664806ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 450.303692\n",
+      "stderr": ""
+    },
+    {
+      "trial": 2,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (407.201417ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 467.143524\n",
+      "stderr": ""
+    },
+    {
+      "trial": 3,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (388.715616ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 440.929794\n",
+      "stderr": ""
+    },
+    {
+      "trial": 4,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (405.781647ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 460.280822\n",
+      "stderr": ""
+    },
+    {
+      "trial": 5,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (393.127893ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 448.227467\n",
+      "stderr": ""
+    },
+    {
+      "trial": 6,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (372.451977ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 424.66906\n",
+      "stderr": ""
+    },
+    {
+      "trial": 7,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (425.915058ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 479.178841\n",
+      "stderr": ""
+    },
+    {
+      "trial": 8,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (397.882241ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 448.651933\n",
+      "stderr": ""
+    },
+    {
+      "trial": 9,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (669.551286ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 730.285011\n",
+      "stderr": ""
+    },
+    {
+      "trial": 10,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (539.096911ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 607.907127\n",
+      "stderr": ""
+    },
+    {
+      "trial": 11,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (428.661285ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 486.673268\n",
+      "stderr": ""
+    },
+    {
+      "trial": 12,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (420.512315ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 473.047785\n",
+      "stderr": ""
+    },
+    {
+      "trial": 13,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (432.095855ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 494.05061\n",
+      "stderr": ""
+    },
+    {
+      "trial": 14,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (412.883484ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 467.843841\n",
+      "stderr": ""
+    },
+    {
+      "trial": 15,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (409.460391ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 464.342881\n",
+      "stderr": ""
+    },
+    {
+      "trial": 16,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (400.278232ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 452.000583\n",
+      "stderr": ""
+    },
+    {
+      "trial": 17,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (400.32433ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 467.15671\n",
+      "stderr": ""
+    },
+    {
+      "trial": 18,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (417.941678ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 482.504084\n",
+      "stderr": ""
+    },
+    {
+      "trial": 19,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (408.123115ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 466.616419\n",
+      "stderr": ""
+    },
+    {
+      "trial": 20,
+      "binary": "current",
+      "status": 0,
+      "stdout": "\u2714 npm bin symlink really exports, preserves export failure and honors opt-out (416.944363ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 468.958891\n",
+      "stderr": ""
+    }
+  ],
+  "invalid_legacy_control": {
+    "reason": "Published 0.4.13 lacks this checkout\u2019s export-maintenance/export-lease initialization protocol; this is not a baseline reproduction of the exit-status failure.",
+    "attempts": 20,
+    "example": {
+      "trial": 1,
+      "binary": "published-0.4.13",
+      "status": 1,
+      "stdout": "\u2716 npm bin symlink really exports, preserves export failure and honors opt-out (125.118825ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 0\n\u2139 fail 1\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 177.665592\n\n\u2716 failing tests:\n\ntest at target/rx/export-native-diagnostic.mjs:70:1\n\u2716 npm bin symlink really exports, preserves export failure and honors opt-out (125.118825ms)\n  AssertionError [ERR_ASSERTION]: E_WITNESS_INPUT: use snapback4 witness acquire --as <persona|principal> [--restart] or snapback4 witness ios --build . --smoke [--udid <id>] [--port N] [--artifacts <dir>]; see snapback4 guide witness for installed-app scenarios; see snapback4 guide witness\n  E_WITNESS_INPUT: use snapback4 witness acquire --as <persona|principal> [--restart] or snapback4 witness ios --build . --smoke [--udid <id>] [--port N] [--artifacts <dir>]; see snapback4 guide witness for installed-app scenarios; see snapback4 guide witness\n  native smoke evidence cleanup deferred; the next export will retry maintenance\n  export:ios failed: E_WITNESS_INPUT: export-lease requires its run directory\n  \n  \n  \n  1 !== 0\n  \n      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rx/snapback4/target/rx/export-native-diagnostic.mjs:81:39)\n      at async Test.run (node:internal/test_runner/test:1110:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: 1,\n    expected: 0,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    }
+  }
+}

@@ -235,3 +235,48 @@ fn receipt_results_complete_ordinary_fields_inside_the_existing_copy_reservation
         assert_eq!(result, object([("label", Value::String("ready".into())), ("note", Value::Null), ("photo", Value::Null), ("text", Value::String("hello".into()))]));
     }
 }
+
+#[test]
+fn live_chain_occurrences_prepay_each_link_on_both_runners() {
+    for (rule, probes) in [
+        (".message.room.value = 1", 2),
+        (".message.room.value = .message.room.value", 4),
+        ("true or .message.room.value = 1", 2),
+        ("exists witnesses[value = .message.room.value]", 3),
+    ] {
+        let source = format!("table rooms:\n  value: int\n  public\n  sync public\ntable messages:\n  room: rooms\n  public\n  sync public\ntable witnesses:\n  value: int\n  unique value\n  public\n  sync public\ntable children:\n  message: messages\n  public\n  insert <- {rule}\n  sync public\nmutation add():\n  insert children {{ id: 'child', message: 'm' }}\n  return true\n");
+        let execute = |device| run_seeded(&source,"add",device,Default::default(),|schema,rows| {
+            for (table,row) in [
+                ("rooms",object([("id",Value::Id("c".into())),("value",Value::Int(1))])),
+                ("messages",object([("id",Value::Id("m".into())),("room",Value::Id("c".into()))])),
+                ("witnesses",object([("id",Value::Id("w".into())),("value",Value::Int(1))])),
+            ] { rows.put(table,&schema.tables[table],&row,None).unwrap(); }
+        });
+        let server = execute(false);
+        assert_eq!(server.1.rule_probes,probes,"{rule}");
+        assert_eq!(server,execute(true),"{rule}: all seven public meters and result agree");
+    }
+}
+
+#[test]
+fn final_hop_keys_remain_charged_after_authorized_scratch_is_released() {
+    use crate::schema::{RuleExpr, RuleTerm};
+    let source = "table parents:\n  value: text <=200\n  public\n  sync public\ntable witnesses:\n  value: text <=200\n  unique byValue: value\n  public\n  sync public\ntable children:\n  parent: parents\n  public\n  sync public\n  insert <- allow\n  after insert <- exists witnesses[value = .parent.value]\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}",bound.diagnostics);
+    let schema: Schema = crate::json_codec::from_text(&crate::json_codec::to_text(&bound.schema).unwrap()).unwrap();
+    for device in [false,true] {
+        let rows = MemoryRows::default();
+        rows.put("parents", &schema.tables["parents"], &object([
+            ("id",Value::Id("p".into())), ("value",Value::String("x".repeat(200)))
+        ]),None).unwrap();
+        let mut runner = Runner::new(&rows,&schema,Context::new("alice",Default::default()).at(100),Meter::new(Ceilings::default(),Cut::Abort),0);
+        runner.device = device;
+        if device { runner.device_allowance = Some(Meter::new(Ceilings::default(),Cut::Abort)); }
+        let rule = RuleExpr::Exists { table: "witnesses".into(), index: "byValue".into(), key: vec![RuleTerm::Reference { table:"parents".into(), column:"parent".into(), field:"value".into(), old:false }], equalities:vec![], provenance:crate::ir::KeyProvenance::Shape };
+        let key = runner.final_reference_key("children",&rule,&object([("parent",Value::Id("p".into()))])).unwrap().unwrap();
+        assert_eq!(key,vec![Value::String("x".repeat(200))]);
+        assert!(runner.meter.used.heap_bytes >= 800, "the returned key is still owned after private read scratch ends");
+        assert_eq!(runner.meter.used.rule_probes,1);
+    }
+}
